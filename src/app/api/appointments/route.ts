@@ -8,7 +8,8 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
 
-    const where: Record<string, unknown> = { businessId: DEMO_BUSINESS_ID };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = { businessId: DEMO_BUSINESS_ID };
 
     if (from || to) {
       where.date = {};

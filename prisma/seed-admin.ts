@@ -102,6 +102,25 @@ async function main() {
     update: {},
   });
 
+  // Mark owner and superAdmin as having completed onboarding
+  for (const u of [owner, superAdmin]) {
+    await prisma.onboardingProgress.upsert({
+      where: { userId: u.id },
+      create: {
+        userId: u.id,
+        currentStep: 4,
+        stepCompleted1: true,
+        stepCompleted2: true,
+        stepCompleted3: true,
+        stepCompleted4: true,
+        startedAt: new Date(),
+        completedAt: new Date(),
+      },
+      update: {},
+    });
+  }
+  console.log("✅ Onboarding progress seeded for owner + superAdmin");
+
   // Seed initial feature flags
   const flags = [
     { key: "boarding.enabled", value: "true", description: "Enable boarding module" },

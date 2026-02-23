@@ -22,7 +22,7 @@ export async function PATCH(
       );
     }
 
-    const data: Record<string, unknown> = {};
+    const data: any = {};
     if (status !== undefined) data.status = status;
     if (notes !== undefined) data.notes = notes;
     if (cancellationNote !== undefined) data.cancellationNote = cancellationNote;

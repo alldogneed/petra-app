@@ -22,7 +22,12 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, type, duration, price, color, isActive } = body;
+    const {
+      name, type, duration, price, color, isActive,
+      description, includesVat,
+      isPublicBookable, bookingMode, paymentUrl,
+      depositRequired, depositAmount,
+    } = body;
 
     if (!name || !type || !duration || price === undefined) {
       return NextResponse.json(
@@ -35,10 +40,17 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         type,
-        duration,
-        price,
+        duration: Number(duration),
+        price: Number(price),
         color: color || "#3B82F6",
         isActive: isActive !== undefined ? isActive : true,
+        description: description || null,
+        includesVat: includesVat ?? false,
+        isPublicBookable: isPublicBookable ?? false,
+        bookingMode: bookingMode || "automatic",
+        paymentUrl: paymentUrl || null,
+        depositRequired: depositRequired ?? false,
+        depositAmount: depositAmount ? Number(depositAmount) : null,
         businessId: DEMO_BUSINESS_ID,
       },
     });

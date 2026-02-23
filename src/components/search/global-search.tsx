@@ -3,8 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Users, PawPrint, Calendar, Hotel, X, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
-
 interface SearchResults {
   customers: {
     id: string;

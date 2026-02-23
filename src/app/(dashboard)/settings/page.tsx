@@ -7,14 +7,14 @@ import {
   Save,
   CheckCircle2,
   Wrench,
-  Plus,
-  X,
   Star,
   Zap,
   Crown,
+  Tag,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { TIERS, SERVICE_TYPES } from "@/lib/constants";
+import { TIERS } from "@/lib/constants";
 
 interface Business {
   id: string;
@@ -27,18 +27,7 @@ interface Business {
   _count: { customers: number; appointments: number };
 }
 
-interface Service {
-  id: string;
-  name: string;
-  type: string;
-  duration: number;
-  price: number;
-  color: string | null;
-  isActive: boolean;
-}
-
 const TIER_ICONS = { basic: Star, pro: Zap, groomer: Crown };
-const SERVICE_COLORS = ["#F97316", "#8B5CF6", "#06B6D4", "#10B981", "#F59E0B", "#EF4444", "#6366F1", "#EC4899"];
 
 function BusinessTab() {
   const queryClient = useQueryClient();
@@ -124,102 +113,21 @@ function BusinessTab() {
 }
 
 function ServicesTab() {
-  const queryClient = useQueryClient();
-  const { data: services = [], isLoading } = useQuery<Service[]>({
-    queryKey: ["services"],
-    queryFn: () => fetch("/api/services").then((r) => r.json()),
-  });
-
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", type: "training", duration: "60", price: "", color: SERVICE_COLORS[0] });
-
-  const createMutation = useMutation({
-    mutationFn: (data: typeof form) =>
-      fetch("/api/services", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, duration: parseInt(data.duration), price: parseFloat(data.price) }) }).then((r) => {
-        if (!r.ok) throw new Error("Failed"); return r.json();
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["services"] });
-      setShowForm(false);
-      setForm({ name: "", type: "training", duration: "60", price: "", color: SERVICE_COLORS[0] });
-    },
-  });
-
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-petra-text">שירותים ({services.length})</h3>
-        <button className="btn-ghost text-xs" onClick={() => setShowForm(!showForm)}>
-          {showForm ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-          {showForm ? "ביטול" : "הוסף שירות"}
-        </button>
+    <div className="card p-8 text-center space-y-4 max-w-sm mx-auto">
+      <div className="w-14 h-14 rounded-2xl bg-brand-50 flex items-center justify-center mx-auto">
+        <Tag className="w-7 h-7 text-brand-500" />
       </div>
-
-      {showForm && (
-        <div className="card p-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label text-xs">שם השירות *</label>
-              <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div>
-              <label className="label text-xs">סוג</label>
-              <select className="input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-                {SERVICE_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="label text-xs">משך (דק׳)</label>
-              <input className="input" type="number" value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} />
-            </div>
-            <div>
-              <label className="label text-xs">מחיר (₪) *</label>
-              <input className="input" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-            </div>
-            <div>
-              <label className="label text-xs">צבע</label>
-              <div className="flex gap-1.5 mt-1">
-                {SERVICE_COLORS.slice(0, 6).map((c) => (
-                  <button
-                    key={c}
-                    className={cn("w-6 h-6 rounded-full transition-all", form.color === c ? "ring-2 ring-offset-1 ring-slate-400 scale-110" : "hover:scale-110")}
-                    style={{ background: c }}
-                    onClick={() => setForm({ ...form, color: c })}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-          <button className="btn-primary text-xs" disabled={!form.name || !form.price || createMutation.isPending} onClick={() => createMutation.mutate(form)}>
-            <Plus className="w-3.5 h-3.5" />{createMutation.isPending ? "שומר..." : "הוסף"}
-          </button>
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="card p-4 animate-pulse h-14" />)}</div>
-      ) : services.length === 0 ? (
-        <p className="text-sm text-petra-muted text-center py-8">אין שירותים. הוסף שירות ראשון.</p>
-      ) : (
-        <div className="space-y-2">
-          {services.map((service) => (
-            <div key={service.id} className="card p-3 flex items-center gap-3">
-              <div className="w-3 h-8 rounded-full" style={{ background: service.color || "#F97316" }} />
-              <div className="flex-1">
-                <div className="text-sm font-medium text-petra-text">{service.name}</div>
-                <div className="text-xs text-petra-muted">
-                  {SERVICE_TYPES.find((t) => t.id === service.type)?.label || service.type} · {service.duration} דק׳ · ₪{service.price}
-                </div>
-              </div>
-              <span className={cn("badge text-[10px]", service.isActive ? "badge-success" : "badge-neutral")}>
-                {service.isActive ? "פעיל" : "מושבת"}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div>
+        <h3 className="font-semibold text-lg text-slate-900">ניהול השירותים הועבר</h3>
+        <p className="text-sm text-petra-muted mt-1 leading-relaxed">
+          המחירון וניהול השירותים זמינים כעת בדף ייעודי עם אפשרויות מתקדמות
+        </p>
+      </div>
+      <Link href="/pricing" className="btn-primary inline-flex items-center gap-2 w-full justify-center">
+        <Tag className="w-4 h-4" />
+        עבור למחירון
+      </Link>
     </div>
   );
 }

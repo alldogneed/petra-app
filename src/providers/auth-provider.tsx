@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 interface AuthUser {
@@ -20,30 +20,35 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
-const DEMO_USER: AuthUser = {
-  id: "demo-user-001",
-  email: "moshe@petra.co.il",
-  name: "משה כהן",
-  avatarUrl: null,
-  platformRole: null,
-  businessId: "demo-business-001",
-  businessName: "הכלבייה של משה",
-  businessRole: "owner",
-};
-
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  loading: false,
+  loading: true,
   logout: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user] = useState<AuthUser | null>(DEMO_USER);
-  const [loading] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        setUser(data?.user || null);
+      })
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
+  }, []);
+
   const logout = useCallback(async () => {
-    router.push("/");
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      /* ignore */
+    }
+    setUser(null);
+    router.push("/login");
     router.refresh();
   }, [router]);
 

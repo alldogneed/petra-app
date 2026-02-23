@@ -9,7 +9,13 @@ export async function GET(
     const customer = await prisma.customer.findUnique({
       where: { id: params.id },
       include: {
-        pets: true,
+        pets: {
+          include: {
+            health: true,
+            behavior: true,
+            medications: { orderBy: { createdAt: "desc" } },
+          },
+        },
         appointments: {
           include: {
             service: { select: { name: true, color: true } },
@@ -37,6 +43,7 @@ export async function GET(
           include: {
             dog: { select: { name: true } },
             goals: { orderBy: { sortOrder: "asc" } },
+            sessions: { where: { status: "COMPLETED" }, select: { id: true } },
           },
           orderBy: { createdAt: "desc" },
           take: 10,

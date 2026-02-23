@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const channel = searchParams.get("channel");
     const automationOnly = searchParams.get("automation");
 
-    const where: Record<string, unknown> = { businessId: DEMO_BUSINESS_ID };
+    const where: any = { businessId: DEMO_BUSINESS_ID };
     if (channel) where.channel = channel;
 
     const templates = await prisma.messageTemplate.findMany({

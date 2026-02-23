@@ -8,7 +8,11 @@ export async function GET() {
       where: { businessId: DEMO_BUSINESS_ID },
       include: {
         _count: {
-          select: { boardingStays: true },
+          select: {
+            boardingStays: {
+              where: { status: { in: ["reserved", "checked_in"] } },
+            },
+          },
         },
       },
       orderBy: { name: "asc" },
@@ -34,11 +38,15 @@ export async function POST(request: NextRequest) {
         businessId: DEMO_BUSINESS_ID,
         name,
         capacity: capacity || 1,
-        type: type || "STANDARD",
+        type: type || "standard",
       },
       include: {
         _count: {
-          select: { boardingStays: true },
+          select: {
+            boardingStays: {
+              where: { status: { in: ["reserved", "checked_in"] } },
+            },
+          },
         },
       },
     });

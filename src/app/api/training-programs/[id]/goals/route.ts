@@ -50,7 +50,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "goalId is required" }, { status: 400 });
     }
 
-    const data: Record<string, unknown> = {};
+    const data: any = {};
     if (title !== undefined) data.title = title;
     if (description !== undefined) data.description = description;
     if (status !== undefined) data.status = status;

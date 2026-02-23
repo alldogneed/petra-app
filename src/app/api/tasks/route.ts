@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const relatedEntityType = searchParams.get("relatedEntityType");
     const relatedEntityId = searchParams.get("relatedEntityId");
 
-    const where: Record<string, unknown> = {
+    const where: any = {
       businessId: DEMO_BUSINESS_ID,
     };
 
@@ -35,10 +35,10 @@ export async function GET(request: NextRequest) {
     if (from || to) {
       where.dueDate = {};
       if (from) {
-        (where.dueDate as Record<string, unknown>).gte = new Date(from);
+        where.dueDate.gte = new Date(from);
       }
       if (to) {
-        (where.dueDate as Record<string, unknown>).lte = new Date(to);
+        where.dueDate.lte = new Date(to);
       }
     }
 

@@ -59,7 +59,7 @@ export async function PATCH(request: NextRequest) {
       description,
     } = body;
 
-    const data: Record<string, unknown> = {};
+    const data: any = {};
     if (name !== undefined) data.name = name;
     if (phone !== undefined) data.phone = phone;
     if (email !== undefined) data.email = email;

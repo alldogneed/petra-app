@@ -44,3 +44,7 @@ prisma/dev.db-journal
 
 # uploaded files
 /uploads
+/public/uploads
+
+# claude code local settings
+.claude/settings.local.json

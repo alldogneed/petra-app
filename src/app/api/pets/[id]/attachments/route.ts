@@ -1,0 +1,65 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
+import crypto from "crypto";
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file") as File;
+    const type = (formData.get("type") as string) || "document";
+    const label = (formData.get("label") as string) || null;
+
+    if (!file) {
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
+
+    const pet = await prisma.pet.findUnique({
+      where: { id: params.id },
+      select: { attachments: true },
+    });
+    if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
+
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+    const fileId = crypto.randomBytes(16).toString("hex");
+    const filename = `${fileId}.${ext}`;
+    const uploadDir = path.join(process.cwd(), "public", "uploads", "pets", params.id);
+    await mkdir(uploadDir, { recursive: true });
+    await writeFile(path.join(uploadDir, filename), buffer);
+
+    const newDoc = {
+      id: fileId,
+      name: label || file.name,
+      originalName: file.name,
+      mimeType: file.type || "application/octet-stream",
+      size: file.size,
+      url: `/uploads/pets/${params.id}/${filename}`,
+      type,
+      createdAt: new Date().toISOString(),
+    };
+
+    let docs = [];
+    try {
+      docs = JSON.parse(pet.attachments || "[]");
+    } catch {
+      docs = [];
+    }
+    docs.push(newDoc);
+
+    await prisma.pet.update({
+      where: { id: params.id },
+      data: { attachments: JSON.stringify(docs) },
+    });
+
+    return NextResponse.json(newDoc, { status: 201 });
+  } catch (error) {
+    console.error("POST attachment error:", error);
+    return NextResponse.json({ error: "Failed to upload attachment" }, { status: 500 });
+  }
+}

@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const channel = searchParams.get("channel");
 
-    const where: Record<string, unknown> = {
+    const where: any = {
       businessId: DEMO_BUSINESS_ID,
     };
 

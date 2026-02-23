@@ -8,18 +8,31 @@ export async function POST(
 ) {
   try {
     const body = await request.json();
+    const { neuteredSpayed, behavioralTags, ...petFields } = body;
+
     const pet = await prisma.pet.create({
       data: {
-        name: body.name,
-        species: body.species || "dog",
-        breed: body.breed || null,
-        birthDate: body.birthDate ? new Date(body.birthDate) : null,
-        weight: body.weight ? parseFloat(body.weight) : null,
-        gender: body.gender || null,
-        medicalNotes: body.medicalNotes || null,
+        name: petFields.name,
+        species: petFields.species || "dog",
+        breed: petFields.breed || null,
+        birthDate: petFields.birthDate ? new Date(petFields.birthDate) : null,
+        weight: petFields.weight ? parseFloat(petFields.weight) : null,
+        gender: petFields.gender || null,
+        microchip: petFields.microchip || null,
+        tags: behavioralTags ? JSON.stringify(behavioralTags) : "[]",
+        medicalNotes: petFields.medicalNotes || null,
         customerId: params.id,
       },
     });
+
+    // Handle neuteredSpayed via DogHealth
+    if (neuteredSpayed !== undefined) {
+      await prisma.dogHealth.upsert({
+        where: { petId: pet.id },
+        create: { petId: pet.id, neuteredSpayed: Boolean(neuteredSpayed) },
+        update: { neuteredSpayed: Boolean(neuteredSpayed) },
+      });
+    }
 
     await prisma.timelineEvent.create({
       data: {
@@ -30,7 +43,14 @@ export async function POST(
       },
     });
 
-    return NextResponse.json(pet);
+    const petWithHealth = await prisma.pet.findUnique({
+      where: { id: pet.id },
+      include: {
+        health: { select: { neuteredSpayed: true } },
+      },
+    });
+
+    return NextResponse.json(petWithHealth);
   } catch (error) {
     console.error("Pet POST error:", error);
     return NextResponse.json(

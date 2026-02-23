@@ -19,6 +19,7 @@ import {
   CreditCard,
   CalendarCheck,
   HelpCircle,
+  Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -33,6 +34,7 @@ const navigation = [
   { name: "לידים", href: "/leads", icon: Target },
   { name: "הודעות", href: "/messages", icon: MessageSquare },
   { name: "תשלומים", href: "/payments", icon: CreditCard },
+  { name: "מחירון", href: "/pricing", icon: Tag },
   { name: "פנסיון", href: "/boarding", icon: Hotel },
   { name: "הזמנות", href: "/bookings", icon: CalendarCheck },
   { name: "אנליטיקס", href: "/analytics", icon: BarChart3 },

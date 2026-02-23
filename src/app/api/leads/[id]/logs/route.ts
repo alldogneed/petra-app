@@ -1,0 +1,53 @@
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { DEMO_BUSINESS_ID } from "@/lib/utils";
+
+export async function POST(
+    request: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const { id } = params;
+        const body = await request.json();
+        const { summary, treatment } = body;
+
+        if (!summary || !treatment) {
+            return NextResponse.json(
+                { error: "Summary and treatment are required" },
+                { status: 400 }
+            );
+        }
+
+        const existingLead = await prisma.lead.findFirst({
+            where: { id, businessId: DEMO_BUSINESS_ID },
+        });
+
+        if (!existingLead) {
+            return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+        }
+
+        const callLog = await prisma.callLog.create({
+            data: {
+                leadId: id,
+                summary,
+                treatment,
+            },
+        });
+
+        // Automatically update lastContactedAt when a log is added
+        await prisma.lead.update({
+            where: { id },
+            data: {
+                lastContactedAt: new Date(),
+            },
+        });
+
+        return NextResponse.json(callLog, { status: 201 });
+    } catch (error) {
+        console.error("Error creating call log:", error);
+        return NextResponse.json(
+            { error: "Failed to create call log" },
+            { status: 500 }
+        );
+    }
+}

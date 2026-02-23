@@ -2,10 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = { businessId: DEMO_BUSINESS_ID };
+
+    // Optional date range filter for calendar all-day section
+    if (from && to) {
+      where.checkIn = { lte: new Date(to + "T23:59:59") };
+      where.OR = [
+        { checkOut: { gte: new Date(from) } },
+        { checkOut: null },
+      ];
+      where.status = { in: ["reserved", "checked_in"] };
+    }
+
     const stays = await prisma.boardingStay.findMany({
-      where: { businessId: DEMO_BUSINESS_ID },
+      where,
       include: {
         room: true,
         pet: true,
@@ -38,7 +55,7 @@ export async function POST(request: NextRequest) {
         petId,
         customerId,
         roomId,
-        status: status || "RESERVED",
+        status: status || "reserved",
         notes,
       },
       include: {

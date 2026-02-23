@@ -219,6 +219,7 @@ model Customer {
   address   String?
   notes     String?
   tags      String   @default("[]")
+  documents String   @default("[]")
   source    String?
   businessId String
   createdAt DateTime @default(now())
@@ -286,6 +287,7 @@ model Service {
   bufferBefore        Int     @default(0)  // minutes before
   bufferAfter         Int     @default(0)  // minutes after
   bookingMode         String  @default("automatic") // "automatic" | "requires_approval"
+  paymentUrl          String?  // URL to payment landing page
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
