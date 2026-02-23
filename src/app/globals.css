@@ -1,0 +1,250 @@
+@import url("https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    direction: rtl;
+  }
+
+  body {
+    @apply bg-petra-bg text-petra-text font-sans antialiased;
+  }
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-200 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-300;
+  }
+
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+  }
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer components {
+  /* ─── Cards ─── */
+  .card {
+    @apply bg-petra-card rounded-2xl border border-petra-border shadow-card;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-200 hover:shadow-card-hover hover:-translate-y-[1px];
+  }
+
+  .stat-card {
+    @apply card p-5;
+  }
+
+  /* ─── Layout ─── */
+  .page-header {
+    @apply flex flex-wrap items-center justify-between gap-3 mb-6;
+  }
+
+  .page-title {
+    @apply text-xl md:text-2xl font-bold text-petra-text tracking-tight;
+  }
+
+  /* ─── Buttons ─── */
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2.5
+    bg-gradient-brand text-white rounded-xl font-semibold text-sm
+    shadow-sm
+    hover:shadow-md hover:brightness-105
+    active:scale-[0.98]
+    transition-all duration-150
+    focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-4 py-2.5
+    bg-white text-petra-text border border-petra-border rounded-xl font-medium text-sm
+    hover:bg-gray-50 hover:border-slate-300
+    active:scale-[0.98]
+    transition-all duration-150
+    focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-3 py-2
+    text-petra-muted rounded-lg font-medium text-sm
+    hover:bg-slate-100 hover:text-petra-text
+    active:scale-[0.98]
+    transition-all duration-150;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center gap-2 px-4 py-2.5
+    bg-red-50 text-red-600 border border-red-100 rounded-xl font-medium text-sm
+    hover:bg-red-100 hover:border-red-200
+    active:scale-[0.98]
+    transition-all duration-150;
+  }
+
+  /* ─── Badges ─── */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-brand {
+    @apply badge bg-brand-50 text-brand-700 border border-brand-100;
+  }
+
+  .badge-success {
+    @apply badge bg-emerald-50 text-emerald-700 border border-emerald-100;
+  }
+
+  .badge-warning {
+    @apply badge bg-amber-50 text-amber-700 border border-amber-100;
+  }
+
+  .badge-danger {
+    @apply badge bg-red-50 text-red-700 border border-red-100;
+  }
+
+  .badge-neutral {
+    @apply badge bg-slate-100 text-slate-600;
+  }
+
+  /* ─── Form Elements ─── */
+  .input {
+    @apply w-full px-3.5 py-2.5
+    bg-white border border-petra-border rounded-xl text-sm
+    placeholder:text-slate-400
+    focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400
+    transition-all duration-150
+    shadow-inner-sm;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-petra-text mb-1.5;
+  }
+
+  /* ─── Sidebar ─── */
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400
+    hover:bg-petra-sidebar-hover hover:text-white transition-all duration-150;
+  }
+
+  .sidebar-link-active {
+    @apply sidebar-link bg-white/10 text-white;
+  }
+
+  /* ─── Divider ─── */
+  .divider {
+    @apply border-t border-petra-border my-4;
+  }
+
+  /* ─── Empty State ─── */
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-16 text-center;
+  }
+
+  .empty-state-icon {
+    @apply w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4;
+  }
+
+  /* ─── Table ─── */
+  .table-header-cell {
+    @apply text-right px-5 py-3 text-xs font-semibold text-petra-muted uppercase tracking-wider;
+  }
+
+  .table-cell {
+    @apply px-5 py-3.5;
+  }
+
+  /* ─── Modal Overlay ─── */
+  .modal-overlay {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+  }
+
+  .modal-backdrop {
+    @apply absolute inset-0 bg-slate-900/50 backdrop-blur-sm;
+  }
+
+  .modal-content {
+    @apply relative bg-white rounded-2xl shadow-modal w-full animate-scale-in;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
