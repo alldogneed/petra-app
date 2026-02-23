@@ -1,0 +1,15 @@
+node_modules
+node_modules 2
+node_modules*
+.next
+.git
+.claude
+prisma/dev.db
+prisma/dev.db-journal
+.env
+.env.vercel
+*.log
+.DS_Store
+tsconfig.tsbuildinfo
+$
+uploads
