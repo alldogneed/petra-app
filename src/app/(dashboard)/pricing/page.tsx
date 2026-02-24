@@ -660,7 +660,7 @@ export default function PricingPage() {
       )}
 
       {/* Modals */}
-      {(modalService === "new" || (modalService && modalService !== "new")) && (
+      {modalService !== null && (
         <ServiceModal
           service={modalService === "new" ? null : modalService}
           onClose={() => setModalService(null)}
