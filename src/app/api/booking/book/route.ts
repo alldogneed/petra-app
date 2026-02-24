@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { enqueueSyncJob } from "@/lib/sync-jobs";
 
 // Public endpoint - no auth required
 export async function POST(request: NextRequest) {
@@ -79,6 +80,11 @@ export async function POST(request: NextRequest) {
         customer: true,
       },
     });
+
+    // Enqueue Google Calendar sync (fire-and-forget, don't block response)
+    enqueueSyncJob(booking.id, DEMO_BUSINESS_ID, "create").catch((err) =>
+      console.error("Failed to enqueue sync job:", err)
+    );
 
     return NextResponse.json(booking, { status: 201 });
   } catch (error) {

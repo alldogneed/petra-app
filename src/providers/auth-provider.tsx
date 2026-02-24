@@ -8,6 +8,7 @@ interface AuthUser {
   email: string;
   name: string;
   avatarUrl: string | null;
+  role: string;
   platformRole: string | null;
   businessId: string | null;
   businessName: string | null;

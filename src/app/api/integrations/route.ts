@@ -1,24 +1,38 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { getSession } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 
-// GET /api/integrations – list connected integrations
+// GET /api/integrations – list connected integrations with real gcal status
 export async function GET() {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Return integration status (placeholder - full implementation requires
-    // Google OAuth tokens to be stored in PlatformUser model)
+    // Fetch real gcal status from PlatformUser
+    const user = await prisma.platformUser.findUnique({
+      where: { id: session.user.id },
+      select: {
+        gcalConnected: true,
+        gcalConnectedEmail: true,
+        gcalSyncEnabled: true,
+        gcalLastConnectedAt: true,
+      },
+    });
+
     const integrations = [
       {
         id: "google-calendar",
         name: "Google Calendar",
         description: "סנכרון תורים עם גוגל קלנדר",
         icon: "calendar",
-        connected: false,
+        connected: user?.gcalConnected ?? false,
+        connectedEmail: user?.gcalConnectedEmail ?? null,
+        syncEnabled: user?.gcalSyncEnabled ?? false,
+        lastConnectedAt: user?.gcalLastConnectedAt ?? null,
         connectUrl: "/api/integrations/google/connect",
+        disconnectUrl: "/api/integrations/google/disconnect",
       },
       {
         id: "whatsapp",

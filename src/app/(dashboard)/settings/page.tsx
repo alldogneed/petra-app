@@ -11,8 +11,18 @@ import {
   Zap,
   Crown,
   Tag,
+  Plug,
+  Calendar,
+  MessageCircle,
+  Mail,
+  ExternalLink,
+  Loader2,
+  XCircle,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { TIERS } from "@/lib/constants";
 
@@ -132,12 +142,146 @@ function ServicesTab() {
   );
 }
 
+interface Integration {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  connected: boolean;
+  connectedEmail?: string | null;
+  syncEnabled?: boolean;
+  lastConnectedAt?: string | null;
+  connectUrl?: string | null;
+  disconnectUrl?: string | null;
+}
+
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  calendar: Calendar,
+  "message-circle": MessageCircle,
+  mail: Mail,
+};
+
+function IntegrationsTab() {
+  const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const gcalStatus = searchParams.get("gcal");
+
+  const { data: integrations, isLoading } = useQuery<Integration[]>({
+    queryKey: ["integrations"],
+    queryFn: () => fetch("/api/integrations").then((r) => r.json()),
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/integrations/google/disconnect", { method: "POST" }).then((r) => {
+        if (!r.ok) throw new Error("Disconnect failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["integrations"] });
+    },
+  });
+
+  if (isLoading)
+    return (
+      <div className="animate-pulse space-y-3 max-w-2xl">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-24 bg-slate-100 rounded-xl" />
+        ))}
+      </div>
+    );
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      {/* OAuth redirect feedback */}
+      {gcalStatus === "connected" && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
+          <CheckCircle className="w-4 h-4 flex-shrink-0" />
+          יומן גוגל חובר בהצלחה!
+        </div>
+      )}
+      {gcalStatus === "denied" && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          החיבור בוטל. ניתן לנסות שוב בכל עת.
+        </div>
+      )}
+      {gcalStatus === "error" && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+          <XCircle className="w-4 h-4 flex-shrink-0" />
+          אירעה שגיאה בחיבור. נסה שוב.
+        </div>
+      )}
+
+      {integrations?.map((integ) => {
+        const Icon = ICON_MAP[integ.icon] ?? Plug;
+        return (
+          <div key={integ.id} className="card p-5 flex items-start gap-4">
+            <div
+              className={cn(
+                "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
+                integ.connected ? "bg-emerald-50" : "bg-slate-100"
+              )}
+            >
+              <Icon className={cn("w-6 h-6", integ.connected ? "text-emerald-600" : "text-slate-400")} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-petra-text">{integ.name}</h3>
+                {integ.connected ? (
+                  <span className="badge badge-success text-xs">מחובר</span>
+                ) : (
+                  <span className="badge badge-neutral text-xs">לא מחובר</span>
+                )}
+              </div>
+              <p className="text-sm text-petra-muted mt-0.5">{integ.description}</p>
+              {integ.connected && integ.connectedEmail && (
+                <p className="text-xs text-emerald-600 mt-1">{integ.connectedEmail}</p>
+              )}
+            </div>
+            <div className="flex-shrink-0">
+              {integ.connected && integ.disconnectUrl ? (
+                <button
+                  className="btn-ghost text-sm text-red-500 hover:text-red-600 hover:bg-red-50"
+                  onClick={() => disconnectMutation.mutate()}
+                  disabled={disconnectMutation.isPending}
+                >
+                  {disconnectMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "נתק"
+                  )}
+                </button>
+              ) : integ.connectUrl ? (
+                <a
+                  href={integ.connectUrl}
+                  className="btn-primary text-sm flex items-center gap-1.5"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  חבר
+                </a>
+              ) : (
+                <span className="text-xs text-petra-muted">בקרוב</span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"business" | "services">("business");
+  const searchParams = useSearchParams();
+  const gcalParam = searchParams.get("gcal");
+  const [activeTab, setActiveTab] = useState<"business" | "services" | "integrations">(
+    gcalParam ? "integrations" : "business"
+  );
 
   const tabs = [
     { id: "business" as const, label: "פרטי העסק", icon: Building2 },
     { id: "services" as const, label: "שירותים", icon: Wrench },
+    { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
   ];
 
   return (
@@ -168,6 +312,7 @@ export default function SettingsPage() {
 
       {activeTab === "business" && <BusinessTab />}
       {activeTab === "services" && <ServicesTab />}
+      {activeTab === "integrations" && <IntegrationsTab />}
     </div>
   );
 }

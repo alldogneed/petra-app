@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.name,
         avatarUrl: user.avatarUrl,
+        role: (user as any).role || "USER",
         platformRole: user.platformRole,
         businessId: membership?.businessId || null,
         businessName: membership?.business?.name || null,

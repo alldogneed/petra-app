@@ -21,10 +21,12 @@ import {
   HelpCircle,
   Tag,
   ShoppingCart,
+  Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { HelpCenter } from "@/components/help/HelpCenter";
+import { useAuth } from "@/providers/auth-provider";
 
 const navigation = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
@@ -58,6 +60,8 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const [helpOpen, setHelpOpen] = useState(false);
+  const { user } = useAuth();
+  const isMaster = user?.role === "MASTER";
 
   const sidebarContent = (isMobile: boolean) => (
     <aside
@@ -167,6 +171,27 @@ export function Sidebar({
 
       {/* Bottom section */}
       <div className="border-t border-white/[0.07]">
+        {/* Master Admin link - only visible for MASTER users */}
+        {isMaster && (
+          <Link
+            href="/admin"
+            onClick={isMobile ? onMobileClose : undefined}
+            title={!isMobile && collapsed ? "Master Admin" : undefined}
+            className={cn(
+              "w-full flex items-center h-11 transition-colors",
+              !isMobile && collapsed ? "justify-center" : "px-4 gap-2.5",
+              pathname.startsWith("/admin")
+                ? "text-cyan-400"
+                : "text-amber-400 hover:text-amber-300 hover:bg-white/[0.06]"
+            )}
+          >
+            <Crown className="w-[18px] h-[18px] flex-shrink-0" />
+            {(isMobile || !collapsed) && (
+              <span className="text-sm font-bold">Master Admin</span>
+            )}
+          </Link>
+        )}
+
         {/* Help button */}
         <button
           onClick={() => setHelpOpen(true)}

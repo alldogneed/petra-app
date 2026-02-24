@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { enqueueSyncJob } from "@/lib/sync-jobs";
 
 export async function PATCH(
   request: NextRequest,
@@ -19,6 +20,14 @@ export async function PATCH(
         customer: true,
       },
     });
+
+    // Enqueue Google Calendar sync based on status change
+    if (body.status) {
+      const action = body.status === "cancelled" ? "delete" : "update";
+      enqueueSyncJob(booking.id, booking.businessId, action).catch((err) =>
+        console.error("Failed to enqueue sync job:", err)
+      );
+    }
 
     return NextResponse.json(booking);
   } catch (error) {
