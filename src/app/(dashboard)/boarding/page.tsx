@@ -56,6 +56,7 @@ interface BoardingStay {
 interface Customer {
   id: string;
   name: string;
+  phone: string;
   pets: { id: string; name: string; species: string }[];
 }
 
