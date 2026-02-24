@@ -4,7 +4,8 @@ import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
 
-const _DOCUMENT_CATEGORIES = [
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const DOCUMENT_CATEGORIES = [
   "contract",      // חוזה
   "invoice",       // חשבונית
   "receipt",       // קבלה

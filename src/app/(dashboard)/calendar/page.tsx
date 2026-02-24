@@ -178,7 +178,8 @@ function HoverPreviewCard({
   y: number;
 }) {
   const color = getAppointmentColor(appointment.service);
-  const _waPhone = toWhatsAppPhone(appointment.customer.phone);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const waPhone = toWhatsAppPhone(appointment.customer.phone);
 
   return (
     <div
