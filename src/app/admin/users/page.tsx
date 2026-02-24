@@ -44,8 +44,8 @@ export default function AdminUsersPage() {
             placeholder="חיפוש לפי שם או אימייל..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pr-10 pl-4 py-2 rounded-xl text-sm placeholder:text-slate-600 focus:outline-none focus:ring-1"
-            style={{ background: "#12121A", border: "1px solid #1E1E2E", color: "#E2E8F0", focusRingColor: "#06B6D4" }}
+            className="pr-10 pl-4 py-2 rounded-xl text-sm placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            style={{ background: "#12121A", border: "1px solid #1E1E2E", color: "#E2E8F0" }}
             dir="rtl"
           />
         </div>
