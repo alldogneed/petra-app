@@ -11,7 +11,7 @@ import {
   Trash2,
   Edit3,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, fetchJSON } from "@/lib/utils";
 import { TEMPLATE_VARIABLES } from "@/lib/constants";
 
 interface MessageTemplate {
@@ -44,7 +44,7 @@ export default function MessagesPage() {
     queryKey: ["messages", activeChannel],
     queryFn: () => {
       const params = activeChannel !== "all" ? `?channel=${activeChannel}` : "";
-      return fetch(`/api/messages${params}`).then((r) => r.json());
+      return fetchJSON<MessageTemplate[]>(`/api/messages${params}`);
     },
   });
 

@@ -31,7 +31,7 @@ import {
   Settings2,
   Search,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, fetchJSON } from "@/lib/utils";
 
 interface Room {
   id: string;
@@ -387,17 +387,17 @@ export default function BoardingPage() {
 
   const { data: rooms = [] } = useQuery<Room[]>({
     queryKey: ["rooms"],
-    queryFn: () => fetch("/api/boarding/rooms").then((r) => r.json()),
+    queryFn: () => fetchJSON<Room[]>("/api/boarding/rooms"),
   });
 
   const { data: stays = [], isLoading } = useQuery<BoardingStay[]>({
     queryKey: ["boarding"],
-    queryFn: () => fetch("/api/boarding").then((r) => r.json()),
+    queryFn: () => fetchJSON<BoardingStay[]>("/api/boarding"),
   });
 
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["customers-for-select"],
-    queryFn: () => fetch("/api/customers?full=1").then((r) => r.json()),
+    queryFn: () => fetchJSON<Customer[]>("/api/customers?full=1"),
     enabled: showNewStay,
   });
 

@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 // GET /api/boarding/[id] – get a single boarding stay
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const stay = await prisma.boardingStay.findUnique({
-      where: { id: params.id },
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    const stay = await prisma.boardingStay.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
       include: {
         room: true,
         pet: true,
@@ -33,6 +38,17 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    // Verify stay belongs to this business
+    const existing = await prisma.boardingStay.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "שהייה לא נמצאה" }, { status: 404 });
+    }
+
     const body = await request.json();
 
     const stay = await prisma.boardingStay.update({
@@ -60,10 +76,20 @@ export async function PATCH(
 
 // DELETE /api/boarding/[id]
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    const existing = await prisma.boardingStay.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "שהייה לא נמצאה" }, { status: 404 });
+    }
+
     await prisma.boardingStay.delete({ where: { id: params.id } });
     return NextResponse.json({ ok: true });
   } catch (error) {

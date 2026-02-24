@@ -23,7 +23,7 @@ import {
   Square,
   MinusSquare,
 } from "lucide-react";
-import { toWhatsAppPhone } from "@/lib/utils";
+import { toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import { SERVICE_TYPES } from "@/lib/constants";
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -574,7 +574,7 @@ function QuickBookModal({
 
   const { data: services = [] } = useQuery<ServiceOption[]>({
     queryKey: ["services"],
-    queryFn: () => fetch("/api/services").then((r) => r.json()),
+    queryFn: () => fetchJSON<ServiceOption[]>("/api/services"),
     enabled: isOpen,
   });
 
@@ -949,7 +949,7 @@ export default function CustomersPage() {
       const params = new URLSearchParams({ enhanced: "1" });
       if (search) params.set("search", search);
       if (serviceTypeFilter) params.set("serviceType", serviceTypeFilter);
-      return fetch(`/api/customers?${params}`).then((r) => r.json());
+      return fetchJSON<EnhancedCustomer[]>(`/api/customers?${params}`);
     },
   });
 

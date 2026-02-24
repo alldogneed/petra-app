@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 // GET /api/payments/[id] – get a single payment
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const payment = await prisma.payment.findUnique({
-      where: { id: params.id },
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    const payment = await prisma.payment.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
       include: {
         customer: { select: { id: true, name: true, phone: true, email: true } },
         appointment: {
@@ -40,16 +45,34 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    // Verify payment belongs to this business
+    const existing = await prisma.payment.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "תשלום לא נמצא" }, { status: 404 });
+    }
+
     const body = await request.json();
+
+    const data: Record<string, unknown> = {};
+    if (body.status !== undefined) {
+      data.status = body.status;
+      // Auto-set paidAt when status changes to paid
+      if (body.status === "paid" && !existing.paidAt) {
+        data.paidAt = new Date();
+      }
+    }
+    if (body.method !== undefined) data.method = body.method;
+    if (body.amount !== undefined) data.amount = body.amount;
+    if (body.notes !== undefined) data.notes = body.notes;
 
     const payment = await prisma.payment.update({
       where: { id: params.id },
-      data: {
-        ...(body.status !== undefined && { status: body.status }),
-        ...(body.method !== undefined && { method: body.method }),
-        ...(body.amount !== undefined && { amount: body.amount }),
-        ...(body.notes !== undefined && { notes: body.notes }),
-      },
+      data,
       include: {
         customer: { select: { id: true, name: true, phone: true } },
       },
@@ -64,10 +87,20 @@ export async function PATCH(
 
 // DELETE /api/payments/[id]
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    const existing = await prisma.payment.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "תשלום לא נמצא" }, { status: 404 });
+    }
+
     await prisma.payment.delete({ where: { id: params.id } });
     return NextResponse.json({ ok: true });
   } catch (error) {

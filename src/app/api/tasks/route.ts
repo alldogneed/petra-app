@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
     const status = searchParams.get("status");
@@ -60,6 +64,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await request.json();
     const {
       title,
@@ -72,6 +79,29 @@ export async function POST(request: NextRequest) {
       relatedEntityType,
       relatedEntityId,
     } = body;
+
+    if (!title || typeof title !== "string" || !title.trim()) {
+      return NextResponse.json(
+        { error: "Missing required field: title" },
+        { status: 400 }
+      );
+    }
+
+    const validCategories = ["BOARDING", "TRAINING", "LEADS", "GENERAL", "HEALTH", "MEDICATION", "FEEDING"];
+    if (category && !validCategories.includes(category)) {
+      return NextResponse.json(
+        { error: "Invalid category value" },
+        { status: 400 }
+      );
+    }
+
+    const validPriorities = ["LOW", "MEDIUM", "HIGH", "URGENT"];
+    if (priority && !validPriorities.includes(priority)) {
+      return NextResponse.json(
+        { error: "Invalid priority value" },
+        { status: 400 }
+      );
+    }
 
     const task = await prisma.task.create({
       data: {

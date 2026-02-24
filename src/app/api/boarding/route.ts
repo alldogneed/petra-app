@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const { searchParams } = new URL(request.url);
     const from = searchParams.get("from");
     const to = searchParams.get("to");
@@ -44,9 +48,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await request.json();
     const { checkIn, checkOut, petId, customerId, roomId, status, notes } =
       body;
+
+    if (!checkIn || !petId || !customerId || !roomId) {
+      return NextResponse.json(
+        { error: "Missing required fields: checkIn, petId, customerId, roomId" },
+        { status: 400 }
+      );
+    }
 
     const stay = await prisma.boardingStay.create({
       data: {

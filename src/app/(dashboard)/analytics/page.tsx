@@ -16,7 +16,7 @@ import {
   ArrowDownRight,
   Minus,
 } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, fetchJSON } from "@/lib/utils";
 
 interface AnalyticsData {
   period: string;
@@ -85,7 +85,7 @@ export default function AnalyticsPage() {
 
   const { data, isLoading } = useQuery<AnalyticsData>({
     queryKey: ["analytics", period],
-    queryFn: () => fetch(`/api/analytics?period=${period}`).then((r) => r.json()),
+    queryFn: () => fetchJSON<AnalyticsData>(`/api/analytics?period=${period}`),
   });
 
   const maxChartValue = data

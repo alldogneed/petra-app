@@ -1,12 +1,16 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const businessId = DEMO_BUSINESS_ID;
 
-    const [totalCustomers, totalPets, todayAppointments, upcomingAppointments, recentTasks, pendingPayments, monthPayments] =
+    const [totalCustomers, totalPets, todayAppointments, upcomingAppointments, recentTasks, pendingPayments, monthPayments, openLeads] =
       await Promise.all([
         prisma.customer.count({ where: { businessId } }),
         prisma.pet.count({
@@ -59,6 +63,12 @@ export async function GET() {
           },
           _sum: { amount: true },
         }),
+        prisma.lead.count({
+          where: {
+            businessId,
+            stage: { in: ["new", "contacted", "qualified"] },
+          },
+        }),
       ]);
 
     return NextResponse.json({
@@ -69,6 +79,7 @@ export async function GET() {
       upcomingAppointments,
       recentTasks,
       pendingPayments,
+      openLeads,
     });
   } catch (error) {
     console.error("Dashboard API error:", error);

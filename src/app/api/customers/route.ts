@@ -2,9 +2,13 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const businessId = DEMO_BUSINESS_ID;
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
@@ -174,8 +178,18 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const businessId = DEMO_BUSINESS_ID;
     const body = await request.json();
+
+    if (!body.name || typeof body.name !== "string" || !body.name.trim()) {
+      return NextResponse.json(
+        { error: "Missing required field: name" },
+        { status: 400 }
+      );
+    }
 
     const tags = body.tags
       ? JSON.stringify(

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 // PATCH /api/boarding/rooms/[id] – update room name / capacity / type
 export async function PATCH(
@@ -7,6 +8,9 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await request.json();
     const { name, capacity, type } = body;
 
@@ -37,10 +41,13 @@ export async function PATCH(
 
 // DELETE /api/boarding/rooms/[id] – delete room if no active stays
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const activeStays = await prisma.boardingStay.count({
       where: {
         roomId: params.id,

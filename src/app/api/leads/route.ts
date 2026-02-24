@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const leads = await prisma.lead.findMany({
       where: { businessId: DEMO_BUSINESS_ID },
       include: {
@@ -26,8 +30,26 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await request.json();
     const { name, phone, email, source, stage, notes, customerId } = body;
+
+    if (!name || typeof name !== "string" || !name.trim()) {
+      return NextResponse.json(
+        { error: "Missing required field: name" },
+        { status: 400 }
+      );
+    }
+
+    const validStages = ["new", "contacted", "qualified", "won", "lost"];
+    if (stage && !validStages.includes(stage)) {
+      return NextResponse.json(
+        { error: "Invalid stage value" },
+        { status: 400 }
+      );
+    }
 
     const lead = await prisma.lead.create({
       data: {
@@ -36,7 +58,7 @@ export async function POST(request: NextRequest) {
         phone,
         email,
         source,
-        stage: stage || "NEW",
+        stage: stage || "new",
         notes,
         customerId: customerId || undefined,
       },

@@ -83,6 +83,16 @@ export function toWhatsAppPhone(phone: string): string {
   return digits;
 }
 
+/** Safe fetch that throws on non-ok responses (for use with React Query) */
+export async function fetchJSON<T = unknown>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Request failed (${res.status})`);
+  }
+  return res.json();
+}
+
 export function getTimelineIcon(type: string) {
   switch (type) {
     case "appointment_scheduled":

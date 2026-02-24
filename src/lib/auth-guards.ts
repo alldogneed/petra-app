@@ -176,6 +176,31 @@ export async function requireTenantPermission(
   return { session, membership };
 }
 
+// ─── Simple auth guard (session only, no business check) ──────────────────────
+
+/**
+ * Require a valid, non-expired session.
+ * Does NOT check business membership — use for routes that use DEMO_BUSINESS_ID.
+ */
+export async function requireAuth(
+  request: NextRequest
+): Promise<{ session: FullSession } | NextResponse> {
+  const session = await resolveSession(request);
+
+  if (!session) {
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 }
+    );
+  }
+
+  if (!session.user.isActive) {
+    return NextResponse.json({ error: "Account is disabled" }, { status: 403 });
+  }
+
+  return { session };
+}
+
 // ─── Business-level guard (for tenant business routes) ────────────────────────
 
 /**

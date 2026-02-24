@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   CalendarCheck,
   Clock,
@@ -12,7 +12,7 @@ import {
   Phone,
   Copy,
 } from "lucide-react";
-import { cn, DEMO_BUSINESS_ID } from "@/lib/utils";
+import { cn, fetchJSON, DEMO_BUSINESS_ID } from "@/lib/utils";
 
 interface BookingData {
   id: string;
@@ -52,7 +52,7 @@ export default function BookingsPage() {
     queryFn: () => {
       const params = new URLSearchParams();
       if (activeStatus !== "ALL") params.set("status", activeStatus);
-      return fetch(`/api/booking/bookings?${params}`).then((r) => r.json());
+      return fetchJSON<BookingData[]>(`/api/booking/bookings?${params}`);
     },
   });
 
@@ -66,7 +66,9 @@ export default function BookingsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bookings"] }),
   });
 
-  const bookingLink = `${typeof window !== "undefined" ? window.location.origin : ""}/book/${DEMO_BUSINESS_ID}`;
+  const [origin, setOrigin] = useState("");
+  useEffect(() => { setOrigin(window.location.origin); }, []);
+  const bookingLink = `${origin}/book/${DEMO_BUSINESS_ID}`;
 
   function copyLink() {
     navigator.clipboard.writeText(bookingLink);

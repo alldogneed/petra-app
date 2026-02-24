@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 // GET /api/automations – list automation rules
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const rules = await prisma.automationRule.findMany({
       where: { businessId: DEMO_BUSINESS_ID },
       include: {
@@ -23,6 +27,9 @@ export async function GET() {
 // POST /api/automations – create an automation rule
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await request.json();
     const { name, trigger, triggerOffset, templateId, isActive } = body;
 

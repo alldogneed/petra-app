@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const group = await prisma.trainingGroup.findUnique({
-      where: { id: params.id },
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    const group = await prisma.trainingGroup.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
       include: {
         participants: {
           include: {
@@ -49,6 +54,17 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    // Verify group belongs to this business
+    const existing = await prisma.trainingGroup.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "קבוצה לא נמצאה" }, { status: 404 });
+    }
+
     const body = await request.json();
 
     const group = await prisma.trainingGroup.update({
@@ -73,10 +89,20 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    const existing = await prisma.trainingGroup.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "קבוצה לא נמצאה" }, { status: 404 });
+    }
+
     await prisma.trainingGroup.delete({ where: { id: params.id } });
     return NextResponse.json({ ok: true });
   } catch (error) {

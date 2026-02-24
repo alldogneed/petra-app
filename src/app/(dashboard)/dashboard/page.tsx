@@ -13,7 +13,7 @@ import {
   CreditCard,
   ArrowLeft,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, fetchJSON } from "@/lib/utils";
 
 interface DashboardStats {
   totalCustomers: number;
@@ -28,6 +28,7 @@ interface DashboardStats {
     priority: string;
     status: string;
   }[];
+  openLeads: number;
   upcomingAppointments: {
     id: string;
     date: string;
@@ -149,7 +150,7 @@ function AppointmentRow({
 export default function DashboardPage() {
   const { data, isLoading } = useQuery<DashboardStats>({
     queryKey: ["dashboard"],
-    queryFn: () => fetch("/api/dashboard").then((r) => r.json()),
+    queryFn: () => fetchJSON("/api/dashboard"),
   });
 
   if (isLoading) {
@@ -198,7 +199,7 @@ export default function DashboardPage() {
         />
         <StatCard
           title="לידים פתוחים"
-          value={data.recentTasks.length}
+          value={data.openLeads}
           icon={Target}
           color="#8B5CF6"
           href="/leads"

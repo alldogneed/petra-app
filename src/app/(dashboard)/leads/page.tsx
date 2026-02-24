@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Plus, X, Phone, Mail, Check, XCircle } from "lucide-react";
+import { fetchJSON } from "@/lib/utils";
 import { LEAD_STAGES, LEAD_SOURCES } from "@/lib/constants";
 import { LeadTreatmentModal } from "@/components/leads/LeadTreatmentModal";
 import {
@@ -190,7 +191,7 @@ export default function LeadsPage() {
 
   const { data: leads = [] } = useQuery<Lead[]>({
     queryKey: ["leads"],
-    queryFn: () => fetch("/api/leads").then((r) => r.json()),
+    queryFn: () => fetchJSON<Lead[]>("/api/leads"),
   });
 
   const moveMutation = useMutation({

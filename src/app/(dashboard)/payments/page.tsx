@@ -12,7 +12,7 @@ import {
   XCircle,
   Banknote,
 } from "lucide-react";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, fetchJSON } from "@/lib/utils";
 
 interface Payment {
   id: string;
@@ -67,19 +67,25 @@ export default function PaymentsPage() {
     queryFn: () => {
       const params = new URLSearchParams();
       if (activeStatus !== "ALL") params.set("status", activeStatus);
-      return fetch(`/api/payments?${params}`).then((r) => r.json());
+      return fetchJSON(`/api/payments?${params}`);
     },
   });
 
-  // Summary stats
-  const totalPaid = payments
+  // Fetch ALL payments for summary stats (unfiltered)
+  const { data: allPayments = [] } = useQuery<Payment[]>({
+    queryKey: ["payments", "ALL"],
+    queryFn: () => fetchJSON("/api/payments"),
+  });
+
+  // Summary stats from unfiltered data
+  const totalPaid = allPayments
     .filter((p) => p.status === "paid")
     .reduce((sum, p) => sum + p.amount, 0);
-  const totalPending = payments
+  const totalPending = allPayments
     .filter((p) => p.status === "pending")
     .reduce((sum, p) => sum + p.amount, 0);
-  const paidCount = payments.filter((p) => p.status === "paid").length;
-  const pendingCount = payments.filter((p) => p.status === "pending").length;
+  const paidCount = allPayments.filter((p) => p.status === "paid").length;
+  const pendingCount = allPayments.filter((p) => p.status === "pending").length;
 
   return (
     <div>
@@ -287,7 +293,7 @@ function NewPaymentModal({
 
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["customers-for-payment"],
-    queryFn: () => fetch("/api/customers?full=1").then((r) => r.json()),
+    queryFn: () => fetchJSON("/api/customers?full=1"),
   });
 
   const filteredCustomers = customers.filter(

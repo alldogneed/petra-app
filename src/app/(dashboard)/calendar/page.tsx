@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import {
   cn,
+  fetchJSON,
   getStatusColor,
   getStatusLabel,
   toWhatsAppPhone,
@@ -262,15 +263,26 @@ function NewAppointmentModal({
     notes: "",
   });
 
+  // Sync form with props when modal opens with new date/time
+  useEffect(() => {
+    if (isOpen) {
+      setForm((prev) => ({
+        ...prev,
+        date: defaultDate,
+        startTime: defaultTime,
+      }));
+    }
+  }, [isOpen, defaultDate, defaultTime]);
+
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["customers-for-select"],
-    queryFn: () => fetch("/api/customers?full=1").then((r) => r.json()),
+    queryFn: () => fetchJSON("/api/customers?full=1"),
     enabled: isOpen,
   });
 
   const { data: services = [] } = useQuery<Service[]>({
     queryKey: ["services"],
-    queryFn: () => fetch("/api/services").then((r) => r.json()),
+    queryFn: () => fetchJSON("/api/services"),
     enabled: isOpen,
   });
 
@@ -496,13 +508,13 @@ export default function CalendarPage() {
   const { data: appointments = [] } = useQuery<AppointmentEvent[]>({
     queryKey: ["appointments", from, to],
     queryFn: () =>
-      fetch(`/api/appointments?from=${from}&to=${to}`).then((r) => r.json()),
+      fetchJSON(`/api/appointments?from=${from}&to=${to}`),
   });
 
   const { data: boardingStays = [] } = useQuery<BoardingStayEvent[]>({
     queryKey: ["boarding-calendar", from, to],
     queryFn: () =>
-      fetch(`/api/boarding?from=${from}&to=${to}`).then((r) => r.json()),
+      fetchJSON(`/api/boarding?from=${from}&to=${to}`),
     enabled: viewMode !== "month",
   });
 

@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 // GET /api/analytics – aggregated analytics data for dashboard
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    const { searchParams } = new URL(request.url);
     const period = searchParams.get("period") || "month"; // week | month | quarter | year
 
     const now = new Date();

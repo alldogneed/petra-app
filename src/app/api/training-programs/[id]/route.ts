@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const program = await prisma.trainingProgram.findUnique({
-      where: { id: params.id },
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    const program = await prisma.trainingProgram.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
       include: {
         dog: true,
         customer: true,
@@ -39,6 +44,17 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    // Verify program belongs to this business
+    const existing = await prisma.trainingProgram.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "תוכנית לא נמצאה" }, { status: 404 });
+    }
+
     const body = await request.json();
 
     const program = await prisma.trainingProgram.update({

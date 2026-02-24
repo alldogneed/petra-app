@@ -11,7 +11,7 @@ import {
   AlertCircle,
   Clock,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, fetchJSON } from "@/lib/utils";
 
 interface Task {
   id: string;
@@ -63,7 +63,7 @@ export default function TasksPage() {
       const params = new URLSearchParams();
       if (activeCategory !== "ALL") params.set("category", activeCategory);
       if (activeStatus !== "ALL") params.set("status", activeStatus);
-      return fetch(`/api/tasks?${params}`).then((r) => r.json());
+      return fetchJSON<Task[]>(`/api/tasks?${params}`);
     },
   });
 

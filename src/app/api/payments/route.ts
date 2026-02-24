@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
 
@@ -46,6 +50,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await request.json();
     const { amount, method, status, customerId, appointmentId, boardingStayId } =
       body;
@@ -53,6 +60,29 @@ export async function POST(request: NextRequest) {
     if (!amount || !method || !status || !customerId) {
       return NextResponse.json(
         { error: "Missing required fields: amount, method, status, customerId" },
+        { status: 400 }
+      );
+    }
+
+    if (typeof amount !== "number" || amount <= 0) {
+      return NextResponse.json(
+        { error: "Amount must be a positive number" },
+        { status: 400 }
+      );
+    }
+
+    const validMethods = ["cash", "credit_card", "bank_transfer", "bit", "paybox", "check"];
+    if (!validMethods.includes(method)) {
+      return NextResponse.json(
+        { error: "Invalid payment method" },
+        { status: 400 }
+      );
+    }
+
+    const validStatuses = ["pending", "paid", "canceled"];
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json(
+        { error: "Invalid payment status" },
         { status: 400 }
       );
     }

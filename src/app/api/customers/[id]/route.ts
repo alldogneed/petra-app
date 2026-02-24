@@ -1,13 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const customer = await prisma.customer.findUnique({
-      where: { id: params.id },
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    const customer = await prisma.customer.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
       include: {
         pets: {
           include: {
@@ -74,10 +79,23 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await request.json();
+
+    // Whitelist allowed fields to prevent mass assignment
+    const data: Record<string, unknown> = {};
+    const allowedFields = ["name", "phone", "phoneNorm", "email", "address", "notes", "tags", "source"];
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        data[field] = body[field];
+      }
+    }
+
     const customer = await prisma.customer.update({
-      where: { id: params.id },
-      data: body,
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      data,
     });
     return NextResponse.json(customer);
   } catch (error) {
@@ -90,10 +108,21 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    // Verify customer belongs to this business before deleting
+    const customer = await prisma.customer.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+    });
+    if (!customer) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     await prisma.customer.delete({ where: { id: params.id } });
     return NextResponse.json({ success: true });
   } catch (error) {

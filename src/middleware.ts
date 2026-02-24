@@ -6,7 +6,15 @@ const PUBLIC_PATHS = [
   "/api/auth/logout",
   "/book",
   "/intake",
+  "/api/booking/availability",
+  "/api/booking/slots",
+  "/api/booking/book",
 ];
+
+/** Validate token format: must be exactly 64 hex characters */
+function isValidTokenFormat(token: string): boolean {
+  return /^[0-9a-f]{64}$/.test(token);
+}
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -16,19 +24,25 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow static files and Next.js internals
-  if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api/auth") ||
-    pathname.includes(".") // static files (logo.svg, favicon, etc.)
-  ) {
+  // Allow Next.js internals
+  if (pathname.startsWith("/_next")) {
+    return NextResponse.next();
+  }
+
+  // Allow all /api/auth/* paths
+  if (pathname.startsWith("/api/auth")) {
+    return NextResponse.next();
+  }
+
+  // Allow static files — only match file extensions at the end of the path
+  if (/\.\w{2,5}$/.test(pathname)) {
     return NextResponse.next();
   }
 
   // Check for session cookie
   const sessionToken = request.cookies.get("petra_session")?.value;
 
-  if (!sessionToken) {
+  if (!sessionToken || !isValidTokenFormat(sessionToken)) {
     // Redirect to login for page requests
     if (!pathname.startsWith("/api/")) {
       const loginUrl = new URL("/login", request.url);

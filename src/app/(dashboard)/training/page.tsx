@@ -19,7 +19,7 @@ import {
   Dog,
   ClipboardList,
 } from "lucide-react";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, fetchJSON } from "@/lib/utils";
 
 // --- Types ---
 interface TrainingGroup {
@@ -148,14 +148,14 @@ export default function TrainingPage() {
   // Groups
   const { data: groups = [], isLoading: groupsLoading } = useQuery<TrainingGroup[]>({
     queryKey: ["training-groups"],
-    queryFn: () => fetch("/api/training-groups?active=true").then((r) => r.json()),
+    queryFn: () => fetchJSON<TrainingGroup[]>("/api/training-groups?active=true"),
     enabled: activeTab === "groups",
   });
 
   // Programs
   const { data: programs = [], isLoading: programsLoading } = useQuery<TrainingProgram[]>({
     queryKey: ["training-programs"],
-    queryFn: () => fetch("/api/training-programs").then((r) => r.json()),
+    queryFn: () => fetchJSON<TrainingProgram[]>("/api/training-programs"),
     enabled: activeTab === "programs",
   });
 

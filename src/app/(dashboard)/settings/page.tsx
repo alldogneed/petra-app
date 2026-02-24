@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn, fetchJSON } from "@/lib/utils";
 import { TIERS } from "@/lib/constants";
 
 interface Business {
@@ -43,7 +43,7 @@ function BusinessTab() {
   const queryClient = useQueryClient();
   const { data: biz, isLoading } = useQuery<Business>({
     queryKey: ["settings"],
-    queryFn: () => fetch("/api/settings").then((r) => r.json()),
+    queryFn: () => fetchJSON<Business>("/api/settings"),
   });
 
   const [form, setForm] = useState<Partial<Business> | null>(null);
@@ -168,7 +168,7 @@ function IntegrationsTab() {
 
   const { data: integrations, isLoading } = useQuery<Integration[]>({
     queryKey: ["integrations"],
-    queryFn: () => fetch("/api/integrations").then((r) => r.json()),
+    queryFn: () => fetchJSON<Integration[]>("/api/integrations"),
   });
 
   const disconnectMutation = useMutation({
