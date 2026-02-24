@@ -40,7 +40,8 @@
     "react-dom": "^18",
     "resend": "^6.9.2",
     "styled-jsx": "^5.1.7",
-    "tailwind-merge": "^2"
+    "tailwind-merge": "^2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2",
