@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { logCurrentUserActivity } from "@/lib/activity-log";
 
 export async function GET() {
   try {
@@ -82,6 +83,7 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
+    logCurrentUserActivity("UPDATE_SETTINGS");
     return NextResponse.json(business);
   } catch (error) {
     console.error("Failed to update settings:", error);

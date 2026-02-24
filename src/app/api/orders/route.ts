@@ -1,0 +1,126 @@
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { calcOrder, CalcLineInput } from "@/lib/order-calc";
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = { businessId: DEMO_BUSINESS_ID };
+    if (status) where.status = status;
+
+    const orders = await prisma.order.findMany({
+      where,
+      include: {
+        customer: { select: { id: true, name: true, phone: true } },
+        lines: true,
+        payments: { select: { id: true, amount: true, status: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json(orders);
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { customerId, orderType, startAt, endAt, lines, discountType, discountValue, notes, status } = body;
+
+    if (!customerId || !lines || lines.length === 0) {
+      return NextResponse.json({ error: "customerId and at least one line are required" }, { status: 400 });
+    }
+
+    // Fetch business VAT settings
+    const business = await prisma.business.findUnique({
+      where: { id: DEMO_BUSINESS_ID },
+      select: { vatEnabled: true, vatRate: true },
+    });
+
+    if (!business) {
+      return NextResponse.json({ error: "Business not found" }, { status: 404 });
+    }
+
+    // Calculate order totals server-side
+    const calcInput: CalcLineInput[] = lines.map((l: { name: string; unit: string; quantity: number; unitPrice: number; taxMode?: string }) => ({
+      name: l.name,
+      unit: l.unit,
+      quantity: l.quantity,
+      unitPrice: l.unitPrice,
+      taxMode: (l.taxMode || "taxable") as "inherit" | "taxable" | "exempt",
+    }));
+
+    const calc = calcOrder({
+      lines: calcInput,
+      discountType: discountType || "none",
+      discountValue: discountValue || 0,
+      vatEnabled: business.vatEnabled,
+      vatRate: business.vatRate,
+    });
+
+    // Create order + lines atomically
+    const order = await prisma.$transaction(async (tx) => {
+      const created = await tx.order.create({
+        data: {
+          businessId: DEMO_BUSINESS_ID,
+          customerId,
+          orderType: orderType || "sale",
+          status: status || "draft",
+          startAt: startAt ? new Date(startAt) : undefined,
+          endAt: endAt ? new Date(endAt) : undefined,
+          subtotal: calc.subtotal,
+          discountType: discountType || "none",
+          discountValue: discountValue || 0,
+          discountAmount: calc.discountAmount,
+          taxTotal: calc.taxTotal,
+          total: calc.total,
+          notes: notes || null,
+        },
+      });
+
+      for (let i = 0; i < lines.length; i++) {
+        const l = lines[i];
+        const cl = calc.lines[i];
+        await tx.orderLine.create({
+          data: {
+            orderId: created.id,
+            businessId: DEMO_BUSINESS_ID,
+            priceListItemId: l.priceListItemId || null,
+            name: cl.name,
+            unit: cl.unit,
+            quantity: cl.quantity,
+            unitPrice: cl.unitPrice,
+            lineSubtotal: cl.lineSubtotal,
+            lineTax: cl.lineTax,
+            lineTotal: cl.lineTotal,
+            taxMode: cl.taxMode,
+          },
+        });
+      }
+
+      return created;
+    });
+
+    // Return with includes
+    const full = await prisma.order.findUnique({
+      where: { id: order.id },
+      include: {
+        customer: { select: { id: true, name: true, phone: true } },
+        lines: true,
+        payments: true,
+      },
+    });
+
+    return NextResponse.json(full, { status: 201 });
+  } catch (error) {
+    console.error("Error creating order:", error);
+    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
+  }
+}

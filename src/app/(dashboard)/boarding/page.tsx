@@ -29,6 +29,7 @@ import {
   Trash2,
   Check,
   Settings2,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -365,8 +366,9 @@ function StayRow({
 export default function BoardingPage() {
   const [showNewStay, setShowNewStay] = useState(false);
   const [form, setForm] = useState({
-    customerId: "", petId: "", roomId: "", checkIn: "", checkOut: "", notes: "",
+    customerId: "", petId: "", roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "",
   });
+  const [customerSearch, setCustomerSearch] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("active");
   const [activeStayId, setActiveStayId] = useState<string | null>(null);
 
@@ -400,18 +402,36 @@ export default function BoardingPage() {
 
   const selectedCustomer = customers.find((c) => c.id === form.customerId);
 
+  const filteredCustomers = customers.filter(
+    (c) =>
+      !customerSearch ||
+      c.name.includes(customerSearch) ||
+      c.phone.includes(customerSearch)
+  );
+
   const createMutation = useMutation({
-    mutationFn: (data: typeof form) =>
-      fetch("/api/boarding", {
+    mutationFn: (data: typeof form) => {
+      const checkInDT = data.checkIn ? `${data.checkIn}T${data.checkInTime || "12:00"}:00` : "";
+      const checkOutDT = data.checkOut ? `${data.checkOut}T${data.checkOutTime || "12:00"}:00` : "";
+      return fetch("/api/boarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+        body: JSON.stringify({
+          customerId: data.customerId,
+          petId: data.petId,
+          roomId: data.roomId || null,
+          checkIn: checkInDT,
+          checkOut: checkOutDT || null,
+          notes: data.notes || null,
+        }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setShowNewStay(false);
-      setForm({ customerId: "", petId: "", roomId: "", checkIn: "", checkOut: "", notes: "" });
+      setForm({ customerId: "", petId: "", roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "" });
+      setCustomerSearch("");
     },
   });
 
@@ -853,18 +873,67 @@ export default function BoardingPage() {
             </div>
 
             <div className="space-y-4">
+              {/* ── Customer selector with search ── */}
               <div>
                 <label className="label">לקוח *</label>
-                <select
-                  className="input"
-                  value={form.customerId}
-                  onChange={(e) => setForm({ ...form, customerId: e.target.value, petId: "" })}
-                >
-                  <option value="">בחר לקוח...</option>
-                  {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                {form.customerId && selectedCustomer ? (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-brand-50 border border-brand-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center text-brand-600 font-bold text-sm flex-shrink-0">
+                        {selectedCustomer.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-petra-text">{selectedCustomer.name}</p>
+                        <p className="text-[10px] text-petra-muted" dir="ltr">{selectedCustomer.phone}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setForm({ ...form, customerId: "", petId: "" }); setCustomerSearch(""); }}
+                      className="text-xs text-brand-500 hover:text-brand-700 font-medium"
+                    >
+                      שנה
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="relative mb-2">
+                      <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <input
+                        className="input pr-10"
+                        placeholder="חיפוש לפי שם או טלפון..."
+                        value={customerSearch}
+                        onChange={(e) => setCustomerSearch(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                    <div className="max-h-48 overflow-y-auto border border-petra-border rounded-xl divide-y divide-petra-border">
+                      {filteredCustomers.length === 0 ? (
+                        <div className="py-4 text-center text-sm text-petra-muted">לא נמצאו לקוחות</div>
+                      ) : (
+                        filteredCustomers.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => { setForm({ ...form, customerId: c.id, petId: "" }); setCustomerSearch(""); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors text-right"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-600 flex-shrink-0">
+                              {c.name.charAt(0)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-petra-text truncate">{c.name}</p>
+                              <p className="text-[10px] text-petra-muted" dir="ltr">{c.phone}</p>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
+              {/* ── Pet selector ── */}
               {selectedCustomer && (
                 <div>
                   <label className="label">חיית מחמד *</label>
@@ -881,6 +950,7 @@ export default function BoardingPage() {
                 </div>
               )}
 
+              {/* ── Room selector ── */}
               <div>
                 <label className="label">חדר</label>
                 <select
@@ -897,27 +967,51 @@ export default function BoardingPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">צ׳ק-אין *</label>
+              {/* ── Check-in: date + time ── */}
+              <div>
+                <label className="label">צ׳ק-אין *</label>
+                <div className="grid grid-cols-2 gap-2">
                   <input
                     type="date"
                     className="input"
                     value={form.checkIn}
                     onChange={(e) => setForm({ ...form, checkIn: e.target.value })}
                   />
+                  <div className="relative">
+                    <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
+                    <input
+                      type="time"
+                      className="input pr-9"
+                      value={form.checkInTime}
+                      onChange={(e) => setForm({ ...form, checkInTime: e.target.value })}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="label">צ׳ק-אאוט</label>
+              </div>
+
+              {/* ── Check-out: date + time ── */}
+              <div>
+                <label className="label">צ׳ק-אאוט</label>
+                <div className="grid grid-cols-2 gap-2">
                   <input
                     type="date"
                     className="input"
                     value={form.checkOut}
                     onChange={(e) => setForm({ ...form, checkOut: e.target.value })}
                   />
+                  <div className="relative">
+                    <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
+                    <input
+                      type="time"
+                      className="input pr-9"
+                      value={form.checkOutTime}
+                      onChange={(e) => setForm({ ...form, checkOutTime: e.target.value })}
+                    />
+                  </div>
                 </div>
               </div>
 
+              {/* ── Notes ── */}
               <div>
                 <label className="label">הערות</label>
                 <textarea

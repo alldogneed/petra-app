@@ -12,7 +12,6 @@ import {
   PawPrint,
   Calendar,
   X,
-  MessageCircle,
   Pencil,
   Crown,
   Check,
@@ -289,14 +288,16 @@ function QuickActions({
 
       {/* Email — only when customer has an email address */}
       {customer.email ? (
-        <a
-          href={`mailto:${customer.email}`}
+        <button
           className="w-8 h-8 rounded-lg flex items-center justify-center text-blue-500 hover:bg-blue-50 transition-colors"
           title={`שלח אימייל ל־${customer.email}`}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            window.location.href = `mailto:${customer.email}`;
+          }}
         >
           <Mail className="w-4 h-4" />
-        </a>
+        </button>
       ) : (
         <span className="w-8 h-8" />
       )}
@@ -1326,7 +1327,15 @@ export default function CustomersPage() {
                                 {customer.phone}
                               </span>
                               {customer.email && (
-                                <span className="text-[11px] text-petra-muted hidden sm:flex items-center gap-1">
+                                <span
+                                  role="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    window.location.href = `mailto:${customer.email}`;
+                                  }}
+                                  className="text-[11px] text-petra-muted hover:text-brand-600 hidden sm:flex items-center gap-1 transition-colors cursor-pointer"
+                                >
                                   <Mail className="w-3 h-3" />
                                   {customer.email}
                                 </span>

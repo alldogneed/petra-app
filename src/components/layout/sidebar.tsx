@@ -20,6 +20,7 @@ import {
   CalendarCheck,
   HelpCircle,
   Tag,
+  ShoppingCart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -35,8 +36,9 @@ const navigation = [
   { name: "הודעות", href: "/messages", icon: MessageSquare },
   { name: "תשלומים", href: "/payments", icon: CreditCard },
   { name: "מחירון", href: "/pricing", icon: Tag },
+  { name: "הזמנות", href: "/orders", icon: ShoppingCart },
   { name: "פנסיון", href: "/boarding", icon: Hotel },
-  { name: "הזמנות", href: "/bookings", icon: CalendarCheck },
+  { name: "הזמנות אונליין", href: "/bookings", icon: CalendarCheck },
   { name: "אנליטיקס", href: "/analytics", icon: BarChart3 },
   { name: "הגדרות", href: "/settings", icon: Settings },
 ];

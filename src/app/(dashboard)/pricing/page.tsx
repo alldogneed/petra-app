@@ -214,7 +214,7 @@ function ServiceModal({
                     checked={form.includesVat}
                     onChange={(e) => set("includesVat", e.target.checked)}
                   />
-                  <span className="text-sm text-slate-700">כולל מע"מ</span>
+                  <span className="text-sm text-slate-700">כולל מע&quot;מ</span>
                 </label>
               </div>
             </div>
@@ -438,7 +438,7 @@ function ServiceCard({
             {formatCurrency(service.price)}
           </span>
           {service.includesVat && (
-            <span className="text-xs text-petra-muted">כולל מע"מ</span>
+            <span className="text-xs text-petra-muted">כולל מע&quot;מ</span>
           )}
           <span className="text-xs text-petra-muted">· {service.duration} דק׳</span>
         </div>

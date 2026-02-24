@@ -64,6 +64,21 @@ async function main() {
   });
   console.log(`✅ admin: ${admin.email}`);
 
+  // Create master admin
+  const master = await prisma.platformUser.upsert({
+    where: { email: "master@petra.local" },
+    create: {
+      email: "master@petra.local",
+      name: "Master Admin",
+      passwordHash,
+      role: "MASTER",
+      platformRole: "super_admin",
+      isActive: true,
+    },
+    update: { passwordHash, role: "MASTER", platformRole: "super_admin", isActive: true },
+  });
+  console.log(`✅ master: ${master.email}`);
+
   // Create a regular tenant owner (no platform role)
   const owner = await prisma.platformUser.upsert({
     where: { email: "owner@petra.local" },
@@ -90,6 +105,18 @@ async function main() {
     update: { role: "owner", isActive: true },
   });
 
+  // Link master to demo business as owner
+  await prisma.businessUser.upsert({
+    where: { businessId_userId: { businessId: DEMO_BUSINESS_ID, userId: master.id } },
+    create: {
+      businessId: DEMO_BUSINESS_ID,
+      userId: master.id,
+      role: "owner",
+      isActive: true,
+    },
+    update: {},
+  });
+
   // Link super_admin to demo business as owner (for cross-testing)
   await prisma.businessUser.upsert({
     where: { businessId_userId: { businessId: DEMO_BUSINESS_ID, userId: superAdmin.id } },
@@ -103,7 +130,7 @@ async function main() {
   });
 
   // Mark owner and superAdmin as having completed onboarding
-  for (const u of [owner, superAdmin]) {
+  for (const u of [owner, superAdmin, master]) {
     await prisma.onboardingProgress.upsert({
       where: { userId: u.id },
       create: {
@@ -137,6 +164,7 @@ async function main() {
   console.log(`✅ Seeded ${flags.length} feature flags`);
 
   console.log("\n🎉 Done! Credentials:");
+  console.log(`   master:      master@petra.local / ${DEFAULT_PASSWORD}`);
   console.log(`   super_admin: superadmin@petra.local / ${DEFAULT_PASSWORD}`);
   console.log(`   admin:       admin@petra.local / ${DEFAULT_PASSWORD}`);
   console.log(`   tenant owner: owner@petra.local / ${DEFAULT_PASSWORD}`);

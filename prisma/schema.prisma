@@ -21,6 +21,7 @@ model PlatformUser {
   googleId       String?  @unique  // Google OAuth "sub" claim
   authProvider   String   @default("local") // "local" | "google" | "both"
   avatarUrl      String?  // Profile picture URL (from Google)
+  role           String   @default("USER") // "USER" | "MASTER"
   platformRole   String?  // "super_admin" | "admin" | "support" | null
   isActive       Boolean  @default(true)
   twoFaEnabled   Boolean  @default(false)
@@ -43,6 +44,7 @@ model PlatformUser {
   sessions       AdminSession[]
   businessMemberships BusinessUser[]
   auditLogs      AuditLog[]     @relation("ActorLogs")
+  activityLogs   ActivityLog[]  @relation("ActivityLogs")
   syncJobs       SyncJob[]
   onboardingProfile  OnboardingProfile?
   onboardingProgress OnboardingProgress?
@@ -110,6 +112,21 @@ model AuditLog {
   @@index([action])
   @@index([timestamp])
   @@index([targetType, targetId])
+}
+
+/// Privacy-focused activity log for Master Admin dashboard.
+/// Records ONLY action type + timestamp + user identity. No customer data.
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String
+  userName  String   // Denormalized for live feed display
+  action    String   // "LOGIN", "CREATE_CUSTOMER", "ADD_PET", etc.
+  createdAt DateTime @default(now())
+
+  user PlatformUser @relation("ActivityLogs", fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 /// Platform-level feature flags and system settings

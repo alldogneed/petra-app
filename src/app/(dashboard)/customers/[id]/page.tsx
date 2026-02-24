@@ -908,7 +908,7 @@ function CustomerDocumentsSection({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   // Parse docs from customer data (initial), then use react-query for fresh data
-  const { data: docs = [], isLoading } = useQuery<CustomerDoc[]>({
+  const { data: docs = [] } = useQuery<CustomerDoc[]>({
     queryKey: ["customerDocs", customerId],
     queryFn: () =>
       fetch(`/api/customers/${customerId}/documents`).then((r) => r.json()),
@@ -1419,10 +1419,15 @@ export default function CustomerProfilePage() {
                 </a>
               </div>
               {customer.email && (
-                <div className="flex items-center gap-2.5">
-                  <Mail className="w-4 h-4 text-petra-muted flex-shrink-0" />
-                  <span className="text-sm break-all">{customer.email}</span>
-                </div>
+                <button
+                  onClick={() => { window.location.href = `mailto:${customer.email}`; }}
+                  className="flex items-center gap-2.5 group cursor-pointer"
+                >
+                  <Mail className="w-4 h-4 text-petra-muted flex-shrink-0 group-hover:text-brand-600 transition-colors" />
+                  <span className="text-sm break-all text-brand-600 group-hover:text-brand-700 group-hover:underline transition-colors">
+                    {customer.email}
+                  </span>
+                </button>
               )}
               {customer.address && (
                 <div className="flex items-center gap-2.5">

@@ -178,7 +178,7 @@ function HoverPreviewCard({
   y: number;
 }) {
   const color = getAppointmentColor(appointment.service);
-  const waPhone = toWhatsAppPhone(appointment.customer.phone);
+  const _waPhone = toWhatsAppPhone(appointment.customer.phone);
 
   return (
     <div

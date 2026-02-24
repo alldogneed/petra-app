@@ -4,7 +4,7 @@ import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
 
-const DOCUMENT_CATEGORIES = [
+const _DOCUMENT_CATEGORIES = [
   "contract",      // חוזה
   "invoice",       // חשבונית
   "receipt",       // קבלה

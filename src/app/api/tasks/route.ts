@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { logCurrentUserActivity } from "@/lib/activity-log";
 
 export async function GET(request: NextRequest) {
   try {
@@ -87,6 +88,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    logCurrentUserActivity("CREATE_TASK");
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
     console.error("Error creating task:", error);

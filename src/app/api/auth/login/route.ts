@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { createSession, setSessionCookie } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,6 +45,8 @@ export async function POST(request: NextRequest) {
     // Create session
     const { token } = await createSession(user.id, request);
     setSessionCookie(token);
+
+    logActivity(user.id, user.name, "LOGIN");
 
     const membership = user.businessMemberships[0] || null;
 

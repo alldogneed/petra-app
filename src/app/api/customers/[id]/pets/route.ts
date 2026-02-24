@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { logCurrentUserActivity } from "@/lib/activity-log";
 
 export async function POST(
   request: NextRequest,
@@ -33,6 +34,8 @@ export async function POST(
         update: { neuteredSpayed: Boolean(neuteredSpayed) },
       });
     }
+
+    logCurrentUserActivity("ADD_PET");
 
     await prisma.timelineEvent.create({
       data: {
