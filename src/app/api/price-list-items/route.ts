@@ -3,6 +3,14 @@ import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
+// Map English category IDs (used by frontend) to Hebrew (stored in DB)
+const CATEGORY_ID_TO_HE: Record<string, string> = {
+  training: "אילוף",
+  boarding: "פנסיון",
+  grooming: "טיפוח",
+  products: "מוצרים",
+};
+
 // GET /api/price-list-items?category=training
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +22,10 @@ export async function GET(request: NextRequest) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { businessId: DEMO_BUSINESS_ID, isActive: true };
-    if (category) where.category = category;
+    if (category) {
+      // Accept both English IDs and Hebrew labels
+      where.category = CATEGORY_ID_TO_HE[category] || category;
+    }
 
     const items = await prisma.priceListItem.findMany({
       where,
