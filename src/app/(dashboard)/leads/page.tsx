@@ -1,10 +1,13 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Plus, X, Phone, Mail, Check, XCircle, MessageCircle, Trophy, Archive, PhoneCall } from "lucide-react";
+import { useState, useRef } from "react";
+import {
+  Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
+  Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical
+} from "lucide-react";
 import { fetchJSON, toWhatsAppPhone } from "@/lib/utils";
-import { LEAD_STAGES, LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
+import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { LeadTreatmentModal } from "@/components/leads/LeadTreatmentModal";
 import {
   DndContext,
@@ -14,9 +17,16 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-  DragStartEvent
+  DragStartEvent,
 } from "@dnd-kit/core";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface Lead {
   id: string;
@@ -34,6 +44,20 @@ interface Lead {
   lostReasonText: string | null;
   callLogs?: { id: string }[];
 }
+
+interface LeadStage {
+  id: string;
+  name: string;
+  color: string;
+  sortOrder: number;
+  isWon: boolean;
+  isLost: boolean;
+}
+
+const STAGE_COLORS = [
+  "#8B5CF6", "#3B82F6", "#6366F1", "#06B6D4",
+  "#22C55E", "#EAB308", "#F97316", "#EF4444",
+];
 
 function NewLeadModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const queryClient = useQueryClient();
@@ -110,13 +134,117 @@ function getSourceEmoji(source: string): string {
   }
 }
 
-function KanbanColumn({ stage, leads, onLeadClick, onQuickAction }: { stage: { id: string, label: string, color: string }, leads: Lead[], onLeadClick: (l: Lead) => void, onQuickAction: (l: Lead, action: string) => void }) {
+// ─── Edit Mode: Sortable Column Wrapper ──────────────────────────────────────
+
+function SortableColumn({
+  stage,
+  leads,
+  editMode,
+  editingStageId,
+  editingName,
+  onStartEdit,
+  onChangeName,
+  onSaveName,
+  onChangeColor,
+  onDelete,
+  onLeadClick,
+  onQuickAction,
+  stages,
+}: {
+  stage: LeadStage;
+  leads: Lead[];
+  editMode: boolean;
+  editingStageId: string | null;
+  editingName: string;
+  onStartEdit: (id: string, name: string) => void;
+  onChangeName: (name: string) => void;
+  onSaveName: (id: string) => void;
+  onChangeColor: (id: string, color: string) => void;
+  onDelete: (stage: LeadStage) => void;
+  onLeadClick: (l: Lead) => void;
+  onQuickAction: (l: Lead, action: string) => void;
+  stages: LeadStage[];
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: stage.id, disabled: !editMode });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="min-w-[280px] flex-1 flex flex-col">
+      <KanbanColumn
+        stage={stage}
+        leads={leads}
+        editMode={editMode}
+        editingStageId={editingStageId}
+        editingName={editingName}
+        onStartEdit={onStartEdit}
+        onChangeName={onChangeName}
+        onSaveName={onSaveName}
+        onChangeColor={onChangeColor}
+        onDelete={onDelete}
+        onLeadClick={onLeadClick}
+        onQuickAction={onQuickAction}
+        dragAttributes={attributes}
+        dragListeners={listeners}
+        stages={stages}
+      />
+    </div>
+  );
+}
+
+// ─── Kanban Column ───────────────────────────────────────────────────────────
+
+function KanbanColumn({
+  stage,
+  leads,
+  editMode,
+  editingStageId,
+  editingName,
+  onStartEdit,
+  onChangeName,
+  onSaveName,
+  onChangeColor,
+  onDelete,
+  onLeadClick,
+  onQuickAction,
+  dragAttributes,
+  dragListeners,
+  stages,
+}: {
+  stage: LeadStage;
+  leads: Lead[];
+  editMode: boolean;
+  editingStageId: string | null;
+  editingName: string;
+  onStartEdit: (id: string, name: string) => void;
+  onChangeName: (name: string) => void;
+  onSaveName: (id: string) => void;
+  onChangeColor: (id: string, color: string) => void;
+  onDelete: (stage: LeadStage) => void;
+  onLeadClick: (l: Lead) => void;
+  onQuickAction: (l: Lead, action: string) => void;
+  dragAttributes?: Record<string, any>;
+  dragListeners?: Record<string, any>;
+  stages: LeadStage[];
+}) {
   const { isOver, setNodeRef } = useDroppable({
     id: stage.id,
+    disabled: editMode,
   });
 
-  const isWon = stage.id === "won";
-  const isLost = stage.id === "lost";
+  const isWon = stage.isWon;
+  const isLost = stage.isLost;
 
   const columnBg = isWon
     ? "bg-green-50/60 border-green-100"
@@ -132,9 +260,22 @@ function KanbanColumn({ stage, leads, onLeadClick, onQuickAction }: { stage: { i
         : "bg-slate-100 border-dashed border-slate-300"
     : columnBg;
 
+  const [showColorPicker, setShowColorPicker] = useState(false);
+
   return (
-    <div className="min-w-[280px] flex-1 flex flex-col">
+    <>
+      {/* Column Header */}
       <div className="flex items-center gap-2 mb-3 px-1">
+        {editMode && dragListeners && (
+          <button
+            className="cursor-grab active:cursor-grabbing text-petra-muted hover:text-petra-text"
+            {...dragAttributes}
+            {...dragListeners}
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+        )}
+
         {isWon ? (
           <Trophy className="w-4 h-4 text-green-500" />
         ) : isLost ? (
@@ -142,10 +283,72 @@ function KanbanColumn({ stage, leads, onLeadClick, onQuickAction }: { stage: { i
         ) : (
           <div className="w-2.5 h-2.5 rounded-full" style={{ background: stage.color }} />
         )}
-        <span className="text-sm font-semibold text-petra-text">{stage.label}</span>
+
+        {editMode && editingStageId === stage.id ? (
+          <input
+            className="text-sm font-semibold text-petra-text bg-white border border-brand-300 rounded px-2 py-0.5 w-28 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            value={editingName}
+            onChange={(e) => onChangeName(e.target.value)}
+            onBlur={() => onSaveName(stage.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onSaveName(stage.id);
+              if (e.key === "Escape") onSaveName(stage.id);
+            }}
+            autoFocus
+          />
+        ) : (
+          <span
+            className={`text-sm font-semibold text-petra-text ${editMode ? "cursor-pointer hover:text-brand-600" : ""}`}
+            onClick={() => editMode && onStartEdit(stage.id, stage.name)}
+          >
+            {stage.name}
+          </span>
+        )}
+
         <span className="badge-neutral text-[10px] mr-auto">{leads.length}</span>
+
+        {editMode && (
+          <div className="flex items-center gap-1 relative">
+            {/* Color picker */}
+            <button
+              className="w-5 h-5 rounded-full border-2 border-white shadow-sm"
+              style={{ backgroundColor: stage.color }}
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              title="שנה צבע"
+            />
+            {showColorPicker && (
+              <div className="absolute top-7 left-0 z-50 bg-white shadow-lg rounded-lg p-2 flex gap-1 border border-slate-200">
+                {STAGE_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-125 ${c === stage.color ? "border-slate-800 scale-110" : "border-white"}`}
+                    style={{ backgroundColor: c }}
+                    onClick={() => {
+                      onChangeColor(stage.id, c);
+                      setShowColorPicker(false);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Delete / Lock */}
+            {isWon || isLost ? (
+              <Lock className="w-3.5 h-3.5 text-petra-muted" title="לא ניתן למחוק שלב זה" />
+            ) : (
+              <button
+                onClick={() => onDelete(stage)}
+                className="w-5 h-5 flex items-center justify-center rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                title="מחק שלב"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
+      {/* Column Body */}
       <div
         ref={setNodeRef}
         className={`flex-1 space-y-3 min-h-[400px] p-3 rounded-xl transition-colors border ${columnBgHover}`}
@@ -153,21 +356,41 @@ function KanbanColumn({ stage, leads, onLeadClick, onQuickAction }: { stage: { i
         {leads.length === 0 && !isOver && (
           <p className="text-xs text-petra-muted text-center py-8">אין לידים</p>
         )}
-        {leads.map((lead) => (
+        {!editMode && leads.map((lead) => (
           <DraggableLeadCard
             key={lead.id}
             lead={lead}
-            stageId={stage.id}
+            stage={stage}
             onClick={() => onLeadClick(lead)}
             onQuickAction={(action) => onQuickAction(lead, action)}
+            stages={stages}
           />
         ))}
+        {editMode && leads.map((lead) => (
+          <div key={lead.id} className="card p-4 opacity-60">
+            <div className="text-sm font-bold text-petra-text">{lead.name}</div>
+          </div>
+        ))}
       </div>
-    </div>
+    </>
   );
 }
 
-function DraggableLeadCard({ lead, stageId, onClick, onQuickAction }: { lead: Lead, stageId: string, onClick: () => void, onQuickAction: (action: string) => void }) {
+// ─── Draggable Lead Card ─────────────────────────────────────────────────────
+
+function DraggableLeadCard({
+  lead,
+  stage,
+  onClick,
+  onQuickAction,
+  stages,
+}: {
+  lead: Lead;
+  stage: LeadStage;
+  onClick: () => void;
+  onQuickAction: (action: string) => void;
+  stages: LeadStage[];
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: lead.id,
     data: { lead },
@@ -176,8 +399,11 @@ function DraggableLeadCard({ lead, stageId, onClick, onQuickAction }: { lead: Le
   const sourceLabel = LEAD_SOURCES.find((s) => s.id === lead.source)?.label || lead.source;
   const sourceEmoji = getSourceEmoji(lead.source);
   const callLogCount = lead.callLogs?.length || 0;
-  const isWon = stageId === "won";
-  const isLost = stageId === "lost";
+  const isWon = stage.isWon;
+  const isLost = stage.isLost;
+
+  const wonStage = stages.find((s) => s.isWon);
+  const lostStage = stages.find((s) => s.isLost);
 
   const lostReasonLabel = lead.lostReasonCode
     ? LOST_REASON_CODES.find((r) => r.id === lead.lostReasonCode)?.label
@@ -266,17 +492,17 @@ function DraggableLeadCard({ lead, stageId, onClick, onQuickAction }: { lead: Le
               <MessageCircle className="w-4 h-4" />
             </button>
           )}
-          {!isWon && !isLost && (
+          {!isWon && !isLost && wonStage && lostStage && (
             <>
               <button
-                onClick={(e) => { e.stopPropagation(); onQuickAction('won'); }}
+                onClick={(e) => { e.stopPropagation(); onQuickAction(wonStage.id); }}
                 className="w-7 h-7 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors"
                 title="לקוח נסגר (זכינו!)"
               >
                 <Check className="w-4 h-4" />
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); onQuickAction('lost'); }}
+                onClick={(e) => { e.stopPropagation(); onQuickAction(lostStage.id); }}
                 className="w-7 h-7 flex items-center justify-center rounded-full text-red-600 hover:bg-red-100 transition-colors"
                 title="זרוק לאבודים"
               >
@@ -290,10 +516,119 @@ function DraggableLeadCard({ lead, stageId, onClick, onQuickAction }: { lead: Le
   );
 }
 
+// ─── Add Stage Inline ────────────────────────────────────────────────────────
+
+function AddStageInline({ onAdd }: { onAdd: (name: string) => void }) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [name, setName] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = () => {
+    if (name.trim()) {
+      onAdd(name.trim());
+      setName("");
+      setIsAdding(false);
+    }
+  };
+
+  if (!isAdding) {
+    return (
+      <div className="min-w-[200px] flex flex-col">
+        <button
+          onClick={() => {
+            setIsAdding(true);
+            setTimeout(() => inputRef.current?.focus(), 50);
+          }}
+          className="flex items-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-petra-muted hover:border-brand-300 hover:text-brand-600 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          <span className="text-sm font-medium">הוסף שלב</span>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-w-[200px] flex flex-col">
+      <div className="flex items-center gap-2 px-1 mb-3">
+        <input
+          ref={inputRef}
+          className="text-sm font-semibold text-petra-text bg-white border border-brand-300 rounded px-2 py-1 w-full focus:outline-none focus:ring-1 focus:ring-brand-500"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSubmit();
+            if (e.key === "Escape") { setIsAdding(false); setName(""); }
+          }}
+          onBlur={() => {
+            if (name.trim()) handleSubmit();
+            else { setIsAdding(false); setName(""); }
+          }}
+          placeholder="שם השלב..."
+          autoFocus
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Delete Confirm Modal ────────────────────────────────────────────────────
+
+function DeleteStageModal({
+  stage,
+  leadCount,
+  onConfirm,
+  onClose,
+}: {
+  stage: LeadStage;
+  leadCount: number;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <h3 className="text-lg font-bold text-petra-text mb-3">
+          מחיקת שלב &quot;{stage.name}&quot;
+        </h3>
+        {leadCount > 0 ? (
+          <>
+            <p className="text-sm text-petra-muted mb-4">
+              לא ניתן למחוק שלב זה כי יש בו {leadCount} לידים. העבר את הלידים לשלב אחר לפני המחיקה.
+            </p>
+            <div className="flex justify-end">
+              <button className="btn-secondary" onClick={onClose}>הבנתי</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-petra-muted mb-4">
+              האם למחוק את השלב? לא ניתן לשחזר פעולה זו.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button className="btn-secondary" onClick={onClose}>ביטול</button>
+              <button className="btn-danger" onClick={onConfirm}>מחק שלב</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ───────────────────────────────────────────────────────────────
+
 export default function LeadsPage() {
   const [showModal, setShowModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [activeDragLead, setActiveDragLead] = useState<Lead | null>(null);
+
+  // Edit mode state
+  const [editMode, setEditMode] = useState(false);
+  const [editingStageId, setEditingStageId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ stage: LeadStage; leadCount: number } | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -302,19 +637,52 @@ export default function LeadsPage() {
     queryFn: () => fetchJSON<Lead[]>("/api/leads"),
   });
 
+  const { data: stages = [] } = useQuery<LeadStage[]>({
+    queryKey: ["lead-stages"],
+    queryFn: () => fetchJSON<LeadStage[]>("/api/leads/stages"),
+  });
+
+  // ─── Mutations ──────────────────────────────────────────────────────────
+
   const moveMutation = useMutation({
     mutationFn: ({ id, stage }: { id: string; stage: string }) =>
       fetch(`/api/leads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage }) }).then((r) => r.json()),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
   });
 
+  const updateStageMutation = useMutation({
+    mutationFn: ({ id, ...data }: { id: string; name?: string; color?: string }) =>
+      fetch(`/api/leads/stages/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lead-stages"] }),
+  });
+
+  const createStageMutation = useMutation({
+    mutationFn: (data: { name: string; color?: string }) =>
+      fetch("/api/leads/stages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lead-stages"] }),
+  });
+
+  const deleteStageMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/leads/stages/${id}`, { method: "DELETE" }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lead-stages"] }),
+  });
+
+  const reorderMutation = useMutation({
+    mutationFn: (stageIds: string[]) =>
+      fetch("/api/leads/stages/reorder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stageIds }) }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lead-stages"] }),
+  });
+
+  // ─── Lead DnD Sensors ──────────────────────────────────────────────────
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
+      activationConstraint: { distance: 5 },
     })
   );
+
+  // ─── Lead DnD Handlers ─────────────────────────────────────────────────
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -330,25 +698,79 @@ export default function LeadsPage() {
       const activeLeadId = active.id as string;
       const targetStageId = over.id as string;
       const lead = leads.find((l) => l.id === activeLeadId);
+      const targetStage = stages.find((s) => s.id === targetStageId);
 
       if (lead && lead.stage !== targetStageId) {
-        // Optimistic update locally
         queryClient.setQueryData(["leads"], (old: Lead[]) =>
           old.map(l => l.id === activeLeadId ? { ...l, stage: targetStageId } : l)
         );
 
         moveMutation.mutate({ id: activeLeadId, stage: targetStageId });
 
-        // If moving to won/lost open modal for follow up
-        if (targetStageId === "lost" || targetStageId === "won") {
+        if (targetStage && (targetStage.isLost || targetStage.isWon)) {
           setSelectedLead({ ...lead, stage: targetStageId });
         }
       }
     }
   };
 
-  const activeStages = LEAD_STAGES.filter((s) => s.id !== "lost" && s.id !== "won");
-  const boardStages = [...activeStages, LEAD_STAGES.find(s => s.id === "won") as { id: string, label: string, color: string }, LEAD_STAGES.find(s => s.id === "lost") as { id: string, label: string, color: string }];
+  // ─── Column Reorder DnD Handler (edit mode) ────────────────────────────
+
+  const handleColumnDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = stages.findIndex((s) => s.id === active.id);
+    const newIndex = stages.findIndex((s) => s.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newOrder = arrayMove(stages, oldIndex, newIndex);
+
+    // Optimistic update
+    queryClient.setQueryData(["lead-stages"], newOrder.map((s, i) => ({ ...s, sortOrder: i })));
+
+    reorderMutation.mutate(newOrder.map((s) => s.id));
+  };
+
+  // ─── Edit Mode Handlers ────────────────────────────────────────────────
+
+  const handleStartEdit = (id: string, name: string) => {
+    setEditingStageId(id);
+    setEditingName(name);
+  };
+
+  const handleSaveName = (id: string) => {
+    if (editingName.trim() && editingName.trim() !== stages.find((s) => s.id === id)?.name) {
+      updateStageMutation.mutate({ id, name: editingName.trim() });
+    }
+    setEditingStageId(null);
+    setEditingName("");
+  };
+
+  const handleChangeColor = (id: string, color: string) => {
+    updateStageMutation.mutate({ id, color });
+  };
+
+  const handleDelete = (stage: LeadStage) => {
+    const count = leads.filter((l) => l.stage === stage.id).length;
+    setDeleteTarget({ stage, leadCount: count });
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteTarget) {
+      deleteStageMutation.mutate(deleteTarget.stage.id);
+      setDeleteTarget(null);
+    }
+  };
+
+  const handleAddStage = (name: string) => {
+    createStageMutation.mutate({ name });
+  };
+
+  // ─── Render ─────────────────────────────────────────────────────────────
+
+  const wonStage = stages.find((s) => s.isWon);
 
   return (
     <div>
@@ -358,41 +780,98 @@ export default function LeadsPage() {
         <button className="btn-primary" onClick={() => setShowModal(true)}>
           <Plus className="w-4 h-4" />ליד חדש
         </button>
+        <button
+          className={`btn-secondary flex items-center gap-1.5 ${editMode ? "!bg-brand-50 !text-brand-700 !border-brand-300" : ""}`}
+          onClick={() => {
+            setEditMode(!editMode);
+            setEditingStageId(null);
+            setEditingName("");
+          }}
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          {editMode ? "סיום עריכה" : "עריכת שלבים"}
+        </button>
       </div>
 
-      {/* Kanban Board */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex gap-4 overflow-x-auto pb-8 items-stretch h-[calc(100vh-200px)]">
-          {boardStages.map((stage) => {
-            const stageLeads = leads.filter((l) => l.stage === stage.id);
-            return (
-              <KanbanColumn
-                key={stage.id}
-                stage={stage}
-                leads={stageLeads}
-                onLeadClick={(lead) => setSelectedLead(lead)}
-                onQuickAction={(lead, action) => setSelectedLead({ ...lead, stage: action })}
-              />
-            );
-          })}
-        </div>
-
-        <DragOverlay>
-          {activeDragLead ? (
-            <div className="card p-4 shadow-2xl opacity-90 rotate-2 w-[280px]">
-              <div className="text-sm font-bold text-petra-text">{activeDragLead.name}</div>
-              <span className="badge-neutral text-[10px] mt-3 inline-block">
-                {LEAD_SOURCES.find((s) => s.id === activeDragLead.source)?.label || activeDragLead.source}
-              </span>
+      {editMode ? (
+        /* ─── Edit Mode: Column reorder DnD ─── */
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragEnd={handleColumnDragEnd}
+        >
+          <SortableContext items={stages.map((s) => s.id)} strategy={horizontalListSortingStrategy}>
+            <div className="flex gap-4 overflow-x-auto pb-8 items-stretch h-[calc(100vh-200px)]">
+              {stages.map((stage) => {
+                const stageLeads = leads.filter((l) => l.stage === stage.id);
+                return (
+                  <SortableColumn
+                    key={stage.id}
+                    stage={stage}
+                    leads={stageLeads}
+                    editMode={editMode}
+                    editingStageId={editingStageId}
+                    editingName={editingName}
+                    onStartEdit={handleStartEdit}
+                    onChangeName={setEditingName}
+                    onSaveName={handleSaveName}
+                    onChangeColor={handleChangeColor}
+                    onDelete={handleDelete}
+                    onLeadClick={(lead) => setSelectedLead(lead)}
+                    onQuickAction={(lead, action) => setSelectedLead({ ...lead, stage: action })}
+                    stages={stages}
+                  />
+                );
+              })}
+              <AddStageInline onAdd={handleAddStage} />
             </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+          </SortableContext>
+        </DndContext>
+      ) : (
+        /* ─── Normal Mode: Lead card DnD ─── */
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex gap-4 overflow-x-auto pb-8 items-stretch h-[calc(100vh-200px)]">
+            {stages.map((stage) => {
+              const stageLeads = leads.filter((l) => l.stage === stage.id);
+              return (
+                <div key={stage.id} className="min-w-[280px] flex-1 flex flex-col">
+                  <KanbanColumn
+                    stage={stage}
+                    leads={stageLeads}
+                    editMode={false}
+                    editingStageId={null}
+                    editingName=""
+                    onStartEdit={() => {}}
+                    onChangeName={() => {}}
+                    onSaveName={() => {}}
+                    onChangeColor={() => {}}
+                    onDelete={() => {}}
+                    onLeadClick={(lead) => setSelectedLead(lead)}
+                    onQuickAction={(lead, action) => setSelectedLead({ ...lead, stage: action })}
+                    stages={stages}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          <DragOverlay>
+            {activeDragLead ? (
+              <div className="card p-4 shadow-2xl opacity-90 rotate-2 w-[280px]">
+                <div className="text-sm font-bold text-petra-text">{activeDragLead.name}</div>
+                <span className="badge-neutral text-[10px] mt-3 inline-block">
+                  {LEAD_SOURCES.find((s) => s.id === activeDragLead.source)?.label || activeDragLead.source}
+                </span>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      )}
 
       <NewLeadModal isOpen={showModal} onClose={() => setShowModal(false)} />
 
@@ -400,7 +879,17 @@ export default function LeadsPage() {
         lead={selectedLead}
         isOpen={!!selectedLead}
         onClose={() => setSelectedLead(null)}
+        stages={stages}
       />
+
+      {deleteTarget && (
+        <DeleteStageModal
+          stage={deleteTarget.stage}
+          leadCount={deleteTarget.leadCount}
+          onConfirm={handleConfirmDelete}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
     </div>
   );
 }

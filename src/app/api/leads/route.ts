@@ -43,12 +43,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validStages = ["new", "contacted", "qualified", "won", "lost"];
-    if (stage && !validStages.includes(stage)) {
-      return NextResponse.json(
-        { error: "Invalid stage value" },
-        { status: 400 }
-      );
+    if (stage) {
+      const dbStages = await prisma.leadStage.findMany({
+        where: { businessId: DEMO_BUSINESS_ID },
+        select: { id: true },
+      });
+      const validStageIds = dbStages.map((s) => s.id);
+      if (!validStageIds.includes(stage)) {
+        return NextResponse.json(
+          { error: "Invalid stage value" },
+          { status: 400 }
+        );
+      }
     }
 
     const lead = await prisma.lead.create({

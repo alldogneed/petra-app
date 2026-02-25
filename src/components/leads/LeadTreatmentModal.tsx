@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { LEAD_STAGES, LOST_REASON_CODES, LEAD_SOURCES } from "@/lib/constants";
+import { LOST_REASON_CODES, LEAD_SOURCES } from "@/lib/constants";
 import { Phone, Mail, Calendar, User, AlignLeft, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,13 +18,22 @@ interface Lead {
     lastContactedAt: string | null;
 }
 
+interface LeadStage {
+    id: string;
+    name: string;
+    color: string;
+    isWon: boolean;
+    isLost: boolean;
+}
+
 interface LeadTreatmentModalProps {
     lead: Lead | null;
     isOpen: boolean;
     onClose: () => void;
+    stages: LeadStage[];
 }
 
-export function LeadTreatmentModal({ lead, isOpen, onClose }: LeadTreatmentModalProps) {
+export function LeadTreatmentModal({ lead, isOpen, onClose, stages }: LeadTreatmentModalProps) {
     const queryClient = useQueryClient();
     const [summary, setSummary] = useState("");
     const [treatment, setTreatment] = useState("");
@@ -35,6 +44,9 @@ export function LeadTreatmentModal({ lead, isOpen, onClose }: LeadTreatmentModal
     // New states for editing
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", source: "" });
+
+    const lostStage = stages.find((s) => s.isLost);
+    const wonStage = stages.find((s) => s.isWon);
 
     useEffect(() => {
         if (lead) {
@@ -71,6 +83,9 @@ export function LeadTreatmentModal({ lead, isOpen, onClose }: LeadTreatmentModal
             }).then((r) => r.json()),
     });
 
+    const isSelectedLost = lostStage && selectedStage === lostStage.id;
+    const isSelectedWon = wonStage && selectedStage === wonStage.id;
+
     const handleSave = async () => {
         if (!lead) return;
 
@@ -85,12 +100,12 @@ export function LeadTreatmentModal({ lead, isOpen, onClose }: LeadTreatmentModal
         // Update lead details and status
         await updateLeadMutation.mutateAsync({
             stage: selectedStage,
-            ...(selectedStage === "lost" && {
+            ...(isSelectedLost && {
                 lostReasonCode: lostReason,
                 lostReasonText: lostReasonText,
                 lostAt: new Date().toISOString(),
             }),
-            ...(selectedStage === "won" && {
+            ...(isSelectedWon && {
                 wonAt: new Date().toISOString(),
             }),
             ...(isEditing && {
@@ -182,7 +197,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose }: LeadTreatmentModal
                     <div className="space-y-3">
                         <h3 className="font-semibold text-petra-text">סטטוס הליד</h3>
                         <div className="flex flex-wrap gap-2">
-                            {LEAD_STAGES.map((stage) => (
+                            {stages.map((stage) => (
                                 <button
                                     key={stage.id}
                                     onClick={() => setSelectedStage(stage.id)}
@@ -201,14 +216,14 @@ export function LeadTreatmentModal({ lead, isOpen, onClose }: LeadTreatmentModal
                                     }}
                                 >
                                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
-                                    {stage.label}
+                                    {stage.name}
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    {/* Lost Reason (only visible if selectedStage === 'lost') */}
-                    {selectedStage === "lost" && (
+                    {/* Lost Reason (only visible if selected stage is the lost stage) */}
+                    {isSelectedLost && (
                         <div className="space-y-4 bg-red-50 p-4 rounded-xl border border-red-100">
                             <h3 className="font-semibold text-red-800">סיבת אובדן</h3>
                             <div className="grid grid-cols-2 gap-2">
@@ -281,7 +296,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose }: LeadTreatmentModal
                         disabled={
                             updateLeadMutation.isPending ||
                             addCallLogMutation.isPending ||
-                            (selectedStage === "lost" && !lostReason)
+                            (isSelectedLost && !lostReason)
                         }
                     >
                         {(updateLeadMutation.isPending || addCallLogMutation.isPending) ? "שומר..." : "שמור ועדכן"}

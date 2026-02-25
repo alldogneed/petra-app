@@ -205,6 +205,7 @@ model Business {
   scheduledMessages ScheduledMessage[]
   trainingPrograms  TrainingProgram[]
   intakeForms       IntakeForm[]
+  leadStages        LeadStage[]
 
   @@index([slug])
 }
@@ -372,6 +373,7 @@ model Room {
   name       String
   capacity   Int      @default(1)
   type       String   @default("standard")
+  status     String   @default("available")  // available | needs_cleaning
   notes      String?
   businessId String
   isActive   Boolean  @default(true)
@@ -411,6 +413,22 @@ model Lead {
 
   @@index([businessId, lastContactedAt])
   @@index([stage, lostReasonCode, createdAt])
+}
+
+model LeadStage {
+  id          String   @id @default(uuid())
+  businessId  String
+  name        String
+  color       String   @default("#6366F1")
+  sortOrder   Int      @default(0)
+  isWon       Boolean  @default(false)
+  isLost      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId, sortOrder])
 }
 
 model CallLog {
