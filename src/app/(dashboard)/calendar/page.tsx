@@ -676,11 +676,9 @@ export default function CalendarPage() {
   return (
     <div>
       {/* ── Header ── */}
-      <div className="page-header">
-        <div className="flex-1">
-          <h1 className="page-title">יומן</h1>
-          <p className="text-sm text-petra-muted mt-1">{headerSubtitle}</p>
-        </div>
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <h1 className="page-title">יומן</h1>
+        <p className="text-sm text-petra-muted">{headerSubtitle}</p>
         <div className="flex items-center gap-2 flex-wrap">
           {/* View toggle */}
           <div className="flex items-center bg-white border border-petra-border rounded-xl overflow-hidden">

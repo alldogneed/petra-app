@@ -95,14 +95,12 @@ export default function AnalyticsPage() {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-brand-500" />
-            אנליטיקס
-          </h1>
-          <p className="text-sm text-muted mt-1">סקירה כללית של ביצועי העסק</p>
-        </div>
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <h1 className="page-title flex items-center gap-2">
+          <BarChart3 className="w-6 h-6 text-brand-500" />
+          אנליטיקס
+        </h1>
+        <p className="text-sm text-petra-muted">סקירה כללית של ביצועי העסק</p>
         <div className="flex gap-1.5">
           {PERIODS.map((p) => (
             <button

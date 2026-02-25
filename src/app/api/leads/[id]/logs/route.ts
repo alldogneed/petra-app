@@ -2,6 +2,36 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 
+export async function GET(
+    request: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const { id } = params;
+
+        const existingLead = await prisma.lead.findFirst({
+            where: { id, businessId: DEMO_BUSINESS_ID },
+        });
+
+        if (!existingLead) {
+            return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+        }
+
+        const callLogs = await prisma.callLog.findMany({
+            where: { leadId: id },
+            orderBy: { createdAt: "desc" },
+        });
+
+        return NextResponse.json(callLogs);
+    } catch (error) {
+        console.error("Error fetching call logs:", error);
+        return NextResponse.json(
+            { error: "Failed to fetch call logs" },
+            { status: 500 }
+        );
+    }
+}
+
 export async function POST(
     request: NextRequest,
     { params }: { params: { id: string } }

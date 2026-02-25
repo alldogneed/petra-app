@@ -51,14 +51,34 @@ export async function PATCH(
 
     const body = await request.json();
 
+    // Build notes: append check-in/out notes if provided
+    let notesUpdate: string | undefined;
+    if (body.notes !== undefined) {
+      notesUpdate = body.notes;
+    }
+    if (body.checkinNotes) {
+      const prefix = `[צ׳ק-אין ${new Date().toLocaleString("he-IL")}] `;
+      const prev = notesUpdate ?? existing.notes ?? "";
+      notesUpdate = prev ? `${prev}\n${prefix}${body.checkinNotes}` : `${prefix}${body.checkinNotes}`;
+    }
+    if (body.checkoutNotes) {
+      const prefix = `[צ׳ק-אאוט ${new Date().toLocaleString("he-IL")}] `;
+      const prev = notesUpdate ?? existing.notes ?? "";
+      notesUpdate = prev ? `${prev}\n${prefix}${body.checkoutNotes}` : `${prefix}${body.checkoutNotes}`;
+    }
+
+    // If actualCheckinTime provided, use it as checkIn
+    // If actualCheckoutTime provided, use it for actual checkout
     const stay = await prisma.boardingStay.update({
       where: { id: params.id },
       data: {
         ...(body.checkIn !== undefined && { checkIn: new Date(body.checkIn) }),
+        ...(body.actualCheckinTime && { checkIn: new Date(body.actualCheckinTime) }),
         ...(body.checkOut !== undefined && { checkOut: body.checkOut ? new Date(body.checkOut) : null }),
+        ...(body.actualCheckoutTime && { checkOut: new Date(body.actualCheckoutTime) }),
         ...(body.status !== undefined && { status: body.status }),
         ...(body.roomId !== undefined && { roomId: body.roomId }),
-        ...(body.notes !== undefined && { notes: body.notes }),
+        ...(notesUpdate !== undefined && { notes: notesUpdate }),
       },
       include: {
         room: true,

@@ -2,9 +2,9 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, X, Phone, Mail, Check, XCircle } from "lucide-react";
-import { fetchJSON } from "@/lib/utils";
-import { LEAD_STAGES, LEAD_SOURCES } from "@/lib/constants";
+import { Plus, X, Phone, Mail, Check, XCircle, MessageCircle, Trophy, Archive, PhoneCall } from "lucide-react";
+import { fetchJSON, toWhatsAppPhone } from "@/lib/utils";
+import { LEAD_STAGES, LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { LeadTreatmentModal } from "@/components/leads/LeadTreatmentModal";
 import {
   DndContext,
@@ -28,6 +28,11 @@ interface Lead {
   notes: string | null;
   createdAt: string;
   lastContactedAt: string | null;
+  wonAt: string | null;
+  lostAt: string | null;
+  lostReasonCode: string | null;
+  lostReasonText: string | null;
+  callLogs?: { id: string }[];
 }
 
 function NewLeadModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -93,46 +98,100 @@ function NewLeadModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
   );
 }
 
+function getSourceEmoji(source: string): string {
+  switch (source) {
+    case "google": return "🔍";
+    case "instagram": return "📸";
+    case "facebook": return "📘";
+    case "website": return "🌐";
+    case "referral": return "🤝";
+    case "manual": return "✏️";
+    default: return "📋";
+  }
+}
+
 function KanbanColumn({ stage, leads, onLeadClick, onQuickAction }: { stage: { id: string, label: string, color: string }, leads: Lead[], onLeadClick: (l: Lead) => void, onQuickAction: (l: Lead, action: string) => void }) {
   const { isOver, setNodeRef } = useDroppable({
     id: stage.id,
   });
 
+  const isWon = stage.id === "won";
+  const isLost = stage.id === "lost";
+
+  const columnBg = isWon
+    ? "bg-green-50/60 border-green-100"
+    : isLost
+      ? "bg-red-50/60 border-red-100"
+      : "bg-slate-50/80 border-slate-100";
+
+  const columnBgHover = isOver
+    ? isWon
+      ? "bg-green-100 border-dashed border-green-300"
+      : isLost
+        ? "bg-red-100 border-dashed border-red-300"
+        : "bg-slate-100 border-dashed border-slate-300"
+    : columnBg;
+
   return (
     <div className="min-w-[280px] flex-1 flex flex-col">
       <div className="flex items-center gap-2 mb-3 px-1">
-        <div className="w-2.5 h-2.5 rounded-full" style={{ background: stage.color }} />
+        {isWon ? (
+          <Trophy className="w-4 h-4 text-green-500" />
+        ) : isLost ? (
+          <Archive className="w-4 h-4 text-red-400" />
+        ) : (
+          <div className="w-2.5 h-2.5 rounded-full" style={{ background: stage.color }} />
+        )}
         <span className="text-sm font-semibold text-petra-text">{stage.label}</span>
         <span className="badge-neutral text-[10px] mr-auto">{leads.length}</span>
       </div>
 
       <div
         ref={setNodeRef}
-        className={`flex-1 space-y-3 min-h-[400px] p-3 rounded-xl transition-colors border ${isOver ? "bg-slate-100 border-dashed border-slate-300" : "bg-slate-50/80 border-slate-100"
-          }`}
+        className={`flex-1 space-y-3 min-h-[400px] p-3 rounded-xl transition-colors border ${columnBgHover}`}
       >
         {leads.length === 0 && !isOver && (
           <p className="text-xs text-petra-muted text-center py-8">אין לידים</p>
         )}
         {leads.map((lead) => (
-          <DraggableLeadCard key={lead.id} lead={lead} onClick={() => onLeadClick(lead)} onQuickAction={(action) => onQuickAction(lead, action)} />
+          <DraggableLeadCard
+            key={lead.id}
+            lead={lead}
+            stageId={stage.id}
+            onClick={() => onLeadClick(lead)}
+            onQuickAction={(action) => onQuickAction(lead, action)}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function DraggableLeadCard({ lead, onClick, onQuickAction }: { lead: Lead, onClick: () => void, onQuickAction: (action: string) => void }) {
+function DraggableLeadCard({ lead, stageId, onClick, onQuickAction }: { lead: Lead, stageId: string, onClick: () => void, onQuickAction: (action: string) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: lead.id,
     data: { lead },
   });
 
   const sourceLabel = LEAD_SOURCES.find((s) => s.id === lead.source)?.label || lead.source;
+  const sourceEmoji = getSourceEmoji(lead.source);
+  const callLogCount = lead.callLogs?.length || 0;
+  const isWon = stageId === "won";
+  const isLost = stageId === "lost";
+
+  const lostReasonLabel = lead.lostReasonCode
+    ? LOST_REASON_CODES.find((r) => r.id === lead.lostReasonCode)?.label
+    : null;
 
   const style = transform ? {
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
   } : undefined;
+
+  const borderAccent = isWon
+    ? "border-r-[3px] border-r-green-400"
+    : isLost
+      ? "border-r-[3px] border-r-red-400"
+      : "";
 
   return (
     <div
@@ -141,11 +200,11 @@ function DraggableLeadCard({ lead, onClick, onQuickAction }: { lead: Lead, onCli
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className={`card p-4 group cursor-pointer hover:shadow-md transition-shadow ${isDragging ? "opacity-50 border-2 border-brand-500 shadow-xl" : ""
+      className={`card p-4 group cursor-pointer hover:shadow-md transition-shadow ${borderAccent} ${isDragging ? "opacity-50 border-2 border-brand-500 shadow-xl" : ""
         }`}
     >
       <div className="flex items-start justify-between">
-        <div>
+        <div className="flex-1 min-w-0">
           <div className="text-sm font-bold text-petra-text">{lead.name}</div>
           {lead.phone && (
             <div className="text-xs text-petra-muted flex items-center gap-1.5 mt-2">
@@ -157,25 +216,74 @@ function DraggableLeadCard({ lead, onClick, onQuickAction }: { lead: Lead, onCli
               <Mail className="w-3.5 h-3.5" />{lead.email}
             </div>
           )}
+          <div className="text-[10px] text-petra-muted mt-1.5">
+            {new Date(lead.createdAt).toLocaleDateString("he-IL")}
+          </div>
         </div>
       </div>
+
+      {/* Won/Lost date and reason */}
+      {isWon && lead.wonAt && (
+        <div className="mt-2 text-[10px] text-green-600 font-medium">
+          נסגר: {new Date(lead.wonAt).toLocaleDateString("he-IL")}
+        </div>
+      )}
+      {isLost && (
+        <div className="mt-2 space-y-1">
+          {lead.lostAt && (
+            <div className="text-[10px] text-red-500 font-medium">
+              אבוד: {new Date(lead.lostAt).toLocaleDateString("he-IL")}
+            </div>
+          )}
+          {lostReasonLabel && (
+            <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
+              {lostReasonLabel}
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
-        <span className="badge-neutral text-[10px]">{sourceLabel}</span>
-        <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={(e) => { e.stopPropagation(); onQuickAction('won'); }}
-            className="w-7 h-7 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors"
-            title="לקוח נסגר (זכינו!)"
-          >
-            <Check className="w-4 h-4" />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onQuickAction('lost'); }}
-            className="w-7 h-7 flex items-center justify-center rounded-full text-red-600 hover:bg-red-100 transition-colors"
-            title="זרוק לאבודים"
-          >
-            <XCircle className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-2">
+          <span className="badge-neutral text-[10px]">{sourceEmoji} {sourceLabel}</span>
+          {callLogCount > 0 && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">
+              <PhoneCall className="w-2.5 h-2.5" />
+              {callLogCount}
+            </span>
+          )}
+        </div>
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {lead.phone && !isWon && !isLost && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(`https://wa.me/${toWhatsAppPhone(lead.phone!)}`, "_blank");
+              }}
+              className="w-7 h-7 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors"
+              title="שלח וואטסאפ"
+            >
+              <MessageCircle className="w-4 h-4" />
+            </button>
+          )}
+          {!isWon && !isLost && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); onQuickAction('won'); }}
+                className="w-7 h-7 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors"
+                title="לקוח נסגר (זכינו!)"
+              >
+                <Check className="w-4 h-4" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onQuickAction('lost'); }}
+                className="w-7 h-7 flex items-center justify-center rounded-full text-red-600 hover:bg-red-100 transition-colors"
+                title="זרוק לאבודים"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -203,7 +311,7 @@ export default function LeadsPage() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5, // minimum drag distance before taking over, allows clicking vs dragging
+        distance: 5,
       },
     })
   );
@@ -231,8 +339,7 @@ export default function LeadsPage() {
 
         moveMutation.mutate({ id: activeLeadId, stage: targetStageId });
 
-        // If moving to won/lost automatically open modal for follow up options/lost reason?
-        // Let's just do it directly for won, for lost they can click it manually or we can open modal.
+        // If moving to won/lost open modal for follow up
         if (targetStageId === "lost" || targetStageId === "won") {
           setSelectedLead({ ...lead, stage: targetStageId });
         }
@@ -241,17 +348,13 @@ export default function LeadsPage() {
   };
 
   const activeStages = LEAD_STAGES.filter((s) => s.id !== "lost" && s.id !== "won");
-  // Let's also show won and lost as column on the board or in a separate section. 
-  // It's better to show them at the end.
   const boardStages = [...activeStages, LEAD_STAGES.find(s => s.id === "won") as { id: string, label: string, color: string }, LEAD_STAGES.find(s => s.id === "lost") as { id: string, label: string, color: string }];
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">לידים</h1>
-          <p className="text-sm text-petra-muted mt-1">{leads.length} לידים במערכת</p>
-        </div>
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <h1 className="page-title">לידים</h1>
+        <p className="text-sm text-petra-muted">{leads.length} לידים במערכת</p>
         <button className="btn-primary" onClick={() => setShowModal(true)}>
           <Plus className="w-4 h-4" />ליד חדש
         </button>

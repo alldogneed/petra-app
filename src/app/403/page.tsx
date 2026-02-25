@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ShieldX } from "lucide-react";
 
-export const metadata = { title: "403 Forbidden — Petra" };
+export const metadata = { title: "403 אין הרשאה — Petra" };
 
 export default function ForbiddenPage() {
   return (
@@ -13,23 +13,22 @@ export default function ForbiddenPage() {
           </div>
         </div>
         <h1 className="text-4xl font-bold text-slate-900 mb-2">403</h1>
-        <p className="text-lg font-semibold text-slate-700 mb-2">Access Denied</p>
+        <p className="text-lg font-semibold text-slate-700 mb-2">אין הרשאה</p>
         <p className="text-sm text-slate-500 mb-8">
-          You don&apos;t have permission to access this resource. If you believe this is an error,
-          contact your administrator.
+          אין לך הרשאה לגשת למשאב הזה. אם אתה חושב שמדובר בטעות, פנה למנהל המערכת.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
             href="/dashboard"
-            className="px-6 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-700 transition-colors"
+            className="btn-primary px-6 py-2.5 rounded-xl text-sm font-medium"
           >
-            Go to Dashboard
+            חזרה לדשבורד
           </Link>
           <Link
             href="/login"
             className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors"
           >
-            Switch Account
+            החלף חשבון
           </Link>
         </div>
       </div>

@@ -103,11 +103,9 @@ export default function AvailabilityPage() {
   return (
     <div className="p-6 max-w-3xl mx-auto" dir="rtl">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">זמינות ושעות פעילות</h1>
-          <p className="text-gray-500 text-sm mt-1">הגדר מתי לקוחות יכולים להזמין תורים</p>
-        </div>
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <h1 className="text-2xl font-bold text-gray-900">זמינות ושעות פעילות</h1>
+        <p className="text-gray-500 text-sm">הגדר מתי לקוחות יכולים להזמין תורים</p>
         <Link
           href={`/book/${DEMO_SLUG}`}
           target="_blank"

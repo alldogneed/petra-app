@@ -435,13 +435,11 @@ export default function PriceListPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="page-header flex-shrink-0">
-        <div>
-          <h1 className="page-title flex items-center gap-2">מחירון</h1>
-          <p className="text-sm text-petra-muted mt-0.5">
-            {items.filter((i) => i.isActive).length} פריטים פעילים · {priceList?.name}
-          </p>
-        </div>
+      <div className="flex items-center gap-3 mb-6 flex-wrap flex-shrink-0">
+        <h1 className="page-title flex items-center gap-2">מחירון</h1>
+        <p className="text-sm text-petra-muted">
+          {items.filter((i) => i.isActive).length} פריטים פעילים · {priceList?.name}
+        </p>
         <button
           onClick={() => setModalState({ open: true, item: null })}
           className="btn-primary"

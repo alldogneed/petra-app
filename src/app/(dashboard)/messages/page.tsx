@@ -89,11 +89,9 @@ export default function MessagesPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">תבניות הודעות</h1>
-          <p className="text-sm text-petra-muted mt-1">{templates.length} תבניות</p>
-        </div>
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <h1 className="page-title">תבניות הודעות</h1>
+        <p className="text-sm text-petra-muted">{templates.length} תבניות</p>
         <button className="btn-primary" onClick={() => openEditor()}>
           <Plus className="w-4 h-4" />תבנית חדשה
         </button>

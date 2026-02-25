@@ -80,14 +80,12 @@ export default function BookingsPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">הזמנות אונליין</h1>
-          <p className="text-sm text-petra-muted mt-1">
-            {bookings.length} הזמנות
-            {pendingCount > 0 && ` • ${pendingCount} ממתינות לאישור`}
-          </p>
-        </div>
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <h1 className="page-title">הזמנות אונליין</h1>
+        <p className="text-sm text-petra-muted">
+          {bookings.length} הזמנות
+          {pendingCount > 0 && ` • ${pendingCount} ממתינות לאישור`}
+        </p>
         <button
           onClick={copyLink}
           className="btn-secondary flex items-center gap-2"

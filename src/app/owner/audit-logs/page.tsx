@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Search, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Search, Loader2 } from "lucide-react";
+import { fetchJSON, cn } from "@/lib/utils";
 
 interface AuditLogRow {
   id: string;
@@ -24,106 +26,115 @@ const ACTION_COLOR: Record<string, string> = {
   PLATFORM_USER_UNBLOCKED: "bg-green-100 text-green-700",
   TENANT_SUSPENDED: "bg-orange-100 text-orange-700",
   TENANT_ACTIVATED: "bg-green-100 text-green-700",
+  TENANT_CREATED: "bg-blue-100 text-blue-700",
+  PLATFORM_USER_CREATED: "bg-blue-100 text-blue-700",
+  FEATURE_FLAG_CHANGED: "bg-violet-100 text-violet-700",
 };
 
 export default function AuditLogsPage() {
-  const [logs, setLogs] = useState<AuditLogRow[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const params = new URLSearchParams({ page: String(page), limit: "50" });
-    if (search) params.set("action", search);
-    const res = await fetch(`/api/owner/audit-logs?${params}`);
-    if (res.ok) {
-      const data = await res.json();
-      setLogs(data.logs);
-      setTotal(data.total);
-    }
-    setLoading(false);
-  }, [page, search]);
+  const { data, isLoading, error } = useQuery<{ logs: AuditLogRow[]; total: number }>({
+    queryKey: ["owner", "audit-logs", { search, page }],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: String(page), limit: "50" });
+      if (search) params.set("action", search);
+      return fetchJSON(`/api/owner/audit-logs?${params}`);
+    },
+  });
 
-  useEffect(() => { load(); }, [load]);
+  const logs = data?.logs ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.ceil(total / 50);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Audit Logs</h1>
-        <span className="text-sm text-slate-400">{total.toLocaleString()} total events</span>
+        <div>
+          <h1 className="page-title">יומן פעולות</h1>
+          <p className="text-sm text-slate-400 mt-1">{total.toLocaleString()} אירועים</p>
+        </div>
       </div>
 
+      {/* Filter */}
       <div className="flex gap-3 mb-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Filter by action..."
+            placeholder="סנן לפי פעולה..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="input w-full pr-10"
             dir="ltr"
-            className="w-full pr-10 pl-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
           />
         </div>
-        <button onClick={load} className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50">
-          <RefreshCw className="w-4 h-4" />
-        </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-        {loading ? (
-          <div className="py-16 text-center text-slate-400">Loading...</div>
+      {/* Error */}
+      {error && (
+        <div className="mb-4 p-3 rounded-xl bg-red-50 text-red-600 text-sm">
+          שגיאה בטעינת נתונים: {(error as Error).message}
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="card overflow-hidden">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+          </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="text-right text-xs font-medium text-slate-500 px-4 py-3">Time</th>
-                <th className="text-right text-xs font-medium text-slate-500 px-4 py-3">Action</th>
-                <th className="text-right text-xs font-medium text-slate-500 px-4 py-3">Actor</th>
-                <th className="text-right text-xs font-medium text-slate-500 px-4 py-3">Target</th>
-                <th className="text-right text-xs font-medium text-slate-500 px-4 py-3">IP</th>
+                <th className="table-header-cell">זמן</th>
+                <th className="table-header-cell">פעולה</th>
+                <th className="table-header-cell">מבצע</th>
+                <th className="table-header-cell">יעד</th>
+                <th className="table-header-cell">IP</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {logs.map((log) => (
                 <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-4 py-2.5 text-xs text-slate-400 whitespace-nowrap">
-                    {new Date(log.timestamp).toLocaleString()}
+                  <td className="table-cell text-xs text-slate-400 whitespace-nowrap">
+                    {new Date(log.timestamp).toLocaleString("he-IL")}
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="table-cell">
                     <span
-                      className={`font-mono text-xs font-medium px-2 py-0.5 rounded ${
+                      className={cn(
+                        "font-mono text-xs font-medium px-2 py-0.5 rounded",
                         ACTION_COLOR[log.action] ?? "bg-slate-100 text-slate-700"
-                      }`}
+                      )}
                     >
                       {log.action}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5 text-xs">
+                  <td className="table-cell text-xs">
                     {log.actor ? (
                       <div>
                         <div className="font-medium text-slate-700">{log.actor.name}</div>
                         <div className="text-slate-400">{log.actor.email}</div>
                       </div>
                     ) : (
-                      <span className="text-slate-400">System</span>
+                      <span className="text-slate-400">מערכת</span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-xs text-slate-500">
+                  <td className="table-cell text-xs text-slate-500">
                     {log.targetType && (
                       <span>
                         {log.targetType}
                         {log.targetId && (
-                          <span className="text-slate-400 ml-1">
+                          <span className="text-slate-400 mr-1">
                             {log.targetId.slice(0, 8)}…
                           </span>
                         )}
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-xs text-slate-400 font-mono">
+                  <td className="table-cell text-xs text-slate-400 font-mono">
                     {log.ipAddress ?? "—"}
                   </td>
                 </tr>
@@ -131,7 +142,7 @@ export default function AuditLogsPage() {
               {logs.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-12 text-center text-slate-400">
-                    No audit logs found
+                    לא נמצאו רשומות
                   </td>
                 </tr>
               )}
@@ -139,17 +150,26 @@ export default function AuditLogsPage() {
           </table>
         )}
 
-        {total > 50 && (
+        {/* Pagination */}
+        {totalPages > 1 && (
           <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-xs text-slate-400">Page {page} of {Math.ceil(total / 50)}</span>
+            <span className="text-xs text-slate-400">
+              עמוד {page} מתוך {totalPages}
+            </span>
             <div className="flex gap-2">
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-                className="px-3 py-1 text-xs border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50">
-                Previous
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="btn-ghost text-xs px-3 py-1 disabled:opacity-40"
+              >
+                הקודם
               </button>
-              <button onClick={() => setPage((p) => p + 1)} disabled={page >= Math.ceil(total / 50)}
-                className="px-3 py-1 text-xs border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50">
-                Next
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= totalPages}
+                className="btn-ghost text-xs px-3 py-1 disabled:opacity-40"
+              >
+                הבא
               </button>
             </div>
           </div>

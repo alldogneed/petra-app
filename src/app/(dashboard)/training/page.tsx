@@ -194,15 +194,13 @@ export default function TrainingPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">אימונים</h1>
-          <p className="text-sm text-petra-muted mt-1">
-            {activeTab === "groups"
-              ? `${groups.length} קבוצות אימון`
-              : `${programs.length} תוכניות אישיות`}
-          </p>
-        </div>
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <h1 className="page-title">אימונים</h1>
+        <p className="text-sm text-petra-muted">
+          {activeTab === "groups"
+            ? `${groups.length} קבוצות אימון`
+            : `${programs.length} תוכניות אישיות`}
+        </p>
         {activeTab === "groups" && (
           <button className="btn-primary" onClick={() => setShowNewGroup(true)}>
             <Plus className="w-4 h-4" />

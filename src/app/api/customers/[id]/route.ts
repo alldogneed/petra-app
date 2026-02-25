@@ -44,6 +44,14 @@ export async function GET(
           orderBy: { createdAt: "desc" },
           take: 20,
         },
+        orders: {
+          include: {
+            lines: true,
+            payments: { select: { id: true, amount: true, status: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        },
         trainingPrograms: {
           include: {
             dog: { select: { name: true } },

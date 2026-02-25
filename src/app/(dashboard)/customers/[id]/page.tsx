@@ -33,7 +33,10 @@ import {
   Heart,
   Pill,
   UtensilsCrossed,
+  ShoppingCart,
+  Link2,
 } from "lucide-react";
+import { CreateOrderModal } from "@/components/orders/CreateOrderModal";
 import {
   cn,
   formatDate,
@@ -168,6 +171,37 @@ interface TrainingProgramInfo {
   sessions: { id: string }[];
 }
 
+interface OrderLineInfo {
+  id: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  lineSubtotal: number;
+  lineTax: number;
+  lineTotal: number;
+}
+
+interface OrderPaymentInfo {
+  id: string;
+  amount: number;
+  status: string;
+}
+
+interface OrderInfo {
+  id: string;
+  orderType: string;
+  status: string;
+  subtotal: number;
+  discountAmount: number;
+  taxTotal: number;
+  total: number;
+  notes: string | null;
+  createdAt: string;
+  lines: OrderLineInfo[];
+  payments: OrderPaymentInfo[];
+}
+
 interface CustomerDetail {
   id: string;
   name: string;
@@ -189,6 +223,7 @@ interface CustomerDetail {
     pet: { name: string; species: string } | null;
   }[];
   payments: PaymentInfo[];
+  orders: OrderInfo[];
   trainingPrograms: TrainingProgramInfo[];
   timelineEvents: {
     id: string;
@@ -1286,6 +1321,21 @@ const PROGRAM_STATUS_COLORS: Record<string, string> = {
   CANCELED: "badge-neutral",
 };
 
+const ORDER_STATUS_INFO: Record<string, { label: string; color: string }> = {
+  draft: { label: "טיוטה", color: "badge-neutral" },
+  confirmed: { label: "מאושר", color: "badge-brand" },
+  paid: { label: "שולם", color: "badge-success" },
+  partially_paid: { label: "שולם חלקית", color: "badge-warning" },
+  canceled: { label: "בוטל", color: "badge-danger" },
+  refunded: { label: "זוכה", color: "badge-danger" },
+};
+
+const ORDER_TYPE_LABELS: Record<string, string> = {
+  sale: "מכירה",
+  appointment: "תור",
+  boarding: "פנסיון",
+};
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function CustomerProfilePage() {
@@ -1303,6 +1353,8 @@ export default function CustomerProfilePage() {
   const [showLogNote, setShowLogNote] = useState(false);
   const [showAllAppointments, setShowAllAppointments] = useState(false);
   const [expandedPetId, setExpandedPetId] = useState<string | null>(null);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   const { data: customer, isLoading } = useQuery<CustomerDetail>({
     queryKey: ["customer", customerId],
@@ -1371,21 +1423,30 @@ export default function CustomerProfilePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link
-          href="/customers"
-          className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 text-petra-muted transition-colors"
-        >
-          <ArrowRight className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-xl font-bold text-petra-text">
-            {customer.name}
-          </h1>
-          <p className="text-sm text-petra-muted">
-            נוסף {formatDate(customer.createdAt)}
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/customers"
+            className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 text-petra-muted transition-colors"
+          >
+            <ArrowRight className="w-5 h-5" />
+          </Link>
+          <div>
+            <h1 className="text-xl font-bold text-petra-text">
+              {customer.name}
+            </h1>
+            <p className="text-sm text-petra-muted">
+              נוסף {formatDate(customer.createdAt)}
+            </p>
+          </div>
         </div>
+        <button
+          onClick={() => setShowOrderModal(true)}
+          className="btn-primary flex items-center gap-2"
+        >
+          <ShoppingCart className="w-4 h-4" />
+          הזמנה חדשה
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -2060,6 +2121,149 @@ export default function CustomerProfilePage() {
             </div>
           )}
 
+          {/* Orders */}
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
+                <ShoppingCart className="w-4 h-4 text-petra-muted" />
+                הזמנות ({(customer.orders || []).length})
+              </h2>
+              <button
+                onClick={() => setShowOrderModal(true)}
+                className="btn-ghost text-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                הזמנה חדשה
+              </button>
+            </div>
+
+            {(customer.orders || []).length === 0 ? (
+              <div className="empty-state py-6">
+                <div className="empty-state-icon">
+                  <ShoppingCart className="w-6 h-6" />
+                </div>
+                <p className="text-sm text-petra-muted mb-3">אין הזמנות עדיין</p>
+                <button
+                  onClick={() => setShowOrderModal(true)}
+                  className="btn-primary text-sm"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  צור הזמנה ראשונה
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {(customer.orders || []).map((order) => {
+                  const isExpanded = expandedOrderId === order.id;
+                  const statusInfo = ORDER_STATUS_INFO[order.status] || { label: order.status, color: "badge-neutral" };
+                  const showPayLink = order.status === "draft" || order.status === "confirmed";
+
+                  return (
+                    <div key={order.id} className="rounded-xl border border-slate-100 overflow-hidden">
+                      {/* Order row */}
+                      <button
+                        onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                        className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 transition-colors text-right"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
+                          <ShoppingCart className="w-4 h-4 text-brand-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-petra-text">
+                            {formatCurrency(order.total)}
+                            <span className="text-xs text-petra-muted mr-1">
+                              · {order.lines.length} פריטים
+                            </span>
+                          </div>
+                          <div className="text-xs text-petra-muted">
+                            {ORDER_TYPE_LABELS[order.orderType] || order.orderType}
+                            {" · "}
+                            {new Date(order.createdAt).toLocaleDateString("he-IL")}
+                          </div>
+                        </div>
+                        <span className={cn("badge text-[10px]", statusInfo.color)}>
+                          {statusInfo.label}
+                        </span>
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4 text-petra-muted flex-shrink-0" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-petra-muted flex-shrink-0" />
+                        )}
+                      </button>
+
+                      {/* Expanded details */}
+                      {isExpanded && (
+                        <div className="border-t border-slate-100 bg-slate-50/50 p-4 space-y-3">
+                          {/* Line items */}
+                          <div className="space-y-1.5">
+                            {order.lines.map((line) => (
+                              <div key={line.id} className="flex items-center justify-between text-sm">
+                                <span className="text-petra-text">{line.name}</span>
+                                <div className="flex items-center gap-3 text-petra-muted">
+                                  <span className="text-xs">{line.quantity} × {formatCurrency(line.unitPrice)}</span>
+                                  <span className="font-medium text-petra-text w-16 text-left">
+                                    {formatCurrency(line.lineSubtotal)}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Totals breakdown */}
+                          <div className="border-t border-slate-200 pt-2 space-y-1">
+                            {order.discountAmount > 0 && (
+                              <div className="flex justify-between text-xs text-emerald-600">
+                                <span>הנחה</span>
+                                <span dir="ltr">−{formatCurrency(order.discountAmount)}</span>
+                              </div>
+                            )}
+                            {order.taxTotal > 0 && (
+                              <div className="flex justify-between text-xs text-petra-muted">
+                                <span>מע&quot;מ</span>
+                                <span dir="ltr">{formatCurrency(order.taxTotal)}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between text-sm font-bold text-petra-text">
+                              <span>סה&quot;כ</span>
+                              <span dir="ltr">{formatCurrency(order.total)}</span>
+                            </div>
+                          </div>
+
+                          {/* Mock payment link */}
+                          {showPayLink && (
+                            <div className="flex items-center gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-xl">
+                              <Link2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                              <span className="text-xs text-blue-700 truncate flex-1 font-mono" dir="ltr">
+                                {typeof window !== "undefined" ? window.location.origin : ""}/pay/{order.id}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const url = `${window.location.origin}/pay/${order.id}`;
+                                  navigator.clipboard.writeText(url);
+                                }}
+                                className="text-xs text-blue-600 hover:text-blue-800 font-medium flex-shrink-0 px-2 py-1 rounded-lg hover:bg-blue-100 transition-colors"
+                              >
+                                העתק
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Notes */}
+                          {order.notes && (
+                            <div className="text-xs text-petra-muted">
+                              <span className="font-medium">הערות:</span> {order.notes}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Training Programs */}
           {(customer.trainingPrograms || []).length > 0 && (
             <div className="card p-5">
@@ -2250,6 +2454,14 @@ export default function CustomerProfilePage() {
           onClose={() => setSelectedPetDocs(null)}
         />
       )}
+      <CreateOrderModal
+        isOpen={showOrderModal}
+        onClose={() => setShowOrderModal(false)}
+        prefillCustomerId={customerId}
+        onCreated={() => {
+          queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+        }}
+      />
     </div>
   );
 }

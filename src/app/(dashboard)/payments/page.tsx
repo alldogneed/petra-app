@@ -89,11 +89,9 @@ export default function PaymentsPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">תשלומים</h1>
-          <p className="text-sm text-petra-muted mt-1">{payments.length} תשלומים</p>
-        </div>
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <h1 className="page-title">תשלומים</h1>
+        <p className="text-sm text-petra-muted">{payments.length} תשלומים</p>
         <button className="btn-primary" onClick={() => setShowNewPayment(true)}>
           <Plus className="w-4 h-4" />
           תשלום חדש

@@ -1849,13 +1849,11 @@ export default function CustomersPage() {
   return (
     <div>
       {/* ─── Page Header ─── */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">לקוחות</h1>
-          <p className="text-sm text-petra-muted mt-1">
-            {stats.total} לקוחות במערכת
-          </p>
-        </div>
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <h1 className="page-title">לקוחות</h1>
+        <p className="text-sm text-petra-muted">
+          {stats.total} לקוחות במערכת
+        </p>
         <div className="flex items-center gap-2">
           <button
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white text-sm shadow-sm transition-all hover:shadow-md"

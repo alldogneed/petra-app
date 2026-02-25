@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useState, useCallback } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   Users,
@@ -12,8 +13,39 @@ import {
   Target,
   CreditCard,
   ArrowLeft,
+  Plus,
+  ShoppingCart,
+  Activity,
+  LogIn,
+  UserPlus,
+  MessageCircle,
+  Hotel,
+  Package,
+  ClipboardList,
+  Flame,
+  Check,
 } from "lucide-react";
-import { formatCurrency, fetchJSON } from "@/lib/utils";
+import {
+  isToday,
+  isPast,
+  differenceInMinutes,
+  format,
+  startOfDay,
+} from "date-fns";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts";
+import { useAuth } from "@/providers/auth-provider";
+import { formatCurrency, fetchJSON, cn } from "@/lib/utils";
+import { CreateOrderModal } from "@/components/orders/CreateOrderModal";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface DashboardStats {
   totalCustomers: number;
@@ -21,6 +53,17 @@ interface DashboardStats {
   todayAppointments: number;
   monthRevenue: number;
   pendingPayments: number;
+  openLeads: number;
+  activeOrders: number;
+  pendingPaymentsAmount: number;
+  upcomingByType: {
+    training: number;
+    grooming: number;
+    boarding: number;
+  };
+  revenueByMonth: { month: string; amount: number }[];
+  revenueTarget: number;
+  topService: { name: string; count: number } | null;
   recentTasks: {
     id: string;
     title: string;
@@ -28,32 +71,126 @@ interface DashboardStats {
     priority: string;
     status: string;
   }[];
-  openLeads: number;
   upcomingAppointments: {
     id: string;
     date: string;
     startTime: string;
     status: string;
-    service: { id: string; name: string; color: string | null };
+    service: { id: string; name: string; color: string | null; type?: string };
     customer: { name: string };
     pet: { name: string; species: string } | null;
   }[];
+  recentOrders: {
+    id: string;
+    orderType: string;
+    status: string;
+    total: number;
+    customerName: string;
+    createdAt: string;
+  }[];
+  todayTasks: {
+    id: string;
+    title: string;
+    category: string;
+    priority: string;
+    status: string;
+    dueAt: string | null;
+    dueDate: string | null;
+  }[];
+  overdueTasks: {
+    id: string;
+    title: string;
+    category: string;
+    priority: string;
+    status: string;
+    dueAt: string | null;
+    dueDate: string | null;
+  }[];
 }
+
+interface ActivityItem {
+  id: string;
+  type: "activity" | "whatsapp";
+  userName: string;
+  action: string;
+  description: string;
+  createdAt: string;
+  channel?: string;
+  status?: string;
+}
+
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<
   string,
   { label: string; color: string; bg: string; icon: React.ElementType }
 > = {
   scheduled: { label: "מתוכנן", color: "#3B82F6", bg: "#EFF6FF", icon: Clock },
-  completed: {
-    label: "הושלם",
-    color: "#10B981",
-    bg: "#ECFDF5",
-    icon: CheckCircle2,
-  },
+  completed: { label: "הושלם", color: "#10B981", bg: "#ECFDF5", icon: CheckCircle2 },
   canceled: { label: "בוטל", color: "#EF4444", bg: "#FEF2F2", icon: AlertCircle },
   no_show: { label: "לא הגיע", color: "#F59E0B", bg: "#FFFBEB", icon: AlertCircle },
 };
+
+const SERVICE_TYPE_TABS = [
+  { key: "all", label: "הכל" },
+  { key: "training", label: "אילוף" },
+  { key: "boarding", label: "פנסיון" },
+  { key: "grooming", label: "טיפוח" },
+];
+
+const ORDER_TYPE_INFO: Record<string, { label: string; icon: React.ElementType }> = {
+  sale: { label: "מוצרים", icon: Package },
+  appointment: { label: "תור", icon: Calendar },
+  boarding: { label: "פנסיון", icon: Hotel },
+};
+
+const ORDER_STATUS_BADGE: Record<string, string> = {
+  draft: "badge-neutral",
+  confirmed: "badge-brand",
+  completed: "badge-success",
+  canceled: "badge-danger",
+};
+
+const ORDER_STATUS_LABEL: Record<string, string> = {
+  draft: "טיוטה",
+  confirmed: "מאושר",
+  completed: "הושלם",
+  canceled: "בוטל",
+};
+
+const ACTIVITY_ICONS: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
+  LOGIN: { icon: LogIn, color: "#64748B", bg: "#F1F5F9" },
+  CREATE_CUSTOMER: { icon: UserPlus, color: "#3B82F6", bg: "#EFF6FF" },
+  UPDATE_CUSTOMER: { icon: Users, color: "#3B82F6", bg: "#EFF6FF" },
+  CREATE_ORDER: { icon: ShoppingCart, color: "#F97316", bg: "#FFF7ED" },
+  UPDATE_ORDER: { icon: ShoppingCart, color: "#F97316", bg: "#FFF7ED" },
+  CREATE_PAYMENT: { icon: CreditCard, color: "#10B981", bg: "#ECFDF5" },
+  CREATE_APPOINTMENT: { icon: Calendar, color: "#8B5CF6", bg: "#F5F3FF" },
+  UPDATE_APPOINTMENT: { icon: Calendar, color: "#8B5CF6", bg: "#F5F3FF" },
+  CANCEL_APPOINTMENT: { icon: AlertCircle, color: "#EF4444", bg: "#FEF2F2" },
+  CREATE_LEAD: { icon: Target, color: "#EC4899", bg: "#FDF2F8" },
+  ADD_PET: { icon: PawPrint, color: "#06B6D4", bg: "#ECFEFF" },
+  CREATE_TASK: { icon: ClipboardList, color: "#F59E0B", bg: "#FFFBEB" },
+  COMPLETE_TASK: { icon: CheckCircle2, color: "#10B981", bg: "#ECFDF5" },
+  CREATE_BOARDING: { icon: Hotel, color: "#6366F1", bg: "#EEF2FF" },
+  CHECK_IN: { icon: Hotel, color: "#10B981", bg: "#ECFDF5" },
+  CHECK_OUT: { icon: Hotel, color: "#64748B", bg: "#F1F5F9" },
+  WHATSAPP_SEND: { icon: MessageCircle, color: "#22C55E", bg: "#F0FDF4" },
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "עכשיו";
+  if (mins < 60) return `לפני ${mins} דקות`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `לפני ${hours} שעות`;
+  return `לפני ${Math.floor(hours / 24)} ימים`;
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
 
 function StatCard({
   title,
@@ -147,55 +284,458 @@ function AppointmentRow({
   );
 }
 
+function RevenueChart({
+  data,
+  target,
+  topService,
+}: {
+  data: { month: string; amount: number }[];
+  target: number;
+  topService: { name: string; count: number } | null;
+}) {
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-bold text-petra-text">הכנסות</h2>
+          {topService && (
+            <span className="badge-brand text-[10px]">
+              שירות מוביל: {topService.name}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-petra-muted">
+          <div className="w-2 h-2 rounded-full bg-brand-500" />
+          הכנסות
+          <div className="w-4 border-t border-dashed border-slate-400 mx-1" />
+          יעד
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+          <XAxis
+            dataKey="month"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 12, fill: "#64748B" }}
+          />
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 11, fill: "#94A3B8" }}
+            tickFormatter={(v) => `₪${(v / 1000).toFixed(0)}k`}
+            width={50}
+            mirror
+          />
+          <Tooltip
+            formatter={(value: number) => [formatCurrency(value), "הכנסות"]}
+            contentStyle={{
+              borderRadius: 12,
+              border: "1px solid #E2E8F0",
+              fontSize: 13,
+              direction: "rtl",
+            }}
+          />
+          <ReferenceLine
+            y={target}
+            stroke="#94A3B8"
+            strokeDasharray="6 4"
+            label={{
+              value: `יעד ${formatCurrency(target)}`,
+              position: "insideTopRight",
+              fontSize: 11,
+              fill: "#94A3B8",
+            }}
+          />
+          <Bar dataKey="amount" fill="#F97316" radius={[6, 6, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
+  if (activities.length === 0) {
+    return (
+      <div className="empty-state py-8">
+        <div className="empty-state-icon">
+          <Activity className="w-6 h-6 text-slate-400" />
+        </div>
+        <p className="text-sm text-petra-muted">אין פעילות ב-24 שעות האחרונות</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      {activities.slice(0, 10).map((item) => {
+        const iconInfo = ACTIVITY_ICONS[item.action] || ACTIVITY_ICONS.LOGIN;
+        const IconComp = iconInfo.icon;
+        return (
+          <div
+            key={item.id}
+            className="flex items-center gap-3 py-2.5 px-1 hover:bg-slate-50/50 rounded-lg transition-colors"
+          >
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: iconInfo.bg }}
+            >
+              <IconComp className="w-3.5 h-3.5" style={{ color: iconInfo.color }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-petra-text truncate">{item.description}</p>
+              <p className="text-[11px] text-petra-muted">{item.userName}</p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {item.type === "whatsapp" && item.status && (
+                <span
+                  className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                    item.status === "SENT"
+                      ? "bg-green-50 text-green-700"
+                      : "bg-red-50 text-red-700"
+                  )}
+                >
+                  {item.status === "SENT" ? "נשלח" : "נכשל"}
+                </span>
+              )}
+              <span className="text-[11px] text-petra-muted whitespace-nowrap">
+                {relativeTime(item.createdAt)}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Loading Skeleton ────────────────────────────────────────────────────────
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      {/* Header skeleton */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="h-7 w-48 bg-slate-100 rounded mb-2 animate-pulse" />
+          <div className="h-4 w-32 bg-slate-100 rounded animate-pulse" />
+        </div>
+        <div className="h-10 w-32 bg-slate-100 rounded-xl animate-pulse" />
+      </div>
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="card p-5 animate-pulse">
+            <div className="w-11 h-11 bg-slate-100 rounded-xl mb-4" />
+            <div className="h-7 w-16 bg-slate-100 rounded mb-2" />
+            <div className="h-4 w-24 bg-slate-100 rounded" />
+          </div>
+        ))}
+      </div>
+      {/* Chart + appointments */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="card p-5 animate-pulse">
+          <div className="h-5 w-24 bg-slate-100 rounded mb-4" />
+          <div className="h-[220px] bg-slate-50 rounded-xl" />
+        </div>
+        <div className="card p-5 animate-pulse">
+          <div className="h-5 w-24 bg-slate-100 rounded mb-4" />
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-3 py-3">
+              <div className="w-8 h-8 bg-slate-100 rounded-lg" />
+              <div className="flex-1">
+                <div className="h-4 w-32 bg-slate-100 rounded mb-1" />
+                <div className="h-3 w-20 bg-slate-100 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Orders + activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {[1, 2].map((i) => (
+          <div key={i} className="card p-5 animate-pulse">
+            <div className="h-5 w-28 bg-slate-100 rounded mb-4" />
+            {[1, 2, 3].map((j) => (
+              <div key={j} className="flex items-center gap-3 py-2.5">
+                <div className="w-7 h-7 bg-slate-100 rounded-lg" />
+                <div className="flex-1">
+                  <div className="h-4 w-36 bg-slate-100 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Daily Focus Task Status Logic ───────────────────────────────────────────
+
+type FocusStatus = "active" | "overdue";
+
+function computeFocusStatus(task: { dueAt: string | null; dueDate: string | null; status: string }): FocusStatus {
+  const now = new Date();
+  if (task.dueAt) {
+    const dueAt = new Date(task.dueAt);
+    const diffMin = differenceInMinutes(dueAt, now);
+    if (isPast(dueAt) && diffMin < -30) return "overdue";
+    return "active";
+  }
+  if (task.dueDate) {
+    const dueDate = startOfDay(new Date(task.dueDate));
+    if (isToday(dueDate)) return "active";
+    if (isPast(dueDate)) return "overdue";
+  }
+  return "active";
+}
+
+function formatFocusTime(task: { dueAt: string | null; dueDate: string | null }): string {
+  if (task.dueAt) {
+    return format(new Date(task.dueAt), "HH:mm");
+  }
+  return "כל היום";
+}
+
+const FOCUS_CONFIG: Record<FocusStatus, { label: string; color: string; bg: string; border: string }> = {
+  active: { label: "עכשיו", color: "#16A34A", bg: "#F0FDF4", border: "#BBF7D0" },
+  overdue: { label: "באיחור", color: "#DC2626", bg: "#FEF2F2", border: "#FECACA" },
+};
+
+function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
+  todayTasks: DashboardStats["todayTasks"];
+  overdueTasks: DashboardStats["overdueTasks"];
+  onComplete: (taskId: string) => void;
+}) {
+  const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
+  const allFocusTasks = [...overdueTasks, ...todayTasks];
+  const visibleTasks = allFocusTasks.filter((t) => !completingIds.has(t.id));
+  if (visibleTasks.length === 0 && allFocusTasks.length === 0) return null;
+
+  const handleComplete = (taskId: string) => {
+    setCompletingIds((prev) => new Set(prev).add(taskId));
+    // Small delay for animation, then fire the actual API call
+    setTimeout(() => onComplete(taskId), 350);
+  };
+
+  return (
+    <div className="card overflow-hidden"
+      style={{ borderTop: "3px solid #F97316" }}
+    >
+      <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-orange-50">
+            <Flame className="w-4 h-4 text-orange-500" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-petra-text">מיקוד יומי</h2>
+            <p className="text-[11px] text-petra-muted">
+              {overdueTasks.length > 0 && (
+                <span className="text-red-500 font-medium">{overdueTasks.length} באיחור</span>
+              )}
+              {overdueTasks.length > 0 && todayTasks.length > 0 && " · "}
+              {todayTasks.length > 0 && `${todayTasks.length} להיום`}
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/tasks"
+          className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
+        >
+          כל המשימות
+          <ArrowLeft className="w-3 h-3" />
+        </Link>
+      </div>
+
+      <div className="divide-y divide-slate-50">
+        {allFocusTasks.slice(0, 6).map((task) => {
+          const isCompleting = completingIds.has(task.id);
+          const focusStatus = computeFocusStatus(task);
+          const config = FOCUS_CONFIG[focusStatus];
+          const timeStr = formatFocusTime(task);
+          return (
+            <div
+              key={task.id}
+              className={cn(
+                "px-5 py-3 flex items-center gap-3 transition-all duration-300",
+                focusStatus === "overdue" ? "bg-red-50/30" : "hover:bg-slate-50/50",
+                isCompleting && "opacity-0 max-h-0 py-0 overflow-hidden"
+              )}
+            >
+              {/* Complete checkbox */}
+              <button
+                onClick={() => handleComplete(task.id)}
+                disabled={isCompleting}
+                className={cn(
+                  "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200",
+                  isCompleting
+                    ? "bg-green-500 border-green-500"
+                    : "border-slate-300 hover:border-green-500 hover:bg-green-50"
+                )}
+                title="סמן כבוצע"
+              >
+                {isCompleting && <Check className="w-3 h-3 text-white" />}
+              </button>
+
+              {/* Title */}
+              <span className={cn(
+                "text-sm font-medium text-petra-text flex-1 truncate transition-all duration-200",
+                isCompleting && "line-through text-petra-muted"
+              )}>
+                {task.title}
+              </span>
+
+              {/* Time */}
+              <span
+                className="text-[10px] font-medium flex items-center gap-0.5 px-1.5 py-0.5 rounded flex-shrink-0"
+                style={{ color: config.color, background: config.bg }}
+              >
+                <Clock className="w-3 h-3" />
+                {timeStr}
+              </span>
+
+              {/* Status badge */}
+              <span
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                style={{ color: config.color, background: config.bg, border: `1px solid ${config.border}` }}
+              >
+                {config.label}
+              </span>
+
+              {/* Priority */}
+              <div
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{
+                  background:
+                    task.priority === "URGENT" ? "#DC2626" :
+                    task.priority === "HIGH" ? "#EF4444" :
+                    task.priority === "MEDIUM" ? "#F59E0B" : "#94A3B8",
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ───────────────────────────────────────────────────────────────
+
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [showCreateOrder, setShowCreateOrder] = useState(false);
+  const [serviceFilter, setServiceFilter] = useState("all");
+
+  const [completingTaskIds, setCompletingTaskIds] = useState<Set<string>>(new Set());
+
   const { data, isLoading } = useQuery<DashboardStats>({
     queryKey: ["dashboard"],
     queryFn: () => fetchJSON("/api/dashboard"),
   });
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="card p-5 animate-pulse">
-              <div className="w-11 h-11 bg-slate-100 rounded-xl mb-4" />
-              <div className="h-7 w-16 bg-slate-100 rounded mb-2" />
-              <div className="h-4 w-24 bg-slate-100 rounded" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const { data: activityData } = useQuery<{ activities: ActivityItem[] }>({
+    queryKey: ["dashboard-activity"],
+    queryFn: () => fetchJSON("/api/dashboard/activity"),
+    refetchInterval: 60000,
+  });
 
+  const completeTaskMutation = useMutation({
+    mutationFn: (taskId: string) =>
+      fetchJSON(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "COMPLETED" }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+
+  const handleCompleteTask = useCallback(
+    (taskId: string) => {
+      completeTaskMutation.mutate(taskId);
+    },
+    [completeTaskMutation]
+  );
+
+  const handleCompleteOpenTask = useCallback(
+    (taskId: string) => {
+      setCompletingTaskIds((prev) => new Set(prev).add(taskId));
+      setTimeout(() => {
+        completeTaskMutation.mutate(taskId);
+      }, 350);
+    },
+    [completeTaskMutation]
+  );
+
+  if (isLoading) return <DashboardSkeleton />;
   if (!data) return null;
+
+  const todayStr = new Date().toLocaleDateString("he-IL", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  const filteredAppointments =
+    serviceFilter === "all"
+      ? data.upcomingAppointments
+      : data.upcomingAppointments.filter(
+          (a) => a.service.type === serviceFilter
+        );
 
   return (
     <div className="space-y-6">
+      {/* Greeting Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-petra-text">
+            שלום, {user?.name || "משתמש"} 👋
+          </h1>
+          <p className="text-sm text-petra-muted mt-0.5">{todayStr}</p>
+        </div>
+        <button
+          onClick={() => setShowCreateOrder(true)}
+          className="btn-primary flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          הזמנה חדשה
+        </button>
+      </div>
+
+      {/* Daily Focus — Today's & Overdue Tasks */}
+      <DailyFocusSection
+        todayTasks={data.todayTasks || []}
+        overdueTasks={data.overdueTasks || []}
+        onComplete={handleCompleteTask}
+      />
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="לקוחות"
-          value={data.totalCustomers}
-          subtitle={`${data.totalPets} חיות מחמד`}
-          icon={Users}
-          color="#3B82F6"
-          href="/customers"
+          title="הזמנות פעילות"
+          value={data.activeOrders}
+          icon={ShoppingCart}
+          color="#F97316"
+        />
+        <StatCard
+          title="תשלומים ממתינים"
+          value={data.pendingPayments}
+          subtitle={formatCurrency(data.pendingPaymentsAmount)}
+          icon={CreditCard}
+          color="#F59E0B"
         />
         <StatCard
           title="תורים היום"
           value={data.todayAppointments}
           icon={Calendar}
-          color="#F97316"
+          color="#3B82F6"
           href="/calendar"
-        />
-        <StatCard
-          title="הכנסות החודש"
-          value={formatCurrency(data.monthRevenue)}
-          subtitle={`${data.pendingPayments} ממתינים`}
-          icon={CreditCard}
-          color="#10B981"
         />
         <StatCard
           title="לידים פתוחים"
@@ -206,11 +746,17 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Content Grid */}
+      {/* Revenue Chart + Upcoming Appointments */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upcoming Appointments */}
+        <RevenueChart
+          data={data.revenueByMonth}
+          target={data.revenueTarget}
+          topService={data.topService}
+        />
+
+        {/* Upcoming Appointments with filter */}
         <div className="card p-5">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-bold text-petra-text">תורים קרובים</h2>
             <Link
               href="/calendar"
@@ -221,7 +767,25 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          {data.upcomingAppointments.length === 0 ? (
+          {/* Service type tabs */}
+          <div className="flex gap-1 mb-3 overflow-x-auto">
+            {SERVICE_TYPE_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setServiceFilter(tab.key)}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap",
+                  serviceFilter === tab.key
+                    ? "bg-brand-500 text-white"
+                    : "bg-slate-100 text-petra-muted hover:bg-slate-200"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {filteredAppointments.length === 0 ? (
             <div className="empty-state py-8">
               <div className="empty-state-icon">
                 <Calendar className="w-6 h-6 text-slate-400" />
@@ -230,51 +794,163 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div>
-              {data.upcomingAppointments.map((apt) => (
+              {filteredAppointments.map((apt) => (
                 <AppointmentRow key={apt.id} appointment={apt} />
               ))}
             </div>
           )}
         </div>
+      </div>
 
-        {/* Recent Tasks */}
+      {/* Recent Orders + Activity Feed */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Orders */}
         <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-petra-text">משימות פתוחות</h2>
-            <Link
-              href="/tasks"
-              className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
-            >
-              הצג הכל
-              <ArrowLeft className="w-3 h-3" />
-            </Link>
+            <h2 className="text-base font-bold text-petra-text">הזמנות אחרונות</h2>
           </div>
 
-          {data.recentTasks.length === 0 ? (
+          {data.recentOrders.length === 0 ? (
             <div className="empty-state py-8">
               <div className="empty-state-icon">
-                <CheckCircle2 className="w-6 h-6 text-slate-400" />
+                <ShoppingCart className="w-6 h-6 text-slate-400" />
               </div>
-              <p className="text-sm text-petra-muted">אין משימות פתוחות</p>
+              <p className="text-sm text-petra-muted">אין הזמנות</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {data.recentTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors"
-                >
-                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{
-                    background: task.priority === "HIGH" ? "#EF4444" : task.priority === "MEDIUM" ? "#F59E0B" : "#94A3B8"
-                  }} />
-                  <span className="text-sm text-petra-text flex-1 truncate">{task.title}</span>
-                  <span className="badge-neutral text-[10px]">{task.category}</span>
-                </div>
-              ))}
+            <div className="space-y-1">
+              {data.recentOrders.map((order) => {
+                const typeInfo = ORDER_TYPE_INFO[order.orderType] || ORDER_TYPE_INFO.sale;
+                const TypeIcon = typeInfo.icon;
+                return (
+                  <div
+                    key={order.id}
+                    className="flex items-center gap-3 py-2.5 px-1 hover:bg-slate-50/50 rounded-lg transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-brand-50">
+                      <TypeIcon className="w-4 h-4 text-brand-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium text-petra-text truncate">
+                          {order.customerName}
+                        </span>
+                        <span
+                          className={cn(
+                            "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                            ORDER_STATUS_BADGE[order.status] || "badge-neutral"
+                          )}
+                        >
+                          {ORDER_STATUS_LABEL[order.status] || order.status}
+                        </span>
+                      </div>
+                      <div className="text-xs text-petra-muted mt-0.5">
+                        {typeInfo.label}
+                      </div>
+                    </div>
+                    <div className="text-left flex-shrink-0">
+                      <div className="text-sm font-semibold text-petra-text">
+                        {formatCurrency(order.total)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
+
+        {/* Activity Feed */}
+        <div className="card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-petra-text">פעילות אחרונה</h2>
+            <span className="text-[11px] text-petra-muted">24 שעות אחרונות</span>
+          </div>
+          <ActivityFeed activities={activityData?.activities || []} />
+        </div>
       </div>
+
+      {/* Open Tasks */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-petra-text">משימות פתוחות</h2>
+          <Link
+            href="/tasks"
+            className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
+          >
+            הצג הכל
+            <ArrowLeft className="w-3 h-3" />
+          </Link>
+        </div>
+
+        {data.recentTasks.length === 0 ? (
+          <div className="empty-state py-8">
+            <div className="empty-state-icon">
+              <CheckCircle2 className="w-6 h-6 text-slate-400" />
+            </div>
+            <p className="text-sm text-petra-muted">אין משימות פתוחות</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {data.recentTasks.map((task) => {
+              const isCompleting = completingTaskIds.has(task.id);
+              return (
+                <div
+                  key={task.id}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-all duration-300",
+                    isCompleting && "opacity-0 max-h-0 p-0 overflow-hidden"
+                  )}
+                >
+                  <button
+                    onClick={() => handleCompleteOpenTask(task.id)}
+                    disabled={isCompleting}
+                    className={cn(
+                      "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200",
+                      isCompleting
+                        ? "bg-green-500 border-green-500"
+                        : "border-slate-300 hover:border-green-500 hover:bg-green-50"
+                    )}
+                    title="סמן כבוצע"
+                  >
+                    {isCompleting && <Check className="w-3 h-3 text-white" />}
+                  </button>
+                  <div
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{
+                      background:
+                        task.priority === "URGENT"
+                          ? "#DC2626"
+                          : task.priority === "HIGH"
+                          ? "#EF4444"
+                          : task.priority === "MEDIUM"
+                          ? "#F59E0B"
+                          : "#94A3B8",
+                    }}
+                  />
+                  <span className={cn(
+                    "text-sm text-petra-text flex-1 truncate transition-all duration-200",
+                    isCompleting && "line-through text-petra-muted"
+                  )}>
+                    {task.title}
+                  </span>
+                  <span className="badge-neutral text-[10px]">{task.category}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Create Order Modal */}
+      <CreateOrderModal
+        isOpen={showCreateOrder}
+        onClose={() => setShowCreateOrder(false)}
+        onCreated={() => {
+          setShowCreateOrder(false);
+          queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+        }}
+      />
     </div>
   );
 }

@@ -684,7 +684,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <div className="page-header">
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
         <h1 className="page-title">הגדרות</h1>
       </div>
 

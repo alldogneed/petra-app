@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -30,8 +30,12 @@ import {
   Check,
   Settings2,
   Search,
+  AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Room {
   id: string;
@@ -60,6 +64,15 @@ interface Customer {
   pets: { id: string; name: string; species: string }[];
 }
 
+interface BusinessSettings {
+  boardingCheckInTime: string | null;
+  boardingCheckOutTime: string | null;
+  boardingCalcMode: string | null;
+  boardingMinNights: number | null;
+}
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
   reserved:    { label: "הזמנה",  color: "#8B5CF6", bg: "#F5F3FF" },
   checked_in:  { label: "נמצא",   color: "#10B981", bg: "#ECFDF5" },
@@ -70,6 +83,8 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
 const ACTIVE_STATUSES = ["reserved", "checked_in"];
 type TabKey = "active" | "checkin_today" | "checkout_today" | "history";
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 function toDateStr(d: string | Date) {
   const date = typeof d === "string" ? new Date(d) : d;
   return date.toISOString().slice(0, 10);
@@ -79,16 +94,82 @@ function formatDate(d: string) {
   return new Date(d).toLocaleDateString("he-IL", { day: "numeric", month: "numeric" });
 }
 
-// ─── Draggable Stay Card (used inside room columns) ──────────────────────────
+function formatDateFull(d: string) {
+  return new Date(d).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function calcNights(checkIn: string, checkOut: string): number {
+  const d1 = new Date(checkIn);
+  const d2 = new Date(checkOut);
+  return Math.max(0, Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
+function calcStayProgress(checkIn: string, checkOut: string | null): number {
+  if (!checkOut) return 0;
+  const start = new Date(checkIn).getTime();
+  const end = new Date(checkOut).getTime();
+  const now = Date.now();
+  const total = end - start;
+  if (total <= 0) return 100;
+  return Math.round(((now - start) / total) * 100);
+}
+
+function isOverdue(stay: BoardingStay, checkOutTime: string): boolean {
+  if (stay.status !== "checked_in" || !stay.checkOut) return false;
+  const checkOutDate = new Date(stay.checkOut);
+  const [hours, mins] = checkOutTime.split(":").map(Number);
+  checkOutDate.setHours(hours, mins, 0, 0);
+  return Date.now() > checkOutDate.getTime();
+}
+
+function isEarlyCheckin(stay: BoardingStay, checkInTime: string): boolean {
+  if (stay.status !== "checked_in") return false;
+  const checkinDate = new Date(stay.checkIn);
+  const [hours, mins] = checkInTime.split(":").map(Number);
+  const scheduledTime = new Date(checkinDate);
+  scheduledTime.setHours(hours, mins, 0, 0);
+  return checkinDate.getTime() < scheduledTime.getTime();
+}
+
+// ─── Stay Progress Bar ──────────────────────────────────────────────────────
+
+function StayProgress({ checkIn, checkOut }: { checkIn: string; checkOut: string | null }) {
+  if (!checkOut) return null;
+  const progress = calcStayProgress(checkIn, checkOut);
+  const clamped = Math.min(progress, 100);
+  const color = progress > 100 ? "bg-red-500" : progress >= 75 ? "bg-amber-500" : "bg-emerald-500";
+
+  return (
+    <div className="w-full mt-1.5">
+      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div
+          className={cn("h-full rounded-full transition-all", color)}
+          style={{ width: `${Math.min(clamped, 100)}%` }}
+        />
+      </div>
+      <div className="flex justify-between mt-0.5">
+        <span className="text-[9px] text-petra-muted">{formatDate(checkIn)}</span>
+        <span className={cn("text-[9px]", progress > 100 ? "text-red-500 font-semibold" : "text-petra-muted")}>
+          {progress > 100 ? `חריגה! ${progress - 100}%` : `${progress}%`}
+        </span>
+        <span className="text-[9px] text-petra-muted">{formatDate(checkOut)}</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Draggable Stay Card ─────────────────────────────────────────────────────
 
 function DraggableStayCard({
   stay,
   onCheckin,
   onCheckout,
+  settings,
 }: {
   stay: BoardingStay;
   onCheckin: (id: string) => void;
   onCheckout: (id: string) => void;
+  settings: BusinessSettings;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: stay.id });
@@ -100,6 +181,8 @@ function DraggableStayCard({
   const today = toDateStr(new Date());
   const isCheckinToday = toDateStr(stay.checkIn) === today && stay.status === "reserved";
   const isCheckoutToday = stay.checkOut && toDateStr(stay.checkOut) === today && stay.status === "checked_in";
+  const overdue = isOverdue(stay, settings.boardingCheckOutTime || "11:00");
+  const earlyIn = isEarlyCheckin(stay, settings.boardingCheckInTime || "14:00");
 
   return (
     <div
@@ -109,7 +192,8 @@ function DraggableStayCard({
       {...attributes}
       className={cn(
         "card p-2.5 cursor-grab active:cursor-grabbing select-none",
-        isDragging && "opacity-40 shadow-none"
+        isDragging && "opacity-40 shadow-none",
+        overdue && "ring-2 ring-red-300"
       )}
     >
       <div className="flex items-start gap-2">
@@ -126,23 +210,33 @@ function DraggableStayCard({
             {formatDate(stay.checkIn)}
             {stay.checkOut ? ` → ${formatDate(stay.checkOut)}` : ""}
           </div>
-          {(isCheckinToday || isCheckoutToday) && (
-            <div className="mt-1">
-              {isCheckinToday && (
-                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-brand-50 text-brand-600 border border-brand-100">
-                  <LogIn className="w-2.5 h-2.5" />צ׳ק-אין היום
-                </span>
-              )}
-              {isCheckoutToday && (
-                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-red-50 text-red-600 border border-red-100">
-                  <LogOut className="w-2.5 h-2.5" />צ׳ק-אאוט היום
-                </span>
-              )}
-            </div>
-          )}
+          {/* Badges */}
+          <div className="flex flex-wrap gap-1 mt-1">
+            {isCheckinToday && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-brand-50 text-brand-600 border border-brand-100">
+                <LogIn className="w-2.5 h-2.5" />צ׳ק-אין היום
+              </span>
+            )}
+            {earlyIn && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-blue-50 text-blue-600 border border-blue-100">
+                <Clock className="w-2.5 h-2.5" />צ׳ק-אין מוקדם
+              </span>
+            )}
+            {isCheckoutToday && !overdue && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-red-50 text-red-600 border border-red-100">
+                <LogOut className="w-2.5 h-2.5" />צ׳ק-אאוט היום
+              </span>
+            )}
+            {overdue && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-red-100 text-red-700 border border-red-200 animate-pulse">
+                <AlertTriangle className="w-2.5 h-2.5" />איחור צ׳ק-אאוט!
+              </span>
+            )}
+          </div>
+          <StayProgress checkIn={stay.checkIn} checkOut={stay.checkOut} />
         </div>
       </div>
-      {/* Action buttons — pointer events separate from drag */}
+      {/* Action buttons */}
       <div
         className="flex gap-1 mt-2 pt-1.5 border-t border-slate-100"
         onPointerDown={(e) => e.stopPropagation()}
@@ -168,18 +262,20 @@ function DraggableStayCard({
   );
 }
 
-// ─── Droppable Room Column ────────────────────────────────────────────────────
+// ─── Droppable Room Column ───────────────────────────────────────────────────
 
 function RoomColumn({
   room,
   stays,
   onCheckin,
   onCheckout,
+  settings,
 }: {
   room: { id: string; name: string; capacity: number; _count: { boardingStays: number } };
   stays: BoardingStay[];
   onCheckin: (id: string) => void;
   onCheckout: (id: string) => void;
+  settings: BusinessSettings;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: room.id });
   const occupancy = room._count.boardingStays;
@@ -187,7 +283,6 @@ function RoomColumn({
 
   return (
     <div className="flex flex-col min-w-[200px] flex-1">
-      {/* Column header */}
       <div className="flex items-center gap-2 mb-2 px-1">
         <DoorOpen className={cn("w-4 h-4 flex-shrink-0", isFull ? "text-red-400" : "text-brand-400")} />
         <span className="text-sm font-semibold text-petra-text truncate">{room.name}</span>
@@ -203,7 +298,6 @@ function RoomColumn({
         </span>
       </div>
 
-      {/* Drop zone */}
       <div
         ref={setNodeRef}
         className={cn(
@@ -224,6 +318,7 @@ function RoomColumn({
               stay={stay}
               onCheckin={onCheckin}
               onCheckout={onCheckout}
+              settings={settings}
             />
           ))
         )}
@@ -232,16 +327,18 @@ function RoomColumn({
   );
 }
 
-// ─── Unassigned Drop Zone ─────────────────────────────────────────────────────
+// ─── Unassigned Column ───────────────────────────────────────────────────────
 
 function UnassignedColumn({
   stays,
   onCheckin,
   onCheckout,
+  settings,
 }: {
   stays: BoardingStay[];
   onCheckin: (id: string) => void;
   onCheckout: (id: string) => void;
+  settings: BusinessSettings;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: "unassigned" });
 
@@ -276,6 +373,7 @@ function UnassignedColumn({
                 stay={stay}
                 onCheckin={onCheckin}
                 onCheckout={onCheckout}
+                settings={settings}
               />
             ))}
           </div>
@@ -285,24 +383,28 @@ function UnassignedColumn({
   );
 }
 
-// ─── Stay Row (for the list section) ─────────────────────────────────────────
+// ─── Stay Row (list view) ────────────────────────────────────────────────────
 
 function StayRow({
   stay,
   onCheckin,
   onCheckout,
+  settings,
 }: {
   stay: BoardingStay;
   onCheckin: (id: string) => void;
   onCheckout: (id: string) => void;
+  settings: BusinessSettings;
 }) {
   const st = STATUS_MAP[stay.status] || STATUS_MAP.reserved;
   const today = toDateStr(new Date());
   const isCheckinToday = toDateStr(stay.checkIn) === today && stay.status === "reserved";
   const isCheckoutToday = stay.checkOut && toDateStr(stay.checkOut) === today && stay.status === "checked_in";
+  const overdue = isOverdue(stay, settings.boardingCheckOutTime || "11:00");
+  const earlyIn = isEarlyCheckin(stay, settings.boardingCheckInTime || "14:00");
 
   return (
-    <div className="card p-4 flex items-center gap-4">
+    <div className={cn("card p-4 flex items-center gap-4", overdue && "ring-2 ring-red-200")}>
       <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: st.bg }}>
         <PawPrint className="w-5 h-5" style={{ color: st.color }} />
       </div>
@@ -317,9 +419,19 @@ function StayRow({
               <LogIn className="w-2.5 h-2.5" />צ׳ק-אין היום
             </span>
           )}
-          {isCheckoutToday && (
+          {earlyIn && (
+            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-600 border border-blue-100">
+              <Clock className="w-2.5 h-2.5" />צ׳ק-אין מוקדם
+            </span>
+          )}
+          {isCheckoutToday && !overdue && (
             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-600 border border-red-100">
               <LogOut className="w-2.5 h-2.5" />צ׳ק-אאוט היום
+            </span>
+          )}
+          {overdue && (
+            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 border border-red-200 animate-pulse">
+              <AlertTriangle className="w-2.5 h-2.5" />איחור צ׳ק-אאוט!
             </span>
           )}
         </div>
@@ -335,7 +447,15 @@ function StayRow({
               {stay.room.name}
             </span>
           )}
+          {stay.checkOut && stay.status === "checked_in" && (
+            <span className="flex items-center gap-1 text-[10px]">
+              {calcNights(stay.checkIn, stay.checkOut)} {(settings.boardingCalcMode || "nights") === "nights" ? "לילות" : "ימים"}
+            </span>
+          )}
         </div>
+        {(stay.status === "checked_in" || stay.status === "reserved") && stay.checkOut && (
+          <StayProgress checkIn={stay.checkIn} checkOut={stay.checkOut} />
+        )}
       </div>
 
       <span className="badge text-[10px] flex-shrink-0" style={{ background: st.bg, color: st.color }}>
@@ -343,18 +463,12 @@ function StayRow({
       </span>
 
       {stay.status === "reserved" && (
-        <button
-          className="btn-ghost text-xs flex-shrink-0"
-          onClick={() => onCheckin(stay.id)}
-        >
+        <button className="btn-ghost text-xs flex-shrink-0" onClick={() => onCheckin(stay.id)}>
           <CheckCircle2 className="w-3.5 h-3.5" />צ׳ק-אין
         </button>
       )}
       {stay.status === "checked_in" && (
-        <button
-          className="btn-ghost text-xs flex-shrink-0"
-          onClick={() => onCheckout(stay.id)}
-        >
+        <button className="btn-ghost text-xs flex-shrink-0" onClick={() => onCheckout(stay.id)}>
           <Clock className="w-3.5 h-3.5" />צ׳ק-אאוט
         </button>
       )}
@@ -362,7 +476,201 @@ function StayRow({
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Check-in Dialog ─────────────────────────────────────────────────────────
+
+function CheckinDialog({
+  stay,
+  settings,
+  onConfirm,
+  onCancel,
+  isPending,
+}: {
+  stay: BoardingStay;
+  settings: BusinessSettings;
+  onConfirm: (data: { actualTime: string; notes: string }) => void;
+  onCancel: () => void;
+  isPending: boolean;
+}) {
+  const now = new Date();
+  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const [actualTime, setActualTime] = useState(currentTime);
+  const [notes, setNotes] = useState("");
+
+  const configuredTime = settings.boardingCheckInTime || "14:00";
+  const isEarly = actualTime < configuredTime;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onCancel} />
+      <div className="modal-content max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-lg font-bold text-petra-text">צ׳ק-אין</h2>
+            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer.name}</p>
+          </div>
+          <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Stay info */}
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-petra-muted">חדר:</span>
+              <span className="font-medium">{stay.room?.name || "לא שובץ"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-petra-muted">תאריך כניסה:</span>
+              <span className="font-medium">{formatDateFull(stay.checkIn)}</span>
+            </div>
+            {stay.checkOut && (
+              <div className="flex justify-between">
+                <span className="text-petra-muted">תאריך יציאה מתוכנן:</span>
+                <span className="font-medium">{formatDateFull(stay.checkOut)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Actual time */}
+          <div>
+            <label className="label">שעת כניסה בפועל</label>
+            <input type="time" className="input" value={actualTime} onChange={(e) => setActualTime(e.target.value)} />
+          </div>
+
+          {isEarly && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              כניסה מוקדמת — שעת הצ׳ק-אין המוגדרת היא {configuredTime}
+            </div>
+          )}
+
+          {/* Notes */}
+          <div>
+            <label className="label">הערות צ׳ק-אין</label>
+            <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="הערות לכניסה..." />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            className="btn-primary flex-1 flex items-center justify-center gap-2"
+            disabled={isPending}
+            onClick={() => onConfirm({ actualTime, notes })}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            {isPending ? "מבצע..." : "אשר צ׳ק-אין"}
+          </button>
+          <button className="btn-secondary" onClick={onCancel}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Check-out Dialog ────────────────────────────────────────────────────────
+
+function CheckoutDialog({
+  stay,
+  settings,
+  onConfirm,
+  onCancel,
+  isPending,
+}: {
+  stay: BoardingStay;
+  settings: BusinessSettings;
+  onConfirm: (data: { notes: string }) => void;
+  onCancel: () => void;
+  isPending: boolean;
+}) {
+  const [notes, setNotes] = useState("");
+
+  const nights = stay.checkOut ? calcNights(stay.checkIn, stay.checkOut) : calcNights(stay.checkIn, new Date().toISOString());
+  const calcMode = settings.boardingCalcMode || "nights";
+  const configuredCheckoutTime = settings.boardingCheckOutTime || "11:00";
+
+  const now = new Date();
+  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const isLate = currentTime > configuredCheckoutTime;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onCancel} />
+      <div className="modal-content max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-lg font-bold text-petra-text">צ׳ק-אאוט</h2>
+            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer.name}</p>
+          </div>
+          <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Summary */}
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-petra-muted">חיה:</span>
+              <span className="font-medium">{stay.pet.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-petra-muted">לקוח:</span>
+              <span className="font-medium">{stay.customer.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-petra-muted">חדר:</span>
+              <span className="font-medium">{stay.room?.name || "—"}</span>
+            </div>
+            <div className="divider" />
+            <div className="flex justify-between">
+              <span className="text-petra-muted">כניסה:</span>
+              <span className="font-medium">{formatDateFull(stay.checkIn)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-petra-muted">יציאה:</span>
+              <span className="font-medium">{stay.checkOut ? formatDateFull(stay.checkOut) : "היום"}</span>
+            </div>
+            <div className="divider" />
+            <div className="flex justify-between items-center">
+              <span className="text-petra-muted">משך שהייה:</span>
+              <span className="text-base font-bold text-brand-600">
+                {nights} {calcMode === "nights" ? "לילות" : "ימים"}
+              </span>
+            </div>
+          </div>
+
+          {isLate && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              יציאה מאוחרת — שעת הצ׳ק-אאוט המוגדרת היא {configuredCheckoutTime}
+            </div>
+          )}
+
+          {/* Notes */}
+          <div>
+            <label className="label">הערות צ׳ק-אאוט</label>
+            <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="הערות ליציאה..." />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            className="btn-primary flex-1 flex items-center justify-center gap-2"
+            disabled={isPending}
+            onClick={() => onConfirm({ notes })}
+          >
+            <LogOut className="w-4 h-4" />
+            {isPending ? "מבצע..." : "אשר צ׳ק-אאוט"}
+          </button>
+          <button className="btn-secondary" onClick={onCancel}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function BoardingPage() {
   const [showNewStay, setShowNewStay] = useState(false);
@@ -372,6 +680,10 @@ export default function BoardingPage() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("active");
   const [activeStayId, setActiveStayId] = useState<string | null>(null);
+
+  // Dialog state
+  const [checkinDialogStay, setCheckinDialogStay] = useState<BoardingStay | null>(null);
+  const [checkoutDialogStay, setCheckoutDialogStay] = useState<BoardingStay | null>(null);
 
   // Rooms manager
   const [showRoomsManager, setShowRoomsManager] = useState(false);
@@ -385,6 +697,8 @@ export default function BoardingPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
+  // ── Data queries ──
+
   const { data: rooms = [] } = useQuery<Room[]>({
     queryKey: ["rooms"],
     queryFn: () => fetchJSON<Room[]>("/api/boarding/rooms"),
@@ -394,6 +708,18 @@ export default function BoardingPage() {
     queryKey: ["boarding"],
     queryFn: () => fetchJSON<BoardingStay[]>("/api/boarding"),
   });
+
+  const { data: settingsData } = useQuery<BusinessSettings>({
+    queryKey: ["settings"],
+    queryFn: () => fetchJSON<BusinessSettings>("/api/settings"),
+  });
+
+  const settings: BusinessSettings = settingsData || {
+    boardingCheckInTime: "14:00",
+    boardingCheckOutTime: "11:00",
+    boardingCalcMode: "nights",
+    boardingMinNights: 1,
+  };
 
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["customers-for-select"],
@@ -409,6 +735,8 @@ export default function BoardingPage() {
       c.name.includes(customerSearch) ||
       c.phone.includes(customerSearch)
   );
+
+  // ── Mutations ──
 
   const createMutation = useMutation({
     mutationFn: (data: typeof form) => {
@@ -437,15 +765,17 @@ export default function BoardingPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      fetch(`/api/boarding/${id}`, {
+    mutationFn: (payload: { id: string; status: string; checkinNotes?: string; checkoutNotes?: string; actualCheckinTime?: string; actualCheckoutTime?: string }) =>
+      fetch(`/api/boarding/${payload.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(payload),
       }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      setCheckinDialogStay(null);
+      setCheckoutDialogStay(null);
     },
   });
 
@@ -503,7 +833,41 @@ export default function BoardingPage() {
     setEditRoomForm({ name: room.name, capacity: room.capacity, type: room.type });
   }
 
-  // DnD handlers
+  // ── Check-in/out via dialog ──
+
+  const handleCheckin = (id: string) => {
+    const stay = stays.find((s) => s.id === id);
+    if (stay) setCheckinDialogStay(stay);
+  };
+
+  const handleCheckout = (id: string) => {
+    const stay = stays.find((s) => s.id === id);
+    if (stay) setCheckoutDialogStay(stay);
+  };
+
+  const confirmCheckin = (data: { actualTime: string; notes: string }) => {
+    if (!checkinDialogStay) return;
+    const dateStr = toDateStr(checkinDialogStay.checkIn);
+    statusMutation.mutate({
+      id: checkinDialogStay.id,
+      status: "checked_in",
+      checkinNotes: data.notes || undefined,
+      actualCheckinTime: `${dateStr}T${data.actualTime}:00`,
+    });
+  };
+
+  const confirmCheckout = (data: { notes: string }) => {
+    if (!checkoutDialogStay) return;
+    statusMutation.mutate({
+      id: checkoutDialogStay.id,
+      status: "checked_out",
+      checkoutNotes: data.notes || undefined,
+      actualCheckoutTime: new Date().toISOString(),
+    });
+  };
+
+  // ── DnD handlers ──
+
   function handleDragStart(event: DragStartEvent) {
     setActiveStayId(String(event.active.id));
   }
@@ -525,14 +889,16 @@ export default function BoardingPage() {
     roomMutation.mutate({ id: stayId, roomId: newRoomId });
   }
 
-  const handleCheckin = (id: string) => statusMutation.mutate({ id, status: "checked_in" });
-  const handleCheckout = (id: string) => statusMutation.mutate({ id, status: "checked_out" });
+  // ── Computed data ──
 
-  // Active stays for room view (reserved + checked_in only)
   const activeStays = stays.filter((s) => ACTIVE_STATUSES.includes(s.status));
-
-  // Stays for list tabs
   const today = toDateStr(new Date());
+
+  const overdueStays = useMemo(() =>
+    activeStays.filter((s) => isOverdue(s, settings.boardingCheckOutTime || "11:00")),
+    [activeStays, settings.boardingCheckOutTime]
+  );
+
   const tabStays: Record<TabKey, BoardingStay[]> = {
     active: [...activeStays].sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime()),
     checkin_today: activeStays.filter((s) => toDateStr(s.checkIn) === today && s.status === "reserved").sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime()),
@@ -555,13 +921,11 @@ export default function BoardingPage() {
   return (
     <div>
       {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">פנסיון</h1>
-          <p className="text-sm text-petra-muted mt-1">
-            {activeStays.length} שהיות פעילות · {rooms.length} חדרים
-          </p>
-        </div>
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <h1 className="page-title">פנסיון</h1>
+        <p className="text-sm text-petra-muted">
+          {activeStays.length} שהיות פעילות · {rooms.length} חדרים
+        </p>
         <div className="flex gap-2">
           <button className="btn-secondary" onClick={() => setShowRoomsManager(true)}>
             <Settings2 className="w-4 h-4" />ניהול חדרים
@@ -572,19 +936,35 @@ export default function BoardingPage() {
         </div>
       </div>
 
+      {/* ── Overdue Banner ── */}
+      {overdueStays.length > 0 && (
+        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="w-4 h-4 text-red-600" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-red-700">
+              {overdueStays.length} שהיות עם איחור בצ׳ק-אאוט
+            </p>
+            <p className="text-xs text-red-600 mt-0.5">
+              {overdueStays.map((s) => s.pet.name).join(", ")}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── Room View with DnD ── */}
       <div className="mb-8">
         <h2 className="text-sm font-semibold text-petra-text mb-3">מבט חדרים</h2>
 
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          {/* Unassigned zone */}
           <UnassignedColumn
             stays={activeStays.filter((s) => !s.room)}
             onCheckin={handleCheckin}
             onCheckout={handleCheckout}
+            settings={settings}
           />
 
-          {/* Room columns */}
           {rooms.length === 0 ? (
             <div className="card p-6 text-center text-sm text-petra-muted">
               אין חדרים מוגדרים במערכת
@@ -598,12 +978,12 @@ export default function BoardingPage() {
                   stays={activeStays.filter((s) => s.room?.id === room.id)}
                   onCheckin={handleCheckin}
                   onCheckout={handleCheckout}
+                  settings={settings}
                 />
               ))}
             </div>
           )}
 
-          {/* Drag overlay — floating preview while dragging */}
           <DragOverlay>
             {draggedStay ? (
               <div className="card p-2.5 w-[200px] rotate-2 shadow-modal cursor-grabbing">
@@ -628,7 +1008,6 @@ export default function BoardingPage() {
           <h2 className="text-sm font-semibold text-petra-text">לוח שהיות</h2>
         </div>
 
-        {/* Tab Bar */}
         <div className="flex gap-1 mb-4 flex-wrap">
           {tabs.map((tab) => (
             <button
@@ -660,7 +1039,6 @@ export default function BoardingPage() {
           ))}
         </div>
 
-        {/* List */}
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => <div key={i} className="card p-4 animate-pulse h-20" />)}
@@ -685,6 +1063,7 @@ export default function BoardingPage() {
                 stay={stay}
                 onCheckin={handleCheckin}
                 onCheckout={handleCheckout}
+                settings={settings}
               />
             ))}
           </div>
@@ -709,7 +1088,6 @@ export default function BoardingPage() {
               </button>
             </div>
 
-            {/* Existing rooms list */}
             <div className="space-y-2 mb-6">
               {rooms.length === 0 ? (
                 <p className="text-sm text-petra-muted text-center py-4">אין חדרים עדיין</p>
@@ -717,7 +1095,6 @@ export default function BoardingPage() {
                 rooms.map((room) => (
                   <div key={room.id} className="card p-3">
                     {editingRoomId === room.id ? (
-                      /* ── Edit mode ── */
                       <div className="space-y-2">
                         <input
                           className="input"
@@ -768,17 +1145,12 @@ export default function BoardingPage() {
                         </div>
                       </div>
                     ) : (
-                      /* ── View mode ── */
                       <div className="flex items-center gap-3">
                         <DoorOpen className="w-4 h-4 text-brand-400 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <span className="text-sm font-semibold text-petra-text">{room.name}</span>
-                          <span className="text-xs text-petra-muted mr-2">
-                            · קיבולת {room.capacity}
-                          </span>
-                          <span className="text-xs text-petra-muted">
-                            · {room._count.boardingStays} פעילות
-                          </span>
+                          <span className="text-xs text-petra-muted mr-2">· קיבולת {room.capacity}</span>
+                          <span className="text-xs text-petra-muted">· {room._count.boardingStays} פעילות</span>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <button
@@ -804,7 +1176,6 @@ export default function BoardingPage() {
               )}
             </div>
 
-            {/* Add new room form */}
             <div className="border-t border-slate-100 pt-5">
               <h3 className="text-sm font-semibold text-petra-text mb-3">הוסף חדר חדש</h3>
               <div className="space-y-3">
@@ -874,7 +1245,7 @@ export default function BoardingPage() {
             </div>
 
             <div className="space-y-4">
-              {/* ── Customer selector with search ── */}
+              {/* Customer selector */}
               <div>
                 <label className="label">לקוח *</label>
                 {form.customerId && selectedCustomer ? (
@@ -934,7 +1305,7 @@ export default function BoardingPage() {
                 )}
               </div>
 
-              {/* ── Pet selector ── */}
+              {/* Pet selector */}
               {selectedCustomer && (
                 <div>
                   <label className="label">חיית מחמד *</label>
@@ -951,7 +1322,7 @@ export default function BoardingPage() {
                 </div>
               )}
 
-              {/* ── Room selector ── */}
+              {/* Room selector */}
               <div>
                 <label className="label">חדר</label>
                 <select
@@ -968,7 +1339,7 @@ export default function BoardingPage() {
                 </select>
               </div>
 
-              {/* ── Check-in: date + time ── */}
+              {/* Check-in */}
               <div>
                 <label className="label">צ׳ק-אין *</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -990,7 +1361,7 @@ export default function BoardingPage() {
                 </div>
               </div>
 
-              {/* ── Check-out: date + time ── */}
+              {/* Check-out */}
               <div>
                 <label className="label">צ׳ק-אאוט</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -1012,7 +1383,7 @@ export default function BoardingPage() {
                 </div>
               </div>
 
-              {/* ── Notes ── */}
+              {/* Notes */}
               <div>
                 <label className="label">הערות</label>
                 <textarea
@@ -1039,6 +1410,28 @@ export default function BoardingPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Check-in Dialog ── */}
+      {checkinDialogStay && (
+        <CheckinDialog
+          stay={checkinDialogStay}
+          settings={settings}
+          onConfirm={confirmCheckin}
+          onCancel={() => setCheckinDialogStay(null)}
+          isPending={statusMutation.isPending}
+        />
+      )}
+
+      {/* ── Check-out Dialog ── */}
+      {checkoutDialogStay && (
+        <CheckoutDialog
+          stay={checkoutDialogStay}
+          settings={settings}
+          onConfirm={confirmCheckout}
+          onCancel={() => setCheckoutDialogStay(null)}
+          isPending={statusMutation.isPending}
+        />
       )}
     </div>
   );
