@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -31,6 +31,7 @@ import {
   ArrowLeft,
   MessageCircle,
   ChevronRight,
+  Tag,
 } from "lucide-react";
 import { toWhatsAppPhone, fetchJSON, formatCurrency } from "@/lib/utils";
 import { SERVICE_TYPES, ORDER_CATEGORIES, ORDER_UNITS } from "@/lib/constants";
@@ -334,6 +335,122 @@ function QuickActions({
       >
         <Pencil className="w-4 h-4" />
       </button>
+    </div>
+  );
+}
+
+// ─── Inline Tag Editor ──────────────────────────────────────────
+
+function InlineTagEditor({ customer }: { customer: EnhancedCustomer }) {
+  const queryClient = useQueryClient();
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const tags = parseTags(customer.tags);
+
+  const mutation = useMutation({
+    mutationFn: (newTags: string[]) =>
+      fetch(`/api/customers/${customer.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags: JSON.stringify(newTags) }),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+    },
+  });
+
+  const toggleTag = (tag: string) => {
+    const newTags = tags.includes(tag)
+      ? tags.filter((t) => t !== tag)
+      : [...tags, tag];
+    mutation.mutate(newTags);
+  };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isOpen]);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        className="flex items-center gap-1 group/tags cursor-pointer"
+        title="עריכת תגיות"
+      >
+        {tags.filter((t) => t !== "VIP").length > 0 ? (
+          <div className="flex gap-1 flex-wrap">
+            {tags
+              .filter((t) => t !== "VIP")
+              .slice(0, 3)
+              .map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex px-1.5 py-0 rounded text-[10px] bg-[#F3EDE6] text-[#8B7355] font-medium group-hover/tags:bg-[#E8DFD5] transition-colors"
+                >
+                  {tag}
+                </span>
+              ))}
+            {tags.filter((t) => t !== "VIP").length > 3 && (
+              <span className="text-[10px] text-[#8B7355]">
+                +{tags.filter((t) => t !== "VIP").length - 3}
+              </span>
+            )}
+            <Pencil className="w-3 h-3 text-slate-300 opacity-0 group-hover/tags:opacity-100 transition-opacity mr-0.5" />
+          </div>
+        ) : (
+          <span className="flex items-center gap-1 text-[10px] text-slate-300 group-hover/tags:text-[#8B7355] transition-colors">
+            <Tag className="w-3 h-3" />
+            הוסף תגיות
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div
+          className="absolute top-full right-0 mt-1 bg-white rounded-xl shadow-lg border border-[#E8DFD5] p-2.5 z-50 min-w-[200px] animate-fade-in"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        >
+          <div className="text-[11px] font-semibold text-[#8B7355] mb-2 px-1">
+            תגיות לקוח
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {CUSTOMER_PRESET_TAGS.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => toggleTag(tag)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all border ${
+                  tags.includes(tag)
+                    ? tag === "VIP"
+                      ? "bg-amber-500 text-white border-amber-500"
+                      : "bg-[#3D2E1F] text-white border-[#3D2E1F]"
+                    : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:border-[#C4956A]"
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -785,6 +902,7 @@ function NewCustomerModal({
     name: "",
     phone: "",
     email: "",
+    address: "",
     notes: "",
     selectedTags: [] as string[],
     source: "",
@@ -808,6 +926,7 @@ function NewCustomerModal({
           name: data.name,
           phone: data.phone,
           email: data.email || null,
+          address: data.address || null,
           notes: data.notes || null,
           tags: JSON.stringify(data.selectedTags),
           source: data.source || null,
@@ -820,7 +939,7 @@ function NewCustomerModal({
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       onClose();
-      setForm({ name: "", phone: "", email: "", notes: "", selectedTags: [], source: "" });
+      setForm({ name: "", phone: "", email: "", address: "", notes: "", selectedTags: [], source: "" });
     },
   });
 
@@ -872,6 +991,15 @@ function NewCustomerModal({
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
             </div>
+          </div>
+          <div>
+            <label className="label">כתובת</label>
+            <input
+              className="input"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="עיר, רחוב"
+            />
           </div>
           <div>
             <label className="label">תגיות לקוח</label>
@@ -2086,7 +2214,6 @@ export default function CustomersPage() {
               </thead>
               <tbody>
                 {customers.map((customer) => {
-                  const tags = parseTags(customer.tags);
                   const isSelected = selectedIds.has(customer.id);
 
                   return (
@@ -2148,21 +2275,9 @@ export default function CustomersPage() {
                                 </span>
                               )}
                             </div>
-                            {tags.length > 0 && (
-                              <div className="flex gap-1 mt-1">
-                                {tags
-                                  .filter((t) => t !== "VIP")
-                                  .slice(0, 2)
-                                  .map((tag) => (
-                                    <span
-                                      key={tag}
-                                      className="inline-flex px-1.5 py-0 rounded text-[10px] bg-[#F3EDE6] text-[#8B7355] font-medium"
-                                    >
-                                      {tag}
-                                    </span>
-                                  ))}
-                              </div>
-                            )}
+                            <div className="mt-1">
+                              <InlineTagEditor customer={customer} />
+                            </div>
                           </div>
                         </Link>
                       </td>

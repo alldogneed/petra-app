@@ -162,7 +162,6 @@ export function CreateOrderModal({
   const [notes, setNotes] = useState("");
   const [discountType, setDiscountType] = useState<"none" | "percent" | "fixed">("none");
   const [discountValue, setDiscountValue] = useState("0");
-  const [saveStatus, setSaveStatus] = useState<"draft" | "confirmed">("confirmed");
 
   // Boarding pet selection
   const [boardingPetIds, setBoardingPetIds] = useState<string[]>([]);
@@ -342,11 +341,11 @@ export function CreateOrderModal({
 
   const removeLine = (idx: number) => setLines((ls) => ls.filter((_, i) => i !== idx));
 
-  // Mutation
+  // Mutation — accepts explicit status to avoid stale-closure race condition
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (statusOverride: "draft" | "confirmed") => {
       // 1. Create the order
-      const order = await fetch("/api/orders", {
+      const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -358,9 +357,16 @@ export function CreateOrderModal({
           discountType,
           discountValue: parseFloat(discountValue) || 0,
           notes,
-          status: saveStatus,
+          status: statusOverride,
         }),
-      }).then((r) => r.json());
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "שגיאה ביצירת ההזמנה" }));
+        throw new Error(err.error || "שגיאה ביצירת ההזמנה");
+      }
+
+      const order = await res.json();
 
       // 2. If boarding order with pets selected → create a BoardingStay per pet
       if (isBoardingOrder && boardingPetIds.length > 0) {
@@ -920,18 +926,24 @@ export function CreateOrderModal({
         />
       </div>
 
+      {mutation.isError && (
+        <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+          {mutation.error?.message || "שגיאה ביצירת ההזמנה"}
+        </p>
+      )}
+
       <div className="flex gap-2">
         <button
           className="flex-1 py-2.5 rounded-xl border-2 border-petra-border text-sm font-medium text-petra-text hover:bg-slate-50 transition-all"
           disabled={mutation.isPending}
-          onClick={() => { setSaveStatus("draft"); mutation.mutate(); }}
+          onClick={() => mutation.mutate("draft")}
         >
           שמור כטיוטה
         </button>
         <button
           className="btn-primary flex-1"
           disabled={mutation.isPending || calc.total <= 0}
-          onClick={() => { setSaveStatus("confirmed"); mutation.mutate(); }}
+          onClick={() => mutation.mutate("confirmed")}
         >
           {mutation.isPending ? "שומר..." : `אשר הזמנה ${fmt(calc.total)}`}
         </button>

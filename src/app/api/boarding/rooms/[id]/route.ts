@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
-// PATCH /api/boarding/rooms/[id] – update room name / capacity / type
+// PATCH /api/boarding/rooms/[id] – update room name / capacity / type / status
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -12,7 +12,7 @@ export async function PATCH(
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
-    const { name, capacity, type } = body;
+    const { name, capacity, type, status } = body;
 
     const room = await prisma.room.update({
       where: { id: params.id },
@@ -20,6 +20,7 @@ export async function PATCH(
         ...(name !== undefined && { name }),
         ...(capacity !== undefined && { capacity: Number(capacity) }),
         ...(type !== undefined && { type }),
+        ...(status !== undefined && { status }),
       },
       include: {
         _count: {
@@ -28,6 +29,14 @@ export async function PATCH(
               where: { status: { in: ["reserved", "checked_in"] } },
             },
           },
+        },
+        boardingStays: {
+          where: { status: { in: ["reserved", "checked_in"] } },
+          include: {
+            pet: { select: { id: true, name: true, breed: true, species: true } },
+            customer: { select: { id: true, name: true } },
+          },
+          orderBy: { checkIn: "asc" },
         },
       },
     });

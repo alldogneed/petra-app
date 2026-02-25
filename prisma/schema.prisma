@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("POSTGRES_PRISMA_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 // ─────────────────────────────────────────────
@@ -173,6 +172,7 @@ model Business {
   boardingMinNights  Int      @default(1)
   boardingCheckInTime  String @default("12:00")
   boardingCheckOutTime String @default("12:00")
+  boardingPricePerNight Float  @default(150)
   timezone    String   @default("Asia/Jerusalem")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -12,6 +12,15 @@ export async function POST(
     const authResult = await requireAuth(request);
     if (isGuardError(authResult)) return authResult;
 
+    // Verify customer exists and belongs to this business
+    const customer = await prisma.customer.findUnique({
+      where: { id: params.id },
+      select: { id: true, businessId: true },
+    });
+    if (!customer || customer.businessId !== DEMO_BUSINESS_ID) {
+      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+    }
+
     const body = await request.json();
     const { neuteredSpayed, behavioralTags, ...petFields } = body;
 

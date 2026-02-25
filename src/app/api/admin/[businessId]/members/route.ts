@@ -35,6 +35,11 @@ export async function GET(
           isActive: true,
           twoFaEnabled: true,
           createdAt: true,
+          sessions: {
+            select: { lastSeenAt: true },
+            orderBy: { lastSeenAt: "desc" as const },
+            take: 1,
+          },
         },
       },
     },
@@ -105,6 +110,20 @@ export async function POST(
         name: body.name,
         passwordHash,
         isActive: true,
+      },
+    });
+
+    // Create completed onboarding so new user isn't stuck on onboarding flow
+    await prisma.onboardingProgress.create({
+      data: {
+        userId: platformUser.id,
+        currentStep: 4,
+        stepCompleted1: true,
+        stepCompleted2: true,
+        stepCompleted3: true,
+        stepCompleted4: true,
+        startedAt: new Date(),
+        completedAt: new Date(),
       },
     });
   }

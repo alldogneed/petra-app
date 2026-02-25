@@ -18,6 +18,7 @@ import {
   BarChart3,
   CreditCard,
   CalendarCheck,
+  CalendarClock,
   HelpCircle,
   Tag,
   ShoppingCart,
@@ -28,7 +29,22 @@ import { useState } from "react";
 import { HelpCenter } from "@/components/help/HelpCenter";
 import { useAuth } from "@/providers/auth-provider";
 
-const navigation = [
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  minRole?: "owner" | "manager";
+}
+
+const ROLE_LEVEL: Record<string, number> = { owner: 0, manager: 1, user: 2 };
+
+function canSee(item: NavItem, role: string | null): boolean {
+  if (!item.minRole) return true;
+  if (!role) return false;
+  return (ROLE_LEVEL[role] ?? 99) <= ROLE_LEVEL[item.minRole];
+}
+
+const navigation: NavItem[] = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
   { name: "לקוחות", href: "/customers", icon: Users },
   { name: "יומן", href: "/calendar", icon: Calendar },
@@ -36,12 +52,13 @@ const navigation = [
   { name: "אימונים", href: "/training", icon: GraduationCap },
   { name: "לידים", href: "/leads", icon: Target },
   { name: "הודעות", href: "/messages", icon: MessageSquare },
-  { name: "תשלומים", href: "/payments", icon: CreditCard },
-  { name: "מחירון", href: "/pricing", icon: Tag },
+  { name: "תשלומים", href: "/payments", icon: CreditCard, minRole: "manager" },
+  { name: "מחירון", href: "/pricing", icon: Tag, minRole: "manager" },
   { name: "הזמנות", href: "/orders", icon: ShoppingCart },
   { name: "פנסיון", href: "/boarding", icon: Hotel },
+  { name: "תורים", href: "/scheduler", icon: CalendarClock },
   { name: "הזמנות אונליין", href: "/bookings", icon: CalendarCheck },
-  { name: "אנליטיקס", href: "/analytics", icon: BarChart3 },
+  { name: "אנליטיקס", href: "/analytics", icon: BarChart3, minRole: "owner" },
   { name: "הגדרות", href: "/settings", icon: Settings },
 ];
 
@@ -108,7 +125,7 @@ export function Sidebar({
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto scrollbar-hide">
-        {navigation.map((item) => {
+        {navigation.filter((item) => canSee(item, user?.businessRole ?? null)).map((item) => {
           const isActive =
             item.href === "/dashboard"
               ? pathname === "/" || pathname === "/dashboard"

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { businessId: DEMO_BUSINESS_ID };
 
-    // Optional date range filter for calendar all-day section
+    // Optional date range filter for calendar/timeline
     if (from && to) {
       where.checkIn = { lte: new Date(to + "T23:59:59") };
       where.OR = [
@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         room: true,
-        pet: true,
-        customer: true,
+        pet: { select: { id: true, name: true, species: true, breed: true } },
+        customer: { select: { id: true, name: true } },
       },
       orderBy: { checkIn: "desc" },
     });
@@ -52,14 +52,52 @@ export async function POST(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
-    const { checkIn, checkOut, petId, customerId, roomId, status, notes } =
-      body;
+    const { checkIn, checkOut, petId, customerId, roomId, status, notes } = body;
 
-    if (!checkIn || !petId || !customerId || !roomId) {
+    if (!checkIn || !petId || !customerId) {
       return NextResponse.json(
-        { error: "Missing required fields: checkIn, petId, customerId, roomId" },
+        { error: "Missing required fields: checkIn, petId, customerId" },
         { status: 400 }
       );
+    }
+
+    // Check room availability if roomId provided
+    if (roomId) {
+      const conflicting = await prisma.boardingStay.findFirst({
+        where: {
+          roomId,
+          status: { in: ["reserved", "checked_in"] },
+          checkIn: { lt: checkOut ? new Date(checkOut) : new Date("2099-12-31") },
+          OR: [
+            { checkOut: { gt: new Date(checkIn) } },
+            { checkOut: null },
+          ],
+        },
+      });
+
+      if (conflicting) {
+        // Check capacity
+        const room = await prisma.room.findUnique({ where: { id: roomId } });
+        if (room) {
+          const activeCount = await prisma.boardingStay.count({
+            where: {
+              roomId,
+              status: { in: ["reserved", "checked_in"] },
+              checkIn: { lt: checkOut ? new Date(checkOut) : new Date("2099-12-31") },
+              OR: [
+                { checkOut: { gt: new Date(checkIn) } },
+                { checkOut: null },
+              ],
+            },
+          });
+          if (activeCount >= room.capacity) {
+            return NextResponse.json(
+              { error: "החדר תפוס בתאריכים הנבחרים" },
+              { status: 409 }
+            );
+          }
+        }
+      }
     }
 
     const stay = await prisma.boardingStay.create({
@@ -69,14 +107,14 @@ export async function POST(request: NextRequest) {
         checkOut: checkOut ? new Date(checkOut) : undefined,
         petId,
         customerId,
-        roomId,
+        roomId: roomId || null,
         status: status || "reserved",
         notes,
       },
       include: {
         room: true,
-        pet: true,
-        customer: true,
+        pet: { select: { id: true, name: true, species: true, breed: true } },
+        customer: { select: { id: true, name: true } },
       },
     });
 

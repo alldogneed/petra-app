@@ -18,6 +18,14 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        boardingStays: {
+          where: { status: { in: ["reserved", "checked_in"] } },
+          include: {
+            pet: { select: { id: true, name: true, breed: true, species: true } },
+            customer: { select: { id: true, name: true } },
+          },
+          orderBy: { checkIn: "asc" },
+        },
       },
       orderBy: { name: "asc" },
     });
@@ -54,6 +62,14 @@ export async function POST(request: NextRequest) {
               where: { status: { in: ["reserved", "checked_in"] } },
             },
           },
+        },
+        boardingStays: {
+          where: { status: { in: ["reserved", "checked_in"] } },
+          include: {
+            pet: { select: { id: true, name: true, breed: true, species: true } },
+            customer: { select: { id: true, name: true } },
+          },
+          orderBy: { checkIn: "asc" },
         },
       },
     });

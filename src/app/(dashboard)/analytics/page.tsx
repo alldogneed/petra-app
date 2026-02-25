@@ -17,6 +17,7 @@ import {
   Minus,
 } from "lucide-react";
 import { cn, formatCurrency, fetchJSON } from "@/lib/utils";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 interface AnalyticsData {
   period: string;
@@ -81,6 +82,14 @@ function ChangeIndicator({ value }: { value: number }) {
 }
 
 export default function AnalyticsPage() {
+  return (
+    <ProtectedRoute requiredRole="owner">
+      <AnalyticsContent />
+    </ProtectedRoute>
+  );
+}
+
+function AnalyticsContent() {
   const [period, setPeriod] = useState("month");
 
   const { data, isLoading } = useQuery<AnalyticsData>({

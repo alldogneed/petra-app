@@ -70,6 +70,7 @@ export async function PATCH(request: NextRequest) {
       boardingMinNights,
       boardingCheckInTime,
       boardingCheckOutTime,
+      boardingPricePerNight,
     } = body;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -87,6 +88,7 @@ export async function PATCH(request: NextRequest) {
     if (boardingMinNights !== undefined) data.boardingMinNights = boardingMinNights;
     if (boardingCheckInTime !== undefined) data.boardingCheckInTime = boardingCheckInTime;
     if (boardingCheckOutTime !== undefined) data.boardingCheckOutTime = boardingCheckOutTime;
+    if (boardingPricePerNight !== undefined) data.boardingPricePerNight = boardingPricePerNight;
 
     const business = await prisma.business.update({
       where: { id: DEMO_BUSINESS_ID },

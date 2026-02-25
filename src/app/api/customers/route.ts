@@ -191,20 +191,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const tags = body.tags
-      ? JSON.stringify(
-          body.tags
-            .split(",")
-            .map((t: string) => t.trim())
-            .filter(Boolean)
-        )
-      : "[]";
+    let tags = "[]";
+    if (body.tags) {
+      try {
+        // If already a valid JSON array string (from frontend), use as-is
+        const parsed = JSON.parse(body.tags);
+        tags = Array.isArray(parsed) ? JSON.stringify(parsed) : "[]";
+      } catch {
+        // Fallback: comma-separated string
+        tags = JSON.stringify(
+          body.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
+        );
+      }
+    }
 
     const customer = await prisma.customer.create({
       data: {
         name: body.name,
         phone: body.phone,
         email: body.email || null,
+        address: body.address || null,
         notes: body.notes || null,
         tags,
         source: body.source || "manual",

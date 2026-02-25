@@ -26,10 +26,15 @@ import {
   Clock,
   Moon,
   Info,
+  Users2,
+  UserPlus,
+  Shield,
+  X,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { cn, fetchJSON } from "@/lib/utils";
 import { TIERS } from "@/lib/constants";
+import { useAuth } from "@/providers/auth-provider";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -667,17 +672,291 @@ function DataTab() {
   );
 }
 
+// ─── Team Tab (Owner only) ───────────────────────────────────────────────────
+
+interface TeamMember {
+  id: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    isActive: boolean;
+    createdAt: string;
+    sessions?: { lastSeenAt: string }[];
+  };
+}
+
+const ROLE_LABELS: Record<string, string> = { owner: "בעלים", manager: "מנהל", user: "עובד" };
+const ROLE_COLORS: Record<string, string> = {
+  owner: "badge-brand",
+  manager: "badge-warning",
+  user: "badge-neutral",
+};
+
+function formatRelativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "כרגע";
+  if (minutes < 60) return `לפני ${minutes} דק׳`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `לפני ${hours} שע׳`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `לפני ${days} ימים`;
+  return new Date(dateStr).toLocaleDateString("he-IL");
+}
+
+function TeamTab() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const { data: members, isLoading } = useQuery<TeamMember[]>({
+    queryKey: ["team-members"],
+    queryFn: () => fetchJSON<TeamMember[]>(`/api/admin/${user?.businessId}/members`),
+    enabled: !!user?.businessId,
+  });
+
+  const roleMutation = useMutation({
+    mutationFn: ({ memberId, role }: { memberId: string; role: string }) =>
+      fetch(`/api/admin/${user?.businessId}/members/${memberId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+      }).then((r) => {
+        if (!r.ok) throw r;
+        return r.json();
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["team-members"] }),
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: ({ memberId, isActive }: { memberId: string; isActive: boolean }) =>
+      fetch(`/api/admin/${user?.businessId}/members/${memberId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
+      }).then((r) => {
+        if (!r.ok) throw r;
+        return r.json();
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["team-members"] }),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="animate-pulse space-y-3 max-w-2xl">
+        {[1, 2, 3].map((i) => <div key={i} className="h-20 bg-slate-100 rounded-xl" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Shield className="w-5 h-5 text-brand-500" />
+          <h3 className="text-base font-semibold text-petra-text">ניהול צוות</h3>
+          <span className="text-sm text-petra-muted">({members?.length ?? 0})</span>
+        </div>
+        <button className="btn-primary flex items-center gap-2 text-sm" onClick={() => setShowAddModal(true)}>
+          <UserPlus className="w-4 h-4" />
+          הוסף עובד
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        {members?.map((member) => {
+          const isSelf = member.user.id === user?.id;
+          const lastSeen = member.user.sessions?.[0]?.lastSeenAt;
+
+          return (
+            <div key={member.id} className="card p-4 flex items-center gap-4">
+              {/* Avatar */}
+              <div className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0",
+                member.isActive ? "bg-brand-100 text-brand-600" : "bg-slate-100 text-slate-400"
+              )}>
+                {member.user.name.charAt(0)}
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-petra-text truncate">{member.user.name}</span>
+                  <span className={cn("badge text-xs", ROLE_COLORS[member.role] ?? "badge-neutral")}>
+                    {ROLE_LABELS[member.role] ?? member.role}
+                  </span>
+                  {!member.isActive && (
+                    <span className="badge badge-danger text-xs">מושבת</span>
+                  )}
+                  {isSelf && (
+                    <span className="text-xs text-petra-muted">(את/ה)</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 mt-0.5">
+                  <span className="text-xs text-petra-muted">{member.user.email}</span>
+                  <span className="text-xs text-petra-muted">
+                    {lastSeen ? formatRelativeTime(lastSeen) : "לא התחבר"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              {!isSelf && (
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <select
+                    className="input text-xs py-1.5 px-2 w-24"
+                    value={member.role}
+                    onChange={(e) => roleMutation.mutate({ memberId: member.id, role: e.target.value })}
+                    disabled={roleMutation.isPending}
+                  >
+                    <option value="owner">בעלים</option>
+                    <option value="manager">מנהל</option>
+                    <option value="user">עובד</option>
+                  </select>
+                  <button
+                    className={cn(
+                      "text-xs px-3 py-1.5 rounded-lg font-medium transition-colors",
+                      member.isActive
+                        ? "text-red-600 hover:bg-red-50 border border-red-200"
+                        : "text-emerald-600 hover:bg-emerald-50 border border-emerald-200"
+                    )}
+                    onClick={() => toggleActiveMutation.mutate({ memberId: member.id, isActive: !member.isActive })}
+                    disabled={toggleActiveMutation.isPending}
+                  >
+                    {member.isActive ? "השבת" : "הפעל"}
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {showAddModal && (
+        <AddEmployeeModal
+          businessId={user?.businessId ?? ""}
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => {
+            setShowAddModal(false);
+            queryClient.invalidateQueries({ queryKey: ["team-members"] });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Add Employee Modal ─────────────────────────────────────────────────────
+
+function AddEmployeeModal({
+  businessId,
+  onClose,
+  onSuccess,
+}: {
+  businessId: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("user");
+  const [error, setError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/admin/${businessId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, role, temporaryPassword: password }),
+      }).then(async (r) => {
+        if (!r.ok) {
+          const data = await r.json().catch(() => ({}));
+          throw new Error(data.error || "שגיאה ביצירת עובד");
+        }
+        return r.json();
+      }),
+    onSuccess,
+    onError: (err: Error) => setError(err.message),
+  });
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-backdrop" />
+      <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-petra-text flex items-center gap-2">
+            <UserPlus className="w-5 h-5 text-brand-500" />
+            הוסף עובד חדש
+          </h3>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 transition-colors">
+            <X className="w-4 h-4 text-slate-400" />
+          </button>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm mb-4">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <div>
+            <label className="label">שם מלא *</label>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="ישראל ישראלי" />
+          </div>
+          <div>
+            <label className="label">אימייל *</label>
+            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@example.com" dir="ltr" />
+          </div>
+          <div>
+            <label className="label">סיסמה זמנית *</label>
+            <input className="input" type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="לפחות 8 תווים" dir="ltr" />
+          </div>
+          <div>
+            <label className="label">תפקיד</label>
+            <select className="input" value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="user">עובד</option>
+              <option value="manager">מנהל</option>
+              <option value="owner">בעלים</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            className="btn-primary flex-1 flex items-center justify-center gap-2"
+            disabled={!name.trim() || !email.trim() || !password.trim() || password.length < 8 || mutation.isPending}
+            onClick={() => { setError(null); mutation.mutate(); }}
+          >
+            {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+            {mutation.isPending ? "מוסיף..." : "הוסף עובד"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Settings Page ──────────────────────────────────────────────────────
 
 export default function SettingsPage() {
   const searchParams = useSearchParams();
   const gcalParam = searchParams.get("gcal");
-  const [activeTab, setActiveTab] = useState<"business" | "integrations" | "data">(
+  const { isOwner } = useAuth();
+  const [activeTab, setActiveTab] = useState<"business" | "team" | "integrations" | "data">(
     gcalParam ? "integrations" : "business"
   );
 
   const tabs = [
     { id: "business" as const, label: "פרטי העסק", icon: Building2 },
+    ...(isOwner ? [{ id: "team" as const, label: "ניהול צוות", icon: Users2 }] : []),
     { id: "data" as const, label: "נתונים", icon: Database },
     { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
   ];
@@ -709,6 +988,7 @@ export default function SettingsPage() {
       </div>
 
       {activeTab === "business" && <BusinessTab />}
+      {activeTab === "team" && isOwner && <TeamTab />}
       {activeTab === "data" && <DataTab />}
       {activeTab === "integrations" && <IntegrationsTab />}
     </div>

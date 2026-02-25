@@ -19,17 +19,21 @@ async function main() {
   })
   console.log("✓ Business:", business.name)
 
-  // Create default lead stages
-  await prisma.leadStage.createMany({
-    data: [
-      { id: "new", businessId: DEMO_BUSINESS_ID, name: "חדש", color: "#8B5CF6", sortOrder: 0 },
-      { id: "contacted", businessId: DEMO_BUSINESS_ID, name: "נוצר קשר", color: "#3B82F6", sortOrder: 1 },
-      { id: "qualified", businessId: DEMO_BUSINESS_ID, name: "מתאים", color: "#6366F1", sortOrder: 2 },
-      { id: "won", businessId: DEMO_BUSINESS_ID, name: "נסגר", color: "#22C55E", sortOrder: 3, isWon: true },
-      { id: "lost", businessId: DEMO_BUSINESS_ID, name: "אבוד", color: "#EF4444", sortOrder: 4, isLost: true },
-    ],
-    skipDuplicates: true,
-  })
+  // Create default lead stages (upsert for SQLite compatibility)
+  const leadStages = [
+    { id: "new", businessId: DEMO_BUSINESS_ID, name: "חדש", color: "#8B5CF6", sortOrder: 0, isWon: false, isLost: false },
+    { id: "contacted", businessId: DEMO_BUSINESS_ID, name: "נוצר קשר", color: "#3B82F6", sortOrder: 1, isWon: false, isLost: false },
+    { id: "qualified", businessId: DEMO_BUSINESS_ID, name: "מתאים", color: "#6366F1", sortOrder: 2, isWon: false, isLost: false },
+    { id: "won", businessId: DEMO_BUSINESS_ID, name: "נסגר", color: "#22C55E", sortOrder: 3, isWon: true, isLost: false },
+    { id: "lost", businessId: DEMO_BUSINESS_ID, name: "אבוד", color: "#EF4444", sortOrder: 4, isWon: false, isLost: true },
+  ]
+  for (const stage of leadStages) {
+    await prisma.leadStage.upsert({
+      where: { id: stage.id },
+      update: {},
+      create: stage,
+    })
+  }
   console.log("✓ Lead Stages: 5")
 
   // Create demo services

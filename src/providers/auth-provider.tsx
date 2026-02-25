@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { hasTenantPermission, type TenantRole, type TenantPermission } from "@/lib/permissions";
 
 interface AuthUser {
   id: string;
@@ -19,12 +20,20 @@ interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   logout: () => Promise<void>;
+  hasPermission: (permission: TenantPermission) => boolean;
+  isOwner: boolean;
+  isManager: boolean;
+  isStaff: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   logout: async () => {},
+  hasPermission: () => false,
+  isOwner: false,
+  isManager: false,
+  isStaff: false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -42,6 +51,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
+  const isOwner = user?.businessRole === "owner";
+  const isManager = user?.businessRole === "manager";
+  const isStaff = user?.businessRole === "user";
+
+  const hasPermission = useCallback(
+    (permission: TenantPermission): boolean => {
+      if (!user?.businessRole) return false;
+      return hasTenantPermission(user.businessRole as TenantRole, permission);
+    },
+    [user?.businessRole]
+  );
+
   const logout = useCallback(async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
@@ -54,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout }}>
+    <AuthContext.Provider value={{ user, loading, logout, hasPermission, isOwner: !!isOwner, isManager: !!isManager, isStaff: !!isStaff }}>
       {children}
     </AuthContext.Provider>
   );
