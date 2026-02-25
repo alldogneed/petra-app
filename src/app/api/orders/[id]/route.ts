@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { DEMO_BUSINESS_ID } from "@/lib/utils";
 
 export async function GET(
   _request: NextRequest,
@@ -51,6 +52,18 @@ export async function PATCH(
       },
     });
 
+    // Cancel pending reminders when order is cancelled
+    if (body.status === "cancelled") {
+      await prisma.scheduledMessage.updateMany({
+        where: {
+          relatedEntityType: "ORDER",
+          relatedEntityId: params.id,
+          status: "PENDING",
+        },
+        data: { status: "CANCELED" },
+      });
+    }
+
     return NextResponse.json(order);
   } catch (error) {
     console.error("Error updating order:", error);
@@ -63,6 +76,27 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Only allow deleting draft orders
+    const order = await prisma.order.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+    });
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+    if (order.status !== "draft") {
+      return NextResponse.json({ error: "Only draft orders can be deleted" }, { status: 400 });
+    }
+
+    // Cancel any pending reminders
+    await prisma.scheduledMessage.updateMany({
+      where: {
+        relatedEntityType: "ORDER",
+        relatedEntityId: params.id,
+        status: "PENDING",
+      },
+      data: { status: "CANCELED" },
+    });
+
     await prisma.order.delete({ where: { id: params.id } });
     return NextResponse.json({ ok: true });
   } catch (error) {

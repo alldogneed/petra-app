@@ -128,3 +128,27 @@ export const WEEK_DAYS_HE = [
   "שישי",
   "שבת",
 ] as const;
+
+export const ORDER_CATEGORIES = [
+  { id: "training", label: "אילוף" },
+  { id: "boarding", label: "פנסיון" },
+  { id: "grooming", label: "טיפוח" },
+  { id: "products", label: "מוצרים" },
+] as const;
+
+export const ORDER_STATUSES = [
+  { id: "draft", label: "טיוטה", color: "#94A3B8" },
+  { id: "pending", label: "ממתין", color: "#F59E0B" },
+  { id: "accepted", label: "מאושר", color: "#3B82F6" },
+  { id: "completed", label: "הושלם", color: "#22C55E" },
+  { id: "cancelled", label: "בוטל", color: "#EF4444" },
+] as const;
+
+export const ORDER_UNITS = [
+  { id: "per_session", label: "לאימון" },
+  { id: "per_hour", label: "לשעה" },
+  { id: "per_day", label: "ליום" },
+  { id: "per_night", label: "ללילה" },
+  { id: "per_unit", label: "ליחידה" },
+  { id: "package", label: "חבילה" },
+] as const;

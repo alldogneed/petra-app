@@ -22,9 +22,18 @@ import {
   CheckSquare,
   Square,
   MinusSquare,
+  ShoppingCart,
+  GraduationCap,
+  Hotel,
+  Scissors,
+  Package,
+  ArrowRight,
+  ArrowLeft,
+  MessageCircle,
+  ChevronRight,
 } from "lucide-react";
-import { toWhatsAppPhone, fetchJSON } from "@/lib/utils";
-import { SERVICE_TYPES } from "@/lib/constants";
+import { toWhatsAppPhone, fetchJSON, formatCurrency } from "@/lib/utils";
+import { SERVICE_TYPES, ORDER_CATEGORIES, ORDER_UNITS } from "@/lib/constants";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -927,6 +936,563 @@ function NewCustomerModal({
   );
 }
 
+// ─── New Order Modal (3-step wizard) ─────────────────────────────
+
+interface PriceListItemOption {
+  id: string;
+  name: string;
+  category: string | null;
+  unit: string;
+  basePrice: number;
+  description: string | null;
+  defaultQuantity: number;
+}
+
+const CATEGORY_ICONS: Record<string, typeof GraduationCap> = {
+  training: GraduationCap,
+  boarding: Hotel,
+  grooming: Scissors,
+  products: Package,
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  training: "from-blue-500 to-blue-600",
+  boarding: "from-purple-500 to-purple-600",
+  grooming: "from-pink-500 to-pink-600",
+  products: "from-emerald-500 to-emerald-600",
+};
+
+function NewOrderModal({
+  isOpen,
+  onClose,
+  customers,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  customers: EnhancedCustomer[];
+}) {
+  const queryClient = useQueryClient();
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [category, setCategory] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [form, setForm] = useState({
+    customerId: "",
+    date: new Date().toISOString().slice(0, 10),
+    time: "09:00",
+    notes: "",
+    sendReminder: true,
+  });
+  const [lines, setLines] = useState<
+    { priceListItemId?: string; name: string; unit: string; quantity: number; unitPrice: number }[]
+  >([]);
+
+  // Fetch price list items for chosen category
+  const { data: priceItems = [] } = useQuery<PriceListItemOption[]>({
+    queryKey: ["priceListItems", category],
+    queryFn: () => fetchJSON<PriceListItemOption[]>(`/api/price-list-items?category=${category}`),
+    enabled: !!category && step >= 2,
+  });
+
+  const selectedCustomer = customers.find((c) => c.id === form.customerId);
+
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch.trim()) return customers.slice(0, 20);
+    const q = customerSearch.toLowerCase();
+    return customers
+      .filter((c) => c.name.toLowerCase().includes(q) || c.phone.includes(q))
+      .slice(0, 20);
+  }, [customers, customerSearch]);
+
+  const orderTotal = lines.reduce((sum, l) => sum + l.quantity * l.unitPrice, 0);
+
+  const resetAndClose = useCallback(() => {
+    setStep(1);
+    setCategory("");
+    setCustomerSearch("");
+    setForm({ customerId: "", date: new Date().toISOString().slice(0, 10), time: "09:00", notes: "", sendReminder: true });
+    setLines([]);
+    onClose();
+  }, [onClose]);
+
+  const addLine = (item: PriceListItemOption) => {
+    // Don't add duplicates
+    if (lines.some((l) => l.priceListItemId === item.id)) return;
+    setLines((prev) => [
+      ...prev,
+      {
+        priceListItemId: item.id,
+        name: item.name,
+        unit: item.unit,
+        quantity: item.defaultQuantity,
+        unitPrice: item.basePrice,
+      },
+    ]);
+  };
+
+  const addManualLine = () => {
+    setLines((prev) => [
+      ...prev,
+      { name: "", unit: "per_unit", quantity: 1, unitPrice: 0 },
+    ]);
+  };
+
+  const updateLine = (idx: number, field: string, value: string | number) => {
+    setLines((prev) =>
+      prev.map((l, i) => (i === idx ? { ...l, [field]: value } : l))
+    );
+  };
+
+  const removeLine = (idx: number) => {
+    setLines((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const mutation = useMutation({
+    mutationFn: (data: {
+      customerId: string;
+      orderType: string;
+      startAt: string | null;
+      lines: typeof lines;
+      notes: string;
+      status: string;
+      sendReminder: boolean;
+    }) =>
+      fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      resetAndClose();
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!form.customerId || lines.length === 0) return;
+    const startAt =
+      form.date && form.time
+        ? new Date(`${form.date}T${form.time}:00`).toISOString()
+        : null;
+    mutation.mutate({
+      customerId: form.customerId,
+      orderType: category || "sale",
+      startAt,
+      lines: lines.map((l) => ({
+        ...l,
+        taxMode: "taxable" as const,
+      })),
+      notes: form.notes,
+      status: "pending",
+      sendReminder: form.sendReminder,
+    });
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={resetAndClose} />
+      <div className="modal-content max-w-xl mx-4 p-0 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div>
+            <h2 className="text-xl font-bold text-petra-text">הזמנה חדשה</h2>
+            <div className="flex items-center gap-2 mt-1">
+              {[1, 2, 3].map((s) => (
+                <div
+                  key={s}
+                  className={`h-1.5 rounded-full transition-all ${
+                    s === step
+                      ? "w-8 bg-gradient-to-l from-[#f38d49] to-[#FB923C]"
+                      : s < step
+                      ? "w-6 bg-[#f38d49]/40"
+                      : "w-6 bg-slate-200"
+                  }`}
+                />
+              ))}
+              <span className="text-xs text-petra-muted mr-2">
+                {step === 1 ? "בחירת קטגוריה" : step === 2 ? "פרטי הזמנה" : "אישור"}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={resetAndClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 max-h-[70vh] overflow-y-auto">
+          {/* ─── Step 1: Category ─── */}
+          {step === 1 && (
+            <div>
+              <p className="text-sm text-petra-muted mb-4">בחר את סוג ההזמנה:</p>
+              <div className="grid grid-cols-2 gap-3">
+                {ORDER_CATEGORIES.map((cat) => {
+                  const Icon = CATEGORY_ICONS[cat.id] || Package;
+                  const colorClass = CATEGORY_COLORS[cat.id] || "from-orange-500 to-orange-600";
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => {
+                        setCategory(cat.id);
+                        setStep(2);
+                      }}
+                      className="group flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-slate-100 hover:border-[#f38d49]/40 hover:shadow-md transition-all"
+                    >
+                      <div
+                        className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform`}
+                      >
+                        <Icon className="w-6 h-6 text-white" />
+                      </div>
+                      <span className="text-sm font-semibold text-petra-text">
+                        {cat.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ─── Step 2: Details ─── */}
+          {step === 2 && (
+            <div className="space-y-5">
+              {/* Customer search */}
+              <div>
+                <label className="label">לקוח *</label>
+                {!form.customerId ? (
+                  <div>
+                    <div className="relative">
+                      <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
+                      <input
+                        className="input pr-9"
+                        placeholder="חפש לפי שם או טלפון..."
+                        value={customerSearch}
+                        onChange={(e) => setCustomerSearch(e.target.value)}
+                      />
+                    </div>
+                    <div className="mt-2 max-h-36 overflow-y-auto border border-slate-100 rounded-lg divide-y divide-slate-50">
+                      {filteredCustomers.map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => setForm({ ...form, customerId: c.id })}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-right hover:bg-[#FAF7F3] transition-colors"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#f38d49] to-[#FB923C] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                            {c.name.charAt(0)}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-petra-text truncate">
+                              {c.name}
+                            </div>
+                            <div className="text-xs text-petra-muted">{c.phone}</div>
+                          </div>
+                        </button>
+                      ))}
+                      {filteredCustomers.length === 0 && (
+                        <div className="px-3 py-4 text-center text-sm text-petra-muted">
+                          לא נמצאו לקוחות
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-3 bg-[#FAF7F3] rounded-lg border border-[#E8DFD5]">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#f38d49] to-[#FB923C] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                      {selectedCustomer?.name.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-petra-text">
+                        {selectedCustomer?.name}
+                      </div>
+                      <div className="text-xs text-petra-muted">
+                        {selectedCustomer?.phone}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setForm({ ...form, customerId: "" })}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white text-petra-muted"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Price list items */}
+              <div>
+                <label className="label">פריטים</label>
+                {priceItems.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-1 mb-3">
+                    {priceItems.map((item) => {
+                      const added = lines.some((l) => l.priceListItemId === item.id);
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => addLine(item)}
+                          disabled={added}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                            added
+                              ? "bg-[#f38d49]/10 text-[#f38d49] border-[#f38d49]/20 cursor-default"
+                              : "bg-white text-petra-text border-slate-200 hover:border-[#f38d49]/40 hover:bg-[#FFF8F3]"
+                          }`}
+                        >
+                          {added && <Check className="w-3 h-3" />}
+                          {item.name} — {formatCurrency(item.basePrice)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Added lines */}
+                {lines.length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    {lines.map((line, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 p-3 bg-white rounded-lg border border-slate-100"
+                      >
+                        <div className="flex-1 min-w-0 space-y-2">
+                          {!line.priceListItemId ? (
+                            <input
+                              className="input text-sm"
+                              placeholder="שם הפריט..."
+                              value={line.name}
+                              onChange={(e) => updateLine(idx, "name", e.target.value)}
+                            />
+                          ) : (
+                            <div className="text-sm font-medium text-petra-text truncate">
+                              {line.name}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
+                              <label className="text-[10px] text-petra-muted">כמות:</label>
+                              <input
+                                type="number"
+                                min="1"
+                                step="1"
+                                className="input w-16 text-sm text-center py-1"
+                                value={line.quantity}
+                                onChange={(e) =>
+                                  updateLine(idx, "quantity", Math.max(1, Number(e.target.value)))
+                                }
+                              />
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <label className="text-[10px] text-petra-muted">מחיר:</label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                className="input w-20 text-sm text-center py-1"
+                                value={line.unitPrice}
+                                onChange={(e) =>
+                                  updateLine(idx, "unitPrice", Math.max(0, Number(e.target.value)))
+                                }
+                              />
+                            </div>
+                            <select
+                              className="input text-xs py-1 w-auto"
+                              value={line.unit}
+                              onChange={(e) => updateLine(idx, "unit", e.target.value)}
+                            >
+                              {ORDER_UNITS.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.label}
+                                </option>
+                              ))}
+                            </select>
+                            <span className="text-xs font-semibold text-petra-text mr-auto">
+                              {formatCurrency(line.quantity * line.unitPrice)}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removeLine(idx)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors flex-shrink-0"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  onClick={addManualLine}
+                  className="text-xs text-[#f38d49] hover:text-[#e07a3a] font-medium flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  הוסף פריט ידני
+                </button>
+              </div>
+
+              {/* Date & Time */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">תאריך</label>
+                  <input
+                    type="date"
+                    className="input"
+                    value={form.date}
+                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="label">שעה</label>
+                  <select
+                    className="input"
+                    value={form.time}
+                    onChange={(e) => setForm({ ...form, time: e.target.value })}
+                  >
+                    {TIME_SLOTS.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="label">הערות</label>
+                <textarea
+                  className="input"
+                  rows={2}
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  placeholder="הערות להזמנה..."
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ─── Step 3: Confirm ─── */}
+          {step === 3 && (
+            <div className="space-y-4">
+              {/* Summary card */}
+              <div className="p-4 bg-[#FAF7F3] rounded-xl border border-[#E8DFD5]">
+                <div className="flex items-center gap-3 mb-4">
+                  {(() => {
+                    const CatIcon = CATEGORY_ICONS[category] || Package;
+                    const catLabel = ORDER_CATEGORIES.find((c) => c.id === category)?.label || category;
+                    return (
+                      <>
+                        <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${CATEGORY_COLORS[category] || "from-orange-500 to-orange-600"} flex items-center justify-center`}>
+                          <CatIcon className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-petra-text">{catLabel}</div>
+                          <div className="text-xs text-petra-muted">
+                            {selectedCustomer?.name} • {form.date} {form.time}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                <div className="divide-y divide-[#E8DFD5]">
+                  {lines.map((line, idx) => (
+                    <div key={idx} className="flex items-center justify-between py-2">
+                      <div>
+                        <span className="text-sm text-petra-text">{line.name}</span>
+                        <span className="text-xs text-petra-muted mr-2">
+                          × {line.quantity}
+                        </span>
+                      </div>
+                      <span className="text-sm font-semibold text-petra-text">
+                        {formatCurrency(line.quantity * line.unitPrice)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between pt-3 mt-3 border-t border-[#D4C5B2]">
+                  <span className="text-sm font-bold text-petra-text">סה&quot;כ</span>
+                  <span className="text-lg font-bold text-[#f38d49]">
+                    {formatCurrency(orderTotal)}
+                  </span>
+                </div>
+              </div>
+
+              {/* WhatsApp reminder toggle */}
+              <label className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-100 cursor-pointer hover:border-[#25D366]/30 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={form.sendReminder}
+                  onChange={(e) =>
+                    setForm({ ...form, sendReminder: e.target.checked })
+                  }
+                  className="w-4 h-4 rounded border-slate-300 text-[#25D366] focus:ring-[#25D366]/20"
+                />
+                <MessageCircle className="w-5 h-5 text-[#25D366] flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-medium text-petra-text">
+                    שלח תזכורת WhatsApp
+                  </div>
+                  <div className="text-xs text-petra-muted">
+                    תזכורת אוטומטית 48 שעות לפני מועד ההזמנה
+                  </div>
+                </div>
+              </label>
+            </div>
+          )}
+        </div>
+
+        {/* Footer actions */}
+        <div className="flex items-center gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+          {step > 1 && (
+            <button
+              className="btn-ghost flex items-center gap-1.5"
+              onClick={() => setStep((s) => Math.max(1, s - 1) as 1 | 2 | 3)}
+            >
+              <ArrowRight className="w-4 h-4" />
+              חזרה
+            </button>
+          )}
+          <div className="flex-1" />
+          {step === 2 && (
+            <button
+              className="btn-primary flex items-center gap-1.5"
+              disabled={!form.customerId || lines.length === 0}
+              onClick={() => setStep(3)}
+            >
+              המשך
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+          )}
+          {step === 3 && (
+            <button
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-white text-sm shadow-sm transition-all hover:shadow-md disabled:opacity-50"
+              style={{
+                background: "linear-gradient(135deg, #f38d49, #FB923C)",
+              }}
+              disabled={mutation.isPending}
+              onClick={handleSubmit}
+            >
+              <ShoppingCart className="w-4 h-4" />
+              {mutation.isPending ? "שומר..." : "צור הזמנה"}
+            </button>
+          )}
+          <button className="btn-secondary" onClick={resetAndClose}>
+            ביטול
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ──────────────────────────────────────────────────
 
 export default function CustomersPage() {
@@ -939,6 +1505,7 @@ export default function CustomersPage() {
   const [financialFilter, setFinancialFilter] = useState<"all" | "debt" | "balanced">("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showOrderModal, setShowOrderModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<EnhancedCustomer | null>(null);
   const [bookingCustomer, setBookingCustomer] = useState<EnhancedCustomer | null>(null);
 
@@ -1057,10 +1624,20 @@ export default function CustomersPage() {
             {stats.total} לקוחות במערכת
           </p>
         </div>
-        <button className="btn-primary" onClick={() => setShowNewModal(true)}>
-          <Plus className="w-4 h-4" />
-          לקוח חדש
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white text-sm shadow-sm transition-all hover:shadow-md"
+            style={{ background: "linear-gradient(135deg, #f38d49, #FB923C)" }}
+            onClick={() => setShowOrderModal(true)}
+          >
+            <ShoppingCart className="w-4 h-4" />
+            הזמנה חדשה
+          </button>
+          <button className="btn-primary" onClick={() => setShowNewModal(true)}>
+            <Plus className="w-4 h-4" />
+            לקוח חדש
+          </button>
+        </div>
       </div>
 
       {/* ─── Search & Filters Card ─── */}
@@ -1440,6 +2017,11 @@ export default function CustomersPage() {
         isOpen={!!bookingCustomer}
         onClose={() => setBookingCustomer(null)}
         customer={bookingCustomer}
+      />
+      <NewOrderModal
+        isOpen={showOrderModal}
+        onClose={() => setShowOrderModal(false)}
+        customers={rawCustomers}
       />
     </div>
   );

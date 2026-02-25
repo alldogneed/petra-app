@@ -2,15 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
+import { createOrderReminder } from "@/lib/scheduled-messages";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
+    const customerId = searchParams.get("customerId");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { businessId: DEMO_BUSINESS_ID };
     if (status) where.status = status;
+    if (customerId) where.customerId = customerId;
 
     const orders = await prisma.order.findMany({
       where,
@@ -107,6 +110,16 @@ export async function POST(request: NextRequest) {
 
       return created;
     });
+
+    // Schedule WhatsApp reminder if startAt is set and sendReminder is requested
+    if (body.sendReminder !== false && startAt) {
+      try {
+        await createOrderReminder(order.id, customerId, new Date(startAt), DEMO_BUSINESS_ID);
+      } catch (err) {
+        console.error("Failed to schedule reminder:", err);
+        // Non-blocking — order was already created
+      }
+    }
 
     // Return with includes
     const full = await prisma.order.findUnique({

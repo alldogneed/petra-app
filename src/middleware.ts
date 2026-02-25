@@ -9,6 +9,7 @@ const PUBLIC_PATHS = [
   "/api/booking/availability",
   "/api/booking/slots",
   "/api/booking/book",
+  "/api/cron",
 ];
 
 /** Validate token format: must be exactly 64 hex characters */
