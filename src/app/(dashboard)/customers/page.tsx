@@ -981,16 +981,33 @@ function NewOrderModal({
     time: "09:00",
     notes: "",
     sendReminder: true,
+    // Boarding-specific fields
+    checkInDate: new Date().toISOString().slice(0, 10),
+    checkInTime: "10:00",
+    checkOutDate: "",
+    checkOutTime: "10:00",
+    petId: "",
+    roomId: "",
   });
   const [lines, setLines] = useState<
     { priceListItemId?: string; name: string; unit: string; quantity: number; unitPrice: number }[]
   >([]);
+  const isBoarding = category === "boarding";
 
   // Fetch price list items for chosen category
   const { data: priceItems = [] } = useQuery<PriceListItemOption[]>({
     queryKey: ["priceListItems", category],
     queryFn: () => fetchJSON<PriceListItemOption[]>(`/api/price-list-items?category=${category}`),
     enabled: !!category && step >= 2,
+  });
+
+  // Fetch rooms for boarding orders
+  const { data: rooms = [] } = useQuery<
+    { id: string; name: string; capacity: number; type: string; _count: { boardingStays: number } }[]
+  >({
+    queryKey: ["boardingRooms"],
+    queryFn: () => fetchJSON("/api/boarding/rooms"),
+    enabled: isBoarding && step >= 2,
   });
 
   const selectedCustomer = customers.find((c) => c.id === form.customerId);
@@ -1009,7 +1026,12 @@ function NewOrderModal({
     setStep(1);
     setCategory("");
     setCustomerSearch("");
-    setForm({ customerId: "", date: new Date().toISOString().slice(0, 10), time: "09:00", notes: "", sendReminder: true });
+    setForm({
+      customerId: "", date: new Date().toISOString().slice(0, 10), time: "09:00",
+      notes: "", sendReminder: true,
+      checkInDate: new Date().toISOString().slice(0, 10), checkInTime: "10:00",
+      checkOutDate: "", checkOutTime: "10:00", petId: "", roomId: "",
+    });
     setLines([]);
     onClose();
   }, [onClose]);
@@ -1047,48 +1069,102 @@ function NewOrderModal({
   };
 
   const mutation = useMutation({
-    mutationFn: (data: {
+    mutationFn: async (data: {
       customerId: string;
       orderType: string;
       startAt: string | null;
+      endAt: string | null;
       lines: typeof lines;
       notes: string;
       status: string;
       sendReminder: boolean;
-    }) =>
-      fetch("/api/orders", {
+      boarding?: {
+        checkIn: string;
+        checkOut: string;
+        petId: string;
+        roomId: string;
+        notes?: string;
+      };
+    }) => {
+      // 1. Create the order
+      const orderRes = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Failed");
-        return r.json();
-      }),
+      });
+      if (!orderRes.ok) throw new Error("Failed to create order");
+      const order = await orderRes.json();
+
+      // 2. If boarding, also create BoardingStay
+      if (data.boarding) {
+        const stayRes = await fetch("/api/boarding", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            checkIn: data.boarding.checkIn,
+            checkOut: data.boarding.checkOut,
+            petId: data.boarding.petId,
+            customerId: data.customerId,
+            roomId: data.boarding.roomId,
+            status: "reserved",
+            notes: data.boarding.notes || null,
+          }),
+        });
+        if (!stayRes.ok) throw new Error("Failed to create boarding stay");
+      }
+
+      return order;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["boarding"] });
       resetAndClose();
     },
   });
 
   const handleSubmit = () => {
     if (!form.customerId || lines.length === 0) return;
-    const startAt =
-      form.date && form.time
-        ? new Date(`${form.date}T${form.time}:00`).toISOString()
-        : null;
-    mutation.mutate({
-      customerId: form.customerId,
-      orderType: category || "sale",
-      startAt,
-      lines: lines.map((l) => ({
-        ...l,
-        taxMode: "taxable" as const,
-      })),
-      notes: form.notes,
-      status: "pending",
-      sendReminder: form.sendReminder,
-    });
+
+    if (isBoarding) {
+      // Boarding: use check-in/check-out as startAt/endAt
+      if (!form.checkInDate || !form.checkInTime || !form.checkOutDate || !form.checkOutTime || !form.petId || !form.roomId) return;
+      const checkInISO = new Date(`${form.checkInDate}T${form.checkInTime}:00`).toISOString();
+      const checkOutISO = new Date(`${form.checkOutDate}T${form.checkOutTime}:00`).toISOString();
+
+      mutation.mutate({
+        customerId: form.customerId,
+        orderType: "boarding",
+        startAt: checkInISO,
+        endAt: checkOutISO,
+        lines: lines.map((l) => ({ ...l, taxMode: "taxable" as const })),
+        notes: form.notes,
+        status: "pending",
+        sendReminder: form.sendReminder,
+        boarding: {
+          checkIn: checkInISO,
+          checkOut: checkOutISO,
+          petId: form.petId,
+          roomId: form.roomId,
+          notes: form.notes,
+        },
+      });
+    } else {
+      const startAt =
+        form.date && form.time
+          ? new Date(`${form.date}T${form.time}:00`).toISOString()
+          : null;
+      mutation.mutate({
+        customerId: form.customerId,
+        orderType: category || "sale",
+        startAt,
+        endAt: null,
+        lines: lines.map((l) => ({ ...l, taxMode: "taxable" as const })),
+        notes: form.notes,
+        status: "pending",
+        sendReminder: form.sendReminder,
+      });
+    }
   };
 
   if (!isOpen) return null;
@@ -1335,32 +1411,155 @@ function NewOrderModal({
                 </button>
               </div>
 
-              {/* Date & Time */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">תאריך</label>
-                  <input
-                    type="date"
-                    className="input"
-                    value={form.date}
-                    onChange={(e) => setForm({ ...form, date: e.target.value })}
-                  />
+              {/* Date & Time — boarding vs. default */}
+              {isBoarding ? (
+                <div className="space-y-4">
+                  {/* Pet selector */}
+                  {selectedCustomer && selectedCustomer.pets.length > 0 && (
+                    <div>
+                      <label className="label">חיה *</label>
+                      <select
+                        className="input"
+                        value={form.petId}
+                        onChange={(e) => setForm({ ...form, petId: e.target.value })}
+                      >
+                        <option value="">בחר חיה</option>
+                        {selectedCustomer.pets.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}{p.breed ? ` (${p.breed})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {selectedCustomer && selectedCustomer.pets.length === 0 && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                      ללקוח זה אין חיות רשומות. יש להוסיף חיה בפרופיל הלקוח לפני הזמנת פנסיון.
+                    </div>
+                  )}
+
+                  {/* Room selector */}
+                  <div>
+                    <label className="label">חדר *</label>
+                    <select
+                      className="input"
+                      value={form.roomId}
+                      onChange={(e) => setForm({ ...form, roomId: e.target.value })}
+                    >
+                      <option value="">בחר חדר</option>
+                      {rooms.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name} ({r._count.boardingStays}/{r.capacity} תפוסים)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Check-in */}
+                  <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-emerald-700">
+                      <ArrowRight className="w-3.5 h-3.5" />
+                      צ&apos;ק אין — כניסה
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] text-emerald-600 font-medium">תאריך כניסה *</label>
+                        <input
+                          type="date"
+                          className="input"
+                          value={form.checkInDate}
+                          onChange={(e) => setForm({ ...form, checkInDate: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-emerald-600 font-medium">שעת כניסה *</label>
+                        <select
+                          className="input"
+                          value={form.checkInTime}
+                          onChange={(e) => setForm({ ...form, checkInTime: e.target.value })}
+                        >
+                          {TIME_SLOTS.map((t) => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Check-out */}
+                  <div className="p-3 bg-red-50/60 border border-red-200 rounded-xl space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-red-700">
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      צ&apos;ק אאוט — יציאה
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] text-red-600 font-medium">תאריך יציאה *</label>
+                        <input
+                          type="date"
+                          className="input"
+                          value={form.checkOutDate}
+                          onChange={(e) => setForm({ ...form, checkOutDate: e.target.value })}
+                          min={form.checkInDate}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-red-600 font-medium">שעת יציאה *</label>
+                        <select
+                          className="input"
+                          value={form.checkOutTime}
+                          onChange={(e) => setForm({ ...form, checkOutTime: e.target.value })}
+                        >
+                          {TIME_SLOTS.map((t) => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Duration summary */}
+                  {form.checkInDate && form.checkOutDate && (
+                    <div className="flex items-center gap-2 text-xs text-petra-muted bg-[#FAF7F3] px-3 py-2 rounded-lg border border-[#E8DFD5]">
+                      <Hotel className="w-3.5 h-3.5 text-purple-500" />
+                      <span>
+                        {(() => {
+                          const inD = new Date(form.checkInDate);
+                          const outD = new Date(form.checkOutDate);
+                          const nights = Math.max(0, Math.round((outD.getTime() - inD.getTime()) / (1000 * 60 * 60 * 24)));
+                          return `${nights} לילות • כניסה ${form.checkInDate} ${form.checkInTime} • יציאה ${form.checkOutDate} ${form.checkOutTime}`;
+                        })()}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="label">שעה</label>
-                  <select
-                    className="input"
-                    value={form.time}
-                    onChange={(e) => setForm({ ...form, time: e.target.value })}
-                  >
-                    {TIME_SLOTS.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">תאריך</label>
+                    <input
+                      type="date"
+                      className="input"
+                      value={form.date}
+                      onChange={(e) => setForm({ ...form, date: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">שעה</label>
+                    <select
+                      className="input"
+                      value={form.time}
+                      onChange={(e) => setForm({ ...form, time: e.target.value })}
+                    >
+                      {TIME_SLOTS.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Notes */}
               <div>
@@ -1393,13 +1592,42 @@ function NewOrderModal({
                         <div>
                           <div className="text-sm font-bold text-petra-text">{catLabel}</div>
                           <div className="text-xs text-petra-muted">
-                            {selectedCustomer?.name} • {form.date} {form.time}
+                            {selectedCustomer?.name} • {isBoarding ? `${form.checkInDate} ${form.checkInTime}` : `${form.date} ${form.time}`}
                           </div>
                         </div>
                       </>
                     );
                   })()}
                 </div>
+
+                {/* Boarding details */}
+                {isBoarding && (
+                  <div className="mb-3 p-3 bg-white rounded-lg border border-[#E8DFD5] space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs">
+                      <PawPrint className="w-3.5 h-3.5 text-[#C4956A]" />
+                      <span className="font-medium text-petra-text">
+                        {selectedCustomer?.pets.find((p) => p.id === form.petId)?.name || "—"}
+                      </span>
+                      <span className="text-petra-muted">•</span>
+                      <span className="text-petra-muted">חדר: {rooms.find((r) => r.id === form.roomId)?.name || "—"}</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="inline-flex items-center gap-1 text-emerald-700">
+                        <ArrowRight className="w-3 h-3" />
+                        כניסה: {form.checkInDate} {form.checkInTime}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-red-700">
+                        <ArrowLeft className="w-3 h-3" />
+                        יציאה: {form.checkOutDate} {form.checkOutTime}
+                      </span>
+                    </div>
+                    {form.checkInDate && form.checkOutDate && (
+                      <div className="text-[10px] text-petra-muted">
+                        {Math.max(0, Math.round((new Date(form.checkOutDate).getTime() - new Date(form.checkInDate).getTime()) / (1000 * 60 * 60 * 24)))} לילות
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="divide-y divide-[#E8DFD5]">
                   {lines.map((line, idx) => (
@@ -1464,7 +1692,11 @@ function NewOrderModal({
           {step === 2 && (
             <button
               className="btn-primary flex items-center gap-1.5"
-              disabled={!form.customerId || lines.length === 0}
+              disabled={
+                !form.customerId ||
+                lines.length === 0 ||
+                (isBoarding && (!form.checkInDate || !form.checkInTime || !form.checkOutDate || !form.checkOutTime || !form.petId || !form.roomId))
+              }
               onClick={() => setStep(3)}
             >
               המשך
