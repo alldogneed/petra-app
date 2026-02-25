@@ -13,6 +13,15 @@ export async function PATCH(
 
     const body = await request.json();
 
+    // Validate status
+    const VALID_STATUSES = ["pending", "confirmed", "declined", "cancelled"];
+    if (body.status !== undefined && !VALID_STATUSES.includes(body.status)) {
+      return NextResponse.json(
+        { error: `סטטוס לא תקין. ערכים אפשריים: ${VALID_STATUSES.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
     const booking = await prisma.booking.update({
       where: { id: params.id },
       data: {

@@ -9,11 +9,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const customerId = searchParams.get("customerId");
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { businessId: DEMO_BUSINESS_ID };
     if (status) where.status = status;
     if (customerId) where.customerId = customerId;
+    if (from || to) {
+      where.startAt = { not: null };
+      if (from) where.startAt.gte = new Date(from + "T00:00:00");
+      if (to) where.startAt.lte = new Date(to + "T23:59:59");
+    }
 
     const orders = await prisma.order.findMany({
       where,

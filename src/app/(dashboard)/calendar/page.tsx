@@ -10,6 +10,8 @@ import {
   Clock,
   Phone,
   PawPrint,
+  ShoppingCart,
+  ListTodo,
 } from "lucide-react";
 import {
   cn,
@@ -66,6 +68,29 @@ interface BoardingStayEvent {
   room: { id: string; name: string } | null;
 }
 
+interface OrderEvent {
+  id: string;
+  orderType: string;
+  status: string;
+  startAt: string | null;
+  endAt: string | null;
+  total: number;
+  notes: string | null;
+  customer: { id: string; name: string; phone: string };
+  lines: { id: string; name: string; quantity: number; unitPrice: number }[];
+}
+
+interface TaskEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string;
+  priority: string;
+  status: string;
+  dueAt: string | null;
+  dueDate: string | null;
+}
+
 type ViewMode = "day" | "week" | "month";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -103,6 +128,37 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
   daycare: "דיי קר",
   consultation: "ייעוץ",
   other: "אחר",
+};
+
+const ORDER_TYPE_COLORS: Record<string, string> = {
+  sale: "#F97316",
+  boarding: "#10B981",
+  training: "#3B82F6",
+  grooming: "#EC4899",
+};
+
+const ORDER_TYPE_LABELS: Record<string, string> = {
+  sale: "מכירה",
+  boarding: "פנסיון",
+  training: "אילוף",
+  grooming: "טיפוח",
+};
+
+const TASK_PRIORITY_COLORS: Record<string, string> = {
+  URGENT: "#EF4444",
+  HIGH: "#F97316",
+  MEDIUM: "#F59E0B",
+  LOW: "#9CA3AF",
+};
+
+const TASK_CATEGORY_LABELS: Record<string, string> = {
+  GENERAL: "כללי",
+  BOARDING: "פנסיון",
+  TRAINING: "אילוף",
+  LEADS: "לידים",
+  HEALTH: "בריאות",
+  MEDICATION: "תרופות",
+  FEEDING: "האכלה",
 };
 
 const DAY_START = 8 * 60;
@@ -165,6 +221,16 @@ function getMonthGrid(anchor: Date): Date[] {
     days.push(d);
   }
   return days;
+}
+
+function dateTimeToTime(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function dateTimeToDateStr(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 // ─── Hover Preview Card ─────────────────────────────────────────────────────
@@ -518,6 +584,18 @@ export default function CalendarPage() {
     enabled: viewMode !== "month",
   });
 
+  const { data: orders = [] } = useQuery<OrderEvent[]>({
+    queryKey: ["orders-calendar", from, to],
+    queryFn: () =>
+      fetchJSON(`/api/orders?from=${from}&to=${to}`),
+  });
+
+  const { data: tasks = [] } = useQuery<TaskEvent[]>({
+    queryKey: ["tasks-calendar", from, to],
+    queryFn: () =>
+      fetchJSON(`/api/tasks?from=${from}&to=${to}&status=OPEN`),
+  });
+
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       fetch(`/api/appointments/${id}`, {
@@ -624,6 +702,31 @@ export default function CalendarPage() {
     return appointments.filter((a) => a.date.slice(0, 10) === dayStr);
   }, [appointments, selectedDay, viewMode]);
 
+  // ── Day view helpers for orders & tasks ──
+  const dayOrders = useMemo(() => {
+    if (viewMode !== "day") return [];
+    const dayStr = toLocalDateString(selectedDay);
+    return orders.filter((o) => o.startAt && dateTimeToDateStr(o.startAt) === dayStr);
+  }, [orders, selectedDay, viewMode]);
+
+  const dayTimedTasks = useMemo(() => {
+    if (viewMode !== "day") return [];
+    const dayStr = toLocalDateString(selectedDay);
+    return tasks.filter((t) => t.dueAt && dateTimeToDateStr(t.dueAt) === dayStr);
+  }, [tasks, selectedDay, viewMode]);
+
+  const dayAllDayTasks = useMemo(() => {
+    if (viewMode !== "day") return [];
+    const dayStr = toLocalDateString(selectedDay);
+    return tasks.filter((t) => !t.dueAt && t.dueDate && t.dueDate.slice(0, 10) === dayStr);
+  }, [tasks, selectedDay, viewMode]);
+
+  // ── All-day tasks for week view ──
+  const weekAllDayTasks = useMemo(() => {
+    if (viewMode !== "week") return [];
+    return tasks.filter((t) => !t.dueAt && t.dueDate);
+  }, [tasks, viewMode]);
+
   // ── Render appointment block (shared by day/week) ──
   const renderAppointmentBlock = (
     apt: AppointmentEvent,
@@ -669,6 +772,74 @@ export default function CalendarPage() {
           <div className="opacity-70 truncate">{apt.pet.name}</div>
         )}
         <div className="opacity-80">{apt.startTime}</div>
+      </div>
+    );
+  };
+
+  // ── Render order block (shared by day/week) ──
+  const renderOrderBlock = (
+    order: OrderEvent,
+    style: React.CSSProperties,
+    compact: boolean
+  ) => {
+    const color = ORDER_TYPE_COLORS[order.orderType] || "#F97316";
+    return (
+      <div
+        key={`order-${order.id}`}
+        className={cn(
+          "absolute rounded-lg px-2 py-1 overflow-hidden bg-white border border-slate-200",
+          compact ? "text-xs" : "text-sm"
+        )}
+        style={{
+          ...style,
+          borderRight: `3px dashed ${color}`,
+          zIndex: 10,
+        }}
+      >
+        <div className="flex items-center gap-1 font-medium text-petra-text truncate">
+          <ShoppingCart className="w-3 h-3 flex-shrink-0" style={{ color }} />
+          {order.customer.name}
+        </div>
+        {order.lines.length > 0 && (
+          <div className="text-petra-muted truncate">{order.lines[0].name}</div>
+        )}
+        <div className="font-medium" style={{ color }}>
+          ₪{order.total.toLocaleString()}
+        </div>
+      </div>
+    );
+  };
+
+  // ── Render task block (shared by day/week) ──
+  const renderTaskBlock = (
+    task: TaskEvent,
+    style: React.CSSProperties,
+    compact: boolean
+  ) => {
+    const color = TASK_PRIORITY_COLORS[task.priority] || "#9CA3AF";
+    return (
+      <div
+        key={`task-${task.id}`}
+        className={cn(
+          "absolute rounded-lg px-2 py-1 overflow-hidden bg-white border border-slate-200",
+          compact ? "text-xs" : "text-sm"
+        )}
+        style={{
+          ...style,
+          borderRight: `3px solid ${color}`,
+          zIndex: 10,
+        }}
+      >
+        <div className="flex items-center gap-1 font-medium text-petra-text truncate">
+          <ListTodo className="w-3 h-3 flex-shrink-0 text-petra-muted" />
+          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+          {task.title}
+        </div>
+        {!compact && (
+          <div className="text-petra-muted truncate">
+            {TASK_CATEGORY_LABELS[task.category] || task.category}
+          </div>
+        )}
       </div>
     );
   };
@@ -751,6 +922,15 @@ export default function CalendarPage() {
             <span>{SERVICE_TYPE_LABELS[type]}</span>
           </div>
         ))}
+        <div className="w-px h-4 bg-petra-border mx-1" />
+        <div className="flex items-center gap-1.5 text-xs text-petra-muted">
+          <div className="w-3 h-3 rounded border border-dashed border-orange-400 bg-white" />
+          <span>הזמנה</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-petra-muted">
+          <div className="w-3 h-3 rounded border-r-2 border-amber-400 bg-white border border-slate-200" />
+          <span>משימה</span>
+        </div>
       </div>
 
       {/* ═══════════════ WEEK VIEW ═══════════════ */}
@@ -792,8 +972,8 @@ export default function CalendarPage() {
                 })}
               </div>
 
-              {/* All-day boarding section */}
-              {allDayStays.length > 0 && (
+              {/* All-day section (boarding stays + all-day tasks) */}
+              {(allDayStays.length > 0 || weekAllDayTasks.length > 0) && (
                 <div className="border-b border-petra-border bg-slate-50/30">
                   <div className="grid grid-cols-[60px_1fr]">
                     <div className="flex items-center justify-center text-[10px] text-petra-muted p-1">
@@ -846,6 +1026,30 @@ export default function CalendarPage() {
                           >
                             {stay.pet.name} ·{" "}
                             {stay.room?.name || "ללא חדר"}
+                          </div>
+                        );
+                      })}
+                      {weekAllDayTasks.map((task) => {
+                        const taskDateStr = task.dueDate!.slice(0, 10);
+                        const dayIdx = weekDates.findIndex(
+                          (d) => toLocalDateString(d) === taskDateStr
+                        );
+                        if (dayIdx < 0) return null;
+                        const leftPct = (dayIdx / 7) * 100;
+                        const widthPct = (1 / 7) * 100;
+                        const color = TASK_PRIORITY_COLORS[task.priority] || "#9CA3AF";
+                        return (
+                          <div
+                            key={`task-allday-${task.id}`}
+                            className="h-6 rounded-md text-[10px] font-medium flex items-center gap-1 px-2 truncate bg-white border border-slate-200"
+                            style={{
+                              marginRight: `${leftPct}%`,
+                              width: `${widthPct}%`,
+                              borderRight: `3px solid ${color}`,
+                            }}
+                          >
+                            <ListTodo className="w-3 h-3 flex-shrink-0 text-petra-muted" />
+                            <span className="truncate text-petra-text">{task.title}</span>
                           </div>
                         );
                       })}
@@ -909,6 +1113,56 @@ export default function CalendarPage() {
                   });
                 })}
 
+                {/* Order blocks */}
+                {weekDates.map((date, dayIdx) => {
+                  const dateStr = toLocalDateString(date);
+                  const dayOrd = orders.filter(
+                    (o) => o.startAt && dateTimeToDateStr(o.startAt) === dateStr
+                  );
+                  return dayOrd.map((order) => {
+                    const startTime = dateTimeToTime(order.startAt!);
+                    const endTime = order.endAt
+                      ? dateTimeToTime(order.endAt)
+                      : addMinutes(startTime, 60);
+                    const { top, height } = appointmentStyle(startTime, endTime);
+                    return renderOrderBlock(
+                      order,
+                      {
+                        top,
+                        height,
+                        right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                        width: `calc((100% - 60px) / 7 - 4px)`,
+                        marginRight: 2,
+                      },
+                      true
+                    );
+                  });
+                })}
+
+                {/* Timed task blocks */}
+                {weekDates.map((date, dayIdx) => {
+                  const dateStr = toLocalDateString(date);
+                  const dayTasks = tasks.filter(
+                    (t) => t.dueAt && dateTimeToDateStr(t.dueAt) === dateStr
+                  );
+                  return dayTasks.map((task) => {
+                    const startTime = dateTimeToTime(task.dueAt!);
+                    const endTime = addMinutes(startTime, 30);
+                    const { top, height } = appointmentStyle(startTime, endTime);
+                    return renderTaskBlock(
+                      task,
+                      {
+                        top,
+                        height,
+                        right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                        width: `calc((100% - 60px) / 7 - 4px)`,
+                        marginRight: 2,
+                      },
+                      true
+                    );
+                  });
+                })}
+
                 {/* Current time indicator */}
                 {currentTimeTop !== null && todayColumnIndex >= 0 && (
                   <div
@@ -933,8 +1187,8 @@ export default function CalendarPage() {
       {/* ═══════════════ DAY VIEW ═══════════════ */}
       {viewMode === "day" && (
         <div className="card overflow-hidden">
-          {/* All-day boarding section */}
-          {allDayStays.length > 0 && (
+          {/* All-day section (boarding stays + all-day tasks) */}
+          {(allDayStays.length > 0 || dayAllDayTasks.length > 0) && (
             <div className="border-b border-petra-border bg-slate-50/30 p-3">
               <div className="text-[10px] text-petra-muted font-medium mb-1.5">
                 כל היום
@@ -964,6 +1218,23 @@ export default function CalendarPage() {
                       </div>
                     );
                   })}
+                {dayAllDayTasks.map((task) => {
+                  const color = TASK_PRIORITY_COLORS[task.priority] || "#9CA3AF";
+                  return (
+                    <div
+                      key={`task-allday-${task.id}`}
+                      className="h-7 rounded-lg text-xs font-medium flex items-center gap-1.5 px-3 bg-white border border-slate-200"
+                      style={{ borderRight: `3px solid ${color}` }}
+                    >
+                      <ListTodo className="w-3.5 h-3.5 flex-shrink-0 text-petra-muted" />
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+                      <span className="truncate text-petra-text">{task.title}</span>
+                      <span className="text-petra-muted mr-auto">
+                        {TASK_CATEGORY_LABELS[task.category] || task.category}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1000,6 +1271,42 @@ export default function CalendarPage() {
               );
               return renderAppointmentBlock(
                 apt,
+                {
+                  top,
+                  height,
+                  right: 60,
+                  width: "calc(100% - 64px)",
+                },
+                false
+              );
+            })}
+
+            {/* Order blocks */}
+            {dayOrders.map((order) => {
+              const startTime = dateTimeToTime(order.startAt!);
+              const endTime = order.endAt
+                ? dateTimeToTime(order.endAt)
+                : addMinutes(startTime, 60);
+              const { top, height } = appointmentStyle(startTime, endTime);
+              return renderOrderBlock(
+                order,
+                {
+                  top,
+                  height,
+                  right: 60,
+                  width: "calc(100% - 64px)",
+                },
+                false
+              );
+            })}
+
+            {/* Timed task blocks */}
+            {dayTimedTasks.map((task) => {
+              const startTime = dateTimeToTime(task.dueAt!);
+              const endTime = addMinutes(startTime, 30);
+              const { top, height } = appointmentStyle(startTime, endTime);
+              return renderTaskBlock(
+                task,
                 {
                   top,
                   height,
@@ -1056,8 +1363,45 @@ export default function CalendarPage() {
               const dayAppts = appointments.filter(
                 (a) => a.date.slice(0, 10) === dateStr
               );
-              const shown = dayAppts.slice(0, 3);
-              const overflow = dayAppts.length - 3;
+              const dayOrd = orders.filter(
+                (o) => o.startAt && dateTimeToDateStr(o.startAt) === dateStr
+              );
+              const dayTsk = tasks.filter(
+                (t) =>
+                  (t.dueAt && dateTimeToDateStr(t.dueAt) === dateStr) ||
+                  (!t.dueAt && t.dueDate && t.dueDate.slice(0, 10) === dateStr)
+              );
+
+              // Build a combined list of event entries for display
+              type MonthEntry = { key: string; color: string; label: string; onClick?: (e: React.MouseEvent) => void };
+              const entries: MonthEntry[] = [];
+              dayAppts.forEach((apt) => {
+                entries.push({
+                  key: `apt-${apt.id}`,
+                  color: getAppointmentColor(apt.service),
+                  label: `${apt.startTime} ${apt.customer.name}`,
+                  onClick: (e) => { e.stopPropagation(); setSelectedAppointment(apt); },
+                });
+              });
+              dayOrd.forEach((order) => {
+                const time = dateTimeToTime(order.startAt!);
+                entries.push({
+                  key: `ord-${order.id}`,
+                  color: ORDER_TYPE_COLORS[order.orderType] || "#F97316",
+                  label: `${time} ${order.customer.name} ₪${order.total}`,
+                });
+              });
+              dayTsk.forEach((task) => {
+                const time = task.dueAt ? dateTimeToTime(task.dueAt) : "";
+                entries.push({
+                  key: `tsk-${task.id}`,
+                  color: TASK_PRIORITY_COLORS[task.priority] || "#9CA3AF",
+                  label: `${time ? time + " " : ""}${task.title}`,
+                });
+              });
+
+              const shown = entries.slice(0, 3);
+              const overflow = entries.length - 3;
 
               return (
                 <div
@@ -1088,34 +1432,28 @@ export default function CalendarPage() {
                   </div>
                   {shown.length > 0 && (
                     <div className="space-y-0.5">
-                      {shown.map((apt) => {
-                        const color = getAppointmentColor(apt.service);
-                        return (
+                      {shown.map((entry) => (
+                        <div
+                          key={entry.key}
+                          className="flex items-center gap-1 text-[10px] truncate"
+                          onClick={entry.onClick}
+                        >
                           <div
-                            key={apt.id}
-                            className="flex items-center gap-1 text-[10px] truncate"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedAppointment(apt);
-                            }}
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ background: entry.color }}
+                          />
+                          <span
+                            className={cn(
+                              "truncate",
+                              isCurrentMonth
+                                ? "text-petra-text"
+                                : "text-petra-muted/40"
+                            )}
                           >
-                            <div
-                              className="w-2 h-2 rounded-full flex-shrink-0"
-                              style={{ background: color }}
-                            />
-                            <span
-                              className={cn(
-                                "truncate",
-                                isCurrentMonth
-                                  ? "text-petra-text"
-                                  : "text-petra-muted/40"
-                              )}
-                            >
-                              {apt.startTime} {apt.customer.name}
-                            </span>
-                          </div>
-                        );
-                      })}
+                            {entry.label}
+                          </span>
+                        </div>
+                      ))}
                       {overflow > 0 && (
                         <div className="text-[10px] text-petra-muted font-medium pr-3">
                           +{overflow} עוד

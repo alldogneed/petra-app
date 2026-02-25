@@ -32,7 +32,7 @@ import {
   X,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { cn, fetchJSON } from "@/lib/utils";
+import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
 import { TIERS } from "@/lib/constants";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -696,18 +696,6 @@ const ROLE_COLORS: Record<string, string> = {
   user: "badge-neutral",
 };
 
-function formatRelativeTime(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "כרגע";
-  if (minutes < 60) return `לפני ${minutes} דק׳`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `לפני ${hours} שע׳`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `לפני ${days} ימים`;
-  return new Date(dateStr).toLocaleDateString("he-IL");
-}
-
 function TeamTab() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -946,16 +934,19 @@ function AddEmployeeModal({
 
 // ─── Main Settings Page ──────────────────────────────────────────────────────
 
+import AvailabilityTab from "./availability-tab";
+
 export default function SettingsPage() {
   const searchParams = useSearchParams();
   const gcalParam = searchParams.get("gcal");
   const { isOwner } = useAuth();
-  const [activeTab, setActiveTab] = useState<"business" | "team" | "integrations" | "data">(
+  const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "data">(
     gcalParam ? "integrations" : "business"
   );
 
   const tabs = [
     { id: "business" as const, label: "פרטי העסק", icon: Building2 },
+    { id: "availability" as const, label: "זמינות", icon: Calendar },
     ...(isOwner ? [{ id: "team" as const, label: "ניהול צוות", icon: Users2 }] : []),
     { id: "data" as const, label: "נתונים", icon: Database },
     { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
@@ -968,7 +959,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 p-1 bg-slate-100 rounded-xl w-fit">
+      <div className="flex gap-1 mb-6 p-1 bg-slate-100 rounded-xl w-fit overflow-x-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -976,7 +967,7 @@ export default function SettingsPage() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
                 activeTab === tab.id ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text"
               )}
             >
@@ -988,6 +979,7 @@ export default function SettingsPage() {
       </div>
 
       {activeTab === "business" && <BusinessTab />}
+      {activeTab === "availability" && <AvailabilityTab />}
       {activeTab === "team" && isOwner && <TeamTab />}
       {activeTab === "data" && <DataTab />}
       {activeTab === "integrations" && <IntegrationsTab />}

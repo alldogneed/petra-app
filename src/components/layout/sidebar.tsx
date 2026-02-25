@@ -14,7 +14,6 @@ import {
   ChevronRight,
   ListTodo,
   X,
-  GraduationCap,
   BarChart3,
   CreditCard,
   CalendarCheck,
@@ -23,6 +22,7 @@ import {
   Tag,
   ShoppingCart,
   Crown,
+  Dog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -36,6 +36,12 @@ interface NavItem {
   minRole?: "owner" | "manager";
 }
 
+interface NavSection {
+  label: string;
+  emoji: string;
+  items: NavItem[];
+}
+
 const ROLE_LEVEL: Record<string, number> = { owner: 0, manager: 1, user: 2 };
 
 function canSee(item: NavItem, role: string | null): boolean {
@@ -44,22 +50,46 @@ function canSee(item: NavItem, role: string | null): boolean {
   return (ROLE_LEVEL[role] ?? 99) <= ROLE_LEVEL[item.minRole];
 }
 
-const navigation: NavItem[] = [
-  { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
-  { name: "לקוחות", href: "/customers", icon: Users },
-  { name: "יומן", href: "/calendar", icon: Calendar },
-  { name: "משימות", href: "/tasks", icon: ListTodo },
-  { name: "אימונים", href: "/training", icon: GraduationCap },
-  { name: "לידים", href: "/leads", icon: Target },
-  { name: "הודעות", href: "/messages", icon: MessageSquare },
-  { name: "תשלומים", href: "/payments", icon: CreditCard, minRole: "manager" },
-  { name: "מחירון", href: "/pricing", icon: Tag, minRole: "manager" },
-  { name: "הזמנות", href: "/orders", icon: ShoppingCart },
-  { name: "פנסיון", href: "/boarding", icon: Hotel },
-  { name: "תורים", href: "/scheduler", icon: CalendarClock },
-  { name: "הזמנות אונליין", href: "/bookings", icon: CalendarCheck },
-  { name: "אנליטיקס", href: "/analytics", icon: BarChart3, minRole: "owner" },
-  { name: "הגדרות", href: "/settings", icon: Settings },
+const sections: NavSection[] = [
+  {
+    label: "ניהול יומי",
+    emoji: "📊",
+    items: [
+      { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
+      { name: "לידים", href: "/leads", icon: Target },
+      { name: "לקוחות", href: "/customers", icon: Users },
+      { name: "יומן", href: "/calendar", icon: Calendar },
+      { name: "משימות", href: "/tasks", icon: ListTodo },
+      { name: "תורים", href: "/scheduler", icon: CalendarClock },
+    ],
+  },
+  {
+    label: "ניהול עסקי",
+    emoji: "💼",
+    items: [
+      { name: "תשלומים", href: "/payments", icon: CreditCard, minRole: "manager" },
+      { name: "מחירון", href: "/pricing", icon: Tag, minRole: "manager" },
+      { name: "הזמנות", href: "/orders", icon: ShoppingCart },
+      { name: "פנסיון", href: "/boarding", icon: Hotel },
+      { name: "אימונים וכלבים", href: "/training", icon: Dog },
+    ],
+  },
+  {
+    label: "שיווק ואוטומציה",
+    emoji: "📣",
+    items: [
+      { name: "הודעות", href: "/messages", icon: MessageSquare },
+      { name: "הזמנות אונליין", href: "/bookings", icon: CalendarCheck },
+    ],
+  },
+  {
+    label: "דוחות ומערכת",
+    emoji: "📈",
+    items: [
+      { name: "אנליטיקס", href: "/analytics", icon: BarChart3, minRole: "owner" },
+      { name: "הגדרות", href: "/settings", icon: Settings },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -80,172 +110,221 @@ export function Sidebar({
   const { user } = useAuth();
   const isMaster = user?.role === "MASTER";
 
-  const sidebarContent = (isMobile: boolean) => (
-    <aside
-      className={cn(
-        "flex flex-col h-full transition-all duration-300",
-        "bg-petra-sidebar",
-        !isMobile && (collapsed ? "w-[72px]" : "w-[240px]"),
-        isMobile && "w-[240px]"
-      )}
-      style={{
-        background: "linear-gradient(180deg, #0F172A 0%, #1a2744 100%)",
-        borderLeft: isMobile ? "none" : "1px solid rgba(255,255,255,0.06)",
-      }}
-    >
-      {/* Logo */}
-      <div
+  const renderNavItem = (item: NavItem, isMobile: boolean) => {
+    const isActive =
+      item.href === "/dashboard"
+        ? pathname === "/" || pathname === "/dashboard"
+        : pathname.startsWith(item.href);
+    const Icon = item.icon;
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={isMobile ? onMobileClose : undefined}
         className={cn(
-          "flex items-center h-16 border-b border-white/[0.07]",
-          !isMobile && collapsed ? "justify-center px-0" : "px-4 gap-3"
+          "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
+          isActive
+            ? "text-white"
+            : "text-slate-400 hover:text-white"
         )}
+        style={
+          isActive
+            ? {
+              background: "rgba(249,115,22,0.15)",
+              boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.2)",
+            }
+            : undefined
+        }
+        onMouseEnter={(e) => {
+          if (!isActive) {
+            (e.currentTarget as HTMLElement).style.background =
+              "rgba(255,255,255,0.06)";
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isActive) {
+            (e.currentTarget as HTMLElement).style.background = "";
+          }
+        }}
+        title={!isMobile && collapsed ? item.name : undefined}
       >
-        <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0">
-          <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
-        </div>
-        {(isMobile || !collapsed) && (
-          <div className="flex-1">
-            <span className="text-white font-bold text-[17px] tracking-tight leading-none">
-              Petra
-            </span>
-            <span className="block text-[10px] text-slate-500 font-medium leading-none mt-0.5 tracking-wider uppercase">
-              Pet Business
-            </span>
-          </div>
-        )}
-        {isMobile && (
-          <button
-            onClick={onMobileClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto scrollbar-hide">
-        {navigation.filter((item) => canSee(item, user?.businessRole ?? null)).map((item) => {
-          const isActive =
-            item.href === "/dashboard"
-              ? pathname === "/" || pathname === "/dashboard"
-              : pathname.startsWith(item.href);
-          const Icon = item.icon;
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={isMobile ? onMobileClose : undefined}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
-                isActive
-                  ? "text-white"
-                  : "text-slate-400 hover:text-white"
-              )}
-              style={
-                isActive
-                  ? {
-                    background: "rgba(249,115,22,0.15)",
-                    boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.2)",
-                  }
-                  : undefined
-              }
-              onMouseEnter={(e) => {
-                if (!isActive) {
-                  (e.currentTarget as HTMLElement).style.background =
-                    "rgba(255,255,255,0.06)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) {
-                  (e.currentTarget as HTMLElement).style.background = "";
-                }
-              }}
-              title={!isMobile && collapsed ? item.name : undefined}
-            >
-              <div
-                className={cn(
-                  "flex-shrink-0 transition-transform duration-150",
-                  isActive ? "text-brand-400" : "text-slate-500 group-hover:text-slate-300"
-                )}
-              >
-                <Icon className="w-[18px] h-[18px]" />
-              </div>
-              {(isMobile || !collapsed) && (
-                <span className={isActive ? "text-white" : ""}>{item.name}</span>
-              )}
-              {isActive && (isMobile || !collapsed) && (
-                <span
-                  className="absolute right-0 w-1 h-5 rounded-l-full"
-                  style={{ background: "#F97316" }}
-                />
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Bottom section */}
-      <div className="border-t border-white/[0.07]">
-        {/* Master Admin link - only visible for MASTER users */}
-        {isMaster && (
-          <Link
-            href="/admin"
-            onClick={isMobile ? onMobileClose : undefined}
-            title={!isMobile && collapsed ? "Master Admin" : undefined}
-            className={cn(
-              "w-full flex items-center h-11 transition-colors",
-              !isMobile && collapsed ? "justify-center" : "px-4 gap-2.5",
-              pathname.startsWith("/admin")
-                ? "text-cyan-400"
-                : "text-amber-400 hover:text-amber-300 hover:bg-white/[0.06]"
-            )}
-          >
-            <Crown className="w-[18px] h-[18px] flex-shrink-0" />
-            {(isMobile || !collapsed) && (
-              <span className="text-sm font-bold">Master Admin</span>
-            )}
-          </Link>
-        )}
-
-        {/* Help button */}
-        <button
-          onClick={() => setHelpOpen(true)}
-          title={!isMobile && collapsed ? "עזרה" : undefined}
+        <div
           className={cn(
-            "w-full flex items-center h-11 text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors",
-            !isMobile && collapsed ? "justify-center" : "px-4 gap-2.5"
+            "flex-shrink-0 transition-transform duration-150",
+            isActive ? "text-brand-400" : "text-slate-500 group-hover:text-slate-300"
           )}
         >
-          <HelpCircle className="w-[18px] h-[18px] flex-shrink-0" />
-          {(isMobile || !collapsed) && (
-            <span className="text-sm font-medium">עזרה</span>
-          )}
-        </button>
-
-        {/* Collapse toggle (desktop only) */}
-        {!isMobile && (
-          <button
-            onClick={() => onCollapsedChange(!collapsed)}
-            className={cn(
-              "w-full flex items-center h-12 text-slate-500 hover:text-slate-300 transition-colors border-t border-white/[0.04]",
-              collapsed ? "justify-center" : "px-4 gap-2"
-            )}
-          >
-            {collapsed ? (
-              <ChevronLeft className="w-4 h-4" />
-            ) : (
-              <>
-                <ChevronRight className="w-4 h-4" />
-                <span className="text-xs font-medium">כווץ תפריט</span>
-              </>
-            )}
-          </button>
+          <Icon className="w-[18px] h-[18px]" />
+        </div>
+        {(isMobile || !collapsed) && (
+          <span className={isActive ? "text-white" : ""}>{item.name}</span>
         )}
-      </div>
-    </aside>
-  );
+        {isActive && (isMobile || !collapsed) && (
+          <span
+            className="absolute right-0 w-1 h-5 rounded-l-full"
+            style={{ background: "#F97316" }}
+          />
+        )}
+      </Link>
+    );
+  };
+
+  const sidebarContent = (isMobile: boolean) => {
+    const isExpanded = isMobile || !collapsed;
+
+    return (
+      <aside
+        className={cn(
+          "flex flex-col h-full transition-all duration-300",
+          "bg-petra-sidebar",
+          !isMobile && (collapsed ? "w-[72px]" : "w-[240px]"),
+          isMobile && "w-[240px]"
+        )}
+        style={{
+          background: "linear-gradient(180deg, #0F172A 0%, #1a2744 100%)",
+          borderLeft: isMobile ? "none" : "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        {/* Logo */}
+        <div
+          className={cn(
+            "flex items-center h-16 border-b border-white/[0.07]",
+            !isMobile && collapsed ? "justify-center px-0" : "px-4 gap-3"
+          )}
+        >
+          <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0">
+            <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
+          </div>
+          {isExpanded && (
+            <div className="flex-1">
+              <span className="text-white font-bold text-[17px] tracking-tight leading-none">
+                Petra
+              </span>
+              <span className="block text-[10px] text-slate-500 font-medium leading-none mt-0.5 tracking-wider uppercase">
+                Pet Business
+              </span>
+            </div>
+          )}
+          {isMobile && (
+            <button
+              onClick={onMobileClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-2 overflow-y-auto scrollbar-hide">
+          {sections.map((section, sectionIdx) => {
+            const visibleItems = section.items.filter((item) =>
+              canSee(item, user?.businessRole ?? null)
+            );
+
+            // Last section: append help button
+            const isLastSection = sectionIdx === sections.length - 1;
+
+            if (visibleItems.length === 0 && !isLastSection) return null;
+
+            return (
+              <div key={section.label}>
+                {/* Section header */}
+                {isExpanded ? (
+                  <div
+                    className={cn(
+                      "text-[10px] uppercase tracking-wider text-slate-500 font-semibold px-3 pb-1",
+                      sectionIdx === 0 ? "pt-1" : "pt-4"
+                    )}
+                  >
+                    {section.emoji} {section.label}
+                  </div>
+                ) : (
+                  sectionIdx > 0 && (
+                    <div className="border-t border-white/[0.06] my-2 mx-3" />
+                  )
+                )}
+
+                {/* Section items */}
+                <div className="space-y-0.5">
+                  {visibleItems.map((item) => renderNavItem(item, isMobile))}
+
+                  {/* Help button in last section */}
+                  {isLastSection && (
+                    <button
+                      onClick={() => setHelpOpen(true)}
+                      title={!isMobile && collapsed ? "עזרה" : undefined}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
+                        "text-slate-400 hover:text-white"
+                      )}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.background =
+                          "rgba(255,255,255,0.06)";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.background = "";
+                      }}
+                    >
+                      <div className="flex-shrink-0 text-slate-500 group-hover:text-slate-300 transition-transform duration-150">
+                        <HelpCircle className="w-[18px] h-[18px]" />
+                      </div>
+                      {isExpanded && <span>עזרה</span>}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* Bottom section */}
+        <div className="border-t border-white/[0.07]">
+          {/* Master Admin link - only visible for MASTER users */}
+          {isMaster && (
+            <Link
+              href="/admin"
+              onClick={isMobile ? onMobileClose : undefined}
+              title={!isMobile && collapsed ? "Master Admin" : undefined}
+              className={cn(
+                "w-full flex items-center h-11 transition-colors",
+                !isMobile && collapsed ? "justify-center" : "px-4 gap-2.5",
+                pathname.startsWith("/admin")
+                  ? "text-cyan-400"
+                  : "text-amber-400 hover:text-amber-300 hover:bg-white/[0.06]"
+              )}
+            >
+              <Crown className="w-[18px] h-[18px] flex-shrink-0" />
+              {isExpanded && (
+                <span className="text-sm font-bold">Master Admin</span>
+              )}
+            </Link>
+          )}
+
+          {/* Collapse toggle (desktop only) */}
+          {!isMobile && (
+            <button
+              onClick={() => onCollapsedChange(!collapsed)}
+              className={cn(
+                "w-full flex items-center h-12 text-slate-500 hover:text-slate-300 transition-colors border-t border-white/[0.04]",
+                collapsed ? "justify-center" : "px-4 gap-2"
+              )}
+            >
+              {collapsed ? (
+                <ChevronLeft className="w-4 h-4" />
+              ) : (
+                <>
+                  <ChevronRight className="w-4 h-4" />
+                  <span className="text-xs font-medium">כווץ תפריט</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </aside>
+    );
+  };
 
   return (
     <>

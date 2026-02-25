@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
         },
         sessions: {
           orderBy: { sessionDate: "desc" },
-          take: 5,
         },
         homework: {
           orderBy: { assignedDate: "desc" },
@@ -53,6 +52,7 @@ export async function POST(request: NextRequest) {
         programType: body.programType || "BASIC_OBEDIENCE",
         startDate: body.startDate ? new Date(body.startDate) : new Date(),
         totalSessions: body.totalSessions ?? null,
+        price: body.price ?? null,
         notes: body.notes || null,
       },
       include: {

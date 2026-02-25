@@ -93,6 +93,18 @@ export async function fetchJSON<T = unknown>(url: string, init?: RequestInit): P
   return res.json();
 }
 
+export function formatRelativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "כרגע";
+  if (minutes < 60) return `לפני ${minutes} דק׳`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `לפני ${hours} שע׳`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `לפני ${days} ימים`;
+  return new Date(dateStr).toLocaleDateString("he-IL");
+}
+
 export function getTimelineIcon(type: string) {
   switch (type) {
     case "appointment_scheduled":

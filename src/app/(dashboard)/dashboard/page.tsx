@@ -693,12 +693,6 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Greeting Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-petra-text">
-            שלום, {user?.name || "משתמש"} 👋
-          </h1>
-          <p className="text-sm text-petra-muted mt-0.5">{todayStr}</p>
-        </div>
         <button
           onClick={() => setShowCreateOrder(true)}
           className="btn-primary flex items-center gap-2"
@@ -706,6 +700,12 @@ export default function DashboardPage() {
           <Plus className="w-4 h-4" />
           הזמנה חדשה
         </button>
+        <div>
+          <h1 className="text-xl font-bold text-petra-text">
+            שלום, {user?.name || "משתמש"} 👋
+          </h1>
+          <p className="text-sm text-petra-muted mt-0.5">{todayStr}</p>
+        </div>
       </div>
 
       {/* Daily Focus — Today's & Overdue Tasks */}

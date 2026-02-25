@@ -173,6 +173,7 @@ model Business {
   boardingCheckInTime  String @default("12:00")
   boardingCheckOutTime String @default("12:00")
   boardingPricePerNight Float  @default(150)
+  customerTags String  @default("[\"VIP\",\"קבוע\",\"מזדמן\",\"פוטנציאל\",\"לשעבר\",\"עסקי\"]") // JSON array of preset customer tag labels
   timezone    String   @default("Asia/Jerusalem")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -922,6 +923,7 @@ model TrainingProgram {
   startDate   DateTime @default(now())
   endDate     DateTime?
   totalSessions Int?   // planned number of sessions
+  price       Float?   // package price in ILS
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1004,7 +1006,7 @@ model TrainingGroup {
   id                 String   @id @default(uuid())
   businessId         String
   name               String
-  groupType          String   @default("CUSTOM") // PUPPY_CLASS | REACTIVITY | OBEDIENCE | CUSTOM
+  groupType          String   @default("CUSTOM") // PUPPY_CLASS | REACTIVITY | OBEDIENCE | CUSTOM | WORKSHOP
   trainerUserId      String?
   location           String?
   defaultDayOfWeek   Int?     // 0=Sunday … 6=Saturday

@@ -66,6 +66,7 @@ export async function PATCH(
         ...(body.notes !== undefined && { notes: body.notes }),
         ...(body.endDate !== undefined && { endDate: body.endDate ? new Date(body.endDate) : null }),
         ...(body.totalSessions !== undefined && { totalSessions: body.totalSessions }),
+        ...(body.price !== undefined && { price: body.price }),
       },
       include: {
         dog: true,

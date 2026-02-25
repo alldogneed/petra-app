@@ -5,6 +5,7 @@ export const GROUP_TYPES = [
   { id: "REACTIVITY", label: "תגובתיות" },
   { id: "OBEDIENCE", label: "ציות" },
   { id: "CUSTOM", label: "מותאם אישית" },
+  { id: "WORKSHOP", label: "סדנה" },
 ] as const;
 
 export const GROUP_TYPE_LABELS: Record<string, string> = Object.fromEntries(
@@ -16,6 +17,7 @@ export const GROUP_TYPE_COLORS: Record<string, { bg: string; text: string; borde
   REACTIVITY: { bg: "#FEF2F2", text: "#DC2626", border: "#FCA5A5" },
   OBEDIENCE: { bg: "#EFF6FF", text: "#2563EB", border: "#93C5FD" },
   CUSTOM: { bg: "#F5F3FF", text: "#7C3AED", border: "#C4B5FD" },
+  WORKSHOP: { bg: "#FDF2F8", text: "#DB2777", border: "#F9A8D4" },
 };
 
 export const PARTICIPANT_STATUSES = [

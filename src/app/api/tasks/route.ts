@@ -38,13 +38,20 @@ export async function GET(request: NextRequest) {
     }
 
     if (from || to) {
-      where.dueDate = {};
+      const dateFilter: any = {};
+      const atFilter: any = {};
       if (from) {
-        where.dueDate.gte = new Date(from);
+        dateFilter.gte = new Date(from + "T00:00:00");
+        atFilter.gte = new Date(from + "T00:00:00");
       }
       if (to) {
-        where.dueDate.lte = new Date(to);
+        dateFilter.lte = new Date(to + "T23:59:59");
+        atFilter.lte = new Date(to + "T23:59:59");
       }
+      where.OR = [
+        { dueDate: dateFilter },
+        { dueAt: atFilter },
+      ];
     }
 
     const tasks = await prisma.task.findMany({

@@ -46,6 +46,7 @@ interface TimeSlot {
 interface DogForm {
   id?: string       // existing pet
   name: string
+  originalName?: string  // display name for existing dogs
   breed: string
   sex: string
   notes: string
@@ -91,25 +92,31 @@ function StepIndicator({ current }: { current: Step }) {
   const currentIdx = STEPS.findIndex((s) => s.key === current)
   if (currentIdx === -1) return null
   return (
-    <div className="flex items-center justify-center gap-1 mb-6 overflow-x-auto pb-1">
-      {STEPS.map((step, i) => (
-        <div key={step.key} className="flex items-center">
-          <div
-            className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-colors ${i < currentIdx
-              ? "bg-green-500 text-white"
-              : i === currentIdx
-                ? "bg-amber-500 text-white"
-                : "bg-gray-200 text-gray-500"
-              }`}
-          >
-            {i < currentIdx ? <Check className="w-3.5 h-3.5" /> : i + 1}
+    <div className="mb-6">
+      {/* Mobile: show current step text */}
+      <p className="sm:hidden text-center text-xs text-gray-500 mb-2">
+        שלב {currentIdx + 1} מתוך {STEPS.length}: <span className="font-medium text-amber-700">{STEPS[currentIdx].label}</span>
+      </p>
+      <div className="flex items-center justify-center gap-1 overflow-x-auto pb-1">
+        {STEPS.map((step, i) => (
+          <div key={step.key} className="flex items-center">
+            <div
+              className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-colors ${i < currentIdx
+                ? "bg-green-500 text-white"
+                : i === currentIdx
+                  ? "bg-amber-500 text-white"
+                  : "bg-gray-200 text-gray-500"
+                }`}
+            >
+              {i < currentIdx ? <Check className="w-3.5 h-3.5" /> : i + 1}
+            </div>
+            <span className={`hidden sm:block ml-1 mr-2 text-xs ${i === currentIdx ? "text-amber-700 font-medium" : "text-gray-400"}`}>
+              {step.label}
+            </span>
+            {i < STEPS.length - 1 && <div className="w-4 h-px bg-gray-300 mx-1" />}
           </div>
-          <span className={`hidden sm:block ml-1 mr-2 text-xs ${i === currentIdx ? "text-amber-700 font-medium" : "text-gray-400"}`}>
-            {step.label}
-          </span>
-          {i < STEPS.length - 1 && <div className="w-4 h-px bg-gray-300 mx-1" />}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }
@@ -138,7 +145,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
   const [phone, setPhone] = useState("")
   const [customerName, setCustomerName] = useState("")
   const [customerEmail, setCustomerEmail] = useState("")
-  const [customerNotes] = useState("")
+  const [customerNotes, setCustomerNotes] = useState("")
   const [isNewCustomer, setIsNewCustomer] = useState<boolean | null>(null)
 
   // Dogs
@@ -238,8 +245,8 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
           const autoSelect = data.dogs.length === 1
           setDogs(data.dogs.map((d: any) => ({
             id: d.id,
-            name: autoSelect ? d.name : "", // We use empty name to represent "unselected" for existing dogs
-            _originalName: d.name, // Keep original name to display
+            name: autoSelect ? d.name : "",
+            originalName: d.name,
             breed: d.breed || "",
             sex: d.gender || "",
             notes: "",
@@ -262,12 +269,12 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
   // Debounce phone changes for lookup
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (phone.length >= 9 && isNewCustomer === null) {
+      if (phone.length >= 9) {
         lookupPhone(phone)
       }
     }, 500)
     return () => clearTimeout(timer)
-  }, [phone, isNewCustomer, lookupPhone])
+  }, [phone, lookupPhone])
 
   // ─────────────────────────────────────────────────────────────────────────
   // Render helpers
@@ -331,7 +338,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
           {/* ── Step: Service ────────────────────────────────────────────── */}
           {step === "service" && (
-            <div className="p-6">
+            <div className="p-6 animate-fade-in">
               <h2 className="text-lg font-bold text-gray-800 mb-4">בחר שירות</h2>
               {business.services.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">אין שירותים זמינים כרגע</p>
@@ -352,7 +359,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                             <span className="font-semibold text-gray-900 group-hover:text-amber-700">{svc.name}</span>
                           </div>
                           {svc.description && (
-                            <p className="text-xs text-gray-500 mb-1">{svc.description}</p>
+                            <p className="text-sm text-gray-600 mb-1">{svc.description}</p>
                           )}
                           <div className="flex items-center gap-3 text-xs text-gray-500">
                             <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{svc.duration} דקות</span>
@@ -375,7 +382,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
           {/* ── Step: Date ───────────────────────────────────────────────── */}
           {step === "date" && selectedService && (
-            <div className="p-6">
+            <div className="p-6 animate-fade-in">
               <div className="flex items-center justify-between mb-4">
                 <button onClick={() => setStep("service")} className="text-amber-600 text-sm flex items-center gap-1 hover:underline">
                   <ChevronRight className="w-4 h-4" /> חזור
@@ -453,7 +460,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
           {/* ── Step: Time ───────────────────────────────────────────────── */}
           {step === "time" && selectedService && selectedDate && (
-            <div className="p-6">
+            <div className="p-6 animate-fade-in">
               <div className="flex items-center justify-between mb-4">
                 <button onClick={() => setStep("date")} className="text-amber-600 text-sm flex items-center gap-1 hover:underline">
                   <ChevronRight className="w-4 h-4" /> חזור
@@ -497,7 +504,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
           {/* ── Step: Customer ───────────────────────────────────────────── */}
           {step === "customer" && (
-            <div className="p-6">
+            <div className="p-6 animate-fade-in">
               <div className="flex items-center justify-between mb-4">
                 <button onClick={() => setStep("time")} className="text-amber-600 text-sm flex items-center gap-1 hover:underline">
                   <ChevronRight className="w-4 h-4" /> חזור
@@ -513,8 +520,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       type="tel"
                       value={phone}
                       onChange={(e) => {
-                        setPhone(e.target.value);
-                        setIsNewCustomer(null)
+                        setPhone(e.target.value)
                       }}
                       placeholder="050-0000000"
                       className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
@@ -566,6 +572,16 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                         className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                       />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">הערות</label>
+                      <textarea
+                        value={customerNotes}
+                        onChange={(e) => setCustomerNotes(e.target.value)}
+                        placeholder="מידע נוסף שחשוב לנו לדעת..."
+                        rows={2}
+                        className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                      />
+                    </div>
                   </>
                 )}
 
@@ -592,7 +608,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
           {/* ── Step: Dogs ───────────────────────────────────────────────── */}
           {step === "dogs" && (
-            <div className="p-6">
+            <div className="p-6 animate-fade-in">
               <div className="flex items-center justify-between mb-4">
                 <button onClick={() => setStep("customer")} className="text-amber-600 text-sm flex items-center gap-1 hover:underline">
                   <ChevronRight className="w-4 h-4" /> חזור
@@ -622,7 +638,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                               setDogs(d => d.map((x, i) => i === idx ? { ...x, name: "" } : x))
                             } else {
                               // Restore original name to mark as selected
-                              setDogs(d => d.map((x, i) => i === idx ? { ...x, name: (x as any)._originalName } : x))
+                              setDogs(d => d.map((x, i) => i === idx ? { ...x, name: x.originalName || "" } : x))
                             }
                           }}
                         />
@@ -642,7 +658,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                           <label className="block text-xs font-medium text-gray-600 mb-1">שם הכלב *</label>
                           <input
                             type="text"
-                            value={dog.isNew ? dog.name : (dog as any)._originalName}
+                            value={dog.isNew ? dog.name : (dog.originalName || dog.name)}
                             disabled={!dog.isNew}
                             onChange={(e) => setDogs((d) => d.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))}
                             placeholder="בוקסר, רקסי..."
@@ -709,7 +725,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
           {/* ── Step: Confirm ────────────────────────────────────────────── */}
           {step === "confirm" && selectedService && selectedSlot && (
-            <div className="p-6">
+            <div className="p-6 animate-fade-in">
               <div className="flex items-center justify-between mb-4">
                 <button onClick={() => setStep("dogs")} className="text-amber-600 text-sm flex items-center gap-1 hover:underline">
                   <ChevronRight className="w-4 h-4" /> חזור
@@ -804,7 +820,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
           {/* ── Step: Done ───────────────────────────────────────────────── */}
           {step === "done" && bookingResult && (
-            <div className="p-8 text-center">
+            <div className="p-8 text-center animate-fade-in">
               <div className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center ${bookingResult.status === "confirmed" ? "bg-green-100" : "bg-yellow-100"
                 }`}>
                 {bookingResult.status === "confirmed" ? (
@@ -831,7 +847,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
               <button
                 onClick={() => {
                   setStep("service"); setSelectedService(null); setSelectedDate(""); setSelectedSlot(null)
-                  setPhone(""); setCustomerName(""); setIsNewCustomer(null)
+                  setPhone(""); setCustomerName(""); setCustomerEmail(""); setCustomerNotes(""); setIsNewCustomer(null)
                   setDogs([{ name: "", breed: "", sex: "", notes: "", isNew: true }])
                   setBookingResult(null)
                 }}
