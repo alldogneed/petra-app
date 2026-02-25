@@ -34,8 +34,7 @@ export async function PATCH(
   try {
     body = PatchMemberSchema.parse(await request.json());
   } catch (e: unknown) {
-    const zodError = e as { errors?: unknown };
-    return NextResponse.json({ error: "Invalid request", details: zodError.errors }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
   const targetMember = await prisma.businessUser.findFirst({

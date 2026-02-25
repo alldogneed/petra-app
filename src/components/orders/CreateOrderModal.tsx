@@ -4,8 +4,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   X, Search, Plus, Minus, Trash2, ShoppingCart, CalendarDays, Clock,
+  Send, MessageCircle,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -148,8 +149,9 @@ export function CreateOrderModal({
 }) {
   const qc = useQueryClient();
 
-  // Step state: "customer" | "items" | "review"
-  const [step, setStep] = useState<"customer" | "items" | "review">("customer");
+  // Step state: "customer" | "items" | "review" | "payment"
+  const [step, setStep] = useState<"customer" | "items" | "review" | "payment">("customer");
+  const [createdOrder, setCreatedOrder] = useState<{ id: string; status: string } | null>(null);
 
   // Customer
   const [customerId, setCustomerId] = useState(prefillCustomerId ?? "");
@@ -391,11 +393,16 @@ export function CreateOrderModal({
 
       return order;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, statusOverride) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["customer", customerId] });
       onCreated?.(data.id);
-      handleClose();
+      if (statusOverride === "confirmed") {
+        setCreatedOrder(data);
+        setStep("payment");
+      } else {
+        handleClose();
+      }
     },
   });
 
@@ -413,6 +420,7 @@ export function CreateOrderModal({
     setBoardingCheckOutDate(tomorrowStr());
     setBoardingCheckOutTime(business?.boardingCheckOutTime ?? "12:00");
     setBoardingPetIds([]);
+    setCreatedOrder(null);
     onClose();
   };
 
@@ -858,6 +866,99 @@ export function CreateOrderModal({
     </div>
   );
 
+  // ── WhatsApp message builder ─────────────────────────────────────────────
+  const buildWhatsAppMessage = () => {
+    const name = selectedCustomer?.name ?? "לקוח";
+    const lineItems = calc.lines
+      .map((l) => `• ${l.name} x${l.quantity} - ${fmt(l.lineSubtotal)}`)
+      .join("\n");
+    const discountLine = calc.discountAmount > 0
+      ? `\nהנחה: -${fmt(calc.discountAmount)}`
+      : "";
+    const taxLine = calc.taxTotal > 0
+      ? `\nמע"מ: ${fmt(calc.taxTotal)}`
+      : "";
+
+    return `שלום ${name},\nהנה פירוט ההזמנה שלך:\n${lineItems}${discountLine}${taxLine}\n\nסה"כ לתשלום: ${fmt(calc.total)}`;
+  };
+
+  const openWhatsApp = (phone: string) => {
+    const msg = encodeURIComponent(buildWhatsAppMessage());
+    const waPhone = toWhatsAppPhone(phone);
+    window.open(`https://wa.me/${waPhone}?text=${msg}`, "_blank");
+  };
+
+  // ── Step 4: Payment ────────────────────────────────────────────────────────
+  const renderPaymentStep = () => (
+    <div className="space-y-4">
+      {/* Success + WhatsApp banner */}
+      <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+        <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+          <MessageCircle className="w-5 h-5 text-emerald-600" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-emerald-700">ההזמנה אושרה בהצלחה!</p>
+          <p className="text-xs text-emerald-600">שלח ללקוח בקשת תשלום בוואטסאפ</p>
+        </div>
+      </div>
+
+      {/* Order summary card */}
+      <div className="bg-slate-50 rounded-2xl border border-petra-border overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-petra-border bg-white">
+          <p className="text-sm font-semibold text-petra-text">{selectedCustomer?.name}</p>
+        </div>
+        {calc.lines.map((l, i) => (
+          <div key={i} className="flex items-center gap-2 px-4 py-2.5 border-b border-petra-border last:border-0">
+            <span className="flex-1 text-sm text-petra-text">{l.name}</span>
+            <span className="text-xs text-petra-muted flex-shrink-0">{l.quantity} × {fmt(l.unitPrice)}</span>
+            <span className="text-sm font-semibold text-petra-text flex-shrink-0 w-16 text-left">{fmt(l.lineSubtotal)}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Totals */}
+      <div className="space-y-1.5 bg-slate-50 rounded-xl p-3 border border-petra-border">
+        {calc.discountAmount > 0 && (
+          <div className="flex justify-between text-sm text-emerald-600">
+            <span>הנחה</span>
+            <span dir="ltr">−{fmt(calc.discountAmount)}</span>
+          </div>
+        )}
+        {calc.taxTotal > 0 && (
+          <div className="flex justify-between text-sm text-petra-muted">
+            <span>מע&quot;מ</span>
+            <span dir="ltr">{fmt(calc.taxTotal)}</span>
+          </div>
+        )}
+        <div className="flex justify-between text-base font-bold text-petra-text border-t border-petra-border pt-1.5 mt-1.5">
+          <span>סה&quot;כ לתשלום</span>
+          <span dir="ltr">{fmt(calc.total)}</span>
+        </div>
+      </div>
+
+      {/* Buttons */}
+      <div className="flex gap-2">
+        <button
+          className="flex-1 py-2.5 rounded-xl border-2 border-petra-border text-sm font-medium text-petra-text hover:bg-slate-50 transition-all"
+          onClick={handleClose}
+        >
+          סגור
+        </button>
+        <button
+          className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-all flex items-center justify-center gap-2"
+          style={{ background: "#25D366" }}
+          onClick={() => {
+            if (selectedCustomer?.phone) openWhatsApp(selectedCustomer.phone);
+          }}
+          disabled={!selectedCustomer?.phone}
+        >
+          <Send className="w-4 h-4" />
+          שלח בקשת תשלום
+        </button>
+      </div>
+    </div>
+  );
+
   // ── Step 3: Review ────────────────────────────────────────────────────────
   const renderReviewStep = () => (
     <div className="space-y-4">
@@ -905,7 +1006,7 @@ export function CreateOrderModal({
         )}
         {calc.taxTotal > 0 && (
           <div className="flex justify-between text-sm text-petra-muted">
-            <span>מע&quot;מ ({((business?.vatRate ?? 0.17) * 100).toFixed(0)}%)</span>
+            <span>כולל מע&quot;מ ({((business?.vatRate ?? 0.17) * 100).toFixed(0)}%)</span>
             <span dir="ltr">{fmt(calc.taxTotal)}</span>
           </div>
         )}
@@ -964,9 +1065,11 @@ export function CreateOrderModal({
             </h2>
             {/* Stepper */}
             <div className="flex items-center gap-1.5 mt-1.5">
-              {(["customer", "items", "review"] as const).map((s, i) => {
-                const labels = ["לקוח", "פריטים", "סיכום"];
-                const done = (step === "items" && i === 0) || (step === "review" && i <= 1);
+              {(["customer", "items", "review", "payment"] as const).map((s, i) => {
+                const labels = ["לקוח", "פריטים", "סיכום", "תשלום"];
+                const stepOrder = { customer: 0, items: 1, review: 2, payment: 3 };
+                const currentIdx = stepOrder[step];
+                const done = i < currentIdx;
                 const active = step === s;
                 return (
                   <div key={s} className="flex items-center gap-1.5">
@@ -981,7 +1084,7 @@ export function CreateOrderModal({
                     <span className={cn("text-xs", active ? "text-brand-600 font-semibold" : "text-slate-400")}>
                       {labels[i]}
                     </span>
-                    {i < 2 && <div className="w-4 h-px bg-slate-200" />}
+                    {i < 3 && <div className="w-4 h-px bg-slate-200" />}
                   </div>
                 );
               })}
@@ -993,7 +1096,7 @@ export function CreateOrderModal({
         </div>
 
         {/* Back button */}
-        {step !== "customer" && (
+        {step !== "customer" && step !== "payment" && (
           <button
             onClick={() => setStep(step === "review" ? "items" : "customer")}
             className="text-xs text-petra-muted hover:text-petra-text mb-3 flex items-center gap-1"
@@ -1005,6 +1108,7 @@ export function CreateOrderModal({
         {step === "customer" && renderCustomerStep()}
         {step === "items" && renderItemsStep()}
         {step === "review" && renderReviewStep()}
+        {step === "payment" && renderPaymentStep()}
       </div>
     </div>
   );

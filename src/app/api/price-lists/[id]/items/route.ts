@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get("active") === "true";
 
@@ -34,6 +38,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await request.json();
     const { name, basePrice } = body;
 

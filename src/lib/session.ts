@@ -31,6 +31,12 @@ function generateToken(): string {
     .join("");
 }
 
+/** Hash a token with SHA-256 for secure DB storage */
+function hashToken(token: string): string {
+  const { createHash } = require("crypto");
+  return createHash("sha256").update(token).digest("hex");
+}
+
 /** Create a new session for a user after successful login */
 export async function createSession(
   userId: string,
@@ -41,13 +47,14 @@ export async function createSession(
   } = {}
 ): Promise<string> {
   const token = generateToken();
+  const tokenHashed = hashToken(token);
   const ttl = options.isPlatformAdmin ? SESSION_TTL_ADMIN : SESSION_TTL_REGULAR;
   const expiresAt = new Date(Date.now() + ttl);
 
   await prisma.adminSession.create({
     data: {
       userId,
-      token,
+      token: tokenHashed,
       twoFaVerified: false,
       ipAddress: options.ip ?? null,
       userAgent: options.userAgent ?? null,
@@ -60,8 +67,9 @@ export async function createSession(
 
 /** Mark a session as 2FA-verified */
 export async function markSessionTwoFaVerified(token: string): Promise<void> {
+  const tokenHashed = hashToken(token);
   await prisma.adminSession.updateMany({
-    where: { token },
+    where: { token: tokenHashed },
     data: { twoFaVerified: true },
   });
 }
@@ -78,9 +86,10 @@ export async function getSession(): Promise<FullSession | null> {
 /** Get a session by raw token value */
 export async function getSessionByToken(token: string): Promise<FullSession | null> {
   const now = new Date();
+  const tokenHashed = hashToken(token);
 
   const session = await prisma.adminSession.findUnique({
-    where: { token },
+    where: { token: tokenHashed },
     include: {
       user: {
         include: {
@@ -96,7 +105,7 @@ export async function getSessionByToken(token: string): Promise<FullSession | nu
   if (!session) return null;
   if (session.expiresAt < now) {
     // Expired — clean up
-    await prisma.adminSession.delete({ where: { token } }).catch(() => null);
+    await prisma.adminSession.delete({ where: { token: tokenHashed } }).catch(() => null);
     return null;
   }
   if (!session.user.isActive) return null;
@@ -104,7 +113,7 @@ export async function getSessionByToken(token: string): Promise<FullSession | nu
   // Refresh lastSeenAt
   await prisma.adminSession
     .update({
-      where: { token },
+      where: { token: tokenHashed },
       data: { lastSeenAt: now },
     })
     .catch(() => null);
@@ -138,8 +147,9 @@ export async function getSessionByToken(token: string): Promise<FullSession | nu
 
 /** Delete a session (logout) */
 export async function deleteSession(token: string): Promise<void> {
+  const tokenHashed = hashToken(token);
   await prisma.adminSession
-    .deleteMany({ where: { token } })
+    .deleteMany({ where: { token: tokenHashed } })
     .catch(() => null);
 }
 
@@ -162,7 +172,7 @@ export function buildSessionCookie(
     `${SESSION_COOKIE}=${token}`,
     `Path=/`,
     `HttpOnly`,
-    `SameSite=Lax`,
+    `SameSite=Strict`,
     `Max-Age=${maxAge}`,
   ];
   if (isProd) parts.push("Secure");
@@ -171,5 +181,5 @@ export function buildSessionCookie(
 
 /** Clear session cookie */
 export function clearSessionCookie(): string {
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`;
 }

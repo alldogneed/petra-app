@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 // POST /api/training-programs/[id]/goals – add a training goal
 export async function POST(
@@ -7,6 +8,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(req);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await req.json();
     const { title, description, targetDate } = body;
 
@@ -43,6 +47,9 @@ export async function POST(
 // PATCH /api/training-programs/[id]/goals – update a goal (pass goalId in body)
 export async function PATCH(req: NextRequest) {
   try {
+    const authResult = await requireAuth(req);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await req.json();
     const { goalId, title, description, status, progressPercent, targetDate } = body;
 

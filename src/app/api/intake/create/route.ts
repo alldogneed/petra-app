@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import crypto from "crypto";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await request.json();
     const { customerId, dogId, phone } = body;
 

@@ -3,9 +3,13 @@ import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
 import { createOrderReminder } from "@/lib/scheduled-messages";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const customerId = searchParams.get("customerId");
@@ -41,6 +45,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await request.json();
     const { customerId, orderType, startAt, endAt, lines, discountType, discountValue, notes, status } = body;
 

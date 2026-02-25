@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 // POST /api/training-programs/[id]/sessions – add a training session
 export async function POST(
@@ -7,6 +8,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(req);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await req.json();
     const { sessionDate, durationMinutes, sessionNumber, summary, rating, status } = body;
 

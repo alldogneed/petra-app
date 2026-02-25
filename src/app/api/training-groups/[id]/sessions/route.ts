@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await request.json();
 
     // Get session count for numbering

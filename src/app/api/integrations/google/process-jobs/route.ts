@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { processPendingSyncJobs } from "@/lib/sync-jobs";
 
 /**
- * GET /api/integrations/google/process-jobs?secret=CRON_SECRET
+ * GET /api/integrations/google/process-jobs  (pass secret via x-cron-secret header)
  * Processes pending Google Calendar sync jobs.
  * Should be called by a cron scheduler (Vercel Cron, external service, etc.)
  */
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const secret = searchParams.get("secret");
+    const secret = request.headers.get("x-cron-secret") || new URL(request.url).searchParams.get("secret");
 
     // Verify CRON_SECRET
     if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {

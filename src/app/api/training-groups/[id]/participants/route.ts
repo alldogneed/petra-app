@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 // POST /api/training-groups/[id]/participants – add a participant to the group
 export async function POST(
@@ -7,6 +8,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(req);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await req.json();
     const { customerId, dogId } = body;
 
@@ -60,6 +64,9 @@ export async function POST(
 // DELETE /api/training-groups/[id]/participants – remove participant (pass participantId in body)
 export async function DELETE(req: NextRequest) {
   try {
+    const authResult = await requireAuth(req);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await req.json();
     const { participantId } = body;
 

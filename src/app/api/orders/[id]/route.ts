@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const order = await prisma.order.findUnique({
       where: { id: params.id },
       include: {
@@ -35,6 +39,9 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await request.json();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = {};
@@ -72,10 +79,13 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     // Only allow deleting draft orders
     const order = await prisma.order.findFirst({
       where: { id: params.id, businessId: DEMO_BUSINESS_ID },

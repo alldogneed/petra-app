@@ -35,8 +35,7 @@ export async function POST(request: NextRequest) {
   try {
     body = FlagSchema.parse(await request.json());
   } catch (e: unknown) {
-    const zodError = e as { errors?: unknown };
-    return NextResponse.json({ error: "Invalid request", details: zodError.errors }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
   const flag = await prisma.featureFlag.upsert({

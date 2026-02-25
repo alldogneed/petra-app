@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const priceList = await prisma.priceList.findUnique({
       where: { id: params.id },
       include: { items: { orderBy: { sortOrder: "asc" } } },
@@ -27,6 +31,9 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await request.json();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = {};
@@ -47,10 +54,13 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     await prisma.priceList.delete({ where: { id: params.id } });
     return NextResponse.json({ ok: true });
   } catch (error) {

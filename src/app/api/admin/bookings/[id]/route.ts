@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { DEMO_BUSINESS_ID } from "@/lib/utils"
+import { requireAuth, isGuardError } from "@/lib/auth-guards"
 
 // Stub notification
 function notifyCustomer(booking: { id: string }, customer: { phone: string; name: string }, status: string) {
@@ -13,6 +14,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const authResult = await requireAuth(req)
+  if (isGuardError(authResult)) return authResult
+
   const businessId = DEMO_BUSINESS_ID
   const { action, note } = await req.json()
 
@@ -53,9 +57,12 @@ export async function PATCH(
 
 // GET /api/admin/bookings/[id]
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const authResult = await requireAuth(req)
+  if (isGuardError(authResult)) return authResult
+
   const businessId = DEMO_BUSINESS_ID
   const booking = await prisma.booking.findFirst({
     where: { id: params.id, businessId },

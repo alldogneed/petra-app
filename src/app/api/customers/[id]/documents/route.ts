@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DOCUMENT_CATEGORIES = [
@@ -16,10 +17,13 @@ const DOCUMENT_CATEGORIES = [
 ] as const;
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const customer = await prisma.customer.findUnique({
       where: { id: params.id },
       select: { documents: true },
@@ -50,6 +54,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const category = (formData.get("category") as string) || "other";
@@ -132,6 +139,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const { searchParams } = new URL(request.url);
     const docId = searchParams.get("docId");
 

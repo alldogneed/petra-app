@@ -3,12 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const pet = await prisma.pet.findUnique({
       where: { id: params.id },
       select: { attachments: true },
@@ -30,6 +34,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const formData = await request.formData();
     const file = formData.get("file") as File;
 

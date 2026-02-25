@@ -1,12 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(req);
+    if (isGuardError(authResult)) return authResult;
+
     const body = await req.json();
 
     const existing = await prisma.priceListItem.findFirst({
@@ -42,10 +46,13 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const authResult = await requireAuth(req);
+    if (isGuardError(authResult)) return authResult;
+
     const existing = await prisma.priceListItem.findFirst({
       where: { id: params.id, businessId: DEMO_BUSINESS_ID },
     });

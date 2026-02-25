@@ -14,8 +14,9 @@ import {
   ChevronUp,
   DollarSign,
   Banknote,
+  MessageCircle,
 } from "lucide-react";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, toWhatsAppPhone } from "@/lib/utils";
 import { CreateOrderModal } from "@/components/orders/CreateOrderModal";
 
 interface OrderLine {
@@ -310,7 +311,7 @@ export default function OrdersPage() {
                               )}
                               {order.taxTotal > 0 && (
                                 <div className="flex justify-between text-sm text-petra-muted">
-                                  <span>מע&quot;מ</span>
+                                  <span>כולל מע&quot;מ</span>
                                   <span dir="ltr">{fmt(order.taxTotal)}</span>
                                 </div>
                               )}
@@ -352,14 +353,40 @@ export default function OrdersPage() {
                                 </button>
                               )}
                               {order.status === "confirmed" && (
-                                <button
-                                  className="btn-primary text-xs py-1.5 px-3"
-                                  onClick={(e) => { e.stopPropagation(); statusMutation.mutate({ id: order.id, status: "completed" }); }}
-                                  disabled={statusMutation.isPending}
-                                >
-                                  <CheckCircle2 className="w-3 h-3" />
-                                  סמן כהושלמה
-                                </button>
+                                <>
+                                  <button
+                                    className="btn-primary text-xs py-1.5 px-3"
+                                    onClick={(e) => { e.stopPropagation(); statusMutation.mutate({ id: order.id, status: "completed" }); }}
+                                    disabled={statusMutation.isPending}
+                                  >
+                                    <CheckCircle2 className="w-3 h-3" />
+                                    סמן כהושלמה
+                                  </button>
+                                  <button
+                                    className="text-xs py-1.5 px-3 rounded-xl font-medium text-white flex items-center gap-1.5 transition-all hover:opacity-90"
+                                    style={{ background: "#25D366" }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const lineItems = order.lines
+                                        .map((l) => `• ${l.name} x${l.quantity} - ${fmt(l.lineTotal)}`)
+                                        .join("\n");
+                                      const discountLine = order.discountAmount > 0
+                                        ? `\nהנחה: -${fmt(order.discountAmount)}`
+                                        : "";
+                                      const taxLine = order.taxTotal > 0
+                                        ? `\nכולל מע"מ: ${fmt(order.taxTotal)}`
+                                        : "";
+                                      const msg = encodeURIComponent(
+                                        `שלום ${order.customer.name},\nהנה פירוט ההזמנה שלך:\n${lineItems}${discountLine}${taxLine}\n\nסה"כ לתשלום: ${fmt(order.total)}`
+                                      );
+                                      const waPhone = toWhatsAppPhone(order.customer.phone);
+                                      window.open(`https://wa.me/${waPhone}?text=${msg}`, "_blank");
+                                    }}
+                                  >
+                                    <MessageCircle className="w-3 h-3" />
+                                    שלח בקשת תשלום
+                                  </button>
+                                </>
                               )}
                               {(order.status === "draft" || order.status === "confirmed") && (
                                 <button

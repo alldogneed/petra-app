@@ -3,14 +3,20 @@ import prisma from "@/lib/prisma";
 import crypto from "crypto";
 
 const SESSION_COOKIE = "petra_session";
-const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const SESSION_DURATION_MS = 8 * 60 * 60 * 1000; // 8 hours
 
 export function generateToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
+/** Hash a token with SHA-256 for secure DB storage */
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
 export async function createSession(userId: string, req?: Request) {
   const token = generateToken();
+  const tokenHashed = hashToken(token);
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
   const ipAddress = req?.headers.get("x-forwarded-for") || null;
   const userAgent = req?.headers.get("user-agent") || null;
@@ -18,7 +24,7 @@ export async function createSession(userId: string, req?: Request) {
   const session = await prisma.adminSession.create({
     data: {
       userId,
-      token,
+      token: tokenHashed,
       expiresAt,
       ipAddress,
       userAgent,
@@ -29,8 +35,9 @@ export async function createSession(userId: string, req?: Request) {
 }
 
 export async function validateSession(token: string) {
+  const tokenHashed = hashToken(token);
   const session = await prisma.adminSession.findUnique({
-    where: { token },
+    where: { token: tokenHashed },
     include: {
       user: {
         include: {
@@ -61,14 +68,15 @@ export async function validateSession(token: string) {
 }
 
 export async function deleteSession(token: string) {
-  await prisma.adminSession.deleteMany({ where: { token } });
+  const tokenHashed = hashToken(token);
+  await prisma.adminSession.deleteMany({ where: { token: tokenHashed } });
 }
 
 export function setSessionCookie(token: string) {
   cookies().set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "strict",
     path: "/",
     maxAge: SESSION_DURATION_MS / 1000,
   });
@@ -82,7 +90,7 @@ export function clearSessionCookie() {
   cookies().set(SESSION_COOKIE, "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "strict",
     path: "/",
     maxAge: 0,
   });

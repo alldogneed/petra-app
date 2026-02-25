@@ -69,8 +69,7 @@ export async function PATCH(
   try {
     body = PatchUserSchema.parse(await request.json());
   } catch (e: unknown) {
-    const zodError = e as { errors?: unknown };
-    return NextResponse.json({ error: "Invalid request", details: zodError.errors }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
   const existing = await prisma.platformUser.findUnique({ where: { id: params.userId } });

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processPendingReminders } from "@/lib/scheduled-messages";
 
-// GET /api/cron/send-reminders?secret=CRON_SECRET
+// GET /api/cron/send-reminders  (pass secret via x-cron-secret header)
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const secret = searchParams.get("secret");
+  const secret = request.headers.get("x-cron-secret") || new URL(request.url).searchParams.get("secret");
   const cronSecret = process.env.CRON_SECRET;
 
   if (!cronSecret || secret !== cronSecret) {
