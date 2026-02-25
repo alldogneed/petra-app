@@ -1,16 +1,14 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Building2,
   Save,
   CheckCircle2,
-  Wrench,
   Star,
   Zap,
   Crown,
-  Tag,
   Plug,
   Calendar,
   MessageCircle,
@@ -20,11 +18,20 @@ import {
   XCircle,
   CheckCircle,
   AlertCircle,
+  Database,
+  Download,
+  Upload,
+  FileSpreadsheet,
+  Hotel,
+  Clock,
+  Moon,
+  Info,
 } from "lucide-react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { cn, fetchJSON } from "@/lib/utils";
 import { TIERS } from "@/lib/constants";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Business {
   id: string;
@@ -34,10 +41,42 @@ interface Business {
   address: string | null;
   tier: string;
   vatNumber: string | null;
+  boardingCheckInTime: string | null;
+  boardingCheckOutTime: string | null;
+  boardingCalcMode: string | null;
+  boardingMinNights: number | null;
   _count: { customers: number; appointments: number };
 }
 
+interface ValidationErrors {
+  name?: string;
+  phone?: string;
+  vatNumber?: string;
+}
+
+// ─── Validation helpers ──────────────────────────────────────────────────────
+
+function validatePhone(phone: string): string | undefined {
+  if (!phone) return undefined; // optional
+  const digits = phone.replace(/[\s\-().]/g, "");
+  // Israeli phone: 0X-XXXXXXX (9-10 digits starting with 0) or +972...
+  if (digits.startsWith("+972") && digits.length >= 12 && digits.length <= 13) return undefined;
+  if (digits.startsWith("0") && digits.length >= 9 && digits.length <= 10) return undefined;
+  return "מספר טלפון לא תקין (פורמט ישראלי)";
+}
+
+function validateVatNumber(vat: string): string | undefined {
+  if (!vat) return undefined; // optional
+  const digits = vat.replace(/\D/g, "");
+  if (digits.length === 9) return undefined;
+  return "מספר עוסק מורשה חייב להכיל 9 ספרות";
+}
+
+// ─── Tier Icons ──────────────────────────────────────────────────────────────
+
 const TIER_ICONS = { basic: Star, pro: Zap, groomer: Crown };
+
+// ─── Business Tab ────────────────────────────────────────────────────────────
 
 function BusinessTab() {
   const queryClient = useQueryClient();
@@ -48,6 +87,7 @@ function BusinessTab() {
 
   const [form, setForm] = useState<Partial<Business> | null>(null);
   const [saved, setSaved] = useState(false);
+  const [errors, setErrors] = useState<ValidationErrors>({});
 
   const editing = form ?? biz;
 
@@ -57,9 +97,27 @@ function BusinessTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       setSaved(true);
+      setErrors({});
       setTimeout(() => setSaved(false), 2500);
     },
   });
+
+  function handleSave() {
+    if (!form) return;
+    const newErrors: ValidationErrors = {};
+    if (!form.name?.trim()) newErrors.name = "שם העסק הוא שדה חובה";
+    const phoneErr = validatePhone(form.phone || "");
+    if (phoneErr) newErrors.phone = phoneErr;
+    const vatErr = validateVatNumber(form.vatNumber || "");
+    if (vatErr) newErrors.vatNumber = vatErr;
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
+    mutation.mutate(form);
+  }
 
   if (isLoading) return (
     <div className="animate-pulse space-y-3 max-w-xl">
@@ -73,6 +131,7 @@ function BusinessTab() {
 
   return (
     <div className="space-y-6 max-w-xl">
+      {/* Tier Info */}
       <div className="flex items-center gap-3 p-4 rounded-2xl border"
         style={{ background: "linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(251,146,60,0.04) 100%)", borderColor: "rgba(249,115,22,0.15)" }}
       >
@@ -85,15 +144,18 @@ function BusinessTab() {
         </div>
       </div>
 
+      {/* Business Details */}
       <div className="space-y-4">
         <div>
           <label className="label">שם העסק *</label>
-          <input className="input" value={editing.name ?? ""} onChange={(e) => setForm({ ...editing, name: e.target.value })} />
+          <input className={cn("input", errors.name && "border-red-300 focus:ring-red-200")} value={editing.name ?? ""} onChange={(e) => { setForm({ ...editing, name: e.target.value }); if (errors.name) setErrors({ ...errors, name: undefined }); }} />
+          {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">טלפון</label>
-            <input className="input" value={editing.phone ?? ""} onChange={(e) => setForm({ ...editing, phone: e.target.value })} />
+            <input className={cn("input", errors.phone && "border-red-300 focus:ring-red-200")} value={editing.phone ?? ""} onChange={(e) => { setForm({ ...editing, phone: e.target.value }); if (errors.phone) setErrors({ ...errors, phone: undefined }); }} />
+            {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
           </div>
           <div>
             <label className="label">אימייל</label>
@@ -106,7 +168,50 @@ function BusinessTab() {
         </div>
         <div>
           <label className="label">מספר עוסק מורשה</label>
-          <input className="input" placeholder="000000000" value={editing.vatNumber ?? ""} onChange={(e) => setForm({ ...editing, vatNumber: e.target.value })} />
+          <input className={cn("input", errors.vatNumber && "border-red-300 focus:ring-red-200")} placeholder="000000000" value={editing.vatNumber ?? ""} onChange={(e) => { setForm({ ...editing, vatNumber: e.target.value }); if (errors.vatNumber) setErrors({ ...errors, vatNumber: undefined }); }} />
+          {errors.vatNumber && <p className="text-xs text-red-500 mt-1">{errors.vatNumber}</p>}
+        </div>
+      </div>
+
+      {/* Boarding Settings */}
+      <div className="border-t border-slate-100 pt-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Hotel className="w-4 h-4 text-brand-500" />
+          <h3 className="text-sm font-semibold text-petra-text">הגדרות פנסיון</h3>
+        </div>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" />
+                שעת צ׳ק-אין
+              </label>
+              <input type="time" className="input" value={editing.boardingCheckInTime ?? "14:00"} onChange={(e) => setForm({ ...editing, boardingCheckInTime: e.target.value })} />
+            </div>
+            <div>
+              <label className="label flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" />
+                שעת צ׳ק-אאוט
+              </label>
+              <input type="time" className="input" value={editing.boardingCheckOutTime ?? "11:00"} onChange={(e) => setForm({ ...editing, boardingCheckOutTime: e.target.value })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label flex items-center gap-1.5">
+                <Moon className="w-3.5 h-3.5" />
+                חישוב לפי
+              </label>
+              <select className="input" value={editing.boardingCalcMode ?? "nights"} onChange={(e) => setForm({ ...editing, boardingCalcMode: e.target.value })}>
+                <option value="nights">לילות</option>
+                <option value="days">ימים</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">מינימום לילות</label>
+              <input type="number" min={0} className="input" value={editing.boardingMinNights ?? 1} onChange={(e) => setForm({ ...editing, boardingMinNights: Number(e.target.value) })} />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -114,7 +219,7 @@ function BusinessTab() {
         className={cn("btn-primary flex items-center gap-2 transition-all", saved && "bg-emerald-500 hover:brightness-100")}
         style={saved ? { background: "#10B981" } : undefined}
         disabled={mutation.isPending}
-        onClick={() => form && mutation.mutate(form)}
+        onClick={handleSave}
       >
         {saved ? <><CheckCircle2 className="w-4 h-4" /> נשמר!</> : <><Save className="w-4 h-4" /> שמור שינויים</>}
       </button>
@@ -122,25 +227,7 @@ function BusinessTab() {
   );
 }
 
-function ServicesTab() {
-  return (
-    <div className="card p-8 text-center space-y-4 max-w-sm mx-auto">
-      <div className="w-14 h-14 rounded-2xl bg-brand-50 flex items-center justify-center mx-auto">
-        <Tag className="w-7 h-7 text-brand-500" />
-      </div>
-      <div>
-        <h3 className="font-semibold text-lg text-slate-900">ניהול השירותים הועבר</h3>
-        <p className="text-sm text-petra-muted mt-1 leading-relaxed">
-          המחירון וניהול השירותים זמינים כעת בדף ייעודי עם אפשרויות מתקדמות
-        </p>
-      </div>
-      <Link href="/pricing" className="btn-primary inline-flex items-center gap-2 w-full justify-center">
-        <Tag className="w-4 h-4" />
-        עבור למחירון
-      </Link>
-    </div>
-  );
-}
+// ─── Integrations Tab ────────────────────────────────────────────────────────
 
 interface Integration {
   id: string;
@@ -193,7 +280,6 @@ function IntegrationsTab() {
 
   return (
     <div className="space-y-4 max-w-2xl">
-      {/* OAuth redirect feedback */}
       {gcalStatus === "connected" && (
         <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
           <CheckCircle className="w-4 h-4 flex-shrink-0" />
@@ -217,12 +303,7 @@ function IntegrationsTab() {
         const Icon = ICON_MAP[integ.icon] ?? Plug;
         return (
           <div key={integ.id} className="card p-5 flex items-start gap-4">
-            <div
-              className={cn(
-                "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
-                integ.connected ? "bg-emerald-50" : "bg-slate-100"
-              )}
-            >
+            <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0", integ.connected ? "bg-emerald-50" : "bg-slate-100")}>
               <Icon className={cn("w-6 h-6", integ.connected ? "text-emerald-600" : "text-slate-400")} />
             </div>
             <div className="flex-1 min-w-0">
@@ -246,17 +327,10 @@ function IntegrationsTab() {
                   onClick={() => disconnectMutation.mutate()}
                   disabled={disconnectMutation.isPending}
                 >
-                  {disconnectMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    "נתק"
-                  )}
+                  {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "נתק"}
                 </button>
               ) : integ.connectUrl ? (
-                <a
-                  href={integ.connectUrl}
-                  className="btn-primary text-sm flex items-center gap-1.5"
-                >
+                <a href={integ.connectUrl} className="btn-primary text-sm flex items-center gap-1.5">
                   <ExternalLink className="w-3.5 h-3.5" />
                   חבר
                 </a>
@@ -271,16 +345,340 @@ function IntegrationsTab() {
   );
 }
 
+// ─── Data Tab (Import / Export) ──────────────────────────────────────────────
+
+type ImportPhase = "idle" | "uploading" | "preview" | "executing" | "done" | "error";
+
+interface ImportStats {
+  totalCustomers: number;
+  totalPets: number;
+  skippedRows: number;
+  inFileDuplicates: number;
+  dbDuplicates: number;
+  orphanPets: number;
+}
+
+interface ImportResult {
+  createdCustomers: number;
+  mergedCustomers: number;
+  createdPets: number;
+}
+
+function DataTab() {
+  const queryClient = useQueryClient();
+
+  // Export state
+  const [exportType, setExportType] = useState("customers");
+  const [exportFormat, setExportFormat] = useState("xlsx");
+  const [exportFrom, setExportFrom] = useState("");
+  const [exportTo, setExportTo] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  // Import state
+  const [importPhase, setImportPhase] = useState<ImportPhase>("idle");
+  const [importStats, setImportStats] = useState<ImportStats | null>(null);
+  const [importBatchId, setImportBatchId] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importTopIssues, setImportTopIssues] = useState<{ row: number; message: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Export handler
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const params = new URLSearchParams({ type: exportType, format: exportFormat });
+      if (exportFrom) params.set("from", exportFrom);
+      if (exportTo) params.set("to", exportTo);
+
+      const res = await fetch(`/api/exports/download?${params}`);
+      if (!res.ok) throw new Error("Export failed");
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `petra_${exportType}_${new Date().toISOString().slice(0, 10)}.${exportFormat}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("שגיאה בהורדת הקובץ");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  // Template download
+  async function handleDownloadTemplate() {
+    const res = await fetch("/api/import/template");
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "petra-import-template.xlsx";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // File upload & parse
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportPhase("uploading");
+    setImportError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("includePets", "true");
+
+      const res = await fetch("/api/import/parse", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Parse failed");
+
+      const data = await res.json();
+      setImportBatchId(data.batchId);
+      setImportStats(data.stats);
+      setImportTopIssues(data.topIssues?.map((i: { row: number; message: string }) => ({ row: i.row, message: i.message })) || []);
+      setImportPhase("preview");
+    } catch {
+      setImportError("שגיאה בניתוח הקובץ");
+      setImportPhase("error");
+    }
+
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  // Execute import
+  async function handleExecuteImport() {
+    if (!importBatchId) return;
+    setImportPhase("executing");
+
+    try {
+      const res = await fetch("/api/import/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchId: importBatchId }),
+      });
+      if (!res.ok) throw new Error("Execute failed");
+
+      const data = await res.json();
+      setImportResult(data);
+      setImportPhase("done");
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+    } catch {
+      setImportError("שגיאה בביצוע הייבוא");
+      setImportPhase("error");
+    }
+  }
+
+  function resetImport() {
+    setImportPhase("idle");
+    setImportStats(null);
+    setImportBatchId(null);
+    setImportResult(null);
+    setImportError(null);
+    setImportTopIssues([]);
+  }
+
+  return (
+    <div className="space-y-8 max-w-2xl">
+      {/* ── Export Section ── */}
+      <div className="card p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Download className="w-5 h-5 text-brand-500" />
+          <h3 className="text-base font-semibold text-petra-text">ייצוא נתונים</h3>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">סוג נתונים</label>
+              <select className="input" value={exportType} onChange={(e) => setExportType(e.target.value)}>
+                <option value="customers">לקוחות</option>
+                <option value="pets">חיות מחמד</option>
+                <option value="both">לקוחות + חיות</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">פורמט</label>
+              <select className="input" value={exportFormat} onChange={(e) => setExportFormat(e.target.value)}>
+                <option value="xlsx">Excel (.xlsx)</option>
+                <option value="csv">CSV</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">מתאריך (אופציונלי)</label>
+              <input type="date" className="input" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">עד תאריך (אופציונלי)</label>
+              <input type="date" className="input" value={exportTo} onChange={(e) => setExportTo(e.target.value)} />
+            </div>
+          </div>
+
+          <button className="btn-primary flex items-center gap-2" onClick={handleExport} disabled={exporting}>
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {exporting ? "מייצא..." : "הורד קובץ"}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Import Section ── */}
+      <div className="card p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Upload className="w-5 h-5 text-brand-500" />
+          <h3 className="text-base font-semibold text-petra-text">ייבוא נתונים</h3>
+        </div>
+
+        {importPhase === "idle" && (
+          <div className="space-y-4">
+            <button className="btn-secondary flex items-center gap-2 text-sm" onClick={handleDownloadTemplate}>
+              <FileSpreadsheet className="w-4 h-4" />
+              הורד תבנית לדוגמה
+            </button>
+
+            <div
+              className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-colors cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="w-8 h-8 text-petra-muted mx-auto mb-3" />
+              <p className="text-sm font-medium text-petra-text">לחץ להעלאת קובץ</p>
+              <p className="text-xs text-petra-muted mt-1">Excel (.xlsx) או CSV</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+            </div>
+          </div>
+        )}
+
+        {importPhase === "uploading" && (
+          <div className="flex items-center gap-3 p-6 justify-center">
+            <Loader2 className="w-5 h-5 animate-spin text-brand-500" />
+            <span className="text-sm text-petra-muted">מנתח קובץ...</span>
+          </div>
+        )}
+
+        {importPhase === "preview" && importStats && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-sm">
+              <Info className="w-4 h-4 flex-shrink-0" />
+              סיכום ניתוח הקובץ
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-center">
+                <p className="text-lg font-bold text-emerald-700">{importStats.totalCustomers}</p>
+                <p className="text-xs text-emerald-600">לקוחות חדשים</p>
+              </div>
+              <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-center">
+                <p className="text-lg font-bold text-blue-700">{importStats.totalPets}</p>
+                <p className="text-xs text-blue-600">חיות מחמד</p>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 text-center">
+                <p className="text-lg font-bold text-amber-700">{importStats.skippedRows}</p>
+                <p className="text-xs text-amber-600">שורות דולגו</p>
+              </div>
+            </div>
+
+            {importStats.dbDuplicates > 0 && (
+              <p className="text-xs text-amber-600 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {importStats.dbDuplicates} לקוחות כבר קיימים במערכת (ימוזגו)
+              </p>
+            )}
+
+            {importTopIssues.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-petra-muted">בעיות שזוהו:</p>
+                {importTopIssues.slice(0, 5).map((issue, i) => (
+                  <p key={i} className="text-xs text-red-500">
+                    שורה {issue.row}: {issue.message}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button className="btn-primary flex-1 flex items-center justify-center gap-2" onClick={handleExecuteImport}>
+                <CheckCircle className="w-4 h-4" />
+                אשר ייבוא
+              </button>
+              <button className="btn-secondary" onClick={resetImport}>ביטול</button>
+            </div>
+          </div>
+        )}
+
+        {importPhase === "executing" && (
+          <div className="flex items-center gap-3 p-6 justify-center">
+            <Loader2 className="w-5 h-5 animate-spin text-brand-500" />
+            <span className="text-sm text-petra-muted">מייבא נתונים...</span>
+          </div>
+        )}
+
+        {importPhase === "done" && importResult && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
+              <CheckCircle className="w-4 h-4 flex-shrink-0" />
+              הייבוא הושלם בהצלחה!
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-center">
+                <p className="text-lg font-bold text-emerald-700">{importResult.createdCustomers}</p>
+                <p className="text-xs text-emerald-600">לקוחות נוצרו</p>
+              </div>
+              <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-center">
+                <p className="text-lg font-bold text-blue-700">{importResult.mergedCustomers}</p>
+                <p className="text-xs text-blue-600">לקוחות מוזגו</p>
+              </div>
+              <div className="p-3 rounded-xl bg-violet-50 border border-violet-100 text-center">
+                <p className="text-lg font-bold text-violet-700">{importResult.createdPets}</p>
+                <p className="text-xs text-violet-600">חיות נוצרו</p>
+              </div>
+            </div>
+            <button className="btn-secondary" onClick={resetImport}>ייבוא נוסף</button>
+          </div>
+        )}
+
+        {importPhase === "error" && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+              <XCircle className="w-4 h-4 flex-shrink-0" />
+              {importError || "אירעה שגיאה"}
+            </div>
+            <button className="btn-secondary" onClick={resetImport}>נסה שוב</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Settings Page ──────────────────────────────────────────────────────
+
 export default function SettingsPage() {
   const searchParams = useSearchParams();
   const gcalParam = searchParams.get("gcal");
-  const [activeTab, setActiveTab] = useState<"business" | "services" | "integrations">(
+  const [activeTab, setActiveTab] = useState<"business" | "integrations" | "data">(
     gcalParam ? "integrations" : "business"
   );
 
   const tabs = [
     { id: "business" as const, label: "פרטי העסק", icon: Building2 },
-    { id: "services" as const, label: "שירותים", icon: Wrench },
+    { id: "data" as const, label: "נתונים", icon: Database },
     { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
   ];
 
@@ -311,7 +709,7 @@ export default function SettingsPage() {
       </div>
 
       {activeTab === "business" && <BusinessTab />}
-      {activeTab === "services" && <ServicesTab />}
+      {activeTab === "data" && <DataTab />}
       {activeTab === "integrations" && <IntegrationsTab />}
     </div>
   );
