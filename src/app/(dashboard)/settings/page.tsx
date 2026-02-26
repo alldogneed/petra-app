@@ -416,6 +416,237 @@ function IntegrationsTab() {
   );
 }
 
+// ─── Invoicing Tab ──────────────────────────────────────────────────────────
+
+function InvoicingTab() {
+  const queryClient = useQueryClient();
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [showMappingModal, setShowMappingModal] = useState(false);
+
+  const { data: settings, isLoading } = useQuery<{
+    providerName: string;
+    status: string;
+    connectedAt: string | null;
+    documentMapping: string;
+    lastTestedAt: string | null;
+    lastTestResult: string | null;
+  } | null>({
+    queryKey: ["invoicing-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/invoicing/settings");
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("Failed to load settings");
+      return res.json();
+    },
+  });
+
+  const { data: documents } = useQuery<Array<{
+    id: string;
+    docTypeName: string;
+    amount: number;
+    status: string;
+    documentNumber: string | null;
+    createdAt: string;
+    customer: { name: string } | null;
+  }>>({
+    queryKey: ["invoicing-documents"],
+    queryFn: () => fetchJSON("/api/invoicing/documents"),
+    enabled: settings?.status === "active",
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/invoicing/settings", { method: "DELETE" }).then((r) => {
+        if (!r.ok) throw new Error("Disconnect failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoicing-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["integrations"] });
+    },
+  });
+
+  const isConnected = settings?.status === "active";
+
+  if (isLoading) {
+    return (
+      <div className="animate-pulse space-y-3 max-w-2xl">
+        {[1, 2, 3].map((i) => <div key={i} className="h-20 bg-slate-100 rounded-xl" />)}
+      </div>
+    );
+  }
+
+  // Parse mapping for display
+  let mappingEntries: Array<{ method: string; label: string; docType: string }> = [];
+  if (isConnected && settings?.documentMapping) {
+    try {
+      const map = JSON.parse(settings.documentMapping) as Record<string, number>;
+      const docLabels: Record<number, string> = { 305: "חשבונית מס", 320: "חשבונית מס / קבלה", 400: "קבלה", 330: "זיכוי", 0: "ללא מסמך" };
+      const methodLabels: Record<string, string> = { cash: "מזומן", credit_card: "כרטיס אשראי", bank_transfer: "העברה בנקאית", bit: "ביט", paybox: "פייבוקס", check: "צ׳ק" };
+      mappingEntries = Object.entries(map).map(([m, dt]) => ({
+        method: m,
+        label: methodLabels[m] ?? m,
+        docType: docLabels[dt] ?? String(dt),
+      }));
+    } catch { /* ignore */ }
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      {/* Connection Status Card */}
+      <div className="card p-5">
+        <div className="flex items-start gap-4">
+          <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0", isConnected ? "bg-emerald-50" : "bg-slate-100")}>
+            <FileText className={cn("w-6 h-6", isConnected ? "text-emerald-600" : "text-slate-400")} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-petra-text">חיבור ספק חשבוניות</h3>
+              {isConnected ? (
+                <span className="badge badge-success text-xs">מחובר</span>
+              ) : (
+                <span className="badge badge-neutral text-xs">לא מחובר</span>
+              )}
+            </div>
+            {isConnected ? (
+              <p className="text-sm text-petra-muted mt-0.5">
+                מחובר ל-{settings?.providerName === "morning" ? "Morning (חשבונית ירוקה)" : settings?.providerName}
+                {settings?.connectedAt && <> · חובר {formatRelativeTime(settings.connectedAt)}</>}
+              </p>
+            ) : (
+              <p className="text-sm text-petra-muted mt-0.5">
+                חבר את חשבון Morning (חשבונית ירוקה) להפקת חשבוניות וקבלות אוטומטית
+              </p>
+            )}
+            {settings?.lastTestedAt && settings.lastTestResult && (
+              <p className={cn("text-xs mt-1", settings.lastTestResult === "success" ? "text-emerald-600" : "text-red-500")}>
+                בדיקה אחרונה: {settings.lastTestResult === "success" ? "תקין" : "נכשל"} · {formatRelativeTime(settings.lastTestedAt)}
+              </p>
+            )}
+          </div>
+          <div className="flex-shrink-0 flex items-center gap-2">
+            {isConnected ? (
+              <>
+                <button
+                  className="btn-ghost text-sm text-red-500 hover:text-red-600 hover:bg-red-50"
+                  onClick={() => disconnectMutation.mutate()}
+                  disabled={disconnectMutation.isPending}
+                >
+                  {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "נתק"}
+                </button>
+              </>
+            ) : (
+              <button
+                className="btn-primary text-sm flex items-center gap-1.5"
+                onClick={() => setShowConnectModal(true)}
+              >
+                <Plug className="w-4 h-4" />
+                חבר
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Document Mapping Card */}
+      {isConnected && (
+        <div className="card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-semibold text-petra-text">מיפוי מסמכים</h3>
+              <p className="text-sm text-petra-muted mt-0.5">איזה סוג מסמך יופק לכל אמצעי תשלום</p>
+            </div>
+            <button
+              className="btn-ghost text-sm flex items-center gap-1.5"
+              onClick={() => setShowMappingModal(true)}
+            >
+              <Settings2 className="w-3.5 h-3.5" />
+              ערוך
+            </button>
+          </div>
+          {mappingEntries.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2">
+              {mappingEntries.map((entry) => (
+                <div key={entry.method} className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg">
+                  <span className="text-sm text-petra-text">{entry.label}</span>
+                  <span className="text-xs text-petra-muted">{entry.docType}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-petra-muted">מיפוי ברירת מחדל בשימוש</p>
+          )}
+        </div>
+      )}
+
+      {/* Recent Documents */}
+      {isConnected && documents && documents.length > 0 && (
+        <div className="card p-5">
+          <h3 className="font-semibold text-petra-text mb-3">מסמכים אחרונים</h3>
+          <div className="space-y-2">
+            {documents.slice(0, 5).map((doc) => (
+              <div key={doc.id} className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-4 h-4 text-petra-muted" />
+                  <div>
+                    <p className="text-sm text-petra-text">{doc.docTypeName}{doc.documentNumber ? ` #${doc.documentNumber}` : ""}</p>
+                    <p className="text-xs text-petra-muted">{doc.customer?.name}</p>
+                  </div>
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-medium text-petra-text">₪{doc.amount.toFixed(2)}</p>
+                  <span className={cn("text-xs", doc.status === "issued" ? "text-emerald-600" : doc.status === "draft" ? "text-amber-600" : "text-petra-muted")}>
+                    {doc.status === "issued" ? "הופק" : doc.status === "draft" ? "טיוטה" : doc.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state when not connected */}
+      {!isConnected && (
+        <div className="card p-8 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <FileText className="w-8 h-8 text-slate-400" />
+          </div>
+          <h3 className="font-semibold text-petra-text mb-1">עדיין לא מחובר ספק חשבוניות</h3>
+          <p className="text-sm text-petra-muted mb-4">חבר את חשבון Morning שלך כדי להפיק חשבוניות וקבלות אוטומטית כשנרשמת תשלום</p>
+          <button
+            className="btn-primary inline-flex items-center gap-2"
+            onClick={() => setShowConnectModal(true)}
+          >
+            <Plug className="w-4 h-4" />
+            חבר עכשיו
+          </button>
+        </div>
+      )}
+
+      {showConnectModal && (
+        <InvoicingConnectModal
+          onClose={() => setShowConnectModal(false)}
+          onSuccess={() => {
+            setShowConnectModal(false);
+            queryClient.invalidateQueries({ queryKey: ["invoicing-settings"] });
+            queryClient.invalidateQueries({ queryKey: ["integrations"] });
+          }}
+        />
+      )}
+
+      {showMappingModal && (
+        <InvoicingMappingModal
+          onClose={() => setShowMappingModal(false)}
+          onSuccess={() => {
+            setShowMappingModal(false);
+            queryClient.invalidateQueries({ queryKey: ["invoicing-settings"] });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 // ─── Invoicing Connect Modal ────────────────────────────────────────────────
 
 function InvoicingConnectModal({
@@ -1267,14 +1498,16 @@ export default function SettingsPage() {
   const searchParams = useSearchParams();
   const gcalParam = searchParams.get("gcal");
   const { isOwner } = useAuth();
-  const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "data">(
-    gcalParam ? "integrations" : "business"
+  const invoicingParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data">(
+    gcalParam ? "integrations" : invoicingParam === "invoicing" ? "invoicing" : "business"
   );
 
   const tabs = [
     { id: "business" as const, label: "פרטי העסק", icon: Building2 },
     { id: "availability" as const, label: "זמינות", icon: Calendar },
     ...(isOwner ? [{ id: "team" as const, label: "ניהול צוות", icon: Users2 }] : []),
+    { id: "invoicing" as const, label: "חשבוניות", icon: FileText },
     { id: "data" as const, label: "נתונים", icon: Database },
     { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
   ];
@@ -1308,6 +1541,7 @@ export default function SettingsPage() {
       {activeTab === "business" && <BusinessTab />}
       {activeTab === "availability" && <AvailabilityTab />}
       {activeTab === "team" && isOwner && <TeamTab />}
+      {activeTab === "invoicing" && <InvoicingTab />}
       {activeTab === "data" && <DataTab />}
       {activeTab === "integrations" && <IntegrationsTab />}
     </div>
