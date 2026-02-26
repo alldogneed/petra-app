@@ -11,7 +11,6 @@ import {
   Search,
   Users,
   GraduationCap,
-  CreditCard,
   Calendar,
   Hotel,
   HelpCircle,
@@ -24,8 +23,6 @@ import {
   Globe,
   Settings,
   BarChart3,
-  Upload,
-  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

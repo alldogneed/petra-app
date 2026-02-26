@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
       recentOrders,
       todayTasks,
       overdueTasks,
+      urgentLeads,
     ] = await Promise.all([
       prisma.customer.count({ where: { businessId } }),
       prisma.pet.count({ where: { customer: { businessId } } }),
@@ -143,6 +144,20 @@ export async function GET(request: NextRequest) {
         orderBy: [{ dueAt: "asc" }, { dueDate: "asc" }],
         take: 10,
       }),
+      // Urgent leads: follow up time passed and status is pending
+      prisma.lead.findMany({
+        where: {
+          businessId,
+          followUpStatus: "pending",
+          nextFollowUpAt: { lte: now },
+          stage: { notIn: ["lost", "won"] }
+        },
+        include: {
+          customer: { select: { name: true } },
+        },
+        orderBy: { nextFollowUpAt: "asc" },
+        take: 10,
+      }),
     ]);
 
     // Get top service name
@@ -205,6 +220,7 @@ export async function GET(request: NextRequest) {
       })),
       todayTasks,
       overdueTasks,
+      urgentLeads,
     });
   } catch (error) {
     console.error("Dashboard API error:", error);

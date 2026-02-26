@@ -21,6 +21,8 @@ export async function PATCH(
       lastContactedAt,
       wonAt,
       lostAt,
+      nextFollowUpAt,
+      followUpStatus,
     } = body;
 
     const existing = await prisma.lead.findFirst({
@@ -45,6 +47,10 @@ export async function PATCH(
         ...(lostAt !== undefined && {
           lostAt: lostAt ? new Date(lostAt) : null,
         }),
+        ...(nextFollowUpAt !== undefined && {
+          nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : null,
+        }),
+        ...(followUpStatus !== undefined && { followUpStatus }),
       },
       include: {
         customer: true,

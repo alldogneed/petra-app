@@ -1,10 +1,11 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
-  Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical
+  Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
@@ -42,7 +43,12 @@ interface Lead {
   lostAt: string | null;
   lostReasonCode: string | null;
   lostReasonText: string | null;
-  callLogs?: { id: string }[];
+  callLogs?: {
+    id: string;
+    summary: string;
+    treatment: string;
+    createdAt: string;
+  }[];
 }
 
 interface LeadStage {
@@ -149,6 +155,7 @@ function SortableColumn({
   onDelete,
   onLeadClick,
   onQuickAction,
+  onWon,
   stages,
 }: {
   stage: LeadStage;
@@ -163,6 +170,7 @@ function SortableColumn({
   onDelete: (stage: LeadStage) => void;
   onLeadClick: (l: Lead) => void;
   onQuickAction: (l: Lead, action: string) => void;
+  onWon: (l: Lead) => void;
   stages: LeadStage[];
 }) {
   const {
@@ -195,6 +203,7 @@ function SortableColumn({
         onDelete={onDelete}
         onLeadClick={onLeadClick}
         onQuickAction={onQuickAction}
+        onWon={onWon}
         dragAttributes={attributes}
         dragListeners={listeners}
         stages={stages}
@@ -218,6 +227,7 @@ function KanbanColumn({
   onDelete,
   onLeadClick,
   onQuickAction,
+  onWon,
   dragAttributes,
   dragListeners,
   stages,
@@ -234,6 +244,7 @@ function KanbanColumn({
   onDelete: (stage: LeadStage) => void;
   onLeadClick: (l: Lead) => void;
   onQuickAction: (l: Lead, action: string) => void;
+  onWon: (l: Lead) => void;
   dragAttributes?: Record<string, any>;
   dragListeners?: Record<string, any>;
   stages: LeadStage[];
@@ -334,7 +345,9 @@ function KanbanColumn({
 
             {/* Delete / Lock */}
             {isWon || isLost ? (
-              <Lock className="w-4 h-4 text-petra-muted" title="לא ניתן למחוק שלב זה" />
+              <span title="לא ניתן למחוק שלב זה">
+                <Lock className="w-4 h-4 text-petra-muted" />
+              </span>
             ) : (
               <button
                 onClick={() => onDelete(stage)}
@@ -363,6 +376,7 @@ function KanbanColumn({
             stage={stage}
             onClick={() => onLeadClick(lead)}
             onQuickAction={(action) => onQuickAction(lead, action)}
+            onWon={() => onWon(lead)}
             stages={stages}
           />
         ))}
@@ -383,14 +397,17 @@ function DraggableLeadCard({
   stage,
   onClick,
   onQuickAction,
+  onWon,
   stages,
 }: {
   lead: Lead;
   stage: LeadStage;
   onClick: () => void;
   onQuickAction: (action: string) => void;
+  onWon: () => void;
   stages: LeadStage[];
 }) {
+  const [converting, setConverting] = useState(false);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: lead.id,
     data: { lead },
@@ -495,11 +512,19 @@ function DraggableLeadCard({
           {!isWon && !isLost && wonStage && lostStage && (
             <>
               <button
-                onClick={(e) => { e.stopPropagation(); onQuickAction(wonStage.id); }}
-                className="w-7 h-7 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors"
-                title="לקוח נסגר (זכינו!)"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (converting) return;
+                  setConverting(true);
+                  onWon();
+                }}
+                disabled={converting}
+                className="w-7 h-7 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors disabled:opacity-50"
+                title="לקוח נסגר (זכינו!) — ממיר ללקוח"
               >
-                <Check className="w-4 h-4" />
+                {converting
+                  ? <span className="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                  : <Check className="w-4 h-4" />}
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); onQuickAction(lostStage.id); }}
@@ -617,12 +642,142 @@ function DeleteStageModal({
   );
 }
 
+// ─── Archive List ────────────────────────────────────────────────────────────
+
+function ArchiveList({
+  leads,
+  wonStage,
+  lostStage,
+  onLeadClick,
+}: {
+  leads: Lead[];
+  wonStage?: LeadStage;
+  lostStage?: LeadStage;
+  onLeadClick: (l: Lead) => void;
+}) {
+  const { setNodeRef: setWonNodeRef, isOver: isWonOver } = useDroppable({ id: wonStage?.id || "won", disabled: !wonStage });
+  const { setNodeRef: setLostNodeRef, isOver: isLostOver } = useDroppable({ id: lostStage?.id || "lost", disabled: !lostStage });
+
+  if (!wonStage && !lostStage) return null;
+
+  return (
+    <div className="mt-4 mb-20 space-y-4">
+      <h2 className="text-xl font-bold text-petra-text px-1">ארכיון לידים (שטופלו)</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {wonStage && (
+          <div
+            ref={setWonNodeRef}
+            className={`bg-white rounded-xl shadow-sm border transition-colors flex flex-col ${isWonOver ? "border-green-400 bg-green-50 shadow-lg" : "border-slate-200"
+              }`}
+          >
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-green-50/50 rounded-t-xl">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-green-600" />
+                <h3 className="font-bold text-green-800">נסגרו (לקוחות)</h3>
+              </div>
+              <span className="badge-neutral text-xs">{leads.filter((l) => l.stage === wonStage.id).length}</span>
+            </div>
+            <div className="p-0 overflow-y-auto max-h-[400px]">
+              <table className="w-full text-sm text-right whitespace-nowrap">
+                <thead className="bg-slate-50 text-petra-muted border-b border-slate-100 sticky top-0 z-10">
+                  <tr>
+                    <th className="font-medium p-3">שם</th>
+                    <th className="font-medium p-3">טלפון</th>
+                    <th className="font-medium p-3">תאריך סגירה</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {leads
+                    .filter((l) => l.stage === wonStage.id)
+                    .sort((a, b) => new Date(b.wonAt || 0).getTime() - new Date(a.wonAt || 0).getTime())
+                    .map((lead) => (
+                      <tr key={lead.id} onClick={() => onLeadClick(lead)} className="hover:bg-slate-50 cursor-pointer transition-colors text-xs sm:text-sm">
+                        <td className="p-3 font-medium text-petra-text">{lead.name}</td>
+                        <td className="p-3 text-petra-muted" dir="ltr">{lead.phone || "-"}</td>
+                        <td className="p-3 text-petra-muted">
+                          {lead.wonAt ? new Date(lead.wonAt).toLocaleDateString("he-IL") : ""}
+                        </td>
+                      </tr>
+                    ))}
+                  {leads.filter((l) => l.stage === wonStage.id).length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="p-8 text-center text-petra-muted">אין לידים שנסגרו</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {lostStage && (
+          <div
+            ref={setLostNodeRef}
+            className={`bg-white rounded-xl shadow-sm border transition-colors flex flex-col ${isLostOver ? "border-red-400 bg-red-50 shadow-lg" : "border-slate-200"
+              }`}
+          >
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-red-50/50 rounded-t-xl">
+              <div className="flex items-center gap-2">
+                <Archive className="w-5 h-5 text-red-500" />
+                <h3 className="font-bold text-red-800">אבודים</h3>
+              </div>
+              <span className="badge-neutral text-xs">{leads.filter((l) => l.stage === lostStage.id).length}</span>
+            </div>
+            <div className="p-0 overflow-y-auto max-h-[400px]">
+              <table className="w-full text-sm text-right whitespace-nowrap">
+                <thead className="bg-slate-50 text-petra-muted border-b border-slate-100 sticky top-0 z-10">
+                  <tr>
+                    <th className="font-medium p-3">שם</th>
+                    <th className="font-medium p-3">סיבה</th>
+                    <th className="font-medium p-3">תאריך אובדן</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {leads
+                    .filter((l) => l.stage === lostStage.id)
+                    .sort((a, b) => new Date(b.lostAt || 0).getTime() - new Date(a.lostAt || 0).getTime())
+                    .map((lead) => {
+                      const lostReasonLabel = lead.lostReasonCode
+                        ? LOST_REASON_CODES.find((r) => r.id === lead.lostReasonCode)?.label
+                        : null;
+                      return (
+                        <tr key={lead.id} onClick={() => onLeadClick(lead)} className="hover:bg-slate-50 cursor-pointer transition-colors text-xs sm:text-sm">
+                          <td className="p-3 font-medium text-petra-text">{lead.name}</td>
+                          <td className="p-3 text-petra-muted">
+                            {lostReasonLabel && (
+                              <span className="inline-block px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-[10px] whitespace-normal max-w-[150px] leading-tight">
+                                {lostReasonLabel}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 text-petra-muted">
+                            {lead.lostAt ? new Date(lead.lostAt).toLocaleDateString("he-IL") : ""}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  {leads.filter((l) => l.stage === lostStage.id).length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="p-8 text-center text-petra-muted">אין לידים אבודים</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function LeadsPage() {
   const [showModal, setShowModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [activeDragLead, setActiveDragLead] = useState<Lead | null>(null);
+  const [wonToast, setWonToast] = useState<{ name: string; customerId: string } | null>(null);
 
   // Edit mode state
   const [editMode, setEditMode] = useState(false);
@@ -630,6 +785,7 @@ export default function LeadsPage() {
   const [editingName, setEditingName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ stage: LeadStage; leadCount: number } | null>(null);
 
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const { data: leads = [] } = useQuery<Lead[]>({
@@ -672,6 +828,20 @@ export default function LeadsPage() {
     mutationFn: (stageIds: string[]) =>
       fetch("/api/leads/stages/reorder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stageIds }) }).then((r) => r.json()),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lead-stages"] }),
+  });
+
+  const convertMutation = useMutation({
+    mutationFn: (leadId: string) =>
+      fetch(`/api/leads/${leadId}/convert`, { method: "POST" }).then((r) => r.json()),
+    onSuccess: (data, leadId) => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      if (data.customer) {
+        const lead = leads.find((l) => l.id === leadId);
+        setWonToast({ name: lead?.name || data.customer.name, customerId: data.customer.id });
+        setTimeout(() => setWonToast(null), 6000);
+      }
+    },
   });
 
   // ─── Lead DnD Sensors ──────────────────────────────────────────────────
@@ -768,9 +938,15 @@ export default function LeadsPage() {
     createStageMutation.mutate({ name });
   };
 
+  const handleWon = useCallback((lead: Lead) => {
+    convertMutation.mutate(lead.id);
+  }, [convertMutation]);
+
   // ─── Render ─────────────────────────────────────────────────────────────
 
   const wonStage = stages.find((s) => s.isWon);
+  const lostStage = stages.find((s) => s.isLost);
+  const activeStages = stages.filter((s) => !s.isWon && !s.isLost);
 
   return (
     <div>
@@ -792,6 +968,28 @@ export default function LeadsPage() {
           {editMode ? "סיום עריכה" : "עריכת שלבים"}
         </button>
       </div>
+
+      {/* Won Toast */}
+      {wonToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 bg-white border border-green-200 shadow-xl rounded-2xl px-5 py-3.5 animate-in slide-in-from-bottom-4">
+          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+            <UserCheck className="w-5 h-5 text-green-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-petra-text">🎉 {wonToast.name} הפך ללקוח!</p>
+            <p className="text-xs text-petra-muted">הליד הומר בהצלחה ללקוח חדש במערכת</p>
+          </div>
+          <button
+            onClick={() => router.push(`/customers/${wonToast.customerId}`)}
+            className="mr-2 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors whitespace-nowrap"
+          >
+            צפה בלקוח
+          </button>
+          <button onClick={() => setWonToast(null)} className="text-petra-muted hover:text-petra-text">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {editMode ? (
         /* ─── Edit Mode: Column reorder DnD ─── */
@@ -815,32 +1013,33 @@ export default function LeadsPage() {
             collisionDetection={closestCorners}
             onDragEnd={handleColumnDragEnd}
           >
-          <SortableContext items={stages.map((s) => s.id)} strategy={horizontalListSortingStrategy}>
-            <div className="flex gap-4 overflow-x-auto pb-8 items-stretch h-[calc(100vh-240px)]">
-              {stages.map((stage) => {
-                const stageLeads = leads.filter((l) => l.stage === stage.id);
-                return (
-                  <SortableColumn
-                    key={stage.id}
-                    stage={stage}
-                    leads={stageLeads}
-                    editMode={editMode}
-                    editingStageId={editingStageId}
-                    editingName={editingName}
-                    onStartEdit={handleStartEdit}
-                    onChangeName={setEditingName}
-                    onSaveName={handleSaveName}
-                    onChangeColor={handleChangeColor}
-                    onDelete={handleDelete}
-                    onLeadClick={(lead) => setSelectedLead(lead)}
-                    onQuickAction={(lead, action) => setSelectedLead({ ...lead, stage: action })}
-                    stages={stages}
-                  />
-                );
-              })}
-              <AddStageInline onAdd={handleAddStage} />
-            </div>
-          </SortableContext>
+            <SortableContext items={activeStages.map((s) => s.id)} strategy={horizontalListSortingStrategy}>
+              <div className="flex gap-4 overflow-x-auto pb-6 items-stretch mb-8" style={{ minHeight: "500px" }}>
+                {activeStages.map((stage) => {
+                  const stageLeads = leads.filter((l) => l.stage === stage.id);
+                  return (
+                    <SortableColumn
+                      key={stage.id}
+                      stage={stage}
+                      leads={stageLeads}
+                      editMode={editMode}
+                      editingStageId={editingStageId}
+                      editingName={editingName}
+                      onStartEdit={handleStartEdit}
+                      onChangeName={setEditingName}
+                      onSaveName={handleSaveName}
+                      onChangeColor={handleChangeColor}
+                      onDelete={handleDelete}
+                      onLeadClick={(lead) => setSelectedLead(lead)}
+                      onQuickAction={(lead, action) => setSelectedLead({ ...lead, stage: action })}
+                      onWon={handleWon}
+                      stages={stages}
+                    />
+                  );
+                })}
+                <AddStageInline onAdd={handleAddStage} />
+              </div>
+            </SortableContext>
           </DndContext>
         </>
       ) : (
@@ -851,8 +1050,8 @@ export default function LeadsPage() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 overflow-x-auto pb-8 items-stretch h-[calc(100vh-200px)]">
-            {stages.map((stage) => {
+          <div className="flex gap-4 overflow-x-auto pb-6 items-stretch mb-8" style={{ minHeight: "500px" }}>
+            {activeStages.map((stage) => {
               const stageLeads = leads.filter((l) => l.stage === stage.id);
               return (
                 <div key={stage.id} className="min-w-[280px] flex-1 flex flex-col">
@@ -862,19 +1061,22 @@ export default function LeadsPage() {
                     editMode={false}
                     editingStageId={null}
                     editingName=""
-                    onStartEdit={() => {}}
-                    onChangeName={() => {}}
-                    onSaveName={() => {}}
-                    onChangeColor={() => {}}
-                    onDelete={() => {}}
+                    onStartEdit={() => { }}
+                    onChangeName={() => { }}
+                    onSaveName={() => { }}
+                    onChangeColor={() => { }}
+                    onDelete={() => { }}
                     onLeadClick={(lead) => setSelectedLead(lead)}
                     onQuickAction={(lead, action) => setSelectedLead({ ...lead, stage: action })}
+                    onWon={handleWon}
                     stages={stages}
                   />
                 </div>
               );
             })}
           </div>
+
+          <ArchiveList leads={leads} wonStage={wonStage} lostStage={lostStage} onLeadClick={(lead) => setSelectedLead(lead)} />
 
           <DragOverlay>
             {activeDragLead ? (

@@ -24,6 +24,7 @@ import {
   ClipboardList,
   Flame,
   Check,
+  PhoneCall,
 } from "lucide-react";
 import {
   isToday,
@@ -105,6 +106,13 @@ interface DashboardStats {
     status: string;
     dueAt: string | null;
     dueDate: string | null;
+  }[];
+  urgentLeads: {
+    id: string;
+    name: string;
+    phone: string | null;
+    nextFollowUpAt: string | null;
+    customer: { name: string } | null;
   }[];
 }
 
@@ -622,6 +630,85 @@ function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
   );
 }
 
+// ─── Urgent Leads Alert Component ────────────────────────────────────────────
+
+function UrgentLeadsAlert({ leads }: { leads: DashboardStats["urgentLeads"] }) {
+  if (!leads || leads.length === 0) return null;
+
+  return (
+    <div className="card overflow-hidden" style={{ borderTop: "3px solid #EF4444" }}>
+      <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100 bg-red-50/30">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-red-100">
+            <PhoneCall className="w-4 h-4 text-red-600 animate-pulse" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-petra-text">לידים דחופים לטיפול</h2>
+            <p className="text-[11px] text-petra-muted">
+              <span className="text-red-600 font-medium">{leads.length} לידים</span> ממתינים לפולואפ
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/leads"
+          className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
+        >
+          ללוח הלידים
+          <ArrowLeft className="w-3 h-3" />
+        </Link>
+      </div>
+
+      <div className="divide-y divide-slate-50">
+        {leads.map((lead) => {
+          const timeStr = lead.nextFollowUpAt
+            ? new Date(lead.nextFollowUpAt).toLocaleString("he-IL", {
+              day: "2-digit",
+              month: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit"
+            })
+            : "";
+
+          return (
+            <div
+              key={lead.id}
+              className="px-5 py-3 flex items-center gap-3 transition-colors hover:bg-slate-50/50"
+            >
+              <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-petra-text truncate">
+                  {lead.name}
+                </div>
+                {lead.customer?.name && (
+                  <div className="text-[11px] text-petra-muted truncate">
+                    לקוח: {lead.customer.name}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-red-50 text-red-700 border border-red-100 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  עבר זמן: {timeStr}
+                </span>
+
+                <Link
+                  href={`/leads?id=${lead.id}`}
+                  className="w-7 h-7 rounded-md bg-brand-50 text-brand-600 hover:bg-brand-100 flex items-center justify-center transition-colors"
+                  title="לטפל בליד"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -692,20 +779,20 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Greeting Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-2">
           <h1 className="text-xl font-bold text-petra-text">
             שלום, {user?.name || "משתמש"} 👋
           </h1>
-          <p className="text-sm text-petra-muted mt-0.5">{todayStr}</p>
+          <p className="text-sm text-petra-muted">{todayStr}</p>
+          <button
+            onClick={() => setShowCreateOrder(true)}
+            className="btn-primary flex items-center gap-2 self-start"
+          >
+            <Plus className="w-4 h-4" />
+            הזמנה חדשה
+          </button>
         </div>
-        <button
-          onClick={() => setShowCreateOrder(true)}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          הזמנה חדשה
-        </button>
       </div>
 
       {/* Daily Focus — Today's & Overdue Tasks */}
@@ -714,6 +801,9 @@ export default function DashboardPage() {
         overdueTasks={data.overdueTasks || []}
         onComplete={handleCompleteTask}
       />
+
+      {/* Urgent Leads Alert */}
+      <UrgentLeadsAlert leads={data.urgentLeads || []} />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

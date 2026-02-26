@@ -405,6 +405,9 @@ model Lead {
   lostByUserId     String?
   lostReasonCode   String?   // PRICE | COMPETITOR | SCHEDULING | TRUST_FIT | NO_RESPONSE | NOT_RELEVANT | OTHER
   lostReasonText   String?
+  // Follow-up fields
+  nextFollowUpAt   DateTime?
+  followUpStatus   String   @default("pending") // "pending" | "completed"
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
