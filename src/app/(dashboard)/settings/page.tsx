@@ -22,6 +22,7 @@ import {
   Download,
   Upload,
   FileSpreadsheet,
+  FileText,
   Hotel,
   Clock,
   Moon,
@@ -29,6 +30,7 @@ import {
   Users2,
   UserPlus,
   Shield,
+  Settings2,
   X,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -251,21 +253,35 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   calendar: Calendar,
   "message-circle": MessageCircle,
   mail: Mail,
+  "file-text": FileText,
 };
 
 function IntegrationsTab() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const gcalStatus = searchParams.get("gcal");
+  const [showInvoicingModal, setShowInvoicingModal] = useState(false);
+  const [showMappingModal, setShowMappingModal] = useState(false);
 
   const { data: integrations, isLoading } = useQuery<Integration[]>({
     queryKey: ["integrations"],
     queryFn: () => fetchJSON<Integration[]>("/api/integrations"),
   });
 
-  const disconnectMutation = useMutation({
+  const disconnectGcalMutation = useMutation({
     mutationFn: () =>
       fetch("/api/integrations/google/disconnect", { method: "POST" }).then((r) => {
+        if (!r.ok) throw new Error("Disconnect failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["integrations"] });
+    },
+  });
+
+  const disconnectInvoicingMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/invoicing/settings", { method: "DELETE" }).then((r) => {
         if (!r.ok) throw new Error("Disconnect failed");
         return r.json();
       }),
@@ -306,6 +322,9 @@ function IntegrationsTab() {
 
       {integrations?.map((integ) => {
         const Icon = ICON_MAP[integ.icon] ?? Plug;
+        const isInvoicing = integ.id === "invoicing";
+        const isGcal = integ.id === "google-calendar";
+
         return (
           <div key={integ.id} className="card p-5 flex items-start gap-4">
             <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0", integ.connected ? "bg-emerald-50" : "bg-slate-100")}>
@@ -325,14 +344,41 @@ function IntegrationsTab() {
                 <p className="text-xs text-emerald-600 mt-1">{integ.connectedEmail}</p>
               )}
             </div>
-            <div className="flex-shrink-0">
-              {integ.connected && integ.disconnectUrl ? (
+            <div className="flex-shrink-0 flex items-center gap-2">
+              {isInvoicing ? (
+                integ.connected ? (
+                  <>
+                    <button
+                      className="btn-ghost text-sm flex items-center gap-1.5"
+                      onClick={() => setShowMappingModal(true)}
+                    >
+                      <Settings2 className="w-3.5 h-3.5" />
+                      הגדרות
+                    </button>
+                    <button
+                      className="btn-ghost text-sm text-red-500 hover:text-red-600 hover:bg-red-50"
+                      onClick={() => disconnectInvoicingMutation.mutate()}
+                      disabled={disconnectInvoicingMutation.isPending}
+                    >
+                      {disconnectInvoicingMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "נתק"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="btn-primary text-sm flex items-center gap-1.5"
+                    onClick={() => setShowInvoicingModal(true)}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    חבר
+                  </button>
+                )
+              ) : isGcal && integ.connected && integ.disconnectUrl ? (
                 <button
                   className="btn-ghost text-sm text-red-500 hover:text-red-600 hover:bg-red-50"
-                  onClick={() => disconnectMutation.mutate()}
-                  disabled={disconnectMutation.isPending}
+                  onClick={() => disconnectGcalMutation.mutate()}
+                  disabled={disconnectGcalMutation.isPending}
                 >
-                  {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "נתק"}
+                  {disconnectGcalMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "נתק"}
                 </button>
               ) : integ.connectUrl ? (
                 <a href={integ.connectUrl} className="btn-primary text-sm flex items-center gap-1.5">
@@ -346,6 +392,282 @@ function IntegrationsTab() {
           </div>
         );
       })}
+
+      {showInvoicingModal && (
+        <InvoicingConnectModal
+          onClose={() => setShowInvoicingModal(false)}
+          onSuccess={() => {
+            setShowInvoicingModal(false);
+            queryClient.invalidateQueries({ queryKey: ["integrations"] });
+          }}
+        />
+      )}
+
+      {showMappingModal && (
+        <InvoicingMappingModal
+          onClose={() => setShowMappingModal(false)}
+          onSuccess={() => {
+            setShowMappingModal(false);
+            queryClient.invalidateQueries({ queryKey: ["integrations"] });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Invoicing Connect Modal ────────────────────────────────────────────────
+
+function InvoicingConnectModal({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [provider, setProvider] = useState("morning");
+  const [apiKey, setApiKey] = useState("");
+  const [apiSecret, setApiSecret] = useState("");
+  const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+  const [testError, setTestError] = useState<string | null>(null);
+
+  const testMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/invoicing/settings/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ providerName: provider, apiKey, apiSecret }),
+      }).then(async (r) => {
+        const data = await r.json();
+        if (!r.ok || !data.success) throw new Error(data.error || "בדיקה נכשלה");
+        return data;
+      }),
+    onMutate: () => {
+      setTestStatus("testing");
+      setTestError(null);
+    },
+    onSuccess: () => setTestStatus("success"),
+    onError: (err: Error) => {
+      setTestStatus("error");
+      setTestError(err.message);
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/invoicing/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ providerName: provider, apiKey, apiSecret }),
+      }).then(async (r) => {
+        if (!r.ok) {
+          const data = await r.json().catch(() => ({}));
+          throw new Error(data.error || "שמירה נכשלה");
+        }
+        return r.json();
+      }),
+    onSuccess,
+    onError: (err: Error) => {
+      setTestStatus("error");
+      setTestError(err.message);
+    },
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-lg mx-4 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-petra-text">חיבור חשבוניות</h2>
+            <p className="text-sm text-petra-muted mt-0.5">הפקת חשבוניות וקבלות אוטומטית</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="label">ספק</label>
+            <select className="input" value={provider} onChange={(e) => setProvider(e.target.value)}>
+              <option value="morning">Morning (חשבונית ירוקה)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="label">API Key *</label>
+            <input
+              className="input"
+              dir="ltr"
+              value={apiKey}
+              onChange={(e) => { setApiKey(e.target.value); setTestStatus("idle"); }}
+              placeholder="API Key מ-Morning"
+            />
+          </div>
+
+          <div>
+            <label className="label">API Secret *</label>
+            <input
+              className="input"
+              type="password"
+              dir="ltr"
+              value={apiSecret}
+              onChange={(e) => { setApiSecret(e.target.value); setTestStatus("idle"); }}
+              placeholder="API Secret מ-Morning"
+            />
+          </div>
+
+          {testStatus === "success" && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
+              <CheckCircle className="w-4 h-4 flex-shrink-0" />
+              החיבור תקין!
+            </div>
+          )}
+
+          {testStatus === "error" && testError && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+              <XCircle className="w-4 h-4 flex-shrink-0" />
+              {testError}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          {testStatus !== "success" ? (
+            <button
+              className="btn-primary flex-1 flex items-center justify-center gap-2"
+              disabled={!apiKey.trim() || !apiSecret.trim() || testMutation.isPending}
+              onClick={() => testMutation.mutate()}
+            >
+              {testMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plug className="w-4 h-4" />}
+              {testMutation.isPending ? "בודק..." : "בדוק חיבור"}
+            </button>
+          ) : (
+            <button
+              className="btn-primary flex-1 flex items-center justify-center gap-2"
+              style={{ background: "#10B981" }}
+              disabled={saveMutation.isPending}
+              onClick={() => saveMutation.mutate()}
+            >
+              {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+              {saveMutation.isPending ? "שומר..." : "שמור וחבר"}
+            </button>
+          )}
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Invoicing Document Mapping Modal ───────────────────────────────────────
+
+const DOC_TYPE_OPTIONS = [
+  { value: 320, label: "חשבונית מס / קבלה" },
+  { value: 400, label: "קבלה" },
+  { value: 305, label: "חשבונית מס" },
+  { value: 0, label: "ללא מסמך" },
+];
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  cash: "מזומן",
+  credit_card: "כרטיס אשראי",
+  bank_transfer: "העברה בנקאית",
+  bit: "ביט",
+  paybox: "פייבוקס",
+  check: "צ׳ק",
+};
+
+const DEFAULT_MAPPING: Record<string, number> = {
+  cash: 320,
+  credit_card: 320,
+  bank_transfer: 320,
+  bit: 400,
+  paybox: 400,
+  check: 320,
+};
+
+function InvoicingMappingModal({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const { data: settings } = useQuery<{ documentMapping: string } | null>({
+    queryKey: ["invoicing-settings"],
+    queryFn: () => fetchJSON("/api/invoicing/settings"),
+  });
+
+  const [mapping, setMapping] = useState<Record<string, number>>(DEFAULT_MAPPING);
+  const [initialized, setInitialized] = useState(false);
+
+  // Sync mapping from server settings when they load
+  const settingsMappingStr = settings?.documentMapping;
+  if (settingsMappingStr && !initialized) {
+    try {
+      const parsed = JSON.parse(settingsMappingStr);
+      setMapping({ ...DEFAULT_MAPPING, ...parsed });
+    } catch { /* keep default */ }
+    setInitialized(true);
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/invoicing/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentMapping: mapping, updateMappingOnly: true }),
+      }).then(async (r) => {
+        if (!r.ok) throw new Error("שמירה נכשלה");
+        return r.json();
+      }),
+    onSuccess,
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-lg mx-4 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-petra-text">מיפוי מסמכים</h2>
+            <p className="text-sm text-petra-muted mt-0.5">בחר איזה מסמך יופק לכל אמצעי תשלום</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {Object.entries(PAYMENT_METHOD_LABELS).map(([method, label]) => (
+            <div key={method} className="flex items-center justify-between gap-3">
+              <label className="text-sm font-medium text-petra-text w-32">{label}</label>
+              <select
+                className="input flex-1"
+                value={mapping[method] ?? 320}
+                onChange={(e) => setMapping({ ...mapping, [method]: Number(e.target.value) })}
+              >
+                {DOC_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            className="btn-primary flex-1"
+            disabled={saveMutation.isPending}
+            onClick={() => saveMutation.mutate()}
+          >
+            {saveMutation.isPending ? "שומר..." : "שמור"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -873,16 +1195,19 @@ function AddEmployeeModal({
   });
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-backdrop" />
-      <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-petra-text flex items-center gap-2">
-            <UserPlus className="w-5 h-5 text-brand-500" />
-            הוסף עובד חדש
-          </h3>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 transition-colors">
-            <X className="w-4 h-4 text-slate-400" />
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-lg mx-4 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-petra-text">עובד חדש</h2>
+            <p className="text-sm text-petra-muted mt-0.5">הוסף עובד חדש לצוות</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -898,13 +1223,15 @@ function AddEmployeeModal({
             <label className="label">שם מלא *</label>
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="ישראל ישראלי" />
           </div>
-          <div>
-            <label className="label">אימייל *</label>
-            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@example.com" dir="ltr" />
-          </div>
-          <div>
-            <label className="label">סיסמה זמנית *</label>
-            <input className="input" type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="לפחות 8 תווים" dir="ltr" />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">אימייל *</label>
+              <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@example.com" dir="ltr" />
+            </div>
+            <div>
+              <label className="label">סיסמה זמנית *</label>
+              <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="לפחות 8 תווים" dir="ltr" minLength={8} />
+            </div>
           </div>
           <div>
             <label className="label">תפקיד</label>
@@ -918,7 +1245,7 @@ function AddEmployeeModal({
 
         <div className="flex gap-3 mt-6">
           <button
-            className="btn-primary flex-1 flex items-center justify-center gap-2"
+            className="btn-primary flex-1"
             disabled={!name.trim() || !email.trim() || !password.trim() || password.length < 8 || mutation.isPending}
             onClick={() => { setError(null); mutation.mutate(); }}
           >

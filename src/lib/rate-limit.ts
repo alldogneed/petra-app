@@ -79,6 +79,10 @@ export const RATE_LIMITS = {
   OWNER_API: { max: 100, windowMs: 60 * 1000 },
   /** OAuth callback: 20 per 10 minutes */
   OAUTH_CALLBACK: { max: 20, windowMs: 10 * 60 * 1000 },
+  /** Invoice webhook: 100 per minute per IP */
+  INVOICE_WEBHOOK: { max: 100, windowMs: 60 * 1000 },
+  /** Invoice API: 60 per minute per user */
+  INVOICE_API: { max: 60, windowMs: 60 * 1000 },
 } as const;
 
 /** Periodic cleanup of expired entries (call from a cron or app init) */

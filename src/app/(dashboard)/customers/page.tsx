@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, DragEvent } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -34,6 +34,7 @@ import {
   Tag,
   Settings2,
   Trash2,
+  GripVertical,
 } from "lucide-react";
 import { toWhatsAppPhone, fetchJSON, formatCurrency } from "@/lib/utils";
 import { SERVICE_TYPES, ORDER_CATEGORIES, ORDER_UNITS } from "@/lib/constants";
@@ -439,13 +440,12 @@ function InlineTagEditor({ customer, presetTags }: { customer: EnhancedCustomer;
                 key={tag}
                 type="button"
                 onClick={() => toggleTag(tag)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all border ${
-                  tags.includes(tag)
-                    ? tag === "VIP"
-                      ? "bg-amber-500 text-white border-amber-500"
-                      : "bg-[#3D2E1F] text-white border-[#3D2E1F]"
-                    : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:border-[#C4956A]"
-                }`}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all border ${tags.includes(tag)
+                  ? tag === "VIP"
+                    ? "bg-amber-500 text-white border-amber-500"
+                    : "bg-[#3D2E1F] text-white border-[#3D2E1F]"
+                  : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:border-[#C4956A]"
+                  }`}
               >
                 {tag}
               </button>
@@ -473,18 +473,16 @@ function FilterPill({
   return (
     <button
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 ${
-        active
-          ? "bg-[#3D2E1F] text-white shadow-sm"
-          : "bg-[#FAF7F3] text-[#8B7355] border border-[#E8DFD5] hover:bg-[#F3EDE6] hover:border-[#D4C5B2]"
-      }`}
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 ${active
+        ? "bg-[#3D2E1F] text-white shadow-sm"
+        : "bg-[#FAF7F3] text-[#8B7355] border border-[#E8DFD5] hover:bg-[#F3EDE6] hover:border-[#D4C5B2]"
+        }`}
     >
       {label}
       {count !== undefined && count > 0 && (
         <span
-          className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-            active ? "bg-white/20 text-white" : "bg-[#E8DFD5] text-[#8B7355]"
-          }`}
+          className={`text-[10px] px-1.5 py-0.5 rounded-full ${active ? "bg-white/20 text-white" : "bg-[#E8DFD5] text-[#8B7355]"
+            }`}
         >
           {count}
         </span>
@@ -509,6 +507,9 @@ function ManageTagsPopover({
   const [newTag, setNewTag] = useState("");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const dragIndexRef = useRef<number | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -530,9 +531,9 @@ function ManageTagsPopover({
     const handler = (e: MouseEvent) => {
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
         setIsOpen(false);
-        // Don't reset editingIndex here — let cancelEdit handle cleanup
         setEditingIndex(null);
         setEditValue("");
+        setConfirmDeleteIndex(null);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -552,12 +553,14 @@ function ManageTagsPopover({
   const removeTag = (index: number) => {
     const updated = localTags.filter((_, i) => i !== index);
     setLocalTags(updated);
+    setConfirmDeleteIndex(null);
     onSave(updated);
   };
 
   const startEdit = (index: number) => {
     setEditingIndex(index);
     setEditValue(localTags[index]);
+    setConfirmDeleteIndex(null);
   };
 
   const saveEdit = () => {
@@ -580,15 +583,47 @@ function ManageTagsPopover({
     setEditValue("");
   };
 
+  // ── Drag to reorder ────────────────────────────────────────────
+  const handleDragStart = (e: DragEvent<HTMLDivElement>, index: number) => {
+    dragIndexRef.current = index;
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>, dropIndex: number) => {
+    e.preventDefault();
+    const fromIndex = dragIndexRef.current;
+    if (fromIndex === null || fromIndex === dropIndex) {
+      setDragOverIndex(null);
+      return;
+    }
+    const updated = [...localTags];
+    const [moved] = updated.splice(fromIndex, 1);
+    updated.splice(dropIndex, 0, moved);
+    setLocalTags(updated);
+    setDragOverIndex(null);
+    dragIndexRef.current = null;
+    onSave(updated);
+  };
+
+  const handleDragEnd = () => {
+    setDragOverIndex(null);
+    dragIndexRef.current = null;
+  };
+
   return (
     <div className="relative" ref={popoverRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-          isOpen
-            ? "bg-[#3D2E1F] text-white"
-            : "text-[#A0845C] hover:bg-[#F3EDE6] hover:text-[#8B7355]"
-        }`}
+        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isOpen
+          ? "bg-[#3D2E1F] text-white"
+          : "text-[#A0845C] hover:bg-[#F3EDE6] hover:text-[#8B7355]"
+          }`}
         title="ניהול תוויות"
       >
         <Settings2 className="w-3.5 h-3.5" />
@@ -631,8 +666,19 @@ function ManageTagsPopover({
             {localTags.map((tag, index) => (
               <div
                 key={`${tag}-${index}`}
-                className="flex items-center gap-2 group px-2 py-1.5 rounded-lg hover:bg-[#FAF7F3] transition-colors"
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+                className={`flex items-center gap-2 group px-2 py-1.5 rounded-lg transition-colors cursor-grab active:cursor-grabbing ${dragOverIndex === index
+                  ? "bg-[#F3EDE6] border-2 border-dashed border-[#C4956A]"
+                  : "hover:bg-[#FAF7F3] border-2 border-transparent"
+                  }`}
               >
+                {/* Drag handle */}
+                <GripVertical className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+
                 {editingIndex === index ? (
                   <div className="flex items-center gap-1 flex-1">
                     <input
@@ -661,12 +707,28 @@ function ManageTagsPopover({
                       <X className="w-3 h-3" />
                     </button>
                   </div>
+                ) : confirmDeleteIndex === index ? (
+                  // ── Confirm delete inline ──
+                  <div className="flex items-center gap-1.5 flex-1">
+                    <span className="flex-1 text-xs text-red-600 font-medium">מחק את &quot;{tag}&quot;?</span>
+                    <button
+                      onClick={() => removeTag(index)}
+                      className="px-2 py-0.5 rounded text-[10px] font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors flex-shrink-0"
+                    >
+                      מחק
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteIndex(null)}
+                      className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors flex-shrink-0"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
                 ) : (
                   <>
                     <span
-                      className={`flex-1 text-xs font-medium cursor-pointer ${
-                        tag === "VIP" ? "text-amber-700" : "text-[#8B7355]"
-                      }`}
+                      className={`flex-1 text-xs font-medium cursor-pointer ${tag === "VIP" ? "text-amber-700" : "text-[#8B7355]"
+                        }`}
                       onClick={() => startEdit(index)}
                       title="לחץ לעריכה"
                     >
@@ -681,7 +743,7 @@ function ManageTagsPopover({
                         <Pencil className="w-3 h-3" />
                       </button>
                       <button
-                        onClick={() => removeTag(index)}
+                        onClick={() => setConfirmDeleteIndex(index)}
                         className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                         title="מחק"
                       >
@@ -846,13 +908,12 @@ function EditCustomerModal({
                   key={tag}
                   type="button"
                   onClick={() => toggleEditTag(tag)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
-                    form.selectedTags.includes(tag)
-                      ? tag === "VIP"
-                        ? "bg-amber-500 text-white border-amber-500"
-                        : "bg-[#3D2E1F] text-white border-[#3D2E1F]"
-                      : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:border-[#C4956A]"
-                  }`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${form.selectedTags.includes(tag)
+                    ? tag === "VIP"
+                      ? "bg-amber-500 text-white border-amber-500"
+                      : "bg-[#3D2E1F] text-white border-[#3D2E1F]"
+                    : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:border-[#C4956A]"
+                    }`}
                 >
                   {tag}
                 </button>
@@ -1233,13 +1294,12 @@ function NewCustomerModal({
                   key={tag}
                   type="button"
                   onClick={() => toggleNewTag(tag)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
-                    form.selectedTags.includes(tag)
-                      ? tag === "VIP"
-                        ? "bg-amber-500 text-white border-amber-500"
-                        : "bg-[#3D2E1F] text-white border-[#3D2E1F]"
-                      : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:border-[#C4956A]"
-                  }`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${form.selectedTags.includes(tag)
+                    ? tag === "VIP"
+                      ? "bg-amber-500 text-white border-amber-500"
+                      : "bg-[#3D2E1F] text-white border-[#3D2E1F]"
+                    : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:border-[#C4956A]"
+                    }`}
                 >
                   {tag}
                 </button>
@@ -1548,13 +1608,12 @@ function NewOrderModal({
               {[1, 2, 3].map((s) => (
                 <div
                   key={s}
-                  className={`h-1.5 rounded-full transition-all ${
-                    s === step
-                      ? "w-8 bg-gradient-to-l from-[#f38d49] to-[#FB923C]"
-                      : s < step
+                  className={`h-1.5 rounded-full transition-all ${s === step
+                    ? "w-8 bg-gradient-to-l from-[#f38d49] to-[#FB923C]"
+                    : s < step
                       ? "w-6 bg-[#f38d49]/40"
                       : "w-6 bg-slate-200"
-                  }`}
+                    }`}
                 />
               ))}
               <span className="text-xs text-petra-muted mr-2">
@@ -1680,11 +1739,10 @@ function NewOrderModal({
                           key={item.id}
                           onClick={() => addLine(item)}
                           disabled={added}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                            added
-                              ? "bg-[#f38d49]/10 text-[#f38d49] border-[#f38d49]/20 cursor-default"
-                              : "bg-white text-petra-text border-slate-200 hover:border-[#f38d49]/40 hover:bg-[#FFF8F3]"
-                          }`}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${added
+                            ? "bg-[#f38d49]/10 text-[#f38d49] border-[#f38d49]/20 cursor-default"
+                            : "bg-white text-petra-text border-slate-200 hover:border-[#f38d49]/40 hover:bg-[#FFF8F3]"
+                            }`}
                         >
                           {added && <Check className="w-3 h-3" />}
                           {item.name} — {formatCurrency(item.basePrice)}
@@ -2114,6 +2172,7 @@ export default function CustomersPage() {
 
   // ── State ──
   const [search, setSearch] = useState("");
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "dormant" | "vip">("all");
   const [serviceTypeFilter, setServiceTypeFilter] = useState("");
   const [financialFilter, setFinancialFilter] = useState<"all" | "debt" | "balanced">("all");
@@ -2127,7 +2186,7 @@ export default function CustomersPage() {
   const { data: businessSettings } = useQuery<{ customerTags?: string }>({
     queryKey: ["business-settings"],
     queryFn: () => fetchJSON<{ customerTags?: string }>("/api/settings"),
-    staleTime: 5 * 60 * 1000, // 5 min
+    staleTime: 0, // always fresh so tag changes are reflected immediately
   });
 
   const customerPresetTags = useMemo(() => {
@@ -2152,6 +2211,7 @@ export default function CustomersPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["business-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
   });
 
@@ -2182,8 +2242,13 @@ export default function CustomersPage() {
       filtered = filtered.filter((c) => c.financial.totalPending === 0);
     }
 
+    // Tag filter
+    if (tagFilter) {
+      filtered = filtered.filter((c) => parseTags(c.tags).includes(tagFilter));
+    }
+
     return filtered;
-  }, [rawCustomers, statusFilter, financialFilter]);
+  }, [rawCustomers, statusFilter, financialFilter, tagFilter]);
 
   // ── Stats ──
   const stats = useMemo(() => {
@@ -2380,10 +2445,55 @@ export default function CustomersPage() {
           {/* Manage tags button */}
           <ManageTagsPopover
             tags={customerPresetTags}
-            onSave={(tags) => saveTagsMutation.mutate(tags)}
+            onSave={(updatedTags) => {
+              // If the currently active tag filter was just removed, clear it
+              if (tagFilter && !updatedTags.includes(tagFilter)) {
+                setTagFilter(null);
+              }
+              saveTagsMutation.mutate(updatedTags);
+            }}
             isSaving={saveTagsMutation.isPending}
           />
         </div>
+
+        {/* Tag filter pills — shown only when there are preset tags */}
+        {customerPresetTags.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-[#F0E8DD] pt-2">
+            <span className="text-[10px] text-[#8B7355] font-medium flex items-center gap-1">
+              <Tag className="w-3 h-3" />
+              תגיות:
+            </span>
+            {customerPresetTags.map((tag) => {
+              const count = rawCustomers.filter((c) => parseTags(c.tags).includes(tag)).length;
+              return (
+                <button
+                  key={tag}
+                  onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all border ${tagFilter === tag
+                    ? "bg-[#3D2E1F] text-white border-[#3D2E1F] shadow-sm"
+                    : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:bg-[#F3EDE6]"
+                    }`}
+                >
+                  {tag}
+                  {count > 0 && (
+                    <span className={`text-[10px] px-1 rounded-full ${tagFilter === tag ? "bg-white/20 text-white" : "bg-[#E8DFD5] text-[#8B7355]"
+                      }`}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+            {tagFilter && (
+              <button
+                onClick={() => setTagFilter(null)}
+                className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-3 h-3" /> נקה
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ─── Bulk Action Bar ─── */}
@@ -2515,9 +2625,8 @@ export default function CustomersPage() {
                   return (
                     <tr
                       key={customer.id}
-                      className={`border-b border-slate-50 hover:bg-[#FDFBF8] transition-colors ${
-                        isSelected ? "bg-[#FEF9F4]" : ""
-                      }`}
+                      className={`border-b border-slate-50 hover:bg-[#FDFBF8] transition-colors ${isSelected ? "bg-[#FEF9F4]" : ""
+                        }`}
                     >
                       {/* Checkbox */}
                       <td className="px-3 py-3.5">

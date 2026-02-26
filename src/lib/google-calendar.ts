@@ -7,6 +7,9 @@
  */
 
 import { prisma } from "./prisma";
+import { encryptToken, decryptToken } from "./encryption";
+
+export { encryptToken, decryptToken };
 
 // ─── Google API endpoints ────────────────────────────────────────────────────
 
@@ -15,46 +18,6 @@ const GOOGLE_CALENDAR_BASE = "https://www.googleapis.com/calendar/v3";
 const GOOGLE_TOKEN_INFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 const PETRA_CALENDAR_NAME = "Petra Bookings";
 const BOOKING_TIMEZONE = "Asia/Jerusalem";
-
-// ─── Encryption helpers (AES-256-GCM) ────────────────────────────────────────
-
-function getEncryptionKey(): Buffer {
-  const keyHex = process.env.GCAL_ENCRYPTION_KEY;
-  if (!keyHex || keyHex.length !== 64) {
-    throw new Error(
-      "GCAL_ENCRYPTION_KEY must be a 64-char hex string (32 bytes). " +
-      "Generate with: openssl rand -hex 32"
-    );
-  }
-  return Buffer.from(keyHex, "hex");
-}
-
-export function encryptToken(plaintext: string): string {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createCipheriv, randomBytes } = require("crypto") as typeof import("crypto");
-  const key = getEncryptionKey();
-  const iv = randomBytes(12); // 96-bit IV for GCM
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-  // Format: iv(12):authTag(16):ciphertext — all hex-joined with ":"
-  return [iv.toString("hex"), authTag.toString("hex"), encrypted.toString("hex")].join(":");
-}
-
-export function decryptToken(ciphertext: string): string {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createDecipheriv } = require("crypto") as typeof import("crypto");
-  const key = getEncryptionKey();
-  const parts = ciphertext.split(":");
-  if (parts.length !== 3) throw new Error("Invalid encrypted token format");
-  const [ivHex, authTagHex, dataHex] = parts;
-  const iv = Buffer.from(ivHex, "hex");
-  const authTag = Buffer.from(authTagHex, "hex");
-  const data = Buffer.from(dataHex, "hex");
-  const decipher = createDecipheriv("aes-256-gcm", key, iv);
-  decipher.setAuthTag(authTag);
-  return Buffer.concat([decipher.update(data), decipher.final()]).toString("utf8");
-}
 
 // ─── Token management ────────────────────────────────────────────────────────
 

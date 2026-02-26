@@ -23,8 +23,10 @@ import {
   Package,
   ClipboardList,
   Flame,
+  CalendarClock,
   Check,
   PhoneCall,
+  X,
 } from "lucide-react";
 import {
   isToday,
@@ -44,7 +46,6 @@ import {
 } from "recharts";
 import { useAuth } from "@/providers/auth-provider";
 import { formatCurrency, fetchJSON, cn } from "@/lib/utils";
-import { CreateOrderModal } from "@/components/orders/CreateOrderModal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -709,12 +710,146 @@ function UrgentLeadsAlert({ leads }: { leads: DashboardStats["urgentLeads"] }) {
   );
 }
 
+// ─── New Customer Modal ───────────────────────────────────────────────────────
+
+function NewCustomerModal({
+  isOpen,
+  onClose,
+  onCreated,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+    notes: "",
+    source: "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: (data: typeof form) =>
+      fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.name,
+          phone: data.phone,
+          email: data.email || null,
+          address: data.address || null,
+          notes: data.notes || null,
+          source: data.source || null,
+          tags: "[]",
+        }),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      setForm({ name: "", phone: "", email: "", address: "", notes: "", source: "" });
+      onCreated();
+    },
+  });
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-lg mx-4 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-petra-text">לקוח חדש</h2>
+            <p className="text-sm text-petra-muted mt-0.5">הוסף לקוח למערכת</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="label">שם מלא *</label>
+            <input
+              className="input"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="שם הלקוח"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">טלפון *</label>
+              <input
+                className="input"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="050-0000000"
+              />
+            </div>
+            <div>
+              <label className="label">אימייל</label>
+              <input
+                className="input"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="label">כתובת</label>
+            <input
+              className="input"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="עיר, רחוב"
+            />
+          </div>
+          <div>
+            <label className="label">הערות</label>
+            <textarea
+              className="input"
+              rows={3}
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            className="btn-primary flex-1"
+            disabled={!form.name || !form.phone || mutation.isPending}
+            onClick={() => mutation.mutate(form)}
+          >
+            <UserPlus className="w-4 h-4" />
+            {mutation.isPending ? "שומר..." : "הוסף לקוח"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>
+            ביטול
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [showCreateOrder, setShowCreateOrder] = useState(false);
+  const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [serviceFilter, setServiceFilter] = useState("all");
 
   const [completingTaskIds, setCompletingTaskIds] = useState<Set<string>>(new Set());
@@ -785,13 +920,22 @@ export default function DashboardPage() {
             שלום, {user?.name || "משתמש"} 👋
           </h1>
           <p className="text-sm text-petra-muted">{todayStr}</p>
-          <button
-            onClick={() => setShowCreateOrder(true)}
-            className="btn-primary flex items-center gap-2 self-start"
-          >
-            <Plus className="w-4 h-4" />
-            הזמנה חדשה
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowNewCustomer(true)}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              לקוח חדש
+            </button>
+            <Link
+              href="/scheduler"
+              className="btn-secondary flex items-center gap-2"
+            >
+              <CalendarClock className="w-4 h-4" />
+              תור ידני +
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -1032,12 +1176,12 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Create Order Modal */}
-      <CreateOrderModal
-        isOpen={showCreateOrder}
-        onClose={() => setShowCreateOrder(false)}
+      {/* New Customer Modal */}
+      <NewCustomerModal
+        isOpen={showNewCustomer}
+        onClose={() => setShowNewCustomer(false)}
         onCreated={() => {
-          setShowCreateOrder(false);
+          setShowNewCustomer(false);
           queryClient.invalidateQueries({ queryKey: ["dashboard"] });
         }}
       />

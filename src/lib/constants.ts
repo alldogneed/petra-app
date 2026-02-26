@@ -152,3 +152,26 @@ export const ORDER_UNITS = [
   { id: "per_unit", label: "ליחידה" },
   { id: "package", label: "חבילה" },
 ] as const;
+
+// ─── Invoicing ───────────────────────────────────────────────────────────────
+
+export const INVOICE_DOCUMENT_TYPES = [
+  { id: 305, label: "חשבונית מס" },
+  { id: 320, label: "חשבונית מס / קבלה" },
+  { id: 400, label: "קבלה" },
+  { id: 330, label: "חשבונית זיכוי" },
+] as const;
+
+export const INVOICE_STATUSES = [
+  { id: "draft", label: "טיוטה", color: "#94A3B8" },
+  { id: "pending", label: "ממתין", color: "#F59E0B" },
+  { id: "issued", label: "הונפקה", color: "#22C55E" },
+  { id: "failed", label: "נכשל", color: "#EF4444" },
+  { id: "cancelled", label: "בוטל", color: "#64748B" },
+] as const;
+
+export const INVOICE_PROVIDERS = [
+  { id: "morning", label: "Morning (חשבונית ירוקה)", description: "חשבוניות וקבלות דיגיטליות דרך Green Invoice" },
+  { id: "icount", label: "iCount", description: "מערכת חשבוניות והנהלת חשבונות" },
+  { id: "rivhit", label: "רווחית", description: "חשבוניות דיגיטליות ודוחות" },
+] as const;

@@ -17,12 +17,12 @@ import {
   BarChart3,
   CreditCard,
   CalendarCheck,
-  CalendarClock,
   HelpCircle,
   Tag,
   ShoppingCart,
   Crown,
   Dog,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -50,8 +50,8 @@ const navItems: NavItem[] = [
   { name: "לקוחות", href: "/customers", icon: Users },
   { name: "יומן", href: "/calendar", icon: Calendar },
   { name: "משימות", href: "/tasks", icon: ListTodo },
-  { name: "תורים", href: "/scheduler", icon: CalendarClock },
   { name: "תשלומים", href: "/payments", icon: CreditCard, minRole: "manager" },
+  { name: "חשבוניות", href: "/invoices", icon: Receipt, minRole: "manager" },
   { name: "מחירון", href: "/pricing", icon: Tag, minRole: "manager" },
   { name: "הזמנות", href: "/orders", icon: ShoppingCart },
   { name: "פנסיון", href: "/boarding", icon: Hotel },

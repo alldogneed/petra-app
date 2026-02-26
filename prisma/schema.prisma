@@ -207,6 +207,9 @@ model Business {
   trainingPrograms  TrainingProgram[]
   intakeForms       IntakeForm[]
   leadStages        LeadStage[]
+  invoicingSettings InvoicingSettings?
+  invoiceJobs       InvoiceJob[]
+  invoiceDocuments  InvoiceDocument[]
 
   @@index([slug])
 }
@@ -258,6 +261,8 @@ model Customer {
   scheduledMessages         ScheduledMessage[]
   trainingPrograms          TrainingProgram[]
   intakeForms    IntakeForm[]
+  invoiceJobs      InvoiceJob[]
+  invoiceDocuments InvoiceDocument[]
 }
 
 model Pet {
@@ -465,11 +470,13 @@ model Payment {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  appointment   Appointment?  @relation(fields: [appointmentId], references: [id])
-  boardingStay  BoardingStay? @relation(fields: [boardingStayId], references: [id])
-  order         Order?        @relation(fields: [orderId], references: [id])
-  customer      Customer      @relation(fields: [customerId], references: [id])
-  business      Business      @relation(fields: [businessId], references: [id])
+  appointment      Appointment?     @relation(fields: [appointmentId], references: [id])
+  boardingStay     BoardingStay?    @relation(fields: [boardingStayId], references: [id])
+  order            Order?           @relation(fields: [orderId], references: [id])
+  customer         Customer         @relation(fields: [customerId], references: [id])
+  business         Business         @relation(fields: [businessId], references: [id])
+  invoiceJobs      InvoiceJob[]
+  invoiceDocuments InvoiceDocument[]
 
   @@index([businessId, paidAt])
   @@index([businessId, status])
@@ -676,11 +683,12 @@ model Order {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  business  Business    @relation(fields: [businessId], references: [id])
-  customer  Customer    @relation(fields: [customerId], references: [id])
-  createdBy User?       @relation("CreatedByUser", fields: [createdByUserId], references: [id])
-  lines     OrderLine[]
-  payments  Payment[]
+  business         Business          @relation(fields: [businessId], references: [id])
+  customer         Customer          @relation(fields: [customerId], references: [id])
+  createdBy        User?             @relation("CreatedByUser", fields: [createdByUserId], references: [id])
+  lines            OrderLine[]
+  payments         Payment[]
+  invoiceDocuments InvoiceDocument[]
 
   @@index([businessId, status])
   @@index([businessId, customerId])
@@ -1269,4 +1277,113 @@ model DogMedication {
   pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
 
   @@index([petId])
+}
+
+// ─────────────────────────────────────────────
+// INVOICING INTEGRATION
+// ─────────────────────────────────────────────
+
+/// One invoicing provider configuration per business
+model InvoicingSettings {
+  id                      String    @id @default(uuid())
+  businessId              String    @unique
+  providerName            String    // "morning" (Green Invoice) / future providers
+  apiKeyEncrypted         String    // AES-256-GCM
+  apiSecretEncrypted      String    // AES-256-GCM
+  webhookSecretEncrypted  String?   // AES-256-GCM — for webhook HMAC verification
+  configJson              String    @default("{}") // JSON: sandbox mode, language, etc.
+  documentMapping         String    @default("{}") // JSON: payment method → doc type
+  status                  String    @default("active") // "active" | "disabled" | "error"
+  lastError               String?
+  lastTestedAt            DateTime?
+  lastTestResult          String?   // "success" | "failure"
+  lastTestError           String?
+  connectedAt             DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+}
+
+/// Retry queue for invoicing document issuance
+model InvoiceJob {
+  id          String   @id @default(uuid())
+  businessId  String
+  paymentId   String
+  customerId  String
+  action      String   // "issue_document" | "credit_note"
+  docType     Int?     // 305/320/400/330
+  payloadJson String   @default("{}") // serialized request for retry
+  status      String   @default("queued") // "queued" | "processing" | "done" | "failed"
+  attempts    Int      @default(0)
+  lastError   String?
+  nextRunAt   DateTime
+  resultJson  String?  // provider response
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+  payment  Payment  @relation(fields: [paymentId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([businessId, status, nextRunAt])
+  @@index([paymentId])
+}
+
+/// Record of issued invoicing documents
+model InvoiceDocument {
+  id                String   @id @default(uuid())
+  businessId        String
+  paymentId         String?
+  customerId        String
+  orderId           String?
+  originalInvoiceId String?  // for credit notes — links to the original invoice
+  providerName      String   // "morning"
+  providerDocId     String?  // ID from the provider (null for drafts)
+  docType           Int      // 305/320/400/330
+  docTypeName       String   // Hebrew label
+  subtotal          Float?   // before tax
+  taxTotal          Float?   // VAT amount
+  amount            Float    // total including tax
+  currency          String   @default("ILS")
+  vatRate           Float?   // e.g. 0.17
+  vatNumber         String?  // business VAT number at time of issue
+  documentUrl       String?  // PDF link
+  documentNumber    String?  // official document number
+  providerRawJson   String?  // masked provider response JSON
+  linesJson         String?  // JSON snapshot of line items
+  notes             String?
+  status            String   @default("draft") // "draft" | "pending" | "issued" | "failed" | "cancelled"
+  failureReason     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  business        Business         @relation(fields: [businessId], references: [id])
+  payment         Payment?         @relation(fields: [paymentId], references: [id])
+  customer        Customer         @relation(fields: [customerId], references: [id])
+  order           Order?           @relation(fields: [orderId], references: [id])
+  originalInvoice InvoiceDocument? @relation("CreditNoteRelation", fields: [originalInvoiceId], references: [id])
+  creditNotes     InvoiceDocument[] @relation("CreditNoteRelation")
+
+  @@index([businessId])
+  @@index([paymentId])
+  @@index([customerId])
+  @@index([orderId])
+}
+
+/// Audit trail for incoming invoicing webhooks
+model InvoiceWebhookLog {
+  id             String   @id @default(uuid())
+  provider       String   // "morning" etc.
+  eventType      String   // event type from provider
+  payloadJson    String   // masked webhook payload
+  signatureValid Boolean
+  processed      Boolean  @default(false)
+  errorMessage   String?
+  ip             String?
+  createdAt      DateTime @default(now())
+
+  @@index([provider, createdAt])
 }

@@ -172,6 +172,9 @@ export function CreateOrderModal({
   // Boarding pet selection
   const [boardingPetIds, setBoardingPetIds] = useState<string[]>([]);
 
+  // General pet selection (for non-boarding orders)
+  const [selectedPetId, setSelectedPetId] = useState<string>("");
+
   // Boarding specific date/time state
   const [boardingCheckInDate, setBoardingCheckInDate] = useState(todayStr());
   const [boardingCheckInTime, setBoardingCheckInTime] = useState("12:00");
@@ -363,7 +366,13 @@ export function CreateOrderModal({
           orderType,
           startAt: startAt || undefined,
           endAt: endAt || undefined,
-          lines: lines.map(l => ({ ...l, metadata: { petIds: l.petIds } })),
+          lines: lines.map(l => ({
+            ...l,
+            metadata: {
+              petIds: l.petIds.length > 0 ? l.petIds : (selectedPetId ? [selectedPetId] : []),
+            },
+          })),
+          petId: selectedPetId || undefined,
           discountType,
           discountValue: parseFloat(discountValue) || 0,
           notes,
@@ -428,6 +437,7 @@ export function CreateOrderModal({
     setBoardingCheckOutDate(tomorrowStr());
     setBoardingCheckOutTime(business?.boardingCheckOutTime ?? "12:00");
     setBoardingPetIds([]);
+    setSelectedPetId("");
     setCreatedOrder(null);
     onClose();
   };
@@ -682,6 +692,55 @@ export function CreateOrderModal({
   // ── Step 2: Items ─────────────────────────────────────────────────────────
   const renderItemsStep = () => (
     <div className="flex flex-col gap-3 min-h-0">
+
+      {/* ── Pet selector (shown when customer has pets, non-boarding) ──────── */}
+      {!isBoardingOrder && customerPets.length > 0 && (
+        <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3 space-y-2">
+          <p className="text-xs font-semibold text-amber-700 flex items-center gap-1.5">
+            🐾 עבור איזה כלב?
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {/* "כל הכלבים" option when more than 1 pet */}
+            {customerPets.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setSelectedPetId("")}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                  selectedPetId === ""
+                    ? "border-amber-400 bg-amber-100 text-amber-800"
+                    : "border-petra-border bg-white text-petra-muted hover:bg-slate-50"
+                )}
+              >
+                כל הכלבים
+              </button>
+            )}
+            {customerPets.map((pet) => (
+              <button
+                key={pet.id}
+                type="button"
+                onClick={() => setSelectedPetId(pet.id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                  selectedPetId === pet.id
+                    ? "border-amber-400 bg-amber-100 text-amber-800"
+                    : "border-petra-border bg-white text-petra-muted hover:bg-slate-50"
+                )}
+              >
+                <span>{petEmoji(pet.species)}</span>
+                <span>{pet.name}</span>
+                {pet.breed && <span className="opacity-60">({pet.breed})</span>}
+              </button>
+            ))}
+          </div>
+          {selectedPetId && (
+            <p className="text-[11px] text-amber-600">
+              ✓ ההזמנה תשויך ל{customerPets.find(p => p.id === selectedPetId)?.name}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Price list items picker */}
       <div>
         <div className="flex items-center gap-2 mb-2">
@@ -1135,6 +1194,19 @@ export function CreateOrderModal({
         <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
           {mutation.error?.message || "שגיאה ביצירת ההזמנה"}
         </p>
+      )}
+
+      {/* ── Payment request button ── */}
+      {selectedCustomer?.phone && (
+        <button
+          type="button"
+          className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all flex items-center justify-center gap-2"
+          style={{ background: "#25D366" }}
+          onClick={() => openWhatsApp(selectedCustomer.phone)}
+        >
+          <Send className="w-4 h-4" />
+          שלח דרישת תשלום ללקוח (WhatsApp)
+        </button>
       )}
 
       <div className="flex gap-2">

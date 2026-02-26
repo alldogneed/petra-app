@@ -3,6 +3,8 @@ import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { InvoicingService } from "@/lib/invoicing/invoicing-service";
+import { enqueueInvoiceJob } from "@/lib/invoicing/invoicing-jobs";
 
 export async function GET(request: NextRequest) {
   try {
@@ -116,6 +118,29 @@ export async function POST(request: NextRequest) {
     });
 
     logCurrentUserActivity("CREATE_PAYMENT");
+
+    // Auto-issue invoicing document for paid payments
+    if (status === "paid") {
+      try {
+        const configured = await InvoicingService.isConfigured(DEMO_BUSINESS_ID);
+        if (configured) {
+          try {
+            await InvoicingService.issue(DEMO_BUSINESS_ID, payment.id);
+          } catch {
+            // On failure, enqueue for retry — don't fail the payment creation
+            await enqueueInvoiceJob({
+              businessId: DEMO_BUSINESS_ID,
+              paymentId: payment.id,
+              customerId,
+              action: "issue_document",
+            });
+          }
+        }
+      } catch {
+        // Invoicing check failed — silently continue
+      }
+    }
+
     return NextResponse.json(payment, { status: 201 });
   } catch (error) {
     console.error("Failed to create payment:", error);

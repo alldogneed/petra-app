@@ -11,6 +11,9 @@ import {
   CheckCircle2,
   XCircle,
   Banknote,
+  FileText,
+  Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, fetchJSON } from "@/lib/utils";
 
@@ -60,6 +63,7 @@ const METHOD_LABELS: Record<string, string> = {
 export default function PaymentsPage() {
   const [activeStatus, setActiveStatus] = useState("ALL");
   const [showNewPayment, setShowNewPayment] = useState(false);
+  const [issuingPaymentId, setIssuingPaymentId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: payments = [], isLoading } = useQuery<Payment[]>({
@@ -75,6 +79,35 @@ export default function PaymentsPage() {
   const { data: allPayments = [] } = useQuery<Payment[]>({
     queryKey: ["payments", "ALL"],
     queryFn: () => fetchJSON("/api/payments"),
+  });
+
+  // Check if invoicing is configured
+  const { data: invoicingSettings } = useQuery<{ status: string } | null>({
+    queryKey: ["invoicing-settings"],
+    queryFn: () => fetchJSON("/api/invoicing/settings"),
+  });
+  const invoicingConfigured = invoicingSettings?.status === "active";
+
+  const issueMutation = useMutation({
+    mutationFn: (paymentId: string) =>
+      fetch("/api/invoicing/issue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentId }),
+      }).then(async (r) => {
+        if (!r.ok) {
+          const data = await r.json().catch(() => ({}));
+          throw new Error(data.error || "שגיאה בהפקת מסמך");
+        }
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      setIssuingPaymentId(null);
+    },
+    onError: () => {
+      setIssuingPaymentId(null);
+    },
   });
 
   // Summary stats from unfiltered data
@@ -188,6 +221,7 @@ export default function PaymentsPage() {
                   <th className="table-header-cell">אמצעי תשלום</th>
                   <th className="table-header-cell">שיוך</th>
                   <th className="table-header-cell">סטטוס</th>
+                  <th className="table-header-cell">מסמך</th>
                   <th className="table-header-cell">תאריך</th>
                 </tr>
               </thead>
@@ -243,6 +277,32 @@ export default function PaymentsPage() {
                           <StatusIcon className="w-3 h-3" />
                           {statusInfo.label}
                         </span>
+                      </td>
+                      <td className="table-cell">
+                        {payment.invoiceNumber ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+                            <FileText className="w-3 h-3" />
+                            {payment.invoiceNumber}
+                          </span>
+                        ) : payment.status === "paid" && invoicingConfigured ? (
+                          <button
+                            className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1"
+                            disabled={issuingPaymentId === payment.id}
+                            onClick={() => {
+                              setIssuingPaymentId(payment.id);
+                              issueMutation.mutate(payment.id);
+                            }}
+                          >
+                            {issuingPaymentId === payment.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <FileText className="w-3 h-3" />
+                            )}
+                            הפק מסמך
+                          </button>
+                        ) : (
+                          <span className="text-xs text-petra-muted">—</span>
+                        )}
                       </td>
                       <td className="table-cell">
                         <span className="text-xs text-petra-muted">
