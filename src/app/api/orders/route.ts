@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate order totals server-side
-    const calcInput: CalcLineInput[] = lines.map((l: { name: string; unit: string; quantity: number; unitPrice: number; taxMode?: string }) => ({
+    const calcInput: CalcLineInput[] = lines.map((l: { name: string; unit: string; quantity: number; unitPrice: number; taxMode?: string; metadata?: any }) => ({
       name: l.name,
       unit: l.unit,
       quantity: l.quantity,
@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
             lineTax: cl.lineTax,
             lineTotal: cl.lineTotal,
             taxMode: cl.taxMode,
+            metadata: l.metadata ? JSON.stringify(l.metadata) : "{}",
           },
         });
       }

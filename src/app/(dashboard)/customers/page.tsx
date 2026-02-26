@@ -1362,6 +1362,21 @@ function NewOrderModal({
     enabled: isBoarding && step >= 2,
   });
 
+  // Auto-add boarding price items when they load (so user doesn't have to add manually)
+  useEffect(() => {
+    if (isBoarding && priceItems.length > 0 && lines.length === 0) {
+      setLines(
+        priceItems.map((item) => ({
+          priceListItemId: item.id,
+          name: item.name,
+          unit: item.unit,
+          quantity: item.defaultQuantity,
+          unitPrice: item.basePrice,
+        }))
+      );
+    }
+  }, [isBoarding, priceItems]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const selectedCustomer = customers.find((c) => c.id === form.customerId);
 
   const filteredCustomers = useMemo(() => {
@@ -2041,20 +2056,35 @@ function NewOrderModal({
             </button>
           )}
           <div className="flex-1" />
-          {step === 2 && (
-            <button
-              className="btn-primary flex items-center gap-1.5"
-              disabled={
-                !form.customerId ||
-                lines.length === 0 ||
-                (isBoarding && (!form.checkInDate || !form.checkInTime || !form.checkOutDate || !form.checkOutTime || !form.petId || !form.roomId))
-              }
-              onClick={() => setStep(3)}
-            >
-              המשך
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-          )}
+          {step === 2 && (() => {
+            const missingFields: string[] = [];
+            if (!form.customerId) missingFields.push("לקוח");
+            if (lines.length === 0) missingFields.push("פריטים");
+            if (isBoarding) {
+              if (!form.petId) missingFields.push("חיה");
+              if (!form.roomId) missingFields.push("חדר");
+              if (!form.checkInDate || !form.checkInTime) missingFields.push("צ׳ק אין");
+              if (!form.checkOutDate || !form.checkOutTime) missingFields.push("צ׳ק אאוט");
+            }
+            const isDisabled = missingFields.length > 0;
+            return (
+              <div className="flex items-center gap-3">
+                {isDisabled && (
+                  <span className="text-[11px] text-red-400 max-w-[180px] text-left leading-tight">
+                    חסר: {missingFields.join(", ")}
+                  </span>
+                )}
+                <button
+                  className="btn-primary flex items-center gap-1.5"
+                  disabled={isDisabled}
+                  onClick={() => setStep(3)}
+                >
+                  המשך
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+              </div>
+            );
+          })()}
           {step === 3 && (
             <button
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-white text-sm shadow-sm transition-all hover:shadow-md disabled:opacity-50"

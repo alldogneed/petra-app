@@ -265,10 +265,10 @@ function KanbanColumn({
   return (
     <>
       {/* Column Header */}
-      <div className="flex items-center gap-2 mb-3 px-1">
+      <div className={`flex items-center gap-2 mb-3 px-2 py-1.5 rounded-lg transition-colors ${editMode ? "bg-amber-50/80 border border-amber-200/60" : ""}`}>
         {editMode && dragListeners && (
           <button
-            className="cursor-grab active:cursor-grabbing text-petra-muted hover:text-petra-text"
+            className="cursor-grab active:cursor-grabbing text-amber-500 hover:text-amber-700"
             {...dragAttributes}
             {...dragListeners}
           >
@@ -298,7 +298,7 @@ function KanbanColumn({
           />
         ) : (
           <span
-            className={`text-sm font-semibold text-petra-text ${editMode ? "cursor-pointer hover:text-brand-600" : ""}`}
+            className={`text-sm font-semibold text-petra-text ${editMode ? "cursor-pointer hover:text-brand-600 border-b border-dashed border-amber-400" : ""}`}
             onClick={() => editMode && onStartEdit(stage.id, stage.name)}
           >
             {stage.name}
@@ -308,20 +308,20 @@ function KanbanColumn({
         <span className="badge-neutral text-[10px] mr-auto">{leads.length}</span>
 
         {editMode && (
-          <div className="flex items-center gap-1 relative">
+          <div className="flex items-center gap-1.5 relative">
             {/* Color picker */}
             <button
-              className="w-5 h-5 rounded-full border-2 border-white shadow-sm"
+              className="w-6 h-6 rounded-full border-2 border-white shadow-sm hover:scale-110 transition-transform"
               style={{ backgroundColor: stage.color }}
               onClick={() => setShowColorPicker(!showColorPicker)}
               title="שנה צבע"
             />
             {showColorPicker && (
-              <div className="absolute top-7 left-0 z-50 bg-white shadow-lg rounded-lg p-2 flex gap-1 border border-slate-200">
+              <div className="absolute top-8 left-0 z-50 bg-white shadow-lg rounded-lg p-2 flex gap-1.5 border border-slate-200">
                 {STAGE_COLORS.map((c) => (
                   <button
                     key={c}
-                    className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-125 ${c === stage.color ? "border-slate-800 scale-110" : "border-white"}`}
+                    className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-125 ${c === stage.color ? "border-slate-800 scale-110" : "border-white"}`}
                     style={{ backgroundColor: c }}
                     onClick={() => {
                       onChangeColor(stage.id, c);
@@ -334,14 +334,14 @@ function KanbanColumn({
 
             {/* Delete / Lock */}
             {isWon || isLost ? (
-              <Lock className="w-3.5 h-3.5 text-petra-muted" title="לא ניתן למחוק שלב זה" />
+              <Lock className="w-4 h-4 text-petra-muted" title="לא ניתן למחוק שלב זה" />
             ) : (
               <button
                 onClick={() => onDelete(stage)}
-                className="w-5 h-5 flex items-center justify-center rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                className="w-6 h-6 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                 title="מחק שלב"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -795,13 +795,28 @@ export default function LeadsPage() {
 
       {editMode ? (
         /* ─── Edit Mode: Column reorder DnD ─── */
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragEnd={handleColumnDragEnd}
-        >
+        <>
+          <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <Pencil className="w-4 h-4 text-amber-600" />
+            </div>
+            <p className="text-sm text-amber-800">
+              <span className="font-semibold">{"מצב עריכה פעיל"}</span>
+              {" — "}
+              {"לחץ על שם שלב כדי לשנות אותו, גרור את "}
+              <GripVertical className="w-3.5 h-3.5 inline-block align-middle" />
+              {" לשינוי סדר, לחץ על העיגול הצבעוני לשינוי צבע, או "}
+              <Trash2 className="w-3.5 h-3.5 inline-block align-middle text-red-500" />
+              {" למחיקה."}
+            </p>
+          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragEnd={handleColumnDragEnd}
+          >
           <SortableContext items={stages.map((s) => s.id)} strategy={horizontalListSortingStrategy}>
-            <div className="flex gap-4 overflow-x-auto pb-8 items-stretch h-[calc(100vh-200px)]">
+            <div className="flex gap-4 overflow-x-auto pb-8 items-stretch h-[calc(100vh-240px)]">
               {stages.map((stage) => {
                 const stageLeads = leads.filter((l) => l.stage === stage.id);
                 return (
@@ -826,7 +841,8 @@ export default function LeadsPage() {
               <AddStageInline onAdd={handleAddStage} />
             </div>
           </SortableContext>
-        </DndContext>
+          </DndContext>
+        </>
       ) : (
         /* ─── Normal Mode: Lead card DnD ─── */
         <DndContext

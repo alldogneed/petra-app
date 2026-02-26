@@ -20,11 +20,14 @@ function notifyOwnerNewPending(booking: { id: string }, businessId: string) {
 // Zod Schema for input validation
 const DogSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(1, "שם הכלב הוא שדה חובה"),
+  name: z.string().optional(),
   breed: z.string().optional(),
   age: z.string().optional(),
   sex: z.string().optional(),
   notes: z.string().optional(),
+}).refine((d) => d.id || (d.name && d.name.trim().length > 0), {
+  message: "שם הכלב הוא שדה חובה",
+  path: ["name"],
 })
 
 const BookingSchema = z.object({
@@ -34,6 +37,7 @@ const BookingSchema = z.object({
   customerName: z.string().min(2, "שם באורך של לפחות 2 תווים").optional(),
   customerEmail: z.string().email("כתובת אימייל לא חוקית").optional().or(z.literal("")),
   customerNotes: z.string().optional(),
+  customerAddress: z.string().optional(),
   dogs: z.array(DogSchema).optional(),
 })
 
@@ -75,6 +79,7 @@ export async function POST(
     customerName,
     customerEmail,
     customerNotes,
+    customerAddress,
     dogs,
   } = validationResult.data
 
@@ -132,6 +137,7 @@ export async function POST(
           phone,
           phoneNorm,
           email: customerEmail ?? null,
+          address: customerAddress ?? null,
           notes: customerNotes ?? null,
         },
       })
@@ -147,7 +153,7 @@ export async function POST(
             where: { id: dog.id, customerId: customer.id },
           })
           if (existing) petIds.push(existing.id)
-        } else {
+        } else if (dog.name && dog.name.trim()) {
           // Create new pet
           const newPet = await tx.pet.create({
             data: {

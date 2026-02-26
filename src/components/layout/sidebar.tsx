@@ -36,12 +36,6 @@ interface NavItem {
   minRole?: "owner" | "manager";
 }
 
-interface NavSection {
-  label: string;
-  emoji: string;
-  items: NavItem[];
-}
-
 const ROLE_LEVEL: Record<string, number> = { owner: 0, manager: 1, user: 2 };
 
 function canSee(item: NavItem, role: string | null): boolean {
@@ -50,46 +44,22 @@ function canSee(item: NavItem, role: string | null): boolean {
   return (ROLE_LEVEL[role] ?? 99) <= ROLE_LEVEL[item.minRole];
 }
 
-const sections: NavSection[] = [
-  {
-    label: "ניהול יומי",
-    emoji: "📊",
-    items: [
-      { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
-      { name: "לידים", href: "/leads", icon: Target },
-      { name: "לקוחות", href: "/customers", icon: Users },
-      { name: "יומן", href: "/calendar", icon: Calendar },
-      { name: "משימות", href: "/tasks", icon: ListTodo },
-      { name: "תורים", href: "/scheduler", icon: CalendarClock },
-    ],
-  },
-  {
-    label: "ניהול עסקי",
-    emoji: "💼",
-    items: [
-      { name: "תשלומים", href: "/payments", icon: CreditCard, minRole: "manager" },
-      { name: "מחירון", href: "/pricing", icon: Tag, minRole: "manager" },
-      { name: "הזמנות", href: "/orders", icon: ShoppingCart },
-      { name: "פנסיון", href: "/boarding", icon: Hotel },
-      { name: "אימונים וכלבים", href: "/training", icon: Dog },
-    ],
-  },
-  {
-    label: "שיווק ואוטומציה",
-    emoji: "📣",
-    items: [
-      { name: "הודעות", href: "/messages", icon: MessageSquare },
-      { name: "הזמנות אונליין", href: "/bookings", icon: CalendarCheck },
-    ],
-  },
-  {
-    label: "דוחות ומערכת",
-    emoji: "📈",
-    items: [
-      { name: "אנליטיקס", href: "/analytics", icon: BarChart3, minRole: "owner" },
-      { name: "הגדרות", href: "/settings", icon: Settings },
-    ],
-  },
+const navItems: NavItem[] = [
+  { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
+  { name: "לידים", href: "/leads", icon: Target },
+  { name: "לקוחות", href: "/customers", icon: Users },
+  { name: "יומן", href: "/calendar", icon: Calendar },
+  { name: "משימות", href: "/tasks", icon: ListTodo },
+  { name: "תורים", href: "/scheduler", icon: CalendarClock },
+  { name: "תשלומים", href: "/payments", icon: CreditCard, minRole: "manager" },
+  { name: "מחירון", href: "/pricing", icon: Tag, minRole: "manager" },
+  { name: "הזמנות", href: "/orders", icon: ShoppingCart },
+  { name: "פנסיון", href: "/boarding", icon: Hotel },
+  { name: "אימונים וכלבים", href: "/training", icon: Dog },
+  { name: "הודעות", href: "/messages", icon: MessageSquare },
+  { name: "ניהול תורים", href: "/bookings", icon: CalendarCheck },
+  { name: "אנליטיקס", href: "/analytics", icon: BarChart3, minRole: "owner" },
+  { name: "הגדרות", href: "/settings", icon: Settings },
 ];
 
 interface SidebarProps {
@@ -173,6 +143,11 @@ export function Sidebar({
   const sidebarContent = (isMobile: boolean) => {
     const isExpanded = isMobile || !collapsed;
 
+    const handleHelpClick = () => {
+      setHelpOpen(true);
+      if (isMobile) onMobileClose();
+    };
+
     return (
       <aside
         className={cn(
@@ -218,65 +193,33 @@ export function Sidebar({
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-2 overflow-y-auto scrollbar-hide">
-          {sections.map((section, sectionIdx) => {
-            const visibleItems = section.items.filter((item) =>
-              canSee(item, user?.businessRole ?? null)
-            );
+          <div className="space-y-0.5">
+            {navItems
+              .filter((item) => canSee(item, user?.businessRole ?? null))
+              .map((item) => renderNavItem(item, isMobile))}
 
-            // Last section: append help button
-            const isLastSection = sectionIdx === sections.length - 1;
-
-            if (visibleItems.length === 0 && !isLastSection) return null;
-
-            return (
-              <div key={section.label}>
-                {/* Section header */}
-                {isExpanded ? (
-                  <div
-                    className={cn(
-                      "text-[10px] uppercase tracking-wider text-slate-500 font-semibold px-3 pb-1",
-                      sectionIdx === 0 ? "pt-1" : "pt-4"
-                    )}
-                  >
-                    {section.emoji} {section.label}
-                  </div>
-                ) : (
-                  sectionIdx > 0 && (
-                    <div className="border-t border-white/[0.06] my-2 mx-3" />
-                  )
-                )}
-
-                {/* Section items */}
-                <div className="space-y-0.5">
-                  {visibleItems.map((item) => renderNavItem(item, isMobile))}
-
-                  {/* Help button in last section */}
-                  {isLastSection && (
-                    <button
-                      onClick={() => setHelpOpen(true)}
-                      title={!isMobile && collapsed ? "עזרה" : undefined}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
-                        "text-slate-400 hover:text-white"
-                      )}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLElement).style.background =
-                          "rgba(255,255,255,0.06)";
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = "";
-                      }}
-                    >
-                      <div className="flex-shrink-0 text-slate-500 group-hover:text-slate-300 transition-transform duration-150">
-                        <HelpCircle className="w-[18px] h-[18px]" />
-                      </div>
-                      {isExpanded && <span>עזרה</span>}
-                    </button>
-                  )}
-                </div>
+            {/* Help button */}
+            <button
+              onClick={handleHelpClick}
+              title={!isMobile && collapsed ? "עזרה" : undefined}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
+                "text-slate-400 hover:text-white"
+              )}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background =
+                  "rgba(255,255,255,0.06)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "";
+              }}
+            >
+              <div className="flex-shrink-0 text-slate-500 group-hover:text-slate-300 transition-transform duration-150">
+                <HelpCircle className="w-[18px] h-[18px]" />
               </div>
-            );
-          })}
+              {isExpanded && <span>עזרה</span>}
+            </button>
+          </div>
         </nav>
 
         {/* Bottom section */}

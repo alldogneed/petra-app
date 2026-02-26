@@ -1,10 +1,11 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   X, Search, Plus, Minus, Trash2, ShoppingCart, CalendarDays, Clock,
-  Send, MessageCircle,
+  Send, MessageCircle, CheckCircle2,
 } from "lucide-react";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
@@ -21,6 +22,7 @@ interface PriceListItem {
   taxMode: string;
   durationMinutes: number | null;
   isActive: boolean;
+  paymentUrl?: string | null;
 }
 
 interface PriceList {
@@ -41,6 +43,7 @@ interface OrderLineForm {
   quantity: number;
   unitPrice: number;
   taxMode: "inherit" | "taxable" | "exempt";
+  petIds: string[];
 }
 
 interface Business {
@@ -148,6 +151,7 @@ export function CreateOrderModal({
   onCreated?: (orderId: string) => void;
 }) {
   const qc = useQueryClient();
+  const router = useRouter();
 
   // Step state: "customer" | "items" | "review" | "payment"
   const [step, setStep] = useState<"customer" | "items" | "review" | "payment">("customer");
@@ -174,12 +178,15 @@ export function CreateOrderModal({
   const [boardingCheckOutDate, setBoardingCheckOutDate] = useState(tomorrowStr());
   const [boardingCheckOutTime, setBoardingCheckOutTime] = useState("12:00");
 
+  // WhatsApp link toggle
+  const [includeLandingPage, setIncludeLandingPage] = useState(true);
+
   // Lines
   const [lines, setLines] = useState<OrderLineForm[]>([]);
   const [itemSearch, setItemSearch] = useState("");
   const [customLine, setCustomLine] = useState(false);
   const [newLine, setNewLine] = useState<OrderLineForm>({
-    priceListItemId: null, name: "", unit: "per_session", quantity: 1, unitPrice: 0, taxMode: "taxable",
+    priceListItemId: null, name: "", unit: "per_session", quantity: 1, unitPrice: 0, taxMode: "taxable", petIds: [],
   });
 
   // Data
@@ -329,6 +336,7 @@ export function CreateOrderModal({
         quantity: qty,
         unitPrice: item.basePrice,
         taxMode: item.taxMode as "inherit" | "taxable" | "exempt",
+        petIds: [],
       }]);
     }
   }, [lines, isBoardingOrder, boardingUnits]);
@@ -355,7 +363,7 @@ export function CreateOrderModal({
           orderType,
           startAt: startAt || undefined,
           endAt: endAt || undefined,
-          lines,
+          lines: lines.map(l => ({ ...l, metadata: { petIds: l.petIds } })),
           discountType,
           discountValue: parseFloat(discountValue) || 0,
           notes,
@@ -734,7 +742,7 @@ export function CreateOrderModal({
               onClick={() => {
                 if (!newLine.name || newLine.unitPrice < 0) return;
                 setLines([...lines, { ...newLine }]);
-                setNewLine({ priceListItemId: null, name: "", unit: "per_session", quantity: 1, unitPrice: 0, taxMode: "taxable" });
+                setNewLine({ priceListItemId: null, name: "", unit: "per_session", quantity: 1, unitPrice: 0, taxMode: "taxable", petIds: [] });
                 setCustomLine(false);
               }}
               className="btn-primary w-full text-sm py-1.5"
@@ -801,31 +809,91 @@ export function CreateOrderModal({
             <span className="text-xs font-semibold text-petra-muted">עגלה ({lines.length} פריטים)</span>
           </div>
           {lines.map((line, i) => (
-            <div key={i} className="flex items-center gap-2 px-3 py-2.5 border-b border-petra-border last:border-0">
-              <span className="flex-1 text-sm text-petra-text truncate">{line.name}</span>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <button
-                  onClick={() => updateQty(i, -1)}
-                  className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-slate-100 transition-all text-petra-muted"
-                  title="הפחת כמות"
-                >
-                  <Minus className="w-3 h-3" />
-                </button>
-                <span className="text-sm font-medium w-8 text-center">{line.quantity}</span>
-                <button
-                  onClick={() => updateQty(i, 1)}
-                  className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-slate-100 transition-all text-petra-muted"
-                  title="הוסף כמות"
-                >
-                  <Plus className="w-3 h-3" />
+            <div key={i} className="border-b border-petra-border last:border-0 overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-2.5">
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-petra-text truncate block">{line.name}</span>
+                  {line.petIds.length > 0 && (
+                    <span className="text-[11px] text-brand-600 block mt-0.5" dir="rtl">
+                      {line.petIds.map(id => customerPets.find(p => p.id === id)?.name).filter(Boolean).join(", ")}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => updateQty(i, -1)}
+                    className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-slate-100 transition-all text-petra-muted"
+                    title="הפחת כמות"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  <span className="text-sm font-medium w-8 text-center">{line.quantity}</span>
+                  <button
+                    onClick={() => updateQty(i, 1)}
+                    className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-slate-100 transition-all text-petra-muted"
+                    title="הוסף כמות"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+                <span className="text-sm font-bold text-petra-text flex-shrink-0 w-16 text-left">
+                  {fmt(line.quantity * line.unitPrice)}
+                </span>
+                <button onClick={() => removeLine(i)} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-slate-300">
+                  <Trash2 className="w-3 h-3" />
                 </button>
               </div>
-              <span className="text-sm font-bold text-petra-text flex-shrink-0 w-16 text-left">
-                {fmt(line.quantity * line.unitPrice)}
-              </span>
-              <button onClick={() => removeLine(i)} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-slate-300">
-                <Trash2 className="w-3 h-3" />
-              </button>
+
+              {/* Pet selection for this specific line (only show inline if there are pets) */}
+              {customerPets.length > 0 && (
+                <div className="px-3 pb-2.5 pt-1 bg-slate-50/50">
+                  <p className="text-[11px] font-semibold text-petra-muted mb-1.5 flex items-center gap-1">
+                    🐾 בחירת כלבים רלוונטיים:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {customerPets.map((pet) => {
+                      const isSelected = line.petIds.includes(pet.id);
+                      return (
+                        <button
+                          key={pet.id}
+                          type="button"
+                          onClick={() => {
+                            setLines(prev => prev.map((l, idx) => {
+                              if (idx !== i) return l;
+
+                              let newPetIds = [...l.petIds];
+                              if (isSelected) {
+                                newPetIds = newPetIds.filter(id => id !== pet.id);
+                              } else {
+                                newPetIds.push(pet.id);
+                              }
+
+                              // Auto update quantity if multiplier is 1 (heuristic: user probably wants quantity = number of dogs)
+                              let newQuantity = l.quantity;
+                              if (newPetIds.length > 0) {
+                                newQuantity = newPetIds.length;
+                              } else {
+                                newQuantity = 1;
+                              }
+
+                              return { ...l, petIds: newPetIds, quantity: newQuantity };
+                            }));
+                          }}
+                          className={cn(
+                            "text-[11px] px-2 py-1 rounded-md border flex items-center gap-1 transition-colors",
+                            isSelected
+                              ? "bg-brand-50 border-brand-300 text-brand-700"
+                              : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                          )}
+                        >
+                          {isSelected && <CheckCircle2 className="w-3 h-3 text-brand-500" />}
+                          {pet.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -879,7 +947,21 @@ export function CreateOrderModal({
       ? `\nמע"מ: ${fmt(calc.taxTotal)}`
       : "";
 
-    return `שלום ${name},\nהנה פירוט ההזמנה שלך:\n${lineItems}${discountLine}${taxLine}\n\nסה"כ לתשלום: ${fmt(calc.total)}`;
+    let paymentLinks = "";
+    if (includeLandingPage) {
+      const itemLinks = lines
+        .map(l => {
+          const item = allItems.find(i => i.id === l.priceListItemId);
+          return item?.paymentUrl;
+        })
+        .filter(Boolean);
+
+      if (itemLinks.length > 0) {
+        paymentLinks = `\n\nלמעבר לתשלום ופרטים נוספים:\n${Array.from(new Set(itemLinks)).join("\n")}`;
+      }
+    }
+
+    return `שלום ${name},\nהנה פירוט ההזמנה שלך:\n${lineItems}${discountLine}${taxLine}\n\nסה"כ לתשלום: ${fmt(calc.total)}${paymentLinks}`;
   };
 
   const openWhatsApp = (phone: string) => {
@@ -916,6 +998,19 @@ export function CreateOrderModal({
         ))}
       </div>
 
+      {/* Landing page toggle */}
+      {lines.some(l => allItems.find(i => i.id === l.priceListItemId)?.paymentUrl) && (
+        <label className="flex items-center gap-2 text-sm text-petra-text cursor-pointer my-2 bg-slate-50 p-2 rounded-xl border border-petra-border transition-colors hover:bg-slate-100">
+          <input
+            type="checkbox"
+            checked={includeLandingPage}
+            onChange={(e) => setIncludeLandingPage(e.target.checked)}
+            className="rounded border-petra-border text-brand-500 focus:ring-brand-500 w-4 h-4"
+          />
+          כלול קישור לדף נחיתה / תשלום בהודעה הקרובה
+        </label>
+      )}
+
       {/* Totals */}
       <div className="space-y-1.5 bg-slate-50 rounded-xl p-3 border border-petra-border">
         {calc.discountAmount > 0 && (
@@ -940,20 +1035,29 @@ export function CreateOrderModal({
       <div className="flex gap-2">
         <button
           className="flex-1 py-2.5 rounded-xl border-2 border-petra-border text-sm font-medium text-petra-text hover:bg-slate-50 transition-all"
-          onClick={handleClose}
+          onClick={() => {
+            if (createdOrder?.id) {
+              router.push(`/orders/${createdOrder.id}`);
+            }
+            handleClose();
+          }}
         >
-          סגור
+          מעבר להזמנה בקופה
         </button>
         <button
           className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-all flex items-center justify-center gap-2"
           style={{ background: "#25D366" }}
           onClick={() => {
             if (selectedCustomer?.phone) openWhatsApp(selectedCustomer.phone);
+            if (createdOrder?.id) {
+              router.push(`/orders/${createdOrder.id}`);
+            }
+            handleClose();
           }}
           disabled={!selectedCustomer?.phone}
         >
           <Send className="w-4 h-4" />
-          שלח בקשת תשלום
+          שלח הודעה ומעבר
         </button>
       </div>
     </div>
@@ -1076,8 +1180,8 @@ export function CreateOrderModal({
                     <div className={cn(
                       "w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center transition-all",
                       active ? "bg-brand-500 text-white" :
-                      done ? "bg-emerald-500 text-white" :
-                      "bg-slate-200 text-slate-400"
+                        done ? "bg-emerald-500 text-white" :
+                          "bg-slate-200 text-slate-400"
                     )}>
                       {done ? "✓" : i + 1}
                     </div>

@@ -64,9 +64,12 @@ export async function PATCH(
         ...(body.status !== undefined && { status: body.status }),
         ...(body.programType !== undefined && { programType: body.programType }),
         ...(body.notes !== undefined && { notes: body.notes }),
+        ...(body.startDate !== undefined && { startDate: body.startDate ? new Date(body.startDate) : undefined }),
         ...(body.endDate !== undefined && { endDate: body.endDate ? new Date(body.endDate) : null }),
         ...(body.totalSessions !== undefined && { totalSessions: body.totalSessions }),
         ...(body.price !== undefined && { price: body.price }),
+        ...(body.location !== undefined && { location: body.location }),
+        ...(body.frequency !== undefined && { frequency: body.frequency }),
       },
       include: {
         dog: true,

@@ -328,7 +328,7 @@ function RevenueChart({
             mirror
           />
           <Tooltip
-            formatter={(value: number) => [formatCurrency(value), "הכנסות"]}
+            formatter={(value: number | undefined) => [formatCurrency(value || 0), "הכנסות"]}
             contentStyle={{
               borderRadius: 12,
               border: "1px solid #E2E8F0",
@@ -610,8 +610,8 @@ function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
                 style={{
                   background:
                     task.priority === "URGENT" ? "#DC2626" :
-                    task.priority === "HIGH" ? "#EF4444" :
-                    task.priority === "MEDIUM" ? "#F59E0B" : "#94A3B8",
+                      task.priority === "HIGH" ? "#EF4444" :
+                        task.priority === "MEDIUM" ? "#F59E0B" : "#94A3B8",
                 }}
               />
             </div>
@@ -686,13 +686,19 @@ export default function DashboardPage() {
     serviceFilter === "all"
       ? data.upcomingAppointments
       : data.upcomingAppointments.filter(
-          (a) => a.service.type === serviceFilter
-        );
+        (a) => a.service.type === serviceFilter
+      );
 
   return (
     <div className="space-y-6">
       {/* Greeting Header */}
       <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-petra-text">
+            שלום, {user?.name || "משתמש"} 👋
+          </h1>
+          <p className="text-sm text-petra-muted mt-0.5">{todayStr}</p>
+        </div>
         <button
           onClick={() => setShowCreateOrder(true)}
           className="btn-primary flex items-center gap-2"
@@ -700,12 +706,6 @@ export default function DashboardPage() {
           <Plus className="w-4 h-4" />
           הזמנה חדשה
         </button>
-        <div>
-          <h1 className="text-xl font-bold text-petra-text">
-            שלום, {user?.name || "משתמש"} 👋
-          </h1>
-          <p className="text-sm text-petra-muted mt-0.5">{todayStr}</p>
-        </div>
       </div>
 
       {/* Daily Focus — Today's & Overdue Tasks */}
@@ -922,10 +922,10 @@ export default function DashboardPage() {
                         task.priority === "URGENT"
                           ? "#DC2626"
                           : task.priority === "HIGH"
-                          ? "#EF4444"
-                          : task.priority === "MEDIUM"
-                          ? "#F59E0B"
-                          : "#94A3B8",
+                            ? "#EF4444"
+                            : task.priority === "MEDIUM"
+                              ? "#F59E0B"
+                              : "#94A3B8",
                     }}
                   />
                   <span className={cn(

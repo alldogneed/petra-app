@@ -5,6 +5,7 @@
  */
 
 import { cookies } from "next/headers";
+import { createHash } from "crypto";
 import { prisma } from "./prisma";
 import type { SessionUser, SessionMembership } from "./permissions";
 import type { PlatformRole, TenantRole } from "./permissions";
@@ -33,7 +34,6 @@ function generateToken(): string {
 
 /** Hash a token with SHA-256 for secure DB storage */
 function hashToken(token: string): string {
-  const { createHash } = require("crypto");
   return createHash("sha256").update(token).digest("hex");
 }
 

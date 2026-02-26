@@ -923,6 +923,8 @@ model TrainingProgram {
   startDate   DateTime @default(now())
   endDate     DateTime?
   totalSessions Int?   // planned number of sessions
+  location    String?  // added for home training location
+  frequency   String?  // e.g. "WEEKLY", "BIWEEKLY", "CUSTOM"
   price       Float?   // package price in ILS
   notes       String?
   createdAt   DateTime @default(now())

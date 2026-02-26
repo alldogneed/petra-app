@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
-import { requireTenantPermission, isGuardError, extractBusinessId } from "@/lib/auth-guards"
+import { requireTenantPermission, isGuardError, requireBusinessAuth } from "@/lib/auth-guards"
 import { TENANT_PERMS } from "@/lib/permissions"
 import { z } from "zod"
 
@@ -9,10 +9,9 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const businessId = await extractBusinessId(req)
-  if (!businessId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await requireBusinessAuth(req)
+  if (isGuardError(auth)) return auth
+  const { businessId } = auth
 
   const guard = await requireTenantPermission(req, businessId, TENANT_PERMS.SETTINGS_WRITE)
   if (isGuardError(guard)) return guard
@@ -40,10 +39,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const businessId = await extractBusinessId(req)
-  if (!businessId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await requireBusinessAuth(req)
+  if (isGuardError(auth)) return auth
+  const { businessId } = auth
 
   const guard = await requireTenantPermission(req, businessId, TENANT_PERMS.SETTINGS_WRITE)
   if (isGuardError(guard)) return guard

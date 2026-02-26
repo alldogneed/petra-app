@@ -115,6 +115,7 @@ export async function getCurrentUser() {
     platformRole: user.platformRole,
     businessId: membership?.businessId || null,
     businessName: membership?.business?.name || null,
+    businessSlug: (membership?.business as any)?.slug || null,
     businessRole: membership?.role || null,
   };
 }

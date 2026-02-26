@@ -11,19 +11,21 @@ export default async function DashboardLayout({
 }) {
   const user = await getCurrentUser();
 
-  if (user) {
-    const progress = await prisma.onboardingProgress.findUnique({
-      where: { userId: user.id },
-    });
+  if (!user) {
+    redirect("/login");
+  }
 
-    // If onboarding exists but not completed, redirect to /onboarding
-    if (progress && !progress.completedAt) {
-      redirect("/onboarding");
-    }
-    // If no progress record exists at all, redirect to /onboarding
-    if (!progress) {
-      redirect("/onboarding");
-    }
+  const progress = await prisma.onboardingProgress.findUnique({
+    where: { userId: user.id },
+  });
+
+  // If onboarding exists but not completed, redirect to /onboarding
+  if (progress && !progress.completedAt) {
+    redirect("/onboarding");
+  }
+  // If no progress record exists at all, redirect to /onboarding
+  if (!progress) {
+    redirect("/onboarding");
   }
 
   return (

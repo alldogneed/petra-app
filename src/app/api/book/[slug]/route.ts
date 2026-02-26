@@ -32,6 +32,7 @@ export async function GET(
           depositRequired: true,
           depositAmount: true,
           bookingMode: true,
+          paymentUrl: true,
         },
         orderBy: { name: "asc" },
       },

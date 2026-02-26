@@ -41,7 +41,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/tasks": { title: "משימות", subtitle: "ניהול משימות תפעוליות" },
   "/training": { title: "אימונים", subtitle: "קבוצות ותוכניות אימון" },
   "/payments": { title: "תשלומים", subtitle: "ניהול תשלומים והכנסות" },
-  "/bookings": { title: "הזמנות", subtitle: "הזמנות אונליין" },
+  "/bookings": { title: "ניהול תורים", subtitle: "ניהול תורים אונליין" },
   "/analytics": { title: "אנליטיקס", subtitle: "סטטיסטיקות ונתוני ביצוע" },
   "/orders": { title: "הזמנות", subtitle: "ניהול הזמנות" },
   "/payment-request": { title: "בקשת תשלום", subtitle: "שליחת בקשת תשלום ללקוח" },

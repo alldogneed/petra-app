@@ -20,6 +20,7 @@ import {
   Trash2,
   Package,
   AlertTriangle,
+  Settings,
 } from "lucide-react";
 import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import {
@@ -71,6 +72,8 @@ interface TrainingProgram {
   startDate: string;
   endDate: string | null;
   totalSessions: number | null;
+  location: string | null;
+  frequency: string | null;
   price: number | null;
   notes: string | null;
   dog: { id: string; name: string; breed: string | null };
@@ -133,14 +136,14 @@ type TabId = "overview" | "individual" | "boarding" | "groups" | "workshops";
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "overview", label: "סקירה", icon: <GraduationCap className="w-4 h-4" /> },
-  { id: "individual", label: "אישי", icon: <Dog className="w-4 h-4" /> },
+  { id: "individual", label: "אילוף בבית הלקוח", icon: <Dog className="w-4 h-4" /> },
   { id: "boarding", label: "פנסיון", icon: <Hotel className="w-4 h-4" /> },
   { id: "groups", label: "קבוצות", icon: <Users className="w-4 h-4" /> },
   { id: "workshops", label: "סדנאות", icon: <Calendar className="w-4 h-4" /> },
 ];
 
 const TYPE_BADGE: Record<TrainingType, { label: string; bg: string; text: string }> = {
-  individual: { label: "אישי", bg: "bg-blue-100", text: "text-blue-700" },
+  individual: { label: "אילוף בבית הלקוח", bg: "bg-blue-100", text: "text-blue-700" },
   boarding: { label: "פנסיון", bg: "bg-green-100", text: "text-green-700" },
   group: { label: "קבוצה", bg: "bg-purple-100", text: "text-purple-700" },
   workshop: { label: "סדנה", bg: "bg-pink-100", text: "text-pink-700" },
@@ -181,6 +184,7 @@ export default function TrainingPage() {
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [showNewWorkshop, setShowNewWorkshop] = useState(false);
   const [showAssignDog, setShowAssignDog] = useState<{ groupId: string; groupName: string } | null>(null);
+  const [editingProgram, setEditingProgram] = useState<TrainingProgram | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
 
@@ -207,7 +211,15 @@ export default function TrainingPage() {
 
   const regularGroups = useMemo(() => groups.filter((g) => g.groupType !== "WORKSHOP"), [groups]);
   const workshops = useMemo(() => groups.filter((g) => g.groupType === "WORKSHOP"), [groups]);
-  const activeStays = useMemo(() => stays.filter((s) => s.status === "checked_in"), [stays]);
+  const activeStays = useMemo(() => {
+    const now = new Date();
+    return stays.filter((s) => {
+      if (s.status === "checked_in") return true;
+      const checkInDate = new Date(s.checkIn);
+      const checkOutDate = s.checkOut ? new Date(s.checkOut) : null;
+      return checkInDate <= now && (!checkOutDate || checkOutDate >= now);
+    });
+  }, [stays]);
 
   const allDogs = useMemo<UnifiedDog[]>(() => {
     const dogs: UnifiedDog[] = [];
@@ -375,6 +387,34 @@ export default function TrainingPage() {
     },
   });
 
+  const updateProgramSettingsMutation = useMutation({
+    mutationFn: async ({
+      id,
+      startDate,
+      endDate,
+      location,
+      frequency,
+    }: {
+      id: string;
+      startDate: string;
+      endDate: string | null;
+      location: string | null;
+      frequency: string | null;
+    }) => {
+      const res = await fetch(`/api/training-programs/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ startDate, endDate, location, frequency }),
+      });
+      if (!res.ok) throw new Error("Failed to update program settings");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-programs"] });
+      setEditingProgram(null);
+    },
+  });
+
   // ─── Helpers ───
 
   const toggleExpand = (id: string) => {
@@ -484,10 +524,10 @@ export default function TrainingPage() {
               searchQuery={searchQuery}
               expandedCards={expandedCards}
               toggleExpand={toggleExpand}
-              onSellPackage={() => setShowSellPackage(true)}
               onMarkAttendance={(programId, sessionNumber) =>
                 markAttendanceMutation.mutate({ programId, sessionNumber })
               }
+              onEditSettings={(program) => setEditingProgram(program)}
               isMarkingAttendance={markAttendanceMutation.isPending}
             />
           )}
@@ -536,6 +576,15 @@ export default function TrainingPage() {
           onClose={() => setShowSellPackage(false)}
           onSubmit={(data) => createProgramMutation.mutate(data)}
           isPending={createProgramMutation.isPending}
+        />
+      )}
+
+      {editingProgram && (
+        <ProgramSettingsModal
+          program={editingProgram}
+          onClose={() => setEditingProgram(null)}
+          onSubmit={(data) => updateProgramSettingsMutation.mutate({ id: editingProgram.id, ...data })}
+          isPending={updateProgramSettingsMutation.isPending}
         />
       )}
 
@@ -641,16 +690,16 @@ function IndividualTab({
   searchQuery,
   expandedCards,
   toggleExpand,
-  onSellPackage,
   onMarkAttendance,
   isMarkingAttendance,
+  onEditSettings,
 }: {
   programs: TrainingProgram[];
   searchQuery: string;
   expandedCards: Set<string>;
   toggleExpand: (id: string) => void;
-  onSellPackage: () => void;
   onMarkAttendance: (programId: string, sessionNumber: number) => void;
+  onEditSettings: (program: TrainingProgram) => void;
   isMarkingAttendance: boolean;
 }) {
   const filtered = useMemo(() => {
@@ -666,18 +715,14 @@ function IndividualTab({
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-petra-muted">{filtered.length} תוכניות אימון</p>
-        <button className="btn-primary" onClick={onSellPackage}>
-          <Package className="w-4 h-4" />
-          מכור חבילה
-        </button>
+        <p className="text-sm text-petra-muted">{filtered.length} תוכניות אילוף</p>
       </div>
 
       {filtered.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><GraduationCap className="w-6 h-6 text-slate-400" /></div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">אין תוכניות אישיות</h3>
-          <p className="text-sm text-petra-muted">צור חבילת אימון חדשה כדי להתחיל</p>
+          <h3 className="text-base font-semibold text-petra-text mb-1">אין תוכניות אילוף בבית לקוח</h3>
+          <p className="text-sm text-petra-muted">חבילות אילוף יופיעו כאן לאחר מכירה דרך "הזמנה חדשה"</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -752,7 +797,7 @@ function IndividualTab({
                 {expanded && (
                   <div className="border-t border-petra-border p-4">
                     {/* Actions */}
-                    <div className="flex gap-2 mb-4">
+                    <div className="flex gap-2 mb-4 flex-wrap">
                       {program.status === "ACTIVE" && (
                         <button
                           className="btn-primary text-xs"
@@ -766,6 +811,38 @@ function IndividualTab({
                           {isMarkingAttendance ? "שומר..." : "סמן נוכחות"}
                         </button>
                       )}
+                      <button
+                        className="btn-secondary text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditSettings(program);
+                        }}
+                      >
+                        <Settings className="w-3.5 h-3.5" />
+                        הגדרות
+                      </button>
+                    </div>
+
+                    {/* Details Info */}
+                    <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-petra-muted bg-slate-50 p-3 rounded-xl border border-petra-border">
+                      <div>
+                        <span className="font-semibold block mb-0.5">תאריך התחלה</span>
+                        {program.startDate ? formatDate(program.startDate) : "-"}
+                      </div>
+                      <div>
+                        <span className="font-semibold block mb-0.5">יעד סיום משוער</span>
+                        {program.endDate ? formatDate(program.endDate) : "-"}
+                      </div>
+                      <div>
+                        <span className="font-semibold block mb-0.5">מיקום</span>
+                        {program.location || "-"}
+                      </div>
+                      <div>
+                        <span className="font-semibold block mb-0.5">תדירות מפגשים</span>
+                        {program.frequency === "WEEKLY" ? "אחת לשבוע" :
+                          program.frequency === "BIWEEKLY" ? "אחת לשבועיים" :
+                            program.frequency || "-"}
+                      </div>
                     </div>
 
                     {/* Sessions list */}
@@ -782,7 +859,7 @@ function IndividualTab({
                             <div className={cn(
                               "w-2 h-2 rounded-full",
                               session.status === "COMPLETED" ? "bg-emerald-500" :
-                              session.status === "CANCELED" ? "bg-red-400" : "bg-blue-400"
+                                session.status === "CANCELED" ? "bg-red-400" : "bg-blue-400"
                             )} />
                             <span className="text-xs text-petra-text">מפגש {session.sessionNumber || ""}</span>
                             <span className="text-[10px] text-petra-muted">{formatDate(session.sessionDate)}</span>
@@ -842,8 +919,8 @@ function BoardingTab({ stays, searchQuery }: { stays: BoardingStay[]; searchQuer
           : null;
         const urgency =
           daysLeft === null ? "neutral" :
-          daysLeft <= 0 ? "danger" :
-          daysLeft <= 3 ? "warning" : "success";
+            daysLeft <= 0 ? "danger" :
+              daysLeft <= 3 ? "warning" : "success";
         const urgencyColor = {
           success: "bg-green-100 text-green-700",
           warning: "bg-yellow-100 text-yellow-700",
@@ -1181,7 +1258,7 @@ function GroupCard({
                     <div className={cn(
                       "w-2 h-2 rounded-full",
                       session.status === "COMPLETED" ? "bg-emerald-500" :
-                      session.status === "CANCELED" ? "bg-red-400" : "bg-blue-400"
+                        session.status === "CANCELED" ? "bg-red-400" : "bg-blue-400"
                     )} />
                     <span className="text-xs text-petra-text">מפגש {session.sessionNumber || ""}</span>
                     <span className="text-[10px] text-petra-muted">{formatDate(session.sessionDatetime)}</span>
@@ -1604,6 +1681,120 @@ function AssignDogModal({
           >
             <Plus className="w-4 h-4" />
             {isPending ? "שומר..." : "שייך כלב"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// PROGRAM SETTINGS MODAL
+// ═══════════════════════════════════════════════════════
+
+function ProgramSettingsModal({
+  program,
+  onClose,
+  onSubmit,
+  isPending,
+}: {
+  program: TrainingProgram;
+  onClose: () => void;
+  onSubmit: (data: {
+    startDate: string;
+    endDate: string | null;
+    location: string | null;
+    frequency: string | null;
+  }) => void;
+  isPending: boolean;
+}) {
+  const [form, setForm] = useState({
+    startDate: program.startDate ? new Date(program.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    endDate: program.endDate ? new Date(program.endDate).toISOString().split('T')[0] : "",
+    location: program.location || "",
+    frequency: program.frequency || "",
+  });
+
+  const handleSubmit = () => {
+    onSubmit({
+      startDate: new Date(form.startDate).toISOString(),
+      endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
+      location: form.location || null,
+      frequency: form.frequency || null,
+    });
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
+            <Settings className="w-5 h-5 text-brand-500" />
+            הגדרות חבילה - {program.dog.name}
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">תאריך התחלה *</label>
+              <input
+                type="date"
+                className="input"
+                value={form.startDate}
+                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label">יעד סיום משוער</label>
+              <input
+                type="date"
+                className="input"
+                value={form.endDate}
+                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="label">תדירות מפגשים</label>
+            <select
+              className="input"
+              value={form.frequency}
+              onChange={(e) => setForm({ ...form, frequency: e.target.value })}
+            >
+              <option value="">לא מוגדר</option>
+              <option value="WEEKLY">אחת לשבוע</option>
+              <option value="BIWEEKLY">אחת לשבועיים</option>
+              <option value="CUSTOM">אחר</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="label">כתובת (מיקום האימון)</label>
+            <input
+              type="text"
+              className="input"
+              placeholder="רחוב, עיר..."
+              value={form.location}
+              onChange={(e) => setForm({ ...form, location: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            className="btn-primary flex-1"
+            disabled={!form.startDate || isPending}
+            onClick={handleSubmit}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            {isPending ? "שומר..." : "שמור הגדרות"}
           </button>
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>

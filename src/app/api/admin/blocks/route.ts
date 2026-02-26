@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
-import { requireTenantPermission, isGuardError, extractBusinessId } from "@/lib/auth-guards"
+import { requireTenantPermission, isGuardError, requireBusinessAuth } from "@/lib/auth-guards"
 import { TENANT_PERMS } from "@/lib/permissions"
 import { z } from "zod"
 
 // GET /api/admin/blocks?from=YYYY-MM-DD&to=YYYY-MM-DD
 export async function GET(req: NextRequest) {
-  const businessId = await extractBusinessId(req)
-  if (!businessId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await requireBusinessAuth(req)
+  if (isGuardError(auth)) return auth
+  const { businessId } = auth
 
-  const guard = await requireTenantPermission(req, businessId, TENANT_PERMS.SETTINGS_READ)
+  const guard = await requireTenantPermission(req, businessId, TENANT_PERMS.SETTINGS_WRITE)
   if (isGuardError(guard)) return guard
 
   const { searchParams } = new URL(req.url)
@@ -39,10 +38,9 @@ const BlockFormSchema = z.object({
 // POST /api/admin/blocks
 // Body: { startAt: ISO, endAt: ISO, reason?: string }
 export async function POST(req: NextRequest) {
-  const businessId = await extractBusinessId(req)
-  if (!businessId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await requireBusinessAuth(req)
+  if (isGuardError(auth)) return auth
+  const { businessId } = auth
 
   const guard = await requireTenantPermission(req, businessId, TENANT_PERMS.SETTINGS_WRITE)
   if (isGuardError(guard)) return guard

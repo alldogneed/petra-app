@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Tag,
   Plus,
@@ -10,6 +10,7 @@ import {
   Globe,
   CreditCard,
   Link as LinkIcon,
+  Copy,
   X,
   CheckCircle2,
   Scissors,
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 import { SERVICE_TYPES } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
+import { useAuth } from "@/providers/auth-provider";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -376,10 +378,12 @@ function ServiceCard({
   service,
   onEdit,
   onDelete,
+  bookingLink,
 }: {
   service: Service;
   onEdit: () => void;
   onDelete: () => void;
+  bookingLink: string | null;
 }) {
   const categoryLabel =
     SERVICE_TYPES.find((t) => t.id === service.type)?.label ?? service.type;
@@ -472,6 +476,25 @@ function ServiceCard({
         </div>
       )}
 
+      {/* Booking link for public-bookable services */}
+      {service.isPublicBookable && bookingLink && (
+        <div className="bg-slate-50 rounded-lg p-2.5 flex items-center gap-2">
+          <code className="text-[11px] text-petra-muted font-mono truncate flex-1" dir="ltr">
+            {bookingLink}
+          </code>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(bookingLink);
+            }}
+            className="flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
+            title="העתק קישור"
+          >
+            <Copy className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Payment URL */}
       {service.paymentUrl && (
         <a
@@ -528,9 +551,14 @@ function DeleteConfirmModal({
 
 export default function PricingPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [modalService, setModalService] = useState<Service | null | "new">(null);
   const [deleteService, setDeleteService] = useState<Service | null>(null);
+  const [origin, setOrigin] = useState("");
+  useEffect(() => { setOrigin(window.location.origin); }, []);
+  const bookingSlug = user?.businessSlug || "demo";
+  const bookingLink = origin ? `${origin}/book/${bookingSlug}` : null;
 
   const { data: services = [], isLoading } = useQuery<Service[]>({
     queryKey: ["services"],
@@ -654,6 +682,7 @@ export default function PricingPage() {
               service={service}
               onEdit={() => setModalService(service)}
               onDelete={() => setDeleteService(service)}
+              bookingLink={bookingLink}
             />
           ))}
         </div>

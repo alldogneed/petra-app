@@ -13,6 +13,7 @@ interface AuthUser {
   platformRole: string | null;
   businessId: string | null;
   businessName: string | null;
+  businessSlug: string | null;
   businessRole: string | null;
 }
 

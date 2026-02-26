@@ -15,7 +15,8 @@ import {
   X,
   Mail,
 } from "lucide-react";
-import { cn, fetchJSON, formatCurrency, formatRelativeTime, DEMO_BUSINESS_ID } from "@/lib/utils";
+import { cn, fetchJSON, formatCurrency, formatRelativeTime } from "@/lib/utils";
+import { useAuth } from "@/providers/auth-provider";
 
 interface BookingData {
   id: string;
@@ -62,6 +63,7 @@ export default function BookingsPage() {
   const [declineNote, setDeclineNote] = useState("");
   const [showDeclineInput, setShowDeclineInput] = useState(false);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: bookings = [], isLoading } = useQuery<BookingData[]>({
     queryKey: ["bookings", activeStatus, dateFrom, dateTo],
@@ -91,7 +93,8 @@ export default function BookingsPage() {
 
   const [origin, setOrigin] = useState("");
   useEffect(() => { setOrigin(window.location.origin); }, []);
-  const bookingLink = `${origin}/book/${DEMO_BUSINESS_ID}`;
+  const bookingSlug = user?.businessSlug || "demo";
+  const bookingLink = `${origin}/book/${bookingSlug}`;
 
   function copyLink() {
     navigator.clipboard.writeText(bookingLink);
@@ -105,7 +108,7 @@ export default function BookingsPage() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6 flex-wrap">
-        <h1 className="page-title">הזמנות אונליין</h1>
+        <h1 className="page-title">ניהול תורים</h1>
         <p className="text-sm text-petra-muted">
           {bookings.length} הזמנות
           {pendingCount > 0 && ` • ${pendingCount} ממתינות לאישור`}
@@ -119,18 +122,7 @@ export default function BookingsPage() {
         </button>
       </div>
 
-      {/* Booking Link Banner */}
-      <div className="card p-4 mb-6 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
-          <CalendarCheck className="w-4 h-4 text-brand-500" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-petra-muted">קישור להזמנת תור</p>
-          <p className="text-sm text-petra-text font-mono truncate" dir="ltr">
-            {bookingLink}
-          </p>
-        </div>
-      </div>
+      {/* Removed link banner — booking URL now lives on each service card in /pricing */}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6 items-end">
