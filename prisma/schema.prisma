@@ -210,6 +210,13 @@ model Business {
   invoicingSettings InvoicingSettings?
   invoiceJobs       InvoiceJob[]
   invoiceDocuments  InvoiceDocument[]
+  serviceDogProfiles    ServiceDogProfile[]
+  serviceDogRecipients  ServiceDogRecipient[]
+  serviceDogPlacements  ServiceDogPlacement[]
+  serviceDogMedProtocols ServiceDogMedicalProtocol[]
+  serviceDogTrainingLogs ServiceDogTrainingLog[]
+  serviceDogCompliance   ServiceDogComplianceEvent[]
+  serviceDogIDCards      ServiceDogIDCard[]
 
   @@index([slug])
 }
@@ -263,6 +270,7 @@ model Customer {
   intakeForms    IntakeForm[]
   invoiceJobs      InvoiceJob[]
   invoiceDocuments InvoiceDocument[]
+  serviceRecipients ServiceDogRecipient[]
 }
 
 model Pet {
@@ -292,6 +300,7 @@ model Pet {
   health         DogHealth?
   behavior       DogBehavior?
   medications    DogMedication[]
+  serviceDogProfile ServiceDogProfile?
 }
 
 model Service {
@@ -1386,4 +1395,204 @@ model InvoiceWebhookLog {
   createdAt      DateTime @default(now())
 
   @@index([provider, createdAt])
+}
+
+// ─────────────────────────────────────────────
+// SERVICE DOG MANAGEMENT
+// ─────────────────────────────────────────────
+
+/// Service dog profile — 1:1 extension of Pet for service dog tracking
+model ServiceDogProfile {
+  id                    String    @id @default(uuid())
+  petId                 String    @unique
+  businessId            String
+  registrationNumber    String?
+  certifyingBody        String?
+  certificationDate     DateTime?
+  certificationExpiry   DateTime?
+  phase                 String    @default("SELECTION")
+  phaseChangedAt        DateTime  @default(now())
+  serviceType           String?
+  trainingStartDate     DateTime?
+  trainingTotalHours    Float     @default(0)
+  trainingTargetHours   Float     @default(120)
+  trainingTargetMonths  Int       @default(6)
+  trainingStatus        String    @default("NOT_STARTED")
+  lastGovReportAt       DateTime?
+  govReportDue          DateTime?
+  isGovReportPending    Boolean   @default(false)
+  idCardIsActive        Boolean   @default(false)
+  idCardQrToken         String?   @unique
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  pet                   Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  business              Business  @relation(fields: [businessId], references: [id])
+  placements            ServiceDogPlacement[]
+  medicalProtocols      ServiceDogMedicalProtocol[]
+  trainingLogs          ServiceDogTrainingLog[]
+  complianceEvents      ServiceDogComplianceEvent[]
+  idCards               ServiceDogIDCard[]
+
+  @@index([businessId])
+  @@index([businessId, phase])
+  @@index([idCardQrToken])
+}
+
+/// Service dog recipient — person matched with a service dog
+model ServiceDogRecipient {
+  id              String    @id @default(uuid())
+  businessId      String
+  customerId      String?
+  name            String
+  phone           String?
+  email           String?
+  idNumber        String?
+  address         String?
+  disabilityType  String?
+  disabilityNotes String?
+  waitlistDate    DateTime?
+  notes           String?
+  status          String    @default("WAITLIST")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  business        Business  @relation(fields: [businessId], references: [id])
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  placements      ServiceDogPlacement[]
+
+  @@index([businessId])
+  @@index([businessId, status])
+}
+
+/// Service dog placement — matching a recipient to a dog
+model ServiceDogPlacement {
+  id                String    @id @default(uuid())
+  businessId        String
+  serviceDogId      String
+  recipientId       String
+  status            String    @default("PENDING")
+  placementDate     DateTime?
+  trialStartDate    DateTime?
+  trialEndDate      DateTime?
+  terminatedAt      DateTime?
+  terminationReason String?
+  lastCheckInAt     DateTime?
+  nextCheckInAt     DateTime?
+  checkInNotes      String?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  business          Business             @relation(fields: [businessId], references: [id])
+  serviceDog        ServiceDogProfile    @relation(fields: [serviceDogId], references: [id])
+  recipient         ServiceDogRecipient  @relation(fields: [recipientId], references: [id])
+  complianceEvents  ServiceDogComplianceEvent[]
+
+  @@unique([serviceDogId, recipientId])
+  @@index([businessId])
+  @@index([businessId, status])
+}
+
+/// Phase-based medical protocol for service dogs
+model ServiceDogMedicalProtocol {
+  id              String    @id @default(uuid())
+  serviceDogId    String
+  businessId      String
+  phase           String
+  protocolKey     String
+  protocolLabel   String
+  category        String
+  dueDate         DateTime?
+  completedDate   DateTime?
+  expiryDate      DateTime?
+  status          String    @default("PENDING")
+  notes           String?
+  attachmentUrl   String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  serviceDog      ServiceDogProfile @relation(fields: [serviceDogId], references: [id], onDelete: Cascade)
+  business        Business          @relation(fields: [businessId], references: [id])
+
+  @@index([serviceDogId])
+  @@index([serviceDogId, phase])
+  @@index([businessId, status])
+}
+
+/// ADI training session log for service dogs
+model ServiceDogTrainingLog {
+  id               String    @id @default(uuid())
+  serviceDogId     String
+  businessId       String
+  sessionDate      DateTime
+  durationMinutes  Int
+  trainerName      String?
+  location         String?
+  skillCategories  String    @default("[]")
+  status           String    @default("COMPLETED")
+  notes            String?
+  rating           Int?
+  cumulativeHours  Float?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  serviceDog       ServiceDogProfile @relation(fields: [serviceDogId], references: [id], onDelete: Cascade)
+  business         Business          @relation(fields: [businessId], references: [id])
+
+  @@index([serviceDogId])
+  @@index([serviceDogId, sessionDate])
+  @@index([businessId, sessionDate])
+}
+
+/// 48-hour government compliance event for service dogs
+model ServiceDogComplianceEvent {
+  id                   String    @id @default(uuid())
+  businessId           String
+  serviceDogId         String
+  placementId          String?
+  eventType            String
+  eventDescription     String
+  notificationRequired Boolean   @default(true)
+  notificationDue      DateTime?
+  notificationSentAt   DateTime?
+  notificationStatus   String    @default("PENDING")
+  notificationPayload  String    @default("{}")
+  triggeredByUserId    String?
+  eventAt              DateTime  @default(now())
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  business             Business           @relation(fields: [businessId], references: [id])
+  serviceDog           ServiceDogProfile  @relation(fields: [serviceDogId], references: [id], onDelete: Cascade)
+  placement            ServiceDogPlacement? @relation(fields: [placementId], references: [id])
+
+  @@index([businessId, notificationStatus])
+  @@index([businessId, notificationDue])
+  @@index([serviceDogId])
+}
+
+/// Digital ID card for certified service dogs
+model ServiceDogIDCard {
+  id              String    @id @default(uuid())
+  serviceDogId    String
+  businessId      String
+  cardDataJson    String    @default("{}")
+  qrToken         String    @unique
+  qrPayload       String
+  isActive        Boolean   @default(true)
+  expiresAt       DateTime?
+  generatedAt     DateTime  @default(now())
+  revokedAt       DateTime?
+  revokedReason   String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  serviceDog      ServiceDogProfile @relation(fields: [serviceDogId], references: [id], onDelete: Cascade)
+  business        Business          @relation(fields: [businessId], references: [id])
+
+  @@index([serviceDogId])
+  @@index([qrToken])
+  @@index([businessId, isActive])
 }

@@ -32,6 +32,8 @@ import {
   Shield,
   Settings2,
   X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
@@ -412,6 +414,125 @@ function IntegrationsTab() {
           }}
         />
       )}
+
+      {/* ── Make.com Webhook ── */}
+      <MakeWebhookCard />
+    </div>
+  );
+}
+
+// ─── Make Webhook Card ────────────────────────────────────────────────────────
+
+function MakeWebhookCard() {
+  const appUrl =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+  const webhookUrl = `${appUrl}/api/webhooks/lead`;
+  const [copiedUrl, setCopiedUrl] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+
+  // API key is served from a dedicated endpoint so the secret never leaks into the client bundle
+  const { data: keyData } = useQuery<{ key: string }>({
+    queryKey: ["make-webhook-key"],
+    queryFn: () => fetchJSON<{ key: string }>("/api/webhooks/lead/key"),
+  });
+
+  function copy(value: string, setter: (v: boolean) => void) {
+    navigator.clipboard.writeText(value).then(() => {
+      setter(true);
+      setTimeout(() => setter(false), 2000);
+    });
+  }
+
+  return (
+    <div className="card p-5 space-y-4">
+      {/* Header */}
+      <div className="flex items-start gap-4">
+        <div className="w-12 h-12 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0">
+          <Zap className="w-6 h-6 text-violet-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-petra-text">Make.com — לידים מהאתר</h3>
+            <span className="badge badge-success text-xs">פעיל</span>
+          </div>
+          <p className="text-sm text-petra-muted mt-0.5">
+            חבר את all-dog.co.il דרך מייק — כל פנייה בטופס תיצור ליד חדש אוטומטית בפטרה.
+          </p>
+        </div>
+      </div>
+
+      {/* Webhook URL */}
+      <div className="space-y-1.5">
+        <label className="label text-xs">Webhook URL</label>
+        <div className="flex gap-2">
+          <input
+            readOnly
+            value={webhookUrl}
+            className="input flex-1 font-mono text-sm bg-slate-50 select-all"
+            onFocus={(e) => e.target.select()}
+          />
+          <button
+            className="btn-secondary text-sm flex items-center gap-1.5 flex-shrink-0"
+            onClick={() => copy(webhookUrl, setCopiedUrl)}
+          >
+            {copiedUrl ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Upload className="w-4 h-4" />}
+            {copiedUrl ? "הועתק!" : "העתק"}
+          </button>
+        </div>
+      </div>
+
+      {/* API Key */}
+      <div className="space-y-1.5">
+        <label className="label text-xs">API Key (x-api-key header)</label>
+        <div className="flex gap-2">
+          <input
+            readOnly
+            type={showKey ? "text" : "password"}
+            value={keyData?.key ?? "טוען..."}
+            className="input flex-1 font-mono text-sm bg-slate-50 select-all"
+            onFocus={(e) => e.target.select()}
+          />
+          <button
+            className="btn-ghost text-sm flex-shrink-0"
+            onClick={() => setShowKey((v) => !v)}
+          >
+            {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+          <button
+            className="btn-secondary text-sm flex items-center gap-1.5 flex-shrink-0"
+            onClick={() => keyData && copy(keyData.key, setCopiedKey)}
+          >
+            {copiedKey ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Upload className="w-4 h-4" />}
+            {copiedKey ? "הועתק!" : "העתק"}
+          </button>
+        </div>
+      </div>
+
+      {/* Instructions */}
+      <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm space-y-2 text-petra-muted">
+        <p className="font-medium text-petra-text">איך לחבר במייק:</p>
+        <ol className="list-decimal list-inside space-y-1 text-xs">
+          <li>צור סצנריו חדש במייק עם טריגר <strong>Webhooks → Custom Webhook</strong></li>
+          <li>חבר אותו לטופס הצור קשר באתר all-dog.co.il</li>
+          <li>הוסף מודול <strong>HTTP → Make a request</strong> עם ה-URL וה-Key מלמעלה</li>
+          <li>
+            מפה את שדות הטופס לגוף הבקשה (JSON):
+            <pre className="mt-1.5 p-2 bg-white rounded-lg border border-slate-200 text-xs font-mono whitespace-pre-wrap">{`{
+  "name": "{{שם מלא}}",
+  "phone": "{{טלפון}}",
+  "email": "{{אימייל}}",
+  "notes": "{{הודעה}}",
+  "petName": "{{שם כלב}}",
+  "source": "all-dog"
+}`}</pre>
+          </li>
+          <li>שלח בקשת <strong>POST</strong> עם header: <code className="bg-white px-1 rounded">x-api-key: &lt;API Key&gt;</code></li>
+        </ol>
+      </div>
     </div>
   );
 }

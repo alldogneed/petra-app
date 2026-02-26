@@ -23,6 +23,7 @@ import {
   Crown,
   Dog,
   Receipt,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -56,6 +57,7 @@ const navItems: NavItem[] = [
   { name: "הזמנות", href: "/orders", icon: ShoppingCart },
   { name: "פנסיון", href: "/boarding", icon: Hotel },
   { name: "אימונים וכלבים", href: "/training", icon: Dog },
+  { name: "כלבי שירות", href: "/service-dogs", icon: Shield },
   { name: "הודעות", href: "/messages", icon: MessageSquare },
   { name: "ניהול תורים", href: "/bookings", icon: CalendarCheck },
   { name: "אנליטיקס", href: "/analytics", icon: BarChart3, minRole: "owner" },

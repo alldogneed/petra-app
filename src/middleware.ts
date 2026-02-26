@@ -12,6 +12,8 @@ const PUBLIC_PATHS = [
   "/api/booking/book",
   "/api/cron",
   "/api/webhooks/invoices",
+  "/api/webhooks/lead",
+  "/api/service-dogs/id-card",
 ];
 
 /** Validate token format: must be exactly 64 hex characters */

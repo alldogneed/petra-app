@@ -37,6 +37,7 @@
     "date-fns": "^4.1.0",
     "lucide-react": "^0.400",
     "next": "14.2.35",
+    "qrcode": "^1.5.4",
     "react": "^18",
     "react-dom": "^18",
     "recharts": "^3.7.0",

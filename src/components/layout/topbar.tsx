@@ -806,10 +806,10 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             onClick={() => setProfileOpen(false)}
           />
 
-          {/* Panel - slides from right in RTL */}
+          {/* Panel - slides from left */}
           <div
             className={cn(
-              "absolute top-0 right-0 h-full w-[320px] max-w-full bg-white shadow-2xl",
+              "absolute top-0 left-0 h-full w-[320px] max-w-full bg-white shadow-2xl",
               "transition-transform duration-300 ease-out",
               "flex flex-col overflow-y-auto"
             )}
@@ -817,7 +817,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             {/* Close button */}
             <button
               onClick={() => setProfileOpen(false)}
-              className="absolute top-4 left-4 w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
