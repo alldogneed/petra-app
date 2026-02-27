@@ -30,6 +30,7 @@ import {
   Pencil,
   Search,
   Copy,
+  LayoutTemplate,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -155,6 +156,7 @@ export default function TasksPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<Task | null>(null);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [showTemplates, setShowTemplates] = useState(false);
   const [, setTick] = useState(0);
   const queryClient = useQueryClient();
 
@@ -382,6 +384,10 @@ export default function TasksPage() {
         <button className="btn-primary" onClick={() => setShowNewTask(true)}>
           <Plus className="w-4 h-4" />
           משימה חדשה
+        </button>
+        <button className="btn-secondary gap-2" onClick={() => setShowTemplates(true)}>
+          <LayoutTemplate className="w-4 h-4" />
+          תבניות
         </button>
         <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-petra-muted bg-slate-100 px-2 py-0.5 rounded-md font-mono">
           N
@@ -650,6 +656,235 @@ export default function TasksPage() {
           </div>
         </div>
       )}
+
+      {showTemplates && (
+        <TaskTemplatesModal
+          onClose={() => setShowTemplates(false)}
+          categories={CATEGORIES.filter((c) => c.id !== "ALL")}
+          categoryLabel={CATEGORY_LABEL}
+          onTaskCreated={() => {
+            queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Task Templates Modal ─────────────────────────────────────────────────────
+
+interface TaskTemplate {
+  id: string;
+  name: string;
+  defaultCategory: string;
+  defaultPriority: string;
+  defaultTitleTemplate: string;
+  defaultDescriptionTemplate: string | null;
+}
+
+function TaskTemplatesModal({
+  onClose,
+  categories,
+  categoryLabel,
+  onTaskCreated,
+}: {
+  onClose: () => void;
+  categories: { id: string; label: string }[];
+  categoryLabel: Record<string, string>;
+  onTaskCreated: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [showNewTpl, setShowNewTpl] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    defaultCategory: "GENERAL",
+    defaultPriority: "MEDIUM",
+    defaultTitleTemplate: "",
+    defaultDescriptionTemplate: "",
+  });
+
+  const { data: templates = [], isLoading } = useQuery<TaskTemplate[]>({
+    queryKey: ["task-templates"],
+    queryFn: () => fetch("/api/task-templates").then((r) => r.json()),
+  });
+
+  const createTemplateMutation = useMutation({
+    mutationFn: (data: typeof form) =>
+      fetch("/api/task-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["task-templates"] });
+      setShowNewTpl(false);
+      setForm({ name: "", defaultCategory: "GENERAL", defaultPriority: "MEDIUM", defaultTitleTemplate: "", defaultDescriptionTemplate: "" });
+      toast.success("תבנית נוצרה");
+    },
+    onError: () => toast.error("שגיאה ביצירת התבנית"),
+  });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/task-templates/${id}`, { method: "DELETE" }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["task-templates"] });
+      toast.success("תבנית נמחקה");
+    },
+    onError: () => toast.error("שגיאה במחיקת התבנית"),
+  });
+
+  const useTemplateMutation = useMutation({
+    mutationFn: (tpl: TaskTemplate) =>
+      fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: tpl.defaultTitleTemplate,
+          description: tpl.defaultDescriptionTemplate || undefined,
+          category: tpl.defaultCategory,
+          priority: tpl.defaultPriority,
+        }),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      onTaskCreated();
+      toast.success("משימה נוצרה מהתבנית");
+    },
+    onError: () => toast.error("שגיאה ביצירת משימה"),
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-lg mx-4 p-6 max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
+            <LayoutTemplate className="w-5 h-5 text-brand-500" />
+            תבניות משימות
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <p className="text-xs text-petra-muted mb-4">
+          הגדר תבניות לסוגי משימות נפוצים כדי לחסוך זמן ביצירת משימות חוזרות.
+        </p>
+
+        {isLoading && <p className="text-sm text-petra-muted text-center py-4">טוען...</p>}
+
+        {!isLoading && templates.length === 0 && !showNewTpl && (
+          <div className="text-center py-6">
+            <LayoutTemplate className="w-8 h-8 text-petra-muted opacity-30 mx-auto mb-2" />
+            <p className="text-sm text-petra-muted mb-1">אין תבניות עדיין</p>
+            <p className="text-xs text-petra-muted">צור תבנית לשימוש חוזר למשימות נפוצות</p>
+          </div>
+        )}
+
+        {!isLoading && templates.length > 0 && (
+          <div className="space-y-2 mb-5">
+            {templates.map((tpl) => (
+              <div key={tpl.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50 group">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-petra-text truncate">{tpl.name}</p>
+                  <p className="text-xs text-petra-muted truncate">{tpl.defaultTitleTemplate}</p>
+                  <div className="flex gap-1.5 mt-1">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">
+                      {categoryLabel[tpl.defaultCategory] ?? tpl.defaultCategory}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">
+                      {PRIORITIES[tpl.defaultPriority]?.label ?? tpl.defaultPriority}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => useTemplateMutation.mutate(tpl)}
+                    disabled={useTemplateMutation.isPending}
+                    className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    צור משימה
+                  </button>
+                  <button
+                    onClick={() => deleteTemplateMutation.mutate(tpl.id)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {showNewTpl ? (
+          <div className="border border-slate-200 rounded-xl p-4 space-y-3">
+            <h3 className="text-sm font-bold text-petra-text">תבנית חדשה</h3>
+            <div>
+              <label className="label">שם התבנית *</label>
+              <input
+                className="input w-full"
+                placeholder="למשל: האכלת בוקר"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label">כותרת ברירת מחדל *</label>
+              <input
+                className="input w-full"
+                placeholder="למשל: האכלה - בוקר"
+                value={form.defaultTitleTemplate}
+                onChange={(e) => setForm({ ...form, defaultTitleTemplate: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label">תיאור (אופציונלי)</label>
+              <textarea
+                className="input w-full resize-none"
+                rows={2}
+                placeholder="הוראות נוספות..."
+                value={form.defaultDescriptionTemplate}
+                onChange={(e) => setForm({ ...form, defaultDescriptionTemplate: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">קטגוריה</label>
+                <select className="input w-full" value={form.defaultCategory} onChange={(e) => setForm({ ...form, defaultCategory: e.target.value })}>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">עדיפות</label>
+                <select className="input w-full" value={form.defaultPriority} onChange={(e) => setForm({ ...form, defaultPriority: e.target.value })}>
+                  {Object.entries(PRIORITIES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                className="btn-primary flex-1"
+                disabled={!form.name || !form.defaultTitleTemplate || createTemplateMutation.isPending}
+                onClick={() => createTemplateMutation.mutate(form)}
+              >
+                {createTemplateMutation.isPending ? "שומר..." : "שמור תבנית"}
+              </button>
+              <button className="btn-secondary" onClick={() => setShowNewTpl(false)}>ביטול</button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowNewTpl(true)}
+            className="btn-secondary w-full gap-2 flex items-center justify-center mt-2"
+          >
+            <Plus className="w-4 h-4" />
+            תבנית חדשה
+          </button>
+        )}
+      </div>
     </div>
   );
 }
