@@ -102,7 +102,7 @@ export default function ServiceDogsOverviewPage() {
             <Shield className="w-6 h-6 text-brand-500" />
             כלבי שירות — סקירה כללית
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-petra-muted mt-1">
             מרכז הכשרת כלבי שירות · ניהול מקצועי
           </p>
         </div>
@@ -120,7 +120,7 @@ export default function ServiceDogsOverviewPage() {
 
       {/* Quick Links */}
       <div>
-        <h2 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
+        <h2 className="text-sm font-semibold text-petra-muted mb-3 uppercase tracking-wider">
           ניווט מהיר
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
@@ -164,7 +164,7 @@ export default function ServiceDogsOverviewPage() {
           {dogsNeedingAttention.length === 0 ? (
             <div className="px-5 py-8 text-center">
               <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-400 mb-2" />
-              <p className="text-sm text-muted-foreground">כל הכלבים תקינים</p>
+              <p className="text-sm text-petra-muted">כל הכלבים תקינים</p>
             </div>
           ) : (
             <div className="divide-y">
@@ -175,7 +175,7 @@ export default function ServiceDogsOverviewPage() {
                   <Link
                     key={dog.id}
                     href={`/service-dogs/${dog.id}`}
-                    className="flex items-center gap-3 px-5 py-3.5 hover:bg-muted/30 transition-colors group"
+                    className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50 transition-colors group"
                   >
                     <div
                       className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
@@ -209,7 +209,7 @@ export default function ServiceDogsOverviewPage() {
                         )}
                       </div>
                     </div>
-                    <ChevronLeft className="w-4 h-4 text-muted-foreground group-hover:text-brand-500 transition-colors" />
+                    <ChevronLeft className="w-4 h-4 text-petra-muted group-hover:text-brand-500 transition-colors" />
                   </Link>
                 );
               })}
@@ -237,7 +237,7 @@ export default function ServiceDogsOverviewPage() {
           {pendingEvents.length === 0 ? (
             <div className="px-5 py-8 text-center">
               <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-400 mb-2" />
-              <p className="text-sm text-muted-foreground">אין דיווחים ממתינים</p>
+              <p className="text-sm text-petra-muted">אין דיווחים ממתינים</p>
             </div>
           ) : (
             <div className="divide-y">
@@ -251,10 +251,10 @@ export default function ServiceDogsOverviewPage() {
                         <p className="text-sm font-medium">
                           {COMPLIANCE_EVENT_MAP[event.eventType]?.label || event.eventType}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        <p className="text-xs text-petra-muted mt-0.5 truncate">
                           {event.eventDescription}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="text-xs text-petra-muted mt-0.5">
                           {formatDate(event.eventAt)}
                           {event.notificationDue && (
                             <span className={cn("mr-2", isOverdue ? "text-red-600 font-medium" : "text-amber-600")}>

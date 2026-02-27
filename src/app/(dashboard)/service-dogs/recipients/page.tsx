@@ -15,7 +15,7 @@ import {
   Clock,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
-import { RECIPIENT_STATUSES, RECIPIENT_STATUS_MAP, DISABILITY_TYPES, DISABILITY_TYPE_MAP } from "@/lib/service-dogs";
+import { RECIPIENT_STATUSES, RECIPIENT_STATUS_MAP, DISABILITY_TYPES, DISABILITY_TYPE_MAP, PLACEMENT_STATUS_MAP } from "@/lib/service-dogs";
 import { toast } from "sonner";
 
 interface Recipient {
@@ -64,7 +64,7 @@ export default function RecipientsPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+          <div className="flex items-center gap-2 text-sm text-petra-muted mb-1">
             <Link href="/service-dogs" className="hover:text-foreground">כלבי שירות</Link>
             <ChevronLeft className="w-3.5 h-3.5" />
             <span>מקבלים</span>
@@ -73,7 +73,7 @@ export default function RecipientsPage() {
             <UserCheck className="w-6 h-6 text-brand-500" />
             ניהול מקבלים
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-petra-muted mt-1">
             {recipients.length} מקבלים במערכת ·{" "}
             {recipients.filter((r) => r.status === "WAITLIST").length} ברשימת המתנה ·{" "}
             {recipients.filter((r) => r.status === "ACTIVE").length} פעילים
@@ -91,7 +91,7 @@ export default function RecipientsPage() {
           onClick={() => setStatusFilter("")}
           className={cn(
             "text-sm px-3 py-1.5 rounded-lg font-medium transition-colors",
-            !statusFilter ? "bg-slate-800 text-white" : "text-muted-foreground hover:bg-muted/60"
+            !statusFilter ? "bg-slate-800 text-white" : "text-petra-muted hover:bg-slate-50"
           )}
         >
           הכל ({recipients.length})
@@ -106,7 +106,7 @@ export default function RecipientsPage() {
                 "text-sm px-3 py-1.5 rounded-lg font-medium border transition-all",
                 statusFilter === s.id
                   ? "bg-brand-50 text-brand-600 border-brand-200 shadow-sm"
-                  : "text-muted-foreground hover:bg-muted/50 border-transparent",
+                  : "text-petra-muted hover:bg-slate-50 border-transparent",
                 count === 0 && "opacity-40"
               )}
             >
@@ -118,7 +118,7 @@ export default function RecipientsPage() {
 
       {/* Search */}
       <div className="relative max-w-sm">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
         <input
           type="text"
           placeholder="חיפוש לפי שם או טלפון..."
@@ -134,13 +134,13 @@ export default function RecipientsPage() {
       ) : filtered.length === 0 ? (
         <div className="empty-state">
           <UserCheck className="empty-state-icon" />
-          <p className="text-muted-foreground">אין מקבלים</p>
+          <p className="text-petra-muted">אין מקבלים</p>
         </div>
       ) : (
         <div className="card p-0 overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b bg-muted/30">
+              <tr className="border-b bg-slate-50/50">
                 <th className="table-header-cell">שם</th>
                 <th className="table-header-cell">סוג לקות</th>
                 <th className="table-header-cell">סטטוס</th>
@@ -157,16 +157,16 @@ export default function RecipientsPage() {
                   ["ACTIVE", "TRIAL"].includes(p.status)
                 );
                 return (
-                  <tr key={recipient.id} className="border-b hover:bg-muted/20 transition-colors">
+                  <tr key={recipient.id} className="border-b hover:bg-slate-50/40 transition-colors">
                     <td className="table-cell">
                       <div className="font-medium">{recipient.name}</div>
                       {recipient.idNumber && (
-                        <div className="text-xs text-muted-foreground font-mono">ת.ז. {recipient.idNumber}</div>
+                        <div className="text-xs text-petra-muted font-mono">ת.ז. {recipient.idNumber}</div>
                       )}
                     </td>
                     <td className="table-cell">
                       {DISABILITY_TYPE_MAP[recipient.disabilityType || ""] || (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-petra-muted">—</span>
                       )}
                     </td>
                     <td className="table-cell">
@@ -184,7 +184,7 @@ export default function RecipientsPage() {
                           {activePlacement.serviceDog.pet.name}
                         </Link>
                       ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
+                        <span className="text-petra-muted text-sm">—</span>
                       )}
                     </td>
                     <td className="table-cell">
@@ -194,10 +194,10 @@ export default function RecipientsPage() {
                           {recipient.phone}
                         </a>
                       ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
+                        <span className="text-petra-muted text-sm">—</span>
                       )}
                     </td>
-                    <td className="table-cell text-muted-foreground text-sm">
+                    <td className="table-cell text-petra-muted text-sm">
                       {recipient.waitlistDate ? (
                         <span className="flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5" />
@@ -340,7 +340,7 @@ function RecipientDetailModal({ recipient, onClose }: { recipient: Recipient; on
         <div className="space-y-3">
           {/* Status */}
           <div className="flex items-center justify-between py-2 border-b">
-            <span className="text-sm text-muted-foreground">סטטוס</span>
+            <span className="text-sm text-petra-muted">סטטוס</span>
             <span className={cn("text-sm px-2.5 py-1 rounded-full font-medium", RECIPIENT_STATUS_MAP[recipient.status]?.color)}>
               {RECIPIENT_STATUS_MAP[recipient.status]?.label || recipient.status}
             </span>
@@ -358,7 +358,7 @@ function RecipientDetailModal({ recipient, onClose }: { recipient: Recipient; on
             .filter((f) => f.value)
             .map((f) => (
               <div key={f.label} className="flex justify-between py-1.5 border-b last:border-0">
-                <span className="text-sm text-muted-foreground">{f.label}</span>
+                <span className="text-sm text-petra-muted">{f.label}</span>
                 <span className="text-sm font-medium">{f.value}</span>
               </div>
             ))}
@@ -372,14 +372,14 @@ function RecipientDetailModal({ recipient, onClose }: { recipient: Recipient; on
                   key={p.id}
                   href={`/service-dogs/${p.serviceDog.id}`}
                   onClick={onClose}
-                  className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50/50 hover:bg-slate-50 transition-colors"
                 >
                   <span className="flex items-center gap-2 text-sm">
-                    <Dog className="w-4 h-4 text-muted-foreground" />
+                    <Dog className="w-4 h-4 text-petra-muted" />
                     {p.serviceDog.pet.name}
                   </span>
-                  <span className={cn("text-xs px-2 py-0.5 rounded-full", RECIPIENT_STATUS_MAP[p.status]?.color || "bg-slate-100 text-slate-600")}>
-                    {p.status}
+                  <span className={cn("text-xs px-2 py-0.5 rounded-full", PLACEMENT_STATUS_MAP[p.status]?.color || "bg-slate-100 text-slate-600")}>
+                    {PLACEMENT_STATUS_MAP[p.status]?.label || p.status}
                   </span>
                 </Link>
               ))}
@@ -388,7 +388,7 @@ function RecipientDetailModal({ recipient, onClose }: { recipient: Recipient; on
 
           {recipient.notes && (
             <div className="pt-2 border-t">
-              <p className="text-xs text-muted-foreground mb-1">הערות</p>
+              <p className="text-xs text-petra-muted mb-1">הערות</p>
               <p className="text-sm">{recipient.notes}</p>
             </div>
           )}

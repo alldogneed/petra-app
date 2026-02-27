@@ -192,8 +192,8 @@ export default function ServiceDogProfilePage() {
   if (isError || !dog) {
     return (
       <div className="text-center py-20">
-        <Dog className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
-        <p className="text-muted-foreground">כלב לא נמצא</p>
+        <Dog className="w-12 h-12 mx-auto text-petra-muted/40 mb-3" />
+        <p className="text-petra-muted">כלב לא נמצא</p>
         <Link href="/service-dogs/dogs" className="btn-primary mt-4 inline-flex">
           חזרה לרשימה
         </Link>
@@ -217,7 +217,7 @@ export default function ServiceDogProfilePage() {
   return (
     <div className="animate-fade-in space-y-5">
       {/* Breadcrumb + Back */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="flex items-center gap-2 text-sm text-petra-muted">
         <button
           onClick={() => router.back()}
           className="flex items-center gap-1 hover:text-foreground transition-colors"
@@ -250,7 +250,7 @@ export default function ServiceDogProfilePage() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold leading-tight">{dog.pet.name}</h1>
-                <p className="text-muted-foreground text-sm mt-0.5">
+                <p className="text-petra-muted text-sm mt-0.5">
                   {dog.pet.breed || dog.pet.species}
                   {dog.pet.gender && ` · ${dog.pet.gender === "male" ? "זכר" : "נקבה"}`}
                 </p>
@@ -273,7 +273,7 @@ export default function ServiceDogProfilePage() {
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setShowPhaseDropdown(false)} />
                         <div className="absolute z-20 top-full mt-1 right-0 bg-white rounded-xl shadow-xl border py-1 min-w-[170px]">
-                          <p className="text-xs text-muted-foreground px-3 py-1.5 border-b">שנה שלב</p>
+                          <p className="text-xs text-petra-muted px-3 py-1.5 border-b">שנה שלב</p>
                           {SERVICE_DOG_PHASES.map((p) => {
                             const pc = SERVICE_DOG_PHASE_COLORS[p.id];
                             return (
@@ -306,7 +306,7 @@ export default function ServiceDogProfilePage() {
                     </span>
                   )}
                   {dog.certifyingBody && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-petra-muted">
                       {dog.certifyingBody}
                     </span>
                   )}
@@ -323,7 +323,7 @@ export default function ServiceDogProfilePage() {
             {/* Service type badge */}
             {dog.serviceType && (
               <div className="text-right">
-                <span className="text-xs text-muted-foreground">סוג שירות</span>
+                <span className="text-xs text-petra-muted">סוג שירות</span>
                 <p className="text-sm font-semibold mt-0.5">
                   {SERVICE_DOG_TYPES.find((t) => t.id === dog.serviceType)?.label || dog.serviceType}
                 </p>
@@ -337,9 +337,9 @@ export default function ServiceDogProfilePage() {
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
                 {tp.totalHours.toFixed(0)}
-                <span className="text-sm font-normal text-muted-foreground">/{tp.targetHours}</span>
+                <span className="text-sm font-normal text-petra-muted">/{tp.targetHours}</span>
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5">שעות אימון</div>
+              <div className="text-xs text-petra-muted mt-0.5">שעות אימון</div>
               <div className="w-full h-1.5 bg-muted rounded-full mt-2 overflow-hidden">
                 <div
                   className={cn(
@@ -349,7 +349,7 @@ export default function ServiceDogProfilePage() {
                   style={{ width: `${tp.percentComplete}%` }}
                 />
               </div>
-              <div className="text-xs text-muted-foreground mt-1">{tp.percentComplete}%</div>
+              <div className="text-xs text-petra-muted mt-1">{tp.percentComplete}%</div>
             </div>
 
             {/* Medical compliance */}
@@ -362,7 +362,7 @@ export default function ServiceDogProfilePage() {
               >
                 {mc.compliancePercent}%
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5">משמעת רפואית</div>
+              <div className="text-xs text-petra-muted mt-0.5">משמעת רפואית</div>
               <div className="text-xs mt-1.5">
                 <span className="text-emerald-600">{mc.completedCount} ✓</span>
                 {mc.overdueCount > 0 && <span className="text-red-600 mr-2">{mc.overdueCount} ✗</span>}
@@ -373,11 +373,11 @@ export default function ServiceDogProfilePage() {
             <div className="text-center">
               <div className="text-2xl font-bold">
                 {tp.monthsElapsed}
-                <span className="text-sm font-normal text-muted-foreground">/{tp.targetMonths}</span>
+                <span className="text-sm font-normal text-petra-muted">/{tp.targetMonths}</span>
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5">חודשי אימון</div>
+              <div className="text-xs text-petra-muted mt-0.5">חודשי אימון</div>
               {dog.trainingStartDate && (
-                <div className="text-xs text-muted-foreground mt-1.5">
+                <div className="text-xs text-petra-muted mt-1.5">
                   התחיל {formatDate(dog.trainingStartDate)}
                 </div>
               )}
@@ -394,7 +394,7 @@ export default function ServiceDogProfilePage() {
                   <TrendingUp className="w-7 h-7 text-blue-400 mx-auto" />
                 )}
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5">
+              <div className="text-xs text-petra-muted mt-0.5">
                 {tp.isReadyForCertification ? "מוכן להסמכה!" : dog.phase === "CERTIFIED" ? "מוסמך" : "באימון"}
               </div>
               {dog.certificationDate && (
@@ -419,7 +419,7 @@ export default function ServiceDogProfilePage() {
                 "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                 activeTab === tab.id
                   ? "border-brand-500 text-brand-600"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                  : "border-transparent text-petra-muted hover:text-foreground"
               )}
             >
               <Icon className="w-4 h-4" />
@@ -504,7 +504,7 @@ function TrainingTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
 
         <div>
           <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-muted-foreground">השלמה</span>
+            <span className="text-petra-muted">השלמה</span>
             <span className="font-semibold">{tp.percentComplete}%</span>
           </div>
           <div className="w-full h-4 bg-muted rounded-full overflow-hidden">
@@ -522,7 +522,7 @@ function TrainingTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
               style={{ width: `${tp.percentComplete}%` }}
             />
           </div>
-          <div className="flex justify-between text-xs text-muted-foreground mt-1.5">
+          <div className="flex justify-between text-xs text-petra-muted mt-1.5">
             <span>0 שעות</span>
             <span>{tp.targetHours} שעות</span>
           </div>
@@ -556,7 +556,7 @@ function TrainingTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
         {dog.trainingLogs.length === 0 ? (
           <div className="empty-state py-10">
             <Clock className="empty-state-icon" />
-            <p className="text-muted-foreground">אין מפגשי אימון עדיין</p>
+            <p className="text-petra-muted">אין מפגשי אימון עדיין</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -570,10 +570,10 @@ function TrainingTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <div className="flex items-center gap-1.5 text-sm font-medium">
-                          <Calendar className="w-4 h-4 text-muted-foreground" />
+                          <Calendar className="w-4 h-4 text-petra-muted" />
                           {formatDate(log.sessionDate)}
                         </div>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1 text-sm text-petra-muted">
                           <Clock className="w-3.5 h-3.5" />
                           {log.durationMinutes} דקות
                           {log.cumulativeHours !== null && (
@@ -584,7 +584,7 @@ function TrainingTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
+                      <div className="flex items-center gap-4 text-sm text-petra-muted mb-2">
                         {log.trainerName && (
                           <span className="flex items-center gap-1">
                             <User className="w-3.5 h-3.5" />
@@ -616,7 +616,7 @@ function TrainingTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
                       )}
 
                       {log.notes && (
-                        <p className="text-sm text-muted-foreground">{log.notes}</p>
+                        <p className="text-sm text-petra-muted">{log.notes}</p>
                       )}
                     </div>
 
@@ -627,7 +627,7 @@ function TrainingTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
                             key={i}
                             className={cn(
                               "w-4 h-4",
-                              i < log.rating! ? "fill-amber-400 text-amber-400" : "text-muted-foreground/20"
+                              i < log.rating! ? "fill-amber-400 text-amber-400" : "text-petra-muted/20"
                             )}
                           />
                         ))}
@@ -716,7 +716,7 @@ function AddTrainingForm({ dogId, onDone }: { dogId: string; onDone: () => void 
                 "text-xs px-2.5 py-1 rounded-full border transition-all",
                 selectedSkills.includes(skill.id)
                   ? "bg-brand-500 text-white border-brand-500 shadow-sm"
-                  : "bg-white text-muted-foreground border-muted-foreground/20 hover:border-brand-300"
+                  : "bg-white text-petra-muted border-muted-foreground/20 hover:border-brand-300"
               )}
             >
               {skill.label}
@@ -739,7 +739,7 @@ function AddTrainingForm({ dogId, onDone }: { dogId: string; onDone: () => void 
                 <Star
                   className={cn(
                     "w-6 h-6 transition-colors",
-                    r <= rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/25"
+                    r <= rating ? "fill-amber-400 text-amber-400" : "text-petra-muted/25"
                   )}
                 />
               </button>
@@ -867,7 +867,7 @@ function MedicalTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
       {/* Protocols by category */}
       {Object.entries(grouped).map(([catId, { label, protocols }]) => (
         <div key={catId} className="card p-0 overflow-hidden">
-          <div className="px-4 py-3 bg-muted/30 border-b">
+          <div className="px-4 py-3 bg-slate-50/50 border-b">
             <h4 className="font-semibold text-sm">{label}</h4>
           </div>
           <div className="divide-y">
@@ -897,7 +897,7 @@ function MedicalTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
                       <p className={cn("text-sm font-medium", isOverdue && "text-red-700")}>
                         {protocol.protocolLabel}
                       </p>
-                      <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
+                      <div className="flex gap-3 text-xs text-petra-muted mt-0.5">
                         {protocol.dueDate && (
                           <span className={cn(isOverdue && "text-red-500 font-medium")}>
                             יעד: {formatDate(protocol.dueDate)}
@@ -1021,7 +1021,7 @@ function ComplianceTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string })
       {/* History */}
       {otherEvents.length > 0 && (
         <div>
-          <h4 className="text-sm font-semibold text-muted-foreground mb-2">היסטוריה</h4>
+          <h4 className="text-sm font-semibold text-petra-muted mb-2">היסטוריה</h4>
           <ComplianceEventGroup events={otherEvents} statusConfig={statusConfig} onMark={(id, status) => markMutation.mutate({ id, notificationStatus: status })} />
         </div>
       )}
@@ -1029,7 +1029,7 @@ function ComplianceTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string })
       {dog.complianceEvents.length === 0 && (
         <div className="empty-state py-10">
           <AlertTriangle className="empty-state-icon" />
-          <p className="text-muted-foreground">אין אירועי ציות</p>
+          <p className="text-petra-muted">אין אירועי ציות</p>
         </div>
       )}
     </div>
@@ -1070,8 +1070,8 @@ function ComplianceEventGroup({
                   </span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">{event.eventDescription}</p>
-              <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+              <p className="text-xs text-petra-muted">{event.eventDescription}</p>
+              <div className="flex items-center gap-3 mt-1 text-xs text-petra-muted">
                 <span>{formatDate(event.eventAt)}</span>
                 {event.notificationDue && (
                   <span className={cn(isOverdue ? "text-red-600 font-medium" : "text-amber-600")}>
@@ -1125,7 +1125,7 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
               </div>
               <p className="text-lg font-bold">{activePlacement.recipient.name}</p>
               {activePlacement.recipient.phone && (
-                <p className="text-sm text-muted-foreground mt-0.5">{activePlacement.recipient.phone}</p>
+                <p className="text-sm text-petra-muted mt-0.5">{activePlacement.recipient.phone}</p>
               )}
             </div>
             <span
@@ -1164,14 +1164,14 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
       {dog.placements.length === 0 ? (
         <div className="empty-state py-10">
           <Activity className="empty-state-icon" />
-          <p className="text-muted-foreground">אין שיבוצים</p>
+          <p className="text-petra-muted">אין שיבוצים</p>
           <Link href="/service-dogs/placements" className="btn-primary mt-3 inline-flex text-sm">
             צור שיבוץ חדש
           </Link>
         </div>
       ) : (
         <div className="card p-0 overflow-hidden">
-          <div className="px-4 py-3 border-b bg-muted/20">
+          <div className="px-4 py-3 border-b bg-slate-50/40">
             <h4 className="text-sm font-semibold">היסטוריית שיבוצים</h4>
           </div>
           <div className="divide-y">
@@ -1181,7 +1181,7 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
                 <div key={placement.id} className="px-4 py-3 flex items-center justify-between">
                   <div>
                     <p className="font-medium text-sm">{placement.recipient.name}</p>
-                    <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
+                    <div className="flex gap-3 text-xs text-petra-muted mt-0.5">
                       {placement.placementDate && <span>{formatDate(placement.placementDate)}</span>}
                       {placement.trialEndDate && <span>עד {formatDate(placement.trialEndDate)}</span>}
                     </div>
@@ -1249,8 +1249,8 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
 
       {!activeCard ? (
         <div className="card p-8 text-center">
-          <CreditCard className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
-          <p className="text-muted-foreground mb-4">אין תעודת זהות פעילה</p>
+          <CreditCard className="w-12 h-12 mx-auto text-petra-muted/40 mb-3" />
+          <p className="text-petra-muted mb-4">אין תעודת זהות פעילה</p>
           {dog.phase === "CERTIFIED" && (
             <button
               onClick={() => generateMutation.mutate()}
@@ -1270,7 +1270,7 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
                 <CreditCard className="w-4 h-4 text-emerald-500" />
                 תעודת זהות פעילה
               </h4>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-xs text-petra-muted mt-0.5">
                 הונפקה: {formatDate(activeCard.generatedAt)}
                 {activeCard.expiresAt && ` · פגה: ${formatDate(activeCard.expiresAt)}`}
               </p>
@@ -1334,7 +1334,7 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
                     .filter((f) => f.value)
                     .map((f) => (
                       <div key={f.label} className="flex justify-between py-1 border-b last:border-0">
-                        <span className="text-muted-foreground">{f.label}</span>
+                        <span className="text-petra-muted">{f.label}</span>
                         <span className="font-medium">{f.value}</span>
                       </div>
                     ))}

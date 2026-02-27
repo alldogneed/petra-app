@@ -84,7 +84,7 @@ export default function IDCardsPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+          <div className="flex items-center gap-2 text-sm text-petra-muted mb-1">
             <Link href="/service-dogs" className="hover:text-foreground">כלבי שירות</Link>
             <ChevronLeft className="w-3.5 h-3.5" />
             <span>תעודות זהות</span>
@@ -93,7 +93,7 @@ export default function IDCardsPage() {
             <CreditCard className="w-6 h-6 text-brand-500" />
             תעודות זהות
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-petra-muted mt-1">
             {dogsWithCards.length} תעודות פעילות · {certifiedWithoutCards.length} מוסמכים ללא תעודה
           </p>
         </div>
@@ -111,18 +111,18 @@ export default function IDCardsPage() {
         </div>
         <div className={cn(
           "rounded-xl p-4 border",
-          certifiedWithoutCards.length > 0 ? "bg-amber-50 border-amber-200" : "bg-muted/30"
+          certifiedWithoutCards.length > 0 ? "bg-amber-50 border-amber-200" : "bg-slate-50/50"
         )}>
           <div className={cn("text-2xl font-bold", certifiedWithoutCards.length > 0 ? "text-amber-600" : "text-slate-500")}>
             {certifiedWithoutCards.length}
           </div>
-          <div className="text-xs text-muted-foreground mt-0.5">ממתינים לתעודה</div>
+          <div className="text-xs text-petra-muted mt-0.5">ממתינים לתעודה</div>
         </div>
-        <div className="rounded-xl p-4 border bg-muted/30">
+        <div className="rounded-xl p-4 border bg-slate-50/50">
           <div className="text-2xl font-bold text-slate-500">
             {dogs.filter((d) => !["CERTIFIED", "RETIRED"].includes(d.phase)).length}
           </div>
-          <div className="text-xs text-muted-foreground mt-0.5">בתהליך הכשרה</div>
+          <div className="text-xs text-petra-muted mt-0.5">בתהליך הכשרה</div>
         </div>
       </div>
 
@@ -151,7 +151,7 @@ export default function IDCardsPage() {
                       {dog.pet.name}
                     </Link>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs text-petra-muted mt-0.5">
                     {dog.pet.breed || "—"}
                     {dog.certificationDate && ` · הוסמך ${formatDate(dog.certificationDate)}`}
                   </p>
@@ -184,9 +184,9 @@ export default function IDCardsPage() {
         ) : dogsWithCards.length === 0 ? (
           <div className="empty-state py-10">
             <CreditCard className="empty-state-icon" />
-            <p className="text-muted-foreground">אין תעודות פעילות</p>
+            <p className="text-petra-muted">אין תעודות פעילות</p>
             {certifiedDogs.length === 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-petra-muted mt-1">
                 יש להסמיך כלבים לפני הנפקת תעודות
               </p>
             )}
@@ -214,7 +214,7 @@ export default function IDCardsPage() {
                           <Shield className="w-4 h-4" style={{ color: phaseColors?.text }} />
                           {dog.pet.name}
                         </Link>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="text-xs text-petra-muted mt-0.5">
                           {dog.pet.breed || "—"}
                         </p>
                       </div>
@@ -225,7 +225,7 @@ export default function IDCardsPage() {
                   {/* Card body */}
                   <div className="px-4 py-3 space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">שלב</span>
+                      <span className="text-petra-muted">שלב</span>
                       <span
                         className="text-xs px-2 py-0.5 rounded-full border"
                         style={{
@@ -239,19 +239,19 @@ export default function IDCardsPage() {
                     </div>
                     {dog.registrationNumber && (
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">מספר רישום</span>
+                        <span className="text-petra-muted">מספר רישום</span>
                         <span className="font-mono text-xs">{dog.registrationNumber}</span>
                       </div>
                     )}
                     {dog.certificationDate && (
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">תאריך הסמכה</span>
+                        <span className="text-petra-muted">תאריך הסמכה</span>
                         <span className="text-xs">{formatDate(dog.certificationDate)}</span>
                       </div>
                     )}
                     {dog.certificationExpiry && (
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">תוקף</span>
+                        <span className="text-petra-muted">תוקף</span>
                         <span
                           className={cn(
                             "text-xs",
@@ -267,7 +267,7 @@ export default function IDCardsPage() {
                   </div>
 
                   {/* Card footer */}
-                  <div className="px-4 py-2.5 border-t bg-muted/20 flex gap-2">
+                  <div className="px-4 py-2.5 border-t bg-slate-50/40 flex gap-2">
                     <button
                       onClick={() => fetchAndViewCard(dog.id, dog.pet.name)}
                       className="flex-1 btn-secondary text-sm flex items-center justify-center gap-1.5"
@@ -340,7 +340,7 @@ export default function IDCardsPage() {
                   {fields.map((f) => (
                     <div key={f.label} className="flex justify-between text-sm">
                       <span className="font-medium">{f.value}</span>
-                      <span className="text-muted-foreground">{f.label}</span>
+                      <span className="text-petra-muted">{f.label}</span>
                     </div>
                   ))}
                 </div>

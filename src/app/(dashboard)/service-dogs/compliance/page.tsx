@@ -100,7 +100,7 @@ export default function CompliancePage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+          <div className="flex items-center gap-2 text-sm text-petra-muted mb-1">
             <Link href="/service-dogs" className="hover:text-foreground">כלבי שירות</Link>
             <ChevronLeft className="w-3.5 h-3.5" />
             <span>משמעת ודיווח</span>
@@ -109,7 +109,7 @@ export default function CompliancePage() {
             <AlertTriangle className="w-6 h-6 text-brand-500" />
             משמעת ודיווח ממשלתי
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-petra-muted mt-1">
             ניהול אירועי ציות ודיווחים נדרשים לרשויות
           </p>
         </div>
@@ -132,21 +132,21 @@ export default function CompliancePage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className={cn("rounded-xl p-4 border", overdueEvents.length > 0 ? "bg-red-50 border-red-200" : "bg-muted/30")}>
+        <div className={cn("rounded-xl p-4 border", overdueEvents.length > 0 ? "bg-red-50 border-red-200" : "bg-slate-50/50")}>
           <div className={cn("text-2xl font-bold", overdueEvents.length > 0 ? "text-red-600" : "text-slate-600")}>{overdueEvents.length}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">באיחור</div>
+          <div className="text-xs text-petra-muted mt-0.5">באיחור</div>
         </div>
         <div className="rounded-xl p-4 border bg-amber-50 border-amber-200">
           <div className="text-2xl font-bold text-amber-600">{nonOverduePending.length}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">ממתינים</div>
+          <div className="text-xs text-petra-muted mt-0.5">ממתינים</div>
         </div>
         <div className="rounded-xl p-4 border bg-emerald-50 border-emerald-200">
           <div className="text-2xl font-bold text-emerald-600">{sentEvents.length}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">נשלחו</div>
+          <div className="text-xs text-petra-muted mt-0.5">נשלחו</div>
         </div>
-        <div className="rounded-xl p-4 border bg-muted/30">
+        <div className="rounded-xl p-4 border bg-slate-50/50">
           <div className="text-2xl font-bold text-slate-600">{events.length}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">סה״כ</div>
+          <div className="text-xs text-petra-muted mt-0.5">סה״כ</div>
         </div>
       </div>
 
@@ -160,7 +160,7 @@ export default function CompliancePage() {
               "px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap -mb-px",
               filter === tab.id
                 ? "border-brand-500 text-brand-600"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "border-transparent text-petra-muted hover:text-foreground"
             )}
           >
             {tab.label}
@@ -174,7 +174,7 @@ export default function CompliancePage() {
       ) : filteredEvents.length === 0 ? (
         <div className="empty-state py-12">
           <CheckCircle2 className="empty-state-icon text-emerald-400" />
-          <p className="text-muted-foreground">
+          <p className="text-petra-muted">
             {filter === "pending" ? "אין דיווחים ממתינים — מצוין!" : "אין אירועים"}
           </p>
         </div>
@@ -222,9 +222,9 @@ export default function CompliancePage() {
                     )}
                   </div>
 
-                  <p className="text-sm text-muted-foreground">{event.eventDescription}</p>
+                  <p className="text-sm text-petra-muted">{event.eventDescription}</p>
 
-                  <div className="flex items-center gap-4 mt-1.5 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-4 mt-1.5 text-xs text-petra-muted">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       {formatDate(event.eventAt)}
@@ -281,7 +281,7 @@ export default function CompliancePage() {
           {/* Other events (waived/not required) */}
           {filter === "all" && otherEvents.length > 0 && (
             <div className="mt-4">
-              <h4 className="text-sm font-medium text-muted-foreground mb-2">
+              <h4 className="text-sm font-medium text-petra-muted mb-2">
                 אחר ({otherEvents.length})
               </h4>
               {otherEvents.map((event) => {
@@ -290,7 +290,7 @@ export default function CompliancePage() {
                   <div key={event.id} className="card p-3 mb-2 opacity-70 flex items-center justify-between">
                     <div>
                       <p className="text-sm">{COMPLIANCE_EVENT_MAP[event.eventType]?.label || event.eventType}</p>
-                      <p className="text-xs text-muted-foreground">{formatDate(event.eventAt)}</p>
+                      <p className="text-xs text-petra-muted">{formatDate(event.eventAt)}</p>
                     </div>
                     <span className={cn("text-xs px-2 py-0.5 rounded-full", sc.className)}>
                       {sc.label}

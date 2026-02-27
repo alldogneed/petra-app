@@ -102,7 +102,7 @@ export default function ServiceDogsListPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+          <div className="flex items-center gap-2 text-sm text-petra-muted mb-1">
             <Link href="/service-dogs" className="hover:text-foreground transition-colors">
               כלבי שירות
             </Link>
@@ -131,7 +131,7 @@ export default function ServiceDogsListPage() {
             "text-sm px-3 py-1.5 rounded-lg font-medium transition-colors",
             !phaseFilter
               ? "bg-slate-800 text-white"
-              : "text-muted-foreground hover:bg-muted/60"
+              : "text-petra-muted hover:bg-slate-50"
           )}
         >
           הכל ({dogs.length})
@@ -164,7 +164,7 @@ export default function ServiceDogsListPage() {
 
       {/* Search */}
       <div className="relative max-w-sm">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
         <input
           type="text"
           placeholder="חיפוש לפי שם או גזע..."
@@ -184,7 +184,7 @@ export default function ServiceDogsListPage() {
       ) : filteredDogs.length === 0 ? (
         <div className="empty-state">
           <Dog className="empty-state-icon" />
-          <p className="text-muted-foreground">
+          <p className="text-petra-muted">
             {phaseFilter || search ? "לא נמצאו כלבים התואמים לחיפוש" : "אין כלבי שירות"}
           </p>
         </div>
@@ -213,7 +213,7 @@ export default function ServiceDogsListPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-base leading-tight">{dog.pet.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-xs text-petra-muted mt-0.5">
                         {dog.pet.breed || dog.pet.species}
                       </p>
                     </div>
@@ -248,7 +248,7 @@ export default function ServiceDogsListPage() {
                                 }
                                 disabled={p.id === dog.phase || phaseChangeMutation.isPending}
                                 className={cn(
-                                  "w-full text-right px-3 py-1.5 text-sm hover:bg-muted/50 transition-colors",
+                                  "w-full text-right px-3 py-1.5 text-sm hover:bg-slate-50 transition-colors",
                                   p.id === dog.phase && "opacity-40 cursor-default"
                                 )}
                               >
@@ -281,7 +281,7 @@ export default function ServiceDogsListPage() {
                   {/* Training progress */}
                   <div>
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-muted-foreground flex items-center gap-1">
+                      <span className="text-petra-muted flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         שעות אימון
                       </span>
@@ -303,7 +303,7 @@ export default function ServiceDogsListPage() {
                       />
                     </div>
                     <div className="flex items-center justify-between mt-1">
-                      <span className="text-xs text-muted-foreground">{hoursPercent}%</span>
+                      <span className="text-xs text-petra-muted">{hoursPercent}%</span>
                       <span
                         className={cn(
                           "text-xs px-1.5 py-0.5 rounded-full",
@@ -317,7 +317,7 @@ export default function ServiceDogsListPage() {
 
                   {/* Medical compliance */}
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground flex items-center gap-1">
+                    <span className="text-petra-muted flex items-center gap-1">
                       <Shield className="w-3 h-3" />
                       משמעת רפואית
                     </span>
@@ -352,7 +352,7 @@ export default function ServiceDogsListPage() {
 
                   {/* Recipient */}
                   {dog.activePlacement && (
-                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    <div className="text-xs text-petra-muted flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-emerald-500" />
                       מקבל: {dog.activePlacement.recipientName}
                     </div>
@@ -360,7 +360,7 @@ export default function ServiceDogsListPage() {
                 </div>
 
                 {/* Card Footer */}
-                <div className="px-4 py-2.5 border-t bg-muted/20">
+                <div className="px-4 py-2.5 border-t bg-slate-50/40">
                   <Link
                     href={`/service-dogs/${dog.id}`}
                     className="text-sm text-brand-500 hover:text-brand-600 font-medium flex items-center justify-center gap-1 w-full"
@@ -375,14 +375,14 @@ export default function ServiceDogsListPage() {
         </div>
       )}
 
-      {showAddModal && <AddDogModal onClose={() => setShowAddModal(false)} />}
+      {showAddModal && <AddDogModal dogs={dogs} onClose={() => setShowAddModal(false)} />}
     </div>
   );
 }
 
 // ─── Add Dog Modal ───
 
-function AddDogModal({ onClose }: { onClose: () => void }) {
+function AddDogModal({ dogs, onClose }: { dogs: ServiceDogCard[]; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [petSearch, setPetSearch] = useState("");
   const [selectedPetId, setSelectedPetId] = useState("");
@@ -391,12 +391,14 @@ function AddDogModal({ onClose }: { onClose: () => void }) {
   const [serviceType, setServiceType] = useState("");
   const [notes, setNotes] = useState("");
 
+  const existingPetIds = new Set(dogs.map((d) => d.pet.id));
+
   const { data: customers = [] } = useQuery<
-    Array<{ id: string; name: string; pets: Array<{ id: string; name: string; breed: string | null; species: string; serviceDogProfile: unknown }> }>
+    Array<{ id: string; name: string; pets: Array<{ id: string; name: string; breed: string | null; species: string }> }>
   >({
     queryKey: ["customers-pet-search", petSearch],
     queryFn: () =>
-      fetch(`/api/customers?search=${encodeURIComponent(petSearch)}&includePets=true`).then((r) =>
+      fetch(`/api/customers?enhanced=1&search=${encodeURIComponent(petSearch)}`).then((r) =>
         r.json()
       ),
     enabled: petSearch.length >= 1,
@@ -404,7 +406,7 @@ function AddDogModal({ onClose }: { onClose: () => void }) {
 
   const availablePets = customers.flatMap((c) =>
     (c.pets || [])
-      .filter((p) => !p.serviceDogProfile)
+      .filter((p) => !existingPetIds.has(p.id))
       .map((p) => ({ ...p, customerName: c.name }))
   );
 
@@ -461,10 +463,10 @@ function AddDogModal({ onClose }: { onClose: () => void }) {
                       setSelectedPetId(pet.id);
                       setSelectedPetName(`${pet.name} (${pet.breed || pet.species}) — ${pet.customerName}`);
                     }}
-                    className="w-full text-right px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors border-b last:border-b-0"
+                    className="w-full text-right px-3 py-2.5 text-sm hover:bg-slate-50 transition-colors border-b last:border-b-0"
                   >
                     <span className="font-medium">{pet.name}</span>
-                    <span className="text-muted-foreground"> · {pet.breed || pet.species} · {pet.customerName}</span>
+                    <span className="text-petra-muted"> · {pet.breed || pet.species} · {pet.customerName}</span>
                   </button>
                 ))}
               </div>

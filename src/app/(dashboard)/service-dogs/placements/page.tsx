@@ -114,7 +114,7 @@ export default function PlacementsPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+          <div className="flex items-center gap-2 text-sm text-petra-muted mb-1">
             <Link href="/service-dogs" className="hover:text-foreground">כלבי שירות</Link>
             <ChevronLeft className="w-3.5 h-3.5" />
             <span>שיבוצים</span>
@@ -123,7 +123,7 @@ export default function PlacementsPage() {
             <Activity className="w-6 h-6 text-brand-500" />
             ניהול שיבוצים
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-petra-muted mt-1">
             {activePlacements.length} שיבוצים פעילים · {trialPlacements.length} בתקופת ניסיון
           </p>
         </div>
@@ -163,7 +163,7 @@ export default function PlacementsPage() {
                   <div>
                     <p className="text-sm font-medium">{p.recipient.name}</p>
                     {p.recipient.disabilityType && (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-petra-muted">
                         {DISABILITY_TYPE_MAP[p.recipient.disabilityType]}
                       </p>
                     )}
@@ -187,7 +187,7 @@ export default function PlacementsPage() {
           onClick={() => setStatusFilter("")}
           className={cn(
             "text-sm px-3 py-1.5 rounded-lg font-medium transition-colors",
-            !statusFilter ? "bg-slate-800 text-white" : "text-muted-foreground hover:bg-muted/60"
+            !statusFilter ? "bg-slate-800 text-white" : "text-petra-muted hover:bg-slate-50"
           )}
         >
           הכל ({placements.length})
@@ -203,7 +203,7 @@ export default function PlacementsPage() {
                 "text-sm px-3 py-1.5 rounded-lg border transition-all",
                 statusFilter === s.id
                   ? "bg-brand-50 text-brand-600 border-brand-200 shadow-sm font-medium"
-                  : "text-muted-foreground hover:bg-muted/50 border-transparent"
+                  : "text-petra-muted hover:bg-slate-50 border-transparent"
               )}
             >
               {PLACEMENT_STATUS_MAP[s.id]?.label || s.label} ({count})
@@ -218,13 +218,13 @@ export default function PlacementsPage() {
       ) : filtered.length === 0 ? (
         <div className="empty-state">
           <Activity className="empty-state-icon" />
-          <p className="text-muted-foreground">אין שיבוצים</p>
+          <p className="text-petra-muted">אין שיבוצים</p>
         </div>
       ) : (
         <div className="card p-0 overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b bg-muted/30">
+              <tr className="border-b bg-slate-50/50">
                 <th className="table-header-cell">כלב</th>
                 <th className="table-header-cell">מקבל</th>
                 <th className="table-header-cell">סטטוס</th>
@@ -238,23 +238,23 @@ export default function PlacementsPage() {
               {filtered.map((placement) => {
                 const statusInfo = PLACEMENT_STATUS_MAP[placement.status];
                 return (
-                  <tr key={placement.id} className="border-b hover:bg-muted/20 transition-colors">
+                  <tr key={placement.id} className="border-b hover:bg-slate-50/40 transition-colors">
                     <td className="table-cell">
                       <Link
                         href={`/service-dogs/${placement.serviceDog.id}`}
                         className="font-medium hover:text-brand-500 flex items-center gap-1.5"
                       >
-                        <Dog className="w-3.5 h-3.5 text-muted-foreground" />
+                        <Dog className="w-3.5 h-3.5 text-petra-muted" />
                         {placement.serviceDog.pet.name}
                       </Link>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-xs text-petra-muted mt-0.5">
                         {SERVICE_DOG_PHASE_MAP[placement.serviceDog.phase]?.label}
                       </p>
                     </td>
                     <td className="table-cell">
                       <div className="font-medium text-sm">{placement.recipient.name}</div>
                       {placement.recipient.disabilityType && (
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs text-petra-muted">
                           {DISABILITY_TYPE_MAP[placement.recipient.disabilityType]}
                         </div>
                       )}
@@ -264,13 +264,13 @@ export default function PlacementsPage() {
                         {statusInfo?.label || placement.status}
                       </span>
                     </td>
-                    <td className="table-cell text-muted-foreground text-sm">
+                    <td className="table-cell text-petra-muted text-sm">
                       {placement.placementDate ? formatDate(placement.placementDate) : "—"}
                     </td>
-                    <td className="table-cell text-muted-foreground text-sm">
+                    <td className="table-cell text-petra-muted text-sm">
                       {placement.trialEndDate ? formatDate(placement.trialEndDate) : "—"}
                     </td>
-                    <td className="table-cell text-muted-foreground text-sm">
+                    <td className="table-cell text-petra-muted text-sm">
                       {placement.nextCheckInAt ? formatDate(placement.nextCheckInAt) : "—"}
                     </td>
                     <td className="table-cell">
