@@ -67,6 +67,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
   const [health, setHealth] = useState({
     allergies: "",
     medicalConditions: "",
+    foodNotes: "",
     vetName: "",
     vetPhone: "",
     neuteredSpayed: null as boolean | null,
@@ -313,6 +314,16 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                   value={health.medicalConditions}
                   onChange={(e) => setHealth({ ...health, medicalConditions: e.target.value })}
                   placeholder="מצבים רפואיים קיימים..."
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-600 block mb-1">הוראות האכלה / אוכל</label>
+                <textarea
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400 resize-none"
+                  rows={2}
+                  value={health.foodNotes}
+                  onChange={(e) => setHealth({ ...health, foodNotes: e.target.value })}
+                  placeholder="כמה ארוחות ביום, איזה מזון, כמות..."
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">

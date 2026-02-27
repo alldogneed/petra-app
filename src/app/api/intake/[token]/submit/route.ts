@@ -61,10 +61,19 @@ export async function POST(
             gender: dog.gender || null,
             weight: dog.weight ? parseFloat(dog.weight) : null,
             birthDate: dog.birthDate ? new Date(dog.birthDate) : null,
+            foodNotes: health?.foodNotes || null,
           },
         });
         petId = pet.id;
       }
+    }
+
+    // Update food notes on existing pet
+    if (petId && health?.foodNotes) {
+      await prisma.pet.update({
+        where: { id: petId },
+        data: { foodNotes: health.foodNotes },
+      });
     }
 
     // Save health data
