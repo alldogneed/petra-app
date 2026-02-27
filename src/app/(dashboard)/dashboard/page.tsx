@@ -1052,10 +1052,22 @@ interface VaccinationItem {
 }
 
 function VaccinationAlertWidget() {
+  const queryClient = useQueryClient();
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
+  const [taskedIds, setTaskedIds] = useState<Set<string>>(new Set());
   const { data } = useQuery<{ vaccinations: VaccinationItem[]; total: number }>({
     queryKey: ["pet-vaccinations"],
     queryFn: () => fetchJSON("/api/pets/vaccinations?days=30"),
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: (payload: { title: string; category: string; priority: string; dueDate: string }) =>
+      fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
   });
 
   if (!data || data.total === 0) return null;
@@ -1118,25 +1130,51 @@ function VaccinationAlertWidget() {
                 </div>
               </div>
 
-              {v.customerPhone && (
-                sent ? (
-                  <span className="text-xs text-emerald-600 font-medium flex items-center gap-1 flex-shrink-0">
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {taskedIds.has(v.petId) ? (
+                  <span className="text-xs text-violet-600 font-medium flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    נשלח
+                    משימה
                   </span>
                 ) : (
-                  <a
-                    href={waLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-7 h-7 rounded-md bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors flex-shrink-0"
-                    title="שלח תזכורת חיסון בוואטסאפ"
-                    onClick={() => setSentIds((prev) => new Set([...prev, v.petId]))}
+                  <button
+                    className="w-7 h-7 rounded-md bg-violet-50 text-violet-600 hover:bg-violet-100 flex items-center justify-center transition-colors"
+                    title="צור משימת תזכורת"
+                    onClick={() => {
+                      const dueDate = new Date();
+                      dueDate.setDate(dueDate.getDate() + 1);
+                      createTaskMutation.mutate({
+                        title: `חידוש חיסון כלבת — ${v.petName} (${v.customerName})`,
+                        category: "HEALTH",
+                        priority: v.isExpired ? "URGENT" : "HIGH",
+                        dueDate: dueDate.toISOString().slice(0, 10),
+                      });
+                      setTaskedIds((prev) => new Set([...prev, v.petId]));
+                    }}
                   >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                  </a>
-                )
-              )}
+                    <ClipboardList className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {v.customerPhone && (
+                  sent ? (
+                    <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      נשלח
+                    </span>
+                  ) : (
+                    <a
+                      href={waLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-7 h-7 rounded-md bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors"
+                      title="שלח תזכורת חיסון בוואטסאפ"
+                      onClick={() => setSentIds((prev) => new Set([...prev, v.petId]))}
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                    </a>
+                  )
+                )}
+              </div>
             </div>
           );
         })}
