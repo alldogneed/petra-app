@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { ChevronRight, ChevronLeft, Check, Clock, Calendar, PawPrint, User, Plus, X, MapPin, Mail, CreditCard, ExternalLink } from "lucide-react"
+import { ChevronRight, ChevronLeft, Check, Clock, Calendar, PawPrint, User, Plus, X, MapPin, Mail, CreditCard, ExternalLink, Scissors, GraduationCap, Hotel, Sparkles, MessageCircle, CalendarPlus } from "lucide-react"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -78,6 +78,48 @@ function toDateStr(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
 }
 
+/** Build a Google Calendar link for the booking */
+function buildGoogleCalLink(service: BusinessService, dateStr: string, slotTime: string, businessName: string, address: string | null): string {
+  const [h, m] = slotTime.split(":").map(Number)
+  const startDate = new Date(dateStr + "T12:00:00")
+  startDate.setHours(h, m, 0, 0)
+  const endDate = new Date(startDate.getTime() + service.duration * 60 * 1000)
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: `${service.name} — ${businessName}`,
+    dates: `${fmt(startDate)}/${fmt(endDate)}`,
+    details: `הזמנה: ${service.name} · ${formatPrice(service.price)}`,
+    location: address || businessName,
+  })
+  return `https://calendar.google.com/calendar/render?${params.toString()}`
+}
+
+/** Build a WhatsApp self-reminder text */
+function buildWhatsAppReminder(service: BusinessService, dateStr: string, slotTime: string, customerName: string, dogNames: string[]): string {
+  const dateLabel = new Date(dateStr + "T12:00:00").toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })
+  const lines = [
+    `📅 תזכורת לתור`,
+    `שירות: ${service.name}`,
+    `תאריך: ${dateLabel}`,
+    `שעה: ${slotTime}`,
+    dogNames.length > 0 ? `כלב/ים: ${dogNames.join(", ")}` : "",
+    `מחיר: ${formatPrice(service.price)}`,
+  ].filter(Boolean)
+  return encodeURIComponent(lines.join("\n"))
+}
+
+// Service type → icon mapping
+function ServiceIcon({ type, className }: { type: string; className?: string }) {
+  switch (type?.toLowerCase()) {
+    case "grooming": return <Scissors className={className} />
+    case "training": return <GraduationCap className={className} />
+    case "boarding": return <Hotel className={className} />
+    case "daycare": return <Sparkles className={className} />
+    default: return <PawPrint className={className} />
+  }
+}
+
 // ─── Step indicator ─────────────────────────────────────────────────────────
 
 const STEPS: { key: Step; label: string }[] = [
@@ -92,13 +134,22 @@ const STEPS: { key: Step; label: string }[] = [
 function StepIndicator({ current }: { current: Step }) {
   const currentIdx = STEPS.findIndex((s) => s.key === current)
   if (currentIdx === -1) return null
+  const progress = Math.round(((currentIdx) / (STEPS.length - 1)) * 100)
   return (
     <div className="mb-6">
       {/* Mobile: show current step text */}
-      <p className="sm:hidden text-center text-xs text-petra-muted mb-2">
+      <p className="sm:hidden text-center text-xs text-petra-muted mb-3">
         שלב {currentIdx + 1} מתוך {STEPS.length}: <span className="font-medium text-brand-700">{STEPS[currentIdx].label}</span>
       </p>
-      <div className="flex items-center justify-center gap-1 overflow-x-auto pb-1">
+      {/* Mobile: progress bar */}
+      <div className="sm:hidden h-1.5 bg-slate-200 rounded-full mb-4 overflow-hidden">
+        <div
+          className="h-full bg-brand-500 rounded-full transition-all duration-300"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      {/* Desktop: step circles */}
+      <div className="hidden sm:flex items-center justify-center gap-1 overflow-x-auto pb-1">
         {STEPS.map((step, i) => (
           <div key={step.key} className="flex items-center">
             <div
@@ -111,7 +162,7 @@ function StepIndicator({ current }: { current: Step }) {
             >
               {i < currentIdx ? <Check className="w-3.5 h-3.5" /> : i + 1}
             </div>
-            <span className={`hidden sm:block ml-1 mr-2 text-xs ${i === currentIdx ? "text-brand-700 font-medium" : "text-slate-400"}`}>
+            <span className={`ml-1 mr-2 text-xs ${i === currentIdx ? "text-brand-700 font-medium" : "text-slate-400"}`}>
               {step.label}
             </span>
             {i < STEPS.length - 1 && <div className="w-4 h-px bg-slate-300 mx-1" />}
@@ -149,6 +200,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
   const [customerNotes, setCustomerNotes] = useState("")
   const [customerAddress, setCustomerAddress] = useState("")
   const [isNewCustomer, setIsNewCustomer] = useState<boolean | null>(null)
+  const [existingDogNames, setExistingDogNames] = useState<string[]>([])
 
   // Dogs
   const [dogs, setDogs] = useState<DogForm[]>([{ name: "", breed: "", sex: "", notes: "", isNew: true }])
@@ -250,9 +302,10 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
       if (data.exists) {
         setIsNewCustomer(false)
         setCustomerName(data.name || "")
+        const dogList: string[] = []
         if (data.dogs && data.dogs.length > 0) {
           const autoSelect = data.dogs.length === 1
-          setDogs(data.dogs.map((d: any) => ({
+          setDogs(data.dogs.map((d: { id: string; name: string; breed?: string; gender?: string }) => ({
             id: d.id,
             name: autoSelect ? d.name : "",
             originalName: d.name,
@@ -261,10 +314,13 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
             notes: "",
             isNew: false
           })))
+          data.dogs.forEach((d: { name: string }) => dogList.push(d.name))
         }
+        setExistingDogNames(dogList)
       } else {
         setIsNewCustomer(true)
         setCustomerName("")
+        setExistingDogNames([])
         setDogs([{ name: "", breed: "", sex: "", notes: "", isNew: true }])
       }
     } catch (e) {
@@ -320,6 +376,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
   const today = toDateStr(new Date())
   const calDates = getDatesForMonth(calMonth.year, calMonth.month)
   const firstDow = new Date(calMonth.year, calMonth.month, 1).getDay()
+  const isCurrentMonth = calMonth.year === new Date().getFullYear() && calMonth.month === new Date().getMonth()
 
   // ─── Render card ──────────────────────────────────────────────────────────
   return (
@@ -334,10 +391,21 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
               <PawPrint className="w-5 h-5 text-brand-500" />
             </div>
           )}
-          <div>
-            <h1 className="font-bold text-petra-text text-sm leading-tight">{business.name}</h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-bold text-petra-text text-sm leading-tight truncate">{business.name}</h1>
             <p className="text-xs text-petra-muted">קביעת תור אונליין</p>
           </div>
+          {business.address && (
+            <a
+              href={`https://waze.com/ul?q=${encodeURIComponent(business.address)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:flex items-center gap-1 text-xs text-petra-muted hover:text-brand-600 transition-colors"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              <span className="max-w-[120px] truncate">{business.address}</span>
+            </a>
+          )}
         </div>
       </div>
 
@@ -350,7 +418,8 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
           {/* ── Step: Service ────────────────────────────────────────────── */}
           {step === "service" && (
             <div className="p-6 animate-fade-in">
-              <h2 className="text-lg font-bold text-petra-text mb-4">בחר שירות</h2>
+              <h2 className="text-lg font-bold text-petra-text mb-1">בחר שירות</h2>
+              <p className="text-sm text-petra-muted mb-4">מה תרצה לקבוע?</p>
               {business.services.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-state-icon">
@@ -364,33 +433,59 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                     <button
                       key={svc.id}
                       onClick={() => { setSelectedService(svc); setSelectedDate(""); setSelectedSlot(null); setStep("date") }}
-                      className="w-full text-right p-4 rounded-xl border-2 border-petra-border hover:border-brand-300 hover:bg-brand-50 transition-all group"
+                      className="w-full text-right p-4 rounded-xl border-2 border-petra-border hover:border-brand-300 hover:bg-brand-50/40 transition-all group"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            {svc.color && (
-                              <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: svc.color }} />
+                      <div className="flex items-center gap-3">
+                        {/* Service color + icon */}
+                        <div
+                          className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: svc.color ? `${svc.color}22` : "#FFF7ED" }}
+                        >
+                          <ServiceIcon
+                            type={svc.type}
+                            className="w-5 h-5"
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            {...({ style: { color: svc.color || "#F97316" } } as any)}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="font-semibold text-petra-text group-hover:text-brand-700 truncate">{svc.name}</span>
+                            {svc.depositRequired && svc.depositAmount && (
+                              <span className="text-[10px] bg-brand-50 text-brand-600 border border-brand-100 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">מקדמה</span>
                             )}
-                            <span className="font-semibold text-petra-text group-hover:text-brand-700">{svc.name}</span>
                           </div>
                           {svc.description && (
-                            <p className="text-sm text-petra-muted mb-1">{svc.description}</p>
+                            <p className="text-xs text-petra-muted mb-1 line-clamp-1">{svc.description}</p>
                           )}
-                          <div className="flex items-center gap-3 text-xs text-petra-muted">
-                            <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{svc.duration} דקות</span>
-                            {svc.depositRequired && svc.depositAmount && (
-                              <span className="text-brand-600">מקדמה: {formatPrice(svc.depositAmount)}</span>
-                            )}
+                          <div className="flex items-center gap-2 text-xs text-petra-muted">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />{svc.duration} דקות
+                            </span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-petra-text">{formatPrice(svc.price)}</span>
-                          <ChevronLeft className="w-4 h-4 text-slate-400 group-hover:text-brand-500" />
+                        <div className="text-right flex-shrink-0">
+                          <span className="font-bold text-petra-text text-base">{formatPrice(svc.price)}</span>
+                          <ChevronLeft className="w-4 h-4 text-slate-400 group-hover:text-brand-500 mx-auto mt-0.5" />
                         </div>
                       </div>
                     </button>
                   ))}
+                </div>
+              )}
+              {/* Business info footer */}
+              {(business.address || business.phone) && (
+                <div className="mt-5 pt-4 border-t border-slate-100 space-y-1.5 text-xs text-petra-muted">
+                  {business.phone && (
+                    <a href={`tel:${business.phone}`} className="flex items-center gap-2 hover:text-brand-600 transition-colors">
+                      <MessageCircle className="w-3.5 h-3.5" />{business.phone}
+                    </a>
+                  )}
+                  {business.address && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5" />{business.address}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -408,11 +503,11 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
               {/* Service summary */}
               <div className="bg-brand-50 rounded-xl p-3 mb-4 flex items-center gap-2 border border-brand-100">
-                {selectedService.color && (
-                  <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: selectedService.color }} />
-                )}
-                <span className="text-sm font-medium text-brand-800">{selectedService.name}</span>
-                <span className="text-xs text-brand-600 mr-auto">{selectedService.duration} דקות</span>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: selectedService.color ? `${selectedService.color}33` : "#FFF0E0" }}>
+                  <ServiceIcon type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
+                </div>
+                <span className="text-sm font-medium text-brand-800 flex-1 truncate">{selectedService.name}</span>
+                <span className="text-xs text-brand-600 font-medium">{selectedService.duration} דקות</span>
               </div>
 
               {/* Calendar navigation */}
@@ -421,14 +516,24 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   onClick={() => setCalMonth((p) => {
                     const d = new Date(p.year, p.month - 1); return { year: d.getFullYear(), month: d.getMonth() }
                   })}
-                  className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-                  disabled={calMonth.year === new Date().getFullYear() && calMonth.month <= new Date().getMonth()}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-30"
+                  disabled={isCurrentMonth}
                 >
                   <ChevronRight className="w-5 h-5 text-petra-muted" />
                 </button>
-                <span className="font-semibold text-petra-text">
-                  {new Date(calMonth.year, calMonth.month).toLocaleDateString("he-IL", { month: "long", year: "numeric" })}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-petra-text">
+                    {new Date(calMonth.year, calMonth.month).toLocaleDateString("he-IL", { month: "long", year: "numeric" })}
+                  </span>
+                  {!isCurrentMonth && (
+                    <button
+                      onClick={() => { const n = new Date(); setCalMonth({ year: n.getFullYear(), month: n.getMonth() }) }}
+                      className="text-xs text-brand-600 hover:underline"
+                    >
+                      היום
+                    </button>
+                  )}
+                </div>
                 <button
                   onClick={() => setCalMonth((p) => {
                     const d = new Date(p.year, p.month + 1); return { year: d.getFullYear(), month: d.getMonth() }
@@ -452,6 +557,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 {calDates.map((date) => {
                   const ds = toDateStr(date)
                   const isPast = ds < today
+                  const isToday = ds === today
                   const open = isOpenDay(date)
                   const isSelected = ds === selectedDate
                   return (
@@ -460,16 +566,27 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       disabled={isPast || !open}
                       onClick={() => { setSelectedDate(ds); setSelectedSlot(null); setStep("time") }}
                       className={`
-                        aspect-square rounded-lg text-sm font-medium transition-colors
-                        ${isPast || !open ? "text-slate-300 cursor-not-allowed" : "cursor-pointer"}
-                        ${isSelected ? "bg-brand-500 text-white" :
+                        aspect-square rounded-lg text-sm font-medium transition-colors relative
+                        ${isPast ? "text-slate-200 cursor-not-allowed" :
+                          !open ? "text-slate-300 cursor-not-allowed line-through" : "cursor-pointer"}
+                        ${isSelected ? "bg-brand-500 text-white shadow-sm" :
+                          isToday && !isPast && open ? "bg-brand-50 text-brand-700 font-bold ring-2 ring-brand-300" :
                           !isPast && open ? "hover:bg-brand-100 text-petra-text" : ""}
                       `}
                     >
                       {date.getDate()}
+                      {isToday && !isSelected && (
+                        <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-500" />
+                      )}
                     </button>
                   )
                 })}
+              </div>
+
+              {/* Legend */}
+              <div className="flex items-center gap-4 mt-3 text-[10px] text-petra-muted">
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-brand-50 ring-1 ring-brand-300 inline-block" /> היום</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-100 inline-block line-through" /> סגור</span>
               </div>
             </div>
           )}
@@ -487,35 +604,41 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
               <div className="bg-brand-50 rounded-xl p-3 mb-4 text-sm text-brand-800 flex items-center gap-2 border border-brand-100">
                 <Calendar className="w-4 h-4" />
                 {new Date(selectedDate + "T12:00:00").toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
+                <button onClick={() => setStep("date")} className="mr-auto text-xs text-brand-500 hover:underline">שנה</button>
               </div>
 
               {slotsLoading ? (
-                <div className="flex justify-center py-8">
+                <div className="flex flex-col items-center justify-center py-10 gap-3">
                   <div className="animate-spin w-6 h-6 border-4 border-brand-400 border-t-transparent rounded-full" />
+                  <p className="text-xs text-petra-muted">טוען זמינות...</p>
                 </div>
               ) : slots.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
                     <Clock className="w-6 h-6 text-slate-400" />
                   </div>
-                  <p className="text-petra-muted mb-3">אין זמינות ביום זה</p>
-                  <button onClick={() => setStep("date")} className="text-brand-600 text-sm hover:underline">בחר תאריך אחר</button>
+                  <p className="text-petra-muted font-medium mb-1">אין זמינות ביום זה</p>
+                  <p className="text-xs text-petra-muted mb-3">נסה לבחור תאריך אחר</p>
+                  <button onClick={() => setStep("date")} className="btn-secondary text-sm">בחר תאריך אחר</button>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {slots.map((slot) => (
-                    <button
-                      key={slot.startAt}
-                      onClick={() => { setSelectedSlot(slot); setStep("customer") }}
-                      className={`py-3 rounded-xl text-sm font-semibold border-2 transition-all ${selectedSlot?.startAt === slot.startAt
-                        ? "bg-brand-500 border-brand-500 text-white"
-                        : "border-petra-border hover:border-brand-300 hover:bg-brand-50 text-petra-text"
-                        }`}
-                    >
-                      {slot.time}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <p className="text-xs text-petra-muted mb-3">{slots.length} שעות זמינות</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {slots.map((slot) => (
+                      <button
+                        key={slot.startAt}
+                        onClick={() => { setSelectedSlot(slot); setStep("customer") }}
+                        className={`py-3 rounded-xl text-sm font-semibold border-2 transition-all ${selectedSlot?.startAt === slot.startAt
+                          ? "bg-brand-500 border-brand-500 text-white shadow-sm"
+                          : "border-petra-border hover:border-brand-300 hover:bg-brand-50 text-petra-text"
+                          }`}
+                      >
+                        {slot.time}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -540,6 +663,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="050-0000000"
                       className="input flex-1"
+                      autoComplete="tel"
                     />
                     {isLookingUpPhone && (
                       <div className="absolute left-3 top-1/2 -translate-y-1/2">
@@ -576,6 +700,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                         onChange={(e) => setCustomerName(e.target.value)}
                         placeholder="ישראל ישראלי"
                         className="input"
+                        autoComplete="name"
                       />
                     </div>
                     <div>
@@ -587,6 +712,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                         placeholder="example@email.com"
                         className="input"
                         dir="ltr"
+                        autoComplete="email"
                       />
                     </div>
                     <div>
@@ -597,6 +723,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                         onChange={(e) => setCustomerAddress(e.target.value)}
                         placeholder="עיר, רחוב..."
                         className="input"
+                        autoComplete="street-address"
                       />
                     </div>
                     <div>
@@ -613,17 +740,21 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 )}
 
                 {isNewCustomer === false && (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-800 flex flex-col gap-2">
-                    <div className="flex items-center gap-2 font-semibold">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-800">
+                    <div className="flex items-center gap-2 font-semibold mb-1">
                       <Check className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                      שלום {customerName}, מצאנו אותך במערכת!
+                      שלום {customerName}! מצאנו אותך 👋
                     </div>
-                    <p className="text-emerald-700">הפרטים שלך ושל הכלבים ששמורים אצלנו כבר הוטענו.</p>
+                    {existingDogNames.length > 0 && (
+                      <p className="text-emerald-700 text-xs">
+                        הכלבים שלך: <span className="font-medium">{existingDogNames.join(", ")}</span>
+                      </p>
+                    )}
                   </div>
                 )}
 
                 <button
-                  disabled={!phone || phone.length < 9 || isNewCustomer === null || isLookingUpPhone || (isNewCustomer && !customerName)}
+                  disabled={!phone || phone.length < 9 || isNewCustomer === null || isLookingUpPhone || (isNewCustomer === true && !customerName)}
                   onClick={() => setStep("dogs")}
                   className="btn-primary w-full py-3 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -645,10 +776,9 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
               {/* Service context banner */}
               <div className="bg-brand-50 rounded-xl p-3 mb-4 flex items-center gap-2 border border-brand-100">
-                {selectedService.color && (
-                  <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: selectedService.color }} />
-                )}
-                <PawPrint className="w-4 h-4 text-brand-600" />
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: selectedService.color ? `${selectedService.color}33` : "#FFF0E0" }}>
+                  <ServiceIcon type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
+                </div>
                 <span className="text-sm font-medium text-brand-800">בחר כלב עבור: {selectedService.name}</span>
               </div>
 
@@ -680,8 +810,9 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       )}
 
                       {!dog.isNew && (
-                        <div className="absolute top-3 left-3">
-                          <span className="text-xs bg-brand-100 text-brand-700 font-medium px-2 py-1 rounded-md">
+                        <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                          {isSelected && <Check className="w-4 h-4 text-brand-600" />}
+                          <span className="text-xs bg-brand-100 text-brand-700 font-medium px-2 py-0.5 rounded-md">
                             שמור במערכת
                           </span>
                         </div>
@@ -699,42 +830,47 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                             className="input text-sm disabled:bg-slate-50 disabled:text-slate-500"
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-xs font-medium text-petra-muted mb-1">גזע</label>
-                            <input
-                              type="text"
-                              value={dog.breed}
-                              disabled={!dog.isNew}
-                              onChange={(e) => setDogs((d) => d.map((x, i) => i === idx ? { ...x, breed: e.target.value } : x))}
-                              placeholder="לברדור..."
-                              className="input text-sm disabled:bg-slate-50 disabled:text-slate-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-petra-muted mb-1">מין</label>
-                            <select
-                              value={dog.sex}
-                              disabled={!dog.isNew}
-                              onChange={(e) => setDogs((d) => d.map((x, i) => i === idx ? { ...x, sex: e.target.value } : x))}
-                              className="input text-sm disabled:bg-slate-50 disabled:text-slate-500 bg-white"
-                            >
-                              <option value="">לא ידוע</option>
-                              <option value="male">זכר</option>
-                              <option value="female">נקבה</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-petra-muted mb-1">הערות</label>
-                          <input
-                            type="text"
-                            value={dog.notes}
-                            onChange={(e) => setDogs((d) => d.map((x, i) => i === idx ? { ...x, notes: e.target.value } : x))}
-                            placeholder="אלרגיות, מידע רפואי..."
-                            className="input text-sm"
-                          />
-                        </div>
+                        {dog.isNew && (
+                          <>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-xs font-medium text-petra-muted mb-1">גזע</label>
+                                <input
+                                  type="text"
+                                  value={dog.breed}
+                                  onChange={(e) => setDogs((d) => d.map((x, i) => i === idx ? { ...x, breed: e.target.value } : x))}
+                                  placeholder="לברדור..."
+                                  className="input text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-petra-muted mb-1">מין</label>
+                                <select
+                                  value={dog.sex}
+                                  onChange={(e) => setDogs((d) => d.map((x, i) => i === idx ? { ...x, sex: e.target.value } : x))}
+                                  className="input text-sm bg-white"
+                                >
+                                  <option value="">לא ידוע</option>
+                                  <option value="male">זכר</option>
+                                  <option value="female">נקבה</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-petra-muted mb-1">הערות רפואיות / אחר</label>
+                              <input
+                                type="text"
+                                value={dog.notes}
+                                onChange={(e) => setDogs((d) => d.map((x, i) => i === idx ? { ...x, notes: e.target.value } : x))}
+                                placeholder="אלרגיות, מידע רפואי..."
+                                className="input text-sm"
+                              />
+                            </div>
+                          </>
+                        )}
+                        {!dog.isNew && dog.breed && (
+                          <p className="text-xs text-petra-muted">גזע: {dog.breed}</p>
+                        )}
                       </div>
                     </div>
                   )})}
@@ -771,8 +907,8 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 {/* Summary card */}
                 <div className="bg-slate-50 rounded-xl p-4 space-y-3">
                   <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-brand-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Calendar className="w-4 h-4 text-brand-600" />
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: selectedService.color ? `${selectedService.color}22` : "#FFF7ED" }}>
+                      <ServiceIcon type={selectedService.type} className="w-4 h-4" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
                     </div>
                     <div>
                       <p className="text-xs text-petra-muted">שירות</p>
@@ -826,13 +962,13 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
                 {selectedService.bookingMode === "requires_approval" && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
-                    שירות זה דורש אישור מבעל העסק. תקבל הודעה לאחר האישור.
+                    ⏳ שירות זה דורש אישור מבעל העסק. תקבל הודעה לאחר האישור.
                   </div>
                 )}
 
                 {selectedService.depositRequired && selectedService.depositAmount && (
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
-                    נדרשת מקדמה של {formatPrice(selectedService.depositAmount)} לאישור ההזמנה.
+                    💳 נדרשת מקדמה של {formatPrice(selectedService.depositAmount)} לאישור ההזמנה.
                   </div>
                 )}
 
@@ -876,13 +1012,18 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-amber-800">סכום מקדמה</span>
                   <span className="text-lg font-bold text-amber-900">
-                    {new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS", maximumFractionDigits: 0 }).format(selectedService.depositAmount || 0)}
+                    {formatPrice(selectedService.depositAmount || 0)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-amber-700">
                   <span>שירות: {selectedService.name}</span>
                   <span>מחיר מלא: {formatPrice(selectedService.price)}</span>
                 </div>
+              </div>
+
+              {/* Booking ID */}
+              <div className="bg-slate-50 rounded-xl p-3 text-xs text-petra-muted text-center mb-4">
+                <p>מספר הזמנה: <span className="font-mono font-bold text-petra-text text-sm">{bookingResult.bookingId.slice(0, 8).toUpperCase()}</span></p>
               </div>
 
               {/* Payment link */}
@@ -900,68 +1041,113 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-3 text-sm text-blue-800 text-center">
                   <p className="font-semibold mb-1">ליצירת קשר לתשלום:</p>
                   {business?.phone && (
-                    <a href={`tel:${business.phone}`} className="text-blue-600 hover:underline block">
-                      {business.phone}
+                    <a href={`https://wa.me/972${business.phone.replace(/^0/, "")}?text=${encodeURIComponent(`שלום, קבעתי תור ל${selectedService.name} (מס' ${bookingResult.bookingId.slice(0, 8).toUpperCase()}). אשמח לשלם מקדמה.`)}`} className="text-green-600 hover:underline block flex items-center justify-center gap-1">
+                      <MessageCircle className="w-4 h-4" /> שלח WhatsApp לתשלום
                     </a>
                   )}
                   {business?.email && (
-                    <a href={`mailto:${business.email}`} className="text-blue-600 hover:underline block">
+                    <a href={`mailto:${business.email}`} className="text-blue-600 hover:underline block mt-1">
                       {business.email}
                     </a>
                   )}
                 </div>
               )}
 
-              <div className="bg-slate-50 rounded-xl p-3 text-xs text-petra-muted text-center mb-4">
-                <p>ההזמנה שלך נשמרה ותאושר לאחר קבלת התשלום.</p>
-                <p className="mt-1">מספר הזמנה: <span className="font-mono font-medium text-petra-text">{bookingResult.bookingId.slice(0, 8)}</span></p>
-              </div>
-
               <button
                 onClick={() => setStep("done")}
                 className="btn-secondary w-full py-3 justify-center"
               >
-                סיימתי לשלם
+                סיימתי לשלם ✓
               </button>
             </div>
           )}
 
           {/* ── Step: Done ───────────────────────────────────────────────── */}
-          {step === "done" && bookingResult && (
+          {step === "done" && bookingResult && selectedService && selectedSlot && (
             <div className="p-8 text-center animate-fade-in">
-              <div className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center ${bookingResult.status === "confirmed" ? "bg-emerald-100" : "bg-amber-100"
-                }`}>
+              <div className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center ${bookingResult.status === "confirmed" ? "bg-emerald-100" : "bg-amber-100"}`}>
                 {bookingResult.status === "confirmed" ? (
                   <Check className="w-8 h-8 text-emerald-600" />
                 ) : (
                   <Clock className="w-8 h-8 text-amber-600" />
                 )}
               </div>
-              <h2 className="text-xl font-bold text-petra-text mb-2">
-                {bookingResult.status === "confirmed" ? "ההזמנה אושרה!" : "הבקשה התקבלה"}
-              </h2>
-              <p className="text-petra-muted mb-6">{bookingResult.message}</p>
 
-              {selectedService && selectedSlot && (
-                <div className="bg-slate-50 rounded-xl p-4 text-sm text-right space-y-1 mb-6">
-                  <p><span className="text-petra-muted">שירות:</span> <span className="font-medium text-petra-text">{selectedService.name}</span></p>
-                  <p><span className="text-petra-muted">תאריך:</span> <span className="font-medium text-petra-text">
-                    {new Date(selectedDate + "T12:00:00").toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
-                  </span></p>
-                  <p><span className="text-petra-muted">שעה:</span> <span className="font-medium text-petra-text">{selectedSlot.time}</span></p>
+              <h2 className="text-xl font-bold text-petra-text mb-1">
+                {bookingResult.status === "confirmed" ? "ההזמנה אושרה! 🎉" : "הבקשה התקבלה"}
+              </h2>
+              <p className="text-petra-muted text-sm mb-2">{bookingResult.message}</p>
+
+              {/* Booking ID badge */}
+              <div className="inline-flex items-center gap-2 bg-slate-100 rounded-xl px-4 py-2 mb-5">
+                <span className="text-xs text-petra-muted">מספר הזמנה:</span>
+                <span className="font-mono font-bold text-petra-text tracking-wider">{bookingResult.bookingId.slice(0, 8).toUpperCase()}</span>
+              </div>
+
+              {/* Summary */}
+              <div className="bg-slate-50 rounded-xl p-4 text-sm text-right space-y-2 mb-5">
+                <div className="flex items-center gap-2">
+                  <ServiceIcon type={selectedService.type} className="w-4 h-4 text-brand-500 flex-shrink-0" />
+                  <span className="text-petra-muted">שירות:</span>
+                  <span className="font-medium text-petra-text">{selectedService.name}</span>
                 </div>
-              )}
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                  <span className="text-petra-muted">תאריך:</span>
+                  <span className="font-medium text-petra-text">
+                    {new Date(selectedDate + "T12:00:00").toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                  <span className="text-petra-muted">שעה:</span>
+                  <span className="font-medium text-petra-text">{selectedSlot.time}</span>
+                </div>
+                {dogs.filter(d => d.name.trim()).length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <PawPrint className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                    <span className="text-petra-muted">כלב:</span>
+                    <span className="font-medium text-petra-text">{dogs.filter(d => d.name.trim()).map(d => d.name).join(", ")}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action buttons */}
+              <div className="space-y-2 mb-5">
+                {/* Add to Google Calendar */}
+                <a
+                  href={buildGoogleCalLink(selectedService, selectedDate, selectedSlot.time, business.name, business.address)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors text-sm font-medium"
+                >
+                  <CalendarPlus className="w-4 h-4" />
+                  הוסף ליומן Google
+                </a>
+
+                {/* Send self WA reminder */}
+                <a
+                  href={`https://wa.me/?text=${buildWhatsAppReminder(selectedService, selectedDate, selectedSlot.time, customerName, dogs.filter(d => d.name.trim()).map(d => d.name))}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors text-sm font-medium"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  שלח לעצמי תזכורת ב-WhatsApp
+                </a>
+              </div>
 
               <button
                 onClick={() => {
                   setStep("service"); setSelectedService(null); setSelectedDate(""); setSelectedSlot(null)
                   setPhone(""); setCustomerName(""); setCustomerEmail(""); setCustomerNotes(""); setCustomerAddress(""); setIsNewCustomer(null)
+                  setExistingDogNames([])
                   setDogs([{ name: "", breed: "", sex: "", notes: "", isNew: true }])
                   setBookingResult(null)
                 }}
-                className="btn-secondary w-full py-3 justify-center"
+                className="btn-secondary w-full py-3 justify-center text-sm"
               >
-                הזמן שוב
+                הזמן תור נוסף
               </button>
             </div>
           )}
