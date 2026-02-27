@@ -35,7 +35,16 @@ import {
   Eye,
   EyeOff,
   Copy,
+  ListTodo,
+  Repeat,
+  Pencil,
+  Trash2,
+  Plus,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
+
+const RepeatIcon = Repeat;
 import { useSearchParams } from "next/navigation";
 import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
 import { toast } from "sonner";
@@ -1695,6 +1704,396 @@ function AddEmployeeModal({
   );
 }
 
+// ─── TasksTab ─────────────────────────────────────────────────────────────────
+
+const TASK_CATEGORIES = [
+  { value: "GENERAL", label: "כללי" },
+  { value: "BOARDING", label: "פנסיון" },
+  { value: "TRAINING", label: "אילוף" },
+  { value: "HEALTH", label: "בריאות" },
+  { value: "MEDICATION", label: "תרופות" },
+  { value: "FEEDING", label: "האכלה" },
+  { value: "LEADS", label: "לידים" },
+];
+
+const TASK_PRIORITIES = [
+  { value: "LOW", label: "נמוכה" },
+  { value: "MEDIUM", label: "בינונית" },
+  { value: "HIGH", label: "גבוהה" },
+  { value: "URGENT", label: "דחוף" },
+];
+
+const RRULE_PRESETS = [
+  { label: "כל יום", value: "FREQ=DAILY;INTERVAL=1" },
+  { label: "כל שבוע", value: "FREQ=WEEKLY;INTERVAL=1" },
+  { label: "כל שבועיים", value: "FREQ=WEEKLY;INTERVAL=2" },
+  { label: "כל חודש", value: "FREQ=MONTHLY;INTERVAL=1" },
+];
+
+interface TaskTemplate {
+  id: string;
+  name: string;
+  defaultCategory: string;
+  defaultPriority: string;
+  defaultTitleTemplate: string;
+  defaultDescriptionTemplate: string | null;
+}
+
+interface RecurrenceRule {
+  id: string;
+  rrule: string;
+  startAt: string;
+  endAt: string | null;
+  isActive: boolean;
+  lastGeneratedAt: string | null;
+  _count: { tasks: number };
+  template: {
+    id: string;
+    name: string;
+    defaultCategory: string;
+    defaultTitleTemplate: string;
+  };
+}
+
+const emptyTemplate = { name: "", defaultCategory: "GENERAL", defaultPriority: "MEDIUM", defaultTitleTemplate: "", defaultDescriptionTemplate: "" };
+const emptyRule = { templateId: "", rrule: "FREQ=DAILY;INTERVAL=1", startAt: new Date().toISOString().split("T")[0] };
+
+function TasksTab() {
+  const qc = useQueryClient();
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [editTemplate, setEditTemplate] = useState<TaskTemplate | null>(null);
+  const [templateForm, setTemplateForm] = useState(emptyTemplate);
+  const [showRuleModal, setShowRuleModal] = useState(false);
+  const [ruleForm, setRuleForm] = useState(emptyRule);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+
+  const { data: templates = [], isLoading: loadingTemplates } = useQuery<TaskTemplate[]>({
+    queryKey: ["task-templates"],
+    queryFn: () => fetch("/api/task-templates").then((r) => r.json()),
+  });
+
+  const { data: rules = [], isLoading: loadingRules } = useQuery<RecurrenceRule[]>({
+    queryKey: ["task-recurrence"],
+    queryFn: () => fetch("/api/task-recurrence").then((r) => r.json()),
+  });
+
+  const createTemplateMutation = useMutation({
+    mutationFn: (data: typeof emptyTemplate) =>
+      fetch("/api/task-templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => r.json()),
+    onSuccess: (res) => {
+      if (res.error) { toast.error(res.error); return; }
+      qc.invalidateQueries({ queryKey: ["task-templates"] });
+      toast.success("תבנית נוצרה");
+      setShowTemplateModal(false);
+    },
+  });
+
+  const updateTemplateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: typeof emptyTemplate }) =>
+      fetch(`/api/task-templates/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => r.json()),
+    onSuccess: (res) => {
+      if (res.error) { toast.error(res.error); return; }
+      qc.invalidateQueries({ queryKey: ["task-templates"] });
+      toast.success("תבנית עודכנה");
+      setShowTemplateModal(false);
+      setEditTemplate(null);
+    },
+  });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: (id: string) => fetch(`/api/task-templates/${id}`, { method: "DELETE" }).then((r) => r.json()),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["task-templates"] }); toast.success("תבנית נמחקה"); },
+  });
+
+  const createRuleMutation = useMutation({
+    mutationFn: (data: typeof emptyRule) =>
+      fetch("/api/task-recurrence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, startAt: new Date(data.startAt).toISOString() }) }).then((r) => r.json()),
+    onSuccess: (res) => {
+      if (res.error) { toast.error(res.error); return; }
+      qc.invalidateQueries({ queryKey: ["task-recurrence"] });
+      toast.success("כלל חוזרות נוצר");
+      setShowRuleModal(false);
+    },
+  });
+
+  const toggleRuleMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      fetch(`/api/task-recurrence/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive }) }).then((r) => r.json()),
+    onSuccess: (res) => {
+      if (res.error) { toast.error(res.error); return; }
+      qc.invalidateQueries({ queryKey: ["task-recurrence"] });
+    },
+  });
+
+  const deleteRuleMutation = useMutation({
+    mutationFn: (id: string) => fetch(`/api/task-recurrence/${id}`, { method: "DELETE" }).then((r) => r.json()),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["task-recurrence"] }); toast.success("כלל נמחק"); },
+  });
+
+  async function generateNow(ruleId: string) {
+    setGeneratingId(ruleId);
+    try {
+      const res = await fetch(`/api/task-recurrence/${ruleId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: 30 }),
+      }).then((r) => r.json());
+      if (res.error) { toast.error(res.error); return; }
+      qc.invalidateQueries({ queryKey: ["task-recurrence"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      toast.success(`נוצרו ${res.created} משימות`);
+    } finally {
+      setGeneratingId(null);
+    }
+  }
+
+  function openCreateTemplate() {
+    setEditTemplate(null);
+    setTemplateForm(emptyTemplate);
+    setShowTemplateModal(true);
+  }
+
+  function openEditTemplate(t: TaskTemplate) {
+    setEditTemplate(t);
+    setTemplateForm({ name: t.name, defaultCategory: t.defaultCategory, defaultPriority: t.defaultPriority, defaultTitleTemplate: t.defaultTitleTemplate, defaultDescriptionTemplate: t.defaultDescriptionTemplate || "" });
+    setShowTemplateModal(true);
+  }
+
+  function submitTemplate() {
+    if (!templateForm.name.trim() || !templateForm.defaultTitleTemplate.trim()) { toast.error("שם ותבנית כותרת הם שדות חובה"); return; }
+    if (editTemplate) {
+      updateTemplateMutation.mutate({ id: editTemplate.id, data: templateForm });
+    } else {
+      createTemplateMutation.mutate(templateForm);
+    }
+  }
+
+  const catLabel = (v: string) => TASK_CATEGORIES.find((c) => c.value === v)?.label ?? v;
+  const priLabel = (v: string) => TASK_PRIORITIES.find((p) => p.value === v)?.label ?? v;
+  const rruleLabel = (r: string) => RRULE_PRESETS.find((p) => p.value === r)?.label ?? r;
+
+  const isSavingTemplate = createTemplateMutation.isPending || updateTemplateMutation.isPending;
+
+  return (
+    <div className="space-y-8">
+      {/* ── Task Templates ── */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
+              <ListTodo className="w-4 h-4 text-brand-500" />
+              תבניות משימות
+            </h2>
+            <p className="text-xs text-petra-muted mt-0.5">תבניות לשימוש חוזר ביצירת משימות</p>
+          </div>
+          <button onClick={openCreateTemplate} className="btn-primary flex items-center gap-2 text-sm">
+            <Plus className="w-4 h-4" />
+            תבנית חדשה
+          </button>
+        </div>
+
+        {loadingTemplates ? (
+          <div className="card p-8 text-center text-petra-muted text-sm"><Loader2 className="w-5 h-5 mx-auto mb-2 animate-spin opacity-40" />טוען...</div>
+        ) : templates.length === 0 ? (
+          <div className="card p-8 text-center text-petra-muted text-sm">
+            <p>אין תבניות עדיין</p>
+            <button onClick={openCreateTemplate} className="mt-3 text-brand-500 hover:underline text-xs">צור תבנית ראשונה</button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {templates.map((t) => (
+              <div key={t.id} className="card p-4 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold text-petra-text">{t.name}</span>
+                    <span className="badge badge-neutral text-[10px]">{catLabel(t.defaultCategory)}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-brand-50 text-brand-600">{priLabel(t.defaultPriority)}</span>
+                  </div>
+                  <p className="text-xs text-petra-muted truncate mt-0.5">{t.defaultTitleTemplate}</p>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button onClick={() => openEditTemplate(t)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => deleteTemplateMutation.mutate(t.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Recurrence Rules ── */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
+              <RepeatIcon className="w-4 h-4 text-violet-500" />
+              משימות חוזרות
+            </h2>
+            <p className="text-xs text-petra-muted mt-0.5">הגדרת משימות שנוצרות אוטומטית לפי לוח זמנים</p>
+          </div>
+          <button
+            onClick={() => { setRuleForm({ ...emptyRule, startAt: new Date().toISOString().split("T")[0] }); setShowRuleModal(true); }}
+            disabled={templates.length === 0}
+            title={templates.length === 0 ? "צור תבנית קודם" : undefined}
+            className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" />
+            כלל חדש
+          </button>
+        </div>
+
+        {templates.length === 0 && (
+          <div className="card p-4 bg-amber-50 border-amber-200 text-sm text-amber-700 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            יש ליצור תבנית משימה לפני הגדרת חוזרות
+          </div>
+        )}
+
+        {loadingRules ? (
+          <div className="card p-8 text-center text-petra-muted text-sm"><Loader2 className="w-5 h-5 mx-auto mb-2 animate-spin opacity-40" />טוען...</div>
+        ) : rules.length === 0 && templates.length > 0 ? (
+          <div className="card p-8 text-center text-petra-muted text-sm">אין כללי חוזרות עדיין</div>
+        ) : (
+          <div className="space-y-2">
+            {rules.map((rule) => (
+              <div key={rule.id} className={cn("card p-4 transition-opacity", !rule.isActive && "opacity-60")}>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className="text-sm font-semibold text-petra-text">{rule.template.name}</span>
+                      {!rule.isActive && <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">כבוי</span>}
+                      <span className="badge badge-neutral text-[10px]">{catLabel(rule.template.defaultCategory)}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-xs text-petra-muted">
+                      <span>{rruleLabel(rule.rrule)}</span>
+                      <span>התחלה: {new Date(rule.startAt).toLocaleDateString("he-IL")}</span>
+                      <span>{rule._count.tasks} משימות נוצרו</span>
+                      {rule.lastGeneratedAt && <span>עודכן לאחרונה: {new Date(rule.lastGeneratedAt).toLocaleDateString("he-IL")}</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => generateNow(rule.id)}
+                      disabled={generatingId === rule.id || !rule.isActive}
+                      className="p-1.5 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600 transition-colors disabled:opacity-40"
+                      title="צור משימות עכשיו (30 יום)"
+                    >
+                      {generatingId === rule.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      onClick={() => toggleRuleMutation.mutate({ id: rule.id, isActive: !rule.isActive })}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                      title={rule.isActive ? "כבה" : "הפעל"}
+                    >
+                      {rule.isActive ? <ToggleRight className="w-5 h-5 text-brand-500" /> : <ToggleLeft className="w-5 h-5 text-slate-400" />}
+                    </button>
+                    <button onClick={() => deleteRuleMutation.mutate(rule.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Template Modal ── */}
+      {showTemplateModal && (
+        <div className="modal-overlay" onClick={() => setShowTemplateModal(false)}>
+          <div className="modal-backdrop" />
+          <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-petra-text">{editTemplate ? "עריכת תבנית" : "תבנית חדשה"}</h3>
+              <button onClick={() => setShowTemplateModal(false)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4 text-slate-400" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="label">שם התבנית *</label>
+                <input className="input w-full" value={templateForm.name} onChange={(e) => setTemplateForm((f) => ({ ...f, name: e.target.value }))} placeholder='למשל: "בדיקת בריאות שבועית"' />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">קטגוריה</label>
+                  <select className="input w-full" value={templateForm.defaultCategory} onChange={(e) => setTemplateForm((f) => ({ ...f, defaultCategory: e.target.value }))}>
+                    {TASK_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">עדיפות</label>
+                  <select className="input w-full" value={templateForm.defaultPriority} onChange={(e) => setTemplateForm((f) => ({ ...f, defaultPriority: e.target.value }))}>
+                    {TASK_PRIORITIES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="label">כותרת המשימה *</label>
+                <input className="input w-full" value={templateForm.defaultTitleTemplate} onChange={(e) => setTemplateForm((f) => ({ ...f, defaultTitleTemplate: e.target.value }))} placeholder="כותרת שתופיע במשימה" />
+              </div>
+              <div>
+                <label className="label">תיאור (אופציונלי)</label>
+                <textarea className="input w-full resize-none" rows={3} value={templateForm.defaultDescriptionTemplate} onChange={(e) => setTemplateForm((f) => ({ ...f, defaultDescriptionTemplate: e.target.value }))} placeholder="תיאור מפורט..." />
+              </div>
+              <div className="flex gap-2 pt-2 border-t border-slate-100">
+                <button onClick={() => setShowTemplateModal(false)} className="flex-1 py-2.5 rounded-xl bg-slate-100 text-sm font-medium hover:bg-slate-200">ביטול</button>
+                <button onClick={submitTemplate} disabled={isSavingTemplate || !templateForm.name.trim() || !templateForm.defaultTitleTemplate.trim()} className="flex-1 py-2.5 rounded-xl bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 disabled:opacity-50">
+                  {isSavingTemplate ? "שומר..." : editTemplate ? "שמור שינויים" : "צור תבנית"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Rule Modal ── */}
+      {showRuleModal && (
+        <div className="modal-overlay" onClick={() => setShowRuleModal(false)}>
+          <div className="modal-backdrop" />
+          <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-petra-text">כלל חוזרות חדש</h3>
+              <button onClick={() => setShowRuleModal(false)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4 text-slate-400" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="label">תבנית משימה *</label>
+                <select className="input w-full" value={ruleForm.templateId} onChange={(e) => setRuleForm((f) => ({ ...f, templateId: e.target.value }))}>
+                  <option value="">— בחר תבנית —</option>
+                  {templates.map((t) => <option key={t.id} value={t.id}>{t.name} ({catLabel(t.defaultCategory)})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">תדירות</label>
+                <select className="input w-full" value={ruleForm.rrule} onChange={(e) => setRuleForm((f) => ({ ...f, rrule: e.target.value }))}>
+                  {RRULE_PRESETS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">תאריך התחלה</label>
+                <input type="date" className="input w-full" dir="ltr" value={ruleForm.startAt} onChange={(e) => setRuleForm((f) => ({ ...f, startAt: e.target.value }))} />
+              </div>
+              <div className="flex gap-2 pt-2 border-t border-slate-100">
+                <button onClick={() => setShowRuleModal(false)} className="flex-1 py-2.5 rounded-xl bg-slate-100 text-sm font-medium hover:bg-slate-200">ביטול</button>
+                <button
+                  onClick={() => { if (!ruleForm.templateId) { toast.error("בחר תבנית"); return; } createRuleMutation.mutate(ruleForm); }}
+                  disabled={createRuleMutation.isPending || !ruleForm.templateId}
+                  className="flex-1 py-2.5 rounded-xl bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 disabled:opacity-50"
+                >
+                  {createRuleMutation.isPending ? "יוצר..." : "צור כלל"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Settings Page ──────────────────────────────────────────────────────
 
 import AvailabilityTab from "./availability-tab";
@@ -1704,7 +2103,7 @@ export default function SettingsPage() {
   const gcalParam = searchParams.get("gcal");
   const { isOwner } = useAuth();
   const invoicingParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data">(
+  const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data" | "tasks">(
     gcalParam ? "integrations" : invoicingParam === "invoicing" ? "invoicing" : "business"
   );
 
@@ -1713,6 +2112,7 @@ export default function SettingsPage() {
     { id: "availability" as const, label: "זמינות", icon: Calendar },
     ...(isOwner ? [{ id: "team" as const, label: "ניהול צוות", icon: Users2 }] : []),
     { id: "invoicing" as const, label: "חשבוניות", icon: FileText },
+    { id: "tasks" as const, label: "משימות אוטומטיות", icon: ListTodo },
     { id: "data" as const, label: "נתונים", icon: Database },
     { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
   ];
@@ -1747,6 +2147,7 @@ export default function SettingsPage() {
       {activeTab === "availability" && <AvailabilityTab />}
       {activeTab === "team" && isOwner && <TeamTab />}
       {activeTab === "invoicing" && <InvoicingTab />}
+      {activeTab === "tasks" && <TasksTab />}
       {activeTab === "data" && <DataTab />}
       {activeTab === "integrations" && <IntegrationsTab />}
     </div>
