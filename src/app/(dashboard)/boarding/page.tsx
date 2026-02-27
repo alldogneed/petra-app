@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import {
   DndContext,
@@ -854,7 +854,7 @@ function CheckinDialog({
 }: {
   stay: BoardingStay;
   settings: BusinessSettings;
-  onConfirm: (data: { actualTime: string; notes: string }) => void;
+  onConfirm: (data: { actualTime: string; notes: string; createMedTasks: boolean }) => void;
   onCancel: () => void;
   isPending: boolean;
 }) {
@@ -862,6 +862,8 @@ function CheckinDialog({
   const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
   const [actualTime, setActualTime] = useState(currentTime);
   const [notes, setNotes] = useState("");
+  const hasMeds = Boolean(stay.pet.medications && stay.pet.medications.length > 0);
+  const [createMedTasks, setCreateMedTasks] = useState(hasMeds);
 
   const configuredTime = settings.boardingCheckInTime || "14:00";
   const isEarly = actualTime < configuredTime;
@@ -916,13 +918,27 @@ function CheckinDialog({
             <label className="label">הערות צ׳ק-אין</label>
             <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="הערות לכניסה..." />
           </div>
+
+          {hasMeds && (
+            <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl bg-blue-50 border border-blue-100">
+              <input
+                type="checkbox"
+                checked={createMedTasks}
+                onChange={(e) => setCreateMedTasks(e.target.checked)}
+                className="w-4 h-4 rounded accent-blue-600"
+              />
+              <span className="text-sm text-blue-700 font-medium">
+                💊 צור משימות תרופות אוטומטיות ({stay.pet.medications!.length})
+              </span>
+            </label>
+          )}
         </div>
 
         <div className="flex gap-3 mt-6">
           <button
             className="btn-primary flex-1 flex items-center justify-center gap-2"
             disabled={isPending}
-            onClick={() => onConfirm({ actualTime, notes })}
+            onClick={() => onConfirm({ actualTime, notes, createMedTasks })}
           >
             <CheckCircle2 className="w-4 h-4" />
             {isPending ? "מבצע..." : "אשר צ׳ק-אין"}
@@ -1264,6 +1280,7 @@ export default function BoardingPage() {
   const [activeStayId, setActiveStayId] = useState<string | null>(null);
 
   // Dialog state
+  const shouldCreateMedTasksRef = useRef(false);
   const [checkinDialogStay, setCheckinDialogStay] = useState<BoardingStay | null>(null);
   const [checkoutDialogStay, setCheckoutDialogStay] = useState<BoardingStay | null>(null);
   const [extendDialogStay, setExtendDialogStay] = useState<BoardingStay | null>(null);
@@ -1363,10 +1380,41 @@ export default function BoardingPage() {
     onSuccess: (_, payload) => {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      if (payload.status === "checked_in") {
+        const stay = checkinDialogStay;
+        const meds = stay?.pet.medications;
+        if (shouldCreateMedTasksRef.current && meds && meds.length > 0) {
+          Promise.all(
+            meds.map((med) =>
+              fetchJSON("/api/tasks", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  title: `💊 ${med.medName} — ${stay!.pet.name}`,
+                  description: [
+                    med.dosage ? `מינון: ${med.dosage}` : "",
+                    med.frequency ? `תדירות: ${med.frequency}` : "",
+                    med.times ? `שעות: ${med.times}` : "",
+                  ].filter(Boolean).join(", "),
+                  category: "MEDICATION",
+                  priority: "HIGH",
+                  relatedEntityType: "boarding_stay",
+                  relatedEntityId: stay!.id,
+                }),
+              })
+            )
+          ).then(() => {
+            queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            toast.success(`צ'ק-אין בוצע ✓ — ${meds.length} משימות תרופות נוצרו`);
+          }).catch(() => toast.success("צ'ק-אין בוצע בהצלחה"));
+        } else {
+          toast.success("צ'ק-אין בוצע בהצלחה");
+        }
+      } else if (payload.status === "checked_out") {
+        toast.success("צ'ק-אאוט בוצע בהצלחה");
+      }
       setCheckinDialogStay(null);
       setCheckoutDialogStay(null);
-      if (payload.status === "checked_in") toast.success("צ'ק-אין בוצע בהצלחה");
-      else if (payload.status === "checked_out") toast.success("צ'ק-אאוט בוצע בהצלחה");
     },
     onError: () => toast.error("שגיאה בעדכון הסטטוס. נסה שוב."),
   });
@@ -1479,8 +1527,9 @@ export default function BoardingPage() {
     if (stay) setExtendDialogStay(stay);
   };
 
-  const confirmCheckin = (data: { actualTime: string; notes: string }) => {
+  const confirmCheckin = (data: { actualTime: string; notes: string; createMedTasks: boolean }) => {
     if (!checkinDialogStay) return;
+    shouldCreateMedTasksRef.current = data.createMedTasks;
     const dateStr = toDateStr(checkinDialogStay.checkIn);
     statusMutation.mutate({
       id: checkinDialogStay.id,
