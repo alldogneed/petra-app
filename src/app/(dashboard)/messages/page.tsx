@@ -15,8 +15,13 @@ import {
   ToggleLeft,
   ToggleRight,
   AlertCircle,
+  Send,
+  Users,
+  ExternalLink,
+  Copy,
+  CheckCheck,
 } from "lucide-react";
-import { cn, fetchJSON } from "@/lib/utils";
+import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { TEMPLATE_VARIABLES } from "@/lib/constants";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -597,10 +602,241 @@ function AutomationsTab() {
   );
 }
 
+// ─── Bulk Send Tab ────────────────────────────────────────────────────────────
+
+interface CustomerBasic {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  pets: Array<{ id: string; name: string }>;
+}
+
+const AUDIENCE_OPTIONS = [
+  { id: "all", label: "כל הלקוחות" },
+  { id: "with_pets", label: "לקוחות עם כלבים" },
+  { id: "active_training", label: "תוכניות אילוף פעילות" },
+];
+
+function interpolateForCustomer(body: string, customer: CustomerBasic): string {
+  const pet = customer.pets?.[0];
+  return body
+    .replace(/\{customerName\}/g, customer.name)
+    .replace(/\{petName\}/g, pet?.name ?? "")
+    .replace(/\{date\}/g, "")
+    .replace(/\{time\}/g, "")
+    .replace(/\{serviceName\}/g, "")
+    .replace(/\{businessPhone\}/g, "");
+}
+
+function BulkSendTab() {
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [audience, setAudience] = useState("all");
+  const [search, setSearch] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const { data: templates = [] } = useQuery<MessageTemplate[]>({
+    queryKey: ["messages", "all"],
+    queryFn: () => fetchJSON<MessageTemplate[]>("/api/messages"),
+  });
+
+  const whatsappTemplates = templates.filter(
+    (t) => t.channel === "whatsapp" || t.channel === "sms"
+  );
+
+  const { data: allCustomers = [], isLoading } = useQuery<CustomerBasic[]>({
+    queryKey: ["customers-bulk"],
+    queryFn: () => fetchJSON<CustomerBasic[]>("/api/customers?fields=id,name,phone,pets"),
+  });
+
+  const selectedTemplate = whatsappTemplates.find((t) => t.id === selectedTemplateId);
+
+  const filteredCustomers = allCustomers.filter((c) => {
+    const matchSearch =
+      !search ||
+      c.name.includes(search) ||
+      c.phone.includes(search);
+    const matchAudience =
+      audience === "all" ||
+      (audience === "with_pets" && c.pets && c.pets.length > 0);
+    return matchSearch && matchAudience;
+  });
+
+  function copyMessage(customer: CustomerBasic) {
+    if (!selectedTemplate) return;
+    const msg = interpolateForCustomer(selectedTemplate.body, customer);
+    navigator.clipboard.writeText(msg).then(() => {
+      setCopiedId(customer.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  }
+
+  function openWhatsApp(customer: CustomerBasic) {
+    if (!selectedTemplate) return;
+    const msg = encodeURIComponent(interpolateForCustomer(selectedTemplate.body, customer));
+    const phone = toWhatsAppPhone(customer.phone);
+    window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+  }
+
+  return (
+    <>
+      {/* Setup row */}
+      <div className="flex flex-wrap gap-3 mb-5">
+        <div className="flex-1 min-w-[200px]">
+          <label className="label">תבנית הודעה</label>
+          {whatsappTemplates.length === 0 ? (
+            <div className="input text-petra-muted text-sm">אין תבניות WhatsApp/SMS — צור תבנית קודם</div>
+          ) : (
+            <select
+              className="input"
+              value={selectedTemplateId}
+              onChange={(e) => setSelectedTemplateId(e.target.value)}
+            >
+              <option value="">בחר תבנית...</option>
+              {whatsappTemplates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({CHANNEL_LABELS[t.channel] ?? t.channel})
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div className="min-w-[180px]">
+          <label className="label">קהל יעד</label>
+          <select
+            className="input"
+            value={audience}
+            onChange={(e) => setAudience(e.target.value)}
+          >
+            {AUDIENCE_OPTIONS.map((a) => (
+              <option key={a.id} value={a.id}>{a.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex-1 min-w-[180px]">
+          <label className="label">חיפוש לקוח</label>
+          <input
+            className="input"
+            placeholder="שם או טלפון..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Template preview */}
+      {selectedTemplate && (
+        <div className="card p-4 mb-5 bg-green-50 border border-green-200">
+          <div className="flex items-center gap-2 mb-2">
+            <MessageSquare className="w-4 h-4 text-green-600" />
+            <span className="text-sm font-semibold text-green-800">תצוגה מקדימה של ההודעה</span>
+            <span className="badge-neutral text-[10px]">{CHANNEL_LABELS[selectedTemplate.channel]}</span>
+          </div>
+          <p className="text-sm text-green-900 whitespace-pre-wrap font-mono bg-white rounded-lg p-3 border border-green-100">
+            {allCustomers[0]
+              ? interpolateForCustomer(selectedTemplate.body, allCustomers[0])
+              : selectedTemplate.body}
+          </p>
+          {allCustomers[0] && (
+            <p className="text-xs text-green-700 mt-1">* תצוגה עבור הלקוח הראשון: {allCustomers[0].name}</p>
+          )}
+        </div>
+      )}
+
+      {/* Customer list */}
+      {!selectedTemplateId ? (
+        <div className="empty-state">
+          <div className="empty-state-icon"><Send className="w-6 h-6 text-slate-400" /></div>
+          <h3 className="text-base font-semibold text-petra-text mb-1">בחר תבנית להתחלה</h3>
+          <p className="text-sm text-petra-muted">בחר תבנית הודעה כדי לראות את הלקוחות ולשלוח הודעות</p>
+        </div>
+      ) : isLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => <div key={i} className="card p-3 animate-pulse h-14" />)}
+        </div>
+      ) : filteredCustomers.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon"><Users className="w-6 h-6 text-slate-400" /></div>
+          <h3 className="text-base font-semibold text-petra-text mb-1">אין לקוחות</h3>
+          <p className="text-sm text-petra-muted">לא נמצאו לקוחות עם הסינון הנוכחי</p>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="w-4 h-4 text-petra-muted" />
+            <span className="text-sm text-petra-muted">{filteredCustomers.length} לקוחות</span>
+          </div>
+          <div className="space-y-2">
+            {filteredCustomers.map((customer) => {
+              const msg = selectedTemplate
+                ? interpolateForCustomer(selectedTemplate.body, customer)
+                : "";
+              const waPhone = toWhatsAppPhone(customer.phone);
+              const isCopied = copiedId === customer.id;
+
+              return (
+                <div key={customer.id} className="card p-3 flex items-center gap-3">
+                  {/* Avatar */}
+                  <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-brand-600">
+                      {customer.name.charAt(0)}
+                    </span>
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-petra-text truncate">{customer.name}</div>
+                    <div className="text-xs text-petra-muted">{customer.phone}</div>
+                  </div>
+
+                  {/* Message preview */}
+                  <div className="flex-1 min-w-0 hidden md:block">
+                    <p className="text-xs text-petra-muted line-clamp-1">{msg}</p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {waPhone && (
+                      <button
+                        onClick={() => openWhatsApp(customer)}
+                        className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5"
+                        title="פתח WhatsApp"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        WhatsApp
+                      </button>
+                    )}
+                    <button
+                      onClick={() => copyMessage(customer)}
+                      className={cn(
+                        "p-1.5 rounded-lg transition-colors",
+                        isCopied
+                          ? "bg-green-100 text-green-600"
+                          : "hover:bg-slate-100 text-slate-400"
+                      )}
+                      title="העתק הודעה"
+                    >
+                      {isCopied
+                        ? <CheckCheck className="w-4 h-4" />
+                        : <Copy className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function MessagesPage() {
-  const [activeTab, setActiveTab] = useState<"templates" | "automations">("templates");
+  const [activeTab, setActiveTab] = useState<"templates" | "automations" | "bulk">("templates");
 
   const { data: automationsCount } = useQuery<AutomationRule[]>({
     queryKey: ["automations"],
@@ -651,10 +887,25 @@ export default function MessagesPage() {
             )}
           </span>
         </button>
+        <button
+          onClick={() => setActiveTab("bulk")}
+          className={cn(
+            "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+            activeTab === "bulk"
+              ? "bg-white text-petra-text shadow-sm"
+              : "text-petra-muted hover:text-petra-text"
+          )}
+        >
+          <span className="flex items-center gap-2">
+            <Send className="w-4 h-4" />
+            שליחה מרוכזת
+          </span>
+        </button>
       </div>
 
       {activeTab === "templates" && <TemplatesTab />}
       {activeTab === "automations" && <AutomationsTab />}
+      {activeTab === "bulk" && <BulkSendTab />}
     </div>
   );
 }
