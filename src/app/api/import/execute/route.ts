@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * POST /api/import/execute
  * Executes a validated import batch: creates customers+pets in DB.

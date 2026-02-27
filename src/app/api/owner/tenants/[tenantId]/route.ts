@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * GET   /api/owner/tenants/[tenantId]  — tenant details
  * PATCH /api/owner/tenants/[tenantId]  — update tenant (suspend/activate/close)

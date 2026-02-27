@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * GET /api/owner/audit-logs
  * Paginated audit log viewer with filters.

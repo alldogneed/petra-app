@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * GET /api/exports/download
  * Generates and returns a real XLSX or CSV file for download.

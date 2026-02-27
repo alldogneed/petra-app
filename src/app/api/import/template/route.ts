@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * GET /api/import/template
  * Returns a downloadable XLSX template with Customers + Pets sheets.

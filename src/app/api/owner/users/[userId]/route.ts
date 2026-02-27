@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * GET   /api/owner/users/[userId]  — user details
  * PATCH /api/owner/users/[userId]  — block/unblock, change role

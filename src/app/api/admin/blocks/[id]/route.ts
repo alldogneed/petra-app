@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { requireTenantPermission, isGuardError, requireBusinessAuth } from "@/lib/auth-guards"

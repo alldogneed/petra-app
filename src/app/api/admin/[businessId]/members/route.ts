@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * GET  /api/admin/[businessId]/members  — list members of a business
  * POST /api/admin/[businessId]/members  — invite a new member

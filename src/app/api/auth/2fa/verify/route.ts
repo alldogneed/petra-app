@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * POST /api/auth/2fa/verify
  * Verifies TOTP code after login (step 2 of 2FA login flow).

@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * GET /api/auth/session
  * Returns lightweight session info (used by middleware and client).

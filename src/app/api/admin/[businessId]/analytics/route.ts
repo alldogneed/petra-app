@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * GET /api/admin/[businessId]/analytics
  * Basic counts for tenant admin panel.

@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { exchangeCalendarCode, encryptToken, ensureUserCalendar } from "@/lib/google-calendar";

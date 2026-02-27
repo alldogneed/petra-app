@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * PATCH /api/admin/[businessId]/members/[memberId]
  * Change role or deactivate/reactivate a member.

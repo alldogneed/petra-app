@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * GET  /api/owner/tenants  — list/search tenants
  * POST /api/owner/tenants  — create tenant

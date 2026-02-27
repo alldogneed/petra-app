@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * GET  /api/owner/feature-flags  — list all flags
  * POST /api/owner/feature-flags  — create or upsert a flag

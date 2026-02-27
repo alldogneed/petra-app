@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * GET /api/admin/[businessId]/audit-logs
  * Tenant-scoped audit log viewer.

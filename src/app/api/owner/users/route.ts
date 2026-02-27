@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * GET  /api/owner/users  — list platform users
  * POST /api/owner/users  — create platform user

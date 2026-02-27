@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * POST /api/auth/2fa/enroll
  * Begins 2FA enrollment: generates a TOTP secret and returns QR URI.

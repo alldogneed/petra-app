@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * POST /api/auth/2fa/confirm
  * Confirms 2FA enrollment by verifying the first TOTP code.

@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * POST /api/import/parse
  * Accepts a multipart file upload (customers CSV/XLSX + optional pets).

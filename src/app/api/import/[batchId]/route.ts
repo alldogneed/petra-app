@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 /**
  * GET  /api/import/[batchId]          → batch status + stats
  * GET  /api/import/[batchId]?issues=csv → download issues as CSV

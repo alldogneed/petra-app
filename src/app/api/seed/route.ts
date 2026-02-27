@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards";
 import { PLATFORM_PERMS } from "@/lib/permissions";
