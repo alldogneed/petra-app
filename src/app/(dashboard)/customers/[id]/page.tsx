@@ -36,6 +36,7 @@ import {
   ShoppingCart,
   Link2,
   Send,
+  CalendarClock,
 } from "lucide-react";
 import { CreateOrderModal } from "@/components/orders/CreateOrderModal";
 import {
@@ -1441,7 +1442,15 @@ export default function CustomerProfilePage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href={`/scheduler?customerId=${customer.id}`}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
+            title="קבע תור ללקוח זה"
+          >
+            <CalendarClock className="w-4 h-4" />
+            קבע תור
+          </Link>
           <Link
             href={`/payment-request?customerId=${customer.id}`}
             className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"

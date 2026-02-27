@@ -51,7 +51,7 @@ interface RoomStay {
   checkOut: string | null;
   status: string;
   pet: { id: string; name: string; breed: string | null; species: string };
-  customer: { id: string; name: string };
+  customer: { id: string; name: string; phone: string };
 }
 
 interface Room {
@@ -73,7 +73,7 @@ interface BoardingStay {
   notes: string | null;
   room: { id: string; name: string } | null;
   pet: { id: string; name: string; species: string; breed: string | null };
-  customer: { id: string; name: string };
+  customer: { id: string; name: string; phone: string };
 }
 
 interface Customer {
@@ -953,7 +953,24 @@ function CheckoutDialog({
           </div>
         </div>
 
-        <div className="flex gap-3 mt-6">
+        {/* WhatsApp payment request */}
+        {settings.boardingPricePerNight && (
+          <a
+            href={(() => {
+              const total = nights * (settings.boardingPricePerNight || 0);
+              const msg = `שלום ${stay.customer.name}! 😊\nתודה שהיה לנו את ${stay.pet.name} בפנסיון.\nסיכום השהייה: ${nights} ${calcMode === "nights" ? "לילות" : "ימים"} × ₪${settings.boardingPricePerNight} = ₪${total.toFixed(0)}.\n\nנשמח לקבל תשלום 🙏`;
+              return `https://wa.me/${toWhatsAppPhone(stay.customer.phone)}?text=${encodeURIComponent(msg)}`;
+            })()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 transition-colors"
+          >
+            <MessageCircle className="w-4 h-4" />
+            שלח בקשת תשלום בוואטסאפ
+          </a>
+        )}
+
+        <div className="flex gap-3 mt-2">
           <button
             className="btn-primary flex-1 flex items-center justify-center gap-2"
             disabled={isPending}

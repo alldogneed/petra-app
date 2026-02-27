@@ -13,8 +13,9 @@ import {
   Banknote,
   FileText,
   Loader2,
+  MessageCircle,
 } from "lucide-react";
-import { cn, formatCurrency, formatDate, fetchJSON } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface Payment {
@@ -64,6 +65,7 @@ export default function PaymentsPage() {
   const [activeStatus, setActiveStatus] = useState("ALL");
   const [showNewPayment, setShowNewPayment] = useState(false);
   const [issuingPaymentId, setIssuingPaymentId] = useState<string | null>(null);
+  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: payments = [], isLoading, isError } = useQuery<Payment[]>({
@@ -87,6 +89,24 @@ export default function PaymentsPage() {
     queryFn: () => fetchJSON("/api/invoicing/settings"),
   });
   const invoicingConfigured = invoicingSettings?.status === "active";
+
+  const markPaidMutation = useMutation({
+    mutationFn: (paymentId: string) =>
+      fetchJSON(`/api/payments/${paymentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "paid" }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      setMarkingPaidId(null);
+      toast.success("התשלום סומן כשולם");
+    },
+    onError: () => {
+      setMarkingPaidId(null);
+      toast.error("שגיאה בעדכון התשלום. נסה שוב.");
+    },
+  });
 
   const issueMutation = useMutation({
     mutationFn: (paymentId: string) =>
@@ -262,7 +282,24 @@ export default function PaymentsPage() {
                   {association && (
                     <p className="text-xs text-petra-muted mt-0.5">{association}</p>
                   )}
-                  <div className="mt-1.5">
+                  <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                    {payment.status === "pending" && (
+                      <button
+                        className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-lg transition-colors"
+                        disabled={markingPaidId === payment.id}
+                        onClick={() => {
+                          setMarkingPaidId(payment.id);
+                          markPaidMutation.mutate(payment.id);
+                        }}
+                      >
+                        {markingPaidId === payment.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="w-3 h-3" />
+                        )}
+                        סמן כשולם
+                      </button>
+                    )}
                     {payment.invoiceNumber ? (
                       <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
                         <FileText className="w-3 h-3" />
@@ -358,30 +395,60 @@ export default function PaymentsPage() {
                         </span>
                       </td>
                       <td className="table-cell">
-                        {payment.invoiceNumber ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
-                            <FileText className="w-3 h-3" />
-                            {payment.invoiceNumber}
-                          </span>
-                        ) : payment.status === "paid" && invoicingConfigured ? (
-                          <button
-                            className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1"
-                            disabled={issuingPaymentId === payment.id}
-                            onClick={() => {
-                              setIssuingPaymentId(payment.id);
-                              issueMutation.mutate(payment.id);
-                            }}
-                          >
-                            {issuingPaymentId === payment.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {payment.status === "pending" && (
+                            <button
+                              className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-lg transition-colors"
+                              disabled={markingPaidId === payment.id}
+                              onClick={() => {
+                                setMarkingPaidId(payment.id);
+                                markPaidMutation.mutate(payment.id);
+                              }}
+                            >
+                              {markingPaidId === payment.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="w-3 h-3" />
+                              )}
+                              סמן כשולם
+                            </button>
+                          )}
+                          {payment.invoiceNumber ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
                               <FileText className="w-3 h-3" />
-                            )}
-                            הפק מסמך
-                          </button>
-                        ) : (
-                          <span className="text-xs text-petra-muted">—</span>
-                        )}
+                              {payment.invoiceNumber}
+                            </span>
+                          ) : payment.status === "paid" && invoicingConfigured ? (
+                            <button
+                              className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1"
+                              disabled={issuingPaymentId === payment.id}
+                              onClick={() => {
+                                setIssuingPaymentId(payment.id);
+                                issueMutation.mutate(payment.id);
+                              }}
+                            >
+                              {issuingPaymentId === payment.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <FileText className="w-3 h-3" />
+                              )}
+                              הפק מסמך
+                            </button>
+                          ) : payment.status !== "pending" ? (
+                            <span className="text-xs text-petra-muted">—</span>
+                          ) : null}
+                          {payment.status === "paid" && payment.customer.phone && (
+                            <a
+                              href={`https://wa.me/${toWhatsAppPhone(payment.customer.phone)}?text=${encodeURIComponent(`שלום ${payment.customer.name}!\nקיבלנו את תשלומך בסך ${formatCurrency(payment.amount)} - תודה רבה! 🙏`)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 hover:bg-green-50 transition-colors"
+                              title="שלח אישור תשלום בוואטסאפ"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+                        </div>
                       </td>
                       <td className="table-cell">
                         <span className="text-xs text-petra-muted">

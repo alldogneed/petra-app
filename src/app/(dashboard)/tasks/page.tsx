@@ -26,6 +26,7 @@ import {
   Timer,
   CalendarDays,
   Filter,
+  Pencil,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -148,6 +149,7 @@ export default function TasksPage() {
   const [showNewTask, setShowNewTask] = useState(false);
   const [postponeTask, setPostponeTask] = useState<Task | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Task | null>(null);
+  const [editTask, setEditTask] = useState<Task | null>(null);
   const [, setTick] = useState(0);
   const queryClient = useQueryClient();
 
@@ -276,6 +278,35 @@ export default function TasksPage() {
     onError: () => toast.error("שגיאה בדחיית המשימה. נסה שוב."),
   });
 
+  const editMutation = useMutation({
+    mutationFn: ({ id, ...data }: { id: string; title: string; description: string; category: string; priority: string; dueDate: string; dueAt: string }) => {
+      const payload: Record<string, unknown> = {
+        title: data.title,
+        description: data.description || undefined,
+        category: data.category,
+        priority: data.priority,
+      };
+      if (data.dueDate) payload.dueDate = data.dueDate;
+      if (data.dueDate && data.dueAt) {
+        payload.dueAt = new Date(`${data.dueDate}T${data.dueAt}:00`).toISOString();
+      } else {
+        payload.dueAt = null;
+      }
+      return fetchJSON(`/api/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      setEditTask(null);
+      toast.success("המשימה עודכנה בהצלחה");
+    },
+    onError: () => toast.error("שגיאה בעדכון המשימה. נסה שוב."),
+  });
+
   return (
     <div>
       {/* Header */}
@@ -380,9 +411,20 @@ export default function TasksPage() {
               onToggle={(id, status) => toggleMutation.mutate({ id, status })}
               onPostpone={(task) => setPostponeTask(task)}
               onDelete={(task) => setDeleteConfirm(task)}
+              onEdit={(task) => setEditTask(task)}
             />
           ))}
         </div>
+      )}
+
+      {/* Edit Task Modal */}
+      {editTask && (
+        <EditTaskModal
+          task={editTask}
+          onClose={() => setEditTask(null)}
+          onSubmit={(data) => editMutation.mutate(data)}
+          isPending={editMutation.isPending}
+        />
       )}
 
       {/* New Task Modal */}
@@ -445,11 +487,13 @@ function TaskCard({
   onToggle,
   onPostpone,
   onDelete,
+  onEdit,
 }: {
   task: Task;
   onToggle: (id: string, status: string) => void;
   onPostpone: (task: Task) => void;
   onDelete: (task: Task) => void;
+  onEdit: (task: Task) => void;
 }) {
   const computed = computeTaskStatus(task);
   const config = STATUS_CONFIG[computed];
@@ -554,13 +598,22 @@ function TaskCard({
         {/* Quick actions */}
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
           {!isCompleted && (
-            <button
-              onClick={() => onPostpone(task)}
-              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-brand-500 transition-colors"
-              title="דחה"
-            >
-              <CalendarClock className="w-3.5 h-3.5" />
-            </button>
+            <>
+              <button
+                onClick={() => onEdit(task)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-brand-500 transition-colors"
+                title="ערוך"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onPostpone(task)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-brand-500 transition-colors"
+                title="דחה"
+              >
+                <CalendarClock className="w-3.5 h-3.5" />
+              </button>
+            </>
           )}
           <button
             onClick={() => onDelete(task)}
@@ -720,6 +773,143 @@ function NewTaskModal({
           <button className="btn-secondary" onClick={onClose}>
             ביטול
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Edit Task Modal ──────────────────────────────────────────────────────────
+
+function EditTaskModal({
+  task,
+  onClose,
+  onSubmit,
+  isPending,
+}: {
+  task: Task;
+  onClose: () => void;
+  onSubmit: (data: { id: string; title: string; description: string; category: string; priority: string; dueDate: string; dueAt: string }) => void;
+  isPending: boolean;
+}) {
+  const initialDate = task.dueAt
+    ? format(new Date(task.dueAt), "yyyy-MM-dd")
+    : task.dueDate
+    ? format(new Date(task.dueDate), "yyyy-MM-dd")
+    : "";
+
+  const initialTime = task.dueAt ? format(new Date(task.dueAt), "HH:mm") : "";
+
+  const [form, setForm] = useState({
+    title: task.title,
+    description: task.description ?? "",
+    category: task.category,
+    priority: task.priority,
+    dueDate: initialDate,
+    dueAt: initialTime,
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold text-petra-text">עריכת משימה</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="label">כותרת *</label>
+            <input
+              className="input"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">תיאור</label>
+            <textarea
+              className="input"
+              rows={2}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">קטגוריה</label>
+              <select
+                className="input"
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+              >
+                {CATEGORIES.filter((c) => c.id !== "ALL").map((c) => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">עדיפות</label>
+              <select
+                className="input"
+                value={form.priority}
+                onChange={(e) => setForm({ ...form, priority: e.target.value })}
+              >
+                <option value="LOW">נמוכה</option>
+                <option value="MEDIUM">בינונית</option>
+                <option value="HIGH">גבוהה</option>
+                <option value="URGENT">דחופה</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">תאריך יעד</label>
+              <input
+                type="date"
+                className="input"
+                value={form.dueDate}
+                onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label">שעה</label>
+              <input
+                type="time"
+                className="input"
+                value={form.dueAt}
+                onChange={(e) => setForm({ ...form, dueAt: e.target.value })}
+              />
+            </div>
+          </div>
+          {form.dueDate && (
+            <div className="flex items-center gap-2 text-xs text-petra-muted bg-slate-50 rounded-lg px-3 py-2">
+              <Timer className="w-3.5 h-3.5" />
+              <span>
+                {form.dueAt
+                  ? format(new Date(`${form.dueDate}T${form.dueAt}:00`), "EEEE, d MMMM yyyy · HH:mm", { locale: he })
+                  : format(new Date(form.dueDate + "T00:00:00"), "EEEE, d MMMM yyyy · כל היום", { locale: he })}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            className="btn-primary flex-1"
+            disabled={!form.title.trim() || isPending}
+            onClick={() => onSubmit({ id: task.id, ...form })}
+          >
+            <Pencil className="w-4 h-4" />
+            {isPending ? "שומר..." : "שמור שינויים"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>
       </div>
     </div>

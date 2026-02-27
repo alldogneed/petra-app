@@ -13,6 +13,8 @@ import {
   ShoppingCart,
   ListTodo,
   MessageCircle,
+  Pencil,
+  Check,
 } from "lucide-react";
 import {
   cn,
@@ -526,6 +528,8 @@ export default function CalendarPage() {
   const [selectedAppointment, setSelectedAppointment] =
     useState<AppointmentEvent | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesInput, setNotesInput] = useState("");
   const [hoveredApt, setHoveredApt] = useState<{
     apt: AppointmentEvent;
     x: number;
@@ -620,6 +624,24 @@ export default function CalendarPage() {
       else if (status === "canceled") toast.success("התור בוטל");
     },
     onError: () => toast.error("שגיאה בעדכון התור. נסה שוב."),
+  });
+
+  const notesMutation = useMutation({
+    mutationFn: ({ id, notes }: { id: string; notes: string }) =>
+      fetchJSON(`/api/appointments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      setEditingNotes(false);
+      if (selectedAppointment) {
+        setSelectedAppointment({ ...selectedAppointment, notes: notesInput || null });
+      }
+      toast.success("ההערות עודכנו");
+    },
+    onError: () => toast.error("שגיאה בעדכון ההערות. נסה שוב."),
   });
 
   // ── Navigation ──
@@ -1493,15 +1515,24 @@ export default function CalendarPage() {
         <div className="modal-overlay">
           <div
             className="modal-backdrop"
-            onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); }}
+            onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setEditingNotes(false); }}
           />
           <div className="modal-content max-w-sm mx-4 p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-petra-text">
-                {selectedAppointment.customer.name}
-              </h3>
+              <div>
+                <a
+                  href={`/customers/${selectedAppointment.customer.id}`}
+                  className="text-lg font-bold text-petra-text hover:text-brand-600 transition-colors"
+                  onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setEditingNotes(false); }}
+                >
+                  {selectedAppointment.customer.name}
+                </a>
+                <p className="text-xs text-petra-muted mt-0.5">
+                  {new Date(selectedAppointment.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
+                </p>
+              </div>
               <button
-                onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); }}
+                onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setEditingNotes(false); }}
                 className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
               >
                 <X className="w-4 h-4" />
@@ -1533,11 +1564,52 @@ export default function CalendarPage() {
               <div className="text-petra-text font-medium">
                 {selectedAppointment.service.name}
               </div>
-              {selectedAppointment.notes && (
-                <p className="text-petra-muted">
-                  {selectedAppointment.notes}
-                </p>
-              )}
+              {/* Notes section with inline edit */}
+              <div className="group/notes">
+                {editingNotes ? (
+                  <div className="space-y-2">
+                    <textarea
+                      className="input text-xs resize-none"
+                      rows={3}
+                      value={notesInput}
+                      onChange={(e) => setNotesInput(e.target.value)}
+                      placeholder="הוסף הערות לתור..."
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        className="btn-primary text-xs py-1.5 flex-1 flex items-center justify-center gap-1"
+                        disabled={notesMutation.isPending}
+                        onClick={() => notesMutation.mutate({ id: selectedAppointment.id, notes: notesInput })}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        {notesMutation.isPending ? "שומר..." : "שמור הערות"}
+                      </button>
+                      <button
+                        className="btn-secondary text-xs py-1.5 px-3"
+                        onClick={() => { setEditingNotes(false); setNotesInput(selectedAppointment.notes ?? ""); }}
+                      >
+                        ביטול
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-1">
+                    {selectedAppointment.notes ? (
+                      <p className="text-petra-muted flex-1">{selectedAppointment.notes}</p>
+                    ) : (
+                      <p className="text-petra-muted/50 text-xs italic flex-1">אין הערות</p>
+                    )}
+                    <button
+                      className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-brand-500 hover:bg-slate-100 transition-colors flex-shrink-0 opacity-0 group-hover/notes:opacity-100"
+                      title="ערוך הערות"
+                      onClick={() => { setNotesInput(selectedAppointment.notes ?? ""); setEditingNotes(true); }}
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="mt-2">
                 <span
                   className={cn(

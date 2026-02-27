@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarClock,
@@ -128,6 +129,8 @@ function formatHebDate(dateString: string): string {
 export default function SchedulerPage() {
   const queryClient = useQueryClient();
   const today = todayStr();
+  const searchParams = useSearchParams();
+  const prefilledCustomerId = searchParams.get("customerId");
 
   /* ── State ── */
   const [selectedDate, setSelectedDate] = useState("");
@@ -210,6 +213,17 @@ export default function SchedulerPage() {
         (c.email && c.email.toLowerCase().includes(q))
     );
   }, [customers, customerSearch]);
+
+  // Auto-select customer from URL param
+  useEffect(() => {
+    if (prefilledCustomerId && customers.length > 0 && !selectedCustomerId) {
+      const customer = customers.find((c) => c.id === prefilledCustomerId);
+      if (customer) {
+        setSelectedCustomerId(customer.id);
+        setCustomerSearch(customer.name);
+      }
+    }
+  }, [prefilledCustomerId, customers, selectedCustomerId]);
 
   const selectedService = activeServices.find((s) => s.id === selectedServiceId);
   const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);

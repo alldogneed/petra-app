@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       include: {
         room: true,
         pet: { select: { id: true, name: true, species: true, breed: true } },
-        customer: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true, phone: true } },
       },
       orderBy: { checkIn: "desc" },
     });
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
       include: {
         room: true,
         pet: { select: { id: true, name: true, species: true, breed: true } },
-        customer: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true, phone: true } },
       },
     });
 
