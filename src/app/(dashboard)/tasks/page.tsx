@@ -31,6 +31,10 @@ import {
   Search,
   Copy,
   LayoutTemplate,
+  Repeat2,
+  RefreshCw,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -157,6 +161,7 @@ export default function TasksPage() {
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showRecurring, setShowRecurring] = useState(false);
   const [, setTick] = useState(0);
   const queryClient = useQueryClient();
 
@@ -388,6 +393,10 @@ export default function TasksPage() {
         <button className="btn-secondary gap-2" onClick={() => setShowTemplates(true)}>
           <LayoutTemplate className="w-4 h-4" />
           תבניות
+        </button>
+        <button className="btn-secondary gap-2" onClick={() => setShowRecurring(true)}>
+          <Repeat2 className="w-4 h-4" />
+          חוזרות
         </button>
         <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-petra-muted bg-slate-100 px-2 py-0.5 rounded-md font-mono">
           N
@@ -668,6 +677,18 @@ export default function TasksPage() {
           }}
         />
       )}
+
+      {showRecurring && (
+        <RecurringTasksModal
+          onClose={() => setShowRecurring(false)}
+          onTasksGenerated={() => {
+            queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+          }}
+          categories={CATEGORIES.filter((c) => c.id !== "ALL")}
+          categoryLabel={CATEGORY_LABEL}
+        />
+      )}
     </div>
   );
 }
@@ -882,6 +903,376 @@ function TaskTemplatesModal({
           >
             <Plus className="w-4 h-4" />
             תבנית חדשה
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Recurring Tasks Modal ────────────────────────────────────────────────────
+
+const DAYS_OF_WEEK = [
+  { value: 0, label: "ראשון" },
+  { value: 1, label: "שני" },
+  { value: 2, label: "שלישי" },
+  { value: 3, label: "רביעי" },
+  { value: 4, label: "חמישי" },
+  { value: 5, label: "שישי" },
+  { value: 6, label: "שבת" },
+];
+
+interface RecurrenceRule {
+  id: string;
+  rrule: string;
+  startAt: string;
+  endAt: string | null;
+  isActive: boolean;
+  lastGeneratedAt: string | null;
+  createdAt: string;
+  template: { id: string; name: string; defaultCategory: string; defaultPriority: string; defaultTitleTemplate: string };
+  _count: { tasks: number };
+}
+
+function buildRrule(freq: string, interval: number, weekDays: number[]): string {
+  const dayNames = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+  let rule = `FREQ=${freq};INTERVAL=${interval}`;
+  if (freq === "WEEKLY" && weekDays.length > 0) {
+    rule += `;BYDAY=${weekDays.map((d) => dayNames[d]).join(",")}`;
+  }
+  return rule;
+}
+
+function humanizeRrule(rrule: string): string {
+  const parts: Record<string, string> = {};
+  for (const part of rrule.split(";")) {
+    const [k, v] = part.split("=");
+    if (k && v) parts[k] = v;
+  }
+  const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+  const dayMap: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+  const interval = parseInt(parts["INTERVAL"] ?? "1", 10);
+  const freq = parts["FREQ"];
+  if (freq === "DAILY") return interval === 1 ? "כל יום" : `כל ${interval} ימים`;
+  if (freq === "WEEKLY") {
+    const days = parts["BYDAY"]
+      ? parts["BYDAY"].split(",").map((d) => dayNames[dayMap[d] ?? 0]).join(", ")
+      : "";
+    return interval === 1 ? `שבועי – ${days || "כל שבוע"}` : `כל ${interval} שבועות – ${days}`;
+  }
+  if (freq === "MONTHLY") return interval === 1 ? "כל חודש" : `כל ${interval} חודשים`;
+  return rrule;
+}
+
+function RecurringTasksModal({
+  onClose,
+  onTasksGenerated,
+  categories,
+  categoryLabel,
+}: {
+  onClose: () => void;
+  onTasksGenerated: () => void;
+  categories: { id: string; label: string }[];
+  categoryLabel: Record<string, string>;
+}) {
+  const queryClient = useQueryClient();
+  const [showNew, setShowNew] = useState(false);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    templateId: "",
+    freq: "DAILY",
+    interval: 1,
+    weekDays: [] as number[],
+    startAt: new Date().toISOString().slice(0, 10),
+    endAt: "",
+  });
+
+  const { data: rules = [], isLoading } = useQuery<RecurrenceRule[]>({
+    queryKey: ["task-recurrence-rules"],
+    queryFn: () => fetch("/api/task-recurrence").then((r) => r.json()),
+  });
+
+  const { data: templates = [] } = useQuery<TaskTemplate[]>({
+    queryKey: ["task-templates"],
+    queryFn: () => fetch("/api/task-templates").then((r) => r.json()),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: { templateId: string; rrule: string; startAt: string; endAt: string | null }) =>
+      fetch("/api/task-recurrence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["task-recurrence-rules"] });
+      setShowNew(false);
+      setForm({ templateId: "", freq: "DAILY", interval: 1, weekDays: [], startAt: new Date().toISOString().slice(0, 10), endAt: "" });
+      toast.success("חוק חוזרות נוצר");
+    },
+    onError: () => toast.error("שגיאה ביצירת חוק"),
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      fetch(`/api/task-recurrence/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
+      }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["task-recurrence-rules"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/task-recurrence/${id}`, { method: "DELETE" }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["task-recurrence-rules"] });
+      toast.success("חוק נמחק");
+    },
+    onError: () => toast.error("שגיאה במחיקה"),
+  });
+
+  const generateNow = async (rule: RecurrenceRule) => {
+    setGeneratingId(rule.id);
+    try {
+      const res = await fetch(`/api/task-recurrence/${rule.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: 30 }),
+      });
+      const data = await res.json();
+      if (data.created !== undefined) {
+        toast.success(`נוצרו ${data.created} משימות חדשות`);
+        onTasksGenerated();
+        queryClient.invalidateQueries({ queryKey: ["task-recurrence-rules"] });
+      } else {
+        toast.error(data.error ?? "שגיאה");
+      }
+    } finally {
+      setGeneratingId(null);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!form.templateId) { toast.error("בחר תבנית"); return; }
+    const rrule = buildRrule(form.freq, form.interval, form.weekDays);
+    createMutation.mutate({
+      templateId: form.templateId,
+      rrule,
+      startAt: new Date(form.startAt).toISOString(),
+      endAt: form.endAt ? new Date(form.endAt).toISOString() : null,
+    });
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
+            <Repeat2 className="w-5 h-5 text-brand-500" />
+            משימות חוזרות
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <p className="text-xs text-petra-muted mb-4">
+          הגדר לוחות זמנים אוטומטיים ליצירת משימות חוזרות מתבניות. לאחר יצירת חוק, לחץ "הפעל" ליצירת משימות ל-30 הימים הקרובים.
+        </p>
+
+        {isLoading && <p className="text-sm text-petra-muted text-center py-4">טוען...</p>}
+
+        {!isLoading && rules.length === 0 && !showNew && (
+          <div className="text-center py-6">
+            <Repeat2 className="w-8 h-8 text-petra-muted opacity-30 mx-auto mb-2" />
+            <p className="text-sm text-petra-muted">אין חוקי חוזרות עדיין</p>
+          </div>
+        )}
+
+        {!isLoading && rules.length > 0 && (
+          <div className="space-y-2 mb-5">
+            {rules.map((rule) => (
+              <div key={rule.id} className={cn(
+                "p-3 rounded-xl border group",
+                rule.isActive ? "border-brand-100 bg-brand-50/40" : "border-slate-100 bg-slate-50 opacity-60"
+              )}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-petra-text truncate">{rule.template.name}</p>
+                    <p className="text-xs text-petra-muted truncate">{rule.template.defaultTitleTemplate}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-brand-100 text-brand-700 font-medium">
+                        {humanizeRrule(rule.rrule)}
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">
+                        {categoryLabel[rule.template.defaultCategory] ?? rule.template.defaultCategory}
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">
+                        {rule._count.tasks} משימות
+                      </span>
+                    </div>
+                    {rule.lastGeneratedAt && (
+                      <p className="text-[10px] text-petra-muted mt-1">
+                        הפעל לאחרונה: {new Date(rule.lastGeneratedAt).toLocaleDateString("he-IL")}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button
+                      onClick={() => generateNow(rule)}
+                      disabled={!rule.isActive || generatingId === rule.id}
+                      className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors disabled:opacity-40"
+                      title="צור משימות ל-30 ימים הקרובים"
+                    >
+                      {generatingId === rule.id ? (
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-3 h-3" />
+                      )}
+                      הפעל
+                    </button>
+                    <button
+                      onClick={() => toggleMutation.mutate({ id: rule.id, isActive: !rule.isActive })}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-brand-500 transition-colors"
+                      title={rule.isActive ? "השהה" : "הפעל"}
+                    >
+                      {rule.isActive ? <ToggleRight className="w-4 h-4 text-brand-500" /> : <ToggleLeft className="w-4 h-4" />}
+                    </button>
+                    <button
+                      onClick={() => deleteMutation.mutate(rule.id)}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {showNew ? (
+          <div className="border border-slate-200 rounded-xl p-4 space-y-3">
+            <h3 className="text-sm font-bold text-petra-text">חוק חוזרות חדש</h3>
+
+            <div>
+              <label className="label">תבנית *</label>
+              <select
+                className="input w-full"
+                value={form.templateId}
+                onChange={(e) => setForm({ ...form, templateId: e.target.value })}
+              >
+                <option value="">בחר תבנית...</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              {templates.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1">יש ליצור תבניות קודם בלחיצה על "תבניות"</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">תדירות</label>
+                <select
+                  className="input w-full"
+                  value={form.freq}
+                  onChange={(e) => setForm({ ...form, freq: e.target.value, weekDays: [] })}
+                >
+                  <option value="DAILY">יומי</option>
+                  <option value="WEEKLY">שבועי</option>
+                  <option value="MONTHLY">חודשי</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">כל כמה</label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min={1}
+                    max={99}
+                    className="input w-full"
+                    value={form.interval}
+                    onChange={(e) => setForm({ ...form, interval: Math.max(1, parseInt(e.target.value) || 1) })}
+                  />
+                  <span className="text-xs text-petra-muted whitespace-nowrap">
+                    {form.freq === "DAILY" ? "ימים" : form.freq === "WEEKLY" ? "שבועות" : "חודשים"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {form.freq === "WEEKLY" && (
+              <div>
+                <label className="label">ימים בשבוע</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {DAYS_OF_WEEK.map((d) => (
+                    <button
+                      key={d.value}
+                      type="button"
+                      onClick={() => setForm((prev) => ({
+                        ...prev,
+                        weekDays: prev.weekDays.includes(d.value)
+                          ? prev.weekDays.filter((x) => x !== d.value)
+                          : [...prev.weekDays, d.value],
+                      }))}
+                      className={cn(
+                        "px-2 py-1 rounded-lg text-xs font-medium border transition-colors",
+                        form.weekDays.includes(d.value)
+                          ? "bg-brand-500 text-white border-brand-500"
+                          : "bg-white text-petra-muted border-slate-200 hover:border-brand-300"
+                      )}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">תחילה מ *</label>
+                <input
+                  type="date"
+                  className="input w-full"
+                  value={form.startAt}
+                  onChange={(e) => setForm({ ...form, startAt: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label">סיום (אופציונלי)</label>
+                <input
+                  type="date"
+                  className="input w-full"
+                  value={form.endAt}
+                  onChange={(e) => setForm({ ...form, endAt: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                className="btn-primary flex-1"
+                disabled={!form.templateId || !form.startAt || createMutation.isPending}
+                onClick={handleSubmit}
+              >
+                {createMutation.isPending ? "שומר..." : "צור חוק"}
+              </button>
+              <button className="btn-secondary" onClick={() => setShowNew(false)}>ביטול</button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowNew(true)}
+            className="btn-secondary w-full gap-2 flex items-center justify-center mt-2"
+          >
+            <Plus className="w-4 h-4" />
+            חוק חוזרות חדש
           </button>
         )}
       </div>
