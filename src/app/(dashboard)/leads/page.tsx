@@ -475,12 +475,16 @@ function DraggableLeadCard({
         </div>
       </div>
 
-      {/* Last call snippet */}
-      {lead.callLogs && lead.callLogs.length > 0 && (
+      {/* Last call snippet or notes preview */}
+      {lead.callLogs && lead.callLogs.length > 0 ? (
         <p className="text-[10px] text-petra-muted line-clamp-1 mt-1.5 italic border-t border-slate-100 pt-1.5">
           &ldquo;{lead.callLogs[0].summary}&rdquo;
         </p>
-      )}
+      ) : lead.notes ? (
+        <p className="text-[10px] text-petra-muted line-clamp-2 mt-1.5 border-t border-slate-100 pt-1.5">
+          {lead.notes}
+        </p>
+      ) : null}
 
       {/* Won/Lost date and reason */}
       {isWon && lead.wonAt && (
