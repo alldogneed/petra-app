@@ -30,12 +30,12 @@ The project path contains Hebrew characters. `npm run dev` will FAIL with `spawn
 ```
 
 ### Database
-- DB file: `prisma/dev.db`
-- Env var: `DATABASE_URL="file:./dev.db"` (in `.env`)
+- **Provider**: PostgreSQL (switched from SQLite for Vercel compatibility)
+- **Recommended**: [Neon](https://neon.tech) free tier — get `DATABASE_URL` + `DIRECT_URL` from project dashboard
+- Set both vars in `.env` and in Vercel project settings
+- After setting up DB: `PATH="..." npx prisma db push && npx prisma generate`
 - Seed demo data: `node -e "require('ts-node').register({compilerOptions:{module:'CommonJS'}}); require('./prisma/seed.ts')"`
 - Seed admin users: `node -e "require('ts-node').register({compilerOptions:{module:'CommonJS'}}); require('./prisma/seed-admin.ts')"`
-- Alternative: `PATH="..." npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed.ts` (if ts-node bin symlink exists)
-- After schema changes: `PATH="..." npx prisma db push && npx prisma generate`
 
 ## Key Constants
 - `DEMO_BUSINESS_ID = "demo-business-001"` in `src/lib/utils.ts`
