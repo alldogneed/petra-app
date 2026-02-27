@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       where: { businessId: DEMO_BUSINESS_ID },
       include: {
         customer: {
-          select: { name: true, phone: true },
+          select: { id: true, name: true, phone: true },
         },
       },
       orderBy: { createdAt: "desc" },

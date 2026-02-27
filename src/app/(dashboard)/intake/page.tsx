@@ -31,7 +31,7 @@ interface IntakeForm {
   submittedAt: string | null;
   openedAt: string | null;
   expiresAt: string;
-  customer: { name: string; phone: string } | null;
+  customer: { id: string; name: string; phone: string } | null;
 }
 
 interface Customer {
@@ -218,7 +218,7 @@ export default function IntakePage() {
                     <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                       {form.customer ? (
                         <Link
-                          href={`/customers`}
+                          href={`/customers/${form.customer.id}`}
                           className="text-sm font-semibold text-petra-text hover:text-brand-500 transition-colors flex items-center gap-1"
                         >
                           <User className="w-3.5 h-3.5" />

@@ -824,12 +824,19 @@ export default function CalendarPage() {
   });
 
   // Pending online bookings (not yet converted to appointments)
-  const { data: pendingBookings = [] } = useQuery<BookingCalEvent[]>({
+  const { data: pendingBookingsRaw = [] } = useQuery<BookingCalEvent[]>({
     queryKey: ["bookings-calendar", from, to],
     queryFn: () =>
       fetchJSON(`/api/booking/bookings?status=pending&from=${from}&to=${to}`),
     enabled: viewMode !== "month",
   });
+
+  const pendingBookings = useMemo(
+    () => serviceTypeFilter
+      ? pendingBookingsRaw.filter((b) => b.service.type === serviceTypeFilter)
+      : pendingBookingsRaw,
+    [pendingBookingsRaw, serviceTypeFilter]
+  );
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>

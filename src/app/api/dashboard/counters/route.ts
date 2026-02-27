@@ -42,6 +42,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ openTasks, overdueFollowUps, pendingBookings });
   } catch (error) {
     console.error("Error fetching counters:", error);
-    return NextResponse.json({ openTasks: 0, overdueFollowUps: 0 });
+    return NextResponse.json({ openTasks: 0, overdueFollowUps: 0, pendingBookings: 0 });
   }
 }
