@@ -69,7 +69,7 @@ const navItems: NavItem[] = [
   { name: "אוטומציות", href: "/automations", icon: Zap },
   { name: "תור שליחה", href: "/scheduled-messages", icon: Send },
   { name: "ניהול תורים", href: "/bookings", icon: CalendarCheck },
-  { name: "טפסי קליטה", href: "/intake", icon: ClipboardList },
+  { name: "טפסי קליטה", href: "/intake-forms", icon: ClipboardList },
   { name: "אנליטיקס", href: "/analytics", icon: BarChart3, minRole: "owner" },
   { name: "הגדרות", href: "/settings", icon: Settings },
 ];

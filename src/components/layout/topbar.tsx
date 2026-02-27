@@ -43,6 +43,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/payments": { title: "תשלומים", subtitle: "ניהול תשלומים והכנסות" },
   "/bookings": { title: "ניהול תורים", subtitle: "ניהול תורים אונליין" },
   "/intake": { title: "טפסי קליטה", subtitle: "ניהול טפסי קליטה" },
+  "/intake-forms": { title: "טפסי קליטה", subtitle: "ניהול טפסי קליטה" },
   "/analytics": { title: "אנליטיקס", subtitle: "סטטיסטיקות ונתוני ביצוע" },
   "/orders": { title: "הזמנות", subtitle: "ניהול הזמנות" },
   "/payment-request": { title: "בקשת תשלום", subtitle: "שליחת בקשת תשלום ללקוח" },
