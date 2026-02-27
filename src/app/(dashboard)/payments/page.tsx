@@ -97,6 +97,8 @@ export default function PaymentsPage() {
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sentReminders, setSentReminders] = useState<Set<string>>(new Set());
+  const [isSendingAll, setIsSendingAll] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: payments = [], isLoading, isError } = useQuery<Payment[]>({
@@ -208,6 +210,34 @@ export default function PaymentsPage() {
   const paidCount = allPayments.filter((p) => p.status === "paid").length;
   const pendingCount = allPayments.filter((p) => p.status === "pending").length;
 
+  function buildReminderText(payment: Payment) {
+    const association = payment.appointment?.service.name
+      || (payment.boardingStay ? `פנסיון — ${payment.boardingStay.pet.name}` : "");
+    return `שלום ${payment.customer.name}! 😊\nתזכורת לגבי תשלום ממתין בסך ${formatCurrency(payment.amount)}${association ? ` עבור ${association}` : ""}.\nנשמח לקבל את התשלום בהקדם 🙏`;
+  }
+
+  async function sendAllReminders() {
+    const pending = allPayments.filter(
+      (p) => p.status === "pending" && p.customer.phone
+    );
+    if (!pending.length) {
+      toast.error("אין תשלומים ממתינים לשליחה");
+      return;
+    }
+    setIsSendingAll(true);
+    for (let i = 0; i < pending.length; i++) {
+      const p = pending[i];
+      const url = `https://wa.me/${toWhatsAppPhone(p.customer.phone)}?text=${encodeURIComponent(buildReminderText(p))}`;
+      window.open(url, "_blank");
+      setSentReminders((prev) => new Set([...prev, p.id]));
+      if (i < pending.length - 1) {
+        await new Promise((res) => setTimeout(res, 700));
+      }
+    }
+    setIsSendingAll(false);
+    toast.success(`נשלחו ${pending.length} תזכורות`);
+  }
+
   function exportCSV() {
     const rows = [
       ["תאריך", "לקוח", "סכום", "אמצעי תשלום", "סטטוס", "שירות", "מספר חשבונית"],
@@ -242,6 +272,17 @@ export default function PaymentsPage() {
           <Plus className="w-4 h-4" />
           תשלום חדש
         </button>
+        {pendingCount > 0 && (
+          <button
+            className="btn-secondary flex items-center gap-2"
+            onClick={sendAllReminders}
+            disabled={isSendingAll}
+            title={`שלח תזכורת וואטסאפ לכל ${pendingCount} תשלומים הממתינים`}
+          >
+            <MessageCircle className="w-4 h-4 text-green-600" />
+            {isSendingAll ? "שולח..." : `שלח לכולם (${pendingCount})`}
+          </button>
+        )}
         <button
           className="btn-secondary"
           onClick={exportCSV}
@@ -480,16 +521,24 @@ export default function PaymentsPage() {
                       </a>
                     )}
                     {payment.status === "pending" && payment.customer.phone && (
-                      <a
-                        href={`https://wa.me/${toWhatsAppPhone(payment.customer.phone)}?text=${encodeURIComponent(`שלום ${payment.customer.name}! 😊\nתזכורת לגבי תשלום ממתין בסך ${formatCurrency(payment.amount)}${association ? ` עבור ${association}` : ""}.\nנשמח לקבל את התשלום בהקדם 🙏`)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700"
-                        title="שלח תזכורת תשלום בוואטסאפ"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        תזכורת
-                      </a>
+                      sentReminders.has(payment.id) ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          נשלח ✓
+                        </span>
+                      ) : (
+                        <a
+                          href={`https://wa.me/${toWhatsAppPhone(payment.customer.phone)}?text=${encodeURIComponent(buildReminderText(payment))}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700"
+                          title="שלח תזכורת תשלום בוואטסאפ"
+                          onClick={() => setSentReminders((prev) => new Set([...prev, payment.id]))}
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          תזכורת
+                        </a>
+                      )
                     )}
                     {payment.status === "pending" && (
                       <button
@@ -655,6 +704,24 @@ export default function PaymentsPage() {
                             >
                               <MessageCircle className="w-3.5 h-3.5" />
                             </a>
+                          )}
+                          {payment.status === "pending" && payment.customer.phone && (
+                            sentReminders.has(payment.id) ? (
+                              <span className="w-7 h-7 flex items-center justify-center text-emerald-600" title="נשלחה תזכורת">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              </span>
+                            ) : (
+                              <a
+                                href={`https://wa.me/${toWhatsAppPhone(payment.customer.phone)}?text=${encodeURIComponent(buildReminderText(payment))}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 hover:bg-green-50 transition-colors"
+                                title="שלח תזכורת תשלום בוואטסאפ"
+                                onClick={() => setSentReminders((prev) => new Set([...prev, payment.id]))}
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                              </a>
+                            )
                           )}
                           {payment.status === "pending" && (
                             <button
