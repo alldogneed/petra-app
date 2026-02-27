@@ -278,6 +278,45 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Pet birthdays in the next 7 days
+    const allPetsWithBirthdays = await prisma.pet.findMany({
+      where: { customer: { businessId }, birthDate: { not: null } },
+      select: {
+        id: true,
+        name: true,
+        species: true,
+        breed: true,
+        birthDate: true,
+        customer: { select: { id: true, name: true, phone: true } },
+      },
+    });
+    const upcomingBirthdays = allPetsWithBirthdays
+      .filter((pet) => {
+        if (!pet.birthDate) return false;
+        const bd = pet.birthDate;
+        for (let i = 0; i <= 7; i++) {
+          const check = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
+          if (bd.getMonth() === check.getMonth() && bd.getDate() === check.getDate()) return true;
+        }
+        return false;
+      })
+      .map((pet) => {
+        const bd = pet.birthDate!;
+        const thisYearBd = new Date(now.getFullYear(), bd.getMonth(), bd.getDate());
+        const daysUntil = Math.round((thisYearBd.getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / (1000 * 60 * 60 * 24));
+        const age = now.getFullYear() - bd.getFullYear() - (daysUntil > 0 ? 1 : 0);
+        return {
+          id: pet.id,
+          name: pet.name,
+          species: pet.species,
+          breed: pet.breed,
+          daysUntil,
+          age,
+          customer: pet.customer,
+        };
+      })
+      .sort((a, b) => a.daysUntil - b.daysUntil);
+
     // Today's revenue
     const todayRevenueAgg = await prisma.payment.aggregate({
       where: {
@@ -350,6 +389,7 @@ export async function GET(request: NextRequest) {
         serviceName: a.service.name,
       })),
       atRiskCustomers,
+      upcomingBirthdays,
       todayArrivals: todayArrivals.map((s) => ({
         id: s.id,
         checkIn: s.checkIn.toISOString(),
