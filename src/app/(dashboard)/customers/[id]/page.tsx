@@ -904,6 +904,95 @@ function EditCustomerModal({
   );
 }
 
+// ─── Edit Pet Modal ───────────────────────────────────────────────────────────
+
+function EditPetModal({
+  pet,
+  customerId,
+  onClose,
+}: {
+  pet: Pet;
+  customerId: string;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    name: pet.name,
+    breed: pet.breed ?? "",
+    gender: pet.gender ?? "",
+    weight: pet.weight != null ? String(pet.weight) : "",
+    birthDate: pet.birthDate ? pet.birthDate.split("T")[0] : "",
+    microchip: pet.microchip ?? "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/pets/${pet.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+      onClose();
+    },
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text">עריכת {pet.name}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="label">שם *</label>
+            <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div>
+            <label className="label">גזע</label>
+            <input className="input" value={form.breed} onChange={(e) => setForm({ ...form, breed: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">מין</label>
+              <select className="input" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
+                <option value="">לא ידוע</option>
+                <option value="male">זכר</option>
+                <option value="female">נקבה</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">משקל (ק״ג)</label>
+              <input className="input" type="number" step="0.1" value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">תאריך לידה</label>
+              <input className="input" type="date" value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">מיקרוצ׳יפ</label>
+              <input className="input" value={form.microchip} onChange={(e) => setForm({ ...form, microchip: e.target.value })} />
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-3 mt-5">
+          <button className="btn-primary flex-1" disabled={!form.name.trim() || mutation.isPending} onClick={() => mutation.mutate()}>
+            {mutation.isPending ? "שומר..." : "שמור שינויים"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Edit Pet Note Modal ──────────────────────────────────────────────────────
 
 function EditPetNoteModal({
@@ -2191,6 +2280,7 @@ export default function CustomerProfilePage() {
   const [healthModal, setHealthModal] = useState<{ pet: Pet } | null>(null);
   const [behaviorModal, setBehaviorModal] = useState<{ pet: Pet } | null>(null);
   const [noteModal, setNoteModal] = useState<{ petId: string; field: string; label: string; value: string } | null>(null);
+  const [editPetModal, setEditPetModal] = useState<{ pet: Pet } | null>(null);
   const { user } = useAuth();
 
   const { data: customer, isLoading } = useQuery<CustomerDetail>({
@@ -2628,7 +2718,7 @@ export default function CustomerProfilePage() {
                     <div
                       key={pet.id}
                       className={cn(
-                        "rounded-2xl bg-amber-50/50 border border-amber-100 p-4 space-y-3 transition-all",
+                        "group rounded-2xl bg-amber-50/50 border border-amber-100 p-4 space-y-3 transition-all",
                         isExpanded && "sm:col-span-2 border-amber-200 shadow-sm"
                       )}
                     >
@@ -2670,7 +2760,14 @@ export default function CustomerProfilePage() {
                                 : ""}
                             </div>
                           </div>
-                          <div className="flex-shrink-0">
+                          <div className="flex-shrink-0 flex items-center gap-1">
+                            <button
+                              className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-amber-200 transition-all"
+                              onClick={(e) => { e.stopPropagation(); setEditPetModal({ pet }); }}
+                              title="ערוך"
+                            >
+                              <Pencil className="w-3 h-3 text-amber-700" />
+                            </button>
                             {isExpanded ? (
                               <ChevronUp className="w-4 h-4 text-stone-400" />
                             ) : (
@@ -3575,6 +3672,13 @@ export default function CustomerProfilePage() {
           value={noteModal.value}
           customerId={customerId}
           onClose={() => setNoteModal(null)}
+        />
+      )}
+      {editPetModal && (
+        <EditPetModal
+          pet={editPetModal.pet}
+          customerId={customerId}
+          onClose={() => setEditPetModal(null)}
         />
       )}
       {deletingMed && (
