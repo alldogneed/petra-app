@@ -66,6 +66,12 @@ interface AnalyticsData {
     bySpecies: { species: string; count: number }[];
     topBreeds: { breed: string; count: number }[];
   };
+  retention?: {
+    returningCustomers: number;
+    customersWithAppointments: number;
+    retentionRate: number;
+    avgRevenuePerCustomer: number;
+  };
 }
 
 const PERIODS = [
@@ -439,6 +445,52 @@ function AnalyticsContent() {
               </div>
             )}
           </div>
+          {/* Retention & Avg Revenue per Customer */}
+          {data.retention && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+              <div className="card p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-500" />
+                  <span className="text-xs font-semibold text-slate-600">אחוז שימור לקוחות</span>
+                </div>
+                <p className="text-3xl font-bold text-emerald-600">{data.retention.retentionRate}%</p>
+                <p className="text-[11px] text-petra-muted mt-1">
+                  {data.retention.returningCustomers} מתוך {data.retention.customersWithAppointments} לקוחות חזרו
+                </p>
+                <div className="mt-3 h-1.5 bg-slate-100 rounded-full">
+                  <div
+                    className="h-full rounded-full bg-emerald-400"
+                    style={{ width: `${data.retention.retentionRate}%` }}
+                  />
+                </div>
+              </div>
+              <div className="card p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <CreditCard className="w-4 h-4 text-brand-500" />
+                  <span className="text-xs font-semibold text-slate-600">הכנסה ממוצעת ללקוח</span>
+                </div>
+                <p className="text-3xl font-bold text-petra-text">{formatCurrency(data.retention.avgRevenuePerCustomer)}</p>
+                <p className="text-[11px] text-petra-muted mt-1">בתקופה הנבחרת</p>
+              </div>
+              <div className="card p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="w-4 h-4 text-violet-500" />
+                  <span className="text-xs font-semibold text-slate-600">המרת לידים</span>
+                </div>
+                <p className="text-3xl font-bold text-violet-600">{data.leads.conversionRate}%</p>
+                <p className="text-[11px] text-petra-muted mt-1">
+                  {data.leads.wonThisPeriod} נסגרו · {data.leads.lostThisPeriod} אבדו
+                </p>
+                <div className="mt-3 h-1.5 bg-slate-100 rounded-full">
+                  <div
+                    className="h-full rounded-full bg-violet-400"
+                    style={{ width: `${data.leads.conversionRate}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Scheduling Heatmap */}
           {((data.charts.appointmentsByDayOfWeek?.some((d) => d.count > 0)) ||
             (data.charts.appointmentsByHour?.length ?? 0) > 0) && (

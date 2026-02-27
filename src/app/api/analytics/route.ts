@@ -198,6 +198,21 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 8);
 
+    // Retention: customers with more than 1 appointment (returning) vs total with any appointment
+    const allCustomerAppointments = await prisma.appointment.groupBy({
+      by: ["customerId"],
+      where: { businessId: DEMO_BUSINESS_ID },
+      _count: true,
+    });
+    const returningCustomers = allCustomerAppointments.filter((c) => c._count > 1).length;
+    const customersWithAppointments = allCustomerAppointments.length;
+    const retentionRate = customersWithAppointments > 0
+      ? Math.round((returningCustomers / customersWithAppointments) * 100)
+      : 0;
+    const avgRevenuePerCustomer = totalCustomers > 0
+      ? Math.round((currentRevenue / totalCustomers) * 100) / 100
+      : 0;
+
     // Pet demographics (species + top breeds) — static, not period-dependent
     const allPets = await prisma.pet.findMany({
       where: { customer: { businessId: DEMO_BUSINESS_ID } },
@@ -265,6 +280,12 @@ export async function GET(request: NextRequest) {
       },
       topCustomers,
       petDemographics,
+      retention: {
+        returningCustomers,
+        customersWithAppointments,
+        retentionRate,
+        avgRevenuePerCustomer,
+      },
     });
   } catch (error) {
     console.error("GET /api/analytics error:", error);
