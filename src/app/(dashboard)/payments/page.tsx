@@ -479,6 +479,18 @@ export default function PaymentsPage() {
                         קבלה
                       </a>
                     )}
+                    {payment.status === "pending" && payment.customer.phone && (
+                      <a
+                        href={`https://wa.me/${toWhatsAppPhone(payment.customer.phone)}?text=${encodeURIComponent(`שלום ${payment.customer.name}! 😊\nתזכורת לגבי תשלום ממתין בסך ${formatCurrency(payment.amount)}${association ? ` עבור ${association}` : ""}.\nנשמח לקבל את התשלום בהקדם 🙏`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700"
+                        title="שלח תזכורת תשלום בוואטסאפ"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        תזכורת
+                      </a>
+                    )}
                     {payment.status === "pending" && (
                       <button
                         className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
