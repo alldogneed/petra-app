@@ -1,0 +1,1615 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────
+// PLATFORM-LEVEL AUTH & ROLES
+// ─────────────────────────────────────────────
+
+/// Platform-wide user (can also be a tenant member via BusinessUser)
+model PlatformUser {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  passwordHash   String?  // null for Google-only users
+  name           String
+  googleId       String?  @unique  // Google OAuth "sub" claim
+  authProvider   String   @default("local") // "local" | "google" | "both"
+  avatarUrl      String?  // Profile picture URL (from Google)
+  role           String   @default("USER") // "USER" | "MASTER"
+  platformRole   String?  // "super_admin" | "admin" | "support" | null
+  isActive       Boolean  @default(true)
+  twoFaEnabled   Boolean  @default(false)
+  twoFaSecret    String?  // TOTP secret (store encrypted in production)
+  twoFaBackupCodes String? // JSON array of hashed backup codes
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Google Calendar sync fields
+  gcalConnected       Boolean   @default(false)
+  gcalAccessToken     String?   // encrypted at rest
+  gcalRefreshToken    String?   // encrypted at rest
+  gcalTokenExpiresAt  DateTime?
+  gcalCalendarId      String?   // calendarId for "Petra Bookings" calendar
+  gcalCalendarName    String    @default("Petra Bookings")
+  gcalConnectedEmail  String?   // the Google email used for calendar sync
+  gcalLastConnectedAt DateTime?
+  gcalSyncEnabled     Boolean   @default(true) // toggle sync on/off
+
+  sessions            AdminSession[]
+  passwordResetTokens PasswordResetToken[]
+  businessMemberships BusinessUser[]
+  auditLogs      AuditLog[]     @relation("ActorLogs")
+  activityLogs   ActivityLog[]  @relation("ActivityLogs")
+  syncJobs       SyncJob[]
+  onboardingProfile  OnboardingProfile?
+  onboardingProgress OnboardingProgress?
+
+  @@index([email])
+  @@index([googleId])
+  @@index([platformRole])
+}
+
+/// Per-tenant membership (links PlatformUser to a Business)
+model BusinessUser {
+  id         String   @id @default(uuid())
+  businessId String
+  userId     String
+  role       String   @default("user") // "owner" | "manager" | "user"
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business   Business     @relation(fields: [businessId], references: [id])
+  user       PlatformUser @relation(fields: [userId], references: [id])
+
+  @@unique([businessId, userId])
+  @@index([businessId])
+  @@index([userId])
+}
+
+/// Secure server-side sessions
+model AdminSession {
+  id           String   @id @default(uuid())
+  userId       String
+  token        String   @unique // random 256-bit hex, stored as hash in production
+  twoFaVerified Boolean @default(false)
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+
+  user         PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Password reset tokens — expire after 1 hour, single-use
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique // SHA-256 hash of the raw token sent by email
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Full audit trail for all privileged actions
+model AuditLog {
+  id                 String   @id @default(uuid())
+  timestamp          DateTime @default(now())
+  actorUserId        String?
+  actorPlatformRole  String?
+  actorBusinessId    String?
+  action             String   // e.g. "TENANT_SUSPENDED", "USER_BLOCKED"
+  targetType         String?  // "business" | "user" | "setting" etc.
+  targetId           String?
+  ipAddress          String?
+  userAgent          String?
+  metadataJson       String   @default("{}")
+
+  actor              PlatformUser? @relation("ActorLogs", fields: [actorUserId], references: [id])
+
+  @@index([actorUserId])
+  @@index([actorBusinessId])
+  @@index([action])
+  @@index([timestamp])
+  @@index([targetType, targetId])
+}
+
+/// Privacy-focused activity log for Master Admin dashboard.
+/// Records ONLY action type + timestamp + user identity. No customer data.
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String
+  userName  String   // Denormalized for live feed display
+  action    String   // "LOGIN", "CREATE_CUSTOMER", "ADD_PET", etc.
+  createdAt DateTime @default(now())
+
+  user PlatformUser @relation("ActivityLogs", fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
+/// Platform-level feature flags and system settings
+model FeatureFlag {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String   @default("false") // JSON-encoded value
+  description String?
+  updatedAt   DateTime @updatedAt
+  updatedByUserId String?
+}
+
+/// IP whitelist entries for platform admin accounts
+model IpWhitelist {
+  id        String   @id @default(uuid())
+  userId    String
+  cidr      String   // e.g. "192.168.1.0/24" or "1.2.3.4/32"
+  label     String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// TENANT / BUSINESS MODELS (unchanged + extended)
+// ─────────────────────────────────────────────
+
+model Business {
+  id          String   @id @default(uuid())
+  slug        String?  @unique // e.g. "happy-paws" -> /book/happy-paws
+  name        String
+  phone       String?
+  email       String?
+  address     String?
+  logo        String?
+  tier        String   @default("basic")
+  status      String   @default("active") // "active" | "suspended" | "closed"
+  trialEndsAt DateTime?
+  vatNumber          String?
+  businessRegNumber  String?   // ח.פ / עוסק מורשה / בע"מ
+  vatEnabled         Boolean  @default(true)
+  vatRate            Float    @default(0.17)
+  boardingCalcMode   String   @default("nights")
+  boardingMinNights  Int      @default(1)
+  boardingCheckInTime  String @default("12:00")
+  boardingCheckOutTime String @default("12:00")
+  boardingPricePerNight Float  @default(150)
+  customerTags String  @default("[\"VIP\",\"קבוע\",\"מזדמן\",\"פוטנציאל\",\"לשעבר\",\"עסקי\"]") // JSON array of preset customer tag labels
+  timezone    String   @default("Asia/Jerusalem")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members           BusinessUser[]
+  users             User[]
+  customers         Customer[]
+  services          Service[]
+  appointments      Appointment[]
+  boardingStays     BoardingStay[]
+  rooms             Room[]
+  leads             Lead[]
+  payments          Payment[]
+  messageTemplates  MessageTemplate[]
+  automationRules   AutomationRule[]
+  tasks             Task[]
+  taskTemplates     TaskTemplate[]
+  taskRecurrenceRules TaskRecurrenceRule[]
+  timelineEvents    TimelineEvent[]
+  priceLists        PriceList[]
+  priceListItems    PriceListItem[]
+  orders            Order[]
+  orderLines        OrderLine[]
+  importBatches     ImportBatch[]
+  systemMessages    SystemMessage[]
+  availabilityRules AvailabilityRule[]
+  availabilityBlocks AvailabilityBlock[]
+  bookings          Booking[]
+  trainingGroups    TrainingGroup[]
+  scheduledMessages ScheduledMessage[]
+  trainingPrograms  TrainingProgram[]
+  intakeForms       IntakeForm[]
+  leadStages        LeadStage[]
+  invoicingSettings InvoicingSettings?
+  invoiceJobs       InvoiceJob[]
+  invoiceDocuments  InvoiceDocument[]
+  serviceDogProfiles    ServiceDogProfile[]
+  serviceDogRecipients  ServiceDogRecipient[]
+  serviceDogPlacements  ServiceDogPlacement[]
+  serviceDogMedProtocols ServiceDogMedicalProtocol[]
+  serviceDogTrainingLogs ServiceDogTrainingLog[]
+  serviceDogCompliance   ServiceDogComplianceEvent[]
+  serviceDogIDCards      ServiceDogIDCard[]
+
+  @@index([slug])
+}
+
+// ─── Legacy User model (tenant-scoped staff, kept for backwards-compat) ───────
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("staff")
+  phone        String?
+  avatar       String?
+  businessId   String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  business     Business      @relation(fields: [businessId], references: [id])
+  appointments Appointment[] @relation("AssignedStaff")
+  tasks        Task[]        @relation("AssignedTasks")
+  orders       Order[]       @relation("CreatedByUser")
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  phoneNorm String?
+  email     String?
+  address   String?
+  notes     String?
+  tags      String   @default("[]")
+  documents String   @default("[]")
+  source    String?
+  businessId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  business       Business        @relation(fields: [businessId], references: [id])
+  pets           Pet[]
+  appointments   Appointment[]
+  boardingStays  BoardingStay[]
+  payments       Payment[]
+  timelineEvents TimelineEvent[]
+  leads          Lead[]
+  orders         Order[]
+  bookings       Booking[]
+  trainingGroupParticipants TrainingGroupParticipant[]
+  scheduledMessages         ScheduledMessage[]
+  trainingPrograms          TrainingProgram[]
+  intakeForms    IntakeForm[]
+  invoiceJobs      InvoiceJob[]
+  invoiceDocuments InvoiceDocument[]
+  serviceRecipients ServiceDogRecipient[]
+}
+
+model Pet {
+  id             String   @id @default(uuid())
+  name           String
+  species        String   @default("dog")
+  breed          String?
+  birthDate      DateTime?
+  weight         Float?
+  gender         String?
+  microchip      String?
+  medicalNotes   String?
+  foodNotes      String?
+  behaviorNotes  String?
+  tags           String   @default("[]")
+  attachments    String   @default("[]")
+  customerId     String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  customer       Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  appointments   Appointment[]
+  boardingStays  BoardingStay[]
+  bookingDogs    BookingDog[]
+  trainingGroupParticipants TrainingGroupParticipant[]
+  trainingPrograms          TrainingProgram[]
+  health         DogHealth?
+  behavior       DogBehavior?
+  medications    DogMedication[]
+  serviceDogProfile ServiceDogProfile?
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  name        String
+  type        String
+  duration    Int      @default(60)  // duration_minutes
+  price       Float
+  includesVat Boolean  @default(false)
+  description String?
+  color       String?
+  businessId  String
+  isActive    Boolean  @default(true)
+  // Online booking fields
+  isPublicBookable    Boolean @default(false)
+  depositRequired     Boolean @default(false)
+  depositAmount       Float?
+  bufferBefore        Int     @default(0)  // minutes before
+  bufferAfter         Int     @default(0)  // minutes after
+  bookingMode         String  @default("automatic") // "automatic" | "requires_approval"
+  paymentUrl          String?  // URL to payment landing page
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business     Business      @relation(fields: [businessId], references: [id])
+  appointments Appointment[]
+  bookings     Booking[]
+
+  @@index([businessId, isPublicBookable])
+}
+
+model Appointment {
+  id          String   @id @default(uuid())
+  date        DateTime
+  startTime   String
+  endTime     String
+  status      String   @default("scheduled")
+  notes       String?
+  cancellationNote String?
+  serviceId   String
+  customerId  String
+  petId       String?
+  staffId     String?
+  businessId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  service    Service   @relation(fields: [serviceId], references: [id])
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  pet        Pet?      @relation(fields: [petId], references: [id])
+  staff      User?     @relation("AssignedStaff", fields: [staffId], references: [id])
+  business   Business  @relation(fields: [businessId], references: [id])
+  payments   Payment[]
+
+  @@index([businessId, date])
+  @@index([businessId, status])
+  @@index([businessId, serviceId, date])
+  @@index([businessId, customerId])
+}
+
+model BoardingStay {
+  id           String    @id @default(uuid())
+  checkIn      DateTime
+  checkOut     DateTime?
+  feedingPlan  String?
+  medicalNeeds String?
+  notes        String?
+  status       String    @default("reserved")
+  roomId       String?
+  petId        String
+  customerId   String
+  businessId   String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  room       Room?     @relation(fields: [roomId], references: [id])
+  pet        Pet       @relation(fields: [petId], references: [id])
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  business   Business  @relation(fields: [businessId], references: [id])
+  payments   Payment[]
+}
+
+model Room {
+  id         String   @id @default(uuid())
+  name       String
+  capacity   Int      @default(1)
+  type       String   @default("standard")
+  status     String   @default("available")  // available | needs_cleaning
+  notes      String?
+  businessId String
+  isActive   Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business      Business       @relation(fields: [businessId], references: [id])
+  boardingStays BoardingStay[]
+}
+
+model Lead {
+  id               String   @id @default(uuid())
+  name             String
+  phone            String?
+  email            String?
+  source           String   @default("manual")
+  stage            String   @default("new")
+  notes            String?
+  customerId       String?
+  businessId       String
+  lastContactedAt  DateTime?
+  // Close-won fields
+  wonAt            DateTime?
+  wonByUserId      String?
+  // Close-lost fields
+  lostAt           DateTime?
+  lostByUserId     String?
+  lostReasonCode   String?   // PRICE | COMPETITOR | SCHEDULING | TRUST_FIT | NO_RESPONSE | NOT_RELEVANT | OTHER
+  lostReasonText   String?
+  // Follow-up fields
+  nextFollowUpAt   DateTime?
+  followUpStatus   String   @default("pending") // "pending" | "completed"
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  customer  Customer?    @relation(fields: [customerId], references: [id])
+  business  Business     @relation(fields: [businessId], references: [id])
+  callLogs  CallLog[]
+
+  @@index([businessId, lastContactedAt])
+  @@index([stage, lostReasonCode, createdAt])
+}
+
+model LeadStage {
+  id          String   @id @default(uuid())
+  businessId  String
+  name        String
+  color       String   @default("#6366F1")
+  sortOrder   Int      @default(0)
+  isWon       Boolean  @default(false)
+  isLost      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId, sortOrder])
+}
+
+model CallLog {
+  id        String   @id @default(uuid())
+  leadId    String
+  summary   String
+  treatment String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  amount          Float
+  method          String   @default("cash")
+  status          String   @default("pending")
+  isDeposit       Boolean  @default(false)
+  invoiceNumber   String?
+  notes           String?
+  appointmentId   String?
+  boardingStayId  String?
+  orderId         String?
+  customerId      String
+  businessId      String
+  paidAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  appointment      Appointment?     @relation(fields: [appointmentId], references: [id])
+  boardingStay     BoardingStay?    @relation(fields: [boardingStayId], references: [id])
+  order            Order?           @relation(fields: [orderId], references: [id])
+  customer         Customer         @relation(fields: [customerId], references: [id])
+  business         Business         @relation(fields: [businessId], references: [id])
+  invoiceJobs      InvoiceJob[]
+  invoiceDocuments InvoiceDocument[]
+
+  @@index([businessId, paidAt])
+  @@index([businessId, status])
+  @@index([orderId])
+}
+
+model MessageTemplate {
+  id         String   @id @default(uuid())
+  name       String
+  channel    String   @default("whatsapp")
+  subject    String?
+  body       String
+  variables  String   @default("[]")
+  isActive   Boolean  @default(true)
+  businessId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business        Business         @relation(fields: [businessId], references: [id])
+  automationRules AutomationRule[]
+}
+
+model AutomationRule {
+  id              String   @id @default(uuid())
+  name            String
+  trigger         String
+  triggerOffset   Int      @default(48)
+  templateId      String
+  isActive        Boolean  @default(true)
+  businessId      String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  template MessageTemplate @relation(fields: [templateId], references: [id])
+  business Business        @relation(fields: [businessId], references: [id])
+}
+
+model Task {
+  id                  String    @id @default(uuid())
+  title               String
+  description         String?
+  category            String    @default("GENERAL") // BOARDING, TRAINING, LEADS, GENERAL, HEALTH, MEDICATION, FEEDING
+  priority            String    @default("MEDIUM")  // LOW, MEDIUM, HIGH, URGENT
+  status              String    @default("OPEN")    // OPEN, COMPLETED, CANCELED
+  dueAt               DateTime? // specific time
+  dueDate             DateTime? // all-day tasks (date only)
+  assigneeUserId      String?
+  relatedEntityType   String?   // BUSINESS, CUSTOMER, DOG, LEAD, BOOKING, TRAINING_PROGRAM, TRAINING_GROUP
+  relatedEntityId     String?
+  reminderEnabled     Boolean   @default(false)
+  reminderLeadMinutes Int       @default(0)
+  createdByUserId     String?
+  completedAt         DateTime?
+  templateId          String?   // FK to TaskTemplate if created from template
+  recurrenceRuleId    String?   // FK to TaskRecurrenceRule if auto-generated
+  businessId          String
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  assignedTo      User?               @relation("AssignedTasks", fields: [assigneeUserId], references: [id])
+  business        Business             @relation(fields: [businessId], references: [id])
+  template        TaskTemplate?        @relation(fields: [templateId], references: [id])
+  recurrenceRule  TaskRecurrenceRule?  @relation(fields: [recurrenceRuleId], references: [id])
+  auditLogs       TaskAuditLog[]
+
+  @@index([businessId, dueDate, status, category])
+  @@index([assigneeUserId, dueDate])
+  @@index([businessId, relatedEntityType, relatedEntityId])
+  @@index([businessId, status])
+  @@index([recurrenceRuleId])
+}
+
+model TaskTemplate {
+  id                       String   @id @default(uuid())
+  name                     String
+  defaultCategory          String   @default("GENERAL")
+  defaultPriority          String   @default("MEDIUM")
+  defaultTitleTemplate     String
+  defaultDescriptionTemplate String?
+  relatedEntityType        String?  // DOG, CUSTOMER, BUSINESS, LEAD
+  reminderDefaultEnabled   Boolean  @default(false)
+  reminderDefaultLeadMinutes Int    @default(0)
+  businessId               String
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  business        Business             @relation(fields: [businessId], references: [id])
+  tasks           Task[]
+  recurrenceRules TaskRecurrenceRule[]
+
+  @@index([businessId])
+}
+
+model TaskRecurrenceRule {
+  id              String    @id @default(uuid())
+  templateId      String
+  rrule           String    // iCal RRULE string e.g. "FREQ=DAILY;INTERVAL=1"
+  timezone        String    @default("Asia/Jerusalem")
+  startAt         DateTime
+  endAt           DateTime?
+  relatedEntityType String? // entity type for generated tasks
+  relatedEntityId   String? // entity id for generated tasks
+  isActive        Boolean   @default(true)
+  lastGeneratedAt DateTime? // track last generation for idempotency
+  businessId      String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  template  TaskTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  business  Business     @relation(fields: [businessId], references: [id])
+  tasks     Task[]
+
+  @@index([businessId, isActive])
+  @@index([templateId])
+}
+
+model TaskAuditLog {
+  id        String   @id @default(uuid())
+  taskId    String
+  action    String   // CREATED, COMPLETED, REOPENED, CANCELED, UPDATED, DELETED
+  userId    String?
+  payload   String   @default("{}") // JSON
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([createdAt])
+}
+
+model TimelineEvent {
+  id          String   @id @default(uuid())
+  type        String
+  description String
+  metadata    String?
+  customerId  String?
+  businessId  String
+  createdAt   DateTime @default(now())
+
+  customer Customer? @relation(fields: [customerId], references: [id])
+  business Business  @relation(fields: [businessId], references: [id])
+}
+
+model PriceList {
+  id         String   @id @default(uuid())
+  businessId String
+  name       String   @default("מחירון ברירת מחדל")
+  currency   String   @default("ILS")
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business Business       @relation(fields: [businessId], references: [id])
+  items    PriceListItem[]
+}
+
+model PriceListItem {
+  id               String   @id @default(uuid())
+  businessId       String
+  priceListId      String
+  type             String   @default("service")
+  name             String
+  description      String?
+  category         String?
+  unit             String   @default("per_session")
+  basePrice        Float
+  taxMode          String   @default("inherit")
+  durationMinutes  Int?
+  defaultQuantity  Float    @default(1)
+  isActive         Boolean  @default(true)
+  sortOrder        Int      @default(0)
+  paymentUrl        String?
+  isBookableOnline  Boolean  @default(false)
+  depositRequired   Boolean  @default(false)
+  depositAmount     Float?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  business   Business    @relation(fields: [businessId], references: [id])
+  priceList  PriceList   @relation(fields: [priceListId], references: [id])
+  orderLines OrderLine[]
+
+  @@index([businessId, isActive])
+  @@index([businessId, category])
+  @@index([name])
+}
+
+model Order {
+  id              String   @id @default(uuid())
+  businessId      String
+  customerId      String
+  status          String   @default("draft")
+  orderType       String   @default("sale")
+  startAt         DateTime?
+  endAt           DateTime?
+  subtotal        Float    @default(0)
+  discountType    String   @default("none")
+  discountValue   Float    @default(0)
+  discountAmount  Float    @default(0)
+  taxTotal        Float    @default(0)
+  total           Float    @default(0)
+  notes           String?
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  business         Business          @relation(fields: [businessId], references: [id])
+  customer         Customer          @relation(fields: [customerId], references: [id])
+  createdBy        User?             @relation("CreatedByUser", fields: [createdByUserId], references: [id])
+  lines            OrderLine[]
+  payments         Payment[]
+  invoiceDocuments InvoiceDocument[]
+
+  @@index([businessId, status])
+  @@index([businessId, customerId])
+}
+
+model OrderLine {
+  id               String   @id @default(uuid())
+  orderId          String
+  businessId       String
+  priceListItemId  String?
+  name             String
+  unit             String
+  quantity         Float    @default(1)
+  unitPrice        Float
+  lineSubtotal     Float
+  lineTax          Float    @default(0)
+  lineTotal        Float
+  taxMode          String   @default("inherit")
+  metadata         String   @default("{}")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  order         Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  business      Business       @relation(fields: [businessId], references: [id])
+  priceListItem PriceListItem? @relation(fields: [priceListItemId], references: [id])
+
+  @@index([orderId])
+  @@index([businessId])
+}
+
+model ImportBatch {
+  id               String   @id @default(uuid())
+  businessId       String
+  sourceFilename   String
+  status           String   @default("uploaded")
+  statsJson        String   @default("{}")
+  rollbackDeadline DateTime
+  createdAt        DateTime @default(now())
+
+  business Business       @relation(fields: [businessId], references: [id])
+  issues   ImportRowIssue[]
+
+  @@index([businessId])
+}
+
+model ImportRowIssue {
+  id          String @id @default(uuid())
+  batchId     String
+  rowNumber   Int
+  entityType  String
+  issueCode   String
+  message     String
+  rawJson     String  @default("{}")
+
+  batch ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+}
+
+model SystemMessage {
+  id          String   @id @default(uuid())
+  title       String
+  content     String
+  type        String   @default("info")
+  icon        String?
+  actionUrl   String?
+  actionLabel String?
+  isRead      Boolean  @default(false)
+  businessId  String
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime?
+
+  business    Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId, isRead])
+  @@index([businessId, createdAt])
+}
+
+// ─────────────────────────────────────────────
+// ONLINE BOOKING SYSTEM
+// ─────────────────────────────────────────────
+
+/// Weekly working hours rules (one per day of week per business)
+model AvailabilityRule {
+  id         String   @id @default(uuid())
+  businessId String
+  dayOfWeek  Int      // 0=Sunday … 6=Saturday
+  isOpen     Boolean  @default(true)
+  openTime   String   @default("09:00") // HH:mm
+  closeTime  String   @default("18:00") // HH:mm
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business   Business @relation(fields: [businessId], references: [id])
+
+  @@unique([businessId, dayOfWeek])
+  @@index([businessId])
+}
+
+/// Manual time-off blocks (vacations, sick days, one-off closures)
+model AvailabilityBlock {
+  id         String   @id @default(uuid())
+  businessId String
+  startAt    DateTime // exact datetime, stored in UTC
+  endAt      DateTime // exact datetime, stored in UTC
+  reason     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business   Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId, startAt, endAt])
+}
+
+/// Online booking (public-facing, separate from internal Appointment)
+model Booking {
+  id          String   @id @default(uuid())
+  businessId  String
+  serviceId   String
+  customerId  String
+  startAt     DateTime // UTC
+  endAt       DateTime // UTC (startAt + service.duration)
+  status      String   @default("pending") // "pending" | "confirmed" | "declined" | "cancelled"
+  depositPaid Boolean  @default(false)
+  notes       String?
+  source      String   @default("online") // "online" | "manual"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Google Calendar sync fields
+  gcalEventId      String?   // Google Calendar event ID once synced
+  gcalCalendarId   String?   // calendarId at time of sync (copy from user)
+  gcalSyncStatus   String    @default("disabled") // "disabled"|"pending"|"synced"|"failed"
+  gcalLastSyncedAt DateTime?
+  gcalSyncError    String?   // last error message if failed
+
+  business   Business    @relation(fields: [businessId], references: [id])
+  service    Service     @relation(fields: [serviceId], references: [id])
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  dogs       BookingDog[]
+  syncJobs   SyncJob[]
+
+  @@unique([businessId, startAt])
+  @@index([businessId, startAt])
+  @@index([businessId, status])
+  @@index([customerId])
+  @@index([gcalSyncStatus])
+}
+
+/// Many-to-many: which dogs are included in a booking
+model BookingDog {
+  id        String @id @default(uuid())
+  bookingId String
+  petId     String
+
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  pet       Pet     @relation(fields: [petId], references: [id])
+
+  @@unique([bookingId, petId])
+  @@index([bookingId])
+}
+
+// ─────────────────────────────────────────────
+// GOOGLE CALENDAR SYNC JOBS
+// ─────────────────────────────────────────────
+
+/// Background job queue for Google Calendar sync operations
+model SyncJob {
+  id         String   @id @default(uuid())
+  businessId String
+  userId     String   // PlatformUser who owns the calendar connection
+  bookingId  String
+  action     String   // "create" | "update" | "delete"
+  status     String   @default("queued") // "queued" | "processing" | "done" | "failed"
+  attempts   Int      @default(0)
+  lastError  String?
+  nextRunAt  DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user    PlatformUser @relation(fields: [userId], references: [id])
+  booking Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextRunAt])
+  @@index([bookingId])
+  @@index([userId])
+  @@index([businessId])
+}
+
+// ─────────────────────────────────────────────
+// ONBOARDING
+// ─────────────────────────────────────────────
+
+/// Stores user answers from onboarding personalization screen
+model OnboardingProfile {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  businessType       String   // "מאלף כלבים" | "פנסיון" | "מספרה" | "משולב"
+  activeClientsRange String   // "עד 20" | "20–50" | "50+"
+  primaryGoal        String   // "סדר ביומן" | "ניהול לקוחות" | "לידים ומכירות" | "תזכורות אוטומטיות"
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Tracks which onboarding steps a user has completed
+model OnboardingProgress {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  currentStep     Int       @default(0)  // 0=welcome, 1-4=guided steps
+  stepCompleted1  Boolean   @default(false)
+  stepCompleted2  Boolean   @default(false)
+  stepCompleted3  Boolean   @default(false)
+  stepCompleted4  Boolean   @default(false)
+  skipped         Boolean   @default(false)
+  lastCustomerId  String?   // customerId created in step 1, used to resume step 2
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// INDIVIDUAL TRAINING PROGRAMS (per dog)
+// ─────────────────────────────────────────────
+
+/// A training program for a single dog (e.g. basic obedience, reactivity work)
+model TrainingProgram {
+  id          String   @id @default(uuid())
+  businessId  String
+  dogId       String
+  customerId  String
+  name        String   // e.g. "אילוף בסיסי", "תגובתיות"
+  programType String   @default("BASIC_OBEDIENCE") // BASIC_OBEDIENCE | REACTIVITY | PUPPY | BEHAVIOR | ADVANCED | CUSTOM
+  status      String   @default("ACTIVE") // ACTIVE | PAUSED | COMPLETED | CANCELED
+  startDate   DateTime @default(now())
+  endDate     DateTime?
+  totalSessions Int?   // planned number of sessions
+  location    String?  // added for home training location
+  frequency   String?  // e.g. "WEEKLY", "BIWEEKLY", "CUSTOM"
+  price       Float?   // package price in ILS
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business Business          @relation(fields: [businessId], references: [id])
+  dog      Pet               @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  customer Customer          @relation(fields: [customerId], references: [id])
+  goals    TrainingGoal[]
+  sessions TrainingProgramSession[]
+  homework TrainingHomework[]
+
+  @@index([businessId])
+  @@index([businessId, status])
+  @@index([dogId])
+  @@index([customerId])
+}
+
+/// A training goal within a program (e.g. "שב", "הליכה ברצועה")
+model TrainingGoal {
+  id                String   @id @default(uuid())
+  trainingProgramId String
+  title             String
+  description       String?
+  targetDate        DateTime?
+  status            String   @default("IN_PROGRESS") // NOT_STARTED | IN_PROGRESS | ACHIEVED | DROPPED
+  progressPercent   Int      @default(0) // 0-100
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  program TrainingProgram @relation(fields: [trainingProgramId], references: [id], onDelete: Cascade)
+
+  @@index([trainingProgramId])
+}
+
+/// A single training session/lesson for the dog
+model TrainingProgramSession {
+  id                String   @id @default(uuid())
+  trainingProgramId String
+  sessionNumber     Int?
+  sessionDate       DateTime
+  durationMinutes   Int      @default(60)
+  status            String   @default("SCHEDULED") // SCHEDULED | COMPLETED | CANCELED | NO_SHOW
+  summary           String?  // trainer notes about the session
+  rating            Int?     // 1-5 how well the dog performed
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  program TrainingProgram @relation(fields: [trainingProgramId], references: [id], onDelete: Cascade)
+
+  @@index([trainingProgramId])
+  @@index([trainingProgramId, sessionDate])
+}
+
+/// Homework assignment given to the customer between sessions
+model TrainingHomework {
+  id                String   @id @default(uuid())
+  trainingProgramId String
+  title             String
+  description       String?
+  assignedDate      DateTime @default(now())
+  dueDate           DateTime?
+  isCompleted       Boolean  @default(false)
+  completedAt       DateTime?
+  customerNotes     String?  // customer feedback
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  program TrainingProgram @relation(fields: [trainingProgramId], references: [id], onDelete: Cascade)
+
+  @@index([trainingProgramId])
+}
+
+// ─────────────────────────────────────────────
+// TRAINING GROUPS / WORKSHOPS
+// ─────────────────────────────────────────────
+
+/// A training workshop or group class (e.g. Puppy Class, Reactivity Group)
+model TrainingGroup {
+  id                 String   @id @default(uuid())
+  businessId         String
+  name               String
+  groupType          String   @default("CUSTOM") // PUPPY_CLASS | REACTIVITY | OBEDIENCE | CUSTOM | WORKSHOP
+  trainerUserId      String?
+  location           String?
+  defaultDayOfWeek   Int?     // 0=Sunday … 6=Saturday
+  defaultTime        String?  // HH:mm
+  reminderEnabled    Boolean  @default(true)
+  reminderLeadHours  Int      @default(48)
+  reminderSameDay    Boolean  @default(false)
+  maxParticipants    Int?
+  notes              String?
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  business     Business                  @relation(fields: [businessId], references: [id])
+  sessions     TrainingGroupSession[]
+  participants TrainingGroupParticipant[]
+
+  @@index([businessId])
+  @@index([businessId, isActive])
+}
+
+/// A single session/meeting within a training group
+model TrainingGroupSession {
+  id              String   @id @default(uuid())
+  trainingGroupId String
+  sessionDatetime DateTime
+  sessionNumber   Int?
+  status          String   @default("SCHEDULED") // SCHEDULED | COMPLETED | CANCELED
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  trainingGroup TrainingGroup              @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
+  attendance    TrainingGroupAttendance[]
+
+  @@index([trainingGroupId])
+  @@index([trainingGroupId, sessionDatetime])
+}
+
+/// A participant (dog+customer) enrolled in a training group
+model TrainingGroupParticipant {
+  id              String   @id @default(uuid())
+  trainingGroupId String
+  dogId           String
+  customerId      String
+  status          String   @default("ACTIVE") // ACTIVE | PAUSED | DROPPED | COMPLETED
+  joinedAt        DateTime @default(now())
+
+  trainingGroup TrainingGroup             @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
+  dog           Pet                       @relation(fields: [dogId], references: [id])
+  customer      Customer                  @relation(fields: [customerId], references: [id])
+  attendance    TrainingGroupAttendance[]
+
+  @@unique([trainingGroupId, dogId])
+  @@index([trainingGroupId])
+  @@index([dogId])
+  @@index([customerId])
+}
+
+/// Attendance record for a participant in a specific session
+model TrainingGroupAttendance {
+  id                      String   @id @default(uuid())
+  trainingGroupSessionId  String
+  participantId           String
+  dogId                   String
+  customerId              String
+  attendanceStatus        String   @default("PRESENT") // PRESENT | NO_SHOW | CANCELED | MAKEUP
+  completed               Boolean  @default(false)
+  notes                   String?
+  markedAt                DateTime @default(now())
+
+  session     TrainingGroupSession     @relation(fields: [trainingGroupSessionId], references: [id], onDelete: Cascade)
+  participant TrainingGroupParticipant  @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([trainingGroupSessionId, participantId])
+  @@index([trainingGroupSessionId])
+  @@index([participantId])
+  @@index([dogId])
+}
+
+/// Scheduled messages for automated reminders (group sessions, bookings, etc.)
+model ScheduledMessage {
+  id                String   @id @default(uuid())
+  businessId        String
+  customerId        String
+  channel           String   @default("whatsapp") // whatsapp | sms | email
+  templateKey       String
+  payloadJson       String   @default("{}")
+  sendAt            DateTime
+  status            String   @default("PENDING") // PENDING | SENT | FAILED | CANCELED
+  relatedEntityType String?  // GROUP_SESSION | BOOKING
+  relatedEntityId   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([businessId, status, sendAt])
+  @@index([relatedEntityType, relatedEntityId])
+  @@index([customerId])
+}
+
+// ─────────────────────────────────────────────
+// ANALYTICS
+// ─────────────────────────────────────────────
+
+/// Append-only event log for analytics tracking
+model AnalyticsEvent {
+  id           String   @id @default(uuid())
+  businessId   String
+  type         String   // e.g. "appointment_created", "payment_received"
+  entityType   String?  // "appointment" | "payment" | "customer" etc.
+  entityId     String?  // the related record's id
+  timestamp    DateTime @default(now())
+  metadataJson String   @default("{}")
+
+  @@index([businessId, timestamp])
+  @@index([businessId, type])
+  @@index([businessId, entityType, timestamp])
+}
+
+// ─────────────────────────────────────────────
+// DATA EXPORT
+// ─────────────────────────────────────────────
+
+/// Tracks data export jobs (XLSX/CSV generation)
+model ExportJob {
+  id             String   @id @default(uuid())
+  businessId     String
+  userId         String   // PlatformUser who requested the export
+  exportType     String   // "customers" | "dogs" | "customers_dogs"
+  format         String   @default("xlsx") // "xlsx" | "csv"
+  outputMode     String   @default("separate") // "separate" | "flat"
+  status         String   @default("pending") // "pending" | "processing" | "completed" | "failed" | "expired"
+  filePath       String?  // server-side file path once generated
+  fileName       String?  // original download filename
+  fileSize       Int?     // bytes
+  recordCount    Int?     // total rows exported
+  filterFromDate DateTime?
+  filterToDate   DateTime?
+  errorMessage   String?
+  expiresAt      DateTime // file auto-deleted after this
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([userId])
+  @@index([status, expiresAt])
+}
+
+// ─────────────────────────────────────────────
+// CUSTOMER INTAKE FORMS
+// ─────────────────────────────────────────────
+
+/// Tracks intake form links sent to customers via WhatsApp
+model IntakeForm {
+  id               String    @id @default(uuid())
+  businessId       String
+  customerId       String?   // pre-linked customer (may be null for new leads)
+  dogId            String?   // pre-linked dog (may be null)
+  createdByUserId  String?
+  status           String    @default("DRAFT") // DRAFT | SENT | OPENED | SUBMITTED | EXPIRED
+  tokenHash        String    @unique           // SHA-256 of the token
+  expiresAt        DateTime
+  phoneE164        String?                     // phone number the form was sent to
+  deliveryChannel  String    @default("WHATSAPP_DEEPLINK") // WHATSAPP_API | WHATSAPP_DEEPLINK | LINK_ONLY
+  messageText      String?                     // the actual message sent
+  openedAt         DateTime?
+  submittedAt      DateTime?
+  submissionJson   String?                     // full form payload as JSON (backup)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  business  Business  @relation(fields: [businessId], references: [id])
+  customer  Customer? @relation(fields: [customerId], references: [id])
+
+  @@index([businessId, status])
+  @@index([customerId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+}
+
+/// Dog health details captured from intake form
+model DogHealth {
+  id                   String    @id @default(uuid())
+  petId                String    @unique
+  rabiesLastDate       DateTime?
+  rabiesValidUntil     DateTime?
+  rabiesUnknown        Boolean   @default(false)
+  dhppLastDate         DateTime?
+  dewormingLastDate    DateTime?
+  allergies            String?
+  medicalConditions    String?
+  surgeriesHistory     String?
+  activityLimitations  String?
+  vetName              String?
+  vetPhone             String?
+  neuteredSpayed       Boolean?
+  microchipped         Boolean?
+  microchipNumber      String?
+  originInfo           String?
+  timeWithOwner        String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId])
+}
+
+/// Dog behavior details captured from intake form
+model DogBehavior {
+  id                 String   @id @default(uuid())
+  petId              String   @unique
+  dogAggression      Boolean  @default(false)
+  humanAggression    Boolean  @default(false)
+  leashReactivity    Boolean  @default(false)
+  leashPulling       Boolean  @default(false)
+  jumping            Boolean  @default(false)
+  separationAnxiety  Boolean  @default(false)
+  excessiveBarking   Boolean  @default(false)
+  destruction        Boolean  @default(false)
+  resourceGuarding   Boolean  @default(false)
+  fears              Boolean  @default(false)
+  badWithKids        Boolean  @default(false)
+  houseSoiling       Boolean  @default(false)
+  biteHistory        Boolean  @default(false)
+  biteDetails        String?
+  triggers           String?
+  priorTraining      Boolean  @default(false)
+  priorTrainingDetails String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId])
+}
+
+/// Dog medications captured from intake form (repeatable rows)
+model DogMedication {
+  id           String    @id @default(uuid())
+  petId        String
+  medName      String
+  dosage       String?
+  frequency    String?
+  times        String?   // JSON array of times e.g. ["08:00","20:00"]
+  instructions String?
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId])
+}
+
+// ─────────────────────────────────────────────
+// INVOICING INTEGRATION
+// ─────────────────────────────────────────────
+
+/// One invoicing provider configuration per business
+model InvoicingSettings {
+  id                      String    @id @default(uuid())
+  businessId              String    @unique
+  providerName            String    // "morning" (Green Invoice) / future providers
+  apiKeyEncrypted         String    // AES-256-GCM
+  apiSecretEncrypted      String    // AES-256-GCM
+  webhookSecretEncrypted  String?   // AES-256-GCM — for webhook HMAC verification
+  configJson              String    @default("{}") // JSON: sandbox mode, language, etc.
+  documentMapping         String    @default("{}") // JSON: payment method → doc type
+  status                  String    @default("active") // "active" | "disabled" | "error"
+  lastError               String?
+  lastTestedAt            DateTime?
+  lastTestResult          String?   // "success" | "failure"
+  lastTestError           String?
+  connectedAt             DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+}
+
+/// Retry queue for invoicing document issuance
+model InvoiceJob {
+  id          String   @id @default(uuid())
+  businessId  String
+  paymentId   String
+  customerId  String
+  action      String   // "issue_document" | "credit_note"
+  docType     Int?     // 305/320/400/330
+  payloadJson String   @default("{}") // serialized request for retry
+  status      String   @default("queued") // "queued" | "processing" | "done" | "failed"
+  attempts    Int      @default(0)
+  lastError   String?
+  nextRunAt   DateTime
+  resultJson  String?  // provider response
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+  payment  Payment  @relation(fields: [paymentId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([businessId, status, nextRunAt])
+  @@index([paymentId])
+}
+
+/// Record of issued invoicing documents
+model InvoiceDocument {
+  id                String   @id @default(uuid())
+  businessId        String
+  paymentId         String?
+  customerId        String
+  orderId           String?
+  originalInvoiceId String?  // for credit notes — links to the original invoice
+  providerName      String   // "morning"
+  providerDocId     String?  // ID from the provider (null for drafts)
+  docType           Int      // 305/320/400/330
+  docTypeName       String   // Hebrew label
+  subtotal          Float?   // before tax
+  taxTotal          Float?   // VAT amount
+  amount            Float    // total including tax
+  currency          String   @default("ILS")
+  vatRate           Float?   // e.g. 0.17
+  vatNumber         String?  // business VAT number at time of issue
+  documentUrl       String?  // PDF link
+  documentNumber    String?  // official document number
+  providerRawJson   String?  // masked provider response JSON
+  linesJson         String?  // JSON snapshot of line items
+  notes             String?
+  status            String   @default("draft") // "draft" | "pending" | "issued" | "failed" | "cancelled"
+  failureReason     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  business        Business         @relation(fields: [businessId], references: [id])
+  payment         Payment?         @relation(fields: [paymentId], references: [id])
+  customer        Customer         @relation(fields: [customerId], references: [id])
+  order           Order?           @relation(fields: [orderId], references: [id])
+  originalInvoice InvoiceDocument? @relation("CreditNoteRelation", fields: [originalInvoiceId], references: [id])
+  creditNotes     InvoiceDocument[] @relation("CreditNoteRelation")
+
+  @@index([businessId])
+  @@index([paymentId])
+  @@index([customerId])
+  @@index([orderId])
+}
+
+/// Audit trail for incoming invoicing webhooks
+model InvoiceWebhookLog {
+  id             String   @id @default(uuid())
+  provider       String   // "morning" etc.
+  eventType      String   // event type from provider
+  payloadJson    String   // masked webhook payload
+  signatureValid Boolean
+  processed      Boolean  @default(false)
+  errorMessage   String?
+  ip             String?
+  createdAt      DateTime @default(now())
+
+  @@index([provider, createdAt])
+}
+
+// ─────────────────────────────────────────────
+// SERVICE DOG MANAGEMENT
+// ─────────────────────────────────────────────
+
+/// Service dog profile — 1:1 extension of Pet for service dog tracking
+model ServiceDogProfile {
+  id                    String    @id @default(uuid())
+  petId                 String    @unique
+  businessId            String
+  registrationNumber    String?
+  certifyingBody        String?
+  certificationDate     DateTime?
+  certificationExpiry   DateTime?
+  phase                 String    @default("SELECTION")
+  phaseChangedAt        DateTime  @default(now())
+  serviceType           String?
+  trainingStartDate     DateTime?
+  trainingTotalHours    Float     @default(0)
+  trainingTargetHours   Float     @default(120)
+  trainingTargetMonths  Int       @default(6)
+  trainingStatus        String    @default("NOT_STARTED")
+  lastGovReportAt       DateTime?
+  govReportDue          DateTime?
+  isGovReportPending    Boolean   @default(false)
+  idCardIsActive        Boolean   @default(false)
+  idCardQrToken         String?   @unique
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  pet                   Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  business              Business  @relation(fields: [businessId], references: [id])
+  placements            ServiceDogPlacement[]
+  medicalProtocols      ServiceDogMedicalProtocol[]
+  trainingLogs          ServiceDogTrainingLog[]
+  complianceEvents      ServiceDogComplianceEvent[]
+  idCards               ServiceDogIDCard[]
+
+  @@index([businessId])
+  @@index([businessId, phase])
+  @@index([idCardQrToken])
+}
+
+/// Service dog recipient — person matched with a service dog
+model ServiceDogRecipient {
+  id              String    @id @default(uuid())
+  businessId      String
+  customerId      String?
+  name            String
+  phone           String?
+  email           String?
+  idNumber        String?
+  address         String?
+  disabilityType  String?
+  disabilityNotes String?
+  waitlistDate    DateTime?
+  notes           String?
+  status          String    @default("WAITLIST")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  business        Business  @relation(fields: [businessId], references: [id])
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  placements      ServiceDogPlacement[]
+
+  @@index([businessId])
+  @@index([businessId, status])
+}
+
+/// Service dog placement — matching a recipient to a dog
+model ServiceDogPlacement {
+  id                String    @id @default(uuid())
+  businessId        String
+  serviceDogId      String
+  recipientId       String
+  status            String    @default("PENDING")
+  placementDate     DateTime?
+  trialStartDate    DateTime?
+  trialEndDate      DateTime?
+  terminatedAt      DateTime?
+  terminationReason String?
+  lastCheckInAt     DateTime?
+  nextCheckInAt     DateTime?
+  checkInNotes      String?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  business          Business             @relation(fields: [businessId], references: [id])
+  serviceDog        ServiceDogProfile    @relation(fields: [serviceDogId], references: [id])
+  recipient         ServiceDogRecipient  @relation(fields: [recipientId], references: [id])
+  complianceEvents  ServiceDogComplianceEvent[]
+
+  @@unique([serviceDogId, recipientId])
+  @@index([businessId])
+  @@index([businessId, status])
+}
+
+/// Phase-based medical protocol for service dogs
+model ServiceDogMedicalProtocol {
+  id              String    @id @default(uuid())
+  serviceDogId    String
+  businessId      String
+  phase           String
+  protocolKey     String
+  protocolLabel   String
+  category        String
+  dueDate         DateTime?
+  completedDate   DateTime?
+  expiryDate      DateTime?
+  status          String    @default("PENDING")
+  notes           String?
+  attachmentUrl   String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  serviceDog      ServiceDogProfile @relation(fields: [serviceDogId], references: [id], onDelete: Cascade)
+  business        Business          @relation(fields: [businessId], references: [id])
+
+  @@index([serviceDogId])
+  @@index([serviceDogId, phase])
+  @@index([businessId, status])
+}
+
+/// ADI training session log for service dogs
+model ServiceDogTrainingLog {
+  id               String    @id @default(uuid())
+  serviceDogId     String
+  businessId       String
+  sessionDate      DateTime
+  durationMinutes  Int
+  trainerName      String?
+  location         String?
+  skillCategories  String    @default("[]")
+  status           String    @default("COMPLETED")
+  notes            String?
+  rating           Int?
+  cumulativeHours  Float?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  serviceDog       ServiceDogProfile @relation(fields: [serviceDogId], references: [id], onDelete: Cascade)
+  business         Business          @relation(fields: [businessId], references: [id])
+
+  @@index([serviceDogId])
+  @@index([serviceDogId, sessionDate])
+  @@index([businessId, sessionDate])
+}
+
+/// 48-hour government compliance event for service dogs
+model ServiceDogComplianceEvent {
+  id                   String    @id @default(uuid())
+  businessId           String
+  serviceDogId         String
+  placementId          String?
+  eventType            String
+  eventDescription     String
+  notificationRequired Boolean   @default(true)
+  notificationDue      DateTime?
+  notificationSentAt   DateTime?
+  notificationStatus   String    @default("PENDING")
+  notificationPayload  String    @default("{}")
+  triggeredByUserId    String?
+  eventAt              DateTime  @default(now())
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  business             Business           @relation(fields: [businessId], references: [id])
+  serviceDog           ServiceDogProfile  @relation(fields: [serviceDogId], references: [id], onDelete: Cascade)
+  placement            ServiceDogPlacement? @relation(fields: [placementId], references: [id])
+
+  @@index([businessId, notificationStatus])
+  @@index([businessId, notificationDue])
+  @@index([serviceDogId])
+}
+
+/// Digital ID card for certified service dogs
+model ServiceDogIDCard {
+  id              String    @id @default(uuid())
+  serviceDogId    String
+  businessId      String
+  cardDataJson    String    @default("{}")
+  qrToken         String    @unique
+  qrPayload       String
+  isActive        Boolean   @default(true)
+  expiresAt       DateTime?
+  generatedAt     DateTime  @default(now())
+  revokedAt       DateTime?
+  revokedReason   String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  serviceDog      ServiceDogProfile @relation(fields: [serviceDogId], references: [id], onDelete: Cascade)
+  business        Business          @relation(fields: [businessId], references: [id])
+
+  @@index([serviceDogId])
+  @@index([qrToken])
+  @@index([businessId, isActive])
+}
