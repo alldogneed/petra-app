@@ -1187,11 +1187,25 @@ function VaccinationAlertWidget() {
 
 function AtRiskCustomersWidget({ customers }: { customers: DashboardStats["atRiskCustomers"] }) {
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
+  const [bulkSending, setBulkSending] = useState(false);
 
   if (!customers || customers.length === 0) return null;
 
   function buildMsg(c: DashboardStats["atRiskCustomers"][0]) {
     return `שלום ${c.name}! 🐾\nזמן רב לא ראינו אתכם, מתגעגעים!\nהאם תרצו לקבוע תור? נשמח לראות אתכם שוב 😊`;
+  }
+
+  function handleBulkSend() {
+    setBulkSending(true);
+    const withPhone = customers.filter((c) => c.phone);
+    withPhone.forEach((c, i) => {
+      setTimeout(() => {
+        const text = encodeURIComponent(buildMsg(c));
+        window.open(`https://wa.me/${toWhatsAppPhone(c.phone)}?text=${text}`, "_blank");
+        setSentIds((prev) => new Set([...prev, c.id]));
+        if (i === withPhone.length - 1) setBulkSending(false);
+      }, i * 700);
+    });
   }
 
   return (
@@ -1209,13 +1223,24 @@ function AtRiskCustomersWidget({ customers }: { customers: DashboardStats["atRis
             </p>
           </div>
         </div>
-        <Link
-          href="/customers"
-          className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
-        >
-          כל הלקוחות
-          <ArrowLeft className="w-3 h-3" />
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleBulkSend}
+            disabled={bulkSending || customers.filter((c) => c.phone).length === 0}
+            className="text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 disabled:opacity-50 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-colors"
+            title="שלח הודעות לכל הלקוחות ברשימה"
+          >
+            <MessageCircle className="w-3 h-3" />
+            שלח לכולם
+          </button>
+          <Link
+            href="/customers"
+            className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
+          >
+            כל הלקוחות
+            <ArrowLeft className="w-3 h-3" />
+          </Link>
+        </div>
       </div>
 
       <div className="divide-y divide-slate-50">
