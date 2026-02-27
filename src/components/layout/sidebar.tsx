@@ -67,6 +67,7 @@ const navItems: NavItem[] = [
   { name: "כלבי שירות", href: "/service-dogs", icon: Shield },
   { name: "הודעות", href: "/messages", icon: MessageSquare },
   { name: "אוטומציות", href: "/automations", icon: Zap },
+  { name: "תור שליחה", href: "/scheduled-messages", icon: Send },
   { name: "ניהול תורים", href: "/bookings", icon: CalendarCheck },
   { name: "טפסי קליטה", href: "/intake", icon: ClipboardList },
   { name: "אנליטיקס", href: "/analytics", icon: BarChart3, minRole: "owner" },
