@@ -37,6 +37,7 @@ import {
   Activity,
   AlertTriangle,
   FileText,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -48,7 +49,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  minRole?: "owner" | "manager";
+  minRole?: "owner" | "manager" | "user" | "volunteer";
 }
 
 interface NavGroup {
@@ -57,7 +58,7 @@ interface NavGroup {
   icon: React.ComponentType<{ className?: string }>;
   defaultHref: string; // where collapsed-icon click navigates to
   children: NavItem[];
-  minRole?: "owner" | "manager";
+  minRole?: "owner" | "manager" | "user" | "volunteer";
 }
 
 type NavEntry = NavItem | NavGroup;
@@ -66,7 +67,7 @@ function isGroup(entry: NavEntry): entry is NavGroup {
   return "children" in entry;
 }
 
-const ROLE_LEVEL: Record<string, number> = { owner: 0, manager: 1, user: 2 };
+const ROLE_LEVEL: Record<string, number> = { owner: 0, admin: 0, manager: 1, user: 2, volunteer: 3 };
 
 function canSee(item: { minRole?: string }, role: string | null): boolean {
   if (!item.minRole) return true;
@@ -77,7 +78,7 @@ function canSee(item: { minRole?: string }, role: string | null): boolean {
 const navEntries: NavEntry[] = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
   { name: "לקוחות", href: "/customers", icon: Users },
-  { name: "מערכת מכירות", href: "/leads", icon: Target },
+  { name: "מערכת מכירות", href: "/leads", icon: Target, minRole: "user" },
   {
     key: "tasks",
     name: "ניהול משימות",
@@ -85,7 +86,7 @@ const navEntries: NavEntry[] = [
     defaultHref: "/tasks",
     children: [
       { name: "משימות", href: "/tasks", icon: ListTodo },
-      { name: "משימות אוטומטיות", href: "/settings?tab=tasks", icon: Zap },
+      { name: "משימות אוטומטיות", href: "/settings?tab=tasks", icon: Zap, minRole: "user" },
     ],
   },
   {
@@ -117,7 +118,7 @@ const navEntries: NavEntry[] = [
     name: "פיננסים",
     icon: Wallet,
     defaultHref: "/payments",
-    minRole: "manager",
+    minRole: "user",
     children: [
       { name: "תשלומים", href: "/payments", icon: CreditCard, minRole: "manager" },
       { name: "בקשת תשלום", href: "/payment-request", icon: Send },
@@ -136,7 +137,7 @@ const navEntries: NavEntry[] = [
     children: [
       { name: "סקירה כללית", href: "/service-dogs", icon: LayoutDashboard },
       { name: "כלבים", href: "/service-dogs/dogs", icon: Dog },
-      { name: "מקבלים", href: "/service-dogs/recipients", icon: UserCheck },
+      { name: "זכאים", href: "/service-dogs/recipients", icon: UserCheck },
       { name: "שיבוצים", href: "/service-dogs/placements", icon: Activity },
       { name: "משמעת ודיווח", href: "/service-dogs/compliance", icon: AlertTriangle },
       { name: "תעודות זהות", href: "/service-dogs/id-cards", icon: CreditCard },
@@ -144,7 +145,8 @@ const navEntries: NavEntry[] = [
   },
   { name: "יומן", href: "/calendar", icon: Calendar },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner" },
-  { name: "הגדרות", href: "/settings", icon: Settings },
+  { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner" },
+  { name: "הגדרות", href: "/settings", icon: Settings, minRole: "user" },
 ];
 
 interface SidebarProps {

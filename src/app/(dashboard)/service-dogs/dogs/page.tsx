@@ -354,7 +354,7 @@ export default function ServiceDogsListPage() {
                   {dog.activePlacement && (
                     <div className="text-xs text-petra-muted flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      מקבל: {dog.activePlacement.recipientName}
+                      זכאי: {dog.activePlacement.recipientName}
                     </div>
                   )}
                 </div>

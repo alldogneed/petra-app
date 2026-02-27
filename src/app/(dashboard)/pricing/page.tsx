@@ -308,7 +308,28 @@ function ServiceModal({
             </label>
           </div>
 
-          {/* Section 2 — הזמנות אונליין */}
+          {/* Section 2 — קישור לתשלום */}
+          <div className="p-4 rounded-xl bg-green-50/50 border border-green-100 space-y-3">
+            <p className="text-sm font-semibold text-green-800 flex items-center gap-2">
+              <LinkIcon className="w-4 h-4" />
+              קישור לתשלום
+            </p>
+            <div>
+              <label className="label">קישור לדף נחיתה / תשלום (WhatsApp)</label>
+              <input
+                className="input"
+                type="url"
+                value={form.paymentUrl}
+                onChange={(e) => set("paymentUrl", e.target.value)}
+                placeholder="https://..."
+              />
+              <p className="text-xs text-petra-muted mt-1">
+                הקישור יצורף אוטומטית להודעת בקשת תשלום ב-WhatsApp
+              </p>
+            </div>
+          </div>
+
+          {/* Section 3 — הזמנות אונליין */}
           <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100 space-y-3">
             <p className="text-sm font-semibold text-blue-800 flex items-center gap-2">
               <Globe className="w-4 h-4" />
@@ -328,28 +349,16 @@ function ServiceModal({
             </label>
 
             {form.isPublicBookable && (
-              <div className="space-y-3 pt-1">
-                <div>
-                  <label className="label">אופן אישור הזמנה</label>
-                  <select
-                    className="input"
-                    value={form.bookingMode}
-                    onChange={(e) => set("bookingMode", e.target.value)}
-                  >
-                    <option value="automatic">אישור אוטומטי</option>
-                    <option value="requires_approval">דורש אישור מנהל</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="label">קישור לדף נחיתה / תשלום</label>
-                  <input
-                    className="input"
-                    type="url"
-                    value={form.paymentUrl}
-                    onChange={(e) => set("paymentUrl", e.target.value)}
-                    placeholder="https://..."
-                  />
-                </div>
+              <div className="pt-1">
+                <label className="label">אופן אישור הזמנה</label>
+                <select
+                  className="input"
+                  value={form.bookingMode}
+                  onChange={(e) => set("bookingMode", e.target.value)}
+                >
+                  <option value="automatic">אישור אוטומטי</option>
+                  <option value="requires_approval">דורש אישור מנהל</option>
+                </select>
               </div>
             )}
           </div>

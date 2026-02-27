@@ -67,21 +67,21 @@ export default function RecipientsPage() {
           <div className="flex items-center gap-2 text-sm text-petra-muted mb-1">
             <Link href="/service-dogs" className="hover:text-foreground">כלבי שירות</Link>
             <ChevronLeft className="w-3.5 h-3.5" />
-            <span>מקבלים</span>
+            <span>זכאים</span>
           </div>
           <h1 className="page-title flex items-center gap-2">
             <UserCheck className="w-6 h-6 text-brand-500" />
-            ניהול מקבלים
+            ניהול זכאים
           </h1>
           <p className="text-sm text-petra-muted mt-1">
-            {recipients.length} מקבלים במערכת ·{" "}
+            {recipients.length} זכאים במערכת ·{" "}
             {recipients.filter((r) => r.status === "WAITLIST").length} ברשימת המתנה ·{" "}
             {recipients.filter((r) => r.status === "ACTIVE").length} פעילים
           </p>
         </div>
         <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" />
-          הוסף מקבל
+          הוסף זכאי
         </button>
       </div>
 
@@ -134,7 +134,7 @@ export default function RecipientsPage() {
       ) : filtered.length === 0 ? (
         <div className="empty-state">
           <UserCheck className="empty-state-icon" />
-          <p className="text-petra-muted">אין מקבלים</p>
+          <p className="text-petra-muted">אין זכאים</p>
         </div>
       ) : (
         <div className="card p-0 overflow-hidden">
@@ -256,10 +256,10 @@ function AddRecipientModal({ onClose }: { onClose: () => void }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["service-recipients"] });
-      toast.success("מקבל נוסף בהצלחה");
+      toast.success("זכאי נוסף בהצלחה");
       onClose();
     },
-    onError: () => toast.error("שגיאה בהוספת מקבל"),
+    onError: () => toast.error("שגיאה בהוספת זכאי"),
   });
 
   return (
@@ -267,7 +267,7 @@ function AddRecipientModal({ onClose }: { onClose: () => void }) {
       <div className="modal-backdrop" />
       <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold">הוסף מקבל חדש</h2>
+          <h2 className="text-lg font-bold">הוסף זכאי חדש</h2>
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
         </div>
 
@@ -315,7 +315,7 @@ function AddRecipientModal({ onClose }: { onClose: () => void }) {
               disabled={!name || createMutation.isPending}
               className="btn-primary flex-1"
             >
-              {createMutation.isPending ? "יוצר..." : "הוסף מקבל"}
+              {createMutation.isPending ? "יוצר..." : "הוסף זכאי"}
             </button>
             <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
           </div>

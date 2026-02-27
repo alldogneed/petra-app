@@ -59,10 +59,8 @@ function LoginForm() {
     <div className="w-full max-w-sm">
       {/* Logo */}
       <div className="text-center mb-8">
-        <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-          style={{ background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)" }}
-        >
-          <span className="text-white text-2xl font-bold">P</span>
+        <div className="w-16 h-16 rounded-2xl mx-auto mb-4 overflow-hidden">
+          <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
         </div>
         <h1 className="text-2xl font-bold text-petra-text">Petra</h1>
         <p className="text-sm text-petra-muted mt-1">ניהול עסקי חיות מחמד</p>

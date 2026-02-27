@@ -226,7 +226,7 @@ export default function PlacementsPage() {
             <thead>
               <tr className="border-b bg-slate-50/50">
                 <th className="table-header-cell">כלב</th>
-                <th className="table-header-cell">מקבל</th>
+                <th className="table-header-cell">זכאי</th>
                 <th className="table-header-cell">סטטוס</th>
                 <th className="table-header-cell">תאריך שיבוץ</th>
                 <th className="table-header-cell">סיום ניסיון</th>
@@ -407,9 +407,9 @@ function AddPlacementModal({
           </div>
 
           <div>
-            <label className="label">מקבל *</label>
+            <label className="label">זכאי *</label>
             <select value={recipientId} onChange={(e) => setRecipientId(e.target.value)} className="input w-full">
-              <option value="">בחר מקבל...</option>
+              <option value="">בחר זכאי...</option>
               {recipients.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}

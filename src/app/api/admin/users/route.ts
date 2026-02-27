@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards";
 import { PLATFORM_PERMS } from "@/lib/permissions";
 
@@ -77,4 +78,46 @@ export async function GET(request: NextRequest) {
   }));
 
   return NextResponse.json({ users: enrichedUsers, total, page, limit });
+}
+
+export async function POST(request: NextRequest) {
+  const guard = await requirePlatformPermission(request, PLATFORM_PERMS.USERS_WRITE);
+  if (isGuardError(guard)) return guard;
+
+  const body = await request.json();
+  const { name, email, password, role, platformRole } = body;
+
+  if (!name?.trim()) {
+    return NextResponse.json({ error: "שם חובה" }, { status: 400 });
+  }
+  if (!email?.trim() || !email.includes("@")) {
+    return NextResponse.json({ error: "אימייל לא תקין" }, { status: 400 });
+  }
+  if (!password || password.length < 8) {
+    return NextResponse.json({ error: "סיסמה חייבת להכיל לפחות 8 תווים" }, { status: 400 });
+  }
+
+  const existing = await prisma.platformUser.findUnique({
+    where: { email: email.toLowerCase().trim() },
+  });
+  if (existing) {
+    return NextResponse.json({ error: "כתובת אימייל כבר קיימת במערכת" }, { status: 409 });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  const user = await prisma.platformUser.create({
+    data: {
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      passwordHash,
+      role: role === "MASTER" ? "MASTER" : "USER",
+      platformRole: platformRole || null,
+      isActive: true,
+      authProvider: "local",
+    },
+    select: { id: true, name: true, email: true, role: true, platformRole: true, isActive: true, createdAt: true },
+  });
+
+  return NextResponse.json(user, { status: 201 });
 }

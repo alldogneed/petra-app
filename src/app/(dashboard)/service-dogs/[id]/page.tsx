@@ -1328,7 +1328,7 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
                     { label: "גזע", value: data.breed },
                     { label: "מספר רישום", value: data.registrationNumber },
                     { label: "גוף מסמיך", value: data.certifyingBody },
-                    { label: "מקבל", value: data.recipientName },
+                    { label: "זכאי", value: data.recipientName },
                     { label: "תאריך הסמכה", value: data.certificationDate ? formatDate(data.certificationDate) : null },
                   ]
                     .filter((f) => f.value)

@@ -22,6 +22,7 @@ export const TENANT_ROLES = {
   OWNER: "owner",
   MANAGER: "manager",
   USER: "user",
+  VOLUNTEER: "volunteer",
 } as const;
 export type TenantRole = (typeof TENANT_ROLES)[keyof typeof TENANT_ROLES];
 
@@ -88,6 +89,10 @@ const TENANT_ROLE_PERMISSIONS: Record<TenantRole, TenantPermission[]> = {
     TENANT_PERMS.CONTENT_READ,
     TENANT_PERMS.CONTENT_WRITE,
   ],
+  // Volunteer: read-only access to day-to-day content. No payments, leads, analytics or settings.
+  volunteer: [
+    TENANT_PERMS.CONTENT_READ,
+  ],
 };
 
 // ─── Permission Check Functions ────────────────────────────────────────────────
@@ -119,7 +124,7 @@ export function requires2FA(role: string | null | undefined): boolean {
 }
 
 /** Ordered list of tenant roles from highest to lowest privilege */
-const TENANT_ROLE_ORDER: TenantRole[] = ["owner", "manager", "user"];
+const TENANT_ROLE_ORDER: TenantRole[] = ["owner", "manager", "user", "volunteer"];
 
 /** Returns true if `actorRole` has equal or higher privilege than `targetRole` */
 export function canModifyTenantRole(

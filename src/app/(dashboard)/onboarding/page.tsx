@@ -131,8 +131,8 @@ export default function OnboardingPage() {
 function StepWelcome({ onNext }: { onNext: () => void }) {
   return (
     <div className="text-center space-y-6">
-      <div className="w-16 h-16 rounded-2xl bg-brand-50 flex items-center justify-center mx-auto">
-        <Sparkles className="w-8 h-8 text-brand-500" />
+      <div className="w-16 h-16 rounded-2xl overflow-hidden mx-auto">
+        <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
       </div>
       <div>
         <h1 className="text-2xl font-bold text-petra-text mb-2">ברוך הבא ל-Petra! 🎉</h1>

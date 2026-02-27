@@ -176,11 +176,8 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
       <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="text-center mb-4 pt-4">
-          <div
-            className="w-10 h-10 rounded-xl mx-auto mb-2 flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)" }}
-          >
-            <span className="text-white font-bold">P</span>
+          <div className="w-10 h-10 rounded-xl mx-auto mb-2 overflow-hidden">
+            <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-base font-bold text-slate-900">טופס קליטה</h1>
           <p className="text-xs text-slate-500">{formInfo?.businessName}</p>

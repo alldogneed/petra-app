@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Users, TrendingUp, UserPlus, Activity, Clock } from "lucide-react";
+import { Users, TrendingUp, UserPlus, Activity, Clock, Zap, ShieldOff, BarChart2 } from "lucide-react";
+import Link from "next/link";
 
 const ACTION_LABELS: Record<string, string> = {
   LOGIN: "התחבר למערכת",
@@ -62,34 +63,32 @@ const ACTION_COLORS: Record<string, string> = {
 };
 
 function relativeTime(date: string) {
-  const now = new Date();
-  const d = new Date(date);
-  const diffMs = now.getTime() - d.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "עכשיו";
-  if (diffMin < 60) return `לפני ${diffMin} דקות`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `לפני ${diffHr} שעות`;
-  const diffDays = Math.floor(diffHr / 24);
-  return `לפני ${diffDays} ימים`;
+  const diff = Date.now() - new Date(date).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "עכשיו";
+  if (m < 60) return `לפני ${m} דק׳`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `לפני ${h} שעות`;
+  return `לפני ${Math.floor(h / 24)} ימים`;
 }
 
-function getScoreColor(score: number) {
-  if (score >= 20) return { bg: "#06B6D420", text: "#06B6D4" };
-  if (score >= 10) return { bg: "#F59E0B20", text: "#F59E0B" };
-  if (score >= 1) return { bg: "#64748B20", text: "#94A3B8" };
-  return { bg: "#EF444420", text: "#EF4444" };
+function getScoreStyle(score: number): React.CSSProperties {
+  if (score >= 20) return { background: "#06B6D420", color: "#06B6D4" };
+  if (score >= 10) return { background: "#F59E0B20", color: "#F59E0B" };
+  if (score >= 1)  return { background: "#64748B20", color: "#94A3B8" };
+  return { background: "#EF444420", color: "#EF4444" };
 }
 
 export default function AdminDashboardPage() {
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["admin-stats"],
     queryFn: () => fetch("/api/admin/stats").then((r) => r.json()),
+    refetchInterval: 60000,
   });
 
   const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ["admin-users"],
-    queryFn: () => fetch("/api/admin/users?limit=10").then((r) => r.json()),
+    queryFn: () => fetch("/api/admin/users?limit=8").then((r) => r.json()),
   });
 
   const { data: feed, isLoading: feedLoading } = useQuery({
@@ -98,48 +97,73 @@ export default function AdminDashboardPage() {
     refetchInterval: 30000,
   });
 
+  const kpis = [
+    { icon: <Users className="w-4 h-4" />, label: "סה״כ משתמשים", value: stats?.totalUsers, sub: "רשומים", color: "#06B6D4" },
+    { icon: <BarChart2 className="w-4 h-4" />, label: "MAU", value: stats?.mau, sub: "30 יום אחרונים", color: "#F97316" },
+    { icon: <UserPlus className="w-4 h-4" />, label: "הרשמות חדשות", value: stats?.newSignups7d, sub: "7 ימים", color: "#A855F7" },
+    { icon: <Zap className="w-4 h-4" />, label: "פעילים היום", value: stats?.activeToday, sub: "כניסות היום", color: "#22C55E" },
+    { icon: <TrendingUp className="w-4 h-4" />, label: "פעילים חשבונות", value: stats?.activeUsers, sub: "חשבונות פעילים", color: "#3B82F6" },
+    { icon: <ShieldOff className="w-4 h-4" />, label: "חסומים", value: stats?.blockedUsers, sub: "חשבונות חסומים", color: "#EF4444" },
+  ];
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">דשבורד ראשי</h1>
-        <p className="text-sm mt-1" style={{ color: "#64748B" }}>סקירה כללית של הפלטפורמה</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">דשבורד ראשי</h1>
+          <p className="text-sm mt-1" style={{ color: "#64748B" }}>סקירה כללית של הפלטפורמה</p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          <span className="text-[10px]" style={{ color: "#475569" }}>חי</span>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard
-          icon={<Users className="w-5 h-5" />}
-          label="סה״כ משתמשים"
-          value={stats?.totalUsers ?? "—"}
-          subtitle="משתמשים פעילים"
-          loading={statsLoading}
-        />
-        <StatCard
-          icon={<TrendingUp className="w-5 h-5" />}
-          label="משתמשים פעילים חודשיים"
-          value={stats?.mau ?? "—"}
-          subtitle="30 ימים אחרונים"
-          loading={statsLoading}
-        />
-        <StatCard
-          icon={<UserPlus className="w-5 h-5" />}
-          label="הרשמות חדשות"
-          value={stats?.newSignups7d ?? "—"}
-          subtitle="7 ימים אחרונים"
-          loading={statsLoading}
-        />
+      {/* KPI grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {kpis.map((kpi) => (
+          <div key={kpi.label} className="rounded-2xl p-4" style={{ background: "#12121A", border: "1px solid #1E1E2E" }}>
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-3" style={{ background: `${kpi.color}18` }}>
+              <span style={{ color: kpi.color }}>{kpi.icon}</span>
+            </div>
+            <div className="text-2xl font-bold text-white">
+              {statsLoading ? <span className="animate-pulse">—</span> : (kpi.value ?? "—")}
+            </div>
+            <div className="text-[10px] mt-0.5" style={{ color: "#475569" }}>{kpi.sub}</div>
+            <div className="text-[9px] mt-0.5" style={{ color: "#334155" }}>{kpi.label}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Two column layout */}
+      {/* Quick links */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {[
+          { href: "/admin/users", label: "ניהול משתמשים", color: "#06B6D4" },
+          { href: "/admin/stats", label: "סטטיסטיקות", color: "#F97316" },
+          { href: "/admin/bookings", label: "ניהול הזמנות", color: "#A855F7" },
+          { href: "/admin/feed", label: "פיד פעילות", color: "#22C55E" },
+        ].map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className="rounded-xl px-4 py-3 text-sm font-medium text-center transition-colors hover:opacity-90"
+            style={{ background: `${l.color}12`, color: l.color, border: `1px solid ${l.color}20` }}
+          >
+            {l.label}
+          </Link>
+        ))}
+      </div>
+
+      {/* Table + Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Users Table */}
         <div className="lg:col-span-3 rounded-2xl overflow-hidden" style={{ background: "#12121A", border: "1px solid #1E1E2E" }}>
           <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid #1E1E2E" }}>
-            <h2 className="text-sm font-semibold text-white">משתמשים</h2>
-            <a href="/admin/users" className="text-xs font-medium" style={{ color: "#06B6D4" }}>
+            <h2 className="text-sm font-semibold text-white">משתמשים אחרונים</h2>
+            <Link href="/admin/users" className="text-xs font-medium" style={{ color: "#06B6D4" }}>
               הצג הכל ←
-            </a>
+            </Link>
           </div>
 
           {usersLoading ? (
@@ -151,32 +175,29 @@ export default function AdminDashboardPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: "1px solid #1E1E2E" }}>
-                    <th className="text-right px-5 py-3 text-xs font-medium" style={{ color: "#64748B" }}>שם</th>
-                    <th className="text-right px-5 py-3 text-xs font-medium" style={{ color: "#64748B" }}>עסק</th>
-                    <th className="text-right px-5 py-3 text-xs font-medium" style={{ color: "#64748B" }}>פעילות אחרונה</th>
-                    <th className="text-right px-5 py-3 text-xs font-medium" style={{ color: "#64748B" }}>ציון פעילות</th>
+                    {["שם", "עסק", "פעילות אחרונה", "ציון"].map((h) => (
+                      <th key={h} className="text-right px-5 py-3 text-xs font-medium" style={{ color: "#64748B" }}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {usersData.users.map((user: any) => {
-                    const sc = getScoreColor(user.activityScore);
+                  {usersData.users.map((user: {
+                    id: string; name: string; email: string; isActive: boolean;
+                    businessName: string | null; lastActivityAt: string | null; activityScore: number;
+                  }) => {
+                    const sc = getScoreStyle(user.activityScore);
                     return (
-                      <tr key={user.id} className="hover:bg-white/[0.02] transition-colors" style={{ borderBottom: "1px solid #1E1E2E" }}>
+                      <tr key={user.id} className="hover:bg-white/[0.02] transition-colors" style={{ borderBottom: "1px solid #1E1E2E", opacity: user.isActive ? 1 : 0.5 }}>
                         <td className="px-5 py-3">
                           <div className="text-sm text-white">{user.name}</div>
                           <div className="text-xs" style={{ color: "#64748B" }}>{user.email}</div>
                         </td>
-                        <td className="px-5 py-3 text-sm" style={{ color: "#94A3B8" }}>
-                          {user.businessName || "—"}
-                        </td>
+                        <td className="px-5 py-3 text-sm" style={{ color: "#94A3B8" }}>{user.businessName || "—"}</td>
                         <td className="px-5 py-3 text-sm" style={{ color: "#94A3B8" }}>
                           {user.lastActivityAt ? relativeTime(user.lastActivityAt) : "—"}
                         </td>
                         <td className="px-5 py-3">
-                          <span
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                            style={{ background: sc.bg, color: sc.text }}
-                          >
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={sc}>
                             {user.activityScore}
                           </span>
                         </td>
@@ -202,13 +223,13 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          <div className="max-h-[400px] overflow-y-auto">
+          <div className="max-h-[420px] overflow-y-auto">
             {feedLoading ? (
               <div className="p-8 text-center text-sm" style={{ color: "#64748B" }}>טוען...</div>
             ) : !feed?.length ? (
               <div className="p-8 text-center text-sm" style={{ color: "#64748B" }}>אין פעילות עדיין</div>
             ) : (
-              feed.map((item: any) => (
+              feed.map((item: { id: string; action: string; userName: string; createdAt: string }) => (
                 <div
                   key={item.id}
                   className="px-5 py-3 flex items-start gap-3 hover:bg-white/[0.02] transition-colors"
@@ -234,37 +255,14 @@ export default function AdminDashboardPage() {
               ))
             )}
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
-function StatCard({
-  icon,
-  label,
-  value,
-  subtitle,
-  loading,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number | string;
-  subtitle: string;
-  loading: boolean;
-}) {
-  return (
-    <div className="rounded-2xl p-5" style={{ background: "#12121A", border: "1px solid #1E1E2E" }}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(6, 182, 212, 0.1)" }}>
-          <span style={{ color: "#06B6D4" }}>{icon}</span>
+          <div className="px-5 py-3" style={{ borderTop: "1px solid #1E1E2E" }}>
+            <Link href="/admin/feed" className="text-xs" style={{ color: "#06B6D4" }}>
+              צפה בפיד המלא ←
+            </Link>
+          </div>
         </div>
       </div>
-      <div className="text-3xl font-bold text-white">
-        {loading ? <span className="animate-pulse">—</span> : value}
-      </div>
-      <div className="text-xs mt-1" style={{ color: "#64748B" }}>{subtitle}</div>
-      <div className="text-[10px] mt-0.5" style={{ color: "#475569" }}>{label}</div>
     </div>
   );
 }

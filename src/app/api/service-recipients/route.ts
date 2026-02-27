@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(recipients);
   } catch (error) {
     console.error("GET /api/service-recipients error:", error);
-    return NextResponse.json({ error: "שגיאה בטעינת מקבלים" }, { status: 500 });
+    return NextResponse.json({ error: "שגיאה בטעינת זכאים" }, { status: 500 });
   }
 }
 

@@ -25,6 +25,7 @@ interface AuthContextType {
   isOwner: boolean;
   isManager: boolean;
   isStaff: boolean;
+  isVolunteer: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -35,6 +36,7 @@ const AuthContext = createContext<AuthContextType>({
   isOwner: false,
   isManager: false,
   isStaff: false,
+  isVolunteer: false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -55,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isOwner = user?.businessRole === "owner";
   const isManager = user?.businessRole === "manager";
   const isStaff = user?.businessRole === "user";
+  const isVolunteer = user?.businessRole === "volunteer";
 
   const hasPermission = useCallback(
     (permission: TenantPermission): boolean => {
@@ -76,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout, hasPermission, isOwner: !!isOwner, isManager: !!isManager, isStaff: !!isStaff }}>
+    <AuthContext.Provider value={{ user, loading, logout, hasPermission, isOwner: !!isOwner, isManager: !!isManager, isStaff: !!isStaff, isVolunteer: !!isVolunteer }}>
       {children}
     </AuthContext.Provider>
   );

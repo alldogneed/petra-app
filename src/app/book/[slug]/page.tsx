@@ -387,8 +387,8 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
           {business.logo ? (
             <img src={business.logo} alt={business.name} className="w-10 h-10 rounded-xl object-cover" />
           ) : (
-            <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center">
-              <PawPrint className="w-5 h-5 text-brand-500" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
+              <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
             </div>
           )}
           <div className="flex-1 min-w-0">

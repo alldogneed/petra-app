@@ -15,11 +15,13 @@ import {
   X,
   CalendarCheck,
   Clock,
+  BarChart2,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { name: "דשבורד", href: "/admin", icon: LayoutDashboard, exact: true },
   { name: "משתמשים", href: "/admin/users", icon: Users },
+  { name: "סטטיסטיקות", href: "/admin/stats", icon: BarChart2 },
   { name: "פיד פעילות", href: "/admin/feed", icon: Activity },
   { name: "הזמנות", href: "/admin/bookings", icon: CalendarCheck },
   { name: "שעות פעילות", href: "/admin/availability", icon: Clock },
