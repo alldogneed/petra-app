@@ -136,7 +136,7 @@ interface Pet {
     excessiveBarking: boolean | null;
     destruction: boolean | null;
     resourceGuarding: boolean | null;
-    fears: string | null;
+    fears: boolean | null;
     badWithKids: boolean | null;
     houseSoiling: boolean | null;
     biteHistory: boolean | null;
@@ -1798,6 +1798,309 @@ function NewAppointmentModal({
   );
 }
 
+// ─── Edit Health Modal ────────────────────────────────────────────────────────
+
+function EditHealthModal({
+  petId,
+  petName,
+  health,
+  customerId,
+  onClose,
+}: {
+  petId: string;
+  petName: string;
+  health: Pet["health"];
+  customerId: string;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const toDateInput = (v: string | null) => (v ? v.split("T")[0] : "");
+  const [form, setForm] = useState({
+    rabiesLastDate: toDateInput(health?.rabiesLastDate ?? null),
+    rabiesValidUntil: toDateInput(health?.rabiesValidUntil ?? null),
+    dhppLastDate: toDateInput(health?.dhppLastDate ?? null),
+    dewormingLastDate: toDateInput(health?.dewormingLastDate ?? null),
+    allergies: health?.allergies ?? "",
+    medicalConditions: health?.medicalConditions ?? "",
+    surgeriesHistory: health?.surgeriesHistory ?? "",
+    activityLimitations: health?.activityLimitations ?? "",
+    vetName: health?.vetName ?? "",
+    vetPhone: health?.vetPhone ?? "",
+    neuteredSpayed: health?.neuteredSpayed ?? false,
+    originInfo: health?.originInfo ?? "",
+    timeWithOwner: health?.timeWithOwner ?? "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/pets/${petId}/health`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+      onClose();
+    },
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-lg mx-4 p-6 max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text">בריאות — {petName}</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-5">
+          {/* Vaccines */}
+          <div>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">חיסונים</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">כלבת — תאריך</label>
+                <input className="input" type="date" value={form.rabiesLastDate} onChange={(e) => setForm({ ...form, rabiesLastDate: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">כלבת — תוקף עד</label>
+                <input className="input" type="date" value={form.rabiesValidUntil} onChange={(e) => setForm({ ...form, rabiesValidUntil: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">משושה (DHPP)</label>
+                <input className="input" type="date" value={form.dhppLastDate} onChange={(e) => setForm({ ...form, dhppLastDate: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">תילוע</label>
+                <input className="input" type="date" value={form.dewormingLastDate} onChange={(e) => setForm({ ...form, dewormingLastDate: e.target.value })} />
+              </div>
+            </div>
+          </div>
+          {/* Medical */}
+          <div>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">מצב רפואי</p>
+            <div className="space-y-3">
+              <div>
+                <label className="label">אלרגיות</label>
+                <input className="input" value={form.allergies} onChange={(e) => setForm({ ...form, allergies: e.target.value })} placeholder="אלרגיה לעוף, דשא..." />
+              </div>
+              <div>
+                <label className="label">מצבים רפואיים</label>
+                <textarea className="input min-h-[60px]" value={form.medicalConditions} onChange={(e) => setForm({ ...form, medicalConditions: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">ניתוחים בעבר</label>
+                <input className="input" value={form.surgeriesHistory} onChange={(e) => setForm({ ...form, surgeriesHistory: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">מגבלות פעילות</label>
+                <input className="input" value={form.activityLimitations} onChange={(e) => setForm({ ...form, activityLimitations: e.target.value })} />
+              </div>
+            </div>
+          </div>
+          {/* Vet */}
+          <div>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">וטרינר</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">שם וטרינר</label>
+                <input className="input" value={form.vetName} onChange={(e) => setForm({ ...form, vetName: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">טלפון וטרינר</label>
+                <input className="input" value={form.vetPhone} onChange={(e) => setForm({ ...form, vetPhone: e.target.value })} />
+              </div>
+            </div>
+          </div>
+          {/* General */}
+          <div>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">כללי</p>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!form.neuteredSpayed}
+                  onChange={(e) => setForm({ ...form, neuteredSpayed: e.target.checked })}
+                  className="w-4 h-4 accent-brand-500"
+                />
+                <span className="text-sm text-petra-text">מסורס / עקור</span>
+              </label>
+              <div>
+                <label className="label">מקור (מאיפה הגיע)</label>
+                <input className="input" value={form.originInfo} onChange={(e) => setForm({ ...form, originInfo: e.target.value })} placeholder="מאמץ, מגדל, רחוב..." />
+              </div>
+              <div>
+                <label className="label">זמן עם הבעלים</label>
+                <input className="input" value={form.timeWithOwner} onChange={(e) => setForm({ ...form, timeWithOwner: e.target.value })} placeholder="3 שנים" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button
+            className="btn-primary flex-1"
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate()}
+          >
+            {mutation.isPending ? "שומר..." : "שמור שינויים"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Edit Behavior Modal ──────────────────────────────────────────────────────
+
+const BEHAVIOR_EDIT_FLAGS: { key: keyof NonNullable<Pet["behavior"]>; label: string }[] = [
+  { key: "dogAggression", label: "תוקפנות כלפי כלבים" },
+  { key: "humanAggression", label: "תוקפנות כלפי בני אדם" },
+  { key: "leashReactivity", label: "ריאקטיביות בשרשרת" },
+  { key: "leashPulling", label: "משיכה בשרשרת" },
+  { key: "jumping", label: "קפיצה על אנשים" },
+  { key: "separationAnxiety", label: "חרדת נטישה" },
+  { key: "excessiveBarking", label: "נביחות מוגזמות" },
+  { key: "destruction", label: "הרס" },
+  { key: "resourceGuarding", label: "שמירת משאבים" },
+  { key: "badWithKids", label: "לא מתאים לילדים" },
+  { key: "houseSoiling", label: "כלוך בבית" },
+  { key: "biteHistory", label: "היסטוריית נשיכה" },
+  { key: "priorTraining", label: "עבר אילוף בעבר" },
+];
+
+function EditBehaviorModal({
+  petId,
+  petName,
+  behavior,
+  customerId,
+  onClose,
+}: {
+  petId: string;
+  petName: string;
+  behavior: Pet["behavior"];
+  customerId: string;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    dogAggression: behavior?.dogAggression ?? false,
+    humanAggression: behavior?.humanAggression ?? false,
+    leashReactivity: behavior?.leashReactivity ?? false,
+    leashPulling: behavior?.leashPulling ?? false,
+    jumping: behavior?.jumping ?? false,
+    separationAnxiety: behavior?.separationAnxiety ?? false,
+    excessiveBarking: behavior?.excessiveBarking ?? false,
+    destruction: behavior?.destruction ?? false,
+    resourceGuarding: behavior?.resourceGuarding ?? false,
+    badWithKids: behavior?.badWithKids ?? false,
+    houseSoiling: behavior?.houseSoiling ?? false,
+    biteHistory: behavior?.biteHistory ?? false,
+    priorTraining: behavior?.priorTraining ?? false,
+    biteDetails: behavior?.biteDetails ?? "",
+    triggers: behavior?.triggers ?? "",
+    priorTrainingDetails: behavior?.priorTrainingDetails ?? "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/pets/${petId}/behavior`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+      onClose();
+    },
+  });
+
+  const toggle = (key: string) =>
+    setForm((f) => ({ ...f, [key]: !f[key as keyof typeof f] }));
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6 max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text">התנהגות — {petName}</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          {/* Behavior flags */}
+          <div>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">דגלי התנהגות</p>
+            <div className="grid grid-cols-2 gap-y-2 gap-x-3">
+              {BEHAVIOR_EDIT_FLAGS.map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!form[key as keyof typeof form]}
+                    onChange={() => toggle(key)}
+                    className="w-4 h-4 accent-brand-500"
+                  />
+                  <span className="text-xs text-petra-text">{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          {/* Extra text fields */}
+          <div className="space-y-3">
+            {form.biteHistory && (
+              <div>
+                <label className="label">פרטי נשיכה</label>
+                <textarea
+                  className="input min-h-[60px]"
+                  value={form.biteDetails}
+                  onChange={(e) => setForm({ ...form, biteDetails: e.target.value })}
+                />
+              </div>
+            )}
+            <div>
+              <label className="label">טריגרים</label>
+              <input
+                className="input"
+                value={form.triggers}
+                onChange={(e) => setForm({ ...form, triggers: e.target.value })}
+                placeholder="קולות חזקים, כלבים אחרים..."
+              />
+            </div>
+            {form.priorTraining && (
+              <div>
+                <label className="label">פרטי אילוף קודם</label>
+                <input
+                  className="input"
+                  value={form.priorTrainingDetails}
+                  onChange={(e) => setForm({ ...form, priorTrainingDetails: e.target.value })}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button
+            className="btn-primary flex-1"
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate()}
+          >
+            {mutation.isPending ? "שומר..." : "שמור שינויים"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function CustomerProfilePage() {
@@ -1824,6 +2127,8 @@ export default function CustomerProfilePage() {
   const [intakeSending, setIntakeSending] = useState(false);
   const [medModal, setMedModal] = useState<{ petId: string; petName: string; med: DogMedication | null } | null>(null);
   const [deletingMed, setDeletingMed] = useState<{ id: string; petId: string } | null>(null);
+  const [healthModal, setHealthModal] = useState<{ pet: Pet } | null>(null);
+  const [behaviorModal, setBehaviorModal] = useState<{ pet: Pet } | null>(null);
   const { user } = useAuth();
 
   const { data: customer, isLoading } = useQuery<CustomerDetail>({
@@ -2441,12 +2746,21 @@ export default function CustomerProfilePage() {
                           </div>
 
                           {/* Health */}
-                          {pet.health && (
-                            <div>
-                              <div className="flex items-center gap-1.5 mb-1.5">
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-1.5">
                                 <Heart className="w-3.5 h-3.5 text-rose-500" />
                                 <span className="text-xs font-bold text-petra-text">בריאות</span>
                               </div>
+                              <button
+                                className="w-5 h-5 rounded flex items-center justify-center hover:bg-rose-100 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); setHealthModal({ pet }); }}
+                                title="ערוך בריאות"
+                              >
+                                <Pencil className="w-3 h-3 text-rose-500" />
+                              </button>
+                            </div>
+                            {pet.health && (
                               <div className="bg-white/60 rounded-lg p-2.5 space-y-1.5">
                                 {/* Vaccines */}
                                 {(pet.health.rabiesLastDate || pet.health.dhppLastDate || pet.health.dewormingLastDate) && (
@@ -2531,16 +2845,25 @@ export default function CustomerProfilePage() {
                                   </div>
                                 )}
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
 
                           {/* Behavior details */}
-                          {activeBehaviorFlags.length > 0 && (
-                            <div>
-                              <div className="flex items-center gap-1.5 mb-1.5">
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-1.5">
                                 <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
                                 <span className="text-xs font-bold text-petra-text">התנהגות</span>
                               </div>
+                              <button
+                                className="w-5 h-5 rounded flex items-center justify-center hover:bg-amber-100 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); setBehaviorModal({ pet }); }}
+                                title="ערוך התנהגות"
+                              >
+                                <Pencil className="w-3 h-3 text-amber-600" />
+                              </button>
+                            </div>
+                            {activeBehaviorFlags.length > 0 && (
                               <div className="bg-white/60 rounded-lg p-2.5 space-y-2">
                                 <div className="flex flex-wrap gap-1.5">
                                   {activeBehaviorFlags.map(([key, info]) => (
@@ -2555,12 +2878,6 @@ export default function CustomerProfilePage() {
                                     </span>
                                   ))}
                                 </div>
-                                {pet.behavior?.fears && (
-                                  <div className="text-[11px]">
-                                    <span className="text-stone-500">פחדים: </span>
-                                    <span className="text-stone-700">{pet.behavior.fears}</span>
-                                  </div>
-                                )}
                                 {pet.behavior?.triggers && (
                                   <div className="text-[11px]">
                                     <span className="text-stone-500">טריגרים: </span>
@@ -2580,8 +2897,8 @@ export default function CustomerProfilePage() {
                                   </div>
                                 )}
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
 
                           {/* Notes */}
                           {pet.medicalNotes && (
@@ -3138,6 +3455,24 @@ export default function CustomerProfilePage() {
           med={medModal.med}
           customerId={customerId}
           onClose={() => setMedModal(null)}
+        />
+      )}
+      {healthModal && (
+        <EditHealthModal
+          petId={healthModal.pet.id}
+          petName={healthModal.pet.name}
+          health={healthModal.pet.health}
+          customerId={customerId}
+          onClose={() => setHealthModal(null)}
+        />
+      )}
+      {behaviorModal && (
+        <EditBehaviorModal
+          petId={behaviorModal.pet.id}
+          petName={behaviorModal.pet.name}
+          behavior={behaviorModal.pet.behavior}
+          customerId={customerId}
+          onClose={() => setBehaviorModal(null)}
         />
       )}
       {deletingMed && (
