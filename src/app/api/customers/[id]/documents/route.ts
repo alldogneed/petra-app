@@ -5,6 +5,7 @@ import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { DEMO_BUSINESS_ID } from "@/lib/utils";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DOCUMENT_CATEGORIES = [
@@ -25,8 +26,8 @@ export async function GET(
     const authResult = await requireAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const customer = await prisma.customer.findUnique({
-      where: { id: params.id },
+    const customer = await prisma.customer.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
       select: { documents: true },
     });
     if (!customer) {
@@ -75,8 +76,8 @@ export async function POST(
       );
     }
 
-    const customer = await prisma.customer.findUnique({
-      where: { id: params.id },
+    const customer = await prisma.customer.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
       select: { documents: true },
     });
     if (!customer) {
@@ -150,8 +151,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Missing docId" }, { status: 400 });
     }
 
-    const customer = await prisma.customer.findUnique({
-      where: { id: params.id },
+    const customer = await prisma.customer.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
       select: { documents: true },
     });
     if (!customer) {

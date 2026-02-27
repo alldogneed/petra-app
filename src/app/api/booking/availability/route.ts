@@ -5,8 +5,11 @@ import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 // GET availability rules for a business
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
     const rules = await prisma.availabilityRule.findMany({
       where: { businessId: DEMO_BUSINESS_ID },
       orderBy: { dayOfWeek: "asc" },

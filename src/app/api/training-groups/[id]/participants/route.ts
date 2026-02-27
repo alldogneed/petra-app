@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 // POST /api/training-groups/[id]/participants – add a participant to the group
@@ -33,13 +34,16 @@ export async function POST(
       return NextResponse.json({ error: "Dog is already enrolled in this group" }, { status: 409 });
     }
 
-    // Check max participants
-    const group = await prisma.trainingGroup.findUnique({
-      where: { id: params.id },
+    // Check group belongs to business and check max participants
+    const group = await prisma.trainingGroup.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
       select: { maxParticipants: true, _count: { select: { participants: true } } },
     });
 
-    if (group?.maxParticipants && group._count.participants >= group.maxParticipants) {
+    if (!group) {
+      return NextResponse.json({ error: "Training group not found" }, { status: 404 });
+    }
+    if (group.maxParticipants && group._count.participants >= group.maxParticipants) {
       return NextResponse.json({ error: "Group is full" }, { status: 400 });
     }
 

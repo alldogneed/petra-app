@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function PATCH(
@@ -13,9 +14,13 @@ export async function PATCH(
 
     const body = await request.json();
 
-    // Verify session belongs to this group
+    // Verify group belongs to this business and session belongs to this group
     const existing = await prisma.trainingGroupSession.findFirst({
-      where: { id: params.sessionId, trainingGroupId: params.id },
+      where: {
+        id: params.sessionId,
+        trainingGroupId: params.id,
+        trainingGroup: { businessId: DEMO_BUSINESS_ID },
+      },
     });
     if (!existing) {
       return NextResponse.json({ error: "מפגש לא נמצא" }, { status: 404 });

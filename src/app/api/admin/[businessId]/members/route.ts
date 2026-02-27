@@ -53,7 +53,7 @@ export async function GET(
 const InviteSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1).max(100),
-  role: z.enum(["owner", "manager", "user"]).default("user"),
+  role: z.enum(["owner", "manager", "user", "volunteer"]).default("user"),
   // If user doesn't exist yet, create with temp password
   temporaryPassword: z.string().min(8).optional(),
 });
@@ -71,13 +71,6 @@ export async function POST(
   const { session, membership } = guard;
 
   const { ip, userAgent } = getRequestContext(request);
-
-  // Only owner can invite another owner
-  if (membership.role !== "owner") {
-    if (/* inviting as owner */ false) { // checked in next block
-      return NextResponse.json({ error: "Only owner can invite as owner" }, { status: 403 });
-    }
-  }
 
   let body: z.infer<typeof InviteSchema>;
   try {

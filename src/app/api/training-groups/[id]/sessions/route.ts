@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function POST(
@@ -12,6 +13,14 @@ export async function POST(
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
+
+    // Verify group belongs to this business
+    const group = await prisma.trainingGroup.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+    });
+    if (!group) {
+      return NextResponse.json({ error: "Training group not found" }, { status: 404 });
+    }
 
     // Get session count for numbering
     const count = await prisma.trainingGroupSession.count({

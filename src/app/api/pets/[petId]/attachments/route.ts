@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
@@ -23,8 +24,8 @@ export async function POST(
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    const pet = await prisma.pet.findUnique({
-      where: { id: params.petId },
+    const pet = await prisma.pet.findFirst({
+      where: { id: params.petId, customer: { businessId: DEMO_BUSINESS_ID } },
       select: { attachments: true },
     });
     if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
