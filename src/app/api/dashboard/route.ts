@@ -230,6 +230,42 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.total - a.total)
       .slice(0, 5);
 
+    // At-risk customers: last appointment was 60+ days ago, had 2+ total appointments
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const atRiskRaw = await prisma.customer.findMany({
+      where: {
+        businessId,
+        appointments: {
+          none: { date: { gte: sixtyDaysAgo } },
+          some: {},
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        appointments: {
+          select: { date: true },
+          orderBy: { date: "desc" },
+          take: 1,
+        },
+        _count: { select: { appointments: true } },
+      },
+      take: 30,
+    });
+    const atRiskCustomers = atRiskRaw
+      .filter((c) => c._count.appointments >= 2 && c.appointments.length > 0)
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        lastAppointment: c.appointments[0].date.toISOString(),
+        daysSinceVisit: Math.floor((now.getTime() - c.appointments[0].date.getTime()) / (1000 * 60 * 60 * 24)),
+        totalVisits: c._count.appointments,
+      }))
+      .sort((a, b) => b.daysSinceVisit - a.daysSinceVisit)
+      .slice(0, 8);
+
     // Get top service name
     let topService: { name: string; count: number } | null = null;
     if (topServiceResult.length > 0) {
@@ -301,6 +337,7 @@ export async function GET(request: NextRequest) {
         petName: a.pet?.name ?? null,
         serviceName: a.service.name,
       })),
+      atRiskCustomers,
       todayArrivals: todayArrivals.map((s) => ({
         id: s.id,
         checkIn: s.checkIn.toISOString(),
