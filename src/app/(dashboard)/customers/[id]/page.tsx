@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   ArrowRight,
   Phone,
@@ -1346,9 +1346,11 @@ export default function CustomerProfilePage() {
   const params = useParams();
   const customerId = params.id as string;
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const [showPetModal, setShowPetModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [selectedPetDocs, setSelectedPetDocs] = useState<{
     id: string;
     name: string;
@@ -1396,6 +1398,16 @@ export default function CustomerProfilePage() {
       setCompletingAptId(null);
     },
     onError: () => setCompletingAptId(null),
+  });
+
+  const deleteCustomerMutation = useMutation({
+    mutationFn: () =>
+      fetchJSON(`/api/customers/${customerId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      router.push("/customers");
+    },
+    onError: () => setConfirmDelete(false),
   });
 
   if (isLoading) {
@@ -1476,6 +1488,32 @@ export default function CustomerProfilePage() {
             <Send className="w-4 h-4" />
             בקשת תשלום
           </Link>
+          {confirmDelete ? (
+            <span className="flex items-center gap-2 text-sm">
+              <span className="text-red-600 font-medium">מחק לקוח?</span>
+              <button
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                onClick={() => deleteCustomerMutation.mutate()}
+                disabled={deleteCustomerMutation.isPending}
+              >
+                {deleteCustomerMutation.isPending ? "מוחק..." : "כן, מחק"}
+              </button>
+              <button
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                onClick={() => setConfirmDelete(false)}
+              >
+                ביטול
+              </button>
+            </span>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors"
+              title="מחק לקוח"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={() => setShowOrderModal(true)}
             className="btn-primary flex items-center gap-2"

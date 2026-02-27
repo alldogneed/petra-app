@@ -698,11 +698,13 @@ function StayRow({
   stay,
   onCheckin,
   onCheckout,
+  onExtend,
   settings,
 }: {
   stay: BoardingStay;
   onCheckin: (id: string) => void;
   onCheckout: (id: string) => void;
+  onExtend: (id: string) => void;
   settings: BusinessSettings;
 }) {
   const st = STATUS_MAP[stay.status] || STATUS_MAP.reserved;
@@ -772,9 +774,14 @@ function StayRow({
         </button>
       )}
       {stay.status === "checked_in" && (
-        <button className="btn-ghost text-xs flex-shrink-0" onClick={() => onCheckout(stay.id)}>
-          <Clock className="w-3.5 h-3.5" />צ׳ק-אאוט
-        </button>
+        <div className="flex gap-1 flex-shrink-0">
+          <button className="btn-ghost text-xs" onClick={() => onExtend(stay.id)} title="הארך שהות">
+            <Calendar className="w-3.5 h-3.5" />הארך
+          </button>
+          <button className="btn-ghost text-xs" onClick={() => onCheckout(stay.id)}>
+            <Clock className="w-3.5 h-3.5" />צ׳ק-אאוט
+          </button>
+        </div>
       )}
     </div>
   );
@@ -986,6 +993,82 @@ function CheckoutDialog({
   );
 }
 
+// ─── Extend Stay Dialog ──────────────────────────────────────────────────────
+
+function ExtendStayDialog({
+  stay,
+  onConfirm,
+  onCancel,
+  isPending,
+}: {
+  stay: BoardingStay;
+  onConfirm: (checkOut: string) => void;
+  onCancel: () => void;
+  isPending: boolean;
+}) {
+  const currentCheckout = stay.checkOut
+    ? new Date(stay.checkOut).toISOString().slice(0, 10)
+    : new Date().toISOString().slice(0, 10);
+  const [newCheckout, setNewCheckout] = useState(currentCheckout);
+
+  const minDate = new Date(Math.max(
+    new Date(stay.checkIn).getTime() + 86400000,
+    Date.now()
+  )).toISOString().slice(0, 10);
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onCancel} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-lg font-bold text-petra-text">הארכת שהות</h2>
+            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer.name}</p>
+          </div>
+          <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm space-y-1.5">
+            <div className="flex justify-between">
+              <span className="text-petra-muted">כניסה:</span>
+              <span className="font-medium">{new Date(stay.checkIn).toLocaleDateString("he-IL")}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-petra-muted">יציאה נוכחית:</span>
+              <span className="font-medium">{stay.checkOut ? new Date(stay.checkOut).toLocaleDateString("he-IL") : "לא מוגדר"}</span>
+            </div>
+          </div>
+          <div>
+            <label className="label">תאריך יציאה חדש *</label>
+            <input
+              type="date"
+              className="input"
+              value={newCheckout}
+              min={minDate}
+              onChange={(e) => setNewCheckout(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            className="btn-primary flex-1"
+            disabled={isPending || !newCheckout || newCheckout <= stay.checkIn.slice(0, 10)}
+            onClick={() => onConfirm(newCheckout + "T12:00:00")}
+          >
+            <Calendar className="w-4 h-4" />
+            {isPending ? "שומר..." : "עדכן תאריך יציאה"}
+          </button>
+          <button className="btn-secondary" onClick={onCancel}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Vaccination Alert Banner ────────────────────────────────────────────────
 
 interface VaccinationAlert {
@@ -1124,6 +1207,7 @@ export default function BoardingPage() {
   // Dialog state
   const [checkinDialogStay, setCheckinDialogStay] = useState<BoardingStay | null>(null);
   const [checkoutDialogStay, setCheckoutDialogStay] = useState<BoardingStay | null>(null);
+  const [extendDialogStay, setExtendDialogStay] = useState<BoardingStay | null>(null);
 
   // Rooms manager
   const [showRoomsManager, setShowRoomsManager] = useState(false);
@@ -1256,6 +1340,22 @@ export default function BoardingPage() {
     onError: () => toast.error("שגיאה בעדכון החדר. נסה שוב."),
   });
 
+  const extendMutation = useMutation({
+    mutationFn: ({ id, checkOut }: { id: string; checkOut: string }) =>
+      fetchJSON(`/api/boarding/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checkOut }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["boarding"] });
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      setExtendDialogStay(null);
+      toast.success("תאריך היציאה עודכן בהצלחה");
+    },
+    onError: () => toast.error("שגיאה בעדכון תאריך היציאה. נסה שוב."),
+  });
+
   const createRoomMutation = useMutation({
     mutationFn: (data: { name: string; capacity: number; type: string }) =>
       fetch("/api/boarding/rooms", {
@@ -1313,6 +1413,11 @@ export default function BoardingPage() {
   const handleCheckout = (id: string) => {
     const stay = stays.find((s) => s.id === id);
     if (stay) setCheckoutDialogStay(stay);
+  };
+
+  const handleExtend = (id: string) => {
+    const stay = stays.find((s) => s.id === id);
+    if (stay) setExtendDialogStay(stay);
   };
 
   const confirmCheckin = (data: { actualTime: string; notes: string }) => {
@@ -1629,6 +1734,7 @@ export default function BoardingPage() {
                 stay={stay}
                 onCheckin={handleCheckin}
                 onCheckout={handleCheckout}
+                onExtend={handleExtend}
                 settings={settings}
               />
             ))}
@@ -2068,6 +2174,16 @@ export default function BoardingPage() {
           onConfirm={confirmCheckout}
           onCancel={() => setCheckoutDialogStay(null)}
           isPending={statusMutation.isPending}
+        />
+      )}
+
+      {/* ── Extend Stay Dialog ── */}
+      {extendDialogStay && (
+        <ExtendStayDialog
+          stay={extendDialogStay}
+          onConfirm={(checkOut) => extendMutation.mutate({ id: extendDialogStay.id, checkOut })}
+          onCancel={() => setExtendDialogStay(null)}
+          isPending={extendMutation.isPending}
         />
       )}
     </div>
