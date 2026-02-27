@@ -55,6 +55,8 @@ interface AnalyticsData {
   charts: {
     appointmentsByDate: { date: string; count: number }[];
     revenueByService: { name: string; revenue: number }[];
+    appointmentsByDayOfWeek: { day: string; count: number }[];
+    appointmentsByHour: { hour: number; label: string; count: number }[];
   };
   topCustomers: { id: string; name: string; revenue: number; count: number }[];
 }
@@ -402,6 +404,76 @@ function AnalyticsContent() {
               </div>
             )}
           </div>
+          {/* Scheduling Heatmap */}
+          {((data.charts.appointmentsByDayOfWeek?.some((d) => d.count > 0)) ||
+            (data.charts.appointmentsByHour?.length ?? 0) > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+              {/* By Day of Week */}
+              {data.charts.appointmentsByDayOfWeek?.some((d) => d.count > 0) && (
+                <div className="card p-5">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-brand-500" />
+                    תורים לפי יום בשבוע
+                  </h3>
+                  {(() => {
+                    const maxCount = Math.max(...data.charts.appointmentsByDayOfWeek.map((d) => d.count), 1);
+                    return (
+                      <div className="flex items-end gap-2 h-32">
+                        {data.charts.appointmentsByDayOfWeek.map((d, i) => {
+                          const pct = Math.max((d.count / maxCount) * 100, d.count > 0 ? 4 : 0);
+                          return (
+                            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                              {d.count > 0 && (
+                                <span className="text-[9px] text-petra-muted font-medium">{d.count}</span>
+                              )}
+                              <div
+                                className="w-full rounded-t-md bg-brand-400 hover:bg-brand-500 transition-colors"
+                                style={{ height: `${pct}%`, minHeight: d.count > 0 ? "4px" : "0" }}
+                              />
+                              <span className="text-[9px] text-petra-muted">{d.day}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* By Hour */}
+              {(data.charts.appointmentsByHour?.length ?? 0) > 0 && (
+                <div className="card p-5">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-brand-500" />
+                    תורים לפי שעה
+                  </h3>
+                  {(() => {
+                    const maxCount = Math.max(...data.charts.appointmentsByHour.map((h) => h.count), 1);
+                    return (
+                      <div className="flex items-end gap-1 h-32">
+                        {data.charts.appointmentsByHour.map((h) => {
+                          const pct = Math.max((h.count / maxCount) * 100, 4);
+                          return (
+                            <div key={h.hour} className="flex-1 flex flex-col items-center gap-1 group">
+                              <span className="text-[9px] text-muted opacity-0 group-hover:opacity-100 transition-opacity">
+                                {h.count}
+                              </span>
+                              <div
+                                className="w-full rounded-t-md bg-violet-400 hover:bg-violet-500 transition-colors"
+                                style={{ height: `${pct}%` }}
+                                title={`${h.label}: ${h.count} תורים`}
+                              />
+                              <span className="text-[8px] text-muted">{h.hour}:00</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
         </>
       ) : null}
     </div>

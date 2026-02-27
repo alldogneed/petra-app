@@ -131,6 +131,27 @@ export async function GET(request: NextRequest) {
     const currentRevenue = totalPayments._sum.amount || 0;
     const previousRevenue = prevPayments._sum.amount || 0;
 
+    // Appointments by day of week and hour (for scheduling heatmap)
+    const allAppointments = await prisma.appointment.findMany({
+      where: { businessId: DEMO_BUSINESS_ID, date: { gte: fromDate } },
+      select: { date: true, startTime: true },
+    });
+
+    const dayLabels = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+    const byDayOfWeek = Array.from({ length: 7 }, (_, i) => ({ day: dayLabels[i], count: 0 }));
+    const byHour: Record<number, number> = {};
+
+    for (const a of allAppointments) {
+      const dow = new Date(a.date).getDay(); // 0=Sun
+      byDayOfWeek[dow].count += 1;
+      const hour = parseInt(a.startTime.split(":")[0], 10);
+      if (!isNaN(hour)) byHour[hour] = (byHour[hour] || 0) + 1;
+    }
+
+    const appointmentsByHour = Object.entries(byHour)
+      .map(([h, count]) => ({ hour: parseInt(h, 10), label: `${h}:00`, count }))
+      .sort((a, b) => a.hour - b.hour);
+
     // Top customers by revenue this period
     const topCustomerPayments = await prisma.payment.findMany({
       where: { businessId: DEMO_BUSINESS_ID, status: "paid", paidAt: { gte: fromDate } },
@@ -222,6 +243,8 @@ export async function GET(request: NextRequest) {
           count: a._count,
         })),
         revenueByService,
+        appointmentsByDayOfWeek: byDayOfWeek,
+        appointmentsByHour,
       },
       topCustomers,
     });
