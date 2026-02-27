@@ -1759,6 +1759,43 @@ export default function BoardingPage() {
               </a>
             );
           })()}
+          {activeStays.filter((s) => s.status === "checked_in" && (s.pet.foodNotes || (s.pet.medications && s.pet.medications.length > 0))).length > 0 && (() => {
+            const checkedIn = activeStays.filter((s) => s.status === "checked_in");
+            const todayStr3 = new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
+            const lines = [
+              `🍽️ סבב האכלה — ${todayStr3}`,
+              "",
+            ];
+            for (const s of checkedIn) {
+              const hasFoodInfo = s.pet.foodNotes || (s.pet.medications && s.pet.medications.length > 0) || s.pet.health?.allergies;
+              if (!hasFoodInfo) continue;
+              lines.push(`🐾 *${s.pet.name}* — ${s.room?.name || "ללא חדר"}`);
+              if (s.pet.health?.allergies) lines.push(`  ⚠️ אלרגיות: ${s.pet.health.allergies}`);
+              if (s.pet.foodNotes) lines.push(`  🍗 ${s.pet.foodNotes}`);
+              if (s.pet.medications && s.pet.medications.length > 0) {
+                s.pet.medications.forEach((m) => {
+                  const parts = [m.medName];
+                  if (m.dosage) parts.push(m.dosage);
+                  if (m.times) parts.push(m.times);
+                  lines.push(`  💊 ${parts.join(" · ")}`);
+                });
+              }
+              lines.push("");
+            }
+            const waUrl = `https://wa.me/?text=${encodeURIComponent(lines.join("\n").trim())}`;
+            return (
+              <a
+                href={waUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary hidden sm:flex"
+                title="סבב האכלה"
+              >
+                <Share2 className="w-4 h-4" />
+                האכלה
+              </a>
+            );
+          })()}
           <button className="btn-secondary" onClick={() => setShowRoomsManager(true)}>
             <Settings2 className="w-4 h-4" />ניהול חדרים
           </button>
