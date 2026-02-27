@@ -1,72 +1,74 @@
 export const dynamic = 'force-dynamic';
-import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
+// PATCH /api/price-list-items/[id]
 export async function PATCH(
-  req: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(req);
+    const authResult = await requireAuth(request);
     if (isGuardError(authResult)) return authResult;
-
-    const body = await req.json();
 
     const existing = await prisma.priceListItem.findFirst({
       where: { id: params.id, businessId: DEMO_BUSINESS_ID },
     });
-    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-    if (body.basePrice !== undefined && Number(body.basePrice) < 0) {
-      return NextResponse.json({ error: "basePrice must be >= 0" }, { status: 400 });
+    if (!existing) {
+      return NextResponse.json({ error: "Item not found" }, { status: 404 });
     }
 
-    const updated = await prisma.priceListItem.update({
+    const body = await request.json();
+    const data: Record<string, unknown> = {};
+
+    if (body.name !== undefined) data.name = String(body.name).trim();
+    if (body.category !== undefined) data.category = body.category || null;
+    if (body.basePrice !== undefined) data.basePrice = Number(body.basePrice);
+    if (body.description !== undefined) data.description = body.description || null;
+    if (body.unit !== undefined) data.unit = body.unit;
+    if (body.durationMinutes !== undefined)
+      data.durationMinutes = body.durationMinutes ? Number(body.durationMinutes) : null;
+    if (body.defaultQuantity !== undefined) data.defaultQuantity = Number(body.defaultQuantity);
+    if (body.taxMode !== undefined) data.taxMode = body.taxMode;
+    if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
+    if (body.sortOrder !== undefined) data.sortOrder = Number(body.sortOrder);
+    if (body.paymentUrl !== undefined) data.paymentUrl = body.paymentUrl || null;
+
+    const item = await prisma.priceListItem.update({
       where: { id: params.id },
-      data: {
-        ...(body.name !== undefined && { name: body.name.trim() }),
-        ...(body.description !== undefined && { description: body.description }),
-        ...(body.category !== undefined && { category: body.category }),
-        ...(body.type !== undefined && { type: body.type }),
-        ...(body.unit !== undefined && { unit: body.unit }),
-        ...(body.basePrice !== undefined && { basePrice: Number(body.basePrice) }),
-        ...(body.taxMode !== undefined && { taxMode: body.taxMode }),
-        ...(body.durationMinutes !== undefined && { durationMinutes: body.durationMinutes ? Number(body.durationMinutes) : null }),
-        ...(body.defaultQuantity !== undefined && { defaultQuantity: Number(body.defaultQuantity) }),
-        ...(body.isActive !== undefined && { isActive: body.isActive }),
-        ...(body.sortOrder !== undefined && { sortOrder: Number(body.sortOrder) }),
-      },
+      data,
     });
-    return NextResponse.json(updated);
-  } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+
+    return NextResponse.json(item);
+  } catch (error) {
+    console.error("Error updating price list item:", error);
+    return NextResponse.json({ error: "Failed to update item" }, { status: 500 });
   }
 }
 
+// DELETE /api/price-list-items/[id]
 export async function DELETE(
-  req: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(req);
+    const authResult = await requireAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const existing = await prisma.priceListItem.findFirst({
       where: { id: params.id, businessId: DEMO_BUSINESS_ID },
     });
-    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!existing) {
+      return NextResponse.json({ error: "Item not found" }, { status: 404 });
+    }
 
-    // Soft-delete to preserve order snapshots
-    await prisma.priceListItem.update({
-      where: { id: params.id },
-      data: { isActive: false },
-    });
-    return NextResponse.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    await prisma.priceListItem.delete({ where: { id: params.id } });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Error deleting price list item:", error);
+    return NextResponse.json({ error: "Failed to delete item" }, { status: 500 });
   }
 }

@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
-    const { name, category, unit, basePrice, description, type, taxMode, durationMinutes, defaultQuantity } = body;
+    const { name, category, unit, basePrice, description, type, taxMode, durationMinutes, defaultQuantity, paymentUrl } = body;
 
     if (!name || basePrice === undefined) {
       return NextResponse.json({ error: "name and basePrice are required" }, { status: 400 });
@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
         taxMode: taxMode || "inherit",
         durationMinutes: durationMinutes ? Number(durationMinutes) : null,
         defaultQuantity: defaultQuantity ? Number(defaultQuantity) : 1,
+        paymentUrl: paymentUrl || null,
       },
     });
 

@@ -14,6 +14,8 @@ import {
   Percent,
   Calculator,
   MessageCircle,
+  Link as LinkIcon,
+  ExternalLink,
 } from "lucide-react";
 import { cn, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 
@@ -91,6 +93,9 @@ export default function PaymentRequestPage() {
   const [discountPercent, setDiscountPercent] = useState(0);
   const [isManualOverride, setIsManualOverride] = useState(false);
   const [manualPrice, setManualPrice] = useState(0);
+
+  // Payment URL — auto-filled from first selected product that has one, overridable by user
+  const [customPaymentUrl, setCustomPaymentUrl] = useState("");
 
   // Customer search query
   const { data: searchResults = [] } = useQuery<Customer[]>({
@@ -187,13 +192,23 @@ export default function PaymentRequestPage() {
     return items;
   }, [selectedItems, products]);
 
-  // Use first selected product's payment URL, or a generic one
-  const paymentUrl = useMemo(() => {
-    if (selectedProductsList.length > 0) {
-      return selectedProductsList[0].product.paymentUrl;
+  // Auto-fill payment URL from first selected product that has one
+  const autoPaymentUrl = useMemo(() => {
+    for (const { product } of selectedProductsList) {
+      if (product.paymentUrl) return product.paymentUrl;
     }
-    return "https://pay.example.com";
+    return "";
   }, [selectedProductsList]);
+
+  // Effective URL: custom override takes priority, else auto from product
+  const effectivePaymentUrl = customPaymentUrl.trim() || autoPaymentUrl;
+
+  // Sync auto URL into the input when products change (only if user hasn't typed their own)
+  useEffect(() => {
+    if (!customPaymentUrl) {
+      // no-op: we show autoPaymentUrl as placeholder
+    }
+  }, [autoPaymentUrl, customPaymentUrl]);
 
   function buildWhatsAppUrl(): string {
     if (!selectedCustomer) return "#";
@@ -211,7 +226,10 @@ export default function PaymentRequestPage() {
     }
 
     message += `\n\nסה"כ לתשלום: ₪${finalPrice}`;
-    message += `\n\nלתשלום: ${paymentUrl}`;
+
+    if (effectivePaymentUrl) {
+      message += `\n\nלתשלום: ${effectivePaymentUrl}`;
+    }
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   }
@@ -530,6 +548,41 @@ export default function PaymentRequestPage() {
                     <span className="text-base font-bold text-petra-text">סה&quot;כ לתשלום</span>
                     <span className="text-xl font-bold text-orange-600">₪{finalPrice}</span>
                   </div>
+                </div>
+
+                {/* Payment URL */}
+                <div className="border-t border-slate-200 pt-3 space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <LinkIcon className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                    <span className="text-xs font-medium text-slate-500">קישור לתשלום</span>
+                    {effectivePaymentUrl && (
+                      <a
+                        href={effectivePaymentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mr-auto"
+                      >
+                        <ExternalLink className="w-3 h-3 text-blue-400 hover:text-blue-600" />
+                      </a>
+                    )}
+                  </div>
+                  <input
+                    type="url"
+                    value={customPaymentUrl}
+                    onChange={(e) => setCustomPaymentUrl(e.target.value)}
+                    placeholder={autoPaymentUrl || "הדבק קישור לדף תשלום..."}
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 placeholder:text-slate-300"
+                  />
+                  {!customPaymentUrl && autoPaymentUrl && (
+                    <p className="text-xs text-slate-400">
+                      ↑ קישור אוטומטי מהמוצר הנבחר
+                    </p>
+                  )}
+                  {!effectivePaymentUrl && (
+                    <p className="text-xs text-amber-500">
+                      ללא קישור — ההודעה תישלח ללא לינק תשלום
+                    </p>
+                  )}
                 </div>
 
                 {/* WhatsApp Send Button */}
