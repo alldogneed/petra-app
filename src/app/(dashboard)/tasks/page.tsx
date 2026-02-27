@@ -25,6 +25,7 @@ import {
   Flame,
   Timer,
   CalendarDays,
+  Calendar,
   Filter,
   Pencil,
   Search,
@@ -348,6 +349,48 @@ export default function TasksPage() {
           משימה חדשה
         </button>
       </div>
+
+      {/* Quick Stats Strip */}
+      {allTasks.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          <div className="card p-3 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="w-4 h-4 text-red-500" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-petra-text">{statusCounts.overdue || 0}</p>
+              <p className="text-[10px] text-petra-muted">באיחור</p>
+            </div>
+          </div>
+          <div className="card p-3 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+              <Clock className="w-4 h-4 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-petra-text">{statusCounts.active || 0}</p>
+              <p className="text-[10px] text-petra-muted">פעיל עכשיו</p>
+            </div>
+          </div>
+          <div className="card p-3 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+              <Calendar className="w-4 h-4 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-petra-text">{statusCounts.scheduled || 0}</p>
+              <p className="text-[10px] text-petra-muted">מתוכנן</p>
+            </div>
+          </div>
+          <div className="card p-3 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-petra-text">{statusCounts.completed || 0}</p>
+              <p className="text-[10px] text-petra-muted">הושלמו</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative mb-4">
