@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         customer: {
-          select: { name: true, phone: true },
+          select: { id: true, name: true, phone: true },
         },
         appointment: {
           include: {
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       },
       include: {
         customer: {
-          select: { name: true, phone: true },
+          select: { id: true, name: true, phone: true },
         },
         appointment: {
           include: {

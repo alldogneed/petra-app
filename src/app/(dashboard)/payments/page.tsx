@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import Link from "next/link";
 import {
   CreditCard,
   Plus,
@@ -30,7 +31,7 @@ interface Payment {
   notes: string | null;
   paidAt: string | null;
   createdAt: string;
-  customer: { name: string; phone: string };
+  customer: { id: string; name: string; phone: string };
   appointment: { service: { name: string } } | null;
   boardingStay: { pet: { name: string }; room: { name: string } } | null;
 }
@@ -317,7 +318,12 @@ export default function PaymentsPage() {
                 <div key={payment.id} className="p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="text-sm font-medium text-petra-text">{payment.customer.name}</p>
+                      <Link
+                        href={`/customers/${payment.customer.id}`}
+                        className="text-sm font-medium text-petra-text hover:text-brand-600 transition-colors"
+                      >
+                        {payment.customer.name}
+                      </Link>
                       <p className="text-xs text-petra-muted">{payment.customer.phone}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
@@ -466,9 +472,13 @@ export default function PaymentsPage() {
                     >
                       <td className="table-cell">
                         <div>
-                          <p className="text-sm font-medium text-petra-text">
+                          <Link
+                            href={`/customers/${payment.customer.id}`}
+                            className="text-sm font-medium text-petra-text hover:text-brand-600 transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             {payment.customer.name}
-                          </p>
+                          </Link>
                           <p className="text-[10px] text-petra-muted">
                             {payment.customer.phone}
                           </p>

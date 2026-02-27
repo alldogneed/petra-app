@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import {
   DndContext,
   DragOverlay,
@@ -724,7 +725,13 @@ function StayRow({
           <span className="text-sm font-semibold text-petra-text">{stay.pet.name}</span>
           {stay.pet.breed && <span className="text-xs text-petra-muted">({stay.pet.breed})</span>}
           <span className="text-sm text-petra-muted">—</span>
-          <span className="text-sm text-petra-muted">{stay.customer.name}</span>
+          <Link
+            href={`/customers/${stay.customer.id}`}
+            className="text-sm text-petra-muted hover:text-brand-600 transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {stay.customer.name}
+          </Link>
           {isCheckinToday && (
             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-brand-50 text-brand-600 border border-brand-100">
               <LogIn className="w-2.5 h-2.5" />צ׳ק-אין היום
