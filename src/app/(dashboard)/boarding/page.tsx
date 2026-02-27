@@ -36,8 +36,11 @@ import {
   GanttChart,
   Sparkles,
   Users,
+  ShieldAlert,
+  MessageCircle,
+  ChevronDown,
 } from "lucide-react";
-import { cn, fetchJSON } from "@/lib/utils";
+import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -965,6 +968,129 @@ function CheckoutDialog({
   );
 }
 
+// ─── Vaccination Alert Banner ────────────────────────────────────────────────
+
+interface VaccinationAlert {
+  petId: string;
+  petName: string;
+  customerName: string;
+  customerPhone: string;
+  rabiesValidUntil: string | null;
+  status: "expired" | "expiring_soon" | "valid";
+}
+
+interface HealthAlertsData {
+  alerts: VaccinationAlert[];
+  totalAlerts: number;
+  expired: number;
+  expiringSoon: number;
+}
+
+function VaccinationAlertBanner() {
+  const [expanded, setExpanded] = useState(false);
+
+  const { data } = useQuery<HealthAlertsData>({
+    queryKey: ["health-alerts"],
+    queryFn: () => fetchJSON<HealthAlertsData>("/api/health-alerts?days=30"),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  if (!data || data.totalAlerts === 0) return null;
+
+  const shown = expanded ? data.alerts : data.alerts.slice(0, 3);
+  const hasMore = data.alerts.length > 3;
+
+  return (
+    <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 overflow-hidden">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center gap-3 p-3 text-left"
+      >
+        <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-semibold text-amber-900">
+            {data.expired > 0
+              ? `${data.expired} כלבים עם חיסון פג תוקף`
+              : `${data.expiringSoon} כלבים עם חיסון פג בקרוב`}
+          </span>
+          {data.expired > 0 && data.expiringSoon > 0 && (
+            <span className="text-xs text-amber-700 mr-2">
+              (+{data.expiringSoon} שפוגים ב-30 יום)
+            </span>
+          )}
+        </div>
+        <ChevronDown
+          className={cn(
+            "w-4 h-4 text-amber-600 transition-transform shrink-0",
+            expanded && "rotate-180"
+          )}
+        />
+      </button>
+
+      {expanded && (
+        <div className="border-t border-amber-200 divide-y divide-amber-100">
+          {shown.map((alert) => {
+            const waPhone = toWhatsAppPhone(alert.customerPhone);
+            const msg = encodeURIComponent(
+              `שלום ${alert.customerName}, חיסון הכלוף של ${alert.petName} פג תוקף${alert.rabiesValidUntil ? ` בתאריך ${formatDate(alert.rabiesValidUntil)}` : ""}. נא לחדש לפני הכניסה לפנסיון.`
+            );
+            return (
+              <div
+                key={alert.petId}
+                className="flex items-center gap-3 px-4 py-2.5 bg-white/60"
+              >
+                <div
+                  className={cn(
+                    "w-2 h-2 rounded-full shrink-0",
+                    alert.status === "expired" ? "bg-red-500" : "bg-amber-400"
+                  )}
+                />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium text-petra-text">
+                    {alert.petName}
+                  </span>
+                  <span className="text-xs text-petra-muted mr-2">
+                    ({alert.customerName})
+                  </span>
+                  {alert.rabiesValidUntil && (
+                    <span
+                      className={cn(
+                        "text-xs font-medium",
+                        alert.status === "expired" ? "text-red-600" : "text-amber-700"
+                      )}
+                    >
+                      כלב: {formatDate(alert.rabiesValidUntil)}
+                    </span>
+                  )}
+                </div>
+                {waPhone && (
+                  <a
+                    href={`https://wa.me/${waPhone}?text=${msg}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 shrink-0"
+                  >
+                    <MessageCircle className="w-3 h-3" />
+                    תזכורת
+                  </a>
+                )}
+              </div>
+            );
+          })}
+          {hasMore && !expanded && (
+            <button
+              onClick={() => setExpanded(true)}
+              className="w-full text-xs text-amber-700 py-2 hover:bg-amber-100"
+            >
+              הצג עוד {data.alerts.length - 3}...
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function BoardingPage() {
@@ -1252,6 +1378,9 @@ export default function BoardingPage() {
           </button>
         </div>
       </div>
+
+      {/* Vaccination Alert Banner */}
+      <VaccinationAlertBanner />
 
       {/* Room Stats Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
