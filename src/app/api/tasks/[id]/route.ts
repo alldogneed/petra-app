@@ -100,6 +100,18 @@ export async function PATCH(
       undefined;
     if (action) logActivity(session.user.id, session.user.name, action);
 
+    // Write audit log entry
+    const auditAction = isCompleting ? "COMPLETED" : isReopening ? "REOPENED" :
+      status === "CANCELED" ? "CANCELED" : "UPDATED";
+    await prisma.taskAuditLog.create({
+      data: {
+        taskId: id,
+        action: auditAction,
+        userId: session.user.id,
+        payload: JSON.stringify({ status, title, priority }),
+      },
+    });
+
     return NextResponse.json(task);
   } catch (error) {
     console.error("Error updating task:", error);
@@ -127,6 +139,16 @@ export async function DELETE(
     if (!existing) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
+
+    // Audit before delete (so taskId still valid)
+    await prisma.taskAuditLog.create({
+      data: {
+        taskId: id,
+        action: "DELETED",
+        userId: authResult.session.user.id,
+        payload: JSON.stringify({ title: existing.title }),
+      },
+    });
 
     await prisma.task.delete({ where: { id } });
 

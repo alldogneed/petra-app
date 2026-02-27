@@ -127,6 +127,16 @@ export async function POST(request: NextRequest) {
     });
 
     logCurrentUserActivity("CREATE_TASK");
+
+    await prisma.taskAuditLog.create({
+      data: {
+        taskId: task.id,
+        action: "CREATED",
+        userId: authResult.session.user.id,
+        payload: JSON.stringify({ title: task.title, priority: task.priority, category: task.category }),
+      },
+    });
+
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
     console.error("Error creating task:", error);
