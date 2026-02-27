@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     const now = new Date();
 
-    const [openTasks, overdueFollowUps] = await Promise.all([
+    const [openTasks, overdueFollowUps, pendingBookings] = await Promise.all([
       // Open tasks (not completed/canceled)
       prisma.task.count({
         where: {
@@ -32,9 +32,14 @@ export async function GET(request: NextRequest) {
           lostAt: null,
         },
       }),
+
+      // Online bookings awaiting approval
+      prisma.booking.count({
+        where: { businessId: DEMO_BUSINESS_ID, status: "pending" },
+      }),
     ]);
 
-    return NextResponse.json({ openTasks, overdueFollowUps });
+    return NextResponse.json({ openTasks, overdueFollowUps, pendingBookings });
   } catch (error) {
     console.error("Error fetching counters:", error);
     return NextResponse.json({ openTasks: 0, overdueFollowUps: 0 });

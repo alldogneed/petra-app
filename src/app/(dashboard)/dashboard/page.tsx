@@ -173,6 +173,7 @@ interface DashboardStats {
     age: number;
     customer: { id: string; name: string; phone: string };
   }[];
+  pendingBookings?: number;
 }
 
 interface ActivityItem {
@@ -1711,6 +1712,15 @@ export default function DashboardPage() {
           color="#8B5CF6"
           href="/leads"
         />
+        {(data.pendingBookings ?? 0) > 0 && (
+          <StatCard
+            title="תורים ממתינים לאישור"
+            value={data.pendingBookings ?? 0}
+            icon={CalendarClock}
+            color="#EF4444"
+            href="/bookings"
+          />
+        )}
       </div>
 
       {/* Boarding Today Widget */}

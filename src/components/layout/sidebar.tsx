@@ -88,7 +88,7 @@ export function Sidebar({
   const isMaster = user?.role === "MASTER";
 
   // Urgency counters for sidebar badges
-  const { data: counters } = useQuery<{ openTasks: number; overdueFollowUps: number }>({
+  const { data: counters } = useQuery<{ openTasks: number; overdueFollowUps: number; pendingBookings: number }>({
     queryKey: ["sidebar-counters"],
     queryFn: () => fetch("/api/dashboard/counters").then((r) => r.json()),
     refetchInterval: 60_000, // refresh every minute
@@ -98,6 +98,7 @@ export function Sidebar({
   const BADGES: Record<string, number> = {
     "/tasks": counters?.openTasks || 0,
     "/leads": counters?.overdueFollowUps || 0,
+    "/bookings": counters?.pendingBookings || 0,
   };
 
   const renderNavItem = (item: NavItem, isMobile: boolean) => {

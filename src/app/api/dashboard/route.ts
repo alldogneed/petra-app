@@ -161,6 +161,11 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // Pending online bookings count
+    const pendingBookings = await prisma.booking.count({
+      where: { businessId, status: "pending" },
+    });
+
     // Boarding: today's arrivals and departures
     const [todayArrivals, todayDepartures] = await Promise.all([
       prisma.boardingStay.findMany({
@@ -388,6 +393,7 @@ export async function GET(request: NextRequest) {
         petName: a.pet?.name ?? null,
         serviceName: a.service.name,
       })),
+      pendingBookings,
       atRiskCustomers,
       upcomingBirthdays,
       todayArrivals: todayArrivals.map((s) => ({
