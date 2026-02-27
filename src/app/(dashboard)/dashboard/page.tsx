@@ -117,6 +117,24 @@ interface DashboardStats {
     nextFollowUpAt: string | null;
     customer: { name: string } | null;
   }[];
+  todayArrivals: {
+    id: string;
+    checkIn: string;
+    checkOut: string | null;
+    status: string;
+    pet: { id: string; name: string; species: string };
+    customer: { id: string; name: string; phone: string };
+    room: { name: string } | null;
+  }[];
+  todayDepartures: {
+    id: string;
+    checkIn: string;
+    checkOut: string | null;
+    status: string;
+    pet: { id: string; name: string; species: string };
+    customer: { id: string; name: string; phone: string };
+    room: { name: string } | null;
+  }[];
 }
 
 interface ActivityItem {
@@ -1085,6 +1103,76 @@ export default function DashboardPage() {
           href="/leads"
         />
       </div>
+
+      {/* Boarding Today Widget */}
+      {((data.todayArrivals?.length ?? 0) > 0 || (data.todayDepartures?.length ?? 0) > 0) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {(data.todayArrivals?.length ?? 0) > 0 && (
+            <div className="card p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                  <LogIn className="w-4 h-4 text-emerald-600" />
+                </div>
+                <h3 className="text-sm font-semibold text-petra-text">כניסות היום לפנסיון</h3>
+                <span className="badge-success text-[10px] mr-auto">{data.todayArrivals.length}</span>
+              </div>
+              <div className="space-y-2">
+                {data.todayArrivals.map((s) => (
+                  <div key={s.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700">
+                      {s.pet.name.charAt(0)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-petra-text truncate">{s.pet.name}</p>
+                      <p className="text-[10px] text-petra-muted truncate">{s.customer.name}{s.room ? ` · ${s.room.name}` : ""}</p>
+                    </div>
+                    <a
+                      href={`https://wa.me/${toWhatsAppPhone(s.customer.phone)}?text=${encodeURIComponent(`שלום ${s.customer.name}! מזכירים לך שהיום הגעה של ${s.pet.name} לפנסיון 🐾`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex-shrink-0"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {(data.todayDepartures?.length ?? 0) > 0 && (
+            <div className="card p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+                  <Hotel className="w-4 h-4 text-amber-600" />
+                </div>
+                <h3 className="text-sm font-semibold text-petra-text">יציאות היום מהפנסיון</h3>
+                <span className="badge-warning text-[10px] mr-auto">{data.todayDepartures.length}</span>
+              </div>
+              <div className="space-y-2">
+                {data.todayDepartures.map((s) => (
+                  <div key={s.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50">
+                    <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-700">
+                      {s.pet.name.charAt(0)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-petra-text truncate">{s.pet.name}</p>
+                      <p className="text-[10px] text-petra-muted truncate">{s.customer.name}{s.room ? ` · ${s.room.name}` : ""}</p>
+                    </div>
+                    <a
+                      href={`https://wa.me/${toWhatsAppPhone(s.customer.phone)}?text=${encodeURIComponent(`שלום ${s.customer.name}! כלב שלך ${s.pet.name} מחכה לפיקאפ היום מהפנסיון 🐾`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex-shrink-0"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Revenue Chart + Upcoming Appointments */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -160,6 +160,38 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // Boarding: today's arrivals and departures
+    const [todayArrivals, todayDepartures] = await Promise.all([
+      prisma.boardingStay.findMany({
+        where: {
+          businessId,
+          status: "reserved",
+          checkIn: { gte: todayStart, lte: todayEnd },
+        },
+        include: {
+          pet: { select: { id: true, name: true, species: true } },
+          customer: { select: { id: true, name: true, phone: true } },
+          room: { select: { name: true } },
+        },
+        orderBy: { checkIn: "asc" },
+        take: 10,
+      }),
+      prisma.boardingStay.findMany({
+        where: {
+          businessId,
+          status: "checked_in",
+          checkOut: { gte: todayStart, lte: todayEnd },
+        },
+        include: {
+          pet: { select: { id: true, name: true, species: true } },
+          customer: { select: { id: true, name: true, phone: true } },
+          room: { select: { name: true } },
+        },
+        orderBy: { checkOut: "asc" },
+        take: 10,
+      }),
+    ]);
+
     // Get top service name
     let topService: { name: string; count: number } | null = null;
     if (topServiceResult.length > 0) {
@@ -221,6 +253,24 @@ export async function GET(request: NextRequest) {
       todayTasks,
       overdueTasks,
       urgentLeads,
+      todayArrivals: todayArrivals.map((s) => ({
+        id: s.id,
+        checkIn: s.checkIn.toISOString(),
+        checkOut: s.checkOut?.toISOString() ?? null,
+        status: s.status,
+        pet: s.pet,
+        customer: s.customer,
+        room: s.room,
+      })),
+      todayDepartures: todayDepartures.map((s) => ({
+        id: s.id,
+        checkIn: s.checkIn.toISOString(),
+        checkOut: s.checkOut?.toISOString() ?? null,
+        status: s.status,
+        pet: s.pet,
+        customer: s.customer,
+        room: s.room,
+      })),
     });
   } catch (error) {
     console.error("Dashboard API error:", error);
