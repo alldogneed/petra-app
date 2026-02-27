@@ -998,6 +998,34 @@ export default function LeadsPage() {
   const lostStage = stages.find((s) => s.isLost);
   const activeStages = stages.filter((s) => !s.isWon && !s.isLost);
 
+  const funnelStats = useMemo(() => {
+    const wonCount = wonStage ? leads.filter((l) => l.stage === wonStage.id).length : 0;
+    const lostCount = lostStage ? leads.filter((l) => l.stage === lostStage.id).length : 0;
+    const activeCount = leads.filter((l) => {
+      const s = stages.find((s) => s.id === l.stage);
+      return s && !s.isWon && !s.isLost;
+    }).length;
+    const conversionRate = wonCount + lostCount > 0 ? Math.round((wonCount / (wonCount + lostCount)) * 100) : 0;
+
+    const stageBreakdown = activeStages.map((s) => ({
+      id: s.id,
+      name: s.name,
+      color: s.color,
+      count: leads.filter((l) => l.stage === s.id).length,
+    }));
+
+    const sourceCounts: Record<string, number> = {};
+    for (const l of leads) {
+      if (l.source) sourceCounts[l.source] = (sourceCounts[l.source] || 0) + 1;
+    }
+    const topSourceId = Object.entries(sourceCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+    const topSource = topSourceId
+      ? LEAD_SOURCES.find((s) => s.id === topSourceId)?.label ?? topSourceId
+      : null;
+
+    return { wonCount, lostCount, activeCount, conversionRate, stageBreakdown, topSource };
+  }, [leads, stages, activeStages, wonStage, lostStage]);
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-6 flex-wrap">
@@ -1077,6 +1105,54 @@ export default function LeadsPage() {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* Lead Funnel Stats */}
+      {!editMode && leads.length > 0 && (
+        <div className="mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <p className="text-2xl font-bold text-petra-text">{leads.length}</p>
+            <p className="text-xs text-petra-muted mt-0.5">סה"כ לידים</p>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <p className="text-2xl font-bold text-blue-600">{funnelStats.activeCount}</p>
+            <p className="text-xs text-petra-muted mt-0.5">בתהליך</p>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <p className="text-2xl font-bold text-green-600">{funnelStats.wonCount}</p>
+            <p className="text-xs text-petra-muted mt-0.5">נסגרו</p>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <p className="text-2xl font-bold text-petra-text">{funnelStats.conversionRate}%</p>
+            <p className="text-xs text-petra-muted mt-0.5">שיעור המרה</p>
+          </div>
+          {funnelStats.stageBreakdown.length > 0 && (
+            <div className="col-span-2 sm:col-span-4 bg-white rounded-xl border border-slate-200 p-4">
+              <p className="text-xs font-semibold text-petra-muted mb-3">פילוח לפי שלב</p>
+              <div className="flex gap-2 items-end h-16">
+                {funnelStats.stageBreakdown.map((s) => {
+                  const max = Math.max(...funnelStats.stageBreakdown.map((x) => x.count), 1);
+                  const pct = Math.max((s.count / max) * 100, s.count > 0 ? 12 : 4);
+                  return (
+                    <div key={s.id} className="flex-1 flex flex-col items-center gap-1">
+                      <span className="text-[10px] font-semibold text-petra-text">{s.count > 0 ? s.count : ""}</span>
+                      <div
+                        className="w-full rounded-t-md transition-all"
+                        style={{ height: `${pct}%`, backgroundColor: s.color || "#6366F1" }}
+                      />
+                      <span className="text-[10px] text-petra-muted truncate w-full text-center leading-tight">{s.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {funnelStats.topSource && (
+                <p className="text-[11px] text-petra-muted mt-3">
+                  מקור מוביל: <span className="font-semibold text-petra-text">{funnelStats.topSource}</span>
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
