@@ -100,6 +100,16 @@ interface TaskEvent {
   dueDate: string | null;
 }
 
+interface BookingCalEvent {
+  id: string;
+  startAt: string;
+  endAt: string;
+  status: string; // "pending" | "confirmed"
+  service: { id: string; name: string; type: string };
+  customer: { id: string; name: string; phone: string };
+  dogs: { pet: { id: string; name: string } }[];
+}
+
 type ViewMode = "day" | "week" | "month";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -813,6 +823,14 @@ export default function CalendarPage() {
       fetchJSON(`/api/tasks?from=${from}&to=${to}&status=OPEN`),
   });
 
+  // Pending online bookings (not yet converted to appointments)
+  const { data: pendingBookings = [] } = useQuery<BookingCalEvent[]>({
+    queryKey: ["bookings-calendar", from, to],
+    queryFn: () =>
+      fetchJSON(`/api/booking/bookings?status=pending&from=${from}&to=${to}`),
+    enabled: viewMode !== "month",
+  });
+
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       fetch(`/api/appointments/${id}`, {
@@ -1073,6 +1091,39 @@ export default function CalendarPage() {
           ₪{order.total.toLocaleString()}
         </div>
       </div>
+    );
+  };
+
+  // ── Render pending online booking block ──
+  const renderBookingBlock = (
+    booking: BookingCalEvent,
+    style: React.CSSProperties,
+    compact: boolean
+  ) => {
+    const startTime = dateTimeToTime(booking.startAt);
+    const dogNames = booking.dogs.map((d) => d.pet.name).join(", ");
+    return (
+      <a
+        key={`booking-${booking.id}`}
+        href="/bookings"
+        className={cn(
+          "absolute rounded-lg px-2 py-1 overflow-hidden bg-amber-50 border border-dashed border-amber-400 cursor-pointer hover:bg-amber-100 transition-colors",
+          compact ? "text-xs" : "text-sm"
+        )}
+        style={{ ...style, zIndex: 9 }}
+        title="הזמנה אונליין ממתינה לאישור"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-1 font-medium text-amber-800 truncate">
+          <AlertCircle className="w-3 h-3 flex-shrink-0 text-amber-500" />
+          {booking.customer.name}
+        </div>
+        <div className="text-amber-600 truncate">{booking.service.name}</div>
+        {!compact && dogNames && (
+          <div className="text-amber-500 truncate">{dogNames}</div>
+        )}
+        <div className="text-amber-600">{startTime}</div>
+      </a>
     );
   };
 
@@ -1499,6 +1550,30 @@ export default function CalendarPage() {
                   });
                 })}
 
+                {/* Pending online booking blocks */}
+                {weekDates.map((date, dayIdx) => {
+                  const dateStr = toLocalDateString(date);
+                  const dayBookings = pendingBookings.filter(
+                    (b) => dateTimeToDateStr(b.startAt) === dateStr
+                  );
+                  return dayBookings.map((booking) => {
+                    const startTime = dateTimeToTime(booking.startAt);
+                    const endTime = dateTimeToTime(booking.endAt);
+                    const { top, height } = appointmentStyle(startTime, endTime);
+                    return renderBookingBlock(
+                      booking,
+                      {
+                        top,
+                        height,
+                        right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                        width: `calc((100% - 60px) / 7 - 4px)`,
+                        marginRight: 2,
+                      },
+                      true
+                    );
+                  });
+                })}
+
                 {/* Timed task blocks */}
                 {weekDates.map((date, dayIdx) => {
                   const dateStr = toLocalDateString(date);
@@ -1676,6 +1751,20 @@ export default function CalendarPage() {
                 false
               );
             })}
+
+            {/* Pending online booking blocks - day view */}
+            {pendingBookings
+              .filter((b) => dateTimeToDateStr(b.startAt) === toLocalDateString(selectedDay))
+              .map((booking) => {
+                const startTime = dateTimeToTime(booking.startAt);
+                const endTime = dateTimeToTime(booking.endAt);
+                const { top, height } = appointmentStyle(startTime, endTime);
+                return renderBookingBlock(
+                  booking,
+                  { top, height, right: 60, width: "calc(100% - 64px)" },
+                  false
+                );
+              })}
 
             {/* Current time indicator */}
             {currentTimeTop !== null && (
