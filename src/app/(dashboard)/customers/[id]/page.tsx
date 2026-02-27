@@ -916,6 +916,7 @@ function EditPetModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const existingTags: string[] = (() => { try { return JSON.parse(pet.tags || "[]"); } catch { return []; } })();
   const [form, setForm] = useState({
     name: pet.name,
     breed: pet.breed ?? "",
@@ -923,14 +924,31 @@ function EditPetModal({
     weight: pet.weight != null ? String(pet.weight) : "",
     birthDate: pet.birthDate ? pet.birthDate.split("T")[0] : "",
     microchip: pet.microchip ?? "",
+    selectedTags: existingTags,
   });
+
+  const toggleTag = (tag: string) =>
+    setForm((f) => ({
+      ...f,
+      selectedTags: f.selectedTags.includes(tag)
+        ? f.selectedTags.filter((t) => t !== tag)
+        : [...f.selectedTags, tag],
+    }));
 
   const mutation = useMutation({
     mutationFn: () =>
       fetch(`/api/pets/${pet.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          name: form.name,
+          breed: form.breed,
+          gender: form.gender,
+          weight: form.weight,
+          birthDate: form.birthDate,
+          microchip: form.microchip,
+          tags: JSON.stringify(form.selectedTags),
+        }),
       }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
@@ -941,7 +959,7 @@ function EditPetModal({
   return (
     <div className="modal-overlay">
       <div className="modal-backdrop" onClick={onClose} />
-      <div className="modal-content max-w-md mx-4 p-6">
+      <div className="modal-content max-w-md mx-4 p-6 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-petra-text">עריכת {pet.name}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
@@ -979,6 +997,26 @@ function EditPetModal({
             <div>
               <label className="label">מיקרוצ׳יפ</label>
               <input className="input" value={form.microchip} onChange={(e) => setForm({ ...form, microchip: e.target.value })} />
+            </div>
+          </div>
+          <div>
+            <label className="label">תגיות התנהגותיות</label>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {BEHAVIORAL_TAGS.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleTag(tag)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
+                    form.selectedTags.includes(tag)
+                      ? "bg-amber-500 text-white border-amber-500"
+                      : "bg-white text-stone-600 border-stone-200 hover:border-amber-300"
+                  )}
+                >
+                  {tag}
+                </button>
+              ))}
             </div>
           </div>
         </div>
