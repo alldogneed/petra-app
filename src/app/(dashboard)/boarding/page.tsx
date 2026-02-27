@@ -76,6 +76,8 @@ interface BoardingStay {
   room: { id: string; name: string } | null;
   pet: {
     id: string; name: string; species: string; breed: string | null;
+    foodNotes: string | null;
+    medicalNotes: string | null;
     health?: { allergies: string | null; medicalConditions: string | null; activityLimitations: string | null } | null;
     behavior?: { dogAggression: boolean; humanAggression: boolean; biteHistory: boolean; biteDetails: string | null; separationAnxiety: boolean; leashReactivity: boolean; resourceGuarding: boolean } | null;
     medications?: { medName: string; dosage: string | null; frequency: string | null; times: string | null }[];
@@ -835,6 +837,47 @@ function StayRow({
               >
                 <MessageCircle className="w-3 h-3" />
                 תזכורת
+              </a>
+            );
+          })()}
+          {stay.customer.phone && (stay.pet.foodNotes || stay.pet.medicalNotes || (stay.pet.medications && stay.pet.medications.length > 0)) && (() => {
+            const lines = [
+              `🐾 הוראות טיפול — ${stay.pet.name}`,
+              stay.room ? `חדר: ${stay.room.name}` : "",
+              "",
+            ];
+            if (stay.pet.foodNotes) {
+              lines.push(`🍽️ *הוראות האכלה:*`);
+              lines.push(stay.pet.foodNotes);
+              lines.push("");
+            }
+            if (stay.pet.medications && stay.pet.medications.length > 0) {
+              lines.push(`💊 *תרופות:*`);
+              stay.pet.medications.forEach((m) => {
+                const parts = [m.medName];
+                if (m.dosage) parts.push(m.dosage);
+                if (m.frequency) parts.push(m.frequency);
+                if (m.times) parts.push(m.times);
+                lines.push(`• ${parts.join(" · ")}`);
+              });
+              lines.push("");
+            }
+            if (stay.pet.medicalNotes) {
+              lines.push(`🏥 *הערות רפואיות:*`);
+              lines.push(stay.pet.medicalNotes);
+            }
+            const waText = lines.filter((l, i) => !(l === "" && lines[i - 1] === "")).join("\n").trim();
+            return (
+              <a
+                href={`https://wa.me/${toWhatsAppPhone(stay.customer.phone)}?text=${encodeURIComponent(waText)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors"
+                title="שלח הוראות טיפול"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MessageCircle className="w-3 h-3" />
+                הוראות
               </a>
             );
           })()}
