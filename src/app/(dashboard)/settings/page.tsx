@@ -34,6 +34,7 @@ import {
   X,
   Eye,
   EyeOff,
+  Copy,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
@@ -227,6 +228,16 @@ function BusinessTab() {
         </div>
       </div>
 
+      {/* Booking Link */}
+      <div className="border-t border-slate-100 pt-6">
+        <div className="flex items-center gap-2 mb-3">
+          <ExternalLink className="w-4 h-4 text-brand-500" />
+          <h3 className="text-sm font-semibold text-petra-text">לינק הזמנה מקוונת</h3>
+        </div>
+        <p className="text-xs text-petra-muted mb-3">שלח ללקוחות לינק זה כדי שיוכלו לקבוע תור בעצמם</p>
+        <BookingLinkBox />
+      </div>
+
       <button
         className={cn("btn-primary flex items-center gap-2 transition-all", saved && "bg-emerald-500 hover:brightness-100")}
         style={saved ? { background: "#10B981" } : undefined}
@@ -235,6 +246,62 @@ function BusinessTab() {
       >
         {saved ? <><CheckCircle2 className="w-4 h-4" /> נשמר!</> : <><Save className="w-4 h-4" /> שמור שינויים</>}
       </button>
+    </div>
+  );
+}
+
+function BookingLinkBox() {
+  const [copied, setCopied] = useState(false);
+  const bookingUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/book/demo-business-001`
+    : "/book/demo-business-001";
+
+  function copyLink() {
+    navigator.clipboard.writeText(bookingUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  const waMsg = `היי! 🐾\nרוצה לקבוע תור? אפשר לעשות את זה בקלות דרך הלינק הזה:\n${bookingUrl}`;
+  const waLink = `https://wa.me/?text=${encodeURIComponent(waMsg)}`;
+
+  return (
+    <div className="flex gap-2 items-center">
+      <div className="flex-1 input text-xs text-petra-muted bg-slate-50 truncate cursor-default select-all"
+        onClick={copyLink}
+        title="לחץ להעתקה"
+      >
+        {bookingUrl}
+      </div>
+      <button
+        onClick={copyLink}
+        className={cn(
+          "btn-secondary text-xs flex items-center gap-1.5 flex-shrink-0 transition-colors",
+          copied && "bg-emerald-50 text-emerald-600 border-emerald-200"
+        )}
+        title="העתק לינק"
+      >
+        {copied ? <><CheckCircle2 className="w-3.5 h-3.5" /> הועתק</> : <><Copy className="w-3.5 h-3.5" /> העתק</>}
+      </button>
+      <a
+        href={waLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-8 h-8 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex-shrink-0 transition-colors"
+        title="שתף בוואטסאפ"
+      >
+        <MessageCircle className="w-4 h-4" />
+      </a>
+      <a
+        href={bookingUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-8 h-8 flex items-center justify-center rounded-lg bg-brand-50 text-brand-500 hover:bg-brand-100 flex-shrink-0 transition-colors"
+        title="פתח עמוד הזמנה"
+      >
+        <ExternalLink className="w-4 h-4" />
+      </a>
     </div>
   );
 }
