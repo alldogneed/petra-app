@@ -37,6 +37,7 @@ import {
   Link2,
   Send,
   CalendarClock,
+  CheckCircle2,
 } from "lucide-react";
 import { CreateOrderModal } from "@/components/orders/CreateOrderModal";
 import {
@@ -47,6 +48,7 @@ import {
   getStatusLabel,
   getTimelineIcon,
   toWhatsAppPhone,
+  fetchJSON,
 } from "@/lib/utils";
 
 const BEHAVIORAL_TAGS = [
@@ -1381,6 +1383,21 @@ export default function CustomerProfilePage() {
     },
   });
 
+  const [completingAptId, setCompletingAptId] = useState<string | null>(null);
+  const completeAptMutation = useMutation({
+    mutationFn: (aptId: string) =>
+      fetchJSON(`/api/appointments/${aptId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+      setCompletingAptId(null);
+    },
+    onError: () => setCompletingAptId(null),
+  });
+
   if (isLoading) {
     return (
       <div className="animate-pulse space-y-6">
@@ -2050,14 +2067,29 @@ export default function CustomerProfilePage() {
                           {apt.pet ? ` · ${apt.pet.name}` : ""}
                         </div>
                       </div>
-                      <span
-                        className={cn(
-                          "badge text-[10px]",
-                          getStatusColor(apt.status)
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span
+                          className={cn(
+                            "badge text-[10px]",
+                            getStatusColor(apt.status)
+                          )}
+                        >
+                          {getStatusLabel(apt.status)}
+                        </span>
+                        {apt.status === "scheduled" && (
+                          <button
+                            className="w-6 h-6 flex items-center justify-center rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 transition-colors flex-shrink-0"
+                            title="סמן כהושלם"
+                            disabled={completingAptId === apt.id}
+                            onClick={() => {
+                              setCompletingAptId(apt.id);
+                              completeAptMutation.mutate(apt.id);
+                            }}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          </button>
                         )}
-                      >
-                        {getStatusLabel(apt.status)}
-                      </span>
+                      </div>
                     </div>
                   ))}
                 </div>

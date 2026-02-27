@@ -322,6 +322,18 @@ export default function PaymentsPage() {
                         הפק מסמך
                       </button>
                     ) : null}
+                    {payment.status === "paid" && payment.customer.phone && (
+                      <a
+                        href={`https://wa.me/${toWhatsAppPhone(payment.customer.phone)}?text=${encodeURIComponent(`שלום ${payment.customer.name}!\nקיבלנו את תשלומך בסך ${formatCurrency(payment.amount)} - תודה רבה! 🙏`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700"
+                        title="שלח אישור תשלום בוואטסאפ"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        קבלה
+                      </a>
+                    )}
                   </div>
                 </div>
               );
