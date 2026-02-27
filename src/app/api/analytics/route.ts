@@ -131,6 +131,52 @@ export async function GET(request: NextRequest) {
     const currentRevenue = totalPayments._sum.amount || 0;
     const previousRevenue = prevPayments._sum.amount || 0;
 
+    // Top customers by revenue this period
+    const topCustomerPayments = await prisma.payment.findMany({
+      where: { businessId: DEMO_BUSINESS_ID, status: "paid", paidAt: { gte: fromDate } },
+      select: {
+        amount: true,
+        customer: { select: { id: true, name: true } },
+      },
+    });
+    const customerRevenueMap = new Map<string, { id: string; name: string; revenue: number; count: number }>();
+    for (const p of topCustomerPayments) {
+      const key = p.customer.id;
+      if (!customerRevenueMap.has(key)) {
+        customerRevenueMap.set(key, { id: p.customer.id, name: p.customer.name, revenue: 0, count: 0 });
+      }
+      const entry = customerRevenueMap.get(key)!;
+      entry.revenue += p.amount;
+      entry.count += 1;
+    }
+    const topCustomers = Array.from(customerRevenueMap.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    // Revenue by service type this period (via appointment.service)
+    const servicePayments = await prisma.payment.findMany({
+      where: {
+        businessId: DEMO_BUSINESS_ID,
+        status: "paid",
+        paidAt: { gte: fromDate },
+        appointmentId: { not: null },
+      },
+      select: {
+        amount: true,
+        appointment: { select: { service: { select: { name: true } } } },
+      },
+    });
+    const serviceRevenueMap = new Map<string, { name: string; revenue: number }>();
+    for (const p of servicePayments) {
+      const serviceName = p.appointment?.service?.name;
+      if (!serviceName) continue;
+      if (!serviceRevenueMap.has(serviceName)) serviceRevenueMap.set(serviceName, { name: serviceName, revenue: 0 });
+      serviceRevenueMap.get(serviceName)!.revenue += p.amount;
+    }
+    const revenueByService = Array.from(serviceRevenueMap.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 8);
+
     // Calculate percentage changes
     const calcChange = (current: number, previous: number) => {
       if (previous === 0) return current > 0 ? 100 : 0;
@@ -175,7 +221,9 @@ export async function GET(request: NextRequest) {
           date: a.date,
           count: a._count,
         })),
+        revenueByService,
       },
+      topCustomers,
     });
   } catch (error) {
     console.error("GET /api/analytics error:", error);

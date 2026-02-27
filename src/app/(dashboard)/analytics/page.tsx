@@ -54,7 +54,9 @@ interface AnalyticsData {
   };
   charts: {
     appointmentsByDate: { date: string; count: number }[];
+    revenueByService: { name: string; revenue: number }[];
   };
+  topCustomers: { id: string; name: string; revenue: number; count: number }[];
 }
 
 const PERIODS = [
@@ -281,7 +283,7 @@ function AnalyticsContent() {
           </div>
 
           {/* Secondary Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="card p-4 flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center">
                 <ListTodo className="w-4 h-4 text-indigo-500" />
@@ -321,6 +323,84 @@ function AnalyticsContent() {
                 <div className="text-xs text-muted">לידים שנסגרו</div>
               </div>
             </div>
+          </div>
+
+          {/* Top Customers + Revenue by Service */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Top Customers by Revenue */}
+            {(data.topCustomers?.length ?? 0) > 0 && (
+              <div className="card p-5">
+                <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-brand-500" />
+                  לקוחות מובילים לפי הכנסות
+                </h3>
+                <div className="space-y-3">
+                  {data.topCustomers.map((c, i) => {
+                    const maxRev = data.topCustomers[0].revenue;
+                    const pct = maxRev > 0 ? Math.round((c.revenue / maxRev) * 100) : 0;
+                    return (
+                      <div key={c.id} className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-petra-muted w-5 text-left">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-petra-text truncate">{c.name}</span>
+                            <span className="text-xs font-semibold text-brand-600 flex-shrink-0 mr-2">
+                              {formatCurrency(c.revenue)}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-slate-100 rounded-full">
+                            <div
+                              className="h-full rounded-full bg-brand-400"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <div className="text-[10px] text-petra-muted mt-0.5">{c.count} תשלומים</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Revenue by Service */}
+            {(data.charts.revenueByService?.length ?? 0) > 0 && (
+              <div className="card p-5">
+                <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-brand-500" />
+                  הכנסות לפי שירות
+                </h3>
+                <div className="space-y-3">
+                  {data.charts.revenueByService.map((s, i) => {
+                    const maxRev = data.charts.revenueByService[0].revenue;
+                    const pct = maxRev > 0 ? Math.round((s.revenue / maxRev) * 100) : 0;
+                    const colors = [
+                      "bg-emerald-400", "bg-blue-400", "bg-violet-400",
+                      "bg-amber-400", "bg-pink-400", "bg-teal-400",
+                      "bg-orange-400", "bg-indigo-400"
+                    ];
+                    return (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-petra-text truncate">{s.name}</span>
+                            <span className="text-xs font-semibold text-petra-text flex-shrink-0 mr-2">
+                              {formatCurrency(s.revenue)}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-slate-100 rounded-full">
+                            <div
+                              className={cn("h-full rounded-full", colors[i % colors.length])}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </>
       ) : null}
