@@ -904,6 +904,155 @@ function EditCustomerModal({
   );
 }
 
+// ─── Medication Modal ─────────────────────────────────────────────────────────
+
+function MedicationModal({
+  petId,
+  petName,
+  med,
+  customerId,
+  onClose,
+}: {
+  petId: string;
+  petName: string;
+  med: DogMedication | null;
+  customerId: string;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    medName: med?.medName ?? "",
+    dosage: med?.dosage ?? "",
+    frequency: med?.frequency ?? "",
+    times: med?.times ?? "",
+    instructions: med?.instructions ?? "",
+    startDate: med?.startDate ? med.startDate.split("T")[0] : "",
+    endDate: med?.endDate ? med.endDate.split("T")[0] : "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      if (med) {
+        return fetch(`/api/pets/${petId}/medications/${med.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        }).then((r) => r.json());
+      }
+      return fetch(`/api/pets/${petId}/medications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      }).then((r) => r.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+      onClose();
+    },
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold text-petra-text">
+            {med ? "עריכת תרופה" : `הוספת תרופה — ${petName}`}
+          </h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="label">שם תרופה *</label>
+            <input
+              className="input"
+              value={form.medName}
+              onChange={(e) => setForm({ ...form, medName: e.target.value })}
+              placeholder="ריבוקסיב, אמוקסיצילין..."
+              autoFocus
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">מינון</label>
+              <input
+                className="input"
+                value={form.dosage}
+                onChange={(e) => setForm({ ...form, dosage: e.target.value })}
+                placeholder="25 מ״ג"
+              />
+            </div>
+            <div>
+              <label className="label">תדירות</label>
+              <input
+                className="input"
+                value={form.frequency}
+                onChange={(e) => setForm({ ...form, frequency: e.target.value })}
+                placeholder="פעם ביום"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="label">שעות מתן</label>
+            <input
+              className="input"
+              value={form.times}
+              onChange={(e) => setForm({ ...form, times: e.target.value })}
+              placeholder="07:00, 19:00"
+            />
+          </div>
+          <div>
+            <label className="label">הוראות</label>
+            <input
+              className="input"
+              value={form.instructions}
+              onChange={(e) => setForm({ ...form, instructions: e.target.value })}
+              placeholder="עם אוכל, לא לחצות..."
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">תאריך התחלה</label>
+              <input
+                className="input"
+                type="date"
+                value={form.startDate}
+                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label">תאריך סיום</label>
+              <input
+                className="input"
+                type="date"
+                value={form.endDate}
+                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button
+            className="btn-primary flex-1"
+            disabled={!form.medName.trim() || mutation.isPending}
+            onClick={() => mutation.mutate()}
+          >
+            {mutation.isPending ? "שומר..." : med ? "שמור שינויים" : "הוסף תרופה"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>
+            ביטול
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Customer Documents Section ──────────────────────────────────────────────
 
 const DOC_CATEGORY_LABELS: Record<string, string> = {
@@ -1673,6 +1822,8 @@ export default function CustomerProfilePage() {
   const [showNewAppointmentModal, setShowNewAppointmentModal] = useState(false);
   const [showQuickTaskModal, setShowQuickTaskModal] = useState(false);
   const [intakeSending, setIntakeSending] = useState(false);
+  const [medModal, setMedModal] = useState<{ petId: string; petName: string; med: DogMedication | null } | null>(null);
+  const [deletingMed, setDeletingMed] = useState<{ id: string; petId: string } | null>(null);
   const { user } = useAuth();
 
   const { data: customer, isLoading } = useQuery<CustomerDetail>({
@@ -1695,6 +1846,15 @@ export default function CustomerProfilePage() {
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       setLogNote("");
       setShowLogNote(false);
+    },
+  });
+
+  const deleteMedMutation = useMutation({
+    mutationFn: ({ petId, id }: { petId: string; id: string }) =>
+      fetch(`/api/pets/${petId}/medications/${id}`, { method: "DELETE" }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+      setDeletingMed(null);
     },
   });
 
@@ -2205,49 +2365,80 @@ export default function CustomerProfilePage() {
                           )}
 
                           {/* Medications */}
-                          {hasMeds && (
-                            <div>
-                              <div className="flex items-center gap-1.5 mb-1.5">
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-1.5">
                                 <Pill className="w-3.5 h-3.5 text-red-500" />
                                 <span className="text-xs font-bold text-petra-text">
                                   תרופות ({pet.medications.length})
                                 </span>
                               </div>
-                              <div className="space-y-1.5">
-                                {pet.medications.map((med) => (
-                                  <div key={med.id} className="bg-white/60 rounded-lg p-2.5">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-xs font-medium text-petra-text">
-                                        {med.medName}
-                                      </span>
+                              <button
+                                className="w-5 h-5 rounded-full bg-red-100 hover:bg-red-200 flex items-center justify-center transition-colors"
+                                onClick={(e) => { e.stopPropagation(); setMedModal({ petId: pet.id, petName: pet.name, med: null }); }}
+                                title="הוסף תרופה"
+                              >
+                                <Plus className="w-3 h-3 text-red-600" />
+                              </button>
+                            </div>
+                            <div className="space-y-1.5">
+                              {pet.medications.map((med) => (
+                                <div key={med.id} className="bg-white/60 rounded-lg p-2.5 group">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-medium text-petra-text">
+                                      {med.medName}
+                                    </span>
+                                    <div className="flex items-center gap-1">
                                       {med.dosage && (
                                         <span className="text-[10px] text-stone-500 bg-red-50 px-1.5 py-0.5 rounded">
                                           {med.dosage}
                                         </span>
                                       )}
-                                    </div>
-                                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-stone-500 mt-1">
-                                      {med.frequency && <span>תדירות: {med.frequency}</span>}
-                                      {med.times && <span>שעות: {med.times}</span>}
-                                      {med.instructions && (
-                                        <span className="text-stone-400">{med.instructions}</span>
-                                      )}
-                                      {med.startDate && (
-                                        <span>
-                                          מ-{new Date(med.startDate).toLocaleDateString("he-IL")}
-                                        </span>
-                                      )}
-                                      {med.endDate && (
-                                        <span>
-                                          עד {new Date(med.endDate).toLocaleDateString("he-IL")}
-                                        </span>
-                                      )}
+                                      <button
+                                        className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-blue-100 transition-all"
+                                        onClick={(e) => { e.stopPropagation(); setMedModal({ petId: pet.id, petName: pet.name, med }); }}
+                                        title="ערוך"
+                                      >
+                                        <Pencil className="w-3 h-3 text-blue-500" />
+                                      </button>
+                                      <button
+                                        className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-red-100 transition-all"
+                                        onClick={(e) => { e.stopPropagation(); setDeletingMed({ id: med.id, petId: pet.id }); }}
+                                        title="מחק"
+                                      >
+                                        <Trash2 className="w-3 h-3 text-red-500" />
+                                      </button>
                                     </div>
                                   </div>
-                                ))}
-                              </div>
+                                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-stone-500 mt-1">
+                                    {med.frequency && <span>תדירות: {med.frequency}</span>}
+                                    {med.times && <span>שעות: {med.times}</span>}
+                                    {med.instructions && (
+                                      <span className="text-stone-400">{med.instructions}</span>
+                                    )}
+                                    {med.startDate && (
+                                      <span>
+                                        מ-{new Date(med.startDate).toLocaleDateString("he-IL")}
+                                      </span>
+                                    )}
+                                    {med.endDate && (
+                                      <span>
+                                        עד {new Date(med.endDate).toLocaleDateString("he-IL")}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                              {pet.medications.length === 0 && (
+                                <button
+                                  className="w-full text-xs text-red-400 hover:text-red-600 py-1.5 border border-dashed border-red-200 hover:border-red-300 rounded-lg transition-colors"
+                                  onClick={(e) => { e.stopPropagation(); setMedModal({ petId: pet.id, petName: pet.name, med: null }); }}
+                                >
+                                  + הוסף תרופה ראשונה
+                                </button>
+                              )}
                             </div>
-                          )}
+                          </div>
 
                           {/* Health */}
                           {pet.health && (
@@ -2939,6 +3130,36 @@ export default function CustomerProfilePage() {
             // tasks are on /tasks page, no need to refresh this page
           }}
         />
+      )}
+      {medModal && (
+        <MedicationModal
+          petId={medModal.petId}
+          petName={medModal.petName}
+          med={medModal.med}
+          customerId={customerId}
+          onClose={() => setMedModal(null)}
+        />
+      )}
+      {deletingMed && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setDeletingMed(null)} />
+          <div className="modal-content max-w-sm mx-4 p-6">
+            <h2 className="text-base font-bold text-petra-text mb-2">מחיקת תרופה</h2>
+            <p className="text-sm text-petra-muted mb-6">האם למחוק את התרופה? פעולה זו אינה הפיכה.</p>
+            <div className="flex gap-3">
+              <button
+                className="btn-danger flex-1"
+                disabled={deleteMedMutation.isPending}
+                onClick={() => deleteMedMutation.mutate(deletingMed)}
+              >
+                {deleteMedMutation.isPending ? "מוחק..." : "מחק"}
+              </button>
+              <button className="btn-secondary" onClick={() => setDeletingMed(null)}>
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
