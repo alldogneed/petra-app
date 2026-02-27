@@ -633,7 +633,7 @@ function ManageTagsPopover({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-[#E8DFD5] p-4 z-50 w-[280px] animate-fade-in">
+        <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-[#E8DFD5] p-4 z-50 w-[280px] animate-fade-in">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold text-petra-text">ניהול תוויות</h3>
             <span className="text-[10px] text-petra-muted">{localTags.length} תוויות</span>
@@ -1822,7 +1822,7 @@ function NewOrderModal({
                                 </option>
                               ))}
                             </select>
-                            <span className="text-xs font-semibold text-petra-text mr-auto">
+                            <span className="text-xs font-semibold text-petra-text ms-auto">
                               {formatCurrency(line.quantity * line.unitPrice)}
                             </span>
                           </div>
@@ -2139,7 +2139,7 @@ function NewOrderModal({
             return (
               <div className="flex items-center gap-3">
                 {isDisabled && (
-                  <span className="text-[11px] text-red-400 max-w-[180px] text-left leading-tight">
+                  <span className="text-[11px] text-red-400 max-w-[180px] text-right leading-tight">
                     חסר: {missingFields.join(", ")}
                   </span>
                 )}

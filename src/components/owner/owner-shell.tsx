@@ -123,7 +123,7 @@ export function OwnerShell({
             <Shield className="w-3.5 h-3.5 text-red-400" />
             <span className="font-medium text-red-500">פאנל ניהול פלטפורמה</span>
           </div>
-          <div className="mr-auto flex items-center gap-2">
+          <div className="ms-auto flex items-center gap-2">
             <Link
               href="/dashboard"
               className="text-xs text-slate-400 hover:text-slate-700 transition-colors"

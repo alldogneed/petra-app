@@ -415,7 +415,7 @@ export default function PaymentRequestPage() {
                         </button>
                         <button
                           onClick={() => clearItem(product.id)}
-                          className="mr-auto p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                          className="ms-auto p-1.5 rounded-lg hover:bg-red-50 transition-colors"
                         >
                           <X className="w-3.5 h-3.5 text-red-400" />
                         </button>
@@ -500,7 +500,7 @@ export default function PaymentRequestPage() {
                       />
                       <span className="text-sm text-slate-500">%</span>
                       {discountAmount > 0 && (
-                        <span className="text-sm text-green-600 mr-auto">
+                        <span className="text-sm text-green-600 ms-auto">
                           -₪{discountAmount}
                         </span>
                       )}
@@ -560,7 +560,7 @@ export default function PaymentRequestPage() {
                         href={effectivePaymentUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mr-auto"
+                        className="ms-auto"
                       >
                         <ExternalLink className="w-3 h-3 text-blue-400 hover:text-blue-600" />
                       </a>

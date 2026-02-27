@@ -522,7 +522,7 @@ function BatchRow({
       </div>
 
       <div className="flex items-center gap-4 flex-shrink-0">
-        <div className="text-left">
+        <div className="text-right">
           {batch.createdCustomers !== null ? (
             <p className="text-xs text-petra-muted">
               {batch.createdCustomers} לקוחות

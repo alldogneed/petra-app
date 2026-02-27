@@ -533,7 +533,7 @@ export default function TasksPage() {
             {bulkCompleteMutation.isPending ? "..." : "השלם הכל"}
           </button>
           <button
-            className="text-xs text-petra-muted hover:text-petra-text mr-auto"
+            className="text-xs text-petra-muted hover:text-petra-text ms-auto"
             onClick={() => setSelectedTaskIds(new Set())}
           >
             בטל בחירה

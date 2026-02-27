@@ -627,7 +627,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                     <h3 className="text-sm font-semibold text-petra-text">
                       {category.name}
                     </h3>
-                    <span className="badge-neutral text-[10px] mr-auto">
+                    <span className="badge-neutral text-[10px] ms-auto">
                       {category.items.length} שאלות
                     </span>
                   </div>

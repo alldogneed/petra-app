@@ -204,7 +204,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages }: LeadTreatm
                                             <Mail className="w-4 h-4" /> {lead.email}
                                         </a>
                                     )}
-                                    <div className="flex items-center gap-1.5 text-xs text-petra-muted mr-auto">
+                                    <div className="flex items-center gap-1.5 text-xs text-petra-muted ms-auto">
                                         <Calendar className="w-3.5 h-3.5" />
                                         נוצר: {new Date(lead.createdAt).toLocaleDateString("he-IL")}
                                     </div>

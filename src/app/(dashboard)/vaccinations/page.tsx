@@ -160,7 +160,7 @@ export default function VaccinationsPage() {
           ))}
         </div>
         {data && (
-          <span className="mr-auto text-sm text-petra-muted">
+          <span className="ms-auto text-sm text-petra-muted">
             {vaccinations.length} רשומות
           </span>
         )}

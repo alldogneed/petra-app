@@ -315,7 +315,7 @@ export default function PaymentsPage() {
           <Download className="w-4 h-4" />
           ייצוא CSV
         </button>
-        <div className="relative mr-auto">
+        <div className="relative ms-auto">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
           <input
             type="text"
@@ -383,7 +383,7 @@ export default function PaymentsPage() {
 
       {/* Debt Aging Breakdown */}
       {agingBuckets.totalPendingCount > 0 && (
-        <div className="card p-4 mb-5 border-l-4 border-amber-400">
+        <div className="card p-4 mb-5 border-r-4 border-amber-400">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4 text-amber-500" />
             <h3 className="text-sm font-semibold text-petra-text">ניתוח גיל חובות</h3>

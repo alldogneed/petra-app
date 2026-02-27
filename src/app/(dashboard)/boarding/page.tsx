@@ -271,7 +271,7 @@ function RoomStatusCard({
         <div className="flex items-center gap-2 text-xs text-petra-muted mb-3">
           <Users className="w-3.5 h-3.5" />
           <span>{room._count.boardingStays}/{room.capacity}</span>
-          <span className="badge-neutral text-[10px] mr-auto">{ROOM_TYPE_LABELS[room.type] || room.type}</span>
+          <span className="badge-neutral text-[10px] ms-auto">{ROOM_TYPE_LABELS[room.type] || room.type}</span>
         </div>
 
         {/* Occupied: show dog info — draggable */}
@@ -493,7 +493,7 @@ function TimelineView({
                     style={{ backgroundColor: statusColor }}
                   />
                   <span className="text-xs font-medium text-petra-text truncate">{room.name}</span>
-                  <span className="text-[9px] text-petra-muted mr-auto">{room._count.boardingStays}/{room.capacity}</span>
+                  <span className="text-[9px] text-petra-muted ms-auto">{room._count.boardingStays}/{room.capacity}</span>
                 </div>
 
                 {/* Timeline cells with bars */}
@@ -644,7 +644,7 @@ function UnassignedGridCard({
         <div className="flex items-center gap-2 mb-3">
           <PawPrint className="w-5 h-5 text-slate-400" />
           <span className="font-bold text-petra-text">ללא חדר</span>
-          <span className="mr-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+          <span className="ms-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
             {stays.length}
           </span>
         </div>
@@ -1273,7 +1273,7 @@ function VaccinationAlertBanner() {
     <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 overflow-hidden">
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center gap-3 p-3 text-left"
+        className="w-full flex items-center gap-3 p-3 text-right"
       >
         <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" />
         <div className="flex-1 min-w-0">

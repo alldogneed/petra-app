@@ -212,7 +212,7 @@ export default function PetsPage() {
           ))}
         </div>
         {data && (
-          <span className="text-sm text-petra-muted mr-auto">
+          <span className="text-sm text-petra-muted ms-auto">
             {data.total} חיות
           </span>
         )}

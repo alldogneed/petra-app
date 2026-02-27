@@ -604,7 +604,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
               <div className="bg-brand-50 rounded-xl p-3 mb-4 text-sm text-brand-800 flex items-center gap-2 border border-brand-100">
                 <Calendar className="w-4 h-4" />
                 {new Date(selectedDate + "T12:00:00").toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
-                <button onClick={() => setStep("date")} className="mr-auto text-xs text-brand-500 hover:underline">שנה</button>
+                <button onClick={() => setStep("date")} className="ms-auto text-xs text-brand-500 hover:underline">שנה</button>
               </div>
 
               {slotsLoading ? (

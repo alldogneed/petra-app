@@ -312,7 +312,7 @@ function ItemRow({
         {item.description && <p className="text-xs text-petra-muted truncate mt-0.5">{item.description}</p>}
       </div>
 
-      <div className="text-left flex-shrink-0">
+      <div className="text-right flex-shrink-0">
         <p className="text-sm font-bold text-petra-text">₪{item.basePrice.toFixed(2)}</p>
         <p className="text-[10px] text-petra-muted">{UNIT_LABEL[item.unit] ?? item.unit}</p>
       </div>

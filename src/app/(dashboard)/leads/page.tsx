@@ -328,7 +328,7 @@ function KanbanColumn({
           </span>
         )}
 
-        <span className="badge-neutral text-[10px] mr-auto">{leads.length}</span>
+        <span className="badge-neutral text-[10px] ms-auto">{leads.length}</span>
 
         {editMode && (
           <div className="flex items-center gap-1.5 relative">
@@ -340,7 +340,7 @@ function KanbanColumn({
               title="שנה צבע"
             />
             {showColorPicker && (
-              <div className="absolute top-8 left-0 z-50 bg-white shadow-lg rounded-lg p-2 flex gap-1.5 border border-slate-200">
+              <div className="absolute top-8 right-0 z-50 bg-white shadow-lg rounded-lg p-2 flex gap-1.5 border border-slate-200">
                 {STAGE_COLORS.map((c) => (
                   <button
                     key={c}
@@ -1083,7 +1083,7 @@ export default function LeadsPage() {
           <Pencil className="w-3.5 h-3.5" />
           {editMode ? "סיום עריכה" : "עריכת שלבים"}
         </button>
-        <div className="relative mr-auto">
+        <div className="relative ms-auto">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
           <input
             type="text"

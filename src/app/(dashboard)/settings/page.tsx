@@ -800,7 +800,7 @@ function InvoicingTab() {
                     <p className="text-xs text-petra-muted">{doc.customer?.name}</p>
                   </div>
                 </div>
-                <div className="text-left">
+                <div className="text-right">
                   <p className="text-sm font-medium text-petra-text">₪{doc.amount.toFixed(2)}</p>
                   <span className={cn("text-xs", doc.status === "issued" ? "text-emerald-600" : doc.status === "draft" ? "text-amber-600" : "text-petra-muted")}>
                     {doc.status === "issued" ? "הופק" : doc.status === "draft" ? "טיוטה" : doc.status}

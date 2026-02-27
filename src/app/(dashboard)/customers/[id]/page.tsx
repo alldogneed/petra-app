@@ -461,6 +461,7 @@ function AddPetModal({
             </div>
             <button
               type="button"
+              dir="ltr"
               onClick={() =>
                 setForm((f) => ({ ...f, neuteredSpayed: !f.neuteredSpayed }))
               }
@@ -2563,7 +2564,7 @@ export default function CustomerProfilePage() {
                   href={`https://wa.me/${toWhatsAppPhone(customer.phone)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mr-auto flex items-center gap-1 text-xs text-green-600 hover:text-green-700 transition-colors"
+                  className="ms-auto flex items-center gap-1 text-xs text-green-600 hover:text-green-700 transition-colors"
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
                   WhatsApp
@@ -2679,7 +2680,7 @@ export default function CustomerProfilePage() {
                           }}
                         />
                       </div>
-                      <p className="text-[10px] text-petra-muted mt-0.5 text-left">
+                      <p className="text-[10px] text-petra-muted mt-0.5 text-right">
                         {pct}%
                       </p>
                     </div>
@@ -3395,7 +3396,7 @@ export default function CustomerProfilePage() {
                                 <span className="text-petra-text">{line.name}</span>
                                 <div className="flex items-center gap-3 text-petra-muted">
                                   <span className="text-xs">{line.quantity} × {formatCurrency(line.unitPrice)}</span>
-                                  <span className="font-medium text-petra-text w-16 text-left">
+                                  <span className="font-medium text-petra-text w-16 text-right">
                                     {formatCurrency(line.lineSubtotal)}
                                   </span>
                                 </div>

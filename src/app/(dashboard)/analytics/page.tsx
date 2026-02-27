@@ -136,7 +136,7 @@ function AnalyticsContent() {
                 "px-4 py-2 rounded-xl text-sm font-medium transition-all",
                 period === p.id
                   ? "bg-brand-500 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+                  : "bg-white text-petra-muted hover:bg-slate-50 border border-slate-200"
               )}
             >
               {p.label}
@@ -198,8 +198,8 @@ function AnalyticsContent() {
                 </div>
                 <ChangeIndicator value={data.overview.revenueChange} />
               </div>
-              <div className="text-2xl font-bold text-slate-800">{formatCurrency(data.overview.revenue)}</div>
-              <div className="text-xs text-muted mt-1">הכנסות · {data.overview.paymentCount} תשלומים</div>
+              <div className="text-2xl font-bold text-petra-text">{formatCurrency(data.overview.revenue)}</div>
+              <div className="text-xs text-petra-muted mt-1">הכנסות · {data.overview.paymentCount} תשלומים</div>
             </div>
 
             {/* Appointments */}
@@ -210,8 +210,8 @@ function AnalyticsContent() {
                 </div>
                 <ChangeIndicator value={data.overview.appointmentsChange} />
               </div>
-              <div className="text-2xl font-bold text-slate-800">{data.overview.totalAppointments}</div>
-              <div className="text-xs text-muted mt-1">
+              <div className="text-2xl font-bold text-petra-text">{data.overview.totalAppointments}</div>
+              <div className="text-xs text-petra-muted mt-1">
                 תורים · {data.overview.completionRate}% הושלמו
               </div>
             </div>
@@ -224,8 +224,8 @@ function AnalyticsContent() {
                 </div>
                 <ChangeIndicator value={data.overview.newCustomersChange} />
               </div>
-              <div className="text-2xl font-bold text-slate-800">{data.overview.newCustomers}</div>
-              <div className="text-xs text-muted mt-1">לקוחות חדשים · {data.overview.totalCustomers} סה״כ</div>
+              <div className="text-2xl font-bold text-petra-text">{data.overview.newCustomers}</div>
+              <div className="text-xs text-petra-muted mt-1">לקוחות חדשים · {data.overview.totalCustomers} סה״כ</div>
             </div>
 
             {/* Leads */}
@@ -238,8 +238,8 @@ function AnalyticsContent() {
                   <span className="text-xs text-emerald-600 font-medium">{data.leads.conversionRate}% המרה</span>
                 )}
               </div>
-              <div className="text-2xl font-bold text-slate-800">{data.leads.active}</div>
-              <div className="text-xs text-muted mt-1">
+              <div className="text-2xl font-bold text-petra-text">{data.leads.active}</div>
+              <div className="text-xs text-petra-muted mt-1">
                 לידים פעילים · {data.leads.wonThisPeriod} נסגרו
               </div>
             </div>
@@ -249,12 +249,12 @@ function AnalyticsContent() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
             {/* Appointments Chart */}
             <div className="card p-5">
-              <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-brand-500" />
                 תורים לפי תאריך
               </h3>
               {data.charts.appointmentsByDate.length === 0 ? (
-                <div className="flex items-center justify-center h-40 text-sm text-muted">
+                <div className="flex items-center justify-center h-40 text-sm text-petra-muted">
                   אין נתונים לתקופה זו
                 </div>
               ) : (
@@ -267,7 +267,7 @@ function AnalyticsContent() {
                     });
                     return (
                       <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
-                        <span className="text-[9px] text-muted opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-[9px] text-petra-muted opacity-0 group-hover:opacity-100 transition-opacity">
                           {d.count}
                         </span>
                         <div
@@ -276,7 +276,7 @@ function AnalyticsContent() {
                           title={`${dateStr}: ${d.count} תורים`}
                         />
                         {data.charts.appointmentsByDate.length <= 15 && (
-                          <span className="text-[8px] text-muted">{dateStr}</span>
+                          <span className="text-[8px] text-petra-muted">{dateStr}</span>
                         )}
                       </div>
                     );
@@ -287,7 +287,7 @@ function AnalyticsContent() {
 
             {/* Performance Summary */}
             <div className="card p-5">
-              <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-brand-500" />
                 סיכום ביצועים
               </h3>
@@ -296,30 +296,30 @@ function AnalyticsContent() {
                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-sm text-slate-600">תורים שהושלמו</span>
+                    <span className="text-sm text-petra-muted">תורים שהושלמו</span>
                   </div>
-                  <span className="text-sm font-semibold text-slate-800">{data.overview.completedAppointments}</span>
+                  <span className="text-sm font-semibold text-petra-text">{data.overview.completedAppointments}</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-red-400" />
-                    <span className="text-sm text-slate-600">תורים שבוטלו</span>
+                    <span className="text-sm text-petra-muted">תורים שבוטלו</span>
                   </div>
-                  <span className="text-sm font-semibold text-slate-800">{data.overview.canceledAppointments}</span>
+                  <span className="text-sm font-semibold text-petra-text">{data.overview.canceledAppointments}</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-amber-400" />
-                    <span className="text-sm text-slate-600">לידים שאבדו</span>
+                    <span className="text-sm text-petra-muted">לידים שאבדו</span>
                   </div>
-                  <span className="text-sm font-semibold text-slate-800">{data.leads.lostThisPeriod}</span>
+                  <span className="text-sm font-semibold text-petra-text">{data.leads.lostThisPeriod}</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-blue-400" />
-                    <span className="text-sm text-slate-600">משימות שהושלמו</span>
+                    <span className="text-sm text-petra-muted">משימות שהושלמו</span>
                   </div>
-                  <span className="text-sm font-semibold text-slate-800">{data.tasks.completedThisPeriod}</span>
+                  <span className="text-sm font-semibold text-petra-text">{data.tasks.completedThisPeriod}</span>
                 </div>
               </div>
             </div>
@@ -332,8 +332,8 @@ function AnalyticsContent() {
                 <ListTodo className="w-4 h-4 text-indigo-500" />
               </div>
               <div>
-                <div className="text-lg font-bold text-slate-800">{data.tasks.open}</div>
-                <div className="text-xs text-muted">משימות פתוחות</div>
+                <div className="text-lg font-bold text-petra-text">{data.tasks.open}</div>
+                <div className="text-xs text-petra-muted">משימות פתוחות</div>
               </div>
             </div>
 
@@ -342,8 +342,8 @@ function AnalyticsContent() {
                 <GraduationCap className="w-4 h-4 text-teal-500" />
               </div>
               <div>
-                <div className="text-lg font-bold text-slate-800">{data.training.activePrograms}</div>
-                <div className="text-xs text-muted">תוכניות אילוף פעילות</div>
+                <div className="text-lg font-bold text-petra-text">{data.training.activePrograms}</div>
+                <div className="text-xs text-petra-muted">תוכניות אילוף פעילות</div>
               </div>
             </div>
 
@@ -352,8 +352,8 @@ function AnalyticsContent() {
                 <Hotel className="w-4 h-4 text-pink-500" />
               </div>
               <div>
-                <div className="text-lg font-bold text-slate-800">{data.boarding.staysThisPeriod}</div>
-                <div className="text-xs text-muted">שהיות בפנסיון</div>
+                <div className="text-lg font-bold text-petra-text">{data.boarding.staysThisPeriod}</div>
+                <div className="text-xs text-petra-muted">שהיות בפנסיון</div>
               </div>
             </div>
 
@@ -362,8 +362,8 @@ function AnalyticsContent() {
                 <Target className="w-4 h-4 text-orange-500" />
               </div>
               <div>
-                <div className="text-lg font-bold text-slate-800">{data.leads.wonThisPeriod}</div>
-                <div className="text-xs text-muted">לידים שנסגרו</div>
+                <div className="text-lg font-bold text-petra-text">{data.leads.wonThisPeriod}</div>
+                <div className="text-xs text-petra-muted">לידים שנסגרו</div>
               </div>
             </div>
           </div>
@@ -373,7 +373,7 @@ function AnalyticsContent() {
             {/* Top Customers by Revenue */}
             {(data.topCustomers?.length ?? 0) > 0 && (
               <div className="card p-5">
-                <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
                   <Users className="w-4 h-4 text-brand-500" />
                   לקוחות מובילים לפי הכנסות
                 </h3>
@@ -383,11 +383,11 @@ function AnalyticsContent() {
                     const pct = maxRev > 0 ? Math.round((c.revenue / maxRev) * 100) : 0;
                     return (
                       <div key={c.id} className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-petra-muted w-5 text-left">{i + 1}</span>
+                        <span className="text-xs font-bold text-petra-muted w-5 text-right">{i + 1}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-sm font-medium text-petra-text truncate">{c.name}</span>
-                            <span className="text-xs font-semibold text-brand-600 flex-shrink-0 mr-2">
+                            <span className="text-xs font-semibold text-brand-600 flex-shrink-0 ms-2">
                               {formatCurrency(c.revenue)}
                             </span>
                           </div>
@@ -409,7 +409,7 @@ function AnalyticsContent() {
             {/* Revenue by Service */}
             {(data.charts.revenueByService?.length ?? 0) > 0 && (
               <div className="card p-5">
-                <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-brand-500" />
                   הכנסות לפי שירות
                 </h3>
@@ -427,7 +427,7 @@ function AnalyticsContent() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-sm text-petra-text truncate">{s.name}</span>
-                            <span className="text-xs font-semibold text-petra-text flex-shrink-0 mr-2">
+                            <span className="text-xs font-semibold text-petra-text flex-shrink-0 ms-2">
                               {formatCurrency(s.revenue)}
                             </span>
                           </div>
@@ -451,7 +451,7 @@ function AnalyticsContent() {
               <div className="card p-5">
                 <div className="flex items-center gap-2 mb-2">
                   <TrendingUp className="w-4 h-4 text-emerald-500" />
-                  <span className="text-xs font-semibold text-slate-600">אחוז שימור לקוחות</span>
+                  <span className="text-xs font-semibold text-petra-muted">אחוז שימור לקוחות</span>
                 </div>
                 <p className="text-3xl font-bold text-emerald-600">{data.retention.retentionRate}%</p>
                 <p className="text-[11px] text-petra-muted mt-1">
@@ -467,7 +467,7 @@ function AnalyticsContent() {
               <div className="card p-5">
                 <div className="flex items-center gap-2 mb-2">
                   <CreditCard className="w-4 h-4 text-brand-500" />
-                  <span className="text-xs font-semibold text-slate-600">הכנסה ממוצעת ללקוח</span>
+                  <span className="text-xs font-semibold text-petra-muted">הכנסה ממוצעת ללקוח</span>
                 </div>
                 <p className="text-3xl font-bold text-petra-text">{formatCurrency(data.retention.avgRevenuePerCustomer)}</p>
                 <p className="text-[11px] text-petra-muted mt-1">בתקופה הנבחרת</p>
@@ -475,7 +475,7 @@ function AnalyticsContent() {
               <div className="card p-5">
                 <div className="flex items-center gap-2 mb-2">
                   <Target className="w-4 h-4 text-violet-500" />
-                  <span className="text-xs font-semibold text-slate-600">המרת לידים</span>
+                  <span className="text-xs font-semibold text-petra-muted">המרת לידים</span>
                 </div>
                 <p className="text-3xl font-bold text-violet-600">{data.leads.conversionRate}%</p>
                 <p className="text-[11px] text-petra-muted mt-1">
@@ -498,7 +498,7 @@ function AnalyticsContent() {
               {/* By Day of Week */}
               {data.charts.appointmentsByDayOfWeek?.some((d) => d.count > 0) && (
                 <div className="card p-5">
-                  <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-brand-500" />
                     תורים לפי יום בשבוע
                   </h3>
@@ -530,7 +530,7 @@ function AnalyticsContent() {
               {/* By Hour */}
               {(data.charts.appointmentsByHour?.length ?? 0) > 0 && (
                 <div className="card p-5">
-                  <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-brand-500" />
                     תורים לפי שעה
                   </h3>
@@ -542,7 +542,7 @@ function AnalyticsContent() {
                           const pct = Math.max((h.count / maxCount) * 100, 4);
                           return (
                             <div key={h.hour} className="flex-1 flex flex-col items-center gap-1 group">
-                              <span className="text-[9px] text-muted opacity-0 group-hover:opacity-100 transition-opacity">
+                              <span className="text-[9px] text-petra-muted opacity-0 group-hover:opacity-100 transition-opacity">
                                 {h.count}
                               </span>
                               <div
@@ -550,7 +550,7 @@ function AnalyticsContent() {
                                 style={{ height: `${pct}%` }}
                                 title={`${h.label}: ${h.count} תורים`}
                               />
-                              <span className="text-[8px] text-muted">{h.hour}:00</span>
+                              <span className="text-[8px] text-petra-muted">{h.hour}:00</span>
                             </div>
                           );
                         })}
@@ -569,7 +569,7 @@ function AnalyticsContent() {
               <div className="flex items-center gap-2 mb-4">
                 <PawPrint className="w-4 h-4 text-brand-500" />
                 <h3 className="text-sm font-bold text-petra-text">הרכב חיות המחמד</h3>
-                <span className="text-xs text-petra-muted mr-auto">{data.petDemographics.total} חיות</span>
+                <span className="text-xs text-petra-muted ms-auto">{data.petDemographics.total} חיות</span>
               </div>
               <div className="space-y-2">
                 {data.petDemographics.bySpecies.map(({ species, count }) => {
@@ -606,11 +606,11 @@ function AnalyticsContent() {
                     const pct = Math.round((count / maxCount) * 100);
                     return (
                       <div key={breed} className="flex items-center gap-3">
-                        <span className="text-[11px] text-petra-muted w-4 text-left">{i + 1}</span>
+                        <span className="text-[11px] text-petra-muted w-4 text-right">{i + 1}</span>
                         <div className="flex-1">
                           <div className="flex items-center justify-between text-xs mb-0.5">
                             <span className="font-medium text-petra-text truncate">{breed}</span>
-                            <span className="text-petra-muted flex-shrink-0 mr-2">{count}</span>
+                            <span className="text-petra-muted flex-shrink-0 ms-2">{count}</span>
                           </div>
                           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                             <div

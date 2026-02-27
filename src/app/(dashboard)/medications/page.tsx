@@ -149,7 +149,7 @@ export default function MedicationsPage() {
           רק חיות בפנסיון
         </button>
         {data && (
-          <span className="mr-auto text-sm text-petra-muted">
+          <span className="ms-auto text-sm text-petra-muted">
             {pets.length} חיות,{" "}
             {pets.reduce((sum, p) => sum + p.medications.length, 0)} תרופות
           </span>

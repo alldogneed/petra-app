@@ -297,7 +297,7 @@ export default function BookingsPage() {
                   </div>
 
                   {/* Price */}
-                  <div className="text-left flex-shrink-0">
+                  <div className="text-right flex-shrink-0">
                     <span className="text-sm font-bold text-petra-text">
                       {formatCurrency(booking.service.price)}
                     </span>

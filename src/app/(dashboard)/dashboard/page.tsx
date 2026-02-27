@@ -348,7 +348,7 @@ function AppointmentRow({
         <div className="text-xs text-petra-muted mt-0.5">{appointment.service.name}</div>
       </div>
 
-      <div className="text-left flex-shrink-0">
+      <div className="text-right flex-shrink-0">
         <div className="text-xs font-medium text-petra-text">{appointment.startTime}</div>
         <div className="text-xs text-petra-muted">{dayStr}</div>
       </div>
@@ -2052,7 +2052,7 @@ export default function DashboardPage() {
                   <LogIn className="w-4 h-4 text-emerald-600" />
                 </div>
                 <h3 className="text-sm font-semibold text-petra-text">כניסות היום לפנסיון</h3>
-                <span className="badge-success text-[10px] mr-auto">{data.todayArrivals.length}</span>
+                <span className="badge-success text-[10px] ms-auto">{data.todayArrivals.length}</span>
               </div>
               <div className="space-y-2">
                 {data.todayArrivals.map((s) => (
@@ -2084,7 +2084,7 @@ export default function DashboardPage() {
                   <Hotel className="w-4 h-4 text-amber-600" />
                 </div>
                 <h3 className="text-sm font-semibold text-petra-text">יציאות היום מהפנסיון</h3>
-                <span className="badge-warning text-[10px] mr-auto">{data.todayDepartures.length}</span>
+                <span className="badge-warning text-[10px] ms-auto">{data.todayDepartures.length}</span>
               </div>
               <div className="space-y-2">
                 {data.todayDepartures.map((s) => (
@@ -2214,7 +2214,7 @@ export default function DashboardPage() {
                         {typeInfo.label}
                       </div>
                     </div>
-                    <div className="text-left flex-shrink-0">
+                    <div className="text-right flex-shrink-0">
                       <div className="text-sm font-semibold text-petra-text">
                         {formatCurrency(order.total)}
                       </div>

@@ -1085,7 +1085,7 @@ export default function CalendarPage() {
         )}
         style={{
           ...style,
-          borderRight: `3px dashed ${color}`,
+          borderLeft: `3px dashed ${color}`,
           zIndex: 10,
         }}
       >
@@ -1278,7 +1278,7 @@ export default function CalendarPage() {
           </button>
 
           {/* View toggle — hide Week/Month on mobile */}
-          <div className="flex items-center bg-white border border-petra-border rounded-xl overflow-hidden mr-auto">
+          <div className="flex items-center bg-white border border-petra-border rounded-xl overflow-hidden ms-auto">
             {VIEW_MODES.map((mode) => (
               <button
                 key={mode.id}
@@ -1673,7 +1673,7 @@ export default function CalendarPage() {
                       <ListTodo className="w-3.5 h-3.5 flex-shrink-0 text-petra-muted" />
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
                       <span className="truncate text-petra-text">{task.title}</span>
-                      <span className="text-petra-muted mr-auto">
+                      <span className="text-petra-muted ms-auto">
                         {TASK_CATEGORY_LABELS[task.category] || task.category}
                       </span>
                     </div>

@@ -519,7 +519,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
         {/* Page title */}
         {pageInfo && (
-          <div className="hidden lg:flex flex-col min-w-0 ml-2">
+          <div className="hidden lg:flex flex-col min-w-0 ms-2">
             <span className="text-[15px] font-semibold text-petra-text leading-tight">
               {pageInfo.title}
             </span>
@@ -537,7 +537,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
         </div>
 
         {/* Notifications & Messages */}
-        <div className="flex items-center gap-1 mr-auto">
+        <div className="flex items-center gap-1 ms-auto">
           {/* Messages — Quick WhatsApp Send */}
           <div ref={messagesRef} className="relative">
             <button
@@ -628,7 +628,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                         <ArrowRight className="w-3.5 h-3.5" />
                         חזרה
                       </button>
-                      <div className="flex-1 min-w-0 text-left">
+                      <div className="flex-1 min-w-0 text-right">
                         <span className="text-[11px] text-petra-muted">שליחה ל:</span>
                         <span className="text-[13px] font-semibold text-petra-text mr-1">{selectedCustomer?.name}</span>
                       </div>
@@ -704,7 +704,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             >
               <Bell className="w-[18px] h-[18px]" />
               {unreadNotifications > 0 && (
-                <span className="absolute -top-0.5 -left-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1 ring-2 ring-white">
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1 ring-2 ring-white">
                   {unreadNotifications}
                 </span>
               )}
@@ -831,10 +831,10 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             onClick={() => setProfileOpen(false)}
           />
 
-          {/* Panel - slides from left */}
+          {/* Panel - slides from right */}
           <div
             className={cn(
-              "absolute top-0 left-0 h-full w-[320px] max-w-full bg-white shadow-2xl",
+              "absolute top-0 right-0 h-full w-[320px] max-w-full bg-white shadow-2xl",
               "transition-transform duration-300 ease-out",
               "flex flex-col overflow-y-auto"
             )}

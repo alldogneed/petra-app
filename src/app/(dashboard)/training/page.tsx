@@ -1289,10 +1289,10 @@ function IndividualTab({
                             <span className="text-xs text-petra-text">מפגש {session.sessionNumber || ""}</span>
                             <span className="text-[10px] text-petra-muted">{formatDate(session.sessionDate)}</span>
                             {session.rating && (
-                              <span className="text-[11px] text-amber-500 mr-auto">{"★".repeat(session.rating)}{"☆".repeat(5 - session.rating)}</span>
+                              <span className="text-[11px] text-amber-500 ms-auto">{"★".repeat(session.rating)}{"☆".repeat(5 - session.rating)}</span>
                             )}
                             {!session.rating && session.summary && (
-                              <span className="text-[10px] text-petra-muted truncate max-w-[200px] mr-auto">{session.summary}</span>
+                              <span className="text-[10px] text-petra-muted truncate max-w-[200px] ms-auto">{session.summary}</span>
                             )}
                           </div>
                         ))}
@@ -1796,7 +1796,7 @@ function GroupCard({
                         <span className="text-[10px] badge-neutral">{presentCount}/{session.attendance.length || group.participants.length} נוכחים</span>
                         {session.attendance.length > 0 && (
                           <button
-                            className="mr-auto text-[10px] text-brand-600 hover:text-brand-700 font-medium"
+                            className="ms-auto text-[10px] text-brand-600 hover:text-brand-700 font-medium"
                             onClick={(e) => { e.stopPropagation(); setExpandedAttendanceSession(isAttendanceOpen ? null : session.id); }}
                           >
                             {isAttendanceOpen ? "סגור" : "סמן נוכחות"}
@@ -1831,7 +1831,7 @@ function GroupCard({
                                 <span className="text-xs text-petra-text font-medium">{dogName}</span>
                                 {customerName && <span className="text-[10px] text-petra-muted">{customerName}</span>}
                                 <span className={cn(
-                                  "text-[10px] mr-auto",
+                                  "text-[10px] ms-auto",
                                   isPresent ? "text-emerald-600" : "text-red-500"
                                 )}>
                                   {isPresent ? "נוכח" : "נעדר"}

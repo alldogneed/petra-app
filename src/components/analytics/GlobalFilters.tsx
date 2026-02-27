@@ -133,7 +133,7 @@ export function GlobalFilters() {
             onClick={() => {
               filters.setPreset(filters.preset);
             }}
-            className="text-xs text-orange-600 hover:text-orange-800 font-medium mr-auto"
+            className="text-xs text-orange-600 hover:text-orange-800 font-medium ms-auto"
             title="נקה פילטרים"
           >
             נקה הכל

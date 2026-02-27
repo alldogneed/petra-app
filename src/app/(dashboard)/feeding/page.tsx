@@ -220,7 +220,7 @@ export default function FeedingPage() {
 
                 {/* Food notes */}
                 {(pet.foodNotes || pet.feedingPlan) && (
-                  <div className="flex-1 max-w-xs text-left">
+                  <div className="flex-1 max-w-xs text-right">
                     <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                       <p className="text-xs font-medium text-amber-700 mb-0.5 flex items-center gap-1">
                         <UtensilsCrossed className="w-3 h-3" />

@@ -275,7 +275,7 @@ export default function OrdersPage() {
                             <span className="text-xs text-petra-muted flex-shrink-0">
                               {line.quantity} × {fmt(line.unitPrice)}
                             </span>
-                            <span className="text-sm font-medium text-petra-text flex-shrink-0 w-20 text-left">
+                            <span className="text-sm font-medium text-petra-text flex-shrink-0 w-20 text-right">
                               {fmt(line.lineTotal)}
                             </span>
                           </div>
@@ -471,7 +471,7 @@ export default function OrdersPage() {
                                   <span className="text-xs text-petra-muted flex-shrink-0">
                                     {line.quantity} × {fmt(line.unitPrice)}
                                   </span>
-                                  <span className="text-sm font-medium text-petra-text flex-shrink-0 w-20 text-left">
+                                  <span className="text-sm font-medium text-petra-text flex-shrink-0 w-20 text-right">
                                     {fmt(line.lineTotal)}
                                   </span>
                                 </div>

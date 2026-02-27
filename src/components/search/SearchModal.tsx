@@ -384,7 +384,7 @@ export function SearchModal({
               <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-mono">ESC</kbd>
               סגור
             </span>
-            <span className="mr-auto text-slate-300">
+            <span className="ms-auto text-slate-300">
               {flatResults.length} תוצאות
             </span>
           </div>

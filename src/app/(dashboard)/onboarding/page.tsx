@@ -48,10 +48,10 @@ export default function OnboardingPage() {
 
         {/* Skip button */}
         {step < 4 && (
-          <div className="text-left mb-4">
+          <div className="text-right mb-4">
             <button
               onClick={() => router.push("/dashboard")}
-              className="text-sm text-petra-muted hover:text-petra-text flex items-center gap-1 mr-auto"
+              className="text-sm text-petra-muted hover:text-petra-text flex items-center gap-1 ms-auto"
             >
               <X className="w-3.5 h-3.5" />
               דלג לדשבורד
