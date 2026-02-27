@@ -26,6 +26,7 @@ import {
   Shield,
   CalendarClock,
   Send,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -65,6 +66,7 @@ const navItems: NavItem[] = [
   { name: "כלבי שירות", href: "/service-dogs", icon: Shield },
   { name: "הודעות", href: "/messages", icon: MessageSquare },
   { name: "ניהול תורים", href: "/bookings", icon: CalendarCheck },
+  { name: "טפסי קליטה", href: "/intake", icon: ClipboardList },
   { name: "אנליטיקס", href: "/analytics", icon: BarChart3, minRole: "owner" },
   { name: "הגדרות", href: "/settings", icon: Settings },
 ];
