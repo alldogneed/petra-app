@@ -2057,13 +2057,31 @@ export default function CalendarPage() {
                     </button>
                   )}
                   {selectedAppointment.status === "completed" && (
-                    <button
-                      className="btn-secondary flex-1 text-xs"
-                      onClick={() => setShowQuickPayment(true)}
-                    >
-                      <CreditCard className="w-3.5 h-3.5" />
-                      הוסף תשלום
-                    </button>
+                    <>
+                      <button
+                        className="btn-secondary flex-1 text-xs"
+                        onClick={() => setShowQuickPayment(true)}
+                      >
+                        <CreditCard className="w-3.5 h-3.5" />
+                        הוסף תשלום
+                      </button>
+                      {selectedAppointment.customer.phone && (
+                        <a
+                          href={(() => {
+                            const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+                            const bookingUrl = `${baseUrl}/book/demo-business-001`;
+                            const msg = `שלום ${selectedAppointment.customer.name}! 😊\nתודה על הביקור! מוזמנ/ת לקבוע את התור הבא:\n${bookingUrl}\nנתראה! 🐾`;
+                            return `https://wa.me/${toWhatsAppPhone(selectedAppointment.customer.phone)}?text=${encodeURIComponent(msg)}`;
+                          })()}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-green-50 text-green-600 hover:bg-green-100 border border-transparent hover:border-green-200 transition-colors flex-shrink-0"
+                          title="שלח לינק לתור הבא"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </a>
+                      )}
+                    </>
                   )}
                   <button
                     className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors flex-shrink-0"
