@@ -14,6 +14,7 @@ import {
   FileText,
   Loader2,
   MessageCircle,
+  Trash2,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
@@ -66,6 +67,7 @@ export default function PaymentsPage() {
   const [showNewPayment, setShowNewPayment] = useState(false);
   const [issuingPaymentId, setIssuingPaymentId] = useState<string | null>(null);
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: payments = [], isLoading, isError } = useQuery<Payment[]>({
@@ -105,6 +107,34 @@ export default function PaymentsPage() {
     onError: () => {
       setMarkingPaidId(null);
       toast.error("שגיאה בעדכון התשלום. נסה שוב.");
+    },
+  });
+
+  const cancelPaymentMutation = useMutation({
+    mutationFn: (paymentId: string) =>
+      fetchJSON(`/api/payments/${paymentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "canceled" }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      toast.success("התשלום בוטל");
+    },
+    onError: () => toast.error("שגיאה בביטול התשלום. נסה שוב."),
+  });
+
+  const deletePaymentMutation = useMutation({
+    mutationFn: (paymentId: string) =>
+      fetchJSON(`/api/payments/${paymentId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      setConfirmDeleteId(null);
+      toast.success("התשלום נמחק");
+    },
+    onError: () => {
+      setConfirmDeleteId(null);
+      toast.error("שגיאה במחיקת התשלום. נסה שוב.");
     },
   });
 
@@ -334,6 +364,41 @@ export default function PaymentsPage() {
                         קבלה
                       </a>
                     )}
+                    {payment.status === "pending" && (
+                      <button
+                        className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
+                        onClick={() => cancelPaymentMutation.mutate(payment.id)}
+                        disabled={cancelPaymentMutation.isPending}
+                      >
+                        <XCircle className="w-3 h-3" />
+                        בטל
+                      </button>
+                    )}
+                    {confirmDeleteId === payment.id ? (
+                      <span className="inline-flex items-center gap-1 text-xs">
+                        <button
+                          className="text-red-600 font-medium hover:underline"
+                          onClick={() => deletePaymentMutation.mutate(payment.id)}
+                          disabled={deletePaymentMutation.isPending}
+                        >
+                          {deletePaymentMutation.isPending ? "מוחק..." : "מחק"}
+                        </button>
+                        <button
+                          className="text-petra-muted hover:underline"
+                          onClick={() => setConfirmDeleteId(null)}
+                        >
+                          ביטול
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        className="inline-flex items-center gap-1 text-xs text-red-400 hover:text-red-600 px-1 py-1 rounded transition-colors"
+                        onClick={() => setConfirmDeleteId(payment.id)}
+                        title="מחק תשלום"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -459,6 +524,41 @@ export default function PaymentsPage() {
                             >
                               <MessageCircle className="w-3.5 h-3.5" />
                             </a>
+                          )}
+                          {payment.status === "pending" && (
+                            <button
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              onClick={() => cancelPaymentMutation.mutate(payment.id)}
+                              disabled={cancelPaymentMutation.isPending}
+                              title="בטל תשלום"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {confirmDeleteId === payment.id ? (
+                            <span className="flex items-center gap-1 text-xs">
+                              <button
+                                className="text-red-600 font-medium hover:underline"
+                                onClick={() => deletePaymentMutation.mutate(payment.id)}
+                                disabled={deletePaymentMutation.isPending}
+                              >
+                                {deletePaymentMutation.isPending ? "..." : "מחק"}
+                              </button>
+                              <button
+                                className="text-petra-muted hover:underline"
+                                onClick={() => setConfirmDeleteId(null)}
+                              >
+                                לא
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              onClick={() => setConfirmDeleteId(payment.id)}
+                              title="מחק תשלום"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           )}
                         </div>
                       </td>

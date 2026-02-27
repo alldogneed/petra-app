@@ -174,6 +174,80 @@ const PROGRAM_STATUS_MAP: Record<string, { label: string; color: string }> = {
 };
 
 // ═══════════════════════════════════════════════════════
+// SESSION LOG MODAL
+// ═══════════════════════════════════════════════════════
+
+function SessionLogModal({
+  dogName,
+  sessionNumber,
+  isPending,
+  onClose,
+  onSubmit,
+}: {
+  dogName: string;
+  sessionNumber: number;
+  isPending: boolean;
+  onClose: () => void;
+  onSubmit: (summary: string, sessionDate: string) => void;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [summary, setSummary] = useState("");
+  const [sessionDate, setSessionDate] = useState(today);
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text">
+            רישום מפגש — {dogName}
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div className="p-3 rounded-xl bg-brand-50 border border-brand-100 text-sm text-brand-700 font-medium">
+            מפגש מספר {sessionNumber}
+          </div>
+          <div>
+            <label className="label">תאריך המפגש</label>
+            <input
+              type="date"
+              className="input"
+              value={sessionDate}
+              max={today}
+              onChange={(e) => setSessionDate(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label">סיכום המפגש (אופציונלי)</label>
+            <textarea
+              className="input"
+              rows={4}
+              placeholder="תאר מה עבדתם היום, התקדמות, הוראות לתרגול בבית..."
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button
+            className="btn-primary flex-1"
+            disabled={isPending || !sessionDate}
+            onClick={() => onSubmit(summary, sessionDate)}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            {isPending ? "שומר..." : "שמור מפגש"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
 // MAIN PAGE COMPONENT
 // ═══════════════════════════════════════════════════════
 
@@ -186,6 +260,7 @@ export default function TrainingPage() {
   const [showAssignDog, setShowAssignDog] = useState<{ groupId: string; groupName: string } | null>(null);
   const [editingProgram, setEditingProgram] = useState<TrainingProgram | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [sessionLogTarget, setSessionLogTarget] = useState<{ programId: string; sessionNumber: number; dogName: string } | null>(null);
   const queryClient = useQueryClient();
 
   // ─── Data fetching ───
@@ -305,21 +380,25 @@ export default function TrainingPage() {
   // ─── Mutations ───
 
   const markAttendanceMutation = useMutation({
-    mutationFn: async ({ programId, sessionNumber }: { programId: string; sessionNumber: number }) => {
+    mutationFn: async ({ programId, sessionNumber, summary, sessionDate }: { programId: string; sessionNumber: number; summary?: string; sessionDate?: string }) => {
       const res = await fetch(`/api/training-programs/${programId}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionDate: new Date().toISOString(),
+          sessionDate: sessionDate ? new Date(sessionDate).toISOString() : new Date().toISOString(),
           status: "COMPLETED",
           sessionNumber,
           durationMinutes: 60,
+          ...(summary ? { summary } : {}),
         }),
       });
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["training-programs"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-programs"] });
+      setSessionLogTarget(null);
+    },
   });
 
   const createGroupMutation = useMutation({
@@ -524,8 +603,8 @@ export default function TrainingPage() {
               searchQuery={searchQuery}
               expandedCards={expandedCards}
               toggleExpand={toggleExpand}
-              onMarkAttendance={(programId, sessionNumber) =>
-                markAttendanceMutation.mutate({ programId, sessionNumber })
+              onMarkAttendance={(programId, sessionNumber, dogName) =>
+                setSessionLogTarget({ programId, sessionNumber, dogName })
               }
               onEditSettings={(program) => setEditingProgram(program)}
               isMarkingAttendance={markAttendanceMutation.isPending}
@@ -622,6 +701,23 @@ export default function TrainingPage() {
           error={addParticipantMutation.error?.message || null}
         />
       )}
+
+      {sessionLogTarget && (
+        <SessionLogModal
+          dogName={sessionLogTarget.dogName}
+          sessionNumber={sessionLogTarget.sessionNumber}
+          isPending={markAttendanceMutation.isPending}
+          onClose={() => setSessionLogTarget(null)}
+          onSubmit={(summary, sessionDate) =>
+            markAttendanceMutation.mutate({
+              programId: sessionLogTarget.programId,
+              sessionNumber: sessionLogTarget.sessionNumber,
+              summary,
+              sessionDate,
+            })
+          }
+        />
+      )}
     </div>
   );
 }
@@ -698,7 +794,7 @@ function IndividualTab({
   searchQuery: string;
   expandedCards: Set<string>;
   toggleExpand: (id: string) => void;
-  onMarkAttendance: (programId: string, sessionNumber: number) => void;
+  onMarkAttendance: (programId: string, sessionNumber: number, dogName: string) => void;
   onEditSettings: (program: TrainingProgram) => void;
   isMarkingAttendance: boolean;
 }) {
@@ -804,11 +900,11 @@ function IndividualTab({
                           disabled={isMarkingAttendance}
                           onClick={(e) => {
                             e.stopPropagation();
-                            onMarkAttendance(program.id, usedSessions + 1);
+                            onMarkAttendance(program.id, usedSessions + 1, program.dog.name);
                           }}
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          {isMarkingAttendance ? "שומר..." : "סמן נוכחות"}
+                          סמן נוכחות
                         </button>
                       )}
                       <button
