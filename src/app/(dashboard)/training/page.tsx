@@ -1221,6 +1221,26 @@ function GroupCard({
   const queryClient = useQueryClient();
   const [expandedAttendanceSession, setExpandedAttendanceSession] = useState<string | null>(null);
   const [sessionNotesInput, setSessionNotesInput] = useState<Record<string, string>>({});
+  const [showAddSession, setShowAddSession] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
+  const defaultTime = group.defaultTime || "10:00";
+  const [newSessionDate, setNewSessionDate] = useState(today);
+  const [newSessionTime, setNewSessionTime] = useState(defaultTime);
+
+  const addSessionMutation = useMutation({
+    mutationFn: () =>
+      fetchJSON(`/api/training-groups/${group.id}/sessions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionDatetime: `${newSessionDate}T${newSessionTime}:00`, status: "SCHEDULED" }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+      setShowAddSession(false);
+      toast.success("מפגש נוצר בהצלחה");
+    },
+    onError: () => toast.error("שגיאה ביצירת מפגש"),
+  });
   const typeColor = GROUP_TYPE_COLORS[group.groupType] || GROUP_TYPE_COLORS.CUSTOM;
 
   const attendanceMutation = useMutation({
@@ -1306,6 +1326,13 @@ function GroupCard({
         <div className="border-t border-petra-border">
           {/* Actions */}
           <div className="p-4 pb-2 flex gap-2 flex-wrap">
+            <button
+              className="btn-primary text-xs"
+              onClick={(e) => { e.stopPropagation(); setShowAddSession(!showAddSession); }}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              הוסף מפגש
+            </button>
             <button className="btn-secondary text-xs" onClick={(e) => { e.stopPropagation(); onAssignDog(); }}>
               <Plus className="w-3.5 h-3.5" />
               שייך כלב
@@ -1332,6 +1359,50 @@ function GroupCard({
               </button>
             )}
           </div>
+
+          {/* Add Session Inline Form */}
+          {showAddSession && (
+            <div className="mx-4 mb-3 p-3 rounded-xl bg-brand-50 border border-brand-100 space-y-2">
+              <p className="text-xs font-semibold text-brand-700">מפגש חדש</p>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="label text-[10px]">תאריך</label>
+                  <input
+                    type="date"
+                    className="input text-xs py-1.5"
+                    value={newSessionDate}
+                    onChange={(e) => setNewSessionDate(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="label text-[10px]">שעה</label>
+                  <input
+                    type="time"
+                    className="input text-xs py-1.5"
+                    value={newSessionTime}
+                    onChange={(e) => setNewSessionTime(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className="btn-primary text-xs flex-1"
+                  disabled={addSessionMutation.isPending || !newSessionDate}
+                  onClick={(e) => { e.stopPropagation(); addSessionMutation.mutate(); }}
+                >
+                  {addSessionMutation.isPending ? "יוצר..." : "צור מפגש"}
+                </button>
+                <button
+                  className="btn-secondary text-xs"
+                  onClick={(e) => { e.stopPropagation(); setShowAddSession(false); }}
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Participants */}
           <div className="p-4 border-b border-petra-border">
