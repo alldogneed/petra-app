@@ -16,6 +16,7 @@ import {
   ArrowDownRight,
   Minus,
   Share2,
+  PawPrint,
 } from "lucide-react";
 import { cn, formatCurrency, fetchJSON } from "@/lib/utils";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -60,6 +61,11 @@ interface AnalyticsData {
     appointmentsByHour: { hour: number; label: string; count: number }[];
   };
   topCustomers: { id: string; name: string; revenue: number; count: number }[];
+  petDemographics?: {
+    total: number;
+    bySpecies: { species: string; count: number }[];
+    topBreeds: { breed: string; count: number }[];
+  };
 }
 
 const PERIODS = [
@@ -503,6 +509,72 @@ function AnalyticsContent() {
               )}
             </div>
           )}
+        {/* Pet Demographics */}
+        {data.petDemographics && data.petDemographics.total > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Species breakdown */}
+            <div className="card p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <PawPrint className="w-4 h-4 text-brand-500" />
+                <h3 className="text-sm font-bold text-petra-text">הרכב חיות המחמד</h3>
+                <span className="text-xs text-petra-muted mr-auto">{data.petDemographics.total} חיות</span>
+              </div>
+              <div className="space-y-2">
+                {data.petDemographics.bySpecies.map(({ species, count }) => {
+                  const pct = Math.round((count / data.petDemographics!.total) * 100);
+                  const labels: Record<string, string> = { dog: "🐕 כלבים", cat: "🐈 חתולים", other: "🐾 אחר" };
+                  return (
+                    <div key={species}>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="font-medium text-petra-text">{labels[species] ?? species}</span>
+                        <span className="text-petra-muted">{count} ({pct}%)</span>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-brand-400"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Top breeds */}
+            {data.petDemographics.topBreeds.length > 0 && (
+              <div className="card p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <PawPrint className="w-4 h-4 text-violet-500" />
+                  <h3 className="text-sm font-bold text-petra-text">גזעים מובילים</h3>
+                </div>
+                <div className="space-y-2">
+                  {data.petDemographics.topBreeds.map(({ breed, count }, i) => {
+                    const maxCount = data.petDemographics!.topBreeds[0].count;
+                    const pct = Math.round((count / maxCount) * 100);
+                    return (
+                      <div key={breed} className="flex items-center gap-3">
+                        <span className="text-[11px] text-petra-muted w-4 text-left">{i + 1}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between text-xs mb-0.5">
+                            <span className="font-medium text-petra-text truncate">{breed}</span>
+                            <span className="text-petra-muted flex-shrink-0 mr-2">{count}</span>
+                          </div>
+                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-violet-400"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         </>
       ) : null}
     </div>

@@ -198,6 +198,23 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 8);
 
+    // Pet demographics (species + top breeds) — static, not period-dependent
+    const allPets = await prisma.pet.findMany({
+      where: { customer: { businessId: DEMO_BUSINESS_ID } },
+      select: { species: true, breed: true },
+    });
+    const speciesCount: Record<string, number> = {};
+    const breedCount: Record<string, number> = {};
+    for (const pet of allPets) {
+      speciesCount[pet.species] = (speciesCount[pet.species] || 0) + 1;
+      if (pet.breed) breedCount[pet.breed] = (breedCount[pet.breed] || 0) + 1;
+    }
+    const petDemographics = {
+      total: allPets.length,
+      bySpecies: Object.entries(speciesCount).map(([species, count]) => ({ species, count })).sort((a, b) => b.count - a.count),
+      topBreeds: Object.entries(breedCount).map(([breed, count]) => ({ breed, count })).sort((a, b) => b.count - a.count).slice(0, 8),
+    };
+
     // Calculate percentage changes
     const calcChange = (current: number, previous: number) => {
       if (previous === 0) return current > 0 ? 100 : 0;
@@ -247,6 +264,7 @@ export async function GET(request: NextRequest) {
         appointmentsByHour,
       },
       topCustomers,
+      petDemographics,
     });
   } catch (error) {
     console.error("GET /api/analytics error:", error);
