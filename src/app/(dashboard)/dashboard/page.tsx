@@ -32,6 +32,7 @@ import {
   UserX,
   TrendingDown,
   TrendingUp,
+  Share2,
 } from "lucide-react";
 import {
   isToday,
@@ -1525,6 +1526,49 @@ export default function DashboardPage() {
               <CalendarClock className="w-4 h-4" />
               תור ידני +
             </Link>
+            {(() => {
+              const todayAppts = data.upcomingAppointments.filter(
+                (a) => a.date.slice(0, 10) === new Date().toISOString().slice(0, 10)
+              ).sort((a, b) => a.startTime.localeCompare(b.startTime));
+              const lines = [
+                `🌅 *בריפינג בוקר — ${todayStr}*`,
+                "",
+              ];
+              if (todayAppts.length > 0) {
+                lines.push(`📅 *תורים היום (${todayAppts.length}):*`);
+                todayAppts.forEach((a, i) => {
+                  lines.push(`  ${i + 1}. ${a.startTime} — ${a.customer.name}${a.pet ? ` (${a.pet.name})` : ""} · ${a.service.name}`);
+                });
+                lines.push("");
+              }
+              if ((data.todayArrivals?.length ?? 0) > 0) {
+                lines.push(`🐾 *כניסות לפנסיון (${data.todayArrivals.length}):*`);
+                data.todayArrivals.forEach((s) => lines.push(`  • ${s.pet.name} — ${s.customer.name}`));
+                lines.push("");
+              }
+              if ((data.todayDepartures?.length ?? 0) > 0) {
+                lines.push(`🏠 *יציאות מהפנסיון (${data.todayDepartures.length}):*`);
+                data.todayDepartures.forEach((s) => lines.push(`  • ${s.pet.name} — ${s.customer.name}`));
+                lines.push("");
+              }
+              if ((data.overdueTasks?.length ?? 0) > 0) {
+                lines.push(`⚠️ *משימות באיחור: ${data.overdueTasks.length}*`);
+              }
+              lines.push("✅ *יום טוב לכולם!*");
+              const waUrl = `https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`;
+              return (
+                <a
+                  href={waUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary flex items-center gap-2 hidden sm:flex"
+                  title="שתף בריפינג בוקר בוואטסאפ"
+                >
+                  <Share2 className="w-4 h-4" />
+                  בריפינג בוקר
+                </a>
+              );
+            })()}
           </div>
         </div>
       </div>
