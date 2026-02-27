@@ -51,7 +51,7 @@ export async function PATCH(
     const { session } = authResult;
     const action =
       status === "completed" ? ACTIVITY_ACTIONS.COMPLETE_APPOINTMENT :
-      status === "cancelled" ? ACTIVITY_ACTIONS.CANCEL_APPOINTMENT :
+      status === "canceled" ? ACTIVITY_ACTIONS.CANCEL_APPOINTMENT :
       ACTIVITY_ACTIONS.UPDATE_APPOINTMENT;
     logActivity(session.user.id, session.user.name, action);
 

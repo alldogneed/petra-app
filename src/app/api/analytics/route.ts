@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       }),
       // Canceled appointments
       prisma.appointment.count({
-        where: { businessId: DEMO_BUSINESS_ID, date: { gte: fromDate }, status: { in: ["canceled", "CANCELED", "cancelled"] } },
+        where: { businessId: DEMO_BUSINESS_ID, date: { gte: fromDate }, status: "canceled" },
       }),
       // Payments this period
       prisma.payment.aggregate({
