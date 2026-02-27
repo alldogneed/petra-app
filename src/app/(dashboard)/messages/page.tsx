@@ -86,12 +86,127 @@ const CHANNEL_LABELS: Record<string, string> = {
   email: "אימייל",
 };
 
+// ─── Send Modal ───────────────────────────────────────────────────────────────
+
+interface SendCustomer { id: string; name: string; phone: string; email?: string | null }
+
+function SendModal({ template, onClose }: { template: MessageTemplate; onClose: () => void }) {
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [selected, setSelected] = useState<SendCustomer | null>(null);
+
+  const { data: customers = [] } = useQuery<SendCustomer[]>({
+    queryKey: ["customers-basic"],
+    queryFn: () => fetchJSON("/api/customers"),
+  });
+
+  const filtered = customers.filter((c) =>
+    !customerSearch.trim() ||
+    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    c.phone.includes(customerSearch)
+  );
+
+  function renderBody(body: string, customer: SendCustomer) {
+    return body
+      .replace(/\{customerName\}/g, customer.name)
+      .replace(/\{businessPhone\}/g, "")
+      .replace(/\{petName\}/g, "")
+      .replace(/\{date\}/g, "")
+      .replace(/\{time\}/g, "")
+      .replace(/\{serviceName\}/g, "");
+  }
+
+  const preview = selected ? renderBody(template.body, selected) : template.body;
+
+  function handleSend() {
+    if (!selected) return;
+    const text = encodeURIComponent(renderBody(template.body, selected));
+    if (template.channel === "whatsapp") {
+      window.open(`https://wa.me/${toWhatsAppPhone(selected.phone)}?text=${text}`, "_blank");
+    } else if (template.channel === "sms") {
+      window.open(`sms:${selected.phone}?body=${text}`, "_self");
+    } else if (template.channel === "email" && selected.email) {
+      const subject = template.subject ? encodeURIComponent(template.subject) : "";
+      window.location.href = `mailto:${selected.email}?subject=${subject}&body=${text}`;
+    }
+  }
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-lg mx-4 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-bold text-petra-text">שליחת הודעה</h2>
+            <p className="text-xs text-petra-muted mt-0.5">{template.name}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Customer picker */}
+        <div className="mb-4">
+          <label className="label">בחר לקוח</label>
+          <input
+            className="input mb-2"
+            placeholder="חפש לפי שם או טלפון..."
+            value={customerSearch}
+            onChange={(e) => setCustomerSearch(e.target.value)}
+            autoFocus
+          />
+          <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg border border-petra-border">
+            {(filtered as SendCustomer[]).slice(0, 20).map((c) => (
+              <button
+                key={c.id}
+                onClick={() => { setSelected(c); setCustomerSearch(c.name); }}
+                className={cn(
+                  "w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 transition-colors text-right",
+                  selected?.id === c.id && "bg-brand-50 text-brand-700"
+                )}
+              >
+                <span className="font-medium">{c.name}</span>
+                <span className="text-petra-muted text-xs">{c.phone}</span>
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <p className="text-xs text-petra-muted text-center py-3">לא נמצאו לקוחות</p>
+            )}
+          </div>
+        </div>
+
+        {/* Preview */}
+        {selected && (
+          <div className="mb-4">
+            <label className="label">תצוגה מקדימה</label>
+            <div className="bg-slate-50 rounded-lg p-3 text-sm text-petra-text whitespace-pre-wrap border border-petra-border max-h-32 overflow-y-auto">
+              {preview}
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2 justify-end">
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button
+            className="btn-primary"
+            disabled={!selected}
+            onClick={handleSend}
+          >
+            <Send className="w-4 h-4" />
+            {template.channel === "whatsapp" ? "פתח בוואטסאפ" : template.channel === "email" ? "שלח במייל" : "שלח SMS"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Templates Tab ────────────────────────────────────────────────────────────
 
 function TemplatesTab() {
   const [activeChannel, setActiveChannel] = useState("all");
   const [showEditor, setShowEditor] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
+  const [sendingTemplate, setSendingTemplate] = useState<MessageTemplate | null>(null);
   const [form, setForm] = useState({ name: "", channel: "whatsapp", subject: "", body: "" });
   const [cursorPos, setCursorPos] = useState(0);
   const queryClient = useQueryClient();
@@ -201,6 +316,13 @@ function TemplatesTab() {
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
+                    onClick={() => setSendingTemplate(template)}
+                    className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
+                    title="שלח הודעה"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                  <button
                     onClick={() => openEditor(template)}
                     className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
                   >
@@ -302,6 +424,14 @@ function TemplatesTab() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Send Modal */}
+      {sendingTemplate && (
+        <SendModal
+          template={sendingTemplate}
+          onClose={() => setSendingTemplate(null)}
+        />
       )}
     </>
   );
