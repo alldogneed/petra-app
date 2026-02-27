@@ -535,6 +535,7 @@ export default function CalendarPage() {
   const [rescheduleForm, setRescheduleForm] = useState({ date: "", startTime: "", endTime: "" });
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesInput, setNotesInput] = useState("");
+  const [serviceTypeFilter, setServiceTypeFilter] = useState<string | null>(null);
   const [hoveredApt, setHoveredApt] = useState<{
     apt: AppointmentEvent;
     x: number;
@@ -595,6 +596,13 @@ export default function CalendarPage() {
     queryFn: () =>
       fetchJSON(`/api/appointments?from=${from}&to=${to}`),
   });
+
+  const filteredAppointments = useMemo(
+    () => serviceTypeFilter
+      ? appointments.filter((a) => a.service.type === serviceTypeFilter)
+      : appointments,
+    [appointments, serviceTypeFilter]
+  );
 
   const { data: boardingStays = [] } = useQuery<BoardingStayEvent[]>({
     queryKey: ["boarding-calendar", from, to],
@@ -767,8 +775,8 @@ export default function CalendarPage() {
   const dayAppointments = useMemo(() => {
     if (viewMode !== "day") return [];
     const dayStr = toLocalDateString(selectedDay);
-    return appointments.filter((a) => a.date.slice(0, 10) === dayStr);
-  }, [appointments, selectedDay, viewMode]);
+    return filteredAppointments.filter((a) => a.date.slice(0, 10) === dayStr);
+  }, [filteredAppointments, selectedDay, viewMode]);
 
   // ── Day view helpers for orders & tasks ──
   const dayOrders = useMemo(() => {
@@ -974,27 +982,52 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* ── Color Legend ── */}
-      <div className="hidden md:flex items-center gap-4 flex-wrap mb-4 px-1">
-        {Object.entries(SERVICE_TYPE_COLORS).map(([type, color]) => (
-          <div
-            key={type}
-            className="flex items-center gap-1.5 text-xs text-petra-muted"
+      {/* ── Color Legend / Service Type Filter ── */}
+      <div className="hidden md:flex items-center gap-2 flex-wrap mb-4 px-1">
+        {Object.entries(SERVICE_TYPE_COLORS).map(([type, color]) => {
+          const isActive = serviceTypeFilter === type;
+          const isDimmed = serviceTypeFilter !== null && !isActive;
+          return (
+            <button
+              key={type}
+              onClick={() => setServiceTypeFilter(isActive ? null : type)}
+              className={cn(
+                "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
+                isActive
+                  ? "border-current font-medium shadow-sm"
+                  : isDimmed
+                  ? "border-transparent opacity-40 hover:opacity-70"
+                  : "border-transparent hover:border-petra-border hover:bg-petra-bg"
+              )}
+              style={{ color: isActive ? color : undefined }}
+              title={`סנן לפי ${SERVICE_TYPE_LABELS[type]}`}
+            >
+              <div
+                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                style={{ background: color }}
+              />
+              <span className={isDimmed ? "text-petra-muted" : isActive ? "" : "text-petra-muted"}>
+                {SERVICE_TYPE_LABELS[type]}
+              </span>
+            </button>
+          );
+        })}
+        {serviceTypeFilter && (
+          <button
+            onClick={() => setServiceTypeFilter(null)}
+            className="flex items-center gap-1 text-xs text-petra-muted hover:text-petra-text px-1.5 py-1 rounded hover:bg-petra-bg transition-colors"
           >
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ background: color }}
-            />
-            <span>{SERVICE_TYPE_LABELS[type]}</span>
-          </div>
-        ))}
+            <X className="w-3 h-3" />
+            <span>הצג הכל</span>
+          </button>
+        )}
         <div className="w-px h-4 bg-petra-border mx-1" />
-        <div className="flex items-center gap-1.5 text-xs text-petra-muted">
-          <div className="w-3 h-3 rounded border border-dashed border-orange-400 bg-white" />
+        <div className="flex items-center gap-1.5 text-xs text-petra-muted px-1">
+          <div className="w-2.5 h-2.5 rounded border border-dashed border-orange-400 bg-white" />
           <span>הזמנה</span>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-petra-muted">
-          <div className="w-3 h-3 rounded border-r-2 border-amber-400 bg-white border border-slate-200" />
+        <div className="flex items-center gap-1.5 text-xs text-petra-muted px-1">
+          <div className="w-2.5 h-2.5 rounded border-r-2 border-amber-400 bg-white border border-slate-200" />
           <span>משימה</span>
         </div>
       </div>
@@ -1157,7 +1190,7 @@ export default function CalendarPage() {
                 {/* Appointment blocks */}
                 {weekDates.map((date, dayIdx) => {
                   const dateStr = toLocalDateString(date);
-                  const dayAppts = appointments.filter(
+                  const dayAppts = filteredAppointments.filter(
                     (a) => a.date.slice(0, 10) === dateStr
                   );
                   return dayAppts.map((apt) => {
@@ -1426,7 +1459,7 @@ export default function CalendarPage() {
               const dateStr = toLocalDateString(date);
               const isCurrentMonth = date.getMonth() === anchor.getMonth();
               const isToday = dateStr === today;
-              const dayAppts = appointments.filter(
+              const dayAppts = filteredAppointments.filter(
                 (a) => a.date.slice(0, 10) === dateStr
               );
               const dayOrd = orders.filter(
