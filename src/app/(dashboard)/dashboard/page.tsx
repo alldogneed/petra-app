@@ -28,6 +28,7 @@ import {
   PhoneCall,
   X,
   Cake,
+  Syringe,
 } from "lucide-react";
 import {
   isToday,
@@ -1025,6 +1026,115 @@ function BirthdayWidget() {
   );
 }
 
+// ─── Vaccination Alert Widget ────────────────────────────────────────────────
+
+interface VaccinationItem {
+  healthId: string;
+  petId: string;
+  petName: string;
+  species: string;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  rabiesValidUntil: string;
+  daysUntil: number;
+  isExpired: boolean;
+}
+
+function VaccinationAlertWidget() {
+  const [sentIds, setSentIds] = useState<Set<string>>(new Set());
+  const { data } = useQuery<{ vaccinations: VaccinationItem[]; total: number }>({
+    queryKey: ["pet-vaccinations"],
+    queryFn: () => fetchJSON("/api/pets/vaccinations?days=30"),
+  });
+
+  if (!data || data.total === 0) return null;
+
+  return (
+    <div className="card overflow-hidden" style={{ borderTop: "3px solid #8B5CF6" }}>
+      <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100 bg-violet-50/30">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-violet-100">
+            <Syringe className="w-4 h-4 text-violet-600" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-petra-text">חיסוני כלבת — התראות</h2>
+            <p className="text-[11px] text-petra-muted">
+              <span className="text-violet-600 font-medium">{data.total} חיות מחמד</span>{" "}
+              עם חיסון פג תוקף / עומד לפוג
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/customers"
+          className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
+        >
+          לרשימת לקוחות
+          <ArrowLeft className="w-3 h-3" />
+        </Link>
+      </div>
+
+      <div className="divide-y divide-slate-50">
+        {data.vaccinations.map((v) => {
+          const expiry = new Date(v.rabiesValidUntil);
+          const expiryStr = expiry.toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" });
+          const waMsg = `שלום ${v.customerName}! 💉\nחיסון הכלבת של ${v.petName} ${v.isExpired ? "פג תוקפו" : `עומד לפוג בתאריך ${expiryStr}`}.\nנא לדאוג לחידוש החיסון בהקדם. 🐾`;
+          const waLink = `https://wa.me/${toWhatsAppPhone(v.customerPhone)}?text=${encodeURIComponent(waMsg)}`;
+          const sent = sentIds.has(v.petId);
+
+          return (
+            <div
+              key={v.petId}
+              className="px-5 py-3 flex items-center gap-3 hover:bg-slate-50/50 transition-colors"
+            >
+              <div className={cn(
+                "w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-bold",
+                v.isExpired
+                  ? "bg-red-100 text-red-700"
+                  : "bg-amber-100 text-amber-700"
+              )}>
+                {v.isExpired ? "!" : v.daysUntil}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <Link href={`/customers/${v.customerId}`} className="text-sm font-medium text-petra-text hover:text-brand-600 truncate block">
+                  {v.petName} <span className="font-normal text-petra-muted">({v.customerName})</span>
+                </Link>
+                <div className={cn(
+                  "text-[11px] font-medium",
+                  v.isExpired ? "text-red-600" : "text-amber-600"
+                )}>
+                  {v.isExpired ? `פג תוקף ${expiryStr}` : `פג תוקף עוד ${v.daysUntil} ימים · ${expiryStr}`}
+                </div>
+              </div>
+
+              {v.customerPhone && (
+                sent ? (
+                  <span className="text-xs text-emerald-600 font-medium flex items-center gap-1 flex-shrink-0">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    נשלח
+                  </span>
+                ) : (
+                  <a
+                    href={waLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-7 h-7 rounded-md bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors flex-shrink-0"
+                    title="שלח תזכורת חיסון בוואטסאפ"
+                    onClick={() => setSentIds((prev) => new Set([...prev, v.petId]))}
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                  </a>
+                )
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── New Customer Modal ───────────────────────────────────────────────────────
 
 function NewCustomerModal({
@@ -1500,6 +1610,9 @@ export default function DashboardPage() {
 
       {/* Birthday Widget */}
       <BirthdayWidget />
+
+      {/* Vaccination Expiry Alerts */}
+      <VaccinationAlertWidget />
 
       {/* Open Tasks */}
       <div className="card p-5">
