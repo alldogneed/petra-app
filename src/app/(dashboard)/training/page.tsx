@@ -1106,6 +1106,38 @@ function IndividualTab({
                         <Settings className="w-3.5 h-3.5" />
                         הגדרות
                       </button>
+                      {program.customer.phone && (
+                        <a
+                          href={(() => {
+                            const completedGoals = program.goals?.filter((g: { status: string }) => g.status === "ACHIEVED").length ?? 0;
+                            const totalGoals = program.goals?.length ?? 0;
+                            const completedHomework = program.homework?.filter((h: { isCompleted: boolean }) => h.isCompleted).length ?? 0;
+                            const totalHomework = program.homework?.length ?? 0;
+                            const lastSession = [...(program.sessions ?? [])].sort(
+                              (a, b) => ((b.sessionNumber ?? 0) - (a.sessionNumber ?? 0))
+                            )[0];
+                            const lines = [
+                              `שלום ${program.customer.name}! 🐾`,
+                              `דוח התקדמות אילוף — ${program.dog.name}`,
+                              "",
+                              `📊 מפגשים: ${usedSessions}${program.totalSessions ? `/${program.totalSessions}` : ""}`,
+                            ];
+                            if (totalGoals > 0) lines.push(`🎯 יעדים: ${completedGoals}/${totalGoals} הושגו`);
+                            if (totalHomework > 0) lines.push(`📝 שיעורי בית: ${completedHomework}/${totalHomework} הושלמו`);
+                            if (lastSession?.summary) {
+                              lines.push("", `💬 סיכום מפגש אחרון:`, lastSession.summary);
+                            }
+                            return `https://wa.me/${toWhatsAppPhone(program.customer.phone)}?text=${encodeURIComponent(lines.join("\n"))}`;
+                          })()}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-secondary text-xs"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          שלח דוח
+                        </a>
+                      )}
                     </div>
 
                     {/* Details Info */}
