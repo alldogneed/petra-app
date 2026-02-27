@@ -278,6 +278,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Today's revenue
+    const todayRevenueAgg = await prisma.payment.aggregate({
+      where: {
+        businessId,
+        status: "paid",
+        paidAt: { gte: todayStart, lte: todayEnd },
+      },
+      _sum: { amount: true },
+    });
+    const todayRevenue = todayRevenueAgg._sum.amount || 0;
+
     // Revenue by month (last 6 months)
     const revenueByMonth: { month: string; amount: number }[] = [];
     for (let i = 5; i >= 0; i--) {
@@ -302,6 +313,7 @@ export async function GET(request: NextRequest) {
       totalPets,
       todayAppointments,
       monthRevenue: monthPayments._sum.amount || 0,
+      todayRevenue,
       upcomingAppointments,
       recentTasks,
       pendingPayments,

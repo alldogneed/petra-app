@@ -31,6 +31,7 @@ import {
   Syringe,
   UserX,
   TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import {
   isToday,
@@ -59,6 +60,7 @@ interface DashboardStats {
   totalPets: number;
   todayAppointments: number;
   monthRevenue: number;
+  todayRevenue: number;
   pendingPayments: number;
   openLeads: number;
   activeOrders: number;
@@ -1545,6 +1547,15 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {(data.todayRevenue ?? 0) > 0 && (
+          <StatCard
+            title="הכנסות היום"
+            value={formatCurrency(data.todayRevenue)}
+            icon={TrendingUp}
+            color="#22C55E"
+            href="/payments"
+          />
+        )}
         <StatCard
           title="הזמנות פעילות"
           value={data.activeOrders}
