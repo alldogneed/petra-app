@@ -210,6 +210,26 @@ export async function GET(request: NextRequest) {
       orderBy: { startTime: "asc" },
     });
 
+    // Top debtors: customers with highest pending payment amounts
+    const pendingPaymentRows = await prisma.payment.findMany({
+      where: { businessId, status: "pending" },
+      select: {
+        amount: true,
+        customer: { select: { id: true, name: true, phone: true } },
+      },
+    });
+    const debtorMap = new Map<string, { id: string; name: string; phone: string; total: number }>();
+    for (const row of pendingPaymentRows) {
+      const key = row.customer.id;
+      if (!debtorMap.has(key)) {
+        debtorMap.set(key, { ...row.customer, total: 0 });
+      }
+      debtorMap.get(key)!.total += row.amount;
+    }
+    const topDebtors = Array.from(debtorMap.values())
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+
     // Get top service name
     let topService: { name: string; count: number } | null = null;
     if (topServiceResult.length > 0) {
@@ -271,6 +291,7 @@ export async function GET(request: NextRequest) {
       todayTasks,
       overdueTasks,
       urgentLeads,
+      topDebtors,
       tomorrowAppointments: tomorrowAppointments.map((a) => ({
         id: a.id,
         startTime: a.startTime,
