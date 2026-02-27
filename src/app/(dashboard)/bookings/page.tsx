@@ -14,8 +14,9 @@ import {
   PawPrint,
   X,
   Mail,
+  MessageCircle,
 } from "lucide-react";
-import { cn, fetchJSON, formatCurrency, formatRelativeTime } from "@/lib/utils";
+import { cn, fetchJSON, formatCurrency, formatRelativeTime, toWhatsAppPhone } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 
 interface BookingData {
@@ -416,23 +417,53 @@ export default function BookingsPage() {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => updateMutation.mutate({ id: booking.id, status: "confirmed" })}
-                            disabled={updateMutation.isPending}
-                            className="flex-1 px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                            אשר הזמנה
-                          </button>
-                          <button
-                            onClick={() => setShowDeclineInput(true)}
-                            disabled={updateMutation.isPending}
-                            className="flex-1 px-4 py-2.5 rounded-lg bg-red-50 text-red-600 text-sm font-semibold hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
-                          >
-                            <XCircle className="w-4 h-4" />
-                            דחה הזמנה
-                          </button>
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => updateMutation.mutate({ id: booking.id, status: "confirmed" })}
+                              disabled={updateMutation.isPending}
+                              className="flex-1 px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                              אשר הזמנה
+                            </button>
+                            <button
+                              onClick={() => setShowDeclineInput(true)}
+                              disabled={updateMutation.isPending}
+                              className="flex-1 px-4 py-2.5 rounded-lg bg-red-50 text-red-600 text-sm font-semibold hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <XCircle className="w-4 h-4" />
+                              דחה הזמנה
+                            </button>
+                          </div>
+                          {booking.customer.phone && (() => {
+                            const dateStr = new Date(booking.startAt).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
+                            const timeStr = new Date(booking.startAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+                            const petNames = booking.dogs.map((d) => d.pet.name).join(", ");
+                            const confirmMsg = [
+                              `שלום ${booking.customer.name}! 😊`,
+                              `ההזמנה שלך אושרה ✅`,
+                              "",
+                              `📅 תאריך: ${dateStr}`,
+                              `🕐 שעה: ${timeStr}`,
+                              `🐾 שירות: ${booking.service.name}`,
+                              petNames ? `🐕 חיית מחמד: ${petNames}` : "",
+                              "",
+                              `מחכים לראותכם! 🐾`,
+                            ].filter(Boolean).join("\n");
+                            return (
+                              <a
+                                href={`https://wa.me/${toWhatsAppPhone(booking.customer.phone)}?text=${encodeURIComponent(confirmMsg)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => updateMutation.mutate({ id: booking.id, status: "confirmed" })}
+                                className="w-full px-4 py-2.5 rounded-lg bg-green-50 text-green-700 text-sm font-semibold hover:bg-green-100 transition-colors flex items-center justify-center gap-2 border border-green-200"
+                              >
+                                <MessageCircle className="w-4 h-4" />
+                                אשר + שלח אישור WhatsApp
+                              </a>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
