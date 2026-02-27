@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { scheduleAppointmentReminder } from "@/lib/reminder-service";
 
 export async function GET(request: NextRequest) {
   try {
@@ -79,6 +80,19 @@ export async function POST(request: NextRequest) {
     });
 
     logCurrentUserActivity("CREATE_APPOINTMENT");
+
+    // Schedule a WhatsApp reminder 24h before (fire-and-forget, don't block response)
+    scheduleAppointmentReminder({
+      id: appointment.id,
+      businessId: DEMO_BUSINESS_ID,
+      customerId: appointment.customerId,
+      date: appointment.date,
+      startTime: appointment.startTime,
+      service: { name: appointment.service.name },
+      customer: { name: appointment.customer.name },
+      pet: appointment.pet ? { name: appointment.pet.name } : null,
+    }).catch((err) => console.error("Failed to schedule appointment reminder:", err));
+
     return NextResponse.json(appointment, { status: 201 });
   } catch (error) {
     console.error("Failed to create appointment:", error);

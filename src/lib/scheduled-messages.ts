@@ -81,26 +81,29 @@ export async function processPendingReminders(): Promise<{
 
       // Build the message body
       let body: string;
-      if (template) {
+
+      if (payload.body) {
+        // Direct body in payload (appointment reminders, group session reminders)
+        body = payload.body;
+      } else if (template) {
         body = interpolateTemplate(template.body, {
           customerName: msg.customer.name,
           orderId: payload.orderId || "",
         });
-      } else {
-        // Hebrew fallback
-        body = `שלום ${msg.customer.name}, תזכורת: יש לך הזמנה שמתחילה בעוד 48 שעות. אם יש שאלות, אנחנו כאן!`;
-      }
-
-      // Fetch order details for richer message
-      if (payload.orderId) {
-        const order = await prisma.order.findUnique({
-          where: { id: payload.orderId },
-          select: { startAt: true, orderType: true },
-        });
-        if (order?.startAt) {
-          body += `\nתאריך: ${formatDate(order.startAt)}`;
-          body += ` שעה: ${formatTime(order.startAt.toTimeString().slice(0, 5))}`;
+        // Fetch order details for richer message
+        if (payload.orderId) {
+          const order = await prisma.order.findUnique({
+            where: { id: payload.orderId },
+            select: { startAt: true, orderType: true },
+          });
+          if (order?.startAt) {
+            body += `\nתאריך: ${formatDate(order.startAt)}`;
+            body += ` שעה: ${formatTime(order.startAt.toTimeString().slice(0, 5))}`;
+          }
         }
+      } else {
+        // Generic Hebrew fallback
+        body = `שלום ${msg.customer.name}, תזכורת מ-Petra. אם יש שאלות, אנחנו כאן!`;
       }
 
       const phone = toWhatsAppPhone(msg.customer.phone);

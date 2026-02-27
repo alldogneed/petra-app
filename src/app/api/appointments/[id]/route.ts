@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { cancelAppointmentReminders, rescheduleAppointmentReminder } from "@/lib/reminder-service";
 
 export async function PATCH(
   request: NextRequest,
@@ -55,6 +56,27 @@ export async function PATCH(
       ACTIVITY_ACTIONS.UPDATE_APPOINTMENT;
     logActivity(session.user.id, session.user.name, action);
 
+    // Manage scheduled reminders
+    if (status === "canceled" || status === "completed") {
+      cancelAppointmentReminders(id).catch((err) =>
+        console.error("Failed to cancel appointment reminders:", err)
+      );
+    } else if (date !== undefined || startTime !== undefined) {
+      // Date/time changed — reschedule reminder
+      rescheduleAppointmentReminder({
+        id: appointment.id,
+        businessId: DEMO_BUSINESS_ID,
+        customerId: appointment.customerId,
+        date: appointment.date,
+        startTime: appointment.startTime,
+        service: { name: appointment.service.name },
+        customer: { name: appointment.customer.name },
+        pet: appointment.pet ? { name: appointment.pet.name } : null,
+      }).catch((err) =>
+        console.error("Failed to reschedule appointment reminder:", err)
+      );
+    }
+
     return NextResponse.json(appointment);
   } catch (error) {
     console.error("Failed to update appointment:", error);
@@ -86,6 +108,7 @@ export async function DELETE(
       );
     }
 
+    await cancelAppointmentReminders(id);
     await prisma.appointment.delete({ where: { id } });
 
     const { session } = authResult;

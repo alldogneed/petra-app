@@ -1,6 +1,77 @@
 import { prisma } from "@/lib/prisma";
 import { REMINDER_TEMPLATES } from "@/lib/training-groups";
 
+// ─── Appointment reminder scheduling ─────────────────────────────────────────
+
+interface AppointmentForReminder {
+  id: string;
+  businessId: string;
+  customerId: string;
+  date: Date;
+  startTime: string; // "HH:mm"
+  service: { name: string };
+  customer: { name: string };
+  pet?: { name: string } | null;
+}
+
+/**
+ * Schedule a WhatsApp reminder 24h before an appointment.
+ * Returns the created ScheduledMessage or null if the send time is in the past.
+ */
+export async function scheduleAppointmentReminder(appt: AppointmentForReminder) {
+  const [h, m] = appt.startTime.split(":").map(Number);
+  const apptDatetime = new Date(appt.date);
+  apptDatetime.setHours(h, m, 0, 0);
+
+  const sendAt = new Date(apptDatetime.getTime() - 24 * 60 * 60 * 1000);
+  if (sendAt <= new Date()) return null;
+
+  const formattedDate = new Intl.DateTimeFormat("he-IL", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(apptDatetime);
+
+  const petPart = appt.pet ? ` עם ${appt.pet.name}` : "";
+  const body = `שלום ${appt.customer.name}! תזכורת לפגישה שלנו מחר (${formattedDate}) – ${appt.service.name}${petPart} בשעה ${appt.startTime}. נתראה! 🐾`;
+
+  return prisma.scheduledMessage.create({
+    data: {
+      businessId: appt.businessId,
+      customerId: appt.customerId,
+      channel: "whatsapp",
+      templateKey: "appointment_reminder_24h",
+      payloadJson: JSON.stringify({ body }),
+      sendAt,
+      status: "PENDING",
+      relatedEntityType: "APPOINTMENT",
+      relatedEntityId: appt.id,
+    },
+  });
+}
+
+/**
+ * Cancel all pending reminders for an appointment.
+ */
+export async function cancelAppointmentReminders(appointmentId: string) {
+  return prisma.scheduledMessage.updateMany({
+    where: {
+      relatedEntityType: "APPOINTMENT",
+      relatedEntityId: appointmentId,
+      status: "PENDING",
+    },
+    data: { status: "CANCELED" },
+  });
+}
+
+/**
+ * Cancel existing reminders and reschedule (call when date/time changes).
+ */
+export async function rescheduleAppointmentReminder(appt: AppointmentForReminder) {
+  await cancelAppointmentReminders(appt.id);
+  return scheduleAppointmentReminder(appt);
+}
+
 // ─── Reminder scheduling service for training group sessions ───
 
 /**
