@@ -1121,6 +1121,44 @@ export default function CalendarPage() {
             <p className="text-xs text-petra-muted mt-0.5">{headerSubtitle}</p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Week Summary WhatsApp button — only in week view */}
+            {viewMode === "week" && (() => {
+              const weekAppts = filteredAppointments
+                .filter((a) => a.status !== "canceled")
+                .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.startTime.localeCompare(b.startTime));
+              if (weekAppts.length === 0) return null;
+              const weekLabel = `${weekDates[0].toLocaleDateString("he-IL", { day: "numeric", month: "long" })} – ${weekDates[6].toLocaleDateString("he-IL", { day: "numeric", month: "long" })}`;
+              const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+              const lines = [`📅 לוח שבוע — ${weekLabel}`, `סה"כ ${weekAppts.length} פגישות`, ""];
+              const byDay: Record<string, typeof weekAppts> = {};
+              for (const a of weekAppts) {
+                const key = a.date.slice(0, 10);
+                if (!byDay[key]) byDay[key] = [];
+                byDay[key].push(a);
+              }
+              for (const dateStr of Object.keys(byDay).sort()) {
+                const date = new Date(dateStr + "T00:00:00");
+                const dayLabel = `${dayNames[date.getDay()]} ${date.toLocaleDateString("he-IL", { day: "numeric", month: "long" })}`;
+                lines.push(`📌 ${dayLabel}:`);
+                byDay[dateStr].forEach((a, i) => {
+                  lines.push(`  ${i + 1}. ${a.startTime} — ${a.customer.name}${a.pet ? ` (${a.pet.name})` : ""} · ${a.service.name}`);
+                });
+                lines.push("");
+              }
+              const waUrl = `https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`;
+              return (
+                <a
+                  href={waUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary text-sm hidden sm:flex items-center gap-1.5"
+                  title="שתף לוח שבוע בוואטסאפ"
+                >
+                  <Share2 className="w-4 h-4" />
+                  סיכום שבוע
+                </a>
+              );
+            })()}
             {/* Day Summary WhatsApp button */}
             {(() => {
               const summaryDate = viewMode === "day" ? selectedDay : new Date();
