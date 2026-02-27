@@ -163,6 +163,20 @@ export default function TasksPage() {
     return () => clearInterval(timer);
   }, []);
 
+  // Keyboard shortcut: 'N' to create new task (when no input is focused)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "n" || e.key === "N") {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        e.preventDefault();
+        setShowNewTask(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   // Fetch ALL open tasks (we filter on client side for computed statuses)
   const { data: allTasks = [], isLoading, isError } = useQuery<Task[]>({
     queryKey: ["tasks", activeCategory],
@@ -348,6 +362,9 @@ export default function TasksPage() {
           <Plus className="w-4 h-4" />
           משימה חדשה
         </button>
+        <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-petra-muted bg-slate-100 px-2 py-0.5 rounded-md font-mono">
+          N
+        </span>
       </div>
 
       {/* Quick Stats Strip */}
