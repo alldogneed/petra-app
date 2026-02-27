@@ -21,6 +21,8 @@ import {
   Package,
   AlertTriangle,
   Settings,
+  BookOpen,
+  Circle,
 } from "lucide-react";
 import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -839,6 +841,133 @@ function GoalProgressRow({ goal, programId }: { goal: { id: string; title: strin
   );
 }
 
+// ─── Homework Section ────────────────────────────────────────────────────────
+
+function HomeworkSection({ program }: { program: TrainingProgram }) {
+  const queryClient = useQueryClient();
+  const [newTitle, setNewTitle] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ homeworkId, isCompleted }: { homeworkId: string; isCompleted: boolean }) =>
+      fetchJSON(`/api/training-programs/${program.id}/homework`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ homeworkId, isCompleted }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["training-programs"] }),
+    onError: () => toast.error("שגיאה בעדכון שיעורי בית"),
+  });
+
+  const addMutation = useMutation({
+    mutationFn: (title: string) =>
+      fetchJSON(`/api/training-programs/${program.id}/homework`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-programs"] });
+      setNewTitle("");
+      setShowAdd(false);
+      toast.success("שיעור בית נוסף ✓");
+    },
+    onError: () => toast.error("שגיאה בהוספת שיעור בית"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (homeworkId: string) =>
+      fetchJSON(`/api/training-programs/${program.id}/homework?homeworkId=${homeworkId}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["training-programs"] }),
+    onError: () => toast.error("שגיאה במחיקת שיעור בית"),
+  });
+
+  const completed = program.homework.filter((h) => h.isCompleted).length;
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center gap-2 mb-2">
+        <BookOpen className="w-3.5 h-3.5 text-petra-muted" />
+        <h4 className="text-xs font-semibold text-petra-muted flex-1">
+          שיעורי בית ({completed}/{program.homework.length})
+        </h4>
+        <button
+          className="text-[10px] text-brand-600 hover:text-brand-700 font-medium flex items-center gap-0.5"
+          onClick={() => setShowAdd((v) => !v)}
+        >
+          <Plus className="w-3 h-3" />
+          הוסף
+        </button>
+      </div>
+
+      {program.homework.length === 0 && !showAdd && (
+        <p className="text-xs text-petra-muted">אין שיעורי בית עדיין</p>
+      )}
+
+      <div className="space-y-1.5">
+        {program.homework.map((hw) => (
+          <div
+            key={hw.id}
+            className={cn(
+              "flex items-center gap-2 p-2 rounded-lg transition-colors",
+              hw.isCompleted ? "bg-emerald-50" : "bg-slate-50"
+            )}
+          >
+            <button
+              onClick={() => toggleMutation.mutate({ homeworkId: hw.id, isCompleted: !hw.isCompleted })}
+              disabled={toggleMutation.isPending}
+              className="flex-shrink-0"
+            >
+              {hw.isCompleted ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              ) : (
+                <Circle className="w-4 h-4 text-slate-300 hover:text-brand-400" />
+              )}
+            </button>
+            <span className={cn("text-xs flex-1", hw.isCompleted ? "line-through text-petra-muted" : "text-petra-text")}>
+              {hw.title}
+            </span>
+            <button
+              onClick={() => deleteMutation.mutate(hw.id)}
+              disabled={deleteMutation.isPending}
+              className="text-petra-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {showAdd && (
+        <div className="mt-2 flex gap-2">
+          <input
+            autoFocus
+            type="text"
+            className="input text-xs flex-1 py-1"
+            placeholder="תיאור שיעור הבית..."
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newTitle.trim()) addMutation.mutate(newTitle.trim());
+              if (e.key === "Escape") { setShowAdd(false); setNewTitle(""); }
+            }}
+          />
+          <button
+            className="btn-primary text-xs px-2 py-1"
+            disabled={!newTitle.trim() || addMutation.isPending}
+            onClick={() => { if (newTitle.trim()) addMutation.mutate(newTitle.trim()); }}
+          >
+            {addMutation.isPending ? "..." : "הוסף"}
+          </button>
+          <button className="btn-secondary text-xs px-2 py-1" onClick={() => { setShowAdd(false); setNewTitle(""); }}>
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════
 
 function IndividualTab({
@@ -1019,6 +1148,9 @@ function IndividualTab({
                         </div>
                       </div>
                     )}
+
+                    {/* Homework */}
+                    <HomeworkSection program={program} />
 
                     {/* Sessions list */}
                     <h4 className="text-xs font-semibold text-petra-muted mb-2 flex items-center gap-1.5">
