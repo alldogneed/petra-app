@@ -80,6 +80,7 @@ const navItems: NavItem[] = [
   { name: "ייבוא נתונים", href: "/import", icon: Upload },
   { name: "חיסונים", href: "/vaccinations", icon: Syringe },
   { name: "לוח תרופות", href: "/medications", icon: Pill },
+  { name: "אונבורדינג", href: "/onboarding", icon: HelpCircle },
   { name: "אנליטיקס", href: "/analytics", icon: BarChart3, minRole: "owner" },
   { name: "הגדרות", href: "/settings", icon: Settings },
 ];

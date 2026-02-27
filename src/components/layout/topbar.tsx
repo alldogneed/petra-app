@@ -58,6 +58,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/pets": { title: "חיות מחמד", subtitle: "כל החיות הרשומות בעסק" },
   "/import": { title: "ייבוא נתונים", subtitle: "ייבא לקוחות וחיות מקובץ Excel / CSV" },
   "/medications": { title: "לוח תרופות", subtitle: "חיות עם תרופות פעילות" },
+  "/onboarding": { title: "הגדרת העסק", subtitle: "אשף הגדרה ראשוני" },
 };
 
 interface IntegrationStatus {
