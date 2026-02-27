@@ -23,6 +23,7 @@ import {
   Settings,
 } from "lucide-react";
 import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   GROUP_TYPE_LABELS,
   GROUP_TYPE_COLORS,
@@ -61,7 +62,7 @@ interface GroupSession {
   sessionDatetime: string;
   status: string;
   notes: string | null;
-  attendance: { id: string; attendanceStatus: string; participant: { dog: { name: string }; customer: { name: string } } }[];
+  attendance: { id: string; attendanceStatus: string; participantId: string; participant?: { dog: { name: string }; customer: { name: string } } }[];
 }
 
 interface TrainingProgram {
@@ -1217,7 +1218,20 @@ function GroupCard({
   onRemoveParticipant: (participantId: string) => void;
   isWorkshop?: boolean;
 }) {
+  const queryClient = useQueryClient();
+  const [expandedAttendanceSession, setExpandedAttendanceSession] = useState<string | null>(null);
   const typeColor = GROUP_TYPE_COLORS[group.groupType] || GROUP_TYPE_COLORS.CUSTOM;
+
+  const attendanceMutation = useMutation({
+    mutationFn: ({ attendanceId, status }: { attendanceId: string; status: string }) =>
+      fetchJSON(`/api/training-attendance/${attendanceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ attendanceStatus: status }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["training-groups"] }),
+    onError: () => toast.error("שגיאה בעדכון נוכחות"),
+  });
 
   return (
     <div className="card overflow-hidden">
@@ -1349,18 +1363,70 @@ function GroupCard({
               <p className="text-xs text-petra-muted">אין מפגשים</p>
             ) : (
               <div className="space-y-1.5">
-                {group.sessions.slice(0, 5).map((session) => (
-                  <div key={session.id} className="flex items-center gap-3 p-2 rounded-lg bg-slate-50">
-                    <div className={cn(
-                      "w-2 h-2 rounded-full",
-                      session.status === "COMPLETED" ? "bg-emerald-500" :
-                        session.status === "CANCELED" ? "bg-red-400" : "bg-blue-400"
-                    )} />
-                    <span className="text-xs text-petra-text">מפגש {session.sessionNumber || ""}</span>
-                    <span className="text-[10px] text-petra-muted">{formatDate(session.sessionDatetime)}</span>
-                    <span className="text-[10px] badge-neutral mr-auto">{session.attendance.length} נוכחים</span>
-                  </div>
-                ))}
+                {group.sessions.slice(0, 5).map((session) => {
+                  const isAttendanceOpen = expandedAttendanceSession === session.id;
+                  const presentCount = session.attendance.filter((a) => a.attendanceStatus === "PRESENT").length;
+                  return (
+                    <div key={session.id} className="rounded-lg bg-slate-50 overflow-hidden">
+                      <div className="flex items-center gap-3 p-2">
+                        <div className={cn(
+                          "w-2 h-2 rounded-full flex-shrink-0",
+                          session.status === "COMPLETED" ? "bg-emerald-500" :
+                            session.status === "CANCELED" ? "bg-red-400" : "bg-blue-400"
+                        )} />
+                        <span className="text-xs text-petra-text">מפגש {session.sessionNumber || ""}</span>
+                        <span className="text-[10px] text-petra-muted">{formatDate(session.sessionDatetime)}</span>
+                        <span className="text-[10px] badge-neutral">{presentCount}/{session.attendance.length || group.participants.length} נוכחים</span>
+                        {session.attendance.length > 0 && (
+                          <button
+                            className="mr-auto text-[10px] text-brand-600 hover:text-brand-700 font-medium"
+                            onClick={(e) => { e.stopPropagation(); setExpandedAttendanceSession(isAttendanceOpen ? null : session.id); }}
+                          >
+                            {isAttendanceOpen ? "סגור" : "סמן נוכחות"}
+                          </button>
+                        )}
+                      </div>
+                      {isAttendanceOpen && (
+                        <div className="px-3 pb-3 border-t border-slate-200 pt-2 space-y-1.5">
+                          {session.attendance.map((att) => {
+                            const participant = group.participants.find((p) => p.id === att.participantId);
+                            const dogName = att.participant?.dog.name ?? participant?.dog.name ?? "כלב";
+                            const customerName = att.participant?.customer.name ?? participant?.customer.name ?? "";
+                            const isPresent = att.attendanceStatus === "PRESENT";
+                            return (
+                              <div key={att.id} className="flex items-center gap-2">
+                                <button
+                                  className={cn(
+                                    "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-colors flex-shrink-0",
+                                    isPresent
+                                      ? "bg-emerald-500 border-emerald-500 text-white"
+                                      : "bg-white border-red-300 text-red-400"
+                                  )}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    attendanceMutation.mutate({ attendanceId: att.id, status: isPresent ? "NO_SHOW" : "PRESENT" });
+                                  }}
+                                  disabled={attendanceMutation.isPending}
+                                  title={isPresent ? "סמן כנעדר" : "סמן כנוכח"}
+                                >
+                                  {isPresent ? "✓" : "✗"}
+                                </button>
+                                <span className="text-xs text-petra-text font-medium">{dogName}</span>
+                                {customerName && <span className="text-[10px] text-petra-muted">{customerName}</span>}
+                                <span className={cn(
+                                  "text-[10px] mr-auto",
+                                  isPresent ? "text-emerald-600" : "text-red-500"
+                                )}>
+                                  {isPresent ? "נוכח" : "נעדר"}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
