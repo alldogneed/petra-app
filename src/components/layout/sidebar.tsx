@@ -32,6 +32,7 @@ import {
   Syringe,
   PawPrint,
   Upload,
+  Pill,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -78,6 +79,7 @@ const navItems: NavItem[] = [
   { name: "ייצוא נתונים", href: "/exports", icon: Download },
   { name: "ייבוא נתונים", href: "/import", icon: Upload },
   { name: "חיסונים", href: "/vaccinations", icon: Syringe },
+  { name: "לוח תרופות", href: "/medications", icon: Pill },
   { name: "אנליטיקס", href: "/analytics", icon: BarChart3, minRole: "owner" },
   { name: "הגדרות", href: "/settings", icon: Settings },
 ];
