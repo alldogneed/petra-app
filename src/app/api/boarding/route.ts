@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { scheduleBoardingCheckoutReminder } from "@/lib/reminder-service";
 
 export async function GET(request: NextRequest) {
   try {
@@ -134,6 +135,19 @@ export async function POST(request: NextRequest) {
     });
 
     logCurrentUserActivity("CREATE_BOARDING_STAY");
+
+    // Schedule WhatsApp reminder 24h before checkout (fire-and-forget)
+    if (stay.checkOut) {
+      scheduleBoardingCheckoutReminder({
+        id: stay.id,
+        businessId: DEMO_BUSINESS_ID,
+        customerId: stay.customerId,
+        checkOut: stay.checkOut,
+        pet: { name: stay.pet.name },
+        customer: { name: stay.customer.name },
+      }).catch(console.error);
+    }
+
     return NextResponse.json(stay, { status: 201 });
   } catch (error) {
     console.error("Error creating boarding stay:", error);

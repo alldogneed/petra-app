@@ -72,6 +72,72 @@ export async function rescheduleAppointmentReminder(appt: AppointmentForReminder
   return scheduleAppointmentReminder(appt);
 }
 
+// ─── Boarding checkout reminder scheduling ────────────────────────────────────
+
+interface BoardingStayForReminder {
+  id: string;
+  businessId: string;
+  customerId: string;
+  checkOut: Date | null;
+  pet: { name: string };
+  customer: { name: string };
+}
+
+/**
+ * Schedule a WhatsApp reminder 24h before boarding checkout.
+ * Returns null if checkOut is null or send time is already in the past.
+ */
+export async function scheduleBoardingCheckoutReminder(stay: BoardingStayForReminder) {
+  if (!stay.checkOut) return null;
+
+  const sendAt = new Date(stay.checkOut.getTime() - 24 * 60 * 60 * 1000);
+  if (sendAt <= new Date()) return null;
+
+  const formattedDate = new Intl.DateTimeFormat("he-IL", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(stay.checkOut);
+
+  const body = `שלום ${stay.customer.name}! תזכורת לאיסוף ${stay.pet.name} מהפנסיון מחר (${formattedDate}). נשמח לראותכם! 🐾`;
+
+  return prisma.scheduledMessage.create({
+    data: {
+      businessId: stay.businessId,
+      customerId: stay.customerId,
+      channel: "whatsapp",
+      templateKey: "boarding_checkout_reminder_24h",
+      payloadJson: JSON.stringify({ body }),
+      sendAt,
+      status: "PENDING",
+      relatedEntityType: "BOARDING",
+      relatedEntityId: stay.id,
+    },
+  });
+}
+
+/**
+ * Cancel all pending checkout reminders for a boarding stay.
+ */
+export async function cancelBoardingCheckoutReminders(stayId: string) {
+  return prisma.scheduledMessage.updateMany({
+    where: {
+      relatedEntityType: "BOARDING",
+      relatedEntityId: stayId,
+      status: "PENDING",
+    },
+    data: { status: "CANCELED" },
+  });
+}
+
+/**
+ * Cancel existing reminders and reschedule (call when checkOut date changes).
+ */
+export async function rescheduleBoardingCheckoutReminder(stay: BoardingStayForReminder) {
+  await cancelBoardingCheckoutReminders(stay.id);
+  return scheduleBoardingCheckoutReminder(stay);
+}
+
 // ─── Reminder scheduling service for training group sessions ───
 
 /**

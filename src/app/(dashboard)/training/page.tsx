@@ -191,11 +191,15 @@ function SessionLogModal({
   sessionNumber: number;
   isPending: boolean;
   onClose: () => void;
-  onSubmit: (summary: string, sessionDate: string) => void;
+  onSubmit: (summary: string, sessionDate: string, rating: number | null) => void;
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const [summary, setSummary] = useState("");
   const [sessionDate, setSessionDate] = useState(today);
+  const [rating, setRating] = useState<number | null>(null);
+  const [hoverRating, setHoverRating] = useState<number | null>(null);
+
+  const STAR_LABELS = ["חלש", "סביר", "טוב", "מצוין", "מושלם"];
 
   return (
     <div className="modal-overlay">
@@ -224,6 +228,34 @@ function SessionLogModal({
             />
           </div>
           <div>
+            <label className="label">דירוג הכלב במפגש (אופציונלי)</label>
+            <div className="flex items-center gap-1.5 mt-1">
+              {[1, 2, 3, 4, 5].map((star) => {
+                const active = (hoverRating ?? rating ?? 0) >= star;
+                return (
+                  <button
+                    key={star}
+                    type="button"
+                    className={cn(
+                      "text-2xl transition-transform hover:scale-110",
+                      active ? "text-amber-400" : "text-slate-200"
+                    )}
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(null)}
+                    onClick={() => setRating(rating === star ? null : star)}
+                  >
+                    ★
+                  </button>
+                );
+              })}
+              {(hoverRating ?? rating) && (
+                <span className="text-xs text-petra-muted mr-1">
+                  {STAR_LABELS[(hoverRating ?? rating ?? 1) - 1]}
+                </span>
+              )}
+            </div>
+          </div>
+          <div>
             <label className="label">סיכום המפגש (אופציונלי)</label>
             <textarea
               className="input"
@@ -238,7 +270,7 @@ function SessionLogModal({
           <button
             className="btn-primary flex-1"
             disabled={isPending || !sessionDate}
-            onClick={() => onSubmit(summary, sessionDate)}
+            onClick={() => onSubmit(summary, sessionDate, rating)}
           >
             <CheckCircle2 className="w-4 h-4" />
             {isPending ? "שומר..." : "שמור מפגש"}
@@ -383,7 +415,7 @@ export default function TrainingPage() {
   // ─── Mutations ───
 
   const markAttendanceMutation = useMutation({
-    mutationFn: async ({ programId, sessionNumber, summary, sessionDate }: { programId: string; sessionNumber: number; summary?: string; sessionDate?: string }) => {
+    mutationFn: async ({ programId, sessionNumber, summary, sessionDate, rating }: { programId: string; sessionNumber: number; summary?: string; sessionDate?: string; rating?: number | null }) => {
       const res = await fetch(`/api/training-programs/${programId}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -393,6 +425,7 @@ export default function TrainingPage() {
           sessionNumber,
           durationMinutes: 60,
           ...(summary ? { summary } : {}),
+          ...(rating != null ? { rating } : {}),
         }),
       });
       if (!res.ok) throw new Error("Failed");
@@ -711,12 +744,13 @@ export default function TrainingPage() {
           sessionNumber={sessionLogTarget.sessionNumber}
           isPending={markAttendanceMutation.isPending}
           onClose={() => setSessionLogTarget(null)}
-          onSubmit={(summary, sessionDate) =>
+          onSubmit={(summary, sessionDate, rating) =>
             markAttendanceMutation.mutate({
               programId: sessionLogTarget.programId,
               sessionNumber: sessionLogTarget.sessionNumber,
               summary,
               sessionDate,
+              rating,
             })
           }
         />
@@ -1254,7 +1288,10 @@ function IndividualTab({
                             )} />
                             <span className="text-xs text-petra-text">מפגש {session.sessionNumber || ""}</span>
                             <span className="text-[10px] text-petra-muted">{formatDate(session.sessionDate)}</span>
-                            {session.summary && (
+                            {session.rating && (
+                              <span className="text-[11px] text-amber-500 mr-auto">{"★".repeat(session.rating)}{"☆".repeat(5 - session.rating)}</span>
+                            )}
+                            {!session.rating && session.summary && (
                               <span className="text-[10px] text-petra-muted truncate max-w-[200px] mr-auto">{session.summary}</span>
                             )}
                           </div>

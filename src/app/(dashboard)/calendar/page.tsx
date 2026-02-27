@@ -39,6 +39,7 @@ interface AppointmentEvent {
   endTime: string;
   status: string;
   notes: string | null;
+  cancellationNote: string | null;
   service: {
     id: string;
     name: string;
@@ -729,6 +730,7 @@ export default function CalendarPage() {
   const [selectedAppointment, setSelectedAppointment] =
     useState<AppointmentEvent | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const [cancellationNote, setCancellationNote] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [rescheduling, setRescheduling] = useState(false);
   const [rescheduleForm, setRescheduleForm] = useState({ date: "", startTime: "", endTime: "" });
@@ -839,11 +841,11 @@ export default function CalendarPage() {
   );
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
+    mutationFn: ({ id, status, cancellationNote }: { id: string; status: string; cancellationNote?: string }) =>
       fetch(`/api/appointments/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, ...(cancellationNote ? { cancellationNote } : {}) }),
       }).then((r) => r.json()),
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
@@ -1938,7 +1940,7 @@ export default function CalendarPage() {
         <div className="modal-overlay">
           <div
             className="modal-backdrop"
-            onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setEditingNotes(false); }}
+            onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setCancellationNote(""); setEditingNotes(false); }}
           />
           <div className="modal-content max-w-sm mx-4 p-5">
             <div className="flex items-center justify-between mb-4">
@@ -1946,7 +1948,7 @@ export default function CalendarPage() {
                 <a
                   href={`/customers/${selectedAppointment.customer.id}`}
                   className="text-lg font-bold text-petra-text hover:text-brand-600 transition-colors"
-                  onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setEditingNotes(false); }}
+                  onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setCancellationNote(""); setEditingNotes(false); }}
                 >
                   {selectedAppointment.customer.name}
                 </a>
@@ -1955,7 +1957,7 @@ export default function CalendarPage() {
                 </p>
               </div>
               <button
-                onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setEditingNotes(false); }}
+                onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setCancellationNote(""); setEditingNotes(false); }}
                 className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
               >
                 <X className="w-4 h-4" />
@@ -2044,6 +2046,13 @@ export default function CalendarPage() {
                 </span>
               </div>
             </div>
+            {/* Cancellation note */}
+            {selectedAppointment.status === "canceled" && selectedAppointment.cancellationNote && (
+              <div className="mt-2 px-3 py-2 rounded-lg bg-red-50 border border-red-100">
+                <p className="text-xs font-medium text-red-600 mb-0.5">סיבת ביטול</p>
+                <p className="text-xs text-red-700">{selectedAppointment.cancellationNote}</p>
+              </div>
+            )}
             {/* WhatsApp reminder */}
             <a
               href={(() => {
@@ -2123,24 +2132,34 @@ export default function CalendarPage() {
                   </button>
                 </div>
               ) : confirmCancelId === selectedAppointment.id ? (
-                <div className="flex-1 flex items-center gap-2 bg-red-50 rounded-xl px-3 py-2">
-                  <span className="text-xs text-red-700 flex-1">לבטל את התור?</span>
-                  <button
-                    className="text-xs font-semibold text-red-600 hover:text-red-800"
-                    disabled={statusMutation.isPending}
-                    onClick={() => {
-                      statusMutation.mutate({ id: selectedAppointment.id, status: "canceled" });
-                      setConfirmCancelId(null);
-                    }}
-                  >
-                    כן, בטל
-                  </button>
-                  <button
-                    className="text-xs text-petra-muted hover:text-petra-text"
-                    onClick={() => setConfirmCancelId(null)}
-                  >
-                    לא
-                  </button>
+                <div className="flex-1 flex flex-col gap-2 bg-red-50 rounded-xl px-3 py-2">
+                  <span className="text-xs font-semibold text-red-700">לבטל את התור?</span>
+                  <input
+                    type="text"
+                    className="input text-xs py-1"
+                    placeholder="סיבת ביטול (אופציונלי)"
+                    value={cancellationNote}
+                    onChange={(e) => setCancellationNote(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      className="text-xs font-semibold text-red-600 hover:text-red-800"
+                      disabled={statusMutation.isPending}
+                      onClick={() => {
+                        statusMutation.mutate({ id: selectedAppointment.id, status: "canceled", cancellationNote: cancellationNote.trim() || undefined });
+                        setConfirmCancelId(null);
+                        setCancellationNote("");
+                      }}
+                    >
+                      כן, בטל
+                    </button>
+                    <button
+                      className="text-xs text-petra-muted hover:text-petra-text"
+                      onClick={() => { setConfirmCancelId(null); setCancellationNote(""); }}
+                    >
+                      לא
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <>

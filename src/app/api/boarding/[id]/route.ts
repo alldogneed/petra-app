@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { cancelBoardingCheckoutReminders, rescheduleBoardingCheckoutReminder } from "@/lib/reminder-service";
 
 // GET /api/boarding/[id] – get a single boarding stay
 export async function GET(
@@ -89,6 +90,22 @@ export async function PATCH(
       },
     });
 
+    // Handle checkout reminders
+    if (body.status === "checked_out") {
+      // Stay is over — cancel any pending reminders
+      cancelBoardingCheckoutReminders(params.id).catch(console.error);
+    } else if (body.checkOut !== undefined) {
+      // Checkout date changed — reschedule
+      rescheduleBoardingCheckoutReminder({
+        id: stay.id,
+        businessId: stay.businessId,
+        customerId: stay.customerId,
+        checkOut: stay.checkOut,
+        pet: { name: stay.pet.name },
+        customer: { name: stay.customer.name },
+      }).catch(console.error);
+    }
+
     // Auto-set room to "needs_cleaning" when checking out
     if (body.status === "checked_out" && existing.roomId) {
       // Check if there are other active stays in this room
@@ -148,6 +165,9 @@ export async function DELETE(
     if (!existing) {
       return NextResponse.json({ error: "שהייה לא נמצאה" }, { status: 404 });
     }
+
+    // Cancel any pending reminders before deleting
+    await cancelBoardingCheckoutReminders(params.id);
 
     await prisma.boardingStay.delete({ where: { id: params.id } });
 
