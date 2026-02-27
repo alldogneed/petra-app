@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 
 export async function GET(
   request: NextRequest,
@@ -105,6 +106,10 @@ export async function PATCH(
       where: { id: params.id, businessId: DEMO_BUSINESS_ID },
       data,
     });
+
+    const { session } = authResult;
+    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.UPDATE_CUSTOMER);
+
     return NextResponse.json(customer);
   } catch (error) {
     console.error("Customer PATCH error:", error);
@@ -132,6 +137,10 @@ export async function DELETE(
     }
 
     await prisma.customer.delete({ where: { id: params.id } });
+
+    const { session } = authResult;
+    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_CUSTOMER);
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Customer DELETE error:", error);

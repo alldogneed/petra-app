@@ -8,8 +8,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { parseImportFile, normalizePhone } from "@/lib/import-utils";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function POST(req: NextRequest) {
+  const authResult = await requireAuth(req);
+  if (isGuardError(authResult)) return authResult;
+
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;

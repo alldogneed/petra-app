@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 
 export async function PATCH(
   request: NextRequest,
@@ -41,6 +42,13 @@ export async function PATCH(
       },
     });
 
+    const { session } = authResult;
+    const action =
+      status === "completed" ? ACTIVITY_ACTIONS.COMPLETE_APPOINTMENT :
+      status === "cancelled" ? ACTIVITY_ACTIONS.CANCEL_APPOINTMENT :
+      ACTIVITY_ACTIONS.UPDATE_APPOINTMENT;
+    logActivity(session.user.id, session.user.name, action);
+
     return NextResponse.json(appointment);
   } catch (error) {
     console.error("Failed to update appointment:", error);
@@ -73,6 +81,9 @@ export async function DELETE(
     }
 
     await prisma.appointment.delete({ where: { id } });
+
+    const { session } = authResult;
+    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_APPOINTMENT);
 
     return NextResponse.json({ success: true });
   } catch (error) {

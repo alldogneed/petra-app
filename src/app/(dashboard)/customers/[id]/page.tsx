@@ -35,6 +35,7 @@ import {
   UtensilsCrossed,
   ShoppingCart,
   Link2,
+  Send,
 } from "lucide-react";
 import { CreateOrderModal } from "@/components/orders/CreateOrderModal";
 import {
@@ -1440,13 +1441,23 @@ export default function CustomerProfilePage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setShowOrderModal(true)}
-          className="btn-primary flex items-center gap-2"
-        >
-          <ShoppingCart className="w-4 h-4" />
-          הזמנה חדשה
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/payment-request?customerId=${customer.id}`}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
+            title="שלח בקשת תשלום ללקוח זה"
+          >
+            <Send className="w-4 h-4" />
+            בקשת תשלום
+          </Link>
+          <button
+            onClick={() => setShowOrderModal(true)}
+            className="btn-primary flex items-center gap-2"
+          >
+            <ShoppingCart className="w-4 h-4" />
+            הזמנה חדשה
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

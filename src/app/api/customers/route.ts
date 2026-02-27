@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
 
       const customers = await prisma.customer.findMany({
         where,
+        take: 1000,
         include: {
           pets: {
             select: { id: true, name: true, species: true, breed: true },
@@ -160,6 +162,7 @@ export async function GET(request: NextRequest) {
 
     const customers = await prisma.customer.findMany({
       where,
+      take: 1000,
       include: full
         ? { pets: { select: { id: true, name: true, species: true } } }
         : { _count: { select: { pets: true, appointments: true } } },
@@ -178,6 +181,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rl = rateLimit("api:customers:create", ip, RATE_LIMITS.API_WRITE);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
+    }
+
     const authResult = await requireAuth(request);
     if (isGuardError(authResult)) return authResult;
 

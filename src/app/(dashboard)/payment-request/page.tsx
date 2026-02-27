@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   Search,
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 import { cn, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 
-// ─── Mock Products ───────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────
 
 interface Product {
   id: string;
@@ -25,69 +26,6 @@ interface Product {
   paymentUrl: string;
   category: string;
 }
-
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: "p1",
-    name: "אילוף בסיסי - חבילה",
-    price: 1800,
-    paymentUrl: "https://pay.example.com/basic-training",
-    category: "אילוף",
-  },
-  {
-    id: "p2",
-    name: "אילוף פרטי - שיעור בודד",
-    price: 250,
-    paymentUrl: "https://pay.example.com/private-lesson",
-    category: "אילוף",
-  },
-  {
-    id: "p3",
-    name: "פנסיון - לילה",
-    price: 120,
-    paymentUrl: "https://pay.example.com/boarding-night",
-    category: "פנסיון",
-  },
-  {
-    id: "p4",
-    name: "פנסיון - שבוע",
-    price: 700,
-    paymentUrl: "https://pay.example.com/boarding-week",
-    category: "פנסיון",
-  },
-  {
-    id: "p5",
-    name: "טיפוח - רחצה וסירוק",
-    price: 150,
-    paymentUrl: "https://pay.example.com/grooming-basic",
-    category: "טיפוח",
-  },
-  {
-    id: "p6",
-    name: "טיפוח - תספורת מלאה",
-    price: 220,
-    paymentUrl: "https://pay.example.com/grooming-full",
-    category: "טיפוח",
-  },
-  {
-    id: "p7",
-    name: "ייעוץ התנהגותי",
-    price: 350,
-    paymentUrl: "https://pay.example.com/behavior-consult",
-    category: "ייעוץ",
-  },
-  {
-    id: "p8",
-    name: "דיי-קר - יום",
-    price: 90,
-    paymentUrl: "https://pay.example.com/daycare",
-    category: "דיי-קר",
-  },
-];
-
-const CATEGORIES = ["הכל", "אילוף", "פנסיון", "טיפוח", "ייעוץ", "דיי-קר"];
-
-// ─── Types ────────────────────────────────────────────────────────
 
 interface Customer {
   id: string;
@@ -99,13 +37,53 @@ interface Customer {
 // ─── Component ────────────────────────────────────────────────────
 
 export default function PaymentRequestPage() {
+  const searchParams = useSearchParams();
+  const prefilledCustomerId = searchParams.get("customerId");
+
   // Customer search
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Products
+  // Auto-select customer when arriving via deep-link
+  const { data: prefilledCustomer } = useQuery<Customer>({
+    queryKey: ["customer-prefill", prefilledCustomerId],
+    queryFn: async () => {
+      const data = await fetchJSON(`/api/customers/${prefilledCustomerId}`) as { id: string; name: string; phone: string; email?: string };
+      return { id: data.id, name: data.name, phone: data.phone, email: data.email };
+    },
+    enabled: !!prefilledCustomerId,
+    staleTime: Infinity,
+  });
+
+  useEffect(() => {
+    if (prefilledCustomer && !selectedCustomer) {
+      setSelectedCustomer(prefilledCustomer);
+    }
+  }, [prefilledCustomer, selectedCustomer]);
+
+  // Products from DB
+  const { data: products = [], isLoading: productsLoading } = useQuery<Product[]>({
+    queryKey: ["price-list-items"],
+    queryFn: async () => {
+      const data = await fetchJSON("/api/price-list-items") as Array<{ id: string; name: string; basePrice: number; category: string | null; paymentUrl: string | null }>;
+      return data.map((item) => ({
+        id: item.id,
+        name: item.name,
+        price: item.basePrice,
+        paymentUrl: item.paymentUrl || "",
+        category: item.category || "כללי",
+      }));
+    },
+  });
+
+  const categories = useMemo(() => {
+    const cats = [...new Set(products.map((p) => p.category))].sort();
+    return ["הכל", ...cats];
+  }, [products]);
+
+  // Selected items & discount
   const [selectedItems, setSelectedItems] = useState<Map<string, number>>(new Map());
   const [activeCategory, setActiveCategory] = useState("הכל");
 
@@ -144,11 +122,11 @@ export default function PaymentRequestPage() {
   const subtotal = useMemo(() => {
     let total = 0;
     selectedItems.forEach((qty, productId) => {
-      const product = MOCK_PRODUCTS.find((p) => p.id === productId);
+      const product = products.find((p) => p.id === productId);
       if (product) total += product.price * qty;
     });
     return total;
-  }, [selectedItems]);
+  }, [selectedItems, products]);
 
   const discountAmount = useMemo(
     () => Math.round(subtotal * (discountPercent / 100)),
@@ -166,8 +144,8 @@ export default function PaymentRequestPage() {
 
   const filteredProducts =
     activeCategory === "הכל"
-      ? MOCK_PRODUCTS
-      : MOCK_PRODUCTS.filter((p) => p.category === activeCategory);
+      ? products
+      : products.filter((p) => p.category === activeCategory);
 
   function addItem(productId: string) {
     setSelectedItems((prev) => {
@@ -203,11 +181,11 @@ export default function PaymentRequestPage() {
   const selectedProductsList = useMemo(() => {
     const items: { product: Product; qty: number }[] = [];
     selectedItems.forEach((qty, productId) => {
-      const product = MOCK_PRODUCTS.find((p) => p.id === productId);
+      const product = products.find((p) => p.id === productId);
       if (product) items.push({ product, qty });
     });
     return items;
-  }, [selectedItems]);
+  }, [selectedItems, products]);
 
   // Use first selected product's payment URL, or a generic one
   const paymentUrl = useMemo(() => {
@@ -349,7 +327,7 @@ export default function PaymentRequestPage() {
 
             {/* Category Tabs */}
             <div className="flex gap-2 mb-4 flex-wrap">
-              {CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
@@ -366,6 +344,19 @@ export default function PaymentRequestPage() {
             </div>
 
             {/* Product Grid */}
+            {productsLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="rounded-xl border border-slate-200 p-4 animate-pulse h-24" />
+                ))}
+              </div>
+            ) : products.length === 0 ? (
+              <div className="text-center py-8">
+                <ShoppingBag className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm text-slate-400">אין פריטים במחירון</p>
+                <p className="text-xs text-slate-300 mt-1">הוסף פריטים בהגדרות → מחירון</p>
+              </div>
+            ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {filteredProducts.map((product) => {
                 const qty = selectedItems.get(product.id) || 0;
@@ -424,6 +415,7 @@ export default function PaymentRequestPage() {
                 );
               })}
             </div>
+            )}
           </div>
         </div>
 

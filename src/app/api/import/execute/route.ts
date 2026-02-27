@@ -8,8 +8,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { normalizePhone, RawCustomerRow, RawPetRow } from "@/lib/import-utils";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function POST(req: NextRequest) {
+  const authResult = await requireAuth(req);
+  if (isGuardError(authResult)) return authResult;
+
   try {
     const { batchId } = await req.json();
     if (!batchId) return NextResponse.json({ error: "batchId נדרש" }, { status: 400 });

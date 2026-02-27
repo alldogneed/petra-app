@@ -27,6 +27,7 @@ import {
   Check,
   PhoneCall,
   X,
+  Cake,
 } from "lucide-react";
 import {
   isToday,
@@ -45,7 +46,8 @@ import {
   ReferenceLine,
 } from "recharts";
 import { useAuth } from "@/providers/auth-provider";
-import { formatCurrency, fetchJSON, cn } from "@/lib/utils";
+import { formatCurrency, fetchJSON, cn, toWhatsAppPhone } from "@/lib/utils";
+import { SetupChecklist } from "@/components/onboarding/SetupChecklist";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -710,6 +712,107 @@ function UrgentLeadsAlert({ leads }: { leads: DashboardStats["urgentLeads"] }) {
   );
 }
 
+// ─── Birthday Widget ──────────────────────────────────────────────────────────
+
+interface BirthdayItem {
+  petId: string;
+  petName: string;
+  species: string;
+  breed: string | null;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  birthDate: string;
+  nextBirthday: string;
+  daysUntil: number;
+  age: number;
+}
+
+function BirthdayWidget() {
+  const { data } = useQuery<{ birthdays: BirthdayItem[]; total: number }>({
+    queryKey: ["pet-birthdays"],
+    queryFn: () => fetchJSON("/api/pets/birthdays?days=14"),
+  });
+
+  if (!data || data.total === 0) return null;
+
+  return (
+    <div className="card overflow-hidden" style={{ borderTop: "3px solid #EC4899" }}>
+      <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-pink-50">
+            <Cake className="w-4 h-4 text-pink-500" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-petra-text">ימי הולדת קרובים</h2>
+            <p className="text-[11px] text-petra-muted">
+              <span className="text-pink-500 font-medium">{data.total} חיות מחמד</span>{" "}
+              ב-14 הימים הקרובים
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/customers"
+          className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
+        >
+          לרשימת לקוחות
+          <ArrowLeft className="w-3 h-3" />
+        </Link>
+      </div>
+
+      <div className="divide-y divide-slate-50">
+        {data.birthdays.map((b) => {
+          const waMsg = `היי ${b.customerName}! 🎂 יום הולדת שמח ל${b.petName}! ${b.daysUntil === 0 ? "זה היום! 🎉" : `עוד ${b.daysUntil} ימים`} כבר ${b.age} שנה! 🐾`;
+          const waLink = `https://wa.me/${toWhatsAppPhone(b.customerPhone)}?text=${encodeURIComponent(waMsg)}`;
+
+          return (
+            <div
+              key={b.petId}
+              className="px-5 py-3 flex items-center gap-3 hover:bg-slate-50/50 transition-colors"
+            >
+              {/* Days pill / today emoji */}
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-pink-50 text-sm font-bold text-pink-600">
+                {b.daysUntil === 0 ? "🎂" : b.daysUntil}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium text-petra-text">{b.petName}</span>
+                  <span className="text-xs text-petra-muted">בן/בת {b.age}</span>
+                </div>
+                <div className="text-xs text-petra-muted truncate">{b.customerName}</div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span
+                  className={cn(
+                    "text-[10px] font-medium px-2 py-0.5 rounded-full",
+                    b.daysUntil === 0
+                      ? "bg-pink-100 text-pink-700 border border-pink-200"
+                      : "bg-slate-100 text-slate-600"
+                  )}
+                >
+                  {b.daysUntil === 0 ? "🎉 היום!" : `עוד ${b.daysUntil} ימים`}
+                </span>
+
+                <a
+                  href={waLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-7 h-7 rounded-md bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors"
+                  title="שלח ברכה בוואטסאפ"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── New Customer Modal ───────────────────────────────────────────────────────
 
 function NewCustomerModal({
@@ -939,6 +1042,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Setup Checklist — shown to users who haven't completed setup yet */}
+      <SetupChecklist />
+
       {/* Daily Focus — Today's & Overdue Tasks */}
       <DailyFocusSection
         todayTasks={data.todayTasks || []}
@@ -1103,6 +1209,9 @@ export default function DashboardPage() {
           <ActivityFeed activities={activityData?.activities || []} />
         </div>
       </div>
+
+      {/* Birthday Widget */}
+      <BirthdayWidget />
 
       {/* Open Tasks */}
       <div className="card p-5">

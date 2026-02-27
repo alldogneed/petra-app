@@ -24,9 +24,12 @@ import {
   Dog,
   Receipt,
   Shield,
+  CalendarClock,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { HelpCenter } from "@/components/help/HelpCenter";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -50,8 +53,10 @@ const navItems: NavItem[] = [
   { name: "לידים", href: "/leads", icon: Target },
   { name: "לקוחות", href: "/customers", icon: Users },
   { name: "יומן", href: "/calendar", icon: Calendar },
+  { name: "תזמון", href: "/scheduler", icon: CalendarClock },
   { name: "משימות", href: "/tasks", icon: ListTodo },
   { name: "תשלומים", href: "/payments", icon: CreditCard, minRole: "manager" },
+  { name: "בקשת תשלום", href: "/payment-request", icon: Send },
   { name: "חשבוניות", href: "/invoices", icon: Receipt, minRole: "manager" },
   { name: "מחירון", href: "/pricing", icon: Tag, minRole: "manager" },
   { name: "הזמנות", href: "/orders", icon: ShoppingCart },
@@ -82,12 +87,26 @@ export function Sidebar({
   const { user } = useAuth();
   const isMaster = user?.role === "MASTER";
 
+  // Urgency counters for sidebar badges
+  const { data: counters } = useQuery<{ openTasks: number; overdueFollowUps: number }>({
+    queryKey: ["sidebar-counters"],
+    queryFn: () => fetch("/api/dashboard/counters").then((r) => r.json()),
+    refetchInterval: 60_000, // refresh every minute
+    staleTime: 30_000,
+  });
+
+  const BADGES: Record<string, number> = {
+    "/tasks": counters?.openTasks || 0,
+    "/leads": counters?.overdueFollowUps || 0,
+  };
+
   const renderNavItem = (item: NavItem, isMobile: boolean) => {
     const isActive =
       item.href === "/dashboard"
         ? pathname === "/" || pathname === "/dashboard"
         : pathname.startsWith(item.href);
     const Icon = item.icon;
+    const badge = BADGES[item.href] || 0;
 
     return (
       <Link
@@ -123,14 +142,24 @@ export function Sidebar({
       >
         <div
           className={cn(
-            "flex-shrink-0 transition-transform duration-150",
+            "flex-shrink-0 transition-transform duration-150 relative",
             isActive ? "text-brand-400" : "text-slate-500 group-hover:text-slate-300"
           )}
         >
           <Icon className="w-[18px] h-[18px]" />
+          {badge > 0 && (collapsed && !isMobile) && (
+            <span className="absolute -top-1 -left-1 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
+              {badge > 99 ? "99+" : badge}
+            </span>
+          )}
         </div>
         {(isMobile || !collapsed) && (
-          <span className={isActive ? "text-white" : ""}>{item.name}</span>
+          <span className={cn("flex-1", isActive ? "text-white" : "")}>{item.name}</span>
+        )}
+        {badge > 0 && (isMobile || !collapsed) && (
+          <span className="min-w-[20px] h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none flex-shrink-0">
+            {badge > 99 ? "99+" : badge}
+          </span>
         )}
         {isActive && (isMobile || !collapsed) && (
           <span

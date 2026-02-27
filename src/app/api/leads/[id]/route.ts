@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 
 export async function PATCH(
   request: NextRequest,
@@ -58,6 +59,9 @@ export async function PATCH(
       },
     });
 
+    const { session } = authResult;
+    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.UPDATE_LEAD);
+
     return NextResponse.json(lead);
   } catch (error) {
     console.error("Error updating lead:", error);
@@ -87,6 +91,9 @@ export async function DELETE(
     }
 
     await prisma.lead.delete({ where: { id } });
+
+    const { session } = authResult;
+    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_LEAD);
 
     return NextResponse.json({ success: true });
   } catch (error) {

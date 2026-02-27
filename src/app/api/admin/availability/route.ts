@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { DEMO_BUSINESS_ID } from "@/lib/utils"
+import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards"
+import { PLATFORM_PERMS } from "@/lib/permissions"
 
 const DEFAULT_RULES = [
   { dayOfWeek: 0, isOpen: false, openTime: "09:00", closeTime: "18:00" }, // Sun
@@ -13,7 +15,10 @@ const DEFAULT_RULES = [
 ]
 
 // GET /api/admin/availability
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const guard = await requirePlatformPermission(request, PLATFORM_PERMS.TENANTS_READ);
+  if (isGuardError(guard)) return guard;
+
   const businessId = DEMO_BUSINESS_ID
   let rules = await prisma.availabilityRule.findMany({
     where: { businessId },
@@ -35,6 +40,9 @@ export async function GET() {
 // PUT /api/admin/availability
 // Body: { rules: [{ dayOfWeek, isOpen, openTime, closeTime }] }
 export async function PUT(req: NextRequest) {
+  const guard = await requirePlatformPermission(req, PLATFORM_PERMS.TENANTS_WRITE);
+  if (isGuardError(guard)) return guard;
+
   const businessId = DEMO_BUSINESS_ID
   const { rules } = await req.json()
 

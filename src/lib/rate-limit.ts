@@ -83,6 +83,8 @@ export const RATE_LIMITS = {
   INVOICE_WEBHOOK: { max: 100, windowMs: 60 * 1000 },
   /** Invoice API: 60 per minute per user */
   INVOICE_API: { max: 60, windowMs: 60 * 1000 },
+  /** Authenticated write operations: 120 per minute per IP (generous for normal use) */
+  API_WRITE: { max: 120, windowMs: 60 * 1000 },
 } as const;
 
 /** Periodic cleanup of expired entries (call from a cron or app init) */

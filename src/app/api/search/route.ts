@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
         },
         include: {
           customer: {
-            select: { name: true },
+            select: { id: true, name: true },
           },
         },
         take: 5,

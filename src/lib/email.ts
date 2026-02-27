@@ -46,6 +46,73 @@ export async function sendWelcomeEmail(params: WelcomeEmailParams): Promise<void
   }
 }
 
+// ─── Password Reset Email ────────────────────────────────────────────────────
+
+export interface PasswordResetEmailParams {
+  to: string;
+  name: string;
+  resetUrl: string;
+}
+
+export async function sendPasswordResetEmail(
+  params: PasswordResetEmailParams
+): Promise<void> {
+  const { error } = await getResend().emails.send({
+    from: getFromEmail(),
+    to: params.to,
+    subject: "איפוס סיסמה ל-Petra 🔑",
+    html: buildPasswordResetHtml(params),
+  });
+
+  if (error) {
+    throw new Error(`Resend email failed: ${error.message}`);
+  }
+}
+
+function buildPasswordResetHtml(params: PasswordResetEmailParams): string {
+  return `<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head><meta charset="utf-8" /></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 40px 20px; direction: rtl;">
+  <div style="max-width: 520px; margin: 0 auto; background: white; border-radius: 16px; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+
+    <div style="text-align: center; margin-bottom: 32px;">
+      <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #F97316, #FB923C); border-radius: 14px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
+        <span style="font-size: 28px;">🔑</span>
+      </div>
+      <h1 style="font-size: 22px; color: #1e293b; margin: 0 0 8px;">שלום ${params.name},</h1>
+      <p style="color: #64748b; font-size: 15px; margin: 0;">קיבלנו בקשה לאיפוס הסיסמה שלך</p>
+    </div>
+
+    <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
+      <p style="margin: 0 0 16px; font-size: 14px; color: #92400e;">הלינק בתוקף ל-60 דקות בלבד</p>
+      <a href="${params.resetUrl}"
+         style="display: inline-block; background: linear-gradient(135deg, #F97316, #FB923C); color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 15px;">
+        איפוס סיסמה
+      </a>
+    </div>
+
+    <div style="background: #f1f5f9; border-radius: 10px; padding: 14px 16px; margin-bottom: 24px;">
+      <p style="margin: 0; font-size: 13px; color: #475569;">
+        אם הלינק לא עובד, העתק את הכתובת הבאה לדפדפן:
+      </p>
+      <p style="margin: 8px 0 0; font-size: 12px; color: #0f172a; word-break: break-all;" dir="ltr">${params.resetUrl}</p>
+    </div>
+
+    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; margin-bottom: 24px;">
+      <p style="margin: 0; font-size: 13px; color: #dc2626;">
+        ⚠️ לא ביקשת לאפס את הסיסמה? אפשר להתעלם מהמייל הזה. הסיסמה לא תשתנה.
+      </p>
+    </div>
+
+    <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center;">
+      <p style="margin: 0; font-size: 12px; color: #94a3b8;">Petra — ניהול עסקי חיות מחמד</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 function buildWelcomeHtml(params: WelcomeEmailParams, loginUrl: string): string {
   return `<!DOCTYPE html>
 <html dir="rtl" lang="he">

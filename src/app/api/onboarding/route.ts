@@ -69,7 +69,11 @@ export async function POST(request: NextRequest) {
         ...(currentStep !== undefined && { currentStep }),
         ...(skipped !== undefined && { skipped }),
         ...(lastCustomerId !== undefined && { lastCustomerId }),
-        ...(currentStep !== undefined && currentStep >= 1 && { [`stepCompleted${currentStep}`]: true }),
+        // Mark the PREVIOUS step as completed when advancing to a new step
+        // e.g. moving to step 2 means step 1 is done
+        ...(currentStep !== undefined && currentStep >= 2 && { stepCompleted1: true }),
+        ...(currentStep !== undefined && currentStep >= 3 && { stepCompleted2: true }),
+        ...(currentStep !== undefined && currentStep >= 4 && { stepCompleted3: true }),
         ...(currentStep !== undefined && currentStep >= 4 && { completedAt: new Date() }),
       },
     });

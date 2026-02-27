@@ -7,11 +7,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { batchId: string } }
 ) {
+  const authResult = await requireAuth(req);
+  if (isGuardError(authResult)) return authResult;
+
   try {
     const batch = await prisma.importBatch.findFirst({
       where: { id: params.batchId, businessId: DEMO_BUSINESS_ID },
@@ -61,9 +65,12 @@ export async function GET(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { batchId: string } }
 ) {
+  const authResult = await requireAuth(req);
+  if (isGuardError(authResult)) return authResult;
+
   try {
     const batch = await prisma.importBatch.findFirst({
       where: { id: params.batchId, businessId: DEMO_BUSINESS_ID },

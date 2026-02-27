@@ -13,12 +13,16 @@ import {
   ChevronRight,
   Menu,
   X,
+  CalendarCheck,
+  Clock,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { name: "דשבורד", href: "/admin", icon: LayoutDashboard, exact: true },
   { name: "משתמשים", href: "/admin/users", icon: Users },
   { name: "פיד פעילות", href: "/admin/feed", icon: Activity },
+  { name: "הזמנות", href: "/admin/bookings", icon: CalendarCheck },
+  { name: "שעות פעילות", href: "/admin/availability", icon: Clock },
 ];
 
 interface AdminShellProps {

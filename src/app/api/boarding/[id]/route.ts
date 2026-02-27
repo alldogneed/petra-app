@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 
 // GET /api/boarding/[id] – get a single boarding stay
 export async function GET(
@@ -117,6 +118,13 @@ export async function PATCH(
       }
     }
 
+    const { session } = authResult;
+    const action =
+      body.status === "checked_in" ? ACTIVITY_ACTIONS.CHECKIN_BOARDING :
+      body.status === "checked_out" ? ACTIVITY_ACTIONS.CHECKOUT_BOARDING :
+      undefined;
+    if (action) logActivity(session.user.id, session.user.name, action);
+
     return NextResponse.json(stay);
   } catch (error) {
     console.error("PATCH boarding stay error:", error);
@@ -141,6 +149,10 @@ export async function DELETE(
     }
 
     await prisma.boardingStay.delete({ where: { id: params.id } });
+
+    const { session } = authResult;
+    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_BOARDING);
+
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE boarding stay error:", error);

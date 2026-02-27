@@ -17,6 +17,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, toWhatsAppPhone } from "@/lib/utils";
+import { toast } from "sonner";
 import { CreateOrderModal } from "@/components/orders/CreateOrderModal";
 
 interface OrderLine {
@@ -91,7 +92,13 @@ export default function OrdersPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["orders"] }),
+    onSuccess: (_, { status }) => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      if (status === "completed") toast.success("ההזמנה סומנה כהושלמה");
+      else if (status === "canceled") toast.success("ההזמנה בוטלה");
+      else toast.success("הסטטוס עודכן");
+    },
+    onError: () => toast.error("שגיאה בעדכון הסטטוס. נסה שוב."),
   });
 
   // Summary stats
@@ -204,7 +211,181 @@ export default function OrdersPage() {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y divide-petra-border">
+            {orders.map((order) => {
+              const statusInfo = STATUS_INFO[order.status] || STATUS_INFO.draft;
+              const StatusIcon = statusInfo.icon;
+              const isExpanded = expandedId === order.id;
+              const paidAmount = order.payments
+                .filter((p) => p.status === "paid")
+                .reduce((sum, p) => sum + p.amount, 0);
+              return (
+                <div key={order.id}>
+                  <div
+                    className={cn(
+                      "p-4 cursor-pointer hover:bg-slate-50 transition-colors",
+                      isExpanded && "bg-slate-50"
+                    )}
+                    onClick={() => setExpandedId(isExpanded ? null : order.id)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-medium text-petra-text">{order.customer.name}</p>
+                        <p className="text-xs text-petra-muted">{order.customer.phone}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-sm font-semibold text-petra-text">
+                          {formatCurrency(order.total)}
+                        </span>
+                        <span
+                          className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
+                          style={{ background: `${statusInfo.color}15`, color: statusInfo.color }}
+                        >
+                          <StatusIcon className="w-3 h-3" />
+                          {statusInfo.label}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-1.5 text-xs text-petra-muted">
+                      <div className="flex items-center gap-2">
+                        <span className="badge-neutral text-[10px]">
+                          {ORDER_TYPE_LABELS[order.orderType] || order.orderType}
+                        </span>
+                        <span>{order.lines.length} פריטים</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span>{formatDate(order.createdAt)}</span>
+                        {isExpanded
+                          ? <ChevronUp className="w-3.5 h-3.5" />
+                          : <ChevronDown className="w-3.5 h-3.5" />
+                        }
+                      </div>
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-1 bg-slate-50 border-t border-petra-border animate-fade-in">
+                      <div className="bg-white rounded-xl border border-petra-border overflow-hidden mb-3">
+                        {order.lines.map((line) => (
+                          <div
+                            key={line.id}
+                            className="flex items-center gap-2 px-3 py-2 border-b border-petra-border last:border-0"
+                          >
+                            <span className="flex-1 text-sm text-petra-text">{line.name}</span>
+                            <span className="text-xs text-petra-muted flex-shrink-0">
+                              {line.quantity} × {fmt(line.unitPrice)}
+                            </span>
+                            <span className="text-sm font-medium text-petra-text flex-shrink-0 w-20 text-left">
+                              {fmt(line.lineTotal)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="bg-white rounded-xl border border-petra-border p-3 space-y-1 mb-3">
+                        <div className="flex justify-between text-sm text-petra-muted">
+                          <span>סכום ביניים</span>
+                          <span dir="ltr">{fmt(order.subtotal)}</span>
+                        </div>
+                        {order.discountAmount > 0 && (
+                          <div className="flex justify-between text-sm text-emerald-600">
+                            <span>הנחה</span>
+                            <span dir="ltr">−{fmt(order.discountAmount)}</span>
+                          </div>
+                        )}
+                        {order.taxTotal > 0 && (
+                          <div className="flex justify-between text-sm text-petra-muted">
+                            <span>כולל מע&quot;מ</span>
+                            <span dir="ltr">{fmt(order.taxTotal)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-base font-bold text-petra-text border-t border-petra-border pt-1.5 mt-1.5">
+                          <span>סה&quot;כ</span>
+                          <span dir="ltr">{fmt(order.total)}</span>
+                        </div>
+                        {paidAmount > 0 && (
+                          <div className="flex justify-between text-sm text-emerald-600 pt-1">
+                            <span>שולם</span>
+                            <span dir="ltr">{fmt(paidAmount)}</span>
+                          </div>
+                        )}
+                        {paidAmount > 0 && paidAmount < order.total && (
+                          <div className="flex justify-between text-sm text-amber-600">
+                            <span>יתרה</span>
+                            <span dir="ltr">{fmt(order.total - paidAmount)}</span>
+                          </div>
+                        )}
+                      </div>
+                      {order.notes && (
+                        <p className="text-xs text-petra-muted bg-white rounded-xl border border-petra-border p-3 mb-3">
+                          {order.notes}
+                        </p>
+                      )}
+                      <div className="flex gap-2">
+                        {order.status === "draft" && (
+                          <button
+                            className="btn-primary text-xs py-1.5 px-3"
+                            onClick={(e) => { e.stopPropagation(); statusMutation.mutate({ id: order.id, status: "confirmed" }); }}
+                            disabled={statusMutation.isPending}
+                          >
+                            <CheckCircle2 className="w-3 h-3" />
+                            אשר הזמנה
+                          </button>
+                        )}
+                        {order.status === "confirmed" && (
+                          <>
+                            <button
+                              className="btn-primary text-xs py-1.5 px-3"
+                              onClick={(e) => { e.stopPropagation(); statusMutation.mutate({ id: order.id, status: "completed" }); }}
+                              disabled={statusMutation.isPending}
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              סמן כהושלמה
+                            </button>
+                            <button
+                              className="text-xs py-1.5 px-3 rounded-xl font-medium text-white flex items-center gap-1.5 transition-all hover:opacity-90"
+                              style={{ background: "#25D366" }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const lineItems = order.lines
+                                  .map((l) => `• ${l.name} x${l.quantity} - ${fmt(l.lineTotal)}`)
+                                  .join("\n");
+                                const discountLine = order.discountAmount > 0
+                                  ? `\nהנחה: -${fmt(order.discountAmount)}`
+                                  : "";
+                                const taxLine = order.taxTotal > 0
+                                  ? `\nכולל מע"מ: ${fmt(order.taxTotal)}`
+                                  : "";
+                                const msg = encodeURIComponent(
+                                  `שלום ${order.customer.name},\nהנה פירוט ההזמנה שלך:\n${lineItems}${discountLine}${taxLine}\n\nסה"כ לתשלום: ${fmt(order.total)}`
+                                );
+                                const waPhone = toWhatsAppPhone(order.customer.phone);
+                                window.open(`https://wa.me/${waPhone}?text=${msg}`, "_blank");
+                              }}
+                            >
+                              <MessageCircle className="w-3 h-3" />
+                              שלח בקשת תשלום
+                            </button>
+                          </>
+                        )}
+                        {(order.status === "draft" || order.status === "confirmed") && (
+                          <button
+                            className="btn-danger text-xs py-1.5 px-3"
+                            onClick={(e) => { e.stopPropagation(); statusMutation.mutate({ id: order.id, status: "canceled" }); }}
+                            disabled={statusMutation.isPending}
+                          >
+                            <XCircle className="w-3 h-3" />
+                            בטל
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {/* Desktop table */}
+          <div className="overflow-x-auto hidden md:block">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-petra-border">

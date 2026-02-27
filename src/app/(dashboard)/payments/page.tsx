@@ -15,6 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, fetchJSON } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Payment {
   id: string;
@@ -65,7 +66,7 @@ export default function PaymentsPage() {
   const [issuingPaymentId, setIssuingPaymentId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: payments = [], isLoading } = useQuery<Payment[]>({
+  const { data: payments = [], isLoading, isError } = useQuery<Payment[]>({
     queryKey: ["payments", activeStatus],
     queryFn: () => {
       const params = new URLSearchParams();
@@ -103,9 +104,11 @@ export default function PaymentsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       setIssuingPaymentId(null);
+      toast.success("המסמך הופק בהצלחה");
     },
-    onError: () => {
+    onError: (err: Error) => {
       setIssuingPaymentId(null);
+      toast.error(err.message || "שגיאה בהפקת המסמך. נסה שוב.");
     },
   });
 
@@ -201,6 +204,14 @@ export default function PaymentsPage() {
             <div key={i} className="card p-4 animate-pulse h-16" />
           ))}
         </div>
+      ) : isError ? (
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <XCircle className="w-6 h-6 text-red-400" />
+          </div>
+          <h3 className="text-base font-semibold text-petra-text mb-1">שגיאה בטעינת התשלומים</h3>
+          <p className="text-sm text-petra-muted">נסה לרענן את הדף</p>
+        </div>
       ) : payments.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">
@@ -211,7 +222,76 @@ export default function PaymentsPage() {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y divide-petra-border">
+            {payments.map((payment) => {
+              const statusInfo = STATUS_INFO[payment.status] || STATUS_INFO.pending;
+              const StatusIcon = statusInfo.icon;
+              const association = payment.appointment
+                ? `תור: ${payment.appointment.service.name}`
+                : payment.boardingStay
+                ? `פנסיון: ${payment.boardingStay.pet.name}`
+                : null;
+              return (
+                <div key={payment.id} className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium text-petra-text">{payment.customer.name}</p>
+                      <p className="text-xs text-petra-muted">{payment.customer.phone}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-sm font-semibold text-petra-text">
+                        {formatCurrency(payment.amount)}
+                        {payment.isDeposit && (
+                          <span className="badge-warning text-[9px] mr-1">מקדמה</span>
+                        )}
+                      </span>
+                      <span
+                        className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
+                        style={{ background: `${statusInfo.color}15`, color: statusInfo.color }}
+                      >
+                        <StatusIcon className="w-3 h-3" />
+                        {statusInfo.label}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-1.5 text-xs text-petra-muted">
+                    <span>{METHOD_LABELS[payment.method] || payment.method}</span>
+                    <span>{formatDate(payment.createdAt)}</span>
+                  </div>
+                  {association && (
+                    <p className="text-xs text-petra-muted mt-0.5">{association}</p>
+                  )}
+                  <div className="mt-1.5">
+                    {payment.invoiceNumber ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+                        <FileText className="w-3 h-3" />
+                        {payment.invoiceNumber}
+                      </span>
+                    ) : payment.status === "paid" && invoicingConfigured ? (
+                      <button
+                        className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1"
+                        disabled={issuingPaymentId === payment.id}
+                        onClick={() => {
+                          setIssuingPaymentId(payment.id);
+                          issueMutation.mutate(payment.id);
+                        }}
+                      >
+                        {issuingPaymentId === payment.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <FileText className="w-3 h-3" />
+                        )}
+                        הפק מסמך
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Desktop table */}
+          <div className="overflow-x-auto hidden md:block">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-petra-border">
@@ -371,7 +451,11 @@ function NewPaymentModal({
         if (!r.ok) throw new Error("Failed");
         return r.json();
       }),
-    onSuccess,
+    onSuccess: () => {
+      toast.success("התשלום נרשם בהצלחה");
+      onSuccess();
+    },
+    onError: () => toast.error("שגיאה ברישום התשלום. נסה שוב."),
   });
 
   const selectedCustomer = customers.find((c) => c.id === form.customerId);

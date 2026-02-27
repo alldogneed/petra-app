@@ -8,6 +8,7 @@ import {
   Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone } from "@/lib/utils";
+import { toast } from "sonner";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { LeadTreatmentModal } from "@/components/leads/LeadTreatmentModal";
 import {
@@ -15,6 +16,7 @@ import {
   DragOverlay,
   closestCorners,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -78,7 +80,9 @@ function NewLeadModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       onClose();
       setForm({ name: "", phone: "", email: "", source: "manual", notes: "" });
+      toast.success("הליד נוצר בהצלחה");
     },
+    onError: () => toast.error("שגיאה ביצירת הליד. נסה שוב."),
   });
 
   if (!isOpen) return null;
@@ -462,8 +466,21 @@ function DraggableLeadCard({
           <div className="text-[10px] text-petra-muted mt-1.5">
             {new Date(lead.createdAt).toLocaleDateString("he-IL")}
           </div>
+          {lead.lastContactedAt && (
+            <div className="text-[10px] text-blue-500 flex items-center gap-1 mt-0.5">
+              <PhoneCall className="w-2.5 h-2.5" />
+              שוחח: {new Date(lead.lastContactedAt).toLocaleDateString("he-IL")}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Last call snippet */}
+      {lead.callLogs && lead.callLogs.length > 0 && (
+        <p className="text-[10px] text-petra-muted line-clamp-1 mt-1.5 italic border-t border-slate-100 pt-1.5">
+          &ldquo;{lead.callLogs[0].summary}&rdquo;
+        </p>
+      )}
 
       {/* Won/Lost date and reason */}
       {isWon && lead.wonAt && (
@@ -804,30 +821,41 @@ export default function LeadsPage() {
     mutationFn: ({ id, stage }: { id: string; stage: string }) =>
       fetch(`/api/leads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage }) }).then((r) => r.json()),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
+    onError: () => toast.error("שגיאה בהזזת הליד. נסה שוב."),
   });
 
   const updateStageMutation = useMutation({
     mutationFn: ({ id, ...data }: { id: string; name?: string; color?: string }) =>
       fetch(`/api/leads/stages/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => r.json()),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lead-stages"] }),
+    onError: () => toast.error("שגיאה בעדכון השלב. נסה שוב."),
   });
 
   const createStageMutation = useMutation({
     mutationFn: (data: { name: string; color?: string }) =>
       fetch("/api/leads/stages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lead-stages"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["lead-stages"] });
+      toast.success("השלב נוצר בהצלחה");
+    },
+    onError: () => toast.error("שגיאה ביצירת השלב. נסה שוב."),
   });
 
   const deleteStageMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/leads/stages/${id}`, { method: "DELETE" }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lead-stages"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["lead-stages"] });
+      toast.success("השלב נמחק");
+    },
+    onError: () => toast.error("שגיאה במחיקת השלב. נסה שוב."),
   });
 
   const reorderMutation = useMutation({
     mutationFn: (stageIds: string[]) =>
       fetch("/api/leads/stages/reorder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stageIds }) }).then((r) => r.json()),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lead-stages"] }),
+    onError: () => toast.error("שגיאה בסידור השלבים. נסה שוב."),
   });
 
   const convertMutation = useMutation({
@@ -842,6 +870,7 @@ export default function LeadsPage() {
         setTimeout(() => setWonToast(null), 6000);
       }
     },
+    onError: () => toast.error("שגיאה בהמרת הליד ללקוח. נסה שוב."),
   });
 
   // ─── Lead DnD Sensors ──────────────────────────────────────────────────
@@ -849,6 +878,9 @@ export default function LeadsPage() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
     })
   );
 

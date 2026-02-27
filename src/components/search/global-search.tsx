@@ -15,7 +15,7 @@ interface SearchResults {
     name: string;
     breed: string | null;
     species: string;
-    customer: { name: string };
+    customer: { id: string; name: string };
   }[];
   appointments: {
     id: string;
@@ -207,7 +207,7 @@ export function GlobalSearch() {
                   id: p.id,
                   title: `${p.name} (${p.species === "dog" ? "כלב" : p.species === "cat" ? "חתול" : p.species})`,
                   subtitle: `${p.customer.name}${p.breed ? ` · ${p.breed}` : ""}`,
-                  onClick: () => navigate(`/customers`),
+                  onClick: () => navigate(`/customers/${p.customer.id}`),
                 }))}
               />
             )}

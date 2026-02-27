@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 
 export async function GET(
   request: NextRequest,
@@ -90,6 +91,13 @@ export async function PATCH(
         ...(isReopening && { completedAt: null }),
       },
     });
+
+    const { session } = authResult;
+    const action =
+      status === "COMPLETED" ? ACTIVITY_ACTIONS.COMPLETE_TASK :
+      status === "CANCELED" ? ACTIVITY_ACTIONS.CANCEL_TASK :
+      undefined;
+    if (action) logActivity(session.user.id, session.user.name, action);
 
     return NextResponse.json(task);
   } catch (error) {

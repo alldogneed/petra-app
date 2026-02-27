@@ -35,9 +35,11 @@ import {
   Settings2,
   Trash2,
   GripVertical,
+  FileDown,
 } from "lucide-react";
 import { toWhatsAppPhone, fetchJSON, formatCurrency } from "@/lib/utils";
 import { SERVICE_TYPES, ORDER_CATEGORIES, ORDER_UNITS } from "@/lib/constants";
+import { toast } from "sonner";
 
 const DEFAULT_CUSTOMER_TAGS = ["VIP", "קבוע", "מזדמן", "פוטנציאל", "לשעבר", "עסקי"];
 
@@ -363,6 +365,7 @@ function InlineTagEditor({ customer, presetTags }: { customer: EnhancedCustomer;
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
+    onError: () => toast.error("שגיאה בעדכון התגיות. נסה שוב."),
   });
 
   const toggleTag = (tag: string) => {
@@ -842,7 +845,9 @@ function EditCustomerModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       onClose();
+      toast.success("פרטי הלקוח עודכנו");
     },
+    onError: () => toast.error("שגיאה בעדכון הלקוח. נסה שוב."),
   });
 
   if (!isOpen || !customer) return null;
@@ -1018,7 +1023,9 @@ function QuickBookModal({
         petId: "",
         notes: "",
       });
+      toast.success("התור נקבע בהצלחה");
     },
+    onError: () => toast.error("שגיאה בקביעת התור. נסה שוב."),
   });
 
   const handleSubmit = () => {
@@ -1225,7 +1232,9 @@ function NewCustomerModal({
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       onClose();
       setForm({ name: "", phone: "", email: "", address: "", notes: "", selectedTags: [], source: "" });
+      toast.success("הלקוח נוצר בהצלחה");
     },
+    onError: () => toast.error("שגיאה ביצירת הלקוח. נסה שוב."),
   });
 
   if (!isOpen) return null;
@@ -1547,7 +1556,9 @@ function NewOrderModal({
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       resetAndClose();
+      toast.success("ההזמנה נוצרה בהצלחה");
     },
+    onError: () => toast.error("שגיאה ביצירת ההזמנה. נסה שוב."),
   });
 
   const handleSubmit = () => {
@@ -2181,6 +2192,8 @@ export default function CustomersPage() {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<EnhancedCustomer | null>(null);
   const [bookingCustomer, setBookingCustomer] = useState<EnhancedCustomer | null>(null);
+  const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
+  const [bulkWaMessage, setBulkWaMessage] = useState("");
 
   // ── Business settings (for customer tags) ──
   const { data: businessSettings } = useQuery<{ customerTags?: string }>({
@@ -2212,7 +2225,9 @@ export default function CustomersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["business-settings"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
+      toast.success("התגיות נשמרו");
     },
+    onError: () => toast.error("שגיאה בשמירת התגיות. נסה שוב."),
   });
 
   // ── Data fetching ──
@@ -2301,10 +2316,12 @@ export default function CustomersPage() {
       });
       return Promise.all(promises);
     },
-    onSuccess: () => {
+    onSuccess: (_, { addVip }) => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       clearSelection();
+      toast.success(addVip ? "VIP הוסף ללקוחות הנבחרים" : "VIP הוסר מהלקוחות הנבחרים");
     },
+    onError: () => toast.error("שגיאה בעדכון הלקוחות. נסה שוב."),
   });
 
   // ── Avatar colors ──
@@ -2334,6 +2351,15 @@ export default function CustomersPage() {
           {stats.total} לקוחות במערכת
         </p>
         <div className="flex items-center gap-2">
+          <a
+            href="/api/customers/export"
+            download
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
+            title="ייצוא לקוחות ל-CSV"
+          >
+            <FileDown className="w-4 h-4" />
+            ייצוא CSV
+          </a>
           <button
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white text-sm shadow-sm transition-all hover:shadow-md"
             style={{ background: "linear-gradient(135deg, #f38d49, #FB923C)" }}
@@ -2507,6 +2533,14 @@ export default function CustomersPage() {
           </div>
           <div className="w-px h-5 bg-brand-200" />
           <button
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
+            onClick={() => setShowBulkWhatsApp(true)}
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            שלח הודעה
+          </button>
+          <div className="w-px h-5 bg-brand-200" />
+          <button
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors"
             onClick={() =>
               bulkVipMutation.mutate({
@@ -2586,8 +2620,99 @@ export default function CustomersPage() {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px]">
+          {/* ── Mobile card list (< md) ── */}
+          <div className="md:hidden divide-y divide-slate-50">
+            {/* Mobile select-all header */}
+            <div className="flex items-center gap-3 px-4 py-2.5 bg-[#FAF7F3] border-b border-[#E8DFD5]">
+              <button
+                onClick={toggleSelectAll}
+                className="text-slate-400 hover:text-petra-text transition-colors"
+              >
+                {allSelected ? (
+                  <CheckSquare className="w-4 h-4 text-brand-500" />
+                ) : someSelected ? (
+                  <MinusSquare className="w-4 h-4 text-brand-400" />
+                ) : (
+                  <Square className="w-4 h-4" />
+                )}
+              </button>
+              <span className="text-xs text-[#8B7355]">בחר הכל</span>
+            </div>
+
+            {customers.map((customer) => {
+              const isSelected = selectedIds.has(customer.id);
+              return (
+                <div
+                  key={customer.id}
+                  className={`px-4 py-3.5 transition-colors ${isSelected ? "bg-[#FEF9F4]" : "hover:bg-[#FDFBF8]"}`}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Checkbox */}
+                    <button
+                      onClick={() => toggleSelect(customer.id)}
+                      className="mt-1 flex-shrink-0 text-slate-400 hover:text-petra-text transition-colors"
+                    >
+                      {isSelected ? (
+                        <CheckSquare className="w-4 h-4 text-brand-500" />
+                      ) : (
+                        <Square className="w-4 h-4" />
+                      )}
+                    </button>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      {/* Top: avatar + name + status */}
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm"
+                          style={{ background: getAvatarGradient(customer.status) }}
+                        >
+                          {customer.name.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <Link
+                            href={`/customers/${customer.id}`}
+                            className="text-sm font-semibold text-petra-text hover:text-brand-600 transition-colors"
+                          >
+                            {customer.name}
+                          </Link>
+                          <div className="text-[11px] text-petra-muted flex items-center gap-1 mt-0.5">
+                            <Phone className="w-3 h-3" />
+                            {customer.phone}
+                          </div>
+                        </div>
+                        <StatusBadge status={customer.status} />
+                      </div>
+
+                      {/* Tags */}
+                      <div className="mt-1.5 ms-11">
+                        <InlineTagEditor customer={customer} presetTags={customerPresetTags} />
+                      </div>
+
+                      {/* Bottom: pets + financial + actions */}
+                      <div className="mt-2 ms-11 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {customer._count.pets > 0 && (
+                            <PetsCell pets={customer.pets} count={customer._count.pets} />
+                          )}
+                          <FinancialBadge financial={customer.financial} />
+                        </div>
+                        <QuickActions
+                          customer={customer}
+                          onEdit={() => setEditingCustomer(customer)}
+                          onBook={() => setBookingCustomer(customer)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── Desktop table (≥ md) ── */}
+          <div className="overflow-x-auto hidden md:block">
+            <table className="w-full">
               <thead>
                 <tr className="bg-[#FAF7F3] border-b border-[#E8DFD5]">
                   <th className="text-right px-3 py-3 w-10">
@@ -2606,15 +2731,9 @@ export default function CustomersPage() {
                   </th>
                   <th className="table-header-cell">שם</th>
                   <th className="table-header-cell">סטטוס</th>
-                  <th className="table-header-cell hidden md:table-cell">
-                    חיות
-                  </th>
-                  <th className="table-header-cell hidden lg:table-cell">
-                    פגישות
-                  </th>
-                  <th className="table-header-cell hidden lg:table-cell">
-                    כספי
-                  </th>
+                  <th className="table-header-cell hidden md:table-cell">חיות</th>
+                  <th className="table-header-cell hidden lg:table-cell">פגישות</th>
+                  <th className="table-header-cell hidden lg:table-cell">כספי</th>
                   <th className="table-header-cell w-36">פעולות</th>
                 </tr>
               </thead>
@@ -2625,8 +2744,7 @@ export default function CustomersPage() {
                   return (
                     <tr
                       key={customer.id}
-                      className={`border-b border-slate-50 hover:bg-[#FDFBF8] transition-colors ${isSelected ? "bg-[#FEF9F4]" : ""
-                        }`}
+                      className={`border-b border-slate-50 hover:bg-[#FDFBF8] transition-colors ${isSelected ? "bg-[#FEF9F4]" : ""}`}
                     >
                       {/* Checkbox */}
                       <td className="px-3 py-3.5">
@@ -2650,9 +2768,7 @@ export default function CustomersPage() {
                         >
                           <div
                             className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm"
-                            style={{
-                              background: getAvatarGradient(customer.status),
-                            }}
+                            style={{ background: getAvatarGradient(customer.status) }}
                           >
                             {customer.name.charAt(0)}
                           </div>
@@ -2694,10 +2810,7 @@ export default function CustomersPage() {
 
                       {/* Pets */}
                       <td className="table-cell hidden md:table-cell">
-                        <PetsCell
-                          pets={customer.pets}
-                          count={customer._count.pets}
-                        />
+                        <PetsCell pets={customer.pets} count={customer._count.pets} />
                       </td>
 
                       {/* Appointments */}
@@ -2775,6 +2888,87 @@ export default function CustomersPage() {
         onClose={() => setShowOrderModal(false)}
         customers={rawCustomers}
       />
+
+      {/* ─── Bulk WhatsApp Modal ─── */}
+      {showBulkWhatsApp && (() => {
+        const selectedCustomers = rawCustomers.filter((c) => selectedIds.has(c.id));
+        return (
+          <div className="modal-overlay" onClick={() => setShowBulkWhatsApp(false)}>
+            <div
+              className="modal-content max-w-md w-full flex flex-col max-h-[85vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-5 border-b border-slate-100 flex-shrink-0">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">שליחת הודעה בוואטסאפ</h2>
+                  <p className="text-xs text-petra-muted mt-0.5">{selectedCustomers.length} לקוחות נבחרו</p>
+                </div>
+                <button onClick={() => setShowBulkWhatsApp(false)} className="btn-ghost w-8 h-8 p-0 flex items-center justify-center rounded-lg">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                <div>
+                  <label className="label">תוכן ההודעה</label>
+                  <textarea
+                    className="input resize-none"
+                    rows={4}
+                    value={bulkWaMessage}
+                    onChange={(e) => setBulkWaMessage(e.target.value)}
+                    placeholder="שלום! רצינו להזמין אותך לתור הבא שלך... 🐾"
+                  />
+                  <p className="text-xs text-petra-muted mt-1">ההודעה תישלח בנפרד לכל לקוח דרך VistaApp הוואטסאפ שלך</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-slate-600 mb-2">נמענים:</p>
+                  {selectedCustomers.map((c) => (
+                    <a
+                      key={c.id}
+                      href={`https://wa.me/${toWhatsAppPhone(c.phone)}?text=${encodeURIComponent(bulkWaMessage || "")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-green-50 border border-slate-100 hover:border-green-200 transition-colors group"
+                    >
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                        style={{ background: "linear-gradient(135deg, #25D366, #128C7E)" }}>
+                        {c.name.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-petra-text truncate">{c.name}</p>
+                        <p className="text-xs text-petra-muted" dir="ltr">{c.phone}</p>
+                      </div>
+                      <MessageCircle className="w-4 h-4 text-[#25D366] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-5 border-t border-slate-100 flex-shrink-0 space-y-2">
+                <p className="text-xs text-petra-muted text-center">לחץ על שם לקוח כדי לפתוח שיחה בוואטסאפ</p>
+                <button
+                  onClick={() => {
+                    selectedCustomers.forEach((c, i) => {
+                      setTimeout(() => {
+                        window.open(
+                          `https://wa.me/${toWhatsAppPhone(c.phone)}?text=${encodeURIComponent(bulkWaMessage || "")}`,
+                          `_wa_${c.id}`
+                        );
+                      }, i * 400);
+                    });
+                  }}
+                  disabled={!bulkWaMessage.trim()}
+                  className="btn-primary w-full flex items-center justify-center gap-2"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  פתח וואטסאפ לכולם ({selectedCustomers.length})
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

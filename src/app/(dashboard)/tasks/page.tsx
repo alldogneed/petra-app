@@ -28,6 +28,7 @@ import {
   Filter,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
+import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -157,7 +158,7 @@ export default function TasksPage() {
   }, []);
 
   // Fetch ALL open tasks (we filter on client side for computed statuses)
-  const { data: allTasks = [], isLoading } = useQuery<Task[]>({
+  const { data: allTasks = [], isLoading, isError } = useQuery<Task[]>({
     queryKey: ["tasks", activeCategory],
     queryFn: () => {
       const params = new URLSearchParams();
@@ -221,7 +222,9 @@ export default function TasksPage() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setShowNewTask(false);
+      toast.success("המשימה נוצרה בהצלחה");
     },
+    onError: () => toast.error("שגיאה ביצירת המשימה. נסה שוב."),
   });
 
   const toggleMutation = useMutation({
@@ -235,6 +238,7 @@ export default function TasksPage() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
+    onError: () => toast.error("שגיאה בעדכון המשימה. נסה שוב."),
   });
 
   const deleteMutation = useMutation({
@@ -244,7 +248,9 @@ export default function TasksPage() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setDeleteConfirm(null);
+      toast.success("המשימה נמחקה");
     },
+    onError: () => toast.error("שגיאה במחיקת המשימה. נסה שוב."),
   });
 
   const postponeMutation = useMutation({
@@ -265,7 +271,9 @@ export default function TasksPage() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setPostponeTask(null);
+      toast.success("המשימה נדחתה בהצלחה");
     },
+    onError: () => toast.error("שגיאה בדחיית המשימה. נסה שוב."),
   });
 
   return (
@@ -342,6 +350,14 @@ export default function TasksPage() {
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="card p-4 animate-pulse h-20" />
           ))}
+        </div>
+      ) : isError ? (
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <AlertCircle className="w-6 h-6 text-red-400" />
+          </div>
+          <h3 className="text-base font-semibold text-petra-text mb-1">שגיאה בטעינת המשימות</h3>
+          <p className="text-sm text-petra-muted">נסה לרענן את הדף</p>
         </div>
       ) : sortedTasks.length === 0 ? (
         <div className="empty-state">

@@ -28,7 +28,10 @@ export function SetupChecklist() {
 
   const { data: progress, isLoading } = useQuery<OnboardingProgress & { startedAt: string | null }>({
     queryKey: ["onboarding-progress"],
-    queryFn: () => fetch("/api/onboarding/progress").then((r) => r.json()),
+    queryFn: () =>
+      fetch("/api/onboarding/progress")
+        .then((r) => r.json())
+        .then((d) => d.progress ?? null),
     staleTime: 30_000,
   });
 

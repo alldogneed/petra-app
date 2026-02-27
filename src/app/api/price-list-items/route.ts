@@ -19,9 +19,13 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
+    const includeInactive = searchParams.get("includeInactive") === "true";
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = { businessId: DEMO_BUSINESS_ID, isActive: true };
+    const where: any = { businessId: DEMO_BUSINESS_ID };
+    if (!includeInactive) {
+      where.isActive = true;
+    }
     if (category) {
       // Accept both English IDs and Hebrew labels
       where.category = CATEGORY_ID_TO_HE[category] || category;

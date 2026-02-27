@@ -40,7 +40,8 @@ model PlatformUser {
   gcalLastConnectedAt DateTime?
   gcalSyncEnabled     Boolean   @default(true) // toggle sync on/off
 
-  sessions       AdminSession[]
+  sessions            AdminSession[]
+  passwordResetTokens PasswordResetToken[]
   businessMemberships BusinessUser[]
   auditLogs      AuditLog[]     @relation("ActorLogs")
   activityLogs   ActivityLog[]  @relation("ActivityLogs")
@@ -86,6 +87,21 @@ model AdminSession {
   user         PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Password reset tokens — expire after 1 hour, single-use
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique // SHA-256 hash of the raw token sent by email
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([expiresAt])
 }

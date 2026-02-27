@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 
 export async function POST(
   request: NextRequest,
@@ -79,6 +80,9 @@ export async function POST(
 
       return { lead, customerId: customer.id };
     });
+
+    const { session } = authResult;
+    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.CLOSE_LEAD_WON);
 
     return NextResponse.json(result);
   } catch (error) {

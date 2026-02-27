@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 import { LOST_REASON_CODES } from "@/lib/constants";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 
 export async function POST(
   request: NextRequest,
@@ -56,6 +57,9 @@ export async function POST(
       },
       include: { customer: true, callLogs: true },
     });
+
+    const { session } = authResult;
+    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.CLOSE_LEAD_LOST);
 
     return NextResponse.json(lead);
   } catch (error) {

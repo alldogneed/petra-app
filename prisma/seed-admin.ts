@@ -129,8 +129,20 @@ async function main() {
     update: {},
   });
 
-  // Mark owner and superAdmin as having completed onboarding
-  for (const u of [owner, superAdmin, master]) {
+  // Link admin to demo business as admin
+  await prisma.businessUser.upsert({
+    where: { businessId_userId: { businessId: DEMO_BUSINESS_ID, userId: admin.id } },
+    create: {
+      businessId: DEMO_BUSINESS_ID,
+      userId: admin.id,
+      role: "admin",
+      isActive: true,
+    },
+    update: {},
+  });
+
+  // Mark all demo users as having completed onboarding
+  for (const u of [owner, superAdmin, master, admin]) {
     await prisma.onboardingProgress.upsert({
       where: { userId: u.id },
       create: {

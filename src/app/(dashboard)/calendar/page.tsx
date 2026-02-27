@@ -12,6 +12,7 @@ import {
   PawPrint,
   ShoppingCart,
   ListTodo,
+  MessageCircle,
 } from "lucide-react";
 import {
   cn,
@@ -20,6 +21,7 @@ import {
   getStatusLabel,
   toWhatsAppPhone,
 } from "@/lib/utils";
+import { toast } from "sonner";
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -365,6 +367,7 @@ function NewAppointmentModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      toast.success("התור נקבע בהצלחה");
       onClose();
       setForm({
         customerId: "",
@@ -375,6 +378,7 @@ function NewAppointmentModal({
         notes: "",
       });
     },
+    onError: () => toast.error("שגיאה בקביעת התור. נסה שוב."),
   });
 
   if (!isOpen) return null;
@@ -510,7 +514,9 @@ export default function CalendarPage() {
 
   // ── State ──
   const [anchor, setAnchor] = useState(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    typeof window !== "undefined" && window.innerWidth < 768 ? "day" : "week"
+  );
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [showNewModal, setShowNewModal] = useState(false);
   const [modalDefaults, setModalDefaults] = useState({
@@ -519,6 +525,7 @@ export default function CalendarPage() {
   });
   const [selectedAppointment, setSelectedAppointment] =
     useState<AppointmentEvent | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
   const [hoveredApt, setHoveredApt] = useState<{
     apt: AppointmentEvent;
     x: number;
@@ -530,6 +537,15 @@ export default function CalendarPage() {
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(interval);
+  }, []);
+
+  // ── Switch to Day view on small screens ──
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth < 768) setViewMode("day");
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   useEffect(() => {
@@ -597,10 +613,13 @@ export default function CalendarPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       }).then((r) => r.json()),
-    onSuccess: () => {
+    onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       setSelectedAppointment(null);
+      if (status === "completed") toast.success("התור סומן כהושלם");
+      else if (status === "canceled") toast.success("התור בוטל");
     },
+    onError: () => toast.error("שגיאה בעדכון התור. נסה שוב."),
   });
 
   // ── Navigation ──
@@ -841,12 +860,41 @@ export default function CalendarPage() {
   return (
     <div>
       {/* ── Header ── */}
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
-        <h1 className="page-title">יומן</h1>
-        <p className="text-sm text-petra-muted">{headerSubtitle}</p>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* View toggle */}
-          <div className="flex items-center bg-white border border-petra-border rounded-xl overflow-hidden">
+      <div className="flex flex-col gap-3 mb-4 md:mb-6">
+        {/* Top row: title + new appointment */}
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h1 className="page-title">יומן</h1>
+            <p className="text-xs text-petra-muted mt-0.5">{headerSubtitle}</p>
+          </div>
+          <button
+            className="btn-primary text-sm"
+            onClick={() => {
+              setModalDefaults({ date: today, time: "09:00" });
+              setShowNewModal(true);
+            }}
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">פגישה חדשה</span>
+            <span className="sm:hidden">חדש</span>
+          </button>
+        </div>
+
+        {/* Controls row: view toggle + navigation */}
+        <div className="flex items-center gap-2">
+          {/* Navigation */}
+          <button onClick={() => navigate(-1)} className="btn-secondary p-2 flex-shrink-0">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+          <button onClick={goToToday} className="btn-secondary text-xs px-3 flex-shrink-0">
+            היום
+          </button>
+          <button onClick={() => navigate(1)} className="btn-secondary p-2 flex-shrink-0">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          {/* View toggle — hide Week/Month on mobile */}
+          <div className="flex items-center bg-white border border-petra-border rounded-xl overflow-hidden mr-auto">
             {VIEW_MODES.map((mode) => (
               <button
                 key={mode.id}
@@ -857,7 +905,8 @@ export default function CalendarPage() {
                   }
                 }}
                 className={cn(
-                  "px-3.5 py-2 text-sm font-medium transition-colors",
+                  "px-3 py-2 text-sm font-medium transition-colors",
+                  (mode.id === "week" || mode.id === "month") && "hidden md:block",
                   viewMode === mode.id
                     ? "bg-brand-50 text-brand-600"
                     : "text-petra-muted hover:text-petra-text hover:bg-slate-50"
@@ -867,43 +916,11 @@ export default function CalendarPage() {
               </button>
             ))}
           </div>
-
-          {/* Navigation */}
-          <button
-            onClick={() => navigate(-1)}
-            className="btn-secondary p-2"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-          <button
-            onClick={goToToday}
-            className="btn-secondary text-xs px-3"
-          >
-            היום
-          </button>
-          <button
-            onClick={() => navigate(1)}
-            className="btn-secondary p-2"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-
-          {/* New appointment */}
-          <button
-            className="btn-primary"
-            onClick={() => {
-              setModalDefaults({ date: today, time: "09:00" });
-              setShowNewModal(true);
-            }}
-          >
-            <Plus className="w-4 h-4" />
-            פגישה חדשה
-          </button>
         </div>
       </div>
 
       {/* ── Color Legend ── */}
-      <div className="flex items-center gap-4 flex-wrap mb-4 px-1">
+      <div className="hidden md:flex items-center gap-4 flex-wrap mb-4 px-1">
         {Object.entries(SERVICE_TYPE_COLORS).map(([type, color]) => (
           <div
             key={type}
@@ -1476,7 +1493,7 @@ export default function CalendarPage() {
         <div className="modal-overlay">
           <div
             className="modal-backdrop"
-            onClick={() => setSelectedAppointment(null)}
+            onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); }}
           />
           <div className="modal-content max-w-sm mx-4 p-5">
             <div className="flex items-center justify-between mb-4">
@@ -1484,7 +1501,7 @@ export default function CalendarPage() {
                 {selectedAppointment.customer.name}
               </h3>
               <button
-                onClick={() => setSelectedAppointment(null)}
+                onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); }}
                 className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
               >
                 <X className="w-4 h-4" />
@@ -1532,29 +1549,65 @@ export default function CalendarPage() {
                 </span>
               </div>
             </div>
-            <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100">
-              <button
-                className="btn-primary flex-1 text-xs"
-                onClick={() =>
-                  statusMutation.mutate({
-                    id: selectedAppointment.id,
-                    status: "completed",
-                  })
-                }
-              >
-                הושלם
-              </button>
-              <button
-                className="btn-danger flex-1 text-xs"
-                onClick={() =>
-                  statusMutation.mutate({
-                    id: selectedAppointment.id,
-                    status: "canceled",
-                  })
-                }
-              >
-                בטל
-              </button>
+            {/* WhatsApp reminder */}
+            <a
+              href={(() => {
+                const appt = selectedAppointment;
+                const date = new Date(appt.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
+                const msg = `שלום ${appt.customer.name}! 😊\nתזכורת לתור שלך:\n📅 ${date} בשעה ${appt.startTime}\n🐾 ${appt.service.name}${appt.pet ? ` עם ${appt.pet.name}` : ""}\n\nנתראה! 🌟`;
+                return `https://wa.me/${toWhatsAppPhone(appt.customer.phone)}?text=${encodeURIComponent(msg)}`;
+              })()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 transition-colors"
+            >
+              <MessageCircle className="w-4 h-4" />
+              שלח תזכורת בוואטסאפ
+            </a>
+
+            <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
+              {confirmCancelId === selectedAppointment.id ? (
+                <div className="flex-1 flex items-center gap-2 bg-red-50 rounded-xl px-3 py-2">
+                  <span className="text-xs text-red-700 flex-1">לבטל את התור?</span>
+                  <button
+                    className="text-xs font-semibold text-red-600 hover:text-red-800"
+                    disabled={statusMutation.isPending}
+                    onClick={() => {
+                      statusMutation.mutate({ id: selectedAppointment.id, status: "canceled" });
+                      setConfirmCancelId(null);
+                    }}
+                  >
+                    כן, בטל
+                  </button>
+                  <button
+                    className="text-xs text-petra-muted hover:text-petra-text"
+                    onClick={() => setConfirmCancelId(null)}
+                  >
+                    לא
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    className="btn-primary flex-1 text-xs"
+                    disabled={statusMutation.isPending}
+                    onClick={() =>
+                      statusMutation.mutate({
+                        id: selectedAppointment.id,
+                        status: "completed",
+                      })
+                    }
+                  >
+                    הושלם
+                  </button>
+                  <button
+                    className="btn-danger flex-1 text-xs"
+                    onClick={() => setConfirmCancelId(selectedAppointment.id)}
+                  >
+                    בטל תור
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

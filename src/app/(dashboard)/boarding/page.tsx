@@ -41,6 +41,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
+import { toast } from "sonner";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1126,7 +1127,7 @@ export default function BoardingPage() {
     queryFn: () => fetchJSON<Room[]>("/api/boarding/rooms"),
   });
 
-  const { data: stays = [], isLoading } = useQuery<BoardingStay[]>({
+  const { data: stays = [], isLoading, isError } = useQuery<BoardingStay[]>({
     queryKey: ["boarding"],
     queryFn: () => fetchJSON<BoardingStay[]>("/api/boarding"),
   });
@@ -1187,7 +1188,9 @@ export default function BoardingPage() {
       setShowNewStay(false);
       setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "", pricePerNight: 0 });
       setCustomerSearch("");
+      toast.success("ההשמה נוצרה בהצלחה");
     },
+    onError: () => toast.error("שגיאה ביצירת ההשמה. נסה שוב."),
   });
 
   const statusMutation = useMutation({
@@ -1197,12 +1200,15 @@ export default function BoardingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       }).then((r) => r.json()),
-    onSuccess: () => {
+    onSuccess: (_, payload) => {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setCheckinDialogStay(null);
       setCheckoutDialogStay(null);
+      if (payload.status === "checked_in") toast.success("צ'ק-אין בוצע בהצלחה");
+      else if (payload.status === "checked_out") toast.success("צ'ק-אאוט בוצע בהצלחה");
     },
+    onError: () => toast.error("שגיאה בעדכון הסטטוס. נסה שוב."),
   });
 
   const roomMutation = useMutation({
@@ -1216,6 +1222,7 @@ export default function BoardingPage() {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
     },
+    onError: () => toast.error("שגיאה בשיוך החדר. נסה שוב."),
   });
 
   const markCleanMutation = useMutation({
@@ -1227,7 +1234,9 @@ export default function BoardingPage() {
       }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      toast.success("החדר סומן כנקי");
     },
+    onError: () => toast.error("שגיאה בעדכון החדר. נסה שוב."),
   });
 
   const createRoomMutation = useMutation({
@@ -1240,7 +1249,9 @@ export default function BoardingPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setNewRoomForm({ name: "", capacity: 1, type: "standard" });
+      toast.success("החדר נוצר בהצלחה");
     },
+    onError: () => toast.error("שגיאה ביצירת החדר. נסה שוב."),
   });
 
   const updateRoomMutation = useMutation({
@@ -1253,7 +1264,9 @@ export default function BoardingPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setEditingRoomId(null);
+      toast.success("החדר עודכן בהצלחה");
     },
+    onError: () => toast.error("שגיאה בעדכון החדר. נסה שוב."),
   });
 
   const deleteRoomMutation = useMutation({
@@ -1263,7 +1276,9 @@ export default function BoardingPage() {
         .then((data) => { if (data.error) throw new Error(data.error); return data; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      toast.success("החדר נמחק");
     },
+    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת החדר. נסה שוב."),
   });
 
   function startEditRoom(room: Room) {
@@ -1569,6 +1584,13 @@ export default function BoardingPage() {
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => <div key={i} className="card p-4 animate-pulse h-20" />)}
+          </div>
+        ) : isError ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              <AlertCircle className="w-6 h-6 text-red-400" />
+            </div>
+            <p className="text-sm text-petra-muted">שגיאה בטעינת נתוני הפנסיון. נסה לרענן את הדף.</p>
           </div>
         ) : tabStays[activeTab].length === 0 ? (
           <div className="empty-state">

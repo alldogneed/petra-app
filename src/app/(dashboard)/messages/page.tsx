@@ -22,6 +22,7 @@ import {
   CheckCheck,
 } from "lucide-react";
 import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
+import { toast } from "sonner";
 import { TEMPLATE_VARIABLES } from "@/lib/constants";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -116,15 +117,21 @@ function TemplatesTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["messages"] });
       setShowEditor(false);
+      toast.success(editingTemplate ? "התבנית עודכנה" : "התבנית נוצרה בהצלחה");
       setEditingTemplate(null);
       setForm({ name: "", channel: "whatsapp", subject: "", body: "" });
     },
+    onError: () => toast.error("שגיאה בשמירת התבנית. נסה שוב."),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/messages/${id}`, { method: "DELETE" }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messages"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+      toast.success("התבנית נמחקה");
+    },
+    onError: () => toast.error("שגיאה במחיקת התבנית. נסה שוב."),
   });
 
   function insertVariable(v: string) {
@@ -200,7 +207,7 @@ function TemplatesTab() {
                     <Edit3 className="w-3.5 h-3.5" />
                   </button>
                   <button
-                    onClick={() => deleteMutation.mutate(template.id)}
+                    onClick={() => { if (confirm("למחוק תבנית זו?")) deleteMutation.mutate(template.id); }}
                     className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -339,7 +346,9 @@ function AutomationsTab() {
       setShowModal(false);
       setEditingRule(null);
       setForm({ name: "", trigger: "before_appointment", triggerOffset: 24, templateId: "", isActive: true });
+      toast.success(editingRule ? "האוטומציה עודכנה" : "האוטומציה נוצרה בהצלחה");
     },
+    onError: () => toast.error("שגיאה בשמירת האוטומציה. נסה שוב."),
   });
 
   const toggleMutation = useMutation({
@@ -350,12 +359,17 @@ function AutomationsTab() {
         body: JSON.stringify({ isActive }),
       }).then((r) => r.json()),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["automations"] }),
+    onError: () => toast.error("שגיאה בעדכון האוטומציה. נסה שוב."),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/automations/${id}`, { method: "DELETE" }).then((r) => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["automations"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["automations"] });
+      toast.success("האוטומציה נמחקה");
+    },
+    onError: () => toast.error("שגיאה במחיקת האוטומציה. נסה שוב."),
   });
 
   function openCreate() {

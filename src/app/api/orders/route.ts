@@ -21,9 +21,11 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
     if (customerId) where.customerId = customerId;
     if (from || to) {
-      where.startAt = { not: null };
-      if (from) where.startAt.gte = new Date(from + "T00:00:00");
-      if (to) where.startAt.lte = new Date(to + "T23:59:59");
+      where.startAt = {
+        not: null,
+        ...(from ? { gte: new Date(from + "T00:00:00") } : {}),
+        ...(to ? { lte: new Date(to + "T23:59:59") } : {}),
+      };
     }
 
     const orders = await prisma.order.findMany({

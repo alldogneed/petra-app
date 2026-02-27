@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
+import { hasPlatformPermission, PLATFORM_PERMS } from "@/lib/permissions";
 import AdminShell from "@/components/admin/admin-shell";
 
 export default async function AdminLayout({
@@ -13,7 +14,11 @@ export default async function AdminLayout({
     redirect("/login?redirect=/admin");
   }
 
-  if (session.user.role !== "MASTER") {
+  // Allow users with MASTER role (legacy) OR any platform role
+  const hasLegacyAccess = (session.user as { role?: string }).role === "MASTER";
+  const hasPlatformAccess = hasPlatformPermission(session.user.platformRole, PLATFORM_PERMS.USERS_READ);
+
+  if (!hasLegacyAccess && !hasPlatformAccess) {
     redirect("/dashboard");
   }
 

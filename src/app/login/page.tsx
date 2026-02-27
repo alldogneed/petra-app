@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, LogIn } from "lucide-react";
 
 const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
@@ -121,6 +122,15 @@ function LoginForm() {
           </div>
         </div>
 
+        <div className="flex justify-end">
+          <Link
+            href="/forgot-password"
+            className="text-xs text-petra-muted hover:text-brand-500 transition-colors"
+          >
+            שכחתי סיסמה
+          </Link>
+        </div>
+
         <button
           type="submit"
           className="btn-primary w-full justify-center"
@@ -159,7 +169,17 @@ function LoginForm() {
         </a>
       </form>
 
-      <p className="text-center text-xs text-petra-muted mt-6">
+      <p className="text-center text-sm text-petra-muted mt-4">
+        אין לך חשבון עדיין?{" "}
+        <Link
+          href="/register"
+          className="font-medium text-brand-500 hover:text-brand-600 underline-offset-2 hover:underline"
+        >
+          צור חשבון חינם
+        </Link>
+      </p>
+
+      <p className="text-center text-xs text-petra-muted mt-3">
         Petra &copy; {new Date().getFullYear()}
       </p>
     </div>

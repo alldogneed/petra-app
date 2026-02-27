@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
+import { toast } from "sonner";
 import { TIERS } from "@/lib/constants";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -108,7 +109,9 @@ function BusinessTab() {
       setSaved(true);
       setErrors({});
       setTimeout(() => setSaved(false), 2500);
+      toast.success("ההגדרות נשמרו בהצלחה");
     },
+    onError: () => toast.error("שגיאה בשמירת ההגדרות. נסה שוב."),
   });
 
   function handleSave() {
@@ -278,7 +281,9 @@ function IntegrationsTab() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      toast.success("Google Calendar נותק בהצלחה");
     },
+    onError: () => toast.error("שגיאה בניתוק Google Calendar. נסה שוב."),
   });
 
   const disconnectInvoicingMutation = useMutation({
@@ -289,7 +294,9 @@ function IntegrationsTab() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      toast.success("מערכת החשבוניות נותקה");
     },
+    onError: () => toast.error("שגיאה בניתוק מערכת החשבוניות. נסה שוב."),
   });
 
   if (isLoading)
@@ -584,7 +591,9 @@ function InvoicingTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoicing-settings"] });
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      toast.success("מערכת החשבוניות נותקה");
     },
+    onError: () => toast.error("שגיאה בניתוק. נסה שוב."),
   });
 
   const isConnected = settings?.status === "active";
@@ -1391,7 +1400,11 @@ function TeamTab() {
         if (!r.ok) throw r;
         return r.json();
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["team-members"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      toast.success("הרשאות עודכנו בהצלחה");
+    },
+    onError: () => toast.error("שגיאה בעדכון הרשאות. נסה שוב."),
   });
 
   const toggleActiveMutation = useMutation({
@@ -1404,7 +1417,11 @@ function TeamTab() {
         if (!r.ok) throw r;
         return r.json();
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["team-members"] }),
+    onSuccess: (_, { isActive }) => {
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      toast.success(isActive ? "המשתמש הופעל" : "המשתמש הושבת");
+    },
+    onError: () => toast.error("שגיאה בעדכון הסטטוס. נסה שוב."),
   });
 
   if (isLoading) {

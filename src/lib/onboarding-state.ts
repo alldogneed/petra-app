@@ -36,7 +36,8 @@ export const SETUP_STEPS: SetupStep[] = [
     step: 2,
     title: "הקמת מחירון",
     description: "הגדר את השירותים שלך עם מחיר ומשך — זה הלב של המערכת",
-    href: "/price-lists",
+    href: "/settings",
+    hrefQuery: "tab=services",
     icon: "💰",
   },
   {

@@ -3,10 +3,14 @@
  * Returns a downloadable XLSX template with Customers + Pets sheets.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { generateCustomerTemplate } from "@/lib/import-utils";
+import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authResult = await requireAuth(req);
+  if (isGuardError(authResult)) return authResult;
+
   try {
     const buffer = generateCustomerTemplate();
     return new Response(new Uint8Array(buffer), {
