@@ -28,6 +28,7 @@ import {
   Send,
   ClipboardList,
   Zap,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -70,6 +71,7 @@ const navItems: NavItem[] = [
   { name: "תור שליחה", href: "/scheduled-messages", icon: Send },
   { name: "ניהול תורים", href: "/bookings", icon: CalendarCheck },
   { name: "טפסי קליטה", href: "/intake-forms", icon: ClipboardList },
+  { name: "ייצוא נתונים", href: "/exports", icon: Download },
   { name: "אנליטיקס", href: "/analytics", icon: BarChart3, minRole: "owner" },
   { name: "הגדרות", href: "/settings", icon: Settings },
 ];
