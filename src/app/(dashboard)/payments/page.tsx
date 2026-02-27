@@ -13,7 +13,6 @@ import {
   Banknote,
   FileText,
   Loader2,
-  ExternalLink,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, fetchJSON } from "@/lib/utils";
 

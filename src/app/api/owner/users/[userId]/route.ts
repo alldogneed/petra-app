@@ -68,7 +68,7 @@ export async function PATCH(
   let body: z.infer<typeof PatchUserSchema>;
   try {
     body = PatchUserSchema.parse(await request.json());
-  } catch (e: unknown) {
+  } catch (_e: unknown) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 

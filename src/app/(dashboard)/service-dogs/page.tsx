@@ -13,7 +13,6 @@ import {
   CreditCard,
   ChevronDown,
   CheckCircle2,
-  XCircle,
   Send,
   Eye,
   QrCode,
@@ -26,9 +25,6 @@ import {
   SERVICE_DOG_PHASES,
   SERVICE_DOG_PHASE_MAP,
   SERVICE_DOG_PHASE_COLORS,
-  SERVICE_DOG_TRAINING_STATUSES,
-  TRAINING_STATUS_MAP,
-  SERVICE_DOG_PLACEMENT_STATUSES,
   PLACEMENT_STATUS_MAP,
   RECIPIENT_STATUSES,
   RECIPIENT_STATUS_MAP,
@@ -938,7 +934,6 @@ function AddTrainingForm({ dogId, onDone }: { dogId: string; onDone: () => void 
 // ─── Recipients Tab ───
 
 function RecipientsTab({ recipients }: { recipients: Recipient[] }) {
-  const queryClient = useQueryClient();
   const [showAddModal, setShowAddModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
 

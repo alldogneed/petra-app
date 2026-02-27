@@ -30,7 +30,7 @@ import {
   ArrowRight,
   ArrowLeft,
   MessageCircle,
-  ChevronRight,
+
   Tag,
   Settings2,
   Trash2,

@@ -137,12 +137,6 @@ const ORDER_TYPE_COLORS: Record<string, string> = {
   grooming: "#EC4899",
 };
 
-const ORDER_TYPE_LABELS: Record<string, string> = {
-  sale: "מכירה",
-  boarding: "פנסיון",
-  training: "אילוף",
-  grooming: "טיפוח",
-};
 
 const TASK_PRIORITY_COLORS: Record<string, string> = {
   URGENT: "#EF4444",

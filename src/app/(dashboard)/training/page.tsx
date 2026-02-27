@@ -722,7 +722,7 @@ function IndividualTab({
         <div className="empty-state">
           <div className="empty-state-icon"><GraduationCap className="w-6 h-6 text-slate-400" /></div>
           <h3 className="text-base font-semibold text-petra-text mb-1">אין תוכניות אילוף בבית לקוח</h3>
-          <p className="text-sm text-petra-muted">חבילות אילוף יופיעו כאן לאחר מכירה דרך "הזמנה חדשה"</p>
+          <p className="text-sm text-petra-muted">חבילות אילוף יופיעו כאן לאחר מכירה דרך &ldquo;הזמנה חדשה&rdquo;</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -1593,7 +1593,7 @@ function CreateGroupModal({
 // ═══════════════════════════════════════════════════════
 
 function AssignDogModal({
-  groupId,
+  groupId: _groupId,
   groupName,
   onClose,
   onSubmit,

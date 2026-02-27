@@ -14,7 +14,7 @@ import {
   Calculator,
   MessageCircle,
 } from "lucide-react";
-import { cn, toWhatsAppPhone, formatCurrency, fetchJSON } from "@/lib/utils";
+import { cn, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 
 // ─── Mock Products ───────────────────────────────────────────────
 

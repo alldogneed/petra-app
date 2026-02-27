@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
   let body: z.infer<typeof CreateTenantSchema>;
   try {
     body = CreateTenantSchema.parse(await request.json());
-  } catch (e: unknown) {
+  } catch (_e: unknown) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 

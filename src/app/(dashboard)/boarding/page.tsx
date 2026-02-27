@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo, Fragment } from "react";
+import { useState, useMemo } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -154,14 +154,6 @@ function isOverdue(stay: BoardingStay, checkOutTime: string): boolean {
   return Date.now() > checkOutDate.getTime();
 }
 
-function isEarlyCheckin(stay: BoardingStay, checkInTime: string): boolean {
-  if (stay.status !== "checked_in") return false;
-  const checkinDate = new Date(stay.checkIn);
-  const [hours, mins] = checkInTime.split(":").map(Number);
-  const scheduledTime = new Date(checkinDate);
-  scheduledTime.setHours(hours, mins, 0, 0);
-  return checkinDate.getTime() < scheduledTime.getTime();
-}
 
 function addDays(date: Date, days: number): Date {
   const result = new Date(date);
@@ -594,102 +586,6 @@ function TimelineView({
   );
 }
 
-// ─── Draggable Stay Card (for DnD room view) ───────────────────────────────
-
-function DraggableStayCard({
-  stay,
-  onCheckin,
-  onCheckout,
-  settings,
-}: {
-  stay: BoardingStay;
-  onCheckin: (id: string) => void;
-  onCheckout: (id: string) => void;
-  settings: BusinessSettings;
-}) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({ id: stay.id });
-
-  const style = transform
-    ? { transform: CSS.Translate.toString(transform) }
-    : undefined;
-
-  const today = toDateStr(new Date());
-  const isCheckinToday = toDateStr(stay.checkIn) === today && stay.status === "reserved";
-  const isCheckoutToday = stay.checkOut && toDateStr(stay.checkOut) === today && stay.status === "checked_in";
-  const overdue = isOverdue(stay, settings.boardingCheckOutTime || "11:00");
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...listeners}
-      {...attributes}
-      className={cn(
-        "card p-2.5 cursor-grab active:cursor-grabbing select-none",
-        isDragging && "opacity-40 shadow-none",
-        overdue && "ring-2 ring-red-300"
-      )}
-    >
-      <div className="flex items-start gap-2">
-        <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-          style={{ background: STATUS_MAP[stay.status]?.bg || "#F5F3FF" }}
-        >
-          <PawPrint className="w-3.5 h-3.5" style={{ color: STATUS_MAP[stay.status]?.color || "#8B5CF6" }} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-xs font-semibold text-petra-text truncate">{stay.pet.name}</div>
-          <div className="text-[10px] text-petra-muted truncate">{stay.customer.name}</div>
-          <div className="text-[10px] text-petra-muted mt-0.5">
-            {formatDate(stay.checkIn)}
-            {stay.checkOut ? ` → ${formatDate(stay.checkOut)}` : ""}
-          </div>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {isCheckinToday && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-brand-50 text-brand-600 border border-brand-100">
-                <LogIn className="w-2.5 h-2.5" />צ׳ק-אין היום
-              </span>
-            )}
-            {isCheckoutToday && !overdue && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-red-50 text-red-600 border border-red-100">
-                <LogOut className="w-2.5 h-2.5" />צ׳ק-אאוט היום
-              </span>
-            )}
-            {overdue && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-red-100 text-red-700 border border-red-200 animate-pulse">
-                <AlertTriangle className="w-2.5 h-2.5" />איחור!
-              </span>
-            )}
-          </div>
-          <StayProgress checkIn={stay.checkIn} checkOut={stay.checkOut} />
-        </div>
-      </div>
-      <div
-        className="flex gap-1 mt-2 pt-1.5 border-t border-slate-100"
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        {stay.status === "reserved" && (
-          <button
-            className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[10px] font-medium text-emerald-600 hover:bg-emerald-50 transition-colors"
-            onClick={() => onCheckin(stay.id)}
-          >
-            <CheckCircle2 className="w-3 h-3" />צ׳ק-אין
-          </button>
-        )}
-        {stay.status === "checked_in" && (
-          <button
-            className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg text-[10px] font-medium text-slate-500 hover:bg-slate-100 transition-colors"
-            onClick={() => onCheckout(stay.id)}
-          >
-            <Clock className="w-3 h-3" />צ׳ק-אאוט
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── Draggable Stay wrapper for Grid View ───────────────────────────────────
 
 function DraggableStayInRoom({ stayId, children }: { stayId: string; children: React.ReactNode }) {
@@ -791,126 +687,6 @@ function UnassignedGridCard({
   );
 }
 
-// ─── Droppable Room Column (DnD) ────────────────────────────────────────────
-
-function RoomColumn({
-  room,
-  stays,
-  onCheckin,
-  onCheckout,
-  settings,
-}: {
-  room: { id: string; name: string; capacity: number; _count: { boardingStays: number } };
-  stays: BoardingStay[];
-  onCheckin: (id: string) => void;
-  onCheckout: (id: string) => void;
-  settings: BusinessSettings;
-}) {
-  const { setNodeRef, isOver } = useDroppable({ id: room.id });
-  const occupancy = room._count.boardingStays;
-  const isFull = occupancy >= room.capacity;
-
-  return (
-    <div className="flex flex-col min-w-[200px] flex-1">
-      <div className="flex items-center gap-2 mb-2 px-1">
-        <DoorOpen className={cn("w-4 h-4 flex-shrink-0", isFull ? "text-red-400" : "text-brand-400")} />
-        <span className="text-sm font-semibold text-petra-text truncate">{room.name}</span>
-        <span
-          className={cn(
-            "mr-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full",
-            isFull
-              ? "bg-red-50 text-red-600 border border-red-100"
-              : "bg-emerald-50 text-emerald-600 border border-emerald-100"
-          )}
-        >
-          {occupancy}/{room.capacity}
-        </span>
-      </div>
-
-      <div
-        ref={setNodeRef}
-        className={cn(
-          "flex-1 min-h-[160px] rounded-xl p-2 space-y-2 transition-colors border",
-          isOver
-            ? "bg-brand-50/60 border-brand-200 border-dashed"
-            : "bg-slate-50/80 border-slate-100"
-        )}
-      >
-        {stays.length === 0 ? (
-          <p className={cn("text-[11px] text-center py-6 transition-colors", isOver ? "text-brand-400" : "text-petra-muted")}>
-            {isOver ? "שחרר כאן" : "אין שהיות"}
-          </p>
-        ) : (
-          stays.map((stay) => (
-            <DraggableStayCard
-              key={stay.id}
-              stay={stay}
-              onCheckin={onCheckin}
-              onCheckout={onCheckout}
-              settings={settings}
-            />
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Unassigned Column ───────────────────────────────────────────────────────
-
-function UnassignedColumn({
-  stays,
-  onCheckin,
-  onCheckout,
-  settings,
-}: {
-  stays: BoardingStay[];
-  onCheckin: (id: string) => void;
-  onCheckout: (id: string) => void;
-  settings: BusinessSettings;
-}) {
-  const { setNodeRef, isOver } = useDroppable({ id: "unassigned" });
-
-  return (
-    <div className="mb-4">
-      <div className="flex items-center gap-2 mb-2 px-1">
-        <Hotel className="w-4 h-4 text-slate-400" />
-        <span className="text-sm font-semibold text-petra-text">ללא חדר</span>
-        <span className="mr-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500">
-          {stays.length}
-        </span>
-      </div>
-      <div
-        ref={setNodeRef}
-        className={cn(
-          "min-h-[60px] rounded-xl p-2 transition-colors border",
-          stays.length === 0 && !isOver && "border-dashed",
-          isOver
-            ? "bg-brand-50/60 border-brand-200 border-dashed"
-            : "bg-slate-50/50 border-slate-100"
-        )}
-      >
-        {stays.length === 0 ? (
-          <p className={cn("text-[11px] text-center py-3", isOver ? "text-brand-400" : "text-petra-muted")}>
-            {isOver ? "שחרר להסרת חדר" : "גרור לכאן להסרת שיבוץ חדר"}
-          </p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {stays.map((stay) => (
-              <DraggableStayCard
-                key={stay.id}
-                stay={stay}
-                onCheckin={onCheckin}
-                onCheckout={onCheckout}
-                settings={settings}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ─── Stay Row (list view) ────────────────────────────────────────────────────
 

@@ -13,7 +13,7 @@ import {
   Ban,
   AlertCircle,
 } from "lucide-react";
-import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
+import { cn, fetchJSON } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
