@@ -33,6 +33,7 @@ import {
   PawPrint,
   Upload,
   Pill,
+  UtensilsCrossed,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -69,6 +70,7 @@ const navItems: NavItem[] = [
   { name: "מחירון", href: "/pricing", icon: Tag, minRole: "manager" },
   { name: "הזמנות", href: "/orders", icon: ShoppingCart },
   { name: "פנסיון", href: "/boarding", icon: Hotel },
+  { name: "לוח האכלה", href: "/feeding", icon: UtensilsCrossed },
   { name: "אימונים וכלבים", href: "/training", icon: Dog },
   { name: "כלבי שירות", href: "/service-dogs", icon: Shield },
   { name: "הודעות", href: "/messages", icon: MessageSquare },
