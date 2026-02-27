@@ -81,8 +81,17 @@ interface DashboardStats {
     startTime: string;
     status: string;
     service: { id: string; name: string; color: string | null; type?: string };
-    customer: { name: string };
+    customer: { name: string; phone: string };
     pet: { name: string; species: string } | null;
+  }[];
+  tomorrowAppointments: {
+    id: string;
+    startTime: string;
+    customerName: string;
+    customerId: string;
+    customerPhone: string;
+    petName: string | null;
+    serviceName: string;
   }[];
   recentOrders: {
     id: string;
@@ -730,6 +739,109 @@ function UrgentLeadsAlert({ leads }: { leads: DashboardStats["urgentLeads"] }) {
   );
 }
 
+// ─── Tomorrow Reminders Widget ───────────────────────────────────────────────
+
+function TomorrowReminders({
+  appointments,
+}: {
+  appointments: DashboardStats["tomorrowAppointments"];
+}) {
+  const [sent, setSent] = useState<Set<string>>(new Set());
+
+  if (!appointments || appointments.length === 0) return null;
+
+  const withPhone = appointments.filter((a) => a.customerPhone);
+
+  function buildMsg(a: DashboardStats["tomorrowAppointments"][0]) {
+    return encodeURIComponent(
+      `שלום ${a.customerName}! 😊\nתזכורת לתור מחר בשעה ${a.startTime}${a.petName ? ` עם ${a.petName}` : ""} לשירות ${a.serviceName}.\nנתראה! 🐾`
+    );
+  }
+
+  function sendOne(a: DashboardStats["tomorrowAppointments"][0]) {
+    const phone = toWhatsAppPhone(a.customerPhone);
+    window.open(`https://wa.me/${phone}?text=${buildMsg(a)}`, "_blank");
+    setSent((prev) => new Set([...prev, a.id]));
+  }
+
+  function sendAll() {
+    withPhone.forEach((a, i) => {
+      setTimeout(() => {
+        const phone = toWhatsAppPhone(a.customerPhone);
+        window.open(`https://wa.me/${phone}?text=${buildMsg(a)}`, "_blank");
+        setSent((prev) => new Set([...prev, a.id]));
+      }, i * 600);
+    });
+  }
+
+  return (
+    <div className="card p-5 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+            <MessageCircle className="w-4 h-4 text-green-600" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-petra-text">תזכורות למחר</h2>
+            <p className="text-xs text-petra-muted">{appointments.length} תורים מתוכננים</p>
+          </div>
+        </div>
+        {withPhone.length > 1 && (
+          <button
+            onClick={sendAll}
+            className="btn-secondary text-xs flex items-center gap-1.5"
+          >
+            <MessageCircle className="w-3.5 h-3.5 text-green-600" />
+            שלח הכל ({withPhone.length})
+          </button>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        {appointments.map((a) => {
+          const hasSent = sent.has(a.id);
+          return (
+            <div
+              key={a.id}
+              className={cn(
+                "flex items-center gap-3 p-3 rounded-xl transition-colors",
+                hasSent ? "bg-green-50" : "bg-slate-50 hover:bg-slate-100"
+              )}
+            >
+              <div className="w-10 h-10 rounded-xl bg-white border border-petra-border flex flex-col items-center justify-center flex-shrink-0">
+                <span className="text-[10px] text-petra-muted leading-none">מחר</span>
+                <span className="text-sm font-bold text-petra-text leading-tight">{a.startTime}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-petra-text truncate">{a.customerName}</p>
+                <p className="text-xs text-petra-muted truncate">
+                  {a.petName ? `${a.petName} • ` : ""}{a.serviceName}
+                </p>
+              </div>
+              {a.customerPhone ? (
+                <button
+                  onClick={() => sendOne(a)}
+                  className={cn(
+                    "flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors",
+                    hasSent
+                      ? "bg-green-100 text-green-700 cursor-default"
+                      : "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                  )}
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  {hasSent ? "נשלח ✓" : "שלח"}
+                </button>
+              ) : (
+                <span className="text-[10px] text-petra-muted">אין טלפון</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Birthday Widget ──────────────────────────────────────────────────────────
 
 interface BirthdayItem {
@@ -1297,6 +1409,9 @@ export default function DashboardPage() {
           <ActivityFeed activities={activityData?.activities || []} />
         </div>
       </div>
+
+      {/* Tomorrow Reminders */}
+      <TomorrowReminders appointments={data.tomorrowAppointments ?? []} />
 
       {/* Birthday Widget */}
       <BirthdayWidget />

@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
           status: "scheduled",
         },
         include: {
-          customer: { select: { name: true } },
+          customer: { select: { name: true, phone: true } },
           pet: { select: { name: true, species: true } },
           service: { select: { id: true, name: true, color: true, type: true } },
         },
@@ -193,6 +193,23 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // Tomorrow's appointments (for reminder widget)
+    const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowEnd = new Date(tomorrowStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+    const tomorrowAppointments = await prisma.appointment.findMany({
+      where: {
+        businessId,
+        date: { gte: tomorrowStart, lte: tomorrowEnd },
+        status: "scheduled",
+      },
+      include: {
+        customer: { select: { id: true, name: true, phone: true } },
+        pet: { select: { name: true } },
+        service: { select: { name: true } },
+      },
+      orderBy: { startTime: "asc" },
+    });
+
     // Get top service name
     let topService: { name: string; count: number } | null = null;
     if (topServiceResult.length > 0) {
@@ -254,6 +271,15 @@ export async function GET(request: NextRequest) {
       todayTasks,
       overdueTasks,
       urgentLeads,
+      tomorrowAppointments: tomorrowAppointments.map((a) => ({
+        id: a.id,
+        startTime: a.startTime,
+        customerName: a.customer.name,
+        customerId: a.customer.id,
+        customerPhone: a.customer.phone,
+        petName: a.pet?.name ?? null,
+        serviceName: a.service.name,
+      })),
       todayArrivals: todayArrivals.map((s) => ({
         id: s.id,
         checkIn: s.checkIn.toISOString(),
