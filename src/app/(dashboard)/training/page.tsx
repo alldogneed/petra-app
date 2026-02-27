@@ -781,6 +781,65 @@ function OverviewTab({ dogs }: { dogs: UnifiedDog[] }) {
 // ═══════════════════════════════════════════════════════
 // INDIVIDUAL TAB
 // ═══════════════════════════════════════════════════════
+// GOAL PROGRESS ROW
+// ═══════════════════════════════════════════════════════
+
+function GoalProgressRow({ goal, programId }: { goal: { id: string; title: string; status: string; progressPercent: number }; programId: string }) {
+  const queryClient = useQueryClient();
+  const [localProgress, setLocalProgress] = useState(goal.progressPercent);
+
+  const mutation = useMutation({
+    mutationFn: (progress: number) =>
+      fetchJSON(`/api/training-programs/${programId}/goals`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          goalId: goal.id,
+          progressPercent: progress,
+          status: progress >= 100 ? "ACHIEVED" : progress > 0 ? "IN_PROGRESS" : "PENDING",
+        }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["training-programs"] }),
+    onError: () => toast.error("שגיאה בעדכון יעד"),
+  });
+
+  const statusColor = goal.status === "ACHIEVED" ? "text-emerald-600" : goal.status === "IN_PROGRESS" ? "text-brand-600" : "text-petra-muted";
+
+  return (
+    <div className="p-2 rounded-lg bg-slate-50 space-y-1.5">
+      <div className="flex items-center gap-2">
+        <span className={cn("text-[10px] font-semibold flex-shrink-0", statusColor)}>
+          {goal.status === "ACHIEVED" ? "✓" : goal.status === "IN_PROGRESS" ? "●" : "○"}
+        </span>
+        <span className="text-xs text-petra-text flex-1 truncate">{goal.title}</span>
+        <span className="text-[10px] text-petra-muted font-medium">{localProgress}%</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={10}
+          value={localProgress}
+          onChange={(e) => setLocalProgress(parseInt(e.target.value))}
+          onMouseUp={() => { if (localProgress !== goal.progressPercent) mutation.mutate(localProgress); }}
+          onTouchEnd={() => { if (localProgress !== goal.progressPercent) mutation.mutate(localProgress); }}
+          className="flex-1 accent-brand-500 h-1.5"
+        />
+      </div>
+      <div
+        className="h-1.5 rounded-full bg-slate-200 overflow-hidden"
+      >
+        <div
+          className={cn("h-full rounded-full transition-all", localProgress >= 100 ? "bg-emerald-500" : "bg-brand-500")}
+          style={{ width: `${localProgress}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
 
 function IndividualTab({
   programs,
@@ -941,6 +1000,25 @@ function IndividualTab({
                             program.frequency || "-"}
                       </div>
                     </div>
+
+                    {/* Goals */}
+                    {program.goals && program.goals.length > 0 && (
+                      <div className="mb-4">
+                        <h4 className="text-xs font-semibold text-petra-muted mb-2 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          יעדי אילוף ({program.goals.length})
+                        </h4>
+                        <div className="space-y-2">
+                          {program.goals.map((goal) => (
+                            <GoalProgressRow
+                              key={goal.id}
+                              goal={goal}
+                              programId={program.id}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Sessions list */}
                     <h4 className="text-xs font-semibold text-petra-muted mb-2 flex items-center gap-1.5">
