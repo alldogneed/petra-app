@@ -329,6 +329,9 @@ function NewAppointmentModal({
     startTime: defaultTime,
     notes: "",
   });
+  const [recurring, setRecurring] = useState(false);
+  const [repeatEvery, setRepeatEvery] = useState<"week" | "2weeks" | "month">("week");
+  const [occurrences, setOccurrences] = useState(4);
 
   // Sync form with props when modal opens with new date/time
   useEffect(() => {
@@ -338,6 +341,9 @@ function NewAppointmentModal({
         date: defaultDate,
         startTime: defaultTime,
       }));
+      setRecurring(false);
+      setRepeatEvery("week");
+      setOccurrences(4);
     }
   }, [isOpen, defaultDate, defaultTime]);
 
@@ -360,19 +366,34 @@ function NewAppointmentModal({
     : addMinutes(form.startTime, 60);
 
   const mutation = useMutation({
-    mutationFn: (data: typeof form & { endTime: string }) =>
-      fetch("/api/appointments", {
+    mutationFn: (data: typeof form & { endTime: string }) => {
+      if (recurring) {
+        return fetch("/api/appointments/recurring", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...data, repeatEvery, occurrences }),
+        }).then((r) => {
+          if (!r.ok) throw new Error("Failed");
+          return r.json();
+        });
+      }
+      return fetch("/api/appointments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }).then((r) => {
         if (!r.ok) throw new Error("Failed");
         return r.json();
-      }),
-    onSuccess: () => {
+      });
+    },
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      toast.success("התור נקבע בהצלחה");
+      if (recurring && result?.created) {
+        toast.success(`נקבעו ${result.created} פגישות חוזרות בהצלחה`);
+      } else {
+        toast.success("התור נקבע בהצלחה");
+      }
       onClose();
       setForm({
         customerId: "",
@@ -490,6 +511,49 @@ function NewAppointmentModal({
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
             />
           </div>
+
+          {/* Recurring toggle */}
+          <div className="border border-slate-200 rounded-xl p-3 bg-slate-50">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-4 h-4 rounded accent-orange-500"
+                checked={recurring}
+                onChange={(e) => setRecurring(e.target.checked)}
+              />
+              <span className="text-sm font-medium text-petra-text">פגישה חוזרת</span>
+            </label>
+            {recurring && (
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <div>
+                  <label className="label text-xs">תדירות</label>
+                  <select
+                    className="input text-sm"
+                    value={repeatEvery}
+                    onChange={(e) => setRepeatEvery(e.target.value as "week" | "2weeks" | "month")}
+                  >
+                    <option value="week">כל שבוע</option>
+                    <option value="2weeks">כל שבועיים</option>
+                    <option value="month">כל חודש</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label text-xs">מספר פגישות</label>
+                  <input
+                    type="number"
+                    className="input text-sm"
+                    min={2}
+                    max={52}
+                    value={occurrences}
+                    onChange={(e) => setOccurrences(Number(e.target.value))}
+                  />
+                </div>
+                <div className="col-span-2 text-xs text-petra-muted bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
+                  ייצרו <strong>{occurrences}</strong> פגישות החל מ-{form.date || "התאריך שנבחר"}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex gap-3 mt-6">
           <button
@@ -500,7 +564,7 @@ function NewAppointmentModal({
             onClick={() => mutation.mutate({ ...form, endTime })}
           >
             <Plus className="w-4 h-4" />
-            {mutation.isPending ? "שומר..." : "צור פגישה"}
+            {mutation.isPending ? "שומר..." : recurring ? `צור ${occurrences} פגישות` : "צור פגישה"}
           </button>
           <button className="btn-secondary" onClick={onClose}>
             ביטול
