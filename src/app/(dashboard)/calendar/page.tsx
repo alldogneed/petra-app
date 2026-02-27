@@ -16,6 +16,7 @@ import {
   Pencil,
   Check,
   Trash2,
+  UserX,
 } from "lucide-react";
 import {
   cn,
@@ -1779,6 +1780,16 @@ export default function CalendarPage() {
                       title="העבר תור"
                     >
                       <Clock className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {selectedAppointment.status === "scheduled" && (
+                    <button
+                      className="w-9 h-9 flex items-center justify-center rounded-xl text-amber-500 hover:bg-amber-50 border border-transparent hover:border-amber-200 transition-colors flex-shrink-0"
+                      disabled={statusMutation.isPending}
+                      onClick={() => statusMutation.mutate({ id: selectedAppointment.id, status: "no_show" })}
+                      title="לא הגיע"
+                    >
+                      <UserX className="w-4 h-4" />
                     </button>
                   )}
                   {selectedAppointment.status === "scheduled" && (

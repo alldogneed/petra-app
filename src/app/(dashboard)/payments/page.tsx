@@ -49,6 +49,30 @@ const PAYMENT_STATUSES = [
   { id: "canceled", label: "בוטל" },
 ];
 
+const DATE_PERIODS = [
+  { id: "ALL", label: "כל הזמן" },
+  { id: "today", label: "היום" },
+  { id: "week", label: "השבוע" },
+  { id: "month", label: "החודש" },
+];
+
+function isInPeriod(dateStr: string, period: string): boolean {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period === "today") return date >= startOfDay;
+  if (period === "week") {
+    const startOfWeek = new Date(startOfDay);
+    startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
+    return date >= startOfWeek;
+  }
+  if (period === "month") {
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    return date >= startOfMonth;
+  }
+  return true;
+}
+
 const STATUS_INFO: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   pending: { label: "ממתין", color: "#F59E0B", icon: Clock },
   paid: { label: "שולם", color: "#22C55E", icon: CheckCircle2 },
@@ -66,6 +90,7 @@ const METHOD_LABELS: Record<string, string> = {
 
 export default function PaymentsPage() {
   const [activeStatus, setActiveStatus] = useState("ALL");
+  const [activePeriod, setActivePeriod] = useState("ALL");
   const [showNewPayment, setShowNewPayment] = useState(false);
   const [issuingPaymentId, setIssuingPaymentId] = useState<string | null>(null);
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
@@ -165,10 +190,12 @@ export default function PaymentsPage() {
     },
   });
 
-  // Filter payments by customer name search
-  const filteredPayments = searchQuery.trim()
-    ? payments.filter((p) => p.customer.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    : payments;
+  // Filter payments by customer name search and date period
+  const filteredPayments = payments.filter((p) => {
+    if (searchQuery.trim() && !p.customer.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (activePeriod !== "ALL" && !isInPeriod(p.createdAt, activePeriod)) return false;
+    return true;
+  });
 
   // Summary stats from unfiltered data
   const totalPaid = allPayments
@@ -258,21 +285,39 @@ export default function PaymentsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-1.5 mb-6">
-        {PAYMENT_STATUSES.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => setActiveStatus(s.id)}
-            className={cn(
-              "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              activeStatus === s.id
-                ? "bg-brand-500 text-white"
-                : "bg-slate-100 text-petra-muted hover:bg-slate-200"
-            )}
-          >
-            {s.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <div className="flex gap-1.5">
+          {PAYMENT_STATUSES.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setActiveStatus(s.id)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                activeStatus === s.id
+                  ? "bg-brand-500 text-white"
+                  : "bg-slate-100 text-petra-muted hover:bg-slate-200"
+              )}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1.5">
+          {DATE_PERIODS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setActivePeriod(p.id)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                activePeriod === p.id
+                  ? "bg-slate-700 text-white"
+                  : "bg-slate-100 text-petra-muted hover:bg-slate-200"
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Payments Table */}
