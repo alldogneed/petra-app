@@ -20,6 +20,7 @@ import {
   ExternalLink,
   Copy,
   CheckCheck,
+  Check,
 } from "lucide-react";
 import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
@@ -200,6 +201,143 @@ function SendModal({ template, onClose }: { template: MessageTemplate; onClose: 
   );
 }
 
+// ─── Bulk Send Modal ──────────────────────────────────────────────────────────
+
+function BulkSendModal({ template, onClose }: { template: MessageTemplate; onClose: () => void }) {
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [sentIds, setSentIds] = useState<Set<string>>(new Set());
+
+  const { data: customers = [] } = useQuery<SendCustomer[]>({
+    queryKey: ["customers-basic"],
+    queryFn: () => fetchJSON("/api/customers"),
+  });
+
+  const filtered = customers.filter((c) =>
+    !customerSearch.trim() ||
+    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    c.phone.includes(customerSearch)
+  );
+
+  function renderBody(body: string, customer: SendCustomer) {
+    return body
+      .replace(/\{customerName\}/g, customer.name)
+      .replace(/\{businessPhone\}/g, "")
+      .replace(/\{petName\}/g, "")
+      .replace(/\{date\}/g, "")
+      .replace(/\{time\}/g, "")
+      .replace(/\{serviceName\}/g, "");
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (filtered.every((c) => selectedIds.has(c.id))) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((c) => c.id)));
+    }
+  }
+
+  function handleBulkSend() {
+    const toSend = customers.filter((c) => selectedIds.has(c.id));
+    toSend.forEach((c, i) => {
+      setTimeout(() => {
+        const text = encodeURIComponent(renderBody(template.body, c));
+        if (template.channel === "whatsapp") {
+          window.open(`https://wa.me/${toWhatsAppPhone(c.phone)}?text=${text}`, "_blank");
+        } else if (template.channel === "sms") {
+          window.open(`sms:${c.phone}?body=${text}`, "_self");
+        }
+        setSentIds((prev) => new Set([...prev, c.id]));
+      }, i * 700);
+    });
+    toast.success(`שולחים ל-${toSend.length} לקוחות...`);
+  }
+
+  const allFiltered = filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
+  const selectedCount = selectedIds.size;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-lg mx-4 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-bold text-petra-text">שליחה לקבוצה</h2>
+            <p className="text-xs text-petra-muted mt-0.5">{template.name}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="mb-2 flex items-center gap-2">
+          <input
+            className="input flex-1"
+            placeholder="חפש לפי שם או טלפון..."
+            value={customerSearch}
+            onChange={(e) => setCustomerSearch(e.target.value)}
+            autoFocus
+          />
+          <button className="btn-secondary text-xs whitespace-nowrap" onClick={toggleAll}>
+            {allFiltered ? "בטל הכל" : "בחר הכל"}
+          </button>
+        </div>
+
+        <div className="max-h-52 overflow-y-auto space-y-1 rounded-lg border border-petra-border mb-4">
+          {filtered.slice(0, 50).map((c) => (
+            <button
+              key={c.id}
+              onClick={() => toggleSelect(c.id)}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-slate-50 transition-colors text-right",
+                selectedIds.has(c.id) && "bg-brand-50"
+              )}
+            >
+              <div className={cn(
+                "w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0",
+                selectedIds.has(c.id) ? "bg-brand-500 border-brand-500" : "border-slate-300"
+              )}>
+                {selectedIds.has(c.id) && <Check className="w-2.5 h-2.5 text-white" />}
+              </div>
+              <span className="font-medium flex-1 truncate">{c.name}</span>
+              <span className="text-petra-muted text-xs" dir="ltr">{c.phone}</span>
+              {sentIds.has(c.id) && <CheckCheck className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />}
+            </button>
+          ))}
+          {filtered.length === 0 && (
+            <p className="text-xs text-petra-muted text-center py-3">לא נמצאו לקוחות</p>
+          )}
+        </div>
+
+        <div className="flex gap-2 justify-between items-center">
+          <span className="text-xs text-petra-muted">
+            {selectedCount > 0 ? `${selectedCount} לקוחות נבחרו` : "לא נבחרו לקוחות"}
+          </span>
+          <div className="flex gap-2">
+            <button className="btn-secondary" onClick={onClose}>ביטול</button>
+            <button
+              className="btn-primary"
+              disabled={selectedCount === 0}
+              onClick={handleBulkSend}
+            >
+              <Users className="w-4 h-4" />
+              שלח ל-{selectedCount > 0 ? selectedCount : "..."} לקוחות
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Templates Tab ────────────────────────────────────────────────────────────
 
 function TemplatesTab() {
@@ -207,6 +345,7 @@ function TemplatesTab() {
   const [showEditor, setShowEditor] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   const [sendingTemplate, setSendingTemplate] = useState<MessageTemplate | null>(null);
+  const [bulkSendingTemplate, setBulkSendingTemplate] = useState<MessageTemplate | null>(null);
   const [form, setForm] = useState({ name: "", channel: "whatsapp", subject: "", body: "" });
   const [cursorPos, setCursorPos] = useState(0);
   const queryClient = useQueryClient();
@@ -318,10 +457,19 @@ function TemplatesTab() {
                   <button
                     onClick={() => setSendingTemplate(template)}
                     className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
-                    title="שלח הודעה"
+                    title="שלח ללקוח בודד"
                   >
                     <Send className="w-3.5 h-3.5" />
                   </button>
+                  {(template.channel === "whatsapp" || template.channel === "sms") && (
+                    <button
+                      onClick={() => setBulkSendingTemplate(template)}
+                      className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600"
+                      title="שלח לקבוצת לקוחות"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <button
                     onClick={() => openEditor(template)}
                     className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
@@ -431,6 +579,14 @@ function TemplatesTab() {
         <SendModal
           template={sendingTemplate}
           onClose={() => setSendingTemplate(null)}
+        />
+      )}
+
+      {/* Bulk Send Modal */}
+      {bulkSendingTemplate && (
+        <BulkSendModal
+          template={bulkSendingTemplate}
+          onClose={() => setBulkSendingTemplate(null)}
         />
       )}
     </>
