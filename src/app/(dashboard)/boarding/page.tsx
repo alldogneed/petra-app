@@ -73,7 +73,12 @@ interface BoardingStay {
   status: string;
   notes: string | null;
   room: { id: string; name: string } | null;
-  pet: { id: string; name: string; species: string; breed: string | null };
+  pet: {
+    id: string; name: string; species: string; breed: string | null;
+    health?: { allergies: string | null; medicalConditions: string | null; activityLimitations: string | null } | null;
+    behavior?: { dogAggression: boolean; humanAggression: boolean; biteHistory: boolean; biteDetails: string | null; separationAnxiety: boolean; leashReactivity: boolean; resourceGuarding: boolean } | null;
+    medications?: { medName: string; dosage: string | null; frequency: string | null; times: string | null }[];
+  };
   customer: { id: string; name: string; phone: string };
 }
 
@@ -794,6 +799,50 @@ function StayRow({
   );
 }
 
+// ─── Pet Health Alert Panel ──────────────────────────────────────────────────
+
+function PetHealthAlert({ pet }: { pet: BoardingStay["pet"] }) {
+  const warnings: { icon: string; text: string; urgent: boolean }[] = [];
+
+  if (pet.behavior?.dogAggression) warnings.push({ icon: "🐕", text: "תוקפנות כלפי כלבים", urgent: true });
+  if (pet.behavior?.humanAggression) warnings.push({ icon: "👤", text: "תוקפנות כלפי אנשים", urgent: true });
+  if (pet.behavior?.biteHistory) warnings.push({ icon: "⚠️", text: pet.behavior.biteDetails ? `היסטוריית נשיכה: ${pet.behavior.biteDetails}` : "היסטוריית נשיכה", urgent: true });
+  if (pet.behavior?.resourceGuarding) warnings.push({ icon: "🛡️", text: "שמירת משאבים", urgent: true });
+  if (pet.behavior?.leashReactivity) warnings.push({ icon: "🔗", text: "ריאקטיביות בשרשרת", urgent: false });
+  if (pet.behavior?.separationAnxiety) warnings.push({ icon: "😰", text: "חרדת נטישה", urgent: false });
+  if (pet.health?.allergies) warnings.push({ icon: "🌿", text: `אלרגיות: ${pet.health.allergies}`, urgent: false });
+  if (pet.health?.medicalConditions) warnings.push({ icon: "🏥", text: `מצב רפואי: ${pet.health.medicalConditions}`, urgent: false });
+  if (pet.health?.activityLimitations) warnings.push({ icon: "🦮", text: `הגבלות תנועה: ${pet.health.activityLimitations}`, urgent: false });
+  if (pet.medications && pet.medications.length > 0) {
+    pet.medications.forEach((m) => {
+      warnings.push({ icon: "💊", text: `תרופה: ${m.medName}${m.dosage ? ` · ${m.dosage}` : ""}${m.frequency ? ` · ${m.frequency}` : ""}`, urgent: false });
+    });
+  }
+
+  if (warnings.length === 0) return null;
+
+  const hasUrgent = warnings.some((w) => w.urgent);
+
+  return (
+    <div className={cn("rounded-xl p-3 border text-sm", hasUrgent ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200")}>
+      <div className="flex items-center gap-1.5 mb-2">
+        <ShieldAlert className={cn("w-4 h-4", hasUrgent ? "text-red-600" : "text-amber-600")} />
+        <span className={cn("font-semibold text-xs", hasUrgent ? "text-red-700" : "text-amber-700")}>
+          {hasUrgent ? "⚠️ שים לב — מידע חשוב על הכלב" : "מידע על הכלב"}
+        </span>
+      </div>
+      <ul className="space-y-1">
+        {warnings.map((w, i) => (
+          <li key={i} className={cn("flex items-start gap-1.5 text-xs", w.urgent ? "text-red-700 font-medium" : "text-amber-800")}>
+            <span>{w.icon}</span>
+            <span>{w.text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // ─── Check-in Dialog ─────────────────────────────────────────────────────────
 
 function CheckinDialog({
@@ -848,6 +897,8 @@ function CheckinDialog({
               </div>
             )}
           </div>
+
+          <PetHealthAlert pet={stay.pet} />
 
           <div>
             <label className="label">שעת כניסה בפועל</label>

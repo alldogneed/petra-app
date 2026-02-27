@@ -30,7 +30,14 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         room: true,
-        pet: { select: { id: true, name: true, species: true, breed: true } },
+        pet: {
+          select: {
+            id: true, name: true, species: true, breed: true,
+            health: { select: { allergies: true, medicalConditions: true, activityLimitations: true } },
+            behavior: { select: { dogAggression: true, humanAggression: true, biteHistory: true, biteDetails: true, separationAnxiety: true, leashReactivity: true, resourceGuarding: true } },
+            medications: { select: { medName: true, dosage: true, frequency: true, times: true } },
+          },
+        },
         customer: { select: { id: true, name: true, phone: true } },
       },
       orderBy: { checkIn: "desc" },
@@ -113,7 +120,14 @@ export async function POST(request: NextRequest) {
       },
       include: {
         room: true,
-        pet: { select: { id: true, name: true, species: true, breed: true } },
+        pet: {
+          select: {
+            id: true, name: true, species: true, breed: true,
+            health: { select: { allergies: true, medicalConditions: true, activityLimitations: true } },
+            behavior: { select: { dogAggression: true, humanAggression: true, biteHistory: true, biteDetails: true, separationAnxiety: true, leashReactivity: true, resourceGuarding: true } },
+            medications: { select: { medName: true, dosage: true, frequency: true, times: true } },
+          },
+        },
         customer: { select: { id: true, name: true, phone: true } },
       },
     });
