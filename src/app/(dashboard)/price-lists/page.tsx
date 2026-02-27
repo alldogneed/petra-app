@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import {
   Plus, X, Search, Edit2, Copy, Tag, Package, Clock,
-  CheckCircle2, XCircle, Layers, Link2,
+  CheckCircle2, XCircle, Layers, Link2, Share2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -447,6 +447,37 @@ export default function PriceListPage() {
           <Plus className="w-4 h-4" />
           פריט חדש
         </button>
+        {items.filter((i) => i.isActive).length > 0 && (
+          <a
+            href={(() => {
+              const activeItems = items.filter((i) => i.isActive);
+              const grouped: Record<string, typeof activeItems> = {};
+              for (const item of activeItems) {
+                const cat = item.category || "כללי";
+                if (!grouped[cat]) grouped[cat] = [];
+                grouped[cat].push(item);
+              }
+              const lines = [`📋 *מחירון ${priceList?.name ?? ""}*`, ""];
+              for (const [cat, catItems] of Object.entries(grouped)) {
+                lines.push(`*${cat}:*`);
+                for (const item of catItems) {
+                  const price = `₪${item.basePrice.toFixed(0)}`;
+                  const dur = item.durationMinutes ? ` · ${item.durationMinutes} דק׳` : "";
+                  lines.push(`• ${item.name} — ${price}${dur}`);
+                }
+                lines.push("");
+              }
+              return `https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`;
+            })()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary"
+            title="שתף מחירון בוואטסאפ"
+          >
+            <Share2 className="w-4 h-4" />
+            שתף מחירון
+          </a>
+        )}
       </div>
 
       {/* Filters */}
