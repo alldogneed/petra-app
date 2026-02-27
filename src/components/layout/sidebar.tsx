@@ -29,6 +29,7 @@ import {
   ClipboardList,
   Zap,
   Download,
+  Syringe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -72,6 +73,7 @@ const navItems: NavItem[] = [
   { name: "ניהול תורים", href: "/bookings", icon: CalendarCheck },
   { name: "טפסי קליטה", href: "/intake-forms", icon: ClipboardList },
   { name: "ייצוא נתונים", href: "/exports", icon: Download },
+  { name: "חיסונים", href: "/vaccinations", icon: Syringe },
   { name: "אנליטיקס", href: "/analytics", icon: BarChart3, minRole: "owner" },
   { name: "הגדרות", href: "/settings", icon: Settings },
 ];

@@ -54,6 +54,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/scheduled-messages": { title: "תור שליחה", subtitle: "הודעות מתוזמנות" },
   "/intake-forms": { title: "טפסי קליטה", subtitle: "ניהול טפסי קליטה ששלחת" },
   "/exports": { title: "ייצוא נתונים", subtitle: "הורד נתוני עסק לקובץ" },
+  "/vaccinations": { title: "חיסונים", subtitle: "תזכורות חיסוני כלבת" },
 };
 
 interface IntegrationStatus {
