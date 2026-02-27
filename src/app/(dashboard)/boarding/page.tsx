@@ -40,6 +40,7 @@ import {
   ShieldAlert,
   MessageCircle,
   ChevronDown,
+  Share2,
 } from "lucide-react";
 import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
@@ -1677,6 +1678,44 @@ export default function BoardingPage() {
           {activeStays.length} שהיות פעילות · {rooms.length} חדרים
         </p>
         <div className="flex gap-2">
+          {activeStays.filter((s) => s.status === "checked_in").length > 0 && (() => {
+            const checkedIn = activeStays.filter((s) => s.status === "checked_in");
+            const todayStr2 = new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
+            const lines = [
+              `🏨 סבב בוקר פנסיון — ${todayStr2}`,
+              `${checkedIn.length} חיות מאוכסנות`,
+              "",
+            ];
+            for (const s of checkedIn) {
+              lines.push(`🐾 *${s.pet.name}*${s.pet.breed ? ` (${s.pet.breed})` : ""} — ${s.room?.name || "ללא חדר"}`);
+              if (s.pet.health?.allergies) lines.push(`  ⚠️ אלרגיות: ${s.pet.health.allergies}`);
+              if (s.pet.health?.medicalConditions) lines.push(`  🏥 מצב רפואי: ${s.pet.health.medicalConditions}`);
+              if (s.pet.medications && s.pet.medications.length > 0) {
+                s.pet.medications.forEach((m) => {
+                  lines.push(`  💊 ${m.medName}${m.dosage ? ` · ${m.dosage}` : ""}${m.times ? ` · ${m.times}` : ""}`);
+                });
+              }
+              if (s.pet.behavior?.dogAggression || s.pet.behavior?.humanAggression) {
+                lines.push(`  🔴 תוקפנות!`);
+              }
+              if (s.pet.behavior?.separationAnxiety) lines.push(`  😰 חרדת נטישה`);
+              if (s.checkOut) lines.push(`  📅 יציאה: ${new Date(s.checkOut).toLocaleDateString("he-IL")}`);
+              lines.push("");
+            }
+            const waUrl = `https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`;
+            return (
+              <a
+                href={waUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary hidden sm:flex"
+                title="שתף סבב בוקר"
+              >
+                <Share2 className="w-4 h-4" />
+                סבב בוקר
+              </a>
+            );
+          })()}
           <button className="btn-secondary" onClick={() => setShowRoomsManager(true)}>
             <Settings2 className="w-4 h-4" />ניהול חדרים
           </button>
