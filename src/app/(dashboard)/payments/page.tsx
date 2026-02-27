@@ -15,6 +15,7 @@ import {
   Loader2,
   MessageCircle,
   Trash2,
+  Search,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
@@ -68,6 +69,7 @@ export default function PaymentsPage() {
   const [issuingPaymentId, setIssuingPaymentId] = useState<string | null>(null);
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const queryClient = useQueryClient();
 
   const { data: payments = [], isLoading, isError } = useQuery<Payment[]>({
@@ -162,6 +164,11 @@ export default function PaymentsPage() {
     },
   });
 
+  // Filter payments by customer name search
+  const filteredPayments = searchQuery.trim()
+    ? payments.filter((p) => p.customer.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : payments;
+
   // Summary stats from unfiltered data
   const totalPaid = allPayments
     .filter((p) => p.status === "paid")
@@ -176,11 +183,31 @@ export default function PaymentsPage() {
     <div>
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <h1 className="page-title">תשלומים</h1>
-        <p className="text-sm text-petra-muted">{payments.length} תשלומים</p>
+        <p className="text-sm text-petra-muted">
+          {searchQuery.trim() ? `${filteredPayments.length} מתוך ${payments.length}` : payments.length} תשלומים
+        </p>
         <button className="btn-primary" onClick={() => setShowNewPayment(true)}>
           <Plus className="w-4 h-4" />
           תשלום חדש
         </button>
+        <div className="relative mr-auto">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
+          <input
+            type="text"
+            placeholder="חפש לפי לקוח..."
+            className="input pr-9 pl-3 text-sm w-44 sm:w-56"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              className="absolute left-2 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
+              onClick={() => setSearchQuery("")}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -262,19 +289,23 @@ export default function PaymentsPage() {
           <h3 className="text-base font-semibold text-petra-text mb-1">שגיאה בטעינת התשלומים</h3>
           <p className="text-sm text-petra-muted">נסה לרענן את הדף</p>
         </div>
-      ) : payments.length === 0 ? (
+      ) : filteredPayments.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">
             <CreditCard className="w-6 h-6 text-slate-400" />
           </div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">אין תשלומים</h3>
-          <p className="text-sm text-petra-muted mb-4">צור תשלום חדש כדי להתחיל</p>
+          <h3 className="text-base font-semibold text-petra-text mb-1">
+            {searchQuery.trim() ? "לא נמצאו תשלומים" : "אין תשלומים"}
+          </h3>
+          <p className="text-sm text-petra-muted mb-4">
+            {searchQuery.trim() ? "נסה חיפוש אחר" : "צור תשלום חדש כדי להתחיל"}
+          </p>
         </div>
       ) : (
         <div className="card overflow-hidden">
           {/* Mobile cards */}
           <div className="md:hidden divide-y divide-petra-border">
-            {payments.map((payment) => {
+            {filteredPayments.map((payment) => {
               const statusInfo = STATUS_INFO[payment.status] || STATUS_INFO.pending;
               const StatusIcon = statusInfo.icon;
               const association = payment.appointment
@@ -419,7 +450,7 @@ export default function PaymentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {payments.map((payment) => {
+                {filteredPayments.map((payment) => {
                   const statusInfo = STATUS_INFO[payment.status] || STATUS_INFO.pending;
                   const StatusIcon = statusInfo.icon;
                   const association = payment.appointment

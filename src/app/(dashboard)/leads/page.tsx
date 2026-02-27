@@ -1,13 +1,13 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
-  Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck
+  Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck, Search
 } from "lucide-react";
-import { fetchJSON, toWhatsAppPhone } from "@/lib/utils";
+import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { LeadTreatmentModal } from "@/components/leads/LeadTreatmentModal";
@@ -795,6 +795,8 @@ export default function LeadsPage() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [activeDragLead, setActiveDragLead] = useState<Lead | null>(null);
   const [wonToast, setWonToast] = useState<{ name: string; customerId: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<string | null>(null);
 
   // Edit mode state
   const [editMode, setEditMode] = useState(false);
@@ -814,6 +816,22 @@ export default function LeadsPage() {
     queryKey: ["lead-stages"],
     queryFn: () => fetchJSON<LeadStage[]>("/api/leads/stages"),
   });
+
+  const filteredLeads = useMemo(() => {
+    let result = leads;
+    if (sourceFilter) {
+      result = result.filter((l) => l.source === sourceFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((l) =>
+        l.name.toLowerCase().includes(q) ||
+        (l.phone?.includes(q) ?? false) ||
+        (l.email?.toLowerCase().includes(q) ?? false)
+      );
+    }
+    return result;
+  }, [leads, searchQuery, sourceFilter]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────
 
@@ -984,7 +1002,9 @@ export default function LeadsPage() {
     <div>
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <h1 className="page-title">לידים</h1>
-        <p className="text-sm text-petra-muted">{leads.length} לידים במערכת</p>
+        <p className="text-sm text-petra-muted">
+          {(searchQuery.trim() || sourceFilter) ? `${filteredLeads.length} מתוך ${leads.length}` : `${leads.length}`} לידים
+        </p>
         <button className="btn-primary" onClick={() => setShowModal(true)}>
           <Plus className="w-4 h-4" />ליד חדש
         </button>
@@ -999,7 +1019,66 @@ export default function LeadsPage() {
           <Pencil className="w-3.5 h-3.5" />
           {editMode ? "סיום עריכה" : "עריכת שלבים"}
         </button>
+        <div className="relative mr-auto">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
+          <input
+            type="text"
+            placeholder="חפש ליד..."
+            className="input pr-9 pl-3 text-sm w-44 sm:w-56"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              className="absolute left-2 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
+              onClick={() => setSearchQuery("")}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Source Filter */}
+      {!editMode && (
+        <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+          <button
+            onClick={() => setSourceFilter(null)}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+              sourceFilter === null
+                ? "bg-brand-500 text-white"
+                : "bg-slate-100 text-petra-muted hover:bg-slate-200"
+            )}
+          >
+            כל המקורות
+          </button>
+          {LEAD_SOURCES.map((src) => {
+            const count = leads.filter((l) => l.source === src.id).length;
+            if (count === 0) return null;
+            return (
+              <button
+                key={src.id}
+                onClick={() => setSourceFilter(sourceFilter === src.id ? null : src.id)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5",
+                  sourceFilter === src.id
+                    ? "bg-brand-500 text-white"
+                    : "bg-slate-100 text-petra-muted hover:bg-slate-200"
+                )}
+              >
+                {src.label}
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
+                  sourceFilter === src.id ? "bg-white/20 text-white" : "bg-slate-200 text-petra-muted"
+                )}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Won Toast */}
       {wonToast && (
@@ -1048,7 +1127,7 @@ export default function LeadsPage() {
             <SortableContext items={activeStages.map((s) => s.id)} strategy={horizontalListSortingStrategy}>
               <div className="flex gap-4 overflow-x-auto pb-6 items-stretch mb-8" style={{ minHeight: "500px" }}>
                 {activeStages.map((stage) => {
-                  const stageLeads = leads.filter((l) => l.stage === stage.id);
+                  const stageLeads = filteredLeads.filter((l) => l.stage === stage.id);
                   return (
                     <SortableColumn
                       key={stage.id}
@@ -1108,7 +1187,7 @@ export default function LeadsPage() {
             })}
           </div>
 
-          <ArchiveList leads={leads} wonStage={wonStage} lostStage={lostStage} onLeadClick={(lead) => setSelectedLead(lead)} />
+          <ArchiveList leads={filteredLeads} wonStage={wonStage} lostStage={lostStage} onLeadClick={(lead) => setSelectedLead(lead)} />
 
           <DragOverlay>
             {activeDragLead ? (
