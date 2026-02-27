@@ -891,6 +891,29 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
         <h4 className="text-xs font-semibold text-petra-muted flex-1">
           שיעורי בית ({completed}/{program.homework.length})
         </h4>
+        {program.customer.phone && program.homework.filter((h) => !h.isCompleted).length > 0 && (() => {
+          const pending = program.homework.filter((h) => !h.isCompleted);
+          const lines = [
+            `📝 שיעורי בית לאימון — ${program.dog.name}`,
+            "",
+            ...pending.map((h, i) => `${i + 1}. ${h.title}`),
+            "",
+            "יש להתאמן על הנקודות הנ״ל עד המפגש הבא 🐾",
+          ];
+          return (
+            <a
+              href={`https://wa.me/${toWhatsAppPhone(program.customer.phone)}?text=${encodeURIComponent(lines.join("\n"))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] text-green-700 hover:text-green-800 font-medium flex items-center gap-0.5 bg-green-50 px-1.5 py-0.5 rounded"
+              title="שלח שיעורי בית"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Send className="w-2.5 h-2.5" />
+              שלח
+            </a>
+          );
+        })()}
         <button
           className="text-[10px] text-brand-600 hover:text-brand-700 font-medium flex items-center gap-0.5"
           onClick={() => setShowAdd((v) => !v)}
