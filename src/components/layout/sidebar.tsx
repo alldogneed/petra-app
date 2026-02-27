@@ -7,7 +7,6 @@ import {
   Users,
   Calendar,
   Target,
-  MessageSquare,
   Hotel,
   Settings,
   ChevronLeft,
@@ -17,7 +16,6 @@ import {
   BarChart3,
   CreditCard,
   CalendarCheck,
-  HelpCircle,
   Tag,
   ShoppingCart,
   Crown,
@@ -27,16 +25,16 @@ import {
   CalendarClock,
   Send,
   ClipboardList,
-  Zap,
-  Download,
   Syringe,
   PawPrint,
-  Upload,
   Pill,
   UtensilsCrossed,
+  HelpCircle,
+  ChevronDown,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { HelpCenter } from "@/components/help/HelpCenter";
 import { useAuth } from "@/providers/auth-provider";
@@ -48,42 +46,77 @@ interface NavItem {
   minRole?: "owner" | "manager";
 }
 
+interface NavGroup {
+  key: string;
+  name: string;
+  icon: React.ComponentType<{ className?: string }>;
+  defaultHref: string; // where collapsed-icon click navigates to
+  children: NavItem[];
+  minRole?: "owner" | "manager";
+}
+
+type NavEntry = NavItem | NavGroup;
+
+function isGroup(entry: NavEntry): entry is NavGroup {
+  return "children" in entry;
+}
+
 const ROLE_LEVEL: Record<string, number> = { owner: 0, manager: 1, user: 2 };
 
-function canSee(item: NavItem, role: string | null): boolean {
+function canSee(item: { minRole?: string }, role: string | null): boolean {
   if (!item.minRole) return true;
   if (!role) return false;
   return (ROLE_LEVEL[role] ?? 99) <= ROLE_LEVEL[item.minRole];
 }
 
-const navItems: NavItem[] = [
+const navEntries: NavEntry[] = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
-  { name: "לידים", href: "/leads", icon: Target },
   { name: "לקוחות", href: "/customers", icon: Users },
-  { name: "חיות מחמד", href: "/pets", icon: PawPrint },
-  { name: "יומן", href: "/calendar", icon: Calendar },
-  { name: "תזמון", href: "/scheduler", icon: CalendarClock },
-  { name: "משימות", href: "/tasks", icon: ListTodo },
-  { name: "תשלומים", href: "/payments", icon: CreditCard, minRole: "manager" },
-  { name: "בקשת תשלום", href: "/payment-request", icon: Send },
-  { name: "חשבוניות", href: "/invoices", icon: Receipt, minRole: "manager" },
-  { name: "מחירון", href: "/pricing", icon: Tag, minRole: "manager" },
-  { name: "הזמנות", href: "/orders", icon: ShoppingCart },
-  { name: "פנסיון", href: "/boarding", icon: Hotel },
-  { name: "לוח האכלה", href: "/feeding", icon: UtensilsCrossed },
+  { name: "מערכת מכירות", href: "/leads", icon: Target },
+  { name: "ניהול משימות", href: "/tasks", icon: ListTodo },
+  {
+    key: "bookings-online",
+    name: "ניהול תורים אונליין",
+    icon: CalendarCheck,
+    defaultHref: "/bookings",
+    children: [
+      { name: "ניהול תורים", href: "/bookings", icon: CalendarCheck },
+      { name: "תור שליחה", href: "/scheduled-messages", icon: Send },
+      { name: "תזמון", href: "/scheduler", icon: CalendarClock },
+    ],
+  },
+  {
+    key: "boarding",
+    name: "פנסיון",
+    icon: Hotel,
+    defaultHref: "/boarding",
+    children: [
+      { name: "ניהול חדרים", href: "/boarding", icon: Hotel },
+      { name: "לוח האכלה", href: "/feeding", icon: UtensilsCrossed },
+      { name: "תרופות", href: "/medications", icon: Pill },
+      { name: "חיסונים", href: "/vaccinations", icon: Syringe },
+      { name: "טפסי קליטה", href: "/intake-forms", icon: ClipboardList },
+    ],
+  },
+  {
+    key: "finance",
+    name: "פיננסים",
+    icon: Wallet,
+    defaultHref: "/payments",
+    minRole: "manager",
+    children: [
+      { name: "תשלומים", href: "/payments", icon: CreditCard, minRole: "manager" },
+      { name: "בקשת תשלום", href: "/payment-request", icon: Send },
+      { name: "חשבוניות", href: "/invoices", icon: Receipt, minRole: "manager" },
+      { name: "מחירון", href: "/pricing", icon: Tag, minRole: "manager" },
+      { name: "הזמנות", href: "/orders", icon: ShoppingCart },
+    ],
+  },
   { name: "אימונים וכלבים", href: "/training", icon: Dog },
+  { name: "חיות מחמד", href: "/pets", icon: PawPrint },
   { name: "כלבי שירות", href: "/service-dogs", icon: Shield },
-  { name: "הודעות", href: "/messages", icon: MessageSquare },
-  { name: "אוטומציות", href: "/automations", icon: Zap },
-  { name: "תור שליחה", href: "/scheduled-messages", icon: Send },
-  { name: "ניהול תורים", href: "/bookings", icon: CalendarCheck },
-  { name: "טפסי קליטה", href: "/intake-forms", icon: ClipboardList },
-  { name: "ייצוא נתונים", href: "/exports", icon: Download },
-  { name: "ייבוא נתונים", href: "/import", icon: Upload },
-  { name: "חיסונים", href: "/vaccinations", icon: Syringe },
-  { name: "לוח תרופות", href: "/medications", icon: Pill },
-  { name: "אונבורדינג", href: "/onboarding", icon: HelpCircle },
-  { name: "אנליטיקס", href: "/analytics", icon: BarChart3, minRole: "owner" },
+  { name: "יומן", href: "/calendar", icon: Calendar },
+  { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner" },
   { name: "הגדרות", href: "/settings", icon: Settings },
 ];
 
@@ -101,15 +134,44 @@ export function Sidebar({
   onMobileClose,
 }: SidebarProps) {
   const pathname = usePathname();
-  const [helpOpen, setHelpOpen] = useState(false);
   const { user } = useAuth();
   const isMaster = user?.role === "MASTER";
 
-  // Urgency counters for sidebar badges
+  // Collect all groups and compute which are active
+  const groups = navEntries.filter(isGroup) as NavGroup[];
+
+  function isGroupActive(group: NavGroup): boolean {
+    return group.children.some((c) =>
+      c.href === group.defaultHref ? pathname === c.href : pathname.startsWith(c.href)
+    );
+  }
+
+  // Open state per group key
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    groups.forEach((g) => {
+      initial[g.key] = isGroupActive(g);
+    });
+    return initial;
+  });
+
+  // Auto-open groups when navigating to a child route
+  useEffect(() => {
+    groups.forEach((g) => {
+      if (isGroupActive(g)) {
+        setOpenGroups((prev) => (prev[g.key] ? prev : { ...prev, [g.key]: true }));
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  const toggleGroup = (key: string) =>
+    setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+
   const { data: counters } = useQuery<{ openTasks: number; overdueFollowUps: number; pendingBookings: number }>({
     queryKey: ["sidebar-counters"],
     queryFn: () => fetch("/api/dashboard/counters").then((r) => r.json()),
-    refetchInterval: 60_000, // refresh every minute
+    refetchInterval: 60_000,
     staleTime: 30_000,
   });
 
@@ -119,13 +181,18 @@ export function Sidebar({
     "/bookings": counters?.pendingBookings || 0,
   };
 
-  const renderNavItem = (item: NavItem, isMobile: boolean) => {
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  const renderNavItem = (item: NavItem, isMobile: boolean, isChild = false) => {
     const isActive =
       item.href === "/dashboard"
         ? pathname === "/" || pathname === "/dashboard"
+        : item.href === "/boarding" || item.href === "/bookings"
+        ? pathname === item.href
         : pathname.startsWith(item.href);
     const Icon = item.icon;
     const badge = BADGES[item.href] || 0;
+    const isExpanded = isMobile || !collapsed;
 
     return (
       <Link
@@ -134,28 +201,23 @@ export function Sidebar({
         onClick={isMobile ? onMobileClose : undefined}
         className={cn(
           "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
-          isActive
-            ? "text-white"
-            : "text-slate-400 hover:text-white"
+          isChild && isExpanded && "pr-8",
+          isActive ? "text-white" : "text-slate-400 hover:text-white"
         )}
         style={
           isActive
             ? {
-              background: "rgba(249,115,22,0.15)",
-              boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.2)",
-            }
+                background: "rgba(249,115,22,0.15)",
+                boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.2)",
+              }
             : undefined
         }
         onMouseEnter={(e) => {
-          if (!isActive) {
-            (e.currentTarget as HTMLElement).style.background =
-              "rgba(255,255,255,0.06)";
-          }
+          if (!isActive)
+            (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
         }}
         onMouseLeave={(e) => {
-          if (!isActive) {
-            (e.currentTarget as HTMLElement).style.background = "";
-          }
+          if (!isActive) (e.currentTarget as HTMLElement).style.background = "";
         }}
         title={!isMobile && collapsed ? item.name : undefined}
       >
@@ -166,27 +228,122 @@ export function Sidebar({
           )}
         >
           <Icon className="w-[18px] h-[18px]" />
-          {badge > 0 && (collapsed && !isMobile) && (
+          {badge > 0 && collapsed && !isMobile && (
             <span className="absolute -top-1 -left-1 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
               {badge > 99 ? "99+" : badge}
             </span>
           )}
         </div>
-        {(isMobile || !collapsed) && (
+        {isExpanded && (
           <span className={cn("flex-1", isActive ? "text-white" : "")}>{item.name}</span>
         )}
-        {badge > 0 && (isMobile || !collapsed) && (
+        {badge > 0 && isExpanded && (
           <span className="min-w-[20px] h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none flex-shrink-0">
             {badge > 99 ? "99+" : badge}
           </span>
         )}
-        {isActive && (isMobile || !collapsed) && (
+        {isActive && isExpanded && (
           <span
             className="absolute right-0 w-1 h-5 rounded-l-full"
             style={{ background: "#F97316" }}
           />
         )}
       </Link>
+    );
+  };
+
+  const renderGroup = (group: NavGroup, isMobile: boolean) => {
+    const isExpanded = isMobile || !collapsed;
+    const isOpen = openGroups[group.key] ?? false;
+    const anyChildActive = isGroupActive(group);
+    const Icon = group.icon;
+
+    // Collapsed sidebar: show icon only, navigate to defaultHref
+    if (!isExpanded) {
+      return (
+        <Link
+          key={`${group.key}-collapsed`}
+          href={group.defaultHref}
+          title={group.name}
+          className="flex items-center justify-center px-3 py-2.5 rounded-xl transition-all duration-150 group"
+          style={
+            anyChildActive
+              ? {
+                  background: "rgba(249,115,22,0.15)",
+                  boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.2)",
+                }
+              : undefined
+          }
+          onMouseEnter={(e) => {
+            if (!anyChildActive)
+              (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
+          }}
+          onMouseLeave={(e) => {
+            if (!anyChildActive) (e.currentTarget as HTMLElement).style.background = "";
+          }}
+        >
+          <Icon
+            className={cn(
+              "w-[18px] h-[18px]",
+              anyChildActive ? "text-brand-400" : "text-slate-500 group-hover:text-slate-300"
+            )}
+          />
+        </Link>
+      );
+    }
+
+    return (
+      <div key={group.key}>
+        <button
+          onClick={() => toggleGroup(group.key)}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group",
+            anyChildActive ? "text-white" : "text-slate-400 hover:text-white"
+          )}
+          style={
+            anyChildActive && !isOpen
+              ? {
+                  background: "rgba(249,115,22,0.15)",
+                  boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.2)",
+                }
+              : undefined
+          }
+          onMouseEnter={(e) => {
+            if (!anyChildActive || isOpen)
+              (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
+          }}
+          onMouseLeave={(e) => {
+            if (!anyChildActive || isOpen)
+              (e.currentTarget as HTMLElement).style.background = "";
+          }}
+        >
+          <Icon
+            className={cn(
+              "w-[18px] h-[18px] flex-shrink-0 transition-transform duration-150",
+              anyChildActive ? "text-brand-400" : "text-slate-500 group-hover:text-slate-300"
+            )}
+          />
+          <span className="flex-1 text-right">{group.name}</span>
+          <ChevronDown
+            className={cn(
+              "w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200 text-slate-500",
+              isOpen && "rotate-180"
+            )}
+          />
+        </button>
+
+        {isOpen && (
+          <div className="mt-0.5 space-y-0.5 relative">
+            <div
+              className="absolute top-0 bottom-0 right-[26px] w-px"
+              style={{ background: "rgba(255,255,255,0.08)" }}
+            />
+            {group.children
+              .filter((c) => canSee(c, user?.businessRole ?? null))
+              .map((child) => renderNavItem(child, isMobile, true))}
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -202,7 +359,6 @@ export function Sidebar({
       <aside
         className={cn(
           "flex flex-col h-full transition-all duration-300",
-          "bg-petra-sidebar",
           !isMobile && (collapsed ? "w-[72px]" : "w-[240px]"),
           isMobile && "w-[240px]"
         )}
@@ -244,27 +400,27 @@ export function Sidebar({
         {/* Navigation */}
         <nav className="flex-1 px-3 py-2 overflow-y-auto scrollbar-hide">
           <div className="space-y-0.5">
-            {navItems
-              .filter((item) => canSee(item, user?.businessRole ?? null))
-              .map((item) => renderNavItem(item, isMobile))}
+            {navEntries
+              .filter((entry) => canSee(entry, user?.businessRole ?? null))
+              .map((entry) =>
+                isGroup(entry)
+                  ? renderGroup(entry, isMobile)
+                  : renderNavItem(entry as NavItem, isMobile)
+              )}
 
             {/* Help button */}
             <button
               onClick={handleHelpClick}
               title={!isMobile && collapsed ? "עזרה" : undefined}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
-                "text-slate-400 hover:text-white"
-              )}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group text-slate-400 hover:text-white"
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background =
-                  "rgba(255,255,255,0.06)";
+                (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLElement).style.background = "";
               }}
             >
-              <div className="flex-shrink-0 text-slate-500 group-hover:text-slate-300 transition-transform duration-150">
+              <div className="flex-shrink-0 text-slate-500 group-hover:text-slate-300">
                 <HelpCircle className="w-[18px] h-[18px]" />
               </div>
               {isExpanded && <span>עזרה</span>}
@@ -274,7 +430,6 @@ export function Sidebar({
 
         {/* Bottom section */}
         <div className="border-t border-white/[0.07]">
-          {/* Master Admin link - only visible for MASTER users */}
           {isMaster && (
             <Link
               href="/admin"
@@ -289,13 +444,10 @@ export function Sidebar({
               )}
             >
               <Crown className="w-[18px] h-[18px] flex-shrink-0" />
-              {isExpanded && (
-                <span className="text-sm font-bold">Master Admin</span>
-              )}
+              {isExpanded && <span className="text-sm font-bold">Master Admin</span>}
             </Link>
           )}
 
-          {/* Collapse toggle (desktop only) */}
           {!isMobile && (
             <button
               onClick={() => onCollapsedChange(!collapsed)}
@@ -321,7 +473,6 @@ export function Sidebar({
 
   return (
     <>
-      {/* Desktop sidebar */}
       <div
         className={cn(
           "hidden md:block fixed top-0 right-0 h-screen z-40 transition-all duration-300",
@@ -331,7 +482,6 @@ export function Sidebar({
         {sidebarContent(false)}
       </div>
 
-      {/* Mobile backdrop */}
       <div
         className={cn(
           "fixed inset-0 z-50 md:hidden transition-opacity duration-300",
@@ -341,7 +491,6 @@ export function Sidebar({
         style={{ background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(2px)" }}
       />
 
-      {/* Mobile drawer */}
       <div
         className={cn(
           "fixed top-0 right-0 h-screen z-50 md:hidden transition-transform duration-300",
@@ -352,7 +501,6 @@ export function Sidebar({
         {sidebarContent(true)}
       </div>
 
-      {/* Help Center Dialog */}
       <HelpCenter open={helpOpen} onOpenChange={setHelpOpen} />
     </>
   );

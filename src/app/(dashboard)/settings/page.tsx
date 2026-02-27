@@ -47,6 +47,7 @@ import {
 const RepeatIcon = Repeat;
 import { useSearchParams } from "next/navigation";
 import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
+import { MessagesPanel } from "@/components/messages/messages-panel";
 import { toast } from "sonner";
 import { TIERS } from "@/lib/constants";
 import { useAuth } from "@/providers/auth-provider";
@@ -2103,8 +2104,8 @@ export default function SettingsPage() {
   const gcalParam = searchParams.get("gcal");
   const { isOwner } = useAuth();
   const invoicingParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data" | "tasks">(
-    gcalParam ? "integrations" : invoicingParam === "invoicing" ? "invoicing" : "business"
+  const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data" | "tasks" | "messages">(
+    gcalParam ? "integrations" : invoicingParam === "invoicing" ? "invoicing" : invoicingParam === "messages" ? "messages" : "business"
   );
 
   const tabs = [
@@ -2113,6 +2114,7 @@ export default function SettingsPage() {
     ...(isOwner ? [{ id: "team" as const, label: "ניהול צוות", icon: Users2 }] : []),
     { id: "invoicing" as const, label: "חשבוניות", icon: FileText },
     { id: "tasks" as const, label: "משימות אוטומטיות", icon: ListTodo },
+    { id: "messages" as const, label: "הודעות ואוטומציות", icon: MessageCircle },
     { id: "data" as const, label: "נתונים", icon: Database },
     { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
   ];
@@ -2148,6 +2150,7 @@ export default function SettingsPage() {
       {activeTab === "team" && isOwner && <TeamTab />}
       {activeTab === "invoicing" && <InvoicingTab />}
       {activeTab === "tasks" && <TasksTab />}
+      {activeTab === "messages" && <MessagesPanel />}
       {activeTab === "data" && <DataTab />}
       {activeTab === "integrations" && <IntegrationsTab />}
     </div>
