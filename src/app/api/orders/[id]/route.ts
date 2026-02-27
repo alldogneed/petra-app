@@ -12,8 +12,8 @@ export async function GET(
     const authResult = await requireAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const order = await prisma.order.findUnique({
-      where: { id: params.id },
+    const order = await prisma.order.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
       include: {
         customer: { select: { id: true, name: true, phone: true, email: true } },
         lines: {
@@ -44,6 +44,14 @@ export async function PATCH(
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
+
+    const existing = await prisma.order.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = {};
     if (body.status !== undefined) data.status = body.status;

@@ -44,6 +44,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, channel, subject, body: templateBody, variables } = body;
 
+    if (!name || typeof name !== "string" || !name.trim()) {
+      return NextResponse.json({ error: "שדה שם חובה" }, { status: 400 });
+    }
+    if (!templateBody || typeof templateBody !== "string" || !templateBody.trim()) {
+      return NextResponse.json({ error: "שדה תוכן הודעה חובה" }, { status: 400 });
+    }
+
     const template = await prisma.messageTemplate.create({
       data: {
         businessId: DEMO_BUSINESS_ID,

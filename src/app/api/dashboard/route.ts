@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       prisma.customer.count({ where: { businessId } }),
       prisma.pet.count({ where: { customer: { businessId } } }),
       prisma.appointment.count({
-        where: { businessId, date: { gte: todayStart, lt: todayEnd } },
+        where: { businessId, date: { gte: todayStart, lte: todayEnd } },
       }),
       prisma.appointment.findMany({
         where: {

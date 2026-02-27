@@ -37,16 +37,23 @@ interface DogHealth {
 }
 
 interface DogBehavior {
-  isAggressive: boolean;
-  isFearful: boolean;
-  isHyperactive: boolean;
-  isGoodWithDogs: boolean | null;
-  isGoodWithCats: boolean | null;
-  isGoodWithKids: boolean | null;
-  pullsOnLeash: boolean;
+  dogAggression: boolean;
+  humanAggression: boolean;
+  leashReactivity: boolean;
+  leashPulling: boolean;
+  jumping: boolean;
+  separationAnxiety: boolean;
+  excessiveBarking: boolean;
+  destruction: boolean;
+  resourceGuarding: boolean;
+  fears: boolean;
+  badWithKids: boolean;
+  houseSoiling: boolean;
   biteHistory: boolean;
-  notes: string | null;
-  behavioralTags: string | null;
+  biteDetails: string | null;
+  triggers: string | null;
+  priorTraining: boolean;
+  priorTrainingDetails: string | null;
 }
 
 interface Medication {
@@ -79,7 +86,7 @@ interface BoardingStay {
 
 interface TrainingProgram {
   id: string;
-  title: string;
+  name: string;
   status: string;
   startDate: string | null;
 }
@@ -326,15 +333,21 @@ export default function PetProfilePage() {
           {/* Behavior */}
           {pet.behavior && (() => {
             const alerts = [
-              pet.behavior.isAggressive && "אגרסיבי",
-              pet.behavior.isFearful && "פחדן",
+              pet.behavior.dogAggression && "אגרסיבי כלפי כלבים",
+              pet.behavior.humanAggression && "אגרסיבי כלפי בני אדם",
               pet.behavior.biteHistory && "היסטוריית נשיכה",
-              pet.behavior.pullsOnLeash && "מושך רצועה",
+              pet.behavior.leashPulling && "מושך רצועה",
+              pet.behavior.leashReactivity && "ריאקטיבי ברצועה",
+              pet.behavior.separationAnxiety && "חרדת נטישה",
+              pet.behavior.excessiveBarking && "נביחות מוגזמות",
+              pet.behavior.resourceGuarding && "שמירת משאבים",
+              pet.behavior.fears && "פחדים",
+              pet.behavior.badWithKids && "לא מתאים לילדים",
+              pet.behavior.destruction && "הרסני",
+              pet.behavior.houseSoiling && "מתלכלך בבית",
             ].filter(Boolean) as string[];
             const positives = [
-              pet.behavior.isGoodWithDogs === true && "מסתדר עם כלבים",
-              pet.behavior.isGoodWithCats === true && "מסתדר עם חתולים",
-              pet.behavior.isGoodWithKids === true && "מסתדר עם ילדים",
+              pet.behavior.priorTraining && "אילוף קודם",
             ].filter(Boolean) as string[];
             if (alerts.length === 0 && positives.length === 0) return null;
             return (
@@ -482,7 +495,7 @@ export default function PetProfilePage() {
                   return (
                     <div key={p.id} className="py-3 flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-medium text-petra-text">{p.title}</p>
+                        <p className="text-sm font-medium text-petra-text">{p.name}</p>
                         {p.startDate && (
                           <p className="text-xs text-petra-muted">התחיל: {formatDate(new Date(p.startDate))}</p>
                         )}

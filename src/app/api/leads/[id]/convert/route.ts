@@ -43,18 +43,6 @@ export async function POST(
             }
         }
 
-        // Find the "won" stage
-        const wonStage = await prisma.leadStage.findFirst({
-            where: { businessId, isWon: true },
-        });
-
-        if (!wonStage) {
-            return NextResponse.json(
-                { error: "No won stage configured" },
-                { status: 400 }
-            );
-        }
-
         // Run in a transaction: create customer + update lead
         const result = await prisma.$transaction(async (tx) => {
             // Check if a customer already exists for this lead (in case customerId is set)
@@ -91,7 +79,7 @@ export async function POST(
             const updatedLead = await tx.lead.update({
                 where: { id },
                 data: {
-                    stage: wonStage.id,
+                    stage: "won",
                     wonAt: new Date(),
                     customerId: customer!.id,
                 },
