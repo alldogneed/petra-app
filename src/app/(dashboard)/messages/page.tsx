@@ -10,9 +10,16 @@ import {
   Phone,
   Trash2,
   Edit3,
+  Zap,
+  Clock,
+  ToggleLeft,
+  ToggleRight,
+  AlertCircle,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
 import { TEMPLATE_VARIABLES } from "@/lib/constants";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface MessageTemplate {
   id: string;
@@ -25,6 +32,18 @@ interface MessageTemplate {
   createdAt: string;
 }
 
+interface AutomationRule {
+  id: string;
+  name: string;
+  trigger: string;
+  triggerOffset: number;
+  isActive: boolean;
+  createdAt: string;
+  template: { id: string; name: string; channel: string };
+}
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
 const CHANNELS = [
   { id: "all", label: "הכל" },
   { id: "whatsapp", label: "וואטסאפ", icon: Phone },
@@ -32,7 +51,38 @@ const CHANNELS = [
   { id: "email", label: "אימייל", icon: Mail },
 ];
 
-export default function MessagesPage() {
+const AUTOMATION_TRIGGERS = [
+  { id: "before_appointment", label: "לפני תור", description: "שלח הודעה X שעות לפני התור" },
+  { id: "after_appointment", label: "אחרי תור", description: "שלח הודעה X שעות אחרי התור" },
+  { id: "on_appointment_booked", label: "בעת קביעת תור", description: "שלח הודעה כאשר נקבע תור חדש" },
+  { id: "on_payment_confirmed", label: "בעת אישור תשלום", description: "שלח הודעה כאשר תשלום אושר" },
+  { id: "on_lead_created", label: "ליד חדש", description: "שלח הודעה כאשר ליד חדש נוצר" },
+  { id: "birthday_reminder", label: "יום הולדת לכלב", description: "שלח הודעה X ימים לפני יום הולדת הכלב" },
+];
+
+const TRIGGER_LABEL: Record<string, string> = Object.fromEntries(
+  AUTOMATION_TRIGGERS.map((t) => [t.id, t.label])
+);
+
+function triggerOffsetLabel(trigger: string, offset: number): string {
+  if (trigger === "before_appointment") return `${offset} שעות לפני`;
+  if (trigger === "after_appointment") return `${offset} שעות אחרי`;
+  if (trigger === "birthday_reminder") return `${offset} ימים לפני`;
+  if (trigger === "on_appointment_booked") return "בזמן הקביעה";
+  if (trigger === "on_payment_confirmed") return "בזמן האישור";
+  if (trigger === "on_lead_created") return "בזמן הכניסה";
+  return `${offset} שעות`;
+}
+
+const CHANNEL_LABELS: Record<string, string> = {
+  whatsapp: "וואטסאפ",
+  sms: "SMS",
+  email: "אימייל",
+};
+
+// ─── Templates Tab ────────────────────────────────────────────────────────────
+
+function TemplatesTab() {
   const [activeChannel, setActiveChannel] = useState("all");
   const [showEditor, setShowEditor] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
@@ -52,9 +102,11 @@ export default function MessagesPage() {
     mutationFn: (data: typeof form) => {
       const url = editingTemplate ? `/api/messages/${editingTemplate.id}` : "/api/messages";
       const method = editingTemplate ? "PATCH" : "POST";
-      return fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => {
-        if (!r.ok) throw new Error("Failed"); return r.json();
-      });
+      return fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["messages"] });
@@ -88,34 +140,31 @@ export default function MessagesPage() {
   }
 
   return (
-    <div>
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
-        <h1 className="page-title">תבניות הודעות</h1>
-        <p className="text-sm text-petra-muted">{templates.length} תבניות</p>
+    <>
+      {/* Channel filter */}
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div className="flex gap-2">
+          {CHANNELS.map((ch) => (
+            <button
+              key={ch.id}
+              onClick={() => setActiveChannel(ch.id)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
+                activeChannel === ch.id
+                  ? "bg-brand-500 text-white"
+                  : "bg-slate-100 text-petra-muted hover:bg-slate-200"
+              )}
+            >
+              {ch.label}
+            </button>
+          ))}
+        </div>
         <button className="btn-primary" onClick={() => openEditor()}>
           <Plus className="w-4 h-4" />תבנית חדשה
         </button>
       </div>
 
-      {/* Channel filter */}
-      <div className="flex gap-2 mb-6">
-        {CHANNELS.map((ch) => (
-          <button
-            key={ch.id}
-            onClick={() => setActiveChannel(ch.id)}
-            className={cn(
-              "px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
-              activeChannel === ch.id
-                ? "bg-brand-500 text-white"
-                : "bg-slate-100 text-petra-muted hover:bg-slate-200"
-            )}
-          >
-            {ch.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Templates list */}
+      {/* Templates grid */}
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => <div key={i} className="card p-4 animate-pulse h-24" />)}
@@ -135,12 +184,22 @@ export default function MessagesPage() {
                 <div>
                   <h3 className="text-sm font-semibold text-petra-text">{template.name}</h3>
                   <span className="badge-neutral text-[10px] mt-1">
-                    {template.channel === "whatsapp" ? "וואטסאפ" : template.channel === "sms" ? "SMS" : "אימייל"}
+                    {CHANNEL_LABELS[template.channel] ?? template.channel}
                   </span>
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => openEditor(template)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><Edit3 className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => deleteMutation.mutate(template.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button
+                    onClick={() => openEditor(template)}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => deleteMutation.mutate(template.id)}
+                    className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
               <p className="text-xs text-petra-muted line-clamp-3 whitespace-pre-wrap">{template.body}</p>
@@ -155,17 +214,32 @@ export default function MessagesPage() {
           <div className="modal-backdrop" onClick={() => setShowEditor(false)} />
           <div className="modal-content max-w-lg mx-4 p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-petra-text">{editingTemplate ? "ערוך תבנית" : "תבנית חדשה"}</h2>
-              <button onClick={() => setShowEditor(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"><X className="w-4 h-4" /></button>
+              <h2 className="text-lg font-bold text-petra-text">
+                {editingTemplate ? "ערוך תבנית" : "תבנית חדשה"}
+              </h2>
+              <button
+                onClick={() => setShowEditor(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
             <div className="space-y-4">
               <div>
                 <label className="label">שם התבנית *</label>
-                <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <input
+                  className="input"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
               </div>
               <div>
                 <label className="label">ערוץ</label>
-                <select className="input" value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })}>
+                <select
+                  className="input"
+                  value={form.channel}
+                  onChange={(e) => setForm({ ...form, channel: e.target.value })}
+                >
                   <option value="whatsapp">וואטסאפ</option>
                   <option value="sms">SMS</option>
                   <option value="email">אימייל</option>
@@ -174,7 +248,11 @@ export default function MessagesPage() {
               {form.channel === "email" && (
                 <div>
                   <label className="label">נושא</label>
-                  <input className="input" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
+                  <input
+                    className="input"
+                    value={form.subject}
+                    onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                  />
                 </div>
               )}
               <div>
@@ -189,7 +267,11 @@ export default function MessagesPage() {
                 />
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {TEMPLATE_VARIABLES.map((v) => (
-                    <button key={v} onClick={() => insertVariable(v)} className="px-2 py-0.5 rounded-md bg-brand-50 text-brand-600 text-[11px] font-medium hover:bg-brand-100 transition-colors">
+                    <button
+                      key={v}
+                      onClick={() => insertVariable(v)}
+                      className="px-2 py-0.5 rounded-md bg-brand-50 text-brand-600 text-[11px] font-medium hover:bg-brand-100 transition-colors"
+                    >
                       {v}
                     </button>
                   ))}
@@ -197,7 +279,11 @@ export default function MessagesPage() {
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <button className="btn-primary flex-1" disabled={!form.name || !form.body || saveMutation.isPending} onClick={() => saveMutation.mutate(form)}>
+              <button
+                className="btn-primary flex-1"
+                disabled={!form.name || !form.body || saveMutation.isPending}
+                onClick={() => saveMutation.mutate(form)}
+              >
                 {saveMutation.isPending ? "שומר..." : editingTemplate ? "שמור שינויים" : "צור תבנית"}
               </button>
               <button className="btn-secondary" onClick={() => setShowEditor(false)}>ביטול</button>
@@ -205,6 +291,370 @@ export default function MessagesPage() {
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+// ─── Automations Tab ──────────────────────────────────────────────────────────
+
+function AutomationsTab() {
+  const [showModal, setShowModal] = useState(false);
+  const [editingRule, setEditingRule] = useState<AutomationRule | null>(null);
+  const [form, setForm] = useState({
+    name: "",
+    trigger: "before_appointment",
+    triggerOffset: 24,
+    templateId: "",
+    isActive: true,
+  });
+  const queryClient = useQueryClient();
+
+  const { data: rules = [], isLoading } = useQuery<AutomationRule[]>({
+    queryKey: ["automations"],
+    queryFn: () => fetchJSON<AutomationRule[]>("/api/automations"),
+  });
+
+  const { data: templates = [] } = useQuery<MessageTemplate[]>({
+    queryKey: ["messages", "all"],
+    queryFn: () => fetchJSON<MessageTemplate[]>("/api/messages"),
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: (data: typeof form) => {
+      const url = editingRule ? `/api/automations/${editingRule.id}` : "/api/automations";
+      const method = editingRule ? "PATCH" : "POST";
+      return fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["automations"] });
+      setShowModal(false);
+      setEditingRule(null);
+      setForm({ name: "", trigger: "before_appointment", triggerOffset: 24, templateId: "", isActive: true });
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      fetch(`/api/automations/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
+      }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["automations"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/automations/${id}`, { method: "DELETE" }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["automations"] }),
+  });
+
+  function openCreate() {
+    setEditingRule(null);
+    setForm({ name: "", trigger: "before_appointment", triggerOffset: 24, templateId: templates[0]?.id ?? "", isActive: true });
+    setShowModal(true);
+  }
+
+  function openEdit(rule: AutomationRule) {
+    setEditingRule(rule);
+    setForm({
+      name: rule.name,
+      trigger: rule.trigger,
+      triggerOffset: rule.triggerOffset,
+      templateId: rule.template.id,
+      isActive: rule.isActive,
+    });
+    setShowModal(true);
+  }
+
+  const needsOffset = ["before_appointment", "after_appointment", "birthday_reminder"].includes(form.trigger);
+
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-petra-muted">
+            אוטומציות שולחות הודעות WhatsApp/SMS/אימייל אוטומטית לפי אירועים
+          </p>
+        </div>
+        <button className="btn-primary" onClick={openCreate}>
+          <Plus className="w-4 h-4" />אוטומציה חדשה
+        </button>
+      </div>
+
+      {/* Info banner */}
+      <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200 mb-5 text-sm text-amber-800">
+        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+        <span>
+          האוטומציות מופעלות דרך cron job. להגדרת שליחה אמיתית נדרש חיבור WhatsApp Business API בהגדרות &rsaquo; אינטגרציות.
+        </span>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => <div key={i} className="card p-4 animate-pulse h-20" />)}
+        </div>
+      ) : rules.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon"><Zap className="w-6 h-6 text-slate-400" /></div>
+          <h3 className="text-base font-semibold text-petra-text mb-1">אין אוטומציות</h3>
+          <p className="text-sm text-petra-muted mb-4">צור אוטומציה ראשונה לשליחת תזכורות אוטומטיות</p>
+          <button className="btn-primary" onClick={openCreate}><Plus className="w-4 h-4" />אוטומציה חדשה</button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {rules.map((rule) => (
+            <div
+              key={rule.id}
+              className={cn(
+                "card p-4 flex items-center gap-4 group",
+                !rule.isActive && "opacity-60"
+              )}
+            >
+              {/* Trigger icon */}
+              <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+                rule.isActive ? "bg-brand-50" : "bg-slate-100"
+              )}>
+                <Zap className={cn("w-5 h-5", rule.isActive ? "text-brand-500" : "text-slate-400")} />
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-sm font-semibold text-petra-text truncate">{rule.name}</span>
+                  {!rule.isActive && (
+                    <span className="badge-neutral text-[10px]">כבויה</span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-petra-muted">
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {triggerOffsetLabel(rule.trigger, rule.triggerOffset)}
+                  </span>
+                  <span>·</span>
+                  <span>{TRIGGER_LABEL[rule.trigger] ?? rule.trigger}</span>
+                  <span>·</span>
+                  <span className="font-medium text-petra-text">{rule.template.name}</span>
+                  <span className="badge-neutral text-[10px]">
+                    {CHANNEL_LABELS[rule.template.channel] ?? rule.template.channel}
+                  </span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => toggleMutation.mutate({ id: rule.id, isActive: !rule.isActive })}
+                  disabled={toggleMutation.isPending}
+                  title={rule.isActive ? "כבה אוטומציה" : "הפעל אוטומציה"}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 text-petra-muted transition-colors"
+                >
+                  {rule.isActive
+                    ? <ToggleRight className="w-5 h-5 text-brand-500" />
+                    : <ToggleLeft className="w-5 h-5" />}
+                </button>
+                <button
+                  onClick={() => openEdit(rule)}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 opacity-0 group-hover:opacity-100 transition-all"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirm("למחוק אוטומציה זו?")) deleteMutation.mutate(rule.id);
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Create/Edit Modal */}
+      {showModal && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setShowModal(false)} />
+          <div className="modal-content max-w-md mx-4 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold text-petra-text">
+                {editingRule ? "ערוך אוטומציה" : "אוטומציה חדשה"}
+              </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="label">שם האוטומציה *</label>
+                <input
+                  className="input"
+                  placeholder="למשל: תזכורת 24 שעות לפני תור"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="label">טריגר</label>
+                <select
+                  className="input"
+                  value={form.trigger}
+                  onChange={(e) => setForm({ ...form, trigger: e.target.value })}
+                >
+                  {AUTOMATION_TRIGGERS.map((t) => (
+                    <option key={t.id} value={t.id}>{t.label}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-petra-muted mt-1">
+                  {AUTOMATION_TRIGGERS.find((t) => t.id === form.trigger)?.description}
+                </p>
+              </div>
+
+              {needsOffset && (
+                <div>
+                  <label className="label">
+                    {form.trigger === "birthday_reminder" ? "ימים לפני" : "שעות"}
+                  </label>
+                  <input
+                    type="number"
+                    className="input"
+                    min={1}
+                    max={form.trigger === "birthday_reminder" ? 30 : 168}
+                    value={form.triggerOffset}
+                    onChange={(e) => setForm({ ...form, triggerOffset: parseInt(e.target.value) || 1 })}
+                  />
+                  <p className="text-xs text-petra-muted mt-1">
+                    {form.trigger === "birthday_reminder"
+                      ? `שלח ${form.triggerOffset} ימים לפני יום ההולדת`
+                      : `שלח ${form.triggerOffset} שעות ${form.trigger === "before_appointment" ? "לפני" : "אחרי"} התור`}
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="label">תבנית הודעה *</label>
+                {templates.length === 0 ? (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
+                    אין תבניות הודעות. צור תבנית קודם בטאב &ldquo;תבניות&rdquo;.
+                  </div>
+                ) : (
+                  <select
+                    className="input"
+                    value={form.templateId}
+                    onChange={(e) => setForm({ ...form, templateId: e.target.value })}
+                  >
+                    <option value="">בחר תבנית...</option>
+                    {templates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({CHANNEL_LABELS[t.channel] ?? t.channel})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 py-2">
+                <label className="label mb-0">פעיל</label>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, isActive: !form.isActive })}
+                  className="p-0"
+                >
+                  {form.isActive
+                    ? <ToggleRight className="w-8 h-8 text-brand-500" />
+                    : <ToggleLeft className="w-8 h-8 text-slate-400" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                className="btn-primary flex-1"
+                disabled={!form.name || !form.templateId || saveMutation.isPending}
+                onClick={() => saveMutation.mutate(form)}
+              >
+                {saveMutation.isPending ? "שומר..." : editingRule ? "שמור שינויים" : "צור אוטומציה"}
+              </button>
+              <button className="btn-secondary" onClick={() => setShowModal(false)}>ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function MessagesPage() {
+  const [activeTab, setActiveTab] = useState<"templates" | "automations">("templates");
+
+  const { data: automationsCount } = useQuery<AutomationRule[]>({
+    queryKey: ["automations"],
+    queryFn: () => fetchJSON<AutomationRule[]>("/api/automations"),
+  });
+
+  const activeAutomations = (automationsCount ?? []).filter((r) => r.isActive).length;
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <h1 className="page-title">הודעות</h1>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-xl w-fit">
+        <button
+          onClick={() => setActiveTab("templates")}
+          className={cn(
+            "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+            activeTab === "templates"
+              ? "bg-white text-petra-text shadow-sm"
+              : "text-petra-muted hover:text-petra-text"
+          )}
+        >
+          <span className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4" />
+            תבניות
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab("automations")}
+          className={cn(
+            "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+            activeTab === "automations"
+              ? "bg-white text-petra-text shadow-sm"
+              : "text-petra-muted hover:text-petra-text"
+          )}
+        >
+          <span className="flex items-center gap-2">
+            <Zap className="w-4 h-4" />
+            אוטומציות
+            {activeAutomations > 0 && (
+              <span className="bg-brand-500 text-white text-[10px] px-1.5 py-0.5 rounded-full leading-none">
+                {activeAutomations}
+              </span>
+            )}
+          </span>
+        </button>
+      </div>
+
+      {activeTab === "templates" && <TemplatesTab />}
+      {activeTab === "automations" && <AutomationsTab />}
     </div>
   );
 }
