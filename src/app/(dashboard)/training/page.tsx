@@ -1138,6 +1138,35 @@ function IndividualTab({
                           שלח דוח
                         </a>
                       )}
+                      {program.customer.phone && program.status === "COMPLETED" && (
+                        <a
+                          href={(() => {
+                            const completedGoals = program.goals?.filter((g: { status: string }) => g.status === "ACHIEVED").length ?? 0;
+                            const totalGoals = program.goals?.length ?? 0;
+                            const lines = [
+                              `🎓 *תעודת סיום אילוף*`,
+                              "",
+                              `כלב: ${program.dog.name}${program.dog.breed ? ` (${program.dog.breed})` : ""}`,
+                              `בעלים: ${program.customer.name}`,
+                              `תוכנית: ${program.name}`,
+                              `מפגשים שהושלמו: ${usedSessions}`,
+                              totalGoals > 0 ? `יעדים שהושגו: ${completedGoals}/${totalGoals}` : "",
+                              "",
+                              `🏆 ${program.dog.name} סיים/ה בהצלחה את תוכנית האילוף!`,
+                              `מברכים אתכם ומאחלים המשך הנאה עם הכלב! 🐾`,
+                            ].filter(Boolean);
+                            return `https://wa.me/${toWhatsAppPhone(program.customer.phone)}?text=${encodeURIComponent(lines.join("\n"))}`;
+                          })()}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-secondary text-xs"
+                          onClick={(e) => e.stopPropagation()}
+                          title="שלח תעודת סיום"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          תעודת סיום
+                        </a>
+                      )}
                     </div>
 
                     {/* Details Info */}
