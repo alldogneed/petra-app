@@ -56,6 +56,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/exports": { title: "ייצוא נתונים", subtitle: "הורד נתוני עסק לקובץ" },
   "/vaccinations": { title: "חיסונים", subtitle: "תזכורות חיסוני כלבת" },
   "/pets": { title: "חיות מחמד", subtitle: "כל החיות הרשומות בעסק" },
+  "/import": { title: "ייבוא נתונים", subtitle: "ייבא לקוחות וחיות מקובץ Excel / CSV" },
 };
 
 interface IntegrationStatus {
