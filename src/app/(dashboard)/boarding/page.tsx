@@ -781,12 +781,62 @@ function StayRow({
       </span>
 
       {stay.status === "reserved" && (
-        <button className="btn-ghost text-xs flex-shrink-0" onClick={() => onCheckin(stay.id)}>
-          <CheckCircle2 className="w-3.5 h-3.5" />צ׳ק-אין
-        </button>
+        <div className="flex gap-1 flex-shrink-0">
+          {isCheckinToday && stay.customer.phone && (() => {
+            const checkInTime = settings.boardingCheckInTime || "10:00";
+            const lines = [
+              `שלום ${stay.customer.name} 👋`,
+              `תזכורת — היום ${stay.pet.name} מגיע/ה אלינו לפנסיון!`,
+              `שעת צ׳ק-אין: ${checkInTime}`,
+              stay.room ? `חדר: ${stay.room.name}` : "",
+              stay.checkOut ? `יציאה מתוכננת: ${new Date(stay.checkOut).toLocaleDateString("he-IL")}` : "",
+              "",
+              `מחכים לכם! 🐾`,
+            ].filter(Boolean).join("\n");
+            return (
+              <a
+                href={`https://wa.me/${toWhatsAppPhone(stay.customer.phone)}?text=${encodeURIComponent(lines)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
+                title="שלח תזכורת צ׳ק-אין"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MessageCircle className="w-3 h-3" />
+                תזכורת
+              </a>
+            );
+          })()}
+          <button className="btn-ghost text-xs" onClick={() => onCheckin(stay.id)}>
+            <CheckCircle2 className="w-3.5 h-3.5" />צ׳ק-אין
+          </button>
+        </div>
       )}
       {stay.status === "checked_in" && (
         <div className="flex gap-1 flex-shrink-0">
+          {isCheckoutToday && stay.customer.phone && (() => {
+            const checkOutTime = settings.boardingCheckOutTime || "11:00";
+            const lines = [
+              `שלום ${stay.customer.name} 👋`,
+              `${stay.pet.name} מסיים/ת היום את השהות בפנסיון.`,
+              `שעת צ׳ק-אאוט: ${checkOutTime}`,
+              "",
+              `תודה ולהתראות! 🐾`,
+            ].join("\n");
+            return (
+              <a
+                href={`https://wa.me/${toWhatsAppPhone(stay.customer.phone)}?text=${encodeURIComponent(lines)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
+                title="שלח תזכורת צ׳ק-אאוט"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MessageCircle className="w-3 h-3" />
+                תזכורת
+              </a>
+            );
+          })()}
           <button className="btn-ghost text-xs" onClick={() => onExtend(stay.id)} title="הארך שהות">
             <Calendar className="w-3.5 h-3.5" />הארך
           </button>
