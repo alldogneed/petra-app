@@ -14,7 +14,7 @@ export async function PATCH(
 
     const { id } = params;
     const body = await request.json();
-    const { status, notes, cancellationNote } = body;
+    const { status, notes, cancellationNote, date, startTime, endTime, serviceId } = body;
 
     const existing = await prisma.appointment.findFirst({
       where: { id, businessId: DEMO_BUSINESS_ID },
@@ -27,10 +27,15 @@ export async function PATCH(
       );
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = {};
     if (status !== undefined) data.status = status;
     if (notes !== undefined) data.notes = notes;
     if (cancellationNote !== undefined) data.cancellationNote = cancellationNote;
+    if (date !== undefined) data.date = new Date(date);
+    if (startTime !== undefined) data.startTime = startTime;
+    if (endTime !== undefined) data.endTime = endTime;
+    if (serviceId !== undefined) data.serviceId = serviceId;
 
     const appointment = await prisma.appointment.update({
       where: { id },

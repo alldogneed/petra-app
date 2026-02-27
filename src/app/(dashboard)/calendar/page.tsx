@@ -530,6 +530,8 @@ export default function CalendarPage() {
     useState<AppointmentEvent | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [rescheduling, setRescheduling] = useState(false);
+  const [rescheduleForm, setRescheduleForm] = useState({ date: "", startTime: "", endTime: "" });
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesInput, setNotesInput] = useState("");
   const [hoveredApt, setHoveredApt] = useState<{
@@ -638,6 +640,22 @@ export default function CalendarPage() {
       toast.success("התור נמחק");
     },
     onError: () => toast.error("שגיאה במחיקת התור. נסה שוב."),
+  });
+
+  const rescheduleMutation = useMutation({
+    mutationFn: ({ id, date, startTime, endTime }: { id: string; date: string; startTime: string; endTime: string }) =>
+      fetchJSON(`/api/appointments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: date + "T00:00:00", startTime, endTime }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      setSelectedAppointment(null);
+      setRescheduling(false);
+      toast.success("התור הועבר בהצלחה");
+    },
+    onError: () => toast.error("שגיאה בעדכון התור. נסה שוב."),
   });
 
   const notesMutation = useMutation({
@@ -1651,6 +1669,50 @@ export default function CalendarPage() {
               שלח תזכורת בוואטסאפ
             </a>
 
+            {/* Reschedule form */}
+            {rescheduling && (
+              <div className="mt-3 p-3 rounded-xl bg-brand-50 border border-brand-100 space-y-3">
+                <p className="text-xs font-semibold text-brand-700">העבר תור</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="label text-[10px]">תאריך</label>
+                    <input
+                      type="date"
+                      className="input text-xs py-1.5"
+                      value={rescheduleForm.date}
+                      onChange={(e) => setRescheduleForm({ ...rescheduleForm, date: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="label text-[10px]">שעת התחלה</label>
+                    <input
+                      type="time"
+                      className="input text-xs py-1.5"
+                      value={rescheduleForm.startTime}
+                      onChange={(e) => setRescheduleForm({ ...rescheduleForm, startTime: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    className="btn-primary flex-1 text-xs"
+                    disabled={rescheduleMutation.isPending || !rescheduleForm.date || !rescheduleForm.startTime}
+                    onClick={() =>
+                      rescheduleMutation.mutate({
+                        id: selectedAppointment.id,
+                        date: rescheduleForm.date,
+                        startTime: rescheduleForm.startTime,
+                        endTime: rescheduleForm.endTime || rescheduleForm.startTime,
+                      })
+                    }
+                  >
+                    {rescheduleMutation.isPending ? "שומר..." : "אשר העברה"}
+                  </button>
+                  <button className="btn-secondary text-xs" onClick={() => setRescheduling(false)}>ביטול</button>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
               {confirmDeleteId === selectedAppointment.id ? (
                 <div className="flex-1 flex items-center gap-2 bg-red-50 rounded-xl px-3 py-2">
@@ -1703,6 +1765,20 @@ export default function CalendarPage() {
                       }
                     >
                       הושלם
+                    </button>
+                  )}
+                  {selectedAppointment.status === "scheduled" && (
+                    <button
+                      className="btn-secondary text-xs"
+                      onClick={() => {
+                        const d = new Date(selectedAppointment.date);
+                        const dateStr = d.toISOString().slice(0, 10);
+                        setRescheduleForm({ date: dateStr, startTime: selectedAppointment.startTime, endTime: selectedAppointment.endTime });
+                        setRescheduling(true);
+                      }}
+                      title="העבר תור"
+                    >
+                      <Clock className="w-3.5 h-3.5" />
                     </button>
                   )}
                   {selectedAppointment.status === "scheduled" && (
