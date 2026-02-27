@@ -29,6 +29,7 @@ import {
   Filter,
   Pencil,
   Search,
+  Copy,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -323,6 +324,26 @@ export default function TasksPage() {
     onError: () => toast.error("שגיאה בדחיית המשימה. נסה שוב."),
   });
 
+  const duplicateMutation = useMutation({
+    mutationFn: (task: Task) =>
+      fetchJSON("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `${task.title} (עותק)`,
+          description: task.description || undefined,
+          category: task.category,
+          priority: task.priority,
+        }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      toast.success("המשימה שוכפלה");
+    },
+    onError: () => toast.error("שגיאה בשכפול המשימה"),
+  });
+
   const editMutation = useMutation({
     mutationFn: ({ id, ...data }: { id: string; title: string; description: string; category: string; priority: string; dueDate: string; dueAt: string }) => {
       const payload: Record<string, unknown> = {
@@ -564,6 +585,7 @@ export default function TasksPage() {
               onPostpone={(task) => setPostponeTask(task)}
               onDelete={(task) => setDeleteConfirm(task)}
               onEdit={(task) => setEditTask(task)}
+              onDuplicate={(task) => duplicateMutation.mutate(task)}
             />
           ))}
         </div>
@@ -642,6 +664,7 @@ function TaskCard({
   onPostpone,
   onDelete,
   onEdit,
+  onDuplicate,
 }: {
   task: Task;
   isSelected: boolean;
@@ -650,6 +673,7 @@ function TaskCard({
   onPostpone: (task: Task) => void;
   onDelete: (task: Task) => void;
   onEdit: (task: Task) => void;
+  onDuplicate: (task: Task) => void;
 }) {
   const computed = computeTaskStatus(task);
   const config = STATUS_CONFIG[computed];
@@ -780,6 +804,13 @@ function TaskCard({
                 title="דחה"
               >
                 <CalendarClock className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onDuplicate(task)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-brand-500 transition-colors"
+                title="שכפל"
+              >
+                <Copy className="w-3.5 h-3.5" />
               </button>
             </>
           )}
