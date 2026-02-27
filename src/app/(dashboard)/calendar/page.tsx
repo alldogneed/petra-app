@@ -19,6 +19,7 @@ import {
   UserX,
   CreditCard,
   AlertCircle,
+  Share2,
 } from "lucide-react";
 import {
   cn,
@@ -1119,17 +1120,50 @@ export default function CalendarPage() {
             <h1 className="page-title">יומן</h1>
             <p className="text-xs text-petra-muted mt-0.5">{headerSubtitle}</p>
           </div>
-          <button
-            className="btn-primary text-sm"
-            onClick={() => {
-              setModalDefaults({ date: today, time: "09:00" });
-              setShowNewModal(true);
-            }}
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">פגישה חדשה</span>
-            <span className="sm:hidden">חדש</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Day Summary WhatsApp button */}
+            {(() => {
+              const summaryDate = viewMode === "day" ? selectedDay : new Date();
+              const summaryDateStr = toLocalDateString(summaryDate);
+              const summaryAppts = filteredAppointments.filter(
+                (a) => a.date.slice(0, 10) === summaryDateStr && a.status !== "canceled"
+              ).sort((a, b) => a.startTime.localeCompare(b.startTime));
+              if (summaryAppts.length === 0) return null;
+              const dateLabel = summaryDate.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
+              const lines = [
+                `📅 תוכנית יום — ${dateLabel}`,
+                `סה"כ ${summaryAppts.length} פגישות`,
+                "",
+                ...summaryAppts.map((a, i) =>
+                  `${i + 1}. ${a.startTime} — ${a.customer.name}${a.pet ? ` (${a.pet.name})` : ""} · ${a.service.name}`
+                ),
+              ];
+              const waUrl = `https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`;
+              return (
+                <a
+                  href={waUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary text-sm hidden sm:flex items-center gap-1.5"
+                  title="שתף סיכום יום בוואטסאפ"
+                >
+                  <Share2 className="w-4 h-4" />
+                  סיכום יום
+                </a>
+              );
+            })()}
+            <button
+              className="btn-primary text-sm"
+              onClick={() => {
+                setModalDefaults({ date: today, time: "09:00" });
+                setShowNewModal(true);
+              }}
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">פגישה חדשה</span>
+              <span className="sm:hidden">חדש</span>
+            </button>
+          </div>
         </div>
 
         {/* Controls row: view toggle + navigation */}
