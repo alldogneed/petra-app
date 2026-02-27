@@ -50,6 +50,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/scheduler": { title: "תורים", subtitle: "קביעת תורים ללקוחות" },
   "/service-dogs": { title: "כלבי שירות", subtitle: "ניהול כלבי שירות" },
   "/invoices": { title: "חשבוניות", subtitle: "ניהול חשבוניות ומסמכים" },
+  "/automations": { title: "אוטומציות", subtitle: "הודעות אוטומטיות ללקוחות" },
 };
 
 interface IntegrationStatus {
