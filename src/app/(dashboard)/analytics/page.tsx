@@ -15,6 +15,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Minus,
+  Share2,
 } from "lucide-react";
 import { cn, formatCurrency, fetchJSON } from "@/lib/utils";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -114,7 +115,7 @@ function AnalyticsContent() {
           אנליטיקס
         </h1>
         <p className="text-sm text-petra-muted">סקירה כללית של ביצועי העסק</p>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 flex-wrap">
           {PERIODS.map((p) => (
             <button
               key={p.id}
@@ -129,6 +130,34 @@ function AnalyticsContent() {
               {p.label}
             </button>
           ))}
+          {data && (
+            <a
+              href={(() => {
+                const periodLabel = PERIODS.find((p) => p.id === period)?.label ?? period;
+                const from = new Date(data.from).toLocaleDateString("he-IL");
+                const to = new Date(data.to).toLocaleDateString("he-IL");
+                const lines = [
+                  `📊 *דוח ביצועים — ${periodLabel}*`,
+                  `${from} – ${to}`,
+                  "",
+                  `💰 הכנסות: ${formatCurrency(data.overview.revenue)}`,
+                  `📅 תורים: ${data.overview.totalAppointments} (${data.overview.completionRate}% הושלמו)`,
+                  `👥 לקוחות חדשים: ${data.overview.newCustomers}`,
+                  `🎯 לידים שנסגרו: ${data.leads.wonThisPeriod} (${data.leads.conversionRate}% המרה)`,
+                  `✅ משימות הושלמו: ${data.tasks.completedThisPeriod}`,
+                  `🐾 שהות פנסיון: ${data.boarding.staysThisPeriod}`,
+                ].join("\n");
+                return `https://wa.me/?text=${encodeURIComponent(lines)}`;
+              })()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary flex items-center gap-1.5 hidden sm:flex"
+              title="שתף דוח בוואטסאפ"
+            >
+              <Share2 className="w-4 h-4" />
+              שתף דוח
+            </a>
+          )}
         </div>
       </div>
 
