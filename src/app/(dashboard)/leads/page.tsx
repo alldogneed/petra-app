@@ -426,6 +426,14 @@ function DraggableLeadCard({
   const wonStage = stages.find((s) => s.isWon);
   const lostStage = stages.find((s) => s.isLost);
 
+  const daysSinceCreation = Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+  const showStaleness = !isWon && !isLost && daysSinceCreation > 7;
+  const stalenessColor = daysSinceCreation > 30
+    ? "bg-red-50 text-red-600 border border-red-100"
+    : daysSinceCreation > 14
+      ? "bg-orange-50 text-orange-600 border border-orange-100"
+      : "bg-amber-50 text-amber-600 border border-amber-100";
+
   const lostReasonLabel = lead.lostReasonCode
     ? LOST_REASON_CODES.find((r) => r.id === lead.lostReasonCode)?.label
     : null;
@@ -508,12 +516,17 @@ function DraggableLeadCard({
       )}
 
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="badge-neutral text-[10px]">{sourceEmoji} {sourceLabel}</span>
           {callLogCount > 0 && (
             <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">
               <PhoneCall className="w-2.5 h-2.5" />
               {callLogCount}
+            </span>
+          )}
+          {showStaleness && (
+            <span className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${stalenessColor}`}>
+              {daysSinceCreation}י׳
             </span>
           )}
         </div>
