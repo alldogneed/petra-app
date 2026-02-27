@@ -276,7 +276,7 @@ export default function PetsPage() {
                           </div>
                           <div>
                             <Link
-                              href={`/customers/${pet.customer.id}`}
+                              href={`/pets/${pet.id}`}
                               className="font-semibold text-petra-text hover:text-brand-600 transition-colors"
                             >
                               {pet.name}
