@@ -41,6 +41,7 @@ import {
   ListTodo,
 } from "lucide-react";
 import { CreateOrderModal } from "@/components/orders/CreateOrderModal";
+import { useAuth } from "@/providers/auth-provider";
 import {
   cn,
   formatDate,
@@ -1672,6 +1673,7 @@ export default function CustomerProfilePage() {
   const [showNewAppointmentModal, setShowNewAppointmentModal] = useState(false);
   const [showQuickTaskModal, setShowQuickTaskModal] = useState(false);
   const [intakeSending, setIntakeSending] = useState(false);
+  const { user } = useAuth();
 
   const { data: customer, isLoading } = useQuery<CustomerDetail>({
     queryKey: ["customer", customerId],
@@ -1832,6 +1834,20 @@ export default function CustomerProfilePage() {
             <FileText className="w-4 h-4" />
             {intakeSending ? "שולח..." : "טופס קבלה"}
           </button>
+          {user?.businessSlug && customer.phone && (
+            <a
+              href={`https://wa.me/${toWhatsAppPhone(customer.phone)}?text=${encodeURIComponent(
+                `שלום ${customer.name}! 📅\nקבע/י תור אונליין בקישור הבא:\n${window?.location?.origin || ""}/book/${user.businessSlug}\nנשמח לראותך! 🐾`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
+              title="שלח קישור הזמנה בוואטסאפ"
+            >
+              <CalendarClock className="w-4 h-4" />
+              קישור הזמנה
+            </a>
+          )}
           {confirmDelete ? (
             <span className="flex items-center gap-2 text-sm">
               <span className="text-red-600 font-medium">מחק לקוח?</span>
