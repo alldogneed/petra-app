@@ -5,12 +5,13 @@ import { useState, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
-  Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck, Search
+  Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { LeadTreatmentModal } from "@/components/leads/LeadTreatmentModal";
+import LeadDetailsModal from "@/components/leads/LeadDetailsModal";
 import {
   DndContext,
   DragOverlay,
@@ -45,6 +46,8 @@ interface Lead {
   lostAt: string | null;
   lostReasonCode: string | null;
   lostReasonText: string | null;
+  customerId: string | null;
+  customer: { id: string; name: string } | null;
   callLogs?: {
     id: string;
     summary: string;
@@ -160,6 +163,7 @@ function SortableColumn({
   onLeadClick,
   onQuickAction,
   onWon,
+  onDetails,
   stages,
 }: {
   stage: LeadStage;
@@ -175,6 +179,7 @@ function SortableColumn({
   onLeadClick: (l: Lead) => void;
   onQuickAction: (l: Lead, action: string) => void;
   onWon: (l: Lead) => void;
+  onDetails: (l: Lead) => void;
   stages: LeadStage[];
 }) {
   const {
@@ -208,6 +213,7 @@ function SortableColumn({
         onLeadClick={onLeadClick}
         onQuickAction={onQuickAction}
         onWon={onWon}
+        onDetails={onDetails}
         dragAttributes={attributes}
         dragListeners={listeners}
         stages={stages}
@@ -232,6 +238,7 @@ function KanbanColumn({
   onLeadClick,
   onQuickAction,
   onWon,
+  onDetails,
   dragAttributes,
   dragListeners,
   stages,
@@ -249,6 +256,7 @@ function KanbanColumn({
   onLeadClick: (l: Lead) => void;
   onQuickAction: (l: Lead, action: string) => void;
   onWon: (l: Lead) => void;
+  onDetails: (l: Lead) => void;
   dragAttributes?: Record<string, any>;
   dragListeners?: Record<string, any>;
   stages: LeadStage[];
@@ -381,6 +389,7 @@ function KanbanColumn({
             onClick={() => onLeadClick(lead)}
             onQuickAction={(action) => onQuickAction(lead, action)}
             onWon={() => onWon(lead)}
+            onDetails={() => onDetails(lead)}
             stages={stages}
           />
         ))}
@@ -402,6 +411,7 @@ function DraggableLeadCard({
   onClick,
   onQuickAction,
   onWon,
+  onDetails,
   stages,
 }: {
   lead: Lead;
@@ -409,6 +419,7 @@ function DraggableLeadCard({
   onClick: () => void;
   onQuickAction: (action: string) => void;
   onWon: () => void;
+  onDetails: () => void;
   stages: LeadStage[];
 }) {
   const [converting, setConverting] = useState(false);
@@ -531,6 +542,13 @@ function DraggableLeadCard({
           )}
         </div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={(e) => { e.stopPropagation(); onDetails(); }}
+            className="w-7 h-7 flex items-center justify-center rounded-full text-brand-600 hover:bg-brand-100 transition-colors"
+            title="פרטי ליד וישויות שיחה"
+          >
+            <FileText className="w-4 h-4" />
+          </button>
           {lead.phone && !isWon && !isLost && (
             <button
               onClick={(e) => {
@@ -810,6 +828,7 @@ function ArchiveList({
 export default function LeadsPage() {
   const [showModal, setShowModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
   const [activeDragLead, setActiveDragLead] = useState<Lead | null>(null);
   const [wonToast, setWonToast] = useState<{ name: string; customerId: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1237,6 +1256,7 @@ export default function LeadsPage() {
                       onLeadClick={(lead) => setSelectedLead(lead)}
                       onQuickAction={(lead, action) => setSelectedLead({ ...lead, stage: action })}
                       onWon={handleWon}
+                      onDetails={(lead) => setDetailsLead(lead)}
                       stages={stages}
                     />
                   );
@@ -1273,6 +1293,7 @@ export default function LeadsPage() {
                     onLeadClick={(lead) => setSelectedLead(lead)}
                     onQuickAction={(lead, action) => setSelectedLead({ ...lead, stage: action })}
                     onWon={handleWon}
+                    onDetails={(lead) => setDetailsLead(lead)}
                     stages={stages}
                   />
                 </div>
@@ -1303,6 +1324,14 @@ export default function LeadsPage() {
         onClose={() => setSelectedLead(null)}
         stages={stages}
       />
+
+      {detailsLead && (
+        <LeadDetailsModal
+          lead={detailsLead}
+          isOpen={true}
+          onClose={() => setDetailsLead(null)}
+        />
+      )}
 
       {deleteTarget && (
         <DeleteStageModal
