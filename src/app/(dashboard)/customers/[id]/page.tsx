@@ -904,6 +904,67 @@ function EditCustomerModal({
   );
 }
 
+// ─── Edit Pet Note Modal ──────────────────────────────────────────────────────
+
+function EditPetNoteModal({
+  petId,
+  field,
+  label,
+  value,
+  customerId,
+  onClose,
+}: {
+  petId: string;
+  field: string;
+  label: string;
+  value: string;
+  customerId: string;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [text, setText] = useState(value);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/pets/${petId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: text || null }),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+      onClose();
+    },
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-petra-text">{label}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <textarea
+          className="input min-h-[120px] w-full"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          autoFocus
+          placeholder="הזן הערות..."
+        />
+        <div className="flex gap-3 mt-4">
+          <button className="btn-primary flex-1" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+            {mutation.isPending ? "שומר..." : "שמור"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Medication Modal ─────────────────────────────────────────────────────────
 
 function MedicationModal({
@@ -2129,6 +2190,7 @@ export default function CustomerProfilePage() {
   const [deletingMed, setDeletingMed] = useState<{ id: string; petId: string } | null>(null);
   const [healthModal, setHealthModal] = useState<{ pet: Pet } | null>(null);
   const [behaviorModal, setBehaviorModal] = useState<{ pet: Pet } | null>(null);
+  const [noteModal, setNoteModal] = useState<{ petId: string; field: string; label: string; value: string } | null>(null);
   const { user } = useAuth();
 
   const { data: customer, isLoading } = useQuery<CustomerDetail>({
@@ -2657,17 +2719,33 @@ export default function CustomerProfilePage() {
                       {isExpanded && (
                         <div className="pt-3 border-t border-amber-200/50 space-y-4 animate-fade-in">
                           {/* Feeding info */}
-                          {pet.foodNotes && (
-                            <div>
-                              <div className="flex items-center gap-1.5 mb-1.5">
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-1.5">
                                 <UtensilsCrossed className="w-3.5 h-3.5 text-amber-600" />
                                 <span className="text-xs font-bold text-petra-text">האכלה</span>
                               </div>
+                              <button
+                                className="w-5 h-5 rounded flex items-center justify-center hover:bg-amber-100 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); setNoteModal({ petId: pet.id, field: "foodNotes", label: "הערות האכלה", value: pet.foodNotes || "" }); }}
+                                title="ערוך"
+                              >
+                                <Pencil className="w-3 h-3 text-amber-600" />
+                              </button>
+                            </div>
+                            {pet.foodNotes ? (
                               <p className="text-xs text-stone-600 bg-white/60 rounded-lg p-2.5 whitespace-pre-line">
                                 {pet.foodNotes}
                               </p>
-                            </div>
-                          )}
+                            ) : (
+                              <button
+                                className="w-full text-xs text-amber-400 hover:text-amber-600 py-1.5 border border-dashed border-amber-200 hover:border-amber-300 rounded-lg transition-colors"
+                                onClick={(e) => { e.stopPropagation(); setNoteModal({ petId: pet.id, field: "foodNotes", label: "הערות האכלה", value: "" }); }}
+                              >
+                                + הוסף הערות האכלה
+                              </button>
+                            )}
+                          </div>
 
                           {/* Medications */}
                           <div>
@@ -2901,18 +2979,32 @@ export default function CustomerProfilePage() {
                           </div>
 
                           {/* Notes */}
-                          {pet.medicalNotes && (
-                            <div className="text-[11px] bg-white/60 rounded-lg p-2.5">
-                              <span className="text-stone-500 font-medium">הערות רפואיות: </span>
-                              <span className="text-stone-700">{pet.medicalNotes}</span>
+                          <div className="space-y-1.5">
+                            <div className="group flex items-start gap-1.5 bg-white/60 rounded-lg p-2.5">
+                              <div className="flex-1 text-[11px]">
+                                <span className="text-stone-500 font-medium">הערות רפואיות: </span>
+                                <span className="text-stone-700">{pet.medicalNotes || <span className="italic text-stone-400">לא הוזן</span>}</span>
+                              </div>
+                              <button
+                                className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-blue-100 transition-all flex-shrink-0"
+                                onClick={(e) => { e.stopPropagation(); setNoteModal({ petId: pet.id, field: "medicalNotes", label: "הערות רפואיות", value: pet.medicalNotes || "" }); }}
+                              >
+                                <Pencil className="w-3 h-3 text-blue-500" />
+                              </button>
                             </div>
-                          )}
-                          {pet.behaviorNotes && (
-                            <div className="text-[11px] bg-white/60 rounded-lg p-2.5">
-                              <span className="text-stone-500 font-medium">הערות התנהגות: </span>
-                              <span className="text-stone-700">{pet.behaviorNotes}</span>
+                            <div className="group flex items-start gap-1.5 bg-white/60 rounded-lg p-2.5">
+                              <div className="flex-1 text-[11px]">
+                                <span className="text-stone-500 font-medium">הערות התנהגות: </span>
+                                <span className="text-stone-700">{pet.behaviorNotes || <span className="italic text-stone-400">לא הוזן</span>}</span>
+                              </div>
+                              <button
+                                className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-blue-100 transition-all flex-shrink-0"
+                                onClick={(e) => { e.stopPropagation(); setNoteModal({ petId: pet.id, field: "behaviorNotes", label: "הערות התנהגות", value: pet.behaviorNotes || "" }); }}
+                              >
+                                <Pencil className="w-3 h-3 text-blue-500" />
+                              </button>
                             </div>
-                          )}
+                          </div>
                         </div>
                       )}
 
@@ -3473,6 +3565,16 @@ export default function CustomerProfilePage() {
           behavior={behaviorModal.pet.behavior}
           customerId={customerId}
           onClose={() => setBehaviorModal(null)}
+        />
+      )}
+      {noteModal && (
+        <EditPetNoteModal
+          petId={noteModal.petId}
+          field={noteModal.field}
+          label={noteModal.label}
+          value={noteModal.value}
+          customerId={customerId}
+          onClose={() => setNoteModal(null)}
         />
       )}
       {deletingMed && (

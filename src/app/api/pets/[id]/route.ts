@@ -26,6 +26,8 @@ export async function PATCH(
         ...(petData.tags !== undefined && { tags: petData.tags }),
         ...(petData.attachments !== undefined && { attachments: petData.attachments }),
         ...(petData.medicalNotes !== undefined && { medicalNotes: petData.medicalNotes || null }),
+        ...(petData.foodNotes !== undefined && { foodNotes: petData.foodNotes || null }),
+        ...(petData.behaviorNotes !== undefined && { behaviorNotes: petData.behaviorNotes || null }),
       },
       include: {
         health: true,
