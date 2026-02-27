@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   CreditCard,
@@ -18,6 +18,7 @@ import {
   Trash2,
   Search,
   Download,
+  AlertTriangle,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
@@ -210,6 +211,28 @@ export default function PaymentsPage() {
   const paidCount = allPayments.filter((p) => p.status === "paid").length;
   const pendingCount = allPayments.filter((p) => p.status === "pending").length;
 
+  // Payment aging buckets (for pending payments only)
+  const agingBuckets = useMemo(() => {
+    const now = Date.now();
+    const pending = allPayments.filter((p) => p.status === "pending");
+    const buckets = [
+      { label: "0–30 יום", days: [0, 30], count: 0, total: 0, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" },
+      { label: "31–60 יום", days: [31, 60], count: 0, total: 0, color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" },
+      { label: "60+ יום", days: [61, Infinity], count: 0, total: 0, color: "text-red-600", bg: "bg-red-50", border: "border-red-200" },
+    ];
+    for (const p of pending) {
+      const ageDays = Math.floor((now - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+      for (const b of buckets) {
+        if (ageDays >= b.days[0] && ageDays <= b.days[1]) {
+          b.count++;
+          b.total += p.amount;
+          break;
+        }
+      }
+    }
+    return { buckets, totalPendingCount: pending.length };
+  }, [allPayments]);
+
   function buildReminderText(payment: Payment) {
     const association = payment.appointment?.service.name
       || (payment.boardingStay ? `פנסיון — ${payment.boardingStay.pet.name}` : "");
@@ -357,6 +380,26 @@ export default function PaymentsPage() {
           <span className="text-[10px] text-petra-muted block mt-0.5">לתשלום</span>
         </div>
       </div>
+
+      {/* Debt Aging Breakdown */}
+      {agingBuckets.totalPendingCount > 0 && (
+        <div className="card p-4 mb-5 border-l-4 border-amber-400">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            <h3 className="text-sm font-semibold text-petra-text">ניתוח גיל חובות</h3>
+            <span className="text-xs text-petra-muted">({agingBuckets.totalPendingCount} תשלומים ממתינים)</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {agingBuckets.buckets.map((b) => (
+              <div key={b.label} className={`rounded-xl p-3 border ${b.bg} ${b.border}`}>
+                <p className={`text-xs font-semibold ${b.color} mb-1`}>{b.label}</p>
+                <p className={`text-base font-bold ${b.color}`}>{formatCurrency(b.total)}</p>
+                <p className={`text-[11px] ${b.color} opacity-70`}>{b.count} תשלומים</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
