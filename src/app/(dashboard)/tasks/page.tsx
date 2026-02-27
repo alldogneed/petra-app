@@ -152,6 +152,7 @@ export default function TasksPage() {
   const [postponeTask, setPostponeTask] = useState<Task | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Task | null>(null);
   const [editTask, setEditTask] = useState<Task | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [, setTick] = useState(0);
   const queryClient = useQueryClient();
 
@@ -266,6 +267,22 @@ export default function TasksPage() {
       toast.success("המשימה נמחקה");
     },
     onError: () => toast.error("שגיאה במחיקת המשימה. נסה שוב."),
+  });
+
+  const bulkCompleteMutation = useMutation({
+    mutationFn: (ids: string[]) =>
+      Promise.all(ids.map((id) => fetchJSON(`/api/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "COMPLETED" }),
+      }))),
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      setSelectedTaskIds(new Set());
+      toast.success(`${ids.length} משימות הושלמו`);
+    },
+    onError: () => toast.error("שגיאה בעדכון המשימות. נסה שוב."),
   });
 
   const postponeMutation = useMutation({
@@ -407,6 +424,27 @@ export default function TasksPage() {
         </div>
       </div>
 
+      {/* Bulk Action Bar */}
+      {selectedTaskIds.size > 0 && (
+        <div className="flex items-center gap-3 mb-3 p-3 rounded-xl bg-brand-50 border border-brand-100">
+          <span className="text-sm font-medium text-brand-700">{selectedTaskIds.size} נבחרו</span>
+          <button
+            className="btn-primary text-xs py-1.5 px-3"
+            disabled={bulkCompleteMutation.isPending}
+            onClick={() => bulkCompleteMutation.mutate([...selectedTaskIds])}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            {bulkCompleteMutation.isPending ? "..." : "השלם הכל"}
+          </button>
+          <button
+            className="text-xs text-petra-muted hover:text-petra-text mr-auto"
+            onClick={() => setSelectedTaskIds(new Set())}
+          >
+            בטל בחירה
+          </button>
+        </div>
+      )}
+
       {/* Tasks List */}
       {isLoading ? (
         <div className="space-y-3">
@@ -436,10 +474,32 @@ export default function TasksPage() {
         </div>
       ) : (
         <div className="space-y-2">
+          {sortedTasks.length > 1 && activeFilter !== "COMPLETED" && (
+            <div className="flex justify-end">
+              <button
+                className="text-xs text-petra-muted hover:text-brand-600"
+                onClick={() => {
+                  const openIds = sortedTasks.filter((t) => t.status !== "COMPLETED").map((t) => t.id);
+                  const allSelected = openIds.every((id) => selectedTaskIds.has(id));
+                  setSelectedTaskIds(allSelected ? new Set() : new Set(openIds));
+                }}
+              >
+                {sortedTasks.filter((t) => t.status !== "COMPLETED").every((t) => selectedTaskIds.has(t.id))
+                  ? "בטל בחירת הכל"
+                  : "בחר הכל"}
+              </button>
+            </div>
+          )}
           {sortedTasks.map((task) => (
             <TaskCard
               key={task.id}
               task={task}
+              isSelected={selectedTaskIds.has(task.id)}
+              onSelect={(id) => setSelectedTaskIds((prev) => {
+                const next = new Set(prev);
+                if (next.has(id)) next.delete(id); else next.add(id);
+                return next;
+              })}
               onToggle={(id, status) => toggleMutation.mutate({ id, status })}
               onPostpone={(task) => setPostponeTask(task)}
               onDelete={(task) => setDeleteConfirm(task)}
@@ -516,12 +576,16 @@ export default function TasksPage() {
 
 function TaskCard({
   task,
+  isSelected,
+  onSelect,
   onToggle,
   onPostpone,
   onDelete,
   onEdit,
 }: {
   task: Task;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
   onToggle: (id: string, status: string) => void;
   onPostpone: (task: Task) => void;
   onDelete: (task: Task) => void;
@@ -543,6 +607,18 @@ function TaskCard({
       )}
     >
       <div className="flex items-start gap-3">
+        {/* Selection checkbox */}
+        {!isCompleted && (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onSelect(task.id)}
+            onClick={(e) => e.stopPropagation()}
+            className="flex-shrink-0 mt-1 w-4 h-4 rounded accent-brand-500 opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ opacity: isSelected ? 1 : undefined }}
+          />
+        )}
+
         {/* Complete toggle */}
         <button
           onClick={() =>
