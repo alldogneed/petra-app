@@ -17,6 +17,7 @@ import {
   Check,
   Trash2,
   UserX,
+  CreditCard,
 } from "lucide-react";
 import {
   cn,
@@ -510,6 +511,96 @@ function NewAppointmentModal({
   );
 }
 
+// ─── Quick Payment Modal ─────────────────────────────────────────────────────
+
+function QuickPaymentModal({
+  appointment,
+  onClose,
+}: {
+  appointment: AppointmentEvent;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [amount, setAmount] = useState(appointment.service.price || 0);
+  const [method, setMethod] = useState("cash");
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      fetchJSON("/api/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          method,
+          status: "paid",
+          customerId: appointment.customer.id,
+          appointmentId: appointment.id,
+        }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      onClose();
+      toast.success("התשלום נרשם בהצלחה");
+    },
+    onError: () => toast.error("שגיאה בשמירת התשלום. נסה שוב."),
+  });
+
+  return (
+    <div className="modal-overlay" style={{ zIndex: 60 }}>
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-base font-bold text-petra-text">רישום תשלום</h2>
+            <p className="text-xs text-petra-muted mt-0.5">
+              {appointment.customer.name} · {appointment.service.name}
+            </p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="label">סכום (₪)</label>
+            <input
+              type="number"
+              min={0}
+              step={0.01}
+              className="input"
+              value={amount}
+              onChange={(e) => setAmount(Number(e.target.value))}
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="label">אמצעי תשלום</label>
+            <select className="input" value={method} onChange={(e) => setMethod(e.target.value)}>
+              <option value="cash">מזומן</option>
+              <option value="credit_card">כרטיס אשראי</option>
+              <option value="bit">ביט</option>
+              <option value="paybox">פייבוקס</option>
+              <option value="bank_transfer">העברה בנקאית</option>
+              <option value="check">צ׳ק</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex gap-2 mt-5">
+          <button
+            className="btn-primary flex-1"
+            disabled={!amount || mutation.isPending}
+            onClick={() => mutation.mutate()}
+          >
+            <CreditCard className="w-4 h-4" />
+            {mutation.isPending ? "שומר..." : "שמור תשלום"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Calendar Page ──────────────────────────────────────────────────────
 
 export default function CalendarPage() {
@@ -536,6 +627,7 @@ export default function CalendarPage() {
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesInput, setNotesInput] = useState("");
   const [serviceTypeFilter, setServiceTypeFilter] = useState<string | null>(null);
+  const [showQuickPayment, setShowQuickPayment] = useState(false);
   const [hoveredApt, setHoveredApt] = useState<{
     apt: AppointmentEvent;
     x: number;
@@ -1833,6 +1925,15 @@ export default function CalendarPage() {
                       בטל תור
                     </button>
                   )}
+                  {selectedAppointment.status === "completed" && (
+                    <button
+                      className="btn-secondary flex-1 text-xs"
+                      onClick={() => setShowQuickPayment(true)}
+                    >
+                      <CreditCard className="w-3.5 h-3.5" />
+                      הוסף תשלום
+                    </button>
+                  )}
                   <button
                     className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors flex-shrink-0"
                     onClick={() => setConfirmDeleteId(selectedAppointment.id)}
@@ -1845,6 +1946,13 @@ export default function CalendarPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showQuickPayment && selectedAppointment && (
+        <QuickPaymentModal
+          appointment={selectedAppointment}
+          onClose={() => setShowQuickPayment(false)}
+        />
       )}
 
       <NewAppointmentModal
