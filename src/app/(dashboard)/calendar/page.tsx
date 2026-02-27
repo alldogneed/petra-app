@@ -18,6 +18,7 @@ import {
   Trash2,
   UserX,
   CreditCard,
+  AlertCircle,
 } from "lucide-react";
 import {
   cn,
@@ -314,11 +315,13 @@ function NewAppointmentModal({
   onClose,
   defaultDate,
   defaultTime,
+  existingAppointments = [],
 }: {
   isOpen: boolean;
   onClose: () => void;
   defaultDate: string;
   defaultTime: string;
+  existingAppointments?: AppointmentEvent[];
 }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
@@ -406,6 +409,21 @@ function NewAppointmentModal({
     },
     onError: () => toast.error("שגיאה בקביעת התור. נסה שוב."),
   });
+
+  // Conflict detection
+  const conflictingApts = useMemo(() => {
+    if (!form.date || !form.startTime || !selectedService) return [];
+    const newStart = timeToMinutes(form.startTime);
+    const newEnd = timeToMinutes(endTime);
+    return existingAppointments.filter((a) => {
+      if (a.status === "canceled") return false;
+      const aDate = new Date(a.date).toLocaleDateString("sv"); // YYYY-MM-DD
+      if (aDate !== form.date) return false;
+      const aStart = timeToMinutes(a.startTime);
+      const aEnd = timeToMinutes(a.endTime);
+      return newStart < aEnd && newEnd > aStart;
+    });
+  }, [form.date, form.startTime, endTime, existingAppointments, selectedService]);
 
   if (!isOpen) return null;
 
@@ -502,6 +520,21 @@ function NewAppointmentModal({
               )}
             </div>
           </div>
+          {/* Conflict warning */}
+          {conflictingApts.length > 0 && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-800">
+                <span className="font-semibold">התנגשות בלוח הזמנים! </span>
+                {conflictingApts.map((a) => (
+                  <span key={a.id}>
+                    {a.customer.name} ({a.startTime}–{a.endTime} · {a.service.name})
+                  </span>
+                )).reduce<React.ReactNode[]>((acc, el, i) => i === 0 ? [el] : [...acc, ", ", el], [])}
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="label">הערות</label>
             <textarea
@@ -2024,6 +2057,7 @@ export default function CalendarPage() {
         onClose={() => setShowNewModal(false)}
         defaultDate={modalDefaults.date}
         defaultTime={modalDefaults.time}
+        existingAppointments={filteredAppointments}
       />
     </div>
   );
