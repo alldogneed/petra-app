@@ -1220,6 +1220,7 @@ function GroupCard({
 }) {
   const queryClient = useQueryClient();
   const [expandedAttendanceSession, setExpandedAttendanceSession] = useState<string | null>(null);
+  const [sessionNotesInput, setSessionNotesInput] = useState<Record<string, string>>({});
   const typeColor = GROUP_TYPE_COLORS[group.groupType] || GROUP_TYPE_COLORS.CUSTOM;
 
   const attendanceMutation = useMutation({
@@ -1231,6 +1232,20 @@ function GroupCard({
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["training-groups"] }),
     onError: () => toast.error("שגיאה בעדכון נוכחות"),
+  });
+
+  const sessionNotesMutation = useMutation({
+    mutationFn: ({ sessionId, notes }: { sessionId: string; notes: string }) =>
+      fetchJSON(`/api/training-groups/${group.id}/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes, status: "COMPLETED" }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+      toast.success("סיכום המפגש נשמר");
+    },
+    onError: () => toast.error("שגיאה בשמירת הסיכום"),
   });
 
   return (
@@ -1422,6 +1437,28 @@ function GroupCard({
                               </div>
                             );
                           })}
+                          {/* Session notes */}
+                          <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                            <p className="text-[10px] font-semibold text-petra-muted">סיכום מפגש</p>
+                            <textarea
+                              className="input text-xs py-1.5 resize-none w-full"
+                              rows={2}
+                              placeholder="מה עבדנו היום, הצלחות, נקודות לשיפור..."
+                              value={sessionNotesInput[session.id] ?? session.notes ?? ""}
+                              onChange={(e) => setSessionNotesInput((prev) => ({ ...prev, [session.id]: e.target.value }))}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <button
+                              className="btn-primary text-[11px] py-1 px-3"
+                              disabled={sessionNotesMutation.isPending}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                sessionNotesMutation.mutate({ sessionId: session.id, notes: sessionNotesInput[session.id] ?? session.notes ?? "" });
+                              }}
+                            >
+                              שמור סיכום
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
