@@ -9,22 +9,30 @@ export async function GET(request: NextRequest) {
     const authResult = await requireAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const messages = await prisma.systemMessage.findMany({
-      where: {
-        businessId: DEMO_BUSINESS_ID,
-        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-      },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    });
+    const { searchParams } = new URL(request.url);
+    const unreadOnly = searchParams.get("unreadOnly") === "true";
 
-    return NextResponse.json(messages);
+    const where = {
+      businessId: DEMO_BUSINESS_ID,
+      ...(unreadOnly ? { isRead: false } : {}),
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    };
+
+    const [messages, unreadCount] = await Promise.all([
+      prisma.systemMessage.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: 30,
+      }),
+      prisma.systemMessage.count({
+        where: { businessId: DEMO_BUSINESS_ID, isRead: false, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+      }),
+    ]);
+
+    return NextResponse.json({ messages, unreadCount });
   } catch (error) {
     console.error("System messages API error:", error);
-    return NextResponse.json(
-      { error: "Failed to load messages" },
-      { status: 500 }
-    );
+    return NextResponse.json({ messages: [], unreadCount: 0 });
   }
 }
 

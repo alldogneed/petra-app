@@ -286,22 +286,28 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const { data: dashData } = useQuery<DashboardSummary & { upcomingAppointments: UpcomingAppointment[] }>({
     queryKey: ["dashboard"],
     queryFn: () => fetchJSON("/api/dashboard"),
-    enabled: (profileOpen && activeTab === "profile") || notificationsOpen,
+    enabled: profileOpen && activeTab === "profile",
     staleTime: 30000,
   });
 
-  // System messages — for bell notifications
-  const { data: systemMessages = [] } = useQuery<SystemMessage[]>({
+  // System messages — for bell notifications (always enabled so badge shows)
+  const { data: sysMessagesData } = useQuery<{ messages: SystemMessage[]; unreadCount: number }>({
     queryKey: ["systemMessages"],
     queryFn: () => fetchJSON("/api/system-messages"),
-    enabled: notificationsOpen,
-    staleTime: 30000,
+    staleTime: 60000,
+    refetchInterval: 120000,
   });
+  const systemMessages = sysMessagesData?.messages ?? [];
+  const unreadCount = sysMessagesData?.unreadCount ?? 0;
 
   // Mark system message as read
   const markAsRead = useMutation({
     mutationFn: (id: string) =>
-      fetchJSON(`/api/system-messages/${id}/read`, { method: "PATCH" }),
+      fetch(`/api/system-messages/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isRead: true }),
+      }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["systemMessages"] });
     },
@@ -369,14 +375,20 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
     return items.slice(0, 15);
   }, [systemMessages, dashData]);
 
-  const unreadNotifications = systemMessages.filter((m) => !m.isRead).length;
+  const unreadNotifications = unreadCount;
 
   // Mark all system messages as read
   const handleMarkAllRead = useCallback(async () => {
     const unread = systemMessages.filter((m) => !m.isRead);
     if (unread.length === 0) return;
     await Promise.all(
-      unread.map((m) => fetch(`/api/system-messages/${m.id}/read`, { method: "PATCH" }))
+      unread.map((m) =>
+        fetch(`/api/system-messages/${m.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isRead: true }),
+        })
+      )
     );
     queryClient.invalidateQueries({ queryKey: ["systemMessages"] });
   }, [systemMessages, queryClient]);
