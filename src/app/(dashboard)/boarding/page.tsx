@@ -1207,6 +1207,7 @@ export default function BoardingPage() {
     customerId: "", petIds: [] as string[], roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "", pricePerNight: 0,
   });
   const [customerSearch, setCustomerSearch] = useState("");
+  const [staySearch, setStaySearch] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("active");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [activeStayId, setActiveStayId] = useState<string | null>(null);
@@ -1491,6 +1492,18 @@ export default function BoardingPage() {
   const checkinTodayCount = tabStays.checkin_today.length;
   const checkoutTodayCount = tabStays.checkout_today.length;
 
+  const displayedStays = useMemo(() => {
+    const base = tabStays[activeTab];
+    if (!staySearch.trim()) return base;
+    const q = staySearch.toLowerCase();
+    return base.filter(
+      (s) =>
+        s.pet.name.toLowerCase().includes(q) ||
+        s.customer.name.toLowerCase().includes(q) ||
+        (s.room?.name.toLowerCase().includes(q) ?? false)
+    );
+  }, [tabStays, activeTab, staySearch]);
+
   const draggedStay = activeStayId ? stays.find((s) => s.id === activeStayId) : null;
 
   const tabs: { key: TabKey; label: string; count?: number }[] = [
@@ -1675,8 +1688,26 @@ export default function BoardingPage() {
 
       {/* ── Stays List with Tabs ── */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
           <h2 className="text-sm font-semibold text-petra-text">לוח שהיות</h2>
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
+            <input
+              type="text"
+              value={staySearch}
+              onChange={(e) => setStaySearch(e.target.value)}
+              placeholder="חפש לפי חיה, לקוח, חדר..."
+              className="input pr-8 text-sm h-8"
+            />
+            {staySearch && (
+              <button
+                onClick={() => setStaySearch("")}
+                className="absolute left-2 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-1 mb-4 flex-wrap">
@@ -1721,21 +1752,23 @@ export default function BoardingPage() {
             </div>
             <p className="text-sm text-petra-muted">שגיאה בטעינת נתוני הפנסיון. נסה לרענן את הדף.</p>
           </div>
-        ) : tabStays[activeTab].length === 0 ? (
+        ) : displayedStays.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">
               <Hotel className="w-6 h-6 text-slate-400" />
             </div>
             <p className="text-sm text-petra-muted">
-              {activeTab === "checkin_today" && "אין צ׳ק-אינים מתוכננים להיום"}
-              {activeTab === "checkout_today" && "אין צ׳ק-אאוטים מתוכננים להיום"}
-              {activeTab === "active" && "אין שהיות פעילות"}
-              {activeTab === "history" && "אין שהיות בהיסטוריה"}
+              {staySearch.trim()
+                ? "לא נמצאו שהיות תואמות"
+                : activeTab === "checkin_today" ? "אין צ׳ק-אינים מתוכננים להיום"
+                : activeTab === "checkout_today" ? "אין צ׳ק-אאוטים מתוכננים להיום"
+                : activeTab === "active" ? "אין שהיות פעילות"
+                : "אין שהיות בהיסטוריה"}
             </p>
           </div>
         ) : (
           <div className="space-y-2">
-            {tabStays[activeTab].map((stay) => (
+            {displayedStays.map((stay) => (
               <StayRow
                 key={stay.id}
                 stay={stay}
