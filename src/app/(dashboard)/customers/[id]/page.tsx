@@ -1671,6 +1671,7 @@ export default function CustomerProfilePage() {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [showNewAppointmentModal, setShowNewAppointmentModal] = useState(false);
   const [showQuickTaskModal, setShowQuickTaskModal] = useState(false);
+  const [intakeSending, setIntakeSending] = useState(false);
 
   const { data: customer, isLoading } = useQuery<CustomerDetail>({
     queryKey: ["customer", customerId],
@@ -1806,6 +1807,31 @@ export default function CustomerProfilePage() {
             <Send className="w-4 h-4" />
             בקשת תשלום
           </Link>
+          <button
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50"
+            title="שלח טופס קבלה בוואטסאפ"
+            disabled={intakeSending}
+            onClick={async () => {
+              setIntakeSending(true);
+              try {
+                const res = await fetch("/api/intake/create", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ customerId: customer.id }),
+                });
+                const data = await res.json();
+                if (data.url && customer.phone) {
+                  const msg = `שלום ${customer.name}! 📋\nאנא מלא טופס קבלה עבור הכלב שלך:\n${data.url}\nהקישור בתוקף ל-7 ימים. תודה! 🐾`;
+                  window.open(`https://wa.me/${toWhatsAppPhone(customer.phone)}?text=${encodeURIComponent(msg)}`, "_blank");
+                }
+              } finally {
+                setIntakeSending(false);
+              }
+            }}
+          >
+            <FileText className="w-4 h-4" />
+            {intakeSending ? "שולח..." : "טופס קבלה"}
+          </button>
           {confirmDelete ? (
             <span className="flex items-center gap-2 text-sm">
               <span className="text-red-600 font-medium">מחק לקוח?</span>
