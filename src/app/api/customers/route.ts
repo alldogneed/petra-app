@@ -13,8 +13,9 @@ export async function GET(request: NextRequest) {
 
     const businessId = DEMO_BUSINESS_ID;
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search");
-    const tag = searchParams.get("tag");
+    const rawSearch = searchParams.get("search");
+    const search = rawSearch ? rawSearch.slice(0, 100) : null; // max 100 chars
+    const tag = searchParams.get("tag")?.slice(0, 50);
     const enhanced = searchParams.get("enhanced") === "1";
     const serviceType = searchParams.get("serviceType");
 
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
 
       const customers = await prisma.customer.findMany({
         where,
-        take: 1000,
+        take: 500,
         include: {
           pets: {
             select: { id: true, name: true, species: true, breed: true },

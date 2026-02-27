@@ -1,12 +1,20 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 // PUBLIC route — no auth required (accessed via QR scan)
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { token: string } }
 ) {
+  // Rate limit by IP to prevent QR token enumeration
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const rl = rateLimit("service-dog:qr", ip, RATE_LIMITS.PUBLIC_READ);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "יותר מדי בקשות" }, { status: 429 });
+  }
+
   try {
     const card = await prisma.serviceDogIDCard.findUnique({
       where: { qrToken: params.token },
@@ -38,7 +46,7 @@ export async function GET(
       certifyingBody: cardData.certifyingBody || null,
       certificationDate: cardData.certificationDate || null,
       certificationExpiry: cardData.certificationExpiry || null,
-      recipientName: cardData.recipientName || null,
+      // recipientName intentionally omitted — PII not exposed on public QR endpoint
       generatedAt: card.generatedAt,
     });
   } catch (error) {

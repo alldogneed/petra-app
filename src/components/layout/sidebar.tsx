@@ -32,6 +32,11 @@ import {
   HelpCircle,
   ChevronDown,
   Wallet,
+  Zap,
+  UserCheck,
+  Activity,
+  AlertTriangle,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -73,7 +78,16 @@ const navEntries: NavEntry[] = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
   { name: "לקוחות", href: "/customers", icon: Users },
   { name: "מערכת מכירות", href: "/leads", icon: Target },
-  { name: "ניהול משימות", href: "/tasks", icon: ListTodo },
+  {
+    key: "tasks",
+    name: "ניהול משימות",
+    icon: ListTodo,
+    defaultHref: "/tasks",
+    children: [
+      { name: "משימות", href: "/tasks", icon: ListTodo },
+      { name: "משימות אוטומטיות", href: "/settings?tab=tasks", icon: Zap },
+    ],
+  },
   {
     key: "bookings-online",
     name: "ניהול תורים אונליין",
@@ -112,9 +126,22 @@ const navEntries: NavEntry[] = [
       { name: "הזמנות", href: "/orders", icon: ShoppingCart },
     ],
   },
-  { name: "אימונים וכלבים", href: "/training", icon: Dog },
+  { name: "תהליכי אילוף", href: "/training", icon: Dog },
   { name: "חיות מחמד", href: "/pets", icon: PawPrint },
-  { name: "כלבי שירות", href: "/service-dogs", icon: Shield },
+  {
+    key: "service-dogs",
+    name: "כלבי שירות",
+    icon: Shield,
+    defaultHref: "/service-dogs",
+    children: [
+      { name: "סקירה כללית", href: "/service-dogs", icon: LayoutDashboard },
+      { name: "כלבים", href: "/service-dogs/dogs", icon: Dog },
+      { name: "מקבלים", href: "/service-dogs/recipients", icon: UserCheck },
+      { name: "שיבוצים", href: "/service-dogs/placements", icon: Activity },
+      { name: "משמעת ודיווח", href: "/service-dogs/compliance", icon: AlertTriangle },
+      { name: "תעודות זהות", href: "/service-dogs/id-cards", icon: CreditCard },
+    ],
+  },
   { name: "יומן", href: "/calendar", icon: Calendar },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner" },
   { name: "הגדרות", href: "/settings", icon: Settings },
@@ -141,8 +168,11 @@ export function Sidebar({
   const groups = navEntries.filter(isGroup) as NavGroup[];
 
   function isGroupActive(group: NavGroup): boolean {
-    return group.children.some((c) =>
-      c.href === group.defaultHref ? pathname === c.href : pathname.startsWith(c.href)
+    return (
+      group.children.some((c) =>
+        c.href === group.defaultHref ? pathname === c.href : pathname.startsWith(c.href)
+      ) ||
+      (group.defaultHref !== "/" && pathname.startsWith(group.defaultHref + "/"))
     );
   }
 
@@ -187,7 +217,7 @@ export function Sidebar({
     const isActive =
       item.href === "/dashboard"
         ? pathname === "/" || pathname === "/dashboard"
-        : item.href === "/boarding" || item.href === "/bookings"
+        : item.href === "/boarding" || item.href === "/bookings" || item.href === "/service-dogs"
         ? pathname === item.href
         : pathname.startsWith(item.href);
     const Icon = item.icon;

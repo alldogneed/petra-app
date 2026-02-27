@@ -146,7 +146,7 @@ export const PHASE_MEDICAL_PROTOCOLS: Record<string, string[]> = {
 // ─── ADI Skill Categories ───
 
 export const ADI_SKILL_CATEGORIES = [
-  { id: "BASIC_OBEDIENCE", label: "ציות בסיסי" },
+  { id: "BASIC_OBEDIENCE", label: "משמעת בסיסית" },
   { id: "PUBLIC_ACCESS", label: "גישה לציבור" },
   { id: "TASK_TRAINING", label: "אימון משימה" },
   { id: "SOCIALIZATION", label: "חברות" },

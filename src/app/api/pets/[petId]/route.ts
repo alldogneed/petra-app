@@ -6,7 +6,7 @@ import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { petId: string } }
 ) {
   try {
     const authResult = await requireAuth(request);
@@ -14,7 +14,7 @@ export async function GET(
 
     const pet = await prisma.pet.findFirst({
       where: {
-        id: params.id,
+        id: params.petId,
         customer: { businessId: DEMO_BUSINESS_ID },
       },
       include: {
@@ -52,7 +52,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { petId: string } }
 ) {
   try {
     const authResult = await requireAuth(request);
@@ -62,7 +62,7 @@ export async function PATCH(
     const { neuteredSpayed, ...petData } = body;
 
     const pet = await prisma.pet.update({
-      where: { id: params.id },
+      where: { id: params.petId },
       data: {
         ...(petData.name !== undefined && { name: petData.name }),
         ...(petData.breed !== undefined && { breed: petData.breed || null }),
@@ -85,8 +85,8 @@ export async function PATCH(
     // Handle neuteredSpayed via DogHealth
     if (neuteredSpayed !== undefined) {
       await prisma.dogHealth.upsert({
-        where: { petId: params.id },
-        create: { petId: params.id, neuteredSpayed: Boolean(neuteredSpayed) },
+        where: { petId: params.petId },
+        create: { petId: params.petId, neuteredSpayed: Boolean(neuteredSpayed) },
         update: { neuteredSpayed: Boolean(neuteredSpayed) },
       });
     }

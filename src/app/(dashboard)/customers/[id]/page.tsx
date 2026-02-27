@@ -1642,7 +1642,7 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 const PROGRAM_TYPE_LABELS: Record<string, string> = {
-  BASIC_OBEDIENCE: "ציות בסיסי",
+  BASIC_OBEDIENCE: "משמעת בסיסית",
   REACTIVITY: "ריאקטיביות",
   PUPPY: "גור",
   BEHAVIOR: "התנהגות",

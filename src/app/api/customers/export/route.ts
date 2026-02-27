@@ -13,25 +13,29 @@ export async function GET(request: NextRequest) {
   const customers = await prisma.customer.findMany({
     where: { businessId: DEMO_BUSINESS_ID },
     orderBy: { name: "asc" },
-    select: {
-      name: true,
-      phone: true,
-      email: true,
-      address: true,
-      tags: true,
-      createdAt: true,
-      _count: {
+    include: {
+      pets: {
         select: {
-          pets: true,
-          appointments: true,
+          name: true,
+          species: true,
+          breed: true,
+          gender: true,
+          weight: true,
         },
+      },
+      _count: {
+        select: { appointments: true },
       },
     },
   });
 
-  const headers = ["שם", "טלפון", "אימייל", "כתובת", "תגיות", "חיות מחמד", "תורים", "תאריך הצטרפות"];
+  const headers = [
+    "שם לקוח", "טלפון", "אימייל", "כתובת", "תגיות", "תורים", "תאריך הצטרפות",
+    "שם חיית מחמד", "סוג", "גזע", "מין", "משקל (ק״ג)",
+  ];
 
-  const rows = customers.map((c) => {
+  const rows: string[][] = [];
+  for (const c of customers) {
     let tags = "";
     try {
       const parsed = JSON.parse(c.tags || "[]");
@@ -46,17 +50,32 @@ export async function GET(request: NextRequest) {
       year: "numeric",
     });
 
-    return [
+    const customerBase = [
       c.name,
       c.phone,
       c.email ?? "",
       c.address ?? "",
       tags,
-      String(c._count.pets),
       String(c._count.appointments),
       joinedDate,
     ];
-  });
+
+    if (c.pets.length === 0) {
+      rows.push([...customerBase, "", "", "", "", ""]);
+    } else {
+      for (const pet of c.pets) {
+        const speciesLabel = pet.species === "dog" ? "כלב" : pet.species === "cat" ? "חתול" : "אחר";
+        rows.push([
+          ...customerBase,
+          pet.name,
+          speciesLabel,
+          pet.breed ?? "",
+          pet.gender ?? "",
+          pet.weight != null ? String(pet.weight) : "",
+        ]);
+      }
+    }
+  }
 
   // CSV escape: wrap in quotes and double any internal quotes
   const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;

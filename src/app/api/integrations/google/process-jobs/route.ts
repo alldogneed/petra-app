@@ -9,10 +9,10 @@ import { processPendingSyncJobs } from "@/lib/sync-jobs";
  */
 export async function GET(request: NextRequest) {
   try {
-    const secret = request.headers.get("x-cron-secret") || new URL(request.url).searchParams.get("secret");
+    const secret = request.headers.get("x-cron-secret");
 
-    // Verify CRON_SECRET
-    if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+    // Verify CRON_SECRET — header only, never query param
+    if (!process.env.CRON_SECRET || !secret || secret !== process.env.CRON_SECRET) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

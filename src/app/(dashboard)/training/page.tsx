@@ -153,18 +153,18 @@ const TYPE_BADGE: Record<TrainingType, { label: string; bg: string; text: string
 };
 
 const PROGRAM_TYPES_MAP: Record<string, string> = {
-  BASIC_OBEDIENCE: "ציות בסיסי",
+  BASIC_OBEDIENCE: "משמעת בסיסית",
   REACTIVITY: "תגובתיות",
   PUPPY: "גורים",
   BEHAVIOR: "בעיות התנהגות",
-  ADVANCED: "ציות מתקדם",
+  ADVANCED: "משמעת מתקדמת",
   CUSTOM: "מותאם אישית",
 };
 
 const GROUP_TYPES_MAP: Record<string, string> = {
   PUPPY_CLASS: "כיתת גורים",
   REACTIVITY: "תגובתיות",
-  OBEDIENCE: "ציות",
+  OBEDIENCE: "משמעת",
   CUSTOM: "מותאם אישית",
   WORKSHOP: "סדנה",
 };

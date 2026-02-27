@@ -18,6 +18,12 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (q.length > 100) {
+      return NextResponse.json(
+        { error: "Search query too long" },
+        { status: 400 }
+      );
+    }
 
     const [customers, pets, appointments, boarding] = await Promise.all([
       prisma.customer.findMany({

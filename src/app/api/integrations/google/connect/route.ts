@@ -1,22 +1,22 @@
 export const dynamic = 'force-dynamic';
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { buildCalendarAuthUrl } from "@/lib/google-calendar";
 
 /**
- * GET /api/integrations/google/connect
+ * GET /api/integrations/google/connect?from=onboarding
  * Redirects the user to Google's OAuth consent screen for Calendar access.
- * Stores user ID in state param for callback verification.
+ * State = "userId" or "userId|onboarding" when coming from onboarding wizard.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // State = userId (will be verified in callback)
-    const state = session.user.id;
+    const from = new URL(request.url).searchParams.get("from");
+    const state = from ? `${session.user.id}|${from}` : session.user.id;
     const authUrl = buildCalendarAuthUrl(state);
 
     return NextResponse.redirect(authUrl);

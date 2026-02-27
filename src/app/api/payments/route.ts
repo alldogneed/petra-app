@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { InvoicingService } from "@/lib/invoicing/invoicing-service";
 import { enqueueInvoiceJob } from "@/lib/invoicing/invoicing-jobs";
 
@@ -55,6 +56,12 @@ export async function POST(request: NextRequest) {
   try {
     const authResult = await requireAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rl = rateLimit("api:payments:write", ip, RATE_LIMITS.API_WRITE);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "יותר מדי בקשות" }, { status: 429 });
+    }
 
     const body = await request.json();
     const { amount, method, status, customerId, appointmentId, boardingStayId } =

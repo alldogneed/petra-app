@@ -2,11 +2,19 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import crypto from "crypto";
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { token: string } }
 ) {
+  // Rate limit by IP to prevent token enumeration
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const rl = rateLimit("intake:view", ip, RATE_LIMITS.PUBLIC_READ);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "יותר מדי בקשות" }, { status: 429 });
+  }
+
   try {
     const tokenHash = crypto.createHash("sha256").update(params.token).digest("hex");
 
@@ -46,7 +54,7 @@ export async function GET(
       id: form.id,
       businessName: form.business.name,
       customerName: form.customer?.name || null,
-      customerPhone: form.customer?.phone || null,
+      // customerPhone intentionally omitted — PII not needed on public endpoint
       status: form.status,
     });
   } catch (error) {

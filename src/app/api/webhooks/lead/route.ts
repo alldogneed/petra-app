@@ -16,11 +16,20 @@ export const dynamic = 'force-dynamic';
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
-  // ── Auth ────────────────────────────────────────────────────────────────────
+  // ── Rate limiting ────────────────────────────────────────────────────────────
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const rl = rateLimit("webhook:lead", ip, RATE_LIMITS.WEBHOOK_LEAD);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
+  // ── Auth (constant-time comparison) ─────────────────────────────────────────
   const secret = process.env.MAKE_WEBHOOK_SECRET;
   if (!secret) {
     return NextResponse.json(
@@ -30,7 +39,19 @@ export async function POST(request: NextRequest) {
   }
 
   const apiKey = request.headers.get("x-api-key");
-  if (!apiKey || apiKey !== secret) {
+  if (!apiKey) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let authorized = false;
+  try {
+    const a = Buffer.from(apiKey.padEnd(secret.length, "\0"));
+    const b = Buffer.from(secret.padEnd(apiKey.length, "\0"));
+    authorized = apiKey.length === secret.length && timingSafeEqual(a, b);
+  } catch {
+    authorized = false;
+  }
+  if (!authorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

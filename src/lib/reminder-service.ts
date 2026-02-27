@@ -138,6 +138,41 @@ export async function rescheduleBoardingCheckoutReminder(stay: BoardingStayForRe
   return scheduleBoardingCheckoutReminder(stay);
 }
 
+/**
+ * Schedule a "thank you for staying" WhatsApp message after checkout.
+ * Sends 1 hour after checkout.
+ * Idempotent — uses relatedEntityId for deduplication.
+ */
+export async function scheduleBoardingThankYou(stay: BoardingStayForReminder) {
+  const relatedEntityId = `boarding-thankyou-${stay.id}`;
+
+  const existing = await prisma.scheduledMessage.findFirst({
+    where: {
+      relatedEntityType: "BOARDING_THANKYOU",
+      relatedEntityId,
+      status: { in: ["PENDING", "SENT"] },
+    },
+  });
+  if (existing) return null;
+
+  const sendAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+  const body = `שלום ${stay.customer.name}! 🐾 תודה ש-${stay.pet.name} שהה/שהתה אצלנו. היה לנו כיף ואנחנו מקווים שגם ${stay.pet.name} נהנה/נהנתה! נשמח לארח אתכם שוב 💛`;
+
+  return prisma.scheduledMessage.create({
+    data: {
+      businessId: stay.businessId,
+      customerId: stay.customerId,
+      channel: "whatsapp",
+      templateKey: "boarding_thank_you",
+      payloadJson: JSON.stringify({ body }),
+      sendAt,
+      status: "PENDING",
+      relatedEntityType: "BOARDING_THANKYOU",
+      relatedEntityId,
+    },
+  });
+}
+
 // ─── Reminder scheduling service for training group sessions ───
 
 /**

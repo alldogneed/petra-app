@@ -32,27 +32,48 @@ export async function GET(request: NextRequest) {
     if (type === "customers" || type === "both") {
       const customers = await prisma.customer.findMany({
         where: { businessId: DEMO_BUSINESS_ID, ...dateFilter },
-        include: { _count: { select: { pets: true } } },
+        include: {
+          pets: { select: { name: true, species: true, breed: true, gender: true, weight: true } },
+          _count: { select: { appointments: true } },
+        },
         orderBy: { createdAt: "desc" },
       });
 
-      const customerData = [
-        ["שם", "טלפון", "מייל", "כתובת", "תגיות", "תאריך הצטרפות", "מס׳ חיות"],
-        ...customers.map((c) => [
+      const customerRows: (string | number)[][] = [
+        ["שם לקוח", "טלפון", "מייל", "כתובת", "תגיות", "תאריך הצטרפות", "תורים", "שם חיית מחמד", "סוג", "גזע", "מין", "משקל (ק״ג)"],
+      ];
+
+      for (const c of customers) {
+        const base: (string | number)[] = [
           c.name,
           c.phone,
           c.email || "",
           c.address || "",
           c.tags || "",
           c.createdAt ? new Date(c.createdAt).toLocaleDateString("he-IL") : "",
-          c._count.pets,
-        ]),
-      ];
+          c._count.appointments,
+        ];
+        if (c.pets.length === 0) {
+          customerRows.push([...base, "", "", "", "", ""]);
+        } else {
+          for (const pet of c.pets) {
+            const speciesLabel = pet.species === "dog" ? "כלב" : pet.species === "cat" ? "חתול" : "אחר";
+            customerRows.push([
+              ...base,
+              pet.name,
+              speciesLabel,
+              pet.breed || "",
+              pet.gender || "",
+              pet.weight != null ? pet.weight : "",
+            ]);
+          }
+        }
+      }
 
-      const customerSheet = XLSX.utils.aoa_to_sheet(customerData);
-      // Set column widths
+      const customerSheet = XLSX.utils.aoa_to_sheet(customerRows);
       customerSheet["!cols"] = [
-        { wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 10 },
+        { wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 8 },
+        { wch: 15 }, { wch: 8 }, { wch: 15 }, { wch: 8 }, { wch: 10 },
       ];
       XLSX.utils.book_append_sheet(wb, customerSheet, "לקוחות");
     }

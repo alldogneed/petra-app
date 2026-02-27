@@ -10,12 +10,10 @@ import prisma from "@/lib/prisma";
  * Called daily via Vercel Cron.
  */
 export async function GET(request: NextRequest) {
-  const secret =
-    request.headers.get("x-cron-secret") ||
-    new URL(request.url).searchParams.get("secret");
+  const secret = request.headers.get("x-cron-secret");
   const cronSecret = process.env.CRON_SECRET;
 
-  if (!cronSecret || secret !== cronSecret) {
+  if (!cronSecret || !secret || secret !== cronSecret) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

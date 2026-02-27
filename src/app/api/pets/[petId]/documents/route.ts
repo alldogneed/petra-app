@@ -8,14 +8,14 @@ import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { petId: string } }
 ) {
   try {
     const authResult = await requireAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const pet = await prisma.pet.findUnique({
-      where: { id: params.id },
+      where: { id: params.petId },
       select: { attachments: true },
     });
     if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
@@ -32,7 +32,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { petId: string } }
 ) {
   try {
     const authResult = await requireAuth(request);
@@ -46,7 +46,7 @@ export async function POST(
     }
 
     const pet = await prisma.pet.findUnique({
-      where: { id: params.id },
+      where: { id: params.petId },
       select: { attachments: true },
     });
     if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
@@ -57,7 +57,7 @@ export async function POST(
     const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
     const fileId = crypto.randomBytes(16).toString("hex");
     const filename = `${fileId}.${ext}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "pets", params.id);
+    const uploadDir = path.join(process.cwd(), "public", "uploads", "pets", params.petId);
     await mkdir(uploadDir, { recursive: true });
     await writeFile(path.join(uploadDir, filename), buffer);
 
@@ -67,7 +67,7 @@ export async function POST(
       name: file.name,
       mimeType: file.type || "application/octet-stream",
       size: file.size,
-      url: `/uploads/pets/${params.id}/${filename}`,
+      url: `/uploads/pets/${params.petId}/${filename}`,
       createdAt: new Date().toISOString(),
     };
 
@@ -77,7 +77,7 @@ export async function POST(
     docs.push(newDoc);
 
     await prisma.pet.update({
-      where: { id: params.id },
+      where: { id: params.petId },
       data: { attachments: JSON.stringify(docs) },
     });
 
@@ -90,14 +90,14 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { petId: string } }
 ) {
   try {
     const { searchParams } = new URL(request.url);
     const docId = searchParams.get("docId");
 
     const pet = await prisma.pet.findUnique({
-      where: { id: params.id },
+      where: { id: params.petId },
       select: { attachments: true },
     });
     if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
@@ -107,7 +107,7 @@ export async function DELETE(
     const filtered = docs.filter((d: { id: string }) => d.id !== docId);
 
     await prisma.pet.update({
-      where: { id: params.id },
+      where: { id: params.petId },
       data: { attachments: JSON.stringify(filtered) },
     });
 

@@ -54,6 +54,7 @@ import {
 import { useAuth } from "@/providers/auth-provider";
 import { formatCurrency, fetchJSON, cn, toWhatsAppPhone } from "@/lib/utils";
 import { SetupChecklist } from "@/components/onboarding/SetupChecklist";
+import { TeamWelcomeModal } from "@/components/onboarding/TeamWelcomeModal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1716,6 +1717,9 @@ export default function DashboardPage() {
 
       {/* Setup Checklist — shown to users who haven't completed setup yet */}
       <SetupChecklist />
+
+      {/* Welcome modal — shown once to new team members (non-owners) */}
+      <TeamWelcomeModal />
 
       {/* Daily Focus — Today's & Overdue Tasks */}
       <DailyFocusSection

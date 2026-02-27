@@ -2105,7 +2105,7 @@ export default function SettingsPage() {
   const { isOwner } = useAuth();
   const invoicingParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data" | "tasks" | "messages">(
-    gcalParam ? "integrations" : invoicingParam === "invoicing" ? "invoicing" : invoicingParam === "messages" ? "messages" : "business"
+    gcalParam ? "integrations" : invoicingParam === "invoicing" ? "invoicing" : invoicingParam === "messages" ? "messages" : invoicingParam === "tasks" ? "tasks" : "business"
   );
 
   const tabs = [

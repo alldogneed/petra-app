@@ -1,11 +1,11 @@
 // ─── Individual Training Programs: constants, types, and helpers ───
 
 export const PROGRAM_TYPES = [
-  { id: "BASIC_OBEDIENCE", label: "ציות בסיסי" },
+  { id: "BASIC_OBEDIENCE", label: "משמעת בסיסית" },
   { id: "REACTIVITY", label: "תגובתיות" },
   { id: "PUPPY", label: "גורים" },
   { id: "BEHAVIOR", label: "בעיות התנהגות" },
-  { id: "ADVANCED", label: "ציות מתקדם" },
+  { id: "ADVANCED", label: "משמעת מתקדמת" },
   { id: "CUSTOM", label: "מותאם אישית" },
 ] as const;
 

@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
-import { cancelBoardingCheckoutReminders, rescheduleBoardingCheckoutReminder } from "@/lib/reminder-service";
+import { cancelBoardingCheckoutReminders, rescheduleBoardingCheckoutReminder, scheduleBoardingThankYou } from "@/lib/reminder-service";
 
 // GET /api/boarding/[id] – get a single boarding stay
 export async function GET(
@@ -90,10 +90,18 @@ export async function PATCH(
       },
     });
 
-    // Handle checkout reminders
+    // Handle checkout reminders and thank-you message
     if (body.status === "checked_out") {
-      // Stay is over — cancel any pending reminders
+      // Stay is over — cancel any pending reminders and send thank-you
       cancelBoardingCheckoutReminders(params.id).catch(console.error);
+      scheduleBoardingThankYou({
+        id: stay.id,
+        businessId: stay.businessId,
+        customerId: stay.customerId,
+        checkOut: stay.checkOut,
+        pet: { name: stay.pet.name },
+        customer: { name: stay.customer.name },
+      }).catch(console.error);
     } else if (body.checkOut !== undefined) {
       // Checkout date changed — reschedule
       rescheduleBoardingCheckoutReminder({

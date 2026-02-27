@@ -3,7 +3,7 @@
 export const GROUP_TYPES = [
   { id: "PUPPY_CLASS", label: "כיתת גורים" },
   { id: "REACTIVITY", label: "תגובתיות" },
-  { id: "OBEDIENCE", label: "ציות" },
+  { id: "OBEDIENCE", label: "משמעת" },
   { id: "CUSTOM", label: "מותאם אישית" },
   { id: "WORKSHOP", label: "סדנה" },
 ] as const;
