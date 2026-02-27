@@ -2187,6 +2187,7 @@ export default function CustomersPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "dormant" | "vip">("all");
   const [serviceTypeFilter, setServiceTypeFilter] = useState("");
   const [financialFilter, setFinancialFilter] = useState<"all" | "debt" | "balanced">("all");
+  const [lastVisitFilter, setLastVisitFilter] = useState<"" | "30" | "60" | "90" | "never">("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showNewModal, setShowNewModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -2262,8 +2263,22 @@ export default function CustomersPage() {
       filtered = filtered.filter((c) => parseTags(c.tags).includes(tagFilter));
     }
 
+    // Last visit filter
+    if (lastVisitFilter) {
+      const now = new Date();
+      if (lastVisitFilter === "never") {
+        filtered = filtered.filter((c) => !c.lastAppointment);
+      } else {
+        const days = parseInt(lastVisitFilter, 10);
+        const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+        filtered = filtered.filter(
+          (c) => !c.lastAppointment || new Date(c.lastAppointment.date) < cutoff
+        );
+      }
+    }
+
     return filtered;
-  }, [rawCustomers, statusFilter, financialFilter, tagFilter]);
+  }, [rawCustomers, statusFilter, financialFilter, tagFilter, lastVisitFilter]);
 
   // ── Stats ──
   const stats = useMemo(() => {
@@ -2463,6 +2478,22 @@ export default function CustomersPage() {
                 )
               }
             />
+          </div>
+
+          {/* Last visit filter */}
+          <div className="relative">
+            <select
+              value={lastVisitFilter}
+              onChange={(e) => setLastVisitFilter(e.target.value as typeof lastVisitFilter)}
+              className="appearance-none bg-[#FAF7F3] border border-[#E8DFD5] rounded-full text-xs font-medium text-[#8B7355] pl-7 pr-3 py-1.5 hover:bg-[#F3EDE6] hover:border-[#D4C5B2] transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#C4956A]/20"
+            >
+              <option value="">ביקור אחרון</option>
+              <option value="30">30+ ימים</option>
+              <option value="60">60+ ימים</option>
+              <option value="90">90+ ימים</option>
+              <option value="never">אף פעם</option>
+            </select>
+            <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#A0845C] pointer-events-none" />
           </div>
 
           {/* Separator */}
