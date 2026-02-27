@@ -55,6 +55,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/intake-forms": { title: "טפסי קליטה", subtitle: "ניהול טפסי קליטה ששלחת" },
   "/exports": { title: "ייצוא נתונים", subtitle: "הורד נתוני עסק לקובץ" },
   "/vaccinations": { title: "חיסונים", subtitle: "תזכורות חיסוני כלבת" },
+  "/pets": { title: "חיות מחמד", subtitle: "כל החיות הרשומות בעסק" },
 };
 
 interface IntegrationStatus {

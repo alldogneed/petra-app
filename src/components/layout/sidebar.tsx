@@ -30,6 +30,7 @@ import {
   Zap,
   Download,
   Syringe,
+  PawPrint,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -56,6 +57,7 @@ const navItems: NavItem[] = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
   { name: "לידים", href: "/leads", icon: Target },
   { name: "לקוחות", href: "/customers", icon: Users },
+  { name: "חיות מחמד", href: "/pets", icon: PawPrint },
   { name: "יומן", href: "/calendar", icon: Calendar },
   { name: "תזמון", href: "/scheduler", icon: CalendarClock },
   { name: "משימות", href: "/tasks", icon: ListTodo },
