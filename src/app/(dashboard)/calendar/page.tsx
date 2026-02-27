@@ -15,6 +15,7 @@ import {
   MessageCircle,
   Pencil,
   Check,
+  Trash2,
 } from "lucide-react";
 import {
   cn,
@@ -528,6 +529,7 @@ export default function CalendarPage() {
   const [selectedAppointment, setSelectedAppointment] =
     useState<AppointmentEvent | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesInput, setNotesInput] = useState("");
   const [hoveredApt, setHoveredApt] = useState<{
@@ -624,6 +626,18 @@ export default function CalendarPage() {
       else if (status === "canceled") toast.success("התור בוטל");
     },
     onError: () => toast.error("שגיאה בעדכון התור. נסה שוב."),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetchJSON(`/api/appointments/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      setSelectedAppointment(null);
+      setConfirmDeleteId(null);
+      toast.success("התור נמחק");
+    },
+    onError: () => toast.error("שגיאה במחיקת התור. נסה שוב."),
   });
 
   const notesMutation = useMutation({
@@ -1638,7 +1652,24 @@ export default function CalendarPage() {
             </a>
 
             <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
-              {confirmCancelId === selectedAppointment.id ? (
+              {confirmDeleteId === selectedAppointment.id ? (
+                <div className="flex-1 flex items-center gap-2 bg-red-50 rounded-xl px-3 py-2">
+                  <span className="text-xs text-red-700 flex-1">למחוק את התור לצמיתות?</span>
+                  <button
+                    className="text-xs font-semibold text-red-600 hover:text-red-800"
+                    disabled={deleteMutation.isPending}
+                    onClick={() => deleteMutation.mutate(selectedAppointment.id)}
+                  >
+                    {deleteMutation.isPending ? "..." : "כן, מחק"}
+                  </button>
+                  <button
+                    className="text-xs text-petra-muted hover:text-petra-text"
+                    onClick={() => setConfirmDeleteId(null)}
+                  >
+                    לא
+                  </button>
+                </div>
+              ) : confirmCancelId === selectedAppointment.id ? (
                 <div className="flex-1 flex items-center gap-2 bg-red-50 rounded-xl px-3 py-2">
                   <span className="text-xs text-red-700 flex-1">לבטל את התור?</span>
                   <button
@@ -1660,23 +1691,34 @@ export default function CalendarPage() {
                 </div>
               ) : (
                 <>
+                  {selectedAppointment.status === "scheduled" && (
+                    <button
+                      className="btn-primary flex-1 text-xs"
+                      disabled={statusMutation.isPending}
+                      onClick={() =>
+                        statusMutation.mutate({
+                          id: selectedAppointment.id,
+                          status: "completed",
+                        })
+                      }
+                    >
+                      הושלם
+                    </button>
+                  )}
+                  {selectedAppointment.status === "scheduled" && (
+                    <button
+                      className="btn-danger flex-1 text-xs"
+                      onClick={() => setConfirmCancelId(selectedAppointment.id)}
+                    >
+                      בטל תור
+                    </button>
+                  )}
                   <button
-                    className="btn-primary flex-1 text-xs"
-                    disabled={statusMutation.isPending}
-                    onClick={() =>
-                      statusMutation.mutate({
-                        id: selectedAppointment.id,
-                        status: "completed",
-                      })
-                    }
+                    className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors flex-shrink-0"
+                    onClick={() => setConfirmDeleteId(selectedAppointment.id)}
+                    title="מחק תור"
                   >
-                    הושלם
-                  </button>
-                  <button
-                    className="btn-danger flex-1 text-xs"
-                    onClick={() => setConfirmCancelId(selectedAppointment.id)}
-                  >
-                    בטל תור
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </>
               )}

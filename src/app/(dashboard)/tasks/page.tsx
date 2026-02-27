@@ -27,6 +27,7 @@ import {
   CalendarDays,
   Filter,
   Pencil,
+  Search,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -146,6 +147,7 @@ function formatShortDate(task: Task): string {
 export default function TasksPage() {
   const [activeCategory, setActiveCategory] = useState("ALL");
   const [activeFilter, setActiveFilter] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showNewTask, setShowNewTask] = useState(false);
   const [postponeTask, setPostponeTask] = useState<Task | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Task | null>(null);
@@ -169,12 +171,23 @@ export default function TasksPage() {
     },
   });
 
-  // Apply computed status filter on client
+  // Apply computed status filter + search on client
   const filteredTasks = allTasks.filter((task) => {
-    if (activeFilter === "ALL") return true;
-    if (activeFilter === "COMPLETED") return task.status === "COMPLETED";
-    const computed = computeTaskStatus(task);
-    return computed === activeFilter;
+    if (activeFilter !== "ALL") {
+      if (activeFilter === "COMPLETED" && task.status !== "COMPLETED") return false;
+      if (activeFilter !== "COMPLETED") {
+        const computed = computeTaskStatus(task);
+        if (computed !== activeFilter) return false;
+      }
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return (
+        task.title.toLowerCase().includes(q) ||
+        (task.description?.toLowerCase().includes(q) ?? false)
+      );
+    }
+    return true;
   });
 
   // Sort: overdue first, then active, then scheduled, then completed
@@ -317,6 +330,25 @@ export default function TasksPage() {
           <Plus className="w-4 h-4" />
           משימה חדשה
         </button>
+      </div>
+
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
+        <input
+          className="input pr-9 w-full sm:w-72"
+          placeholder="חפש משימה..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        {searchQuery && (
+          <button
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full hover:bg-slate-200 text-petra-muted"
+            onClick={() => setSearchQuery("")}
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
       </div>
 
       {/* Status Filter Tabs */}
