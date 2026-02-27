@@ -220,10 +220,41 @@ export async function POST(
     return NextResponse.json({ error: result.validationError }, { status: 400 })
   }
 
-  const { booking, customer, status } = result as { booking: { id: string }, customer: { phone: string, name: string }, status: string }
+  const { booking, customer, status } = result as {
+    booking: { id: string },
+    customer: { id: string, phone: string, name: string },
+    status: string,
+  }
 
-  // Send notifications (stubbed)
+  // Auto-create appointment for automatically-confirmed bookings
   if (status === "confirmed") {
+    const pad = (n: number) => n.toString().padStart(2, "0")
+    const startTime = `${pad(startAt.getHours())}:${pad(startAt.getMinutes())}`
+    const endTime = `${pad(endAt.getHours())}:${pad(endAt.getMinutes())}`
+    const dateOnly = new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate())
+    // First pet from booking dogs (already created inside transaction)
+    const bookingWithDogs = await prisma.booking.findUnique({
+      where: { id: booking.id },
+      select: { dogs: { select: { petId: true }, take: 1 } },
+    })
+    const firstPetId = bookingWithDogs?.dogs[0]?.petId ?? null
+    const existing = await prisma.appointment.findFirst({
+      where: { businessId: business.id, customerId: customer.id, serviceId, date: dateOnly, startTime },
+    })
+    if (!existing) {
+      await prisma.appointment.create({
+        data: {
+          businessId: business.id,
+          customerId: customer.id,
+          serviceId,
+          petId: firstPetId,
+          date: dateOnly,
+          startTime,
+          endTime,
+          status: "scheduled",
+        },
+      })
+    }
     notifyCustomerConfirmed(booking, customer)
   } else {
     notifyCustomerPending(booking, customer)
