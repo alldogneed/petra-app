@@ -17,6 +17,7 @@ import {
   MessageCircle,
   Trash2,
   Search,
+  Download,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
@@ -207,6 +208,29 @@ export default function PaymentsPage() {
   const paidCount = allPayments.filter((p) => p.status === "paid").length;
   const pendingCount = allPayments.filter((p) => p.status === "pending").length;
 
+  function exportCSV() {
+    const rows = [
+      ["תאריך", "לקוח", "סכום", "אמצעי תשלום", "סטטוס", "שירות", "מספר חשבונית"],
+      ...filteredPayments.map((p) => [
+        formatDate(p.createdAt),
+        p.customer.name,
+        p.amount.toString(),
+        METHOD_LABELS[p.method] || p.method,
+        STATUS_INFO[p.status]?.label || p.status,
+        p.appointment?.service.name || (p.boardingStay ? `פנסיון — ${p.boardingStay.pet.name}` : ""),
+        p.invoiceNumber || "",
+      ]),
+    ];
+    const csvContent = "\uFEFF" + rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `תשלומים_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-6 flex-wrap">
@@ -217,6 +241,15 @@ export default function PaymentsPage() {
         <button className="btn-primary" onClick={() => setShowNewPayment(true)}>
           <Plus className="w-4 h-4" />
           תשלום חדש
+        </button>
+        <button
+          className="btn-secondary"
+          onClick={exportCSV}
+          disabled={filteredPayments.length === 0}
+          title="ייצוא לקובץ CSV"
+        >
+          <Download className="w-4 h-4" />
+          ייצוא CSV
         </button>
         <div className="relative mr-auto">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
