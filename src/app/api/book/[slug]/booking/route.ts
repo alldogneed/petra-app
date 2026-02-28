@@ -256,13 +256,13 @@ export async function POST(
     })
     const firstPetId = bookingWithDogs?.dogs[0]?.petId ?? null
 
-    if (isBoarding) {
+    if (isBoarding && firstPetId) {
       // For boarding: create a BoardingStay linked to this booking
       await prisma.boardingStay.create({
         data: {
           businessId: business.id,
           customerId: customer.id,
-          petId: firstPetId as string,
+          petId: firstPetId,
           checkIn: startAt,
           checkOut: endAt,
           status: "reserved",

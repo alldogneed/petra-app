@@ -30,12 +30,18 @@ export async function POST(
       );
     }
 
+    // Find the won stage for this business
+    const wonStage = await prisma.leadStage.findFirst({
+      where: { businessId: DEMO_BUSINESS_ID, isWon: true },
+    });
+    const wonStageId = wonStage?.id ?? "won";
+
     // If lead already has a customer, just update the stage
     if (existing.customerId) {
       const lead = await prisma.lead.update({
         where: { id },
         data: {
-          stage: "won",
+          stage: wonStageId,
           wonAt: new Date(),
         },
         include: { customer: true, callLogs: true },
@@ -63,7 +69,7 @@ export async function POST(
       const lead = await tx.lead.update({
         where: { id },
         data: {
-          stage: "won",
+          stage: wonStageId,
           wonAt: new Date(),
           customerId: customer.id,
         },

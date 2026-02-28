@@ -75,11 +75,16 @@ export async function POST(
                 });
             }
 
+            // Find the won stage for this business
+            const wonStage = await tx.leadStage.findFirst({
+                where: { businessId, isWon: true },
+            });
+
             // Mark lead as won and link to customer
             const updatedLead = await tx.lead.update({
                 where: { id },
                 data: {
-                    stage: "won",
+                    stage: wonStage?.id ?? "won",
                     wonAt: new Date(),
                     customerId: customer!.id,
                 },

@@ -8,13 +8,18 @@ async function main() {
   // Create demo business
   const business = await prisma.business.upsert({
     where: { id: DEMO_BUSINESS_ID },
-    update: {},
+    update: {
+      slug: "demo",
+      status: "active",
+    },
     create: {
       id: DEMO_BUSINESS_ID,
       name: "פטרה - ניהול חיות מחמד",
       phone: "03-1234567",
       email: "demo@petra.app",
       tier: "pro",
+      slug: "demo",
+      status: "active",
     },
   })
   console.log("✓ Business:", business.name)
@@ -40,7 +45,7 @@ async function main() {
   const services = await Promise.all([
     prisma.service.upsert({
       where: { id: "svc-training-001" },
-      update: {},
+      update: { isPublicBookable: true, isActive: true },
       create: {
         id: "svc-training-001",
         businessId: DEMO_BUSINESS_ID,
@@ -49,11 +54,13 @@ async function main() {
         duration: 60,
         price: 250,
         color: "#F97316",
+        isPublicBookable: true,
+        isActive: true,
       },
     }),
     prisma.service.upsert({
       where: { id: "svc-grooming-001" },
-      update: {},
+      update: { isPublicBookable: true, isActive: true },
       create: {
         id: "svc-grooming-001",
         businessId: DEMO_BUSINESS_ID,
@@ -62,11 +69,13 @@ async function main() {
         duration: 90,
         price: 180,
         color: "#8B5CF6",
+        isPublicBookable: true,
+        isActive: true,
       },
     }),
     prisma.service.upsert({
       where: { id: "svc-consultation-001" },
-      update: {},
+      update: { isPublicBookable: true, isActive: true },
       create: {
         id: "svc-consultation-001",
         businessId: DEMO_BUSINESS_ID,
@@ -75,6 +84,8 @@ async function main() {
         duration: 45,
         price: 200,
         color: "#06B6D4",
+        isPublicBookable: true,
+        isActive: true,
       },
     }),
   ])

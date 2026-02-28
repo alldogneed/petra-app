@@ -873,7 +873,7 @@ export default function CalendarPage() {
       fetchJSON(`/api/appointments/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: date + "T00:00:00", startTime, endTime }),
+        body: JSON.stringify({ date, startTime, endTime }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
