@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
@@ -70,9 +70,17 @@ const STAGE_COLORS = [
   "#22C55E", "#EAB308", "#F97316", "#EF4444",
 ];
 
-function NewLeadModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: () => void; stages: LeadStage[] }) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ name: "", phone: "", email: "", source: "manual", notes: "" });
+  const activeStages = stages.filter((s) => !s.isWon && !s.isLost);
+  const [form, setForm] = useState({ name: "", phone: "", email: "", source: "manual", notes: "", stage: activeStages[0]?.id || "new" });
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm({ name: "", phone: "", email: "", source: "manual", notes: "", stage: activeStages[0]?.id || "new" });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const mutation = useMutation({
     mutationFn: (data: typeof form) =>
@@ -82,7 +90,6 @@ function NewLeadModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       onClose();
-      setForm({ name: "", phone: "", email: "", source: "manual", notes: "" });
       toast.success("הליד נוצר בהצלחה");
     },
     onError: () => toast.error("שגיאה ביצירת הליד. נסה שוב."),
@@ -113,11 +120,21 @@ function NewLeadModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
               <input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
           </div>
-          <div>
-            <label className="label">מקור</label>
-            <select className="input" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
-              {LEAD_SOURCES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">מקור</label>
+              <select className="input" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
+                {LEAD_SOURCES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">שלב</label>
+              <select className="input" value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value })}>
+                {activeStages.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div>
             <label className="label">הערות</label>
@@ -1316,7 +1333,7 @@ export default function LeadsPage() {
         </DndContext>
       )}
 
-      <NewLeadModal isOpen={showModal} onClose={() => setShowModal(false)} />
+      <NewLeadModal isOpen={showModal} onClose={() => setShowModal(false)} stages={stages} />
 
       <LeadTreatmentModal
         lead={selectedLead}

@@ -1,9 +1,22 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+
+const PatchLeadSchema = z.object({
+  stage: z.enum(["new", "contacted", "qualified", "won", "lost"]).optional(),
+  notes: z.string().max(5000).nullable().optional(),
+  lostReasonCode: z.string().max(50).nullable().optional(),
+  lostReasonText: z.string().max(500).nullable().optional(),
+  lastContactedAt: z.string().datetime().nullable().optional(),
+  wonAt: z.string().datetime().nullable().optional(),
+  lostAt: z.string().datetime().nullable().optional(),
+  nextFollowUpAt: z.string().datetime().nullable().optional(),
+  followUpStatus: z.string().max(50).nullable().optional(),
+});
 
 export async function PATCH(
   request: NextRequest,
@@ -14,18 +27,15 @@ export async function PATCH(
     if (isGuardError(authResult)) return authResult;
 
     const { id } = params;
-    const body = await request.json();
-    const {
-      stage,
-      notes,
-      lostReasonCode,
-      lostReasonText,
-      lastContactedAt,
-      wonAt,
-      lostAt,
-      nextFollowUpAt,
-      followUpStatus,
-    } = body;
+    const raw = await request.json();
+    const parsed = PatchLeadSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
+    }
+    // Use raw (any) for Prisma after Zod validation — avoids nullable/optional type conflicts
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const body: any = raw;
+    const { stage, notes, lostReasonCode, lostReasonText, lastContactedAt, wonAt, lostAt, nextFollowUpAt, followUpStatus } = body;
 
     const existing = await prisma.lead.findFirst({
       where: { id, businessId: DEMO_BUSINESS_ID },

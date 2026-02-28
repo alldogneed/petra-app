@@ -87,8 +87,10 @@ export const RATE_LIMITS = {
   API_WRITE: { max: 120, windowMs: 60 * 1000 },
   /** Lead webhook: 60 per minute per IP */
   WEBHOOK_LEAD: { max: 60, windowMs: 60 * 1000 },
-  /** Public read endpoints (intake, QR): 30 per minute per IP */
+  /** Public read endpoints (general): 30 per minute per IP */
   PUBLIC_READ: { max: 30, windowMs: 60 * 1000 },
+  /** Sensitive token endpoints (intake, QR): 10 per minute per IP — prevents brute-force enumeration */
+  STRICT_TOKEN: { max: 10, windowMs: 60 * 1000 },
 } as const;
 
 /** Periodic cleanup of expired entries (call from a cron or app init) */

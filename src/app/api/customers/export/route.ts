@@ -3,12 +3,17 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 
 // GET /api/customers/export
 // Returns a UTF-8 CSV (with BOM for Excel) of all customers.
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth(request);
   if (isGuardError(authResult)) return authResult;
+
+  // Audit log: record who exported customer data and when
+  const { session } = authResult;
+  logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.EXPORT_CUSTOMERS);
 
   const customers = await prisma.customer.findMany({
     where: { businessId: DEMO_BUSINESS_ID },

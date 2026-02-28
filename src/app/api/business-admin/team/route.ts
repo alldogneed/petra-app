@@ -2,18 +2,23 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
-import { getCurrentUser } from "@/lib/auth";
+import { DEMO_BUSINESS_ID } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth(request);
   if (isGuardError(authResult)) return authResult;
 
-  const user = await getCurrentUser();
-  if (!user || !["owner", "admin"].includes(user.businessRole ?? "") || !user.businessId) {
+  const { session } = authResult;
+
+  // Verify user is an active owner or admin of this business
+  const membership = session.memberships.find(
+    (m) => m.businessId === DEMO_BUSINESS_ID && m.isActive
+  );
+  if (!membership || !["owner", "admin"].includes(membership.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const bizId = user.businessId;
+  const bizId = DEMO_BUSINESS_ID;
 
   const members = await prisma.businessUser.findMany({
     where: { businessId: bizId },

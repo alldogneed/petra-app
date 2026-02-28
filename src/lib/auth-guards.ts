@@ -149,8 +149,9 @@ export async function requireTenantPermission(
     return NextResponse.json({ error: "Account is disabled" }, { status: 403 });
   }
 
-  // Platform super_admin can access all tenants
+  // Platform super_admin can access all tenants — log for audit trail
   if (session.user.platformRole === "super_admin") {
+    console.warn(`[SECURITY] super_admin access: user=${session.user.id} (${session.user.email}) → business=${businessId} permission=${permission}`);
     const fakeMembership = { businessId, role: "owner" as TenantRole, isActive: true };
     return { session, membership: fakeMembership };
   }

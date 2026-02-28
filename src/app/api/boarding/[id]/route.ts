@@ -1,10 +1,23 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { cancelBoardingCheckoutReminders, rescheduleBoardingCheckoutReminder, scheduleBoardingThankYou } from "@/lib/reminder-service";
+
+const PatchBoardingSchema = z.object({
+  checkIn: z.string().datetime().optional(),
+  actualCheckinTime: z.string().datetime().optional(),
+  checkOut: z.string().datetime().nullable().optional(),
+  actualCheckoutTime: z.string().datetime().optional(),
+  status: z.enum(["reserved", "checked_in", "checked_out", "canceled"]).optional(),
+  roomId: z.string().uuid().optional(),
+  notes: z.string().max(2000).nullable().optional(),
+  checkinNotes: z.string().max(500).optional(),
+  checkoutNotes: z.string().max(500).optional(),
+});
 
 // GET /api/boarding/[id] – get a single boarding stay
 export async function GET(
@@ -52,10 +65,15 @@ export async function PATCH(
       return NextResponse.json({ error: "שהייה לא נמצאה" }, { status: 404 });
     }
 
-    const body = await request.json();
+    const raw = await request.json();
+    const parsed = PatchBoardingSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
+    }
+    const body = parsed.data;
 
     // Build notes: append check-in/out notes if provided
-    let notesUpdate: string | undefined;
+    let notesUpdate: string | null | undefined;
     if (body.notes !== undefined) {
       notesUpdate = body.notes;
     }

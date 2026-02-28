@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import prisma from "@/lib/prisma";
 
 /**
@@ -12,7 +13,12 @@ export async function GET(request: NextRequest) {
   const secret = request.headers.get("x-cron-secret");
   const cronSecret = process.env.CRON_SECRET;
 
-  if (!cronSecret || !secret || secret !== cronSecret) {
+  if (!cronSecret || !secret) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const a = Buffer.from(secret);
+  const b = Buffer.from(cronSecret);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

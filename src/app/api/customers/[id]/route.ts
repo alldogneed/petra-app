@@ -1,9 +1,21 @@
 export const dynamic = 'force-dynamic';
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+
+const PatchCustomerSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  phone: z.string().max(20).optional(),
+  phoneNorm: z.string().max(20).nullable().optional(),
+  email: z.string().email().max(100).nullable().optional(),
+  address: z.string().max(500).nullable().optional(),
+  notes: z.string().max(5000).nullable().optional(),
+  tags: z.string().max(1000).nullable().optional(),
+  source: z.string().max(50).nullable().optional(),
+});
 
 export async function GET(
   request: NextRequest,
@@ -92,15 +104,16 @@ export async function PATCH(
     const authResult = await requireAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const body = await request.json();
+    const raw = await request.json();
+    const parsed = PatchCustomerSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
+    }
 
-    // Whitelist allowed fields to prevent mass assignment
+    // Build update payload from validated fields only
     const data: Record<string, unknown> = {};
-    const allowedFields = ["name", "phone", "phoneNorm", "email", "address", "notes", "tags", "source"];
-    for (const field of allowedFields) {
-      if (body[field] !== undefined) {
-        data[field] = body[field];
-      }
+    for (const [k, v] of Object.entries(parsed.data)) {
+      if (v !== undefined) data[k] = v;
     }
 
     const customer = await prisma.customer.update({

@@ -1,10 +1,21 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { cancelAppointmentReminders, rescheduleAppointmentReminder } from "@/lib/reminder-service";
+
+const PatchAppointmentSchema = z.object({
+  status: z.enum(["scheduled", "completed", "canceled"]).optional(),
+  notes: z.string().max(2000).nullable().optional(),
+  cancellationNote: z.string().max(500).nullable().optional(),
+  date: z.string().optional(),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  serviceId: z.string().uuid().optional(),
+});
 
 export async function PATCH(
   request: NextRequest,
@@ -15,8 +26,12 @@ export async function PATCH(
     if (isGuardError(authResult)) return authResult;
 
     const { id } = params;
-    const body = await request.json();
-    const { status, notes, cancellationNote, date, startTime, endTime, serviceId } = body;
+    const raw = await request.json();
+    const parsed = PatchAppointmentSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
+    }
+    const { status, notes, cancellationNote, date, startTime, endTime, serviceId } = parsed.data;
 
     const existing = await prisma.appointment.findFirst({
       where: { id, businessId: DEMO_BUSINESS_ID },

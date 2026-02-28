@@ -1,9 +1,23 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+
+const PatchTaskSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().max(2000).nullable().optional(),
+  category: z.enum(["GENERAL", "BOARDING", "TRAINING", "LEADS", "HEALTH", "MEDICATION", "FEEDING"]).optional(),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
+  status: z.enum(["OPEN", "COMPLETED", "CANCELED"]).optional(),
+  dueAt: z.string().datetime().nullable().optional(),
+  dueDate: z.string().nullable().optional(),
+  relatedEntityType: z.string().max(50).nullable().optional(),
+  relatedEntityId: z.string().max(100).nullable().optional(),
+  reminderEnabled: z.boolean().optional(),
+});
 
 export async function GET(
   request: NextRequest,
@@ -42,7 +56,12 @@ export async function PATCH(
     if (isGuardError(authResult)) return authResult;
 
     const { id } = params;
-    const body = await request.json();
+    const raw = await request.json();
+    const parsed = PatchTaskSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
+    }
+    const body = parsed.data;
 
     const existing = await prisma.task.findFirst({
       where: { id, businessId: DEMO_BUSINESS_ID },
@@ -52,18 +71,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    const {
-      title,
-      description,
-      category,
-      priority,
-      status,
-      dueAt,
-      dueDate,
-      relatedEntityType,
-      relatedEntityId,
-      reminderEnabled,
-    } = body;
+    const { title, description, category, priority, status, dueAt, dueDate, relatedEntityType, relatedEntityId, reminderEnabled } = body;
 
     // If status is changing to COMPLETED, set completedAt automatically
     const isCompleting =

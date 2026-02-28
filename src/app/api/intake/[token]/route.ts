@@ -10,7 +10,7 @@ export async function GET(
 ) {
   // Rate limit by IP to prevent token enumeration
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const rl = rateLimit("intake:view", ip, RATE_LIMITS.PUBLIC_READ);
+  const rl = rateLimit("intake:view", ip, RATE_LIMITS.STRICT_TOKEN);
   if (!rl.allowed) {
     return NextResponse.json({ error: "יותר מדי בקשות" }, { status: 429 });
   }
@@ -42,10 +42,10 @@ export async function GET(
       return NextResponse.json({ error: "הטופס כבר מולא" }, { status: 409 });
     }
 
-    // Mark as opened
+    // Mark as opened — atomic conditional update prevents race condition
     if (form.status === "SENT") {
-      await prisma.intakeForm.update({
-        where: { id: form.id },
+      await prisma.intakeForm.updateMany({
+        where: { id: form.id, status: "SENT" },
         data: { status: "OPENED", openedAt: new Date() },
       });
     }
