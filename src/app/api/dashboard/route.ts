@@ -20,6 +20,11 @@ export async function GET(request: NextRequest) {
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
+    const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowEnd = new Date(tomorrowStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+    const sixMonthsStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
     const [
       totalCustomers,
       totalPets,
@@ -39,6 +44,15 @@ export async function GET(request: NextRequest) {
       todayTasks,
       overdueTasks,
       urgentLeads,
+      pendingBookings,
+      todayArrivals,
+      todayDepartures,
+      tomorrowAppointments,
+      pendingPaymentRows,
+      atRiskRaw,
+      allPetsWithBirthdays,
+      todayRevenueAgg,
+      sixMonthPayments,
     ] = await Promise.all([
       prisma.customer.count({ where: { businessId } }),
       prisma.pet.count({ where: { customer: { businessId } } }),
@@ -78,7 +92,6 @@ export async function GET(request: NextRequest) {
       prisma.lead.count({
         where: { businessId, stage: { in: ["new", "contacted", "qualified"] } },
       }),
-      // New queries
       prisma.order.count({
         where: { businessId, status: { in: ["draft", "confirmed"] } },
       }),
@@ -119,7 +132,6 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: "desc" },
         take: 5,
       }),
-      // Today's tasks (for Daily Focus): tasks due today that aren't completed
       prisma.task.findMany({
         where: {
           businessId,
@@ -132,7 +144,6 @@ export async function GET(request: NextRequest) {
         orderBy: [{ dueAt: "asc" }, { priority: "desc" }],
         take: 10,
       }),
-      // Overdue tasks: past due date and not completed
       prisma.task.findMany({
         where: {
           businessId,
@@ -145,7 +156,6 @@ export async function GET(request: NextRequest) {
         orderBy: [{ dueAt: "asc" }, { dueDate: "asc" }],
         take: 10,
       }),
-      // Urgent leads: follow up time passed and status is pending
       prisma.lead.findMany({
         where: {
           businessId,
@@ -159,15 +169,11 @@ export async function GET(request: NextRequest) {
         orderBy: { nextFollowUpAt: "asc" },
         take: 10,
       }),
-    ]);
-
-    // Pending online bookings count
-    const pendingBookings = await prisma.booking.count({
-      where: { businessId, status: "pending" },
-    });
-
-    // Boarding: today's arrivals and departures
-    const [todayArrivals, todayDepartures] = await Promise.all([
+      // Pending online bookings count
+      prisma.booking.count({
+        where: { businessId, status: "pending" },
+      }),
+      // Today's arrivals
       prisma.boardingStay.findMany({
         where: {
           businessId,
@@ -182,6 +188,7 @@ export async function GET(request: NextRequest) {
         orderBy: { checkIn: "asc" },
         take: 10,
       }),
+      // Today's departures
       prisma.boardingStay.findMany({
         where: {
           businessId,
@@ -196,33 +203,83 @@ export async function GET(request: NextRequest) {
         orderBy: { checkOut: "asc" },
         take: 10,
       }),
+      // Tomorrow's appointments
+      prisma.appointment.findMany({
+        where: {
+          businessId,
+          date: { gte: tomorrowStart, lte: tomorrowEnd },
+          status: "scheduled",
+        },
+        include: {
+          customer: { select: { id: true, name: true, phone: true } },
+          pet: { select: { name: true } },
+          service: { select: { name: true } },
+        },
+        orderBy: { startTime: "asc" },
+      }),
+      // Pending payments for top debtors
+      prisma.payment.findMany({
+        where: { businessId, status: "pending" },
+        select: {
+          amount: true,
+          customer: { select: { id: true, name: true, phone: true } },
+        },
+      }),
+      // At-risk customers
+      prisma.customer.findMany({
+        where: {
+          businessId,
+          appointments: {
+            none: { date: { gte: sixtyDaysAgo } },
+            some: {},
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          appointments: {
+            select: { date: true },
+            orderBy: { date: "desc" },
+            take: 1,
+          },
+          _count: { select: { appointments: true } },
+        },
+        take: 30,
+      }),
+      // Pets with birthdays
+      prisma.pet.findMany({
+        where: { customer: { businessId }, birthDate: { not: null } },
+        select: {
+          id: true,
+          name: true,
+          species: true,
+          breed: true,
+          birthDate: true,
+          customer: { select: { id: true, name: true, phone: true } },
+        },
+      }),
+      // Today's revenue
+      prisma.payment.aggregate({
+        where: {
+          businessId,
+          status: "paid",
+          paidAt: { gte: todayStart, lte: todayEnd },
+        },
+        _sum: { amount: true },
+      }),
+      // Last 6 months payments — single query instead of 6 sequential aggregates
+      prisma.payment.findMany({
+        where: {
+          businessId,
+          status: "paid",
+          paidAt: { gte: sixMonthsStart },
+        },
+        select: { paidAt: true, amount: true },
+      }),
     ]);
 
-    // Tomorrow's appointments (for reminder widget)
-    const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-    const tomorrowEnd = new Date(tomorrowStart.getTime() + 24 * 60 * 60 * 1000 - 1);
-    const tomorrowAppointments = await prisma.appointment.findMany({
-      where: {
-        businessId,
-        date: { gte: tomorrowStart, lte: tomorrowEnd },
-        status: "scheduled",
-      },
-      include: {
-        customer: { select: { id: true, name: true, phone: true } },
-        pet: { select: { name: true } },
-        service: { select: { name: true } },
-      },
-      orderBy: { startTime: "asc" },
-    });
-
-    // Top debtors: customers with highest pending payment amounts
-    const pendingPaymentRows = await prisma.payment.findMany({
-      where: { businessId, status: "pending" },
-      select: {
-        amount: true,
-        customer: { select: { id: true, name: true, phone: true } },
-      },
-    });
+    // Top debtors: group pending payments by customer in JS
     const debtorMap = new Map<string, { id: string; name: string; phone: string; total: number }>();
     for (const row of pendingPaymentRows) {
       const key = row.customer.id;
@@ -235,29 +292,7 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.total - a.total)
       .slice(0, 5);
 
-    // At-risk customers: last appointment was 60+ days ago, had 2+ total appointments
-    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
-    const atRiskRaw = await prisma.customer.findMany({
-      where: {
-        businessId,
-        appointments: {
-          none: { date: { gte: sixtyDaysAgo } },
-          some: {},
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-        phone: true,
-        appointments: {
-          select: { date: true },
-          orderBy: { date: "desc" },
-          take: 1,
-        },
-        _count: { select: { appointments: true } },
-      },
-      take: 30,
-    });
+    // At-risk customers: filter in JS
     const atRiskCustomers = atRiskRaw
       .filter((c) => c._count.appointments >= 2 && c.appointments.length > 0)
       .map((c) => ({
@@ -283,18 +318,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Pet birthdays in the next 7 days
-    const allPetsWithBirthdays = await prisma.pet.findMany({
-      where: { customer: { businessId }, birthDate: { not: null } },
-      select: {
-        id: true,
-        name: true,
-        species: true,
-        breed: true,
-        birthDate: true,
-        customer: { select: { id: true, name: true, phone: true } },
-      },
-    });
+    // Upcoming birthdays: filter & compute in JS
     const upcomingBirthdays = allPetsWithBirthdays
       .filter((pet) => {
         if (!pet.birthDate) return false;
@@ -322,34 +346,17 @@ export async function GET(request: NextRequest) {
       })
       .sort((a, b) => a.daysUntil - b.daysUntil);
 
-    // Today's revenue
-    const todayRevenueAgg = await prisma.payment.aggregate({
-      where: {
-        businessId,
-        status: "paid",
-        paidAt: { gte: todayStart, lte: todayEnd },
-      },
-      _sum: { amount: true },
-    });
     const todayRevenue = todayRevenueAgg._sum.amount || 0;
 
-    // Revenue by month (last 6 months)
+    // Revenue by month: group in JS (replaces 6 sequential DB queries)
     const revenueByMonth: { month: string; amount: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const mStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const mEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-      const agg = await prisma.payment.aggregate({
-        where: {
-          businessId,
-          status: "paid",
-          paidAt: { gte: mStart, lt: mEnd },
-        },
-        _sum: { amount: true },
-      });
-      revenueByMonth.push({
-        month: HEBREW_MONTHS[mStart.getMonth()],
-        amount: agg._sum.amount || 0,
-      });
+      const amount = sixMonthPayments
+        .filter(p => p.paidAt && p.paidAt >= mStart && p.paidAt < mEnd)
+        .reduce((sum, p) => sum + p.amount, 0);
+      revenueByMonth.push({ month: HEBREW_MONTHS[mStart.getMonth()], amount });
     }
 
     return NextResponse.json({

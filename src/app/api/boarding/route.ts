@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
         customer: { select: { id: true, name: true, phone: true } },
       },
       orderBy: { checkIn: "desc" },
+      take: 200,
     });
 
     return NextResponse.json(stays);

@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         pet: true,
       },
       orderBy: { date: "asc" },
+      take: 500,
     });
 
     return NextResponse.json(appointments);
