@@ -46,8 +46,7 @@ function LoginForm() {
         return;
       }
 
-      router.push("/dashboard");
-      router.refresh();
+      window.location.href = "/dashboard";
     } catch {
       setError("שגיאה בהתחברות. נסה שוב.");
     } finally {
