@@ -102,7 +102,6 @@ const navEntries: NavEntry[] = [
       { name: "תזמון", href: "/scheduler", icon: CalendarClock },
     ],
   },
-  { name: "הודעות", href: "/messages", icon: MessageSquare },
   {
     key: "boarding",
     name: "פנסיון",
