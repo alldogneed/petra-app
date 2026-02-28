@@ -31,10 +31,15 @@ const DogSchema = z.object({
   path: ["name"],
 })
 
+const isValidDate = (s: string) => !isNaN(new Date(s).getTime())
+
 const BookingSchema = z.object({
   serviceId: z.string({ required_error: "serviceId is required" }),
-  startAt: z.string({ required_error: "startAt is required" }).datetime({ message: "Invalid datetime format" }),
-  checkoutAt: z.string().datetime({ message: "Invalid datetime format" }).optional(), // boarding only
+  startAt: z.string({ required_error: "startAt is required" })
+    .refine(isValidDate, { message: "Invalid datetime format" }),
+  checkoutAt: z.string()
+    .refine(isValidDate, { message: "Invalid datetime format" })
+    .optional(), // boarding only
   phone: z.string({ required_error: "phone is required" }).min(9).max(15),
   customerName: z.string().min(2, "שם באורך של לפחות 2 תווים").optional(),
   customerEmail: z.string().email("כתובת אימייל לא חוקית").optional().or(z.literal("")),
