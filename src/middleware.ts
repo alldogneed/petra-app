@@ -12,7 +12,8 @@ const PUBLIC_PATHS = [
   "/api/auth/logout",
   "/book",
   "/api/book",
-  "/intake",
+  "/intake/",      // public intake form pages: /intake/[token] only (NOT /intake-forms)
+  "/api/intake/",  // public intake API: /api/intake/[token] and /api/intake/[token]/submit
   "/api/booking/availability",
   "/api/booking/slots",
   "/api/booking/book",
