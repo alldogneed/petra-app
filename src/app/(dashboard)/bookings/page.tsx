@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import {
   CalendarCheck,
   Clock,
@@ -90,9 +91,13 @@ export default function BookingsPage() {
       }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      toast.success("ההזמנה עודכנה בהצלחה");
       setSelectedBooking(null);
       setDeclineNote("");
       setShowDeclineInput(false);
+    },
+    onError: () => {
+      toast.error("שגיאה בעדכון ההזמנה. נסה שוב.");
     },
   });
 

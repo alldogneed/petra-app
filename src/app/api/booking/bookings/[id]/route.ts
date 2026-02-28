@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { enqueueSyncJob } from "@/lib/sync-jobs";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 
@@ -21,6 +22,14 @@ export async function PATCH(
         { error: `סטטוס לא תקין. ערכים אפשריים: ${VALID_STATUSES.join(", ")}` },
         { status: 400 }
       );
+    }
+
+    // Verify booking belongs to this business before updating
+    const existing = await prisma.booking.findFirst({
+      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "הזמנה לא נמצאה" }, { status: 404 });
     }
 
     const booking = await prisma.booking.update({

@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
     if (roomId) {
       const conflicting = await prisma.boardingStay.findFirst({
         where: {
+          businessId: DEMO_BUSINESS_ID,
           roomId,
           status: { in: ["reserved", "checked_in"] },
           checkIn: { lt: checkOut ? new Date(checkOut) : new Date("2099-12-31") },
