@@ -73,7 +73,9 @@ const ROLE_LEVEL: Record<string, number> = { owner: 0, admin: 0, manager: 1, use
 function canSee(item: { minRole?: string }, role: string | null, platformRole?: string | null): boolean {
   if (!item.minRole) return true;
   if (platformRole === "super_admin" || platformRole === "admin") return true;
-  if (!role) return false;
+  // If role is unknown (null): still loading or DB inconsistency — show the item.
+  // Real authorization is enforced server-side; sidebar visibility is just UX.
+  if (!role) return true;
   return (ROLE_LEVEL[role] ?? 99) <= ROLE_LEVEL[item.minRole];
 }
 

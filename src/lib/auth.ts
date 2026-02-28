@@ -51,7 +51,7 @@ export function setSessionCookie(token: string) {
   cookies().set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     path: "/",
     maxAge: 8 * 60 * 60, // 8 hours
   });
@@ -61,7 +61,7 @@ export function clearSessionCookie() {
   cookies().set(SESSION_COOKIE, "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     path: "/",
     maxAge: 0,
   });
@@ -82,7 +82,21 @@ export async function getCurrentUser() {
   const session = await validateSession(token);
   if (!session) return null;
 
-  const membership = session.memberships[0] ?? null;
+  let membership = session.memberships[0] ?? null;
+
+  // Fallback: if no active membership found, look for any membership (handles
+  // the case where BusinessUser.isActive was accidentally set to false).
+  // This only affects UI role resolution — API endpoints enforce their own auth.
+  if (!membership) {
+    const anyMembership = await prisma.businessUser.findFirst({
+      where: { userId: session.user.id },
+      select: { businessId: true, role: true, isActive: true },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (anyMembership) {
+      membership = { businessId: anyMembership.businessId, role: anyMembership.role as import("./permissions").TenantRole, isActive: anyMembership.isActive };
+    }
+  }
 
   // Fetch business details and avatarUrl in parallel (not in FullSession)
   const [business, platformUser] = await Promise.all([
