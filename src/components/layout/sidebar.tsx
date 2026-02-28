@@ -39,6 +39,7 @@ import {
   FileText,
   ShieldCheck,
   MessageSquare,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -148,6 +149,7 @@ const navEntries: NavEntry[] = [
   { name: "יומן", href: "/calendar", icon: Calendar },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner" },
   { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner" },
+  { name: "אונבורדינג", href: "/onboarding", icon: Sparkles, minRole: "owner" },
   { name: "הגדרות", href: "/settings", icon: Settings, minRole: "user" },
 ];
 
