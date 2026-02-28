@@ -71,8 +71,9 @@ function isGroup(entry: NavEntry): entry is NavGroup {
 
 const ROLE_LEVEL: Record<string, number> = { owner: 0, admin: 0, manager: 1, user: 2, volunteer: 3 };
 
-function canSee(item: { minRole?: string }, role: string | null): boolean {
+function canSee(item: { minRole?: string }, role: string | null, platformRole?: string | null): boolean {
   if (!item.minRole) return true;
+  if (platformRole === "super_admin" || platformRole === "admin") return true;
   if (!role) return false;
   return (ROLE_LEVEL[role] ?? 99) <= ROLE_LEVEL[item.minRole];
 }
@@ -375,7 +376,7 @@ export function Sidebar({
               style={{ background: "rgba(255,255,255,0.08)" }}
             />
             {group.children
-              .filter((c) => canSee(c, user?.businessRole ?? null))
+              .filter((c) => canSee(c, user?.businessRole ?? null, user?.platformRole))
               .map((child) => renderNavItem(child, isMobile, true))}
           </div>
         )}
@@ -437,7 +438,7 @@ export function Sidebar({
         <nav className="flex-1 px-3 py-2 overflow-y-auto scrollbar-hide">
           <div className="space-y-0.5">
             {navEntries
-              .filter((entry) => canSee(entry, user?.businessRole ?? null))
+              .filter((entry) => canSee(entry, user?.businessRole ?? null, user?.platformRole))
               .map((entry) =>
                 isGroup(entry)
                   ? renderGroup(entry, isMobile)
