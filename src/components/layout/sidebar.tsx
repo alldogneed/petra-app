@@ -129,8 +129,6 @@ const navEntries: NavEntry[] = [
       { name: "הזמנות", href: "/orders", icon: ShoppingCart },
     ],
   },
-  { name: "תהליכי אילוף", href: "/training", icon: Dog },
-  { name: "חיות מחמד", href: "/pets", icon: PawPrint },
   {
     key: "service-dogs",
     name: "כלבי שירות",
@@ -145,6 +143,8 @@ const navEntries: NavEntry[] = [
       { name: "תעודות זהות", href: "/service-dogs/id-cards", icon: CreditCard },
     ],
   },
+  { name: "תהליכי אילוף", href: "/training", icon: Dog },
+  { name: "חיות מחמד", href: "/pets", icon: PawPrint },
   { name: "יומן", href: "/calendar", icon: Calendar },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner" },
   { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner" },
