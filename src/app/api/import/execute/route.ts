@@ -10,10 +10,15 @@ import { prisma } from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { normalizePhone, RawCustomerRow, RawPetRow } from "@/lib/import-utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   const authResult = await requireAuth(req);
   if (isGuardError(authResult)) return authResult;
+
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const rl = rateLimit("api:import:execute", ip, { max: 3, windowMs: 5 * 60 * 1000 });
+  if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
 
   try {
     const { batchId } = await req.json();

@@ -58,6 +58,14 @@ export async function PATCH(
     const authResult = await requireAuth(request);
     if (isGuardError(authResult)) return authResult;
 
+    // Verify the pet belongs to this business before updating
+    const existing = await prisma.pet.findFirst({
+      where: { id: params.petId, customer: { businessId: DEMO_BUSINESS_ID } },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Pet not found" }, { status: 404 });
+    }
+
     const body = await request.json();
     const { neuteredSpayed, ...petData } = body;
 

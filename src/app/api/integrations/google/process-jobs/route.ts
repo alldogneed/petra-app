@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { processPendingSyncJobs } from "@/lib/sync-jobs";
+import crypto from "crypto";
 
 /**
  * GET /api/integrations/google/process-jobs  (pass secret via x-cron-secret header)
@@ -10,9 +11,18 @@ import { processPendingSyncJobs } from "@/lib/sync-jobs";
 export async function GET(request: NextRequest) {
   try {
     const secret = request.headers.get("x-cron-secret");
+    const cronSecret = process.env.CRON_SECRET;
 
-    // Verify CRON_SECRET — header only, never query param
-    if (!process.env.CRON_SECRET || !secret || secret !== process.env.CRON_SECRET) {
+    // Verify CRON_SECRET using timing-safe comparison to prevent timing attacks
+    let authorized = false;
+    if (cronSecret && secret) {
+      try {
+        authorized = crypto.timingSafeEqual(Buffer.from(secret), Buffer.from(cronSecret));
+      } catch {
+        // Different buffer lengths → no match
+      }
+    }
+    if (!authorized) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 // GET /api/templates – list all message templates (alias for /api/messages)
 export async function GET(request: NextRequest) {
@@ -37,6 +38,10 @@ export async function POST(request: NextRequest) {
   try {
     const authResult = await requireAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rl = rateLimit("api:templates:create", ip, RATE_LIMITS.API_WRITE);
+    if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
 
     const body = await request.json();
     const { name, channel, subject, body: templateBody, variables } = body;

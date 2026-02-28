@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 // Map English category IDs (used by frontend) to Hebrew (stored in DB)
 const CATEGORY_ID_TO_HE: Record<string, string> = {
@@ -49,6 +50,10 @@ export async function POST(request: NextRequest) {
   try {
     const authResult = await requireAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rl = rateLimit("api:price-list-items:create", ip, RATE_LIMITS.API_WRITE);
+    if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
 
     const body = await request.json();
     const { name, category, unit, basePrice, description, type, taxMode, durationMinutes, defaultQuantity, paymentUrl } = body;

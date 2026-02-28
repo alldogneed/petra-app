@@ -37,9 +37,15 @@ export async function POST(request: NextRequest) {
     select: { businessId: true, webhookSecretEncrypted: true },
   });
 
+  // Reject if no webhook secret is configured — prevents processing unauthenticated webhooks
+  if (!settings?.webhookSecretEncrypted) {
+    logInvoicing("warn", "Webhook rejected: no secret configured for provider", { provider, ip });
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 400 });
+  }
+
   let signatureValid = false;
 
-  if (settings?.webhookSecretEncrypted && signature) {
+  if (settings.webhookSecretEncrypted && signature) {
     try {
       const secret = decryptInvoicingSecret(settings.webhookSecretEncrypted);
 
@@ -74,7 +80,7 @@ export async function POST(request: NextRequest) {
   // Log the webhook
   await logWebhook(provider, eventType, maskedPayload, signatureValid, null, ip);
 
-  if (!signatureValid && settings?.webhookSecretEncrypted) {
+  if (!signatureValid) {
     logInvoicing("warn", "Invalid webhook signature", { provider, ip });
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }

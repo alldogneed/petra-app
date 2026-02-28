@@ -152,6 +152,14 @@ export async function requireTenantPermission(
   // Platform super_admin can access all tenants — log for audit trail
   if (session.user.platformRole === "super_admin") {
     console.warn(`[SECURITY] super_admin access: user=${session.user.id} (${session.user.email}) → business=${businessId} permission=${permission}`);
+    logAudit({
+      actorUserId: session.user.id,
+      actorPlatformRole: session.user.platformRole,
+      action: "SUPER_ADMIN_TENANT_ACCESS",
+      targetType: "business",
+      targetId: businessId,
+      metadata: { permission, email: session.user.email },
+    });
     const fakeMembership = { businessId, role: "owner" as TenantRole, isActive: true };
     return { session, membership: fakeMembership };
   }
@@ -261,6 +269,7 @@ export function isGuardSuccess<T extends object>(
 // ─── IP Whitelist check ────────────────────────────────────────────────────────
 
 import { prisma } from "./prisma";
+import { logAudit } from "./audit";
 
 /**
  * Check if the given IP is allowed for a user with an IP whitelist.

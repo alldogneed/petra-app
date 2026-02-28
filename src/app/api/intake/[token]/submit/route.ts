@@ -2,12 +2,19 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import crypto from "crypto";
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { token: string } }
 ) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rl = rateLimit("api:intake:submit", ip, RATE_LIMITS.STRICT_TOKEN);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
+    }
+
     const tokenHash = crypto.createHash("sha256").update(params.token).digest("hex");
 
     const form = await prisma.intakeForm.findUnique({

@@ -5,6 +5,7 @@ import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
 import { createOrderReminder } from "@/lib/scheduled-messages";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,6 +51,10 @@ export async function POST(request: NextRequest) {
   try {
     const authResult = await requireAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rl = rateLimit("api:orders:create", ip, RATE_LIMITS.API_WRITE);
+    if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
 
     const body = await request.json();
     const { customerId, orderType, startAt, endAt, lines, discountType, discountValue, notes, status } = body;

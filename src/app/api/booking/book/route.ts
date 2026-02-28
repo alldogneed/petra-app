@@ -3,12 +3,29 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { enqueueSyncJob } from "@/lib/sync-jobs";
+import { rateLimit } from "@/lib/rate-limit";
 
 // Public endpoint - no auth required
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+
+    // Rate limit by IP: 10 bookings per minute
+    const rlIp = rateLimit("api:booking:create", ip, { max: 10, windowMs: 60 * 1000 });
+    if (!rlIp.allowed) {
+      return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
+    }
+
     const body = await request.json();
     const { serviceId, date, time, customerName, customerPhone, customerEmail, notes } = body;
+
+    // Rate limit by phone: 5 bookings per hour (prevents fake customer creation)
+    if (customerPhone) {
+      const rlPhone = rateLimit("api:booking:phone:" + customerPhone, "global", { max: 5, windowMs: 60 * 60 * 1000 });
+      if (!rlPhone.allowed) {
+        return NextResponse.json({ error: "יותר מדי בקשות ממספר זה. נסה שוב מאוחר יותר." }, { status: 429 });
+      }
+    }
 
     if (!serviceId || !date || !time || !customerName || !customerPhone) {
       return NextResponse.json(
