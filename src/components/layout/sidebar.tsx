@@ -38,6 +38,7 @@ import {
   AlertTriangle,
   FileText,
   ShieldCheck,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -100,6 +101,7 @@ const navEntries: NavEntry[] = [
       { name: "תזמון", href: "/scheduler", icon: CalendarClock },
     ],
   },
+  { name: "הודעות", href: "/messages", icon: MessageSquare },
   {
     key: "boarding",
     name: "פנסיון",
