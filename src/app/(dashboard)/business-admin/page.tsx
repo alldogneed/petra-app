@@ -262,7 +262,7 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
         className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
         style={{ background: color + "18" }}
       >
-        <Icon className="w-3.5 h-3.5" style={{ color }} />
+        <Icon className="w-3.5 h-3.5" {...({ style: { color } } as any)} />
       </div>
       <div className="flex-1 min-w-0">
         <span className="text-sm font-medium text-slate-800">{entry.userName}</span>
@@ -484,7 +484,7 @@ function ActivityTab() {
                           className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
                           style={{ background: color + "18" }}
                         >
-                          <Icon className="w-3 h-3" style={{ color }} />
+                          <Icon className="w-3 h-3" {...({ style: { color } } as any)} />
                         </div>
                         <span className="text-slate-700">
                           {ACTION_LABELS[entry.action] ?? entry.action}
