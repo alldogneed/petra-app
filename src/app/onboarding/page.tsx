@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CheckCircle2,
@@ -25,9 +25,9 @@ const STEPS = [
   { label: "סיום", icon: CheckCircle2 },
 ];
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Inner page (uses useSearchParams — must be inside Suspense) ───────────────
 
-export default function OnboardingPage() {
+function OnboardingInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
@@ -42,86 +42,106 @@ export default function OnboardingPage() {
     }
   }, [searchParams]);
 
+  async function handleSkip() {
+    // Mark onboarding as skipped so dashboard doesn't redirect back
+    await fetch("/api/onboarding/progress", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ completedAt: new Date().toISOString(), skipped: true }),
+    });
+    router.push("/dashboard");
+  }
+
+  return (
+    <div className="w-full max-w-2xl">
+
+      {/* Skip button */}
+      {step < 4 && (
+        <div className="text-right mb-4">
+          <button
+            onClick={handleSkip}
+            className="text-sm text-petra-muted hover:text-petra-text flex items-center gap-1 ms-auto"
+          >
+            <X className="w-3.5 h-3.5" />
+            דלג לדשבורד
+          </button>
+        </div>
+      )}
+
+      {/* Progress bar */}
+      {step < 4 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            {STEPS.map((s, i) => {
+              const done = i < step;
+              const active = i === step;
+              const Icon = s.icon;
+              return (
+                <div key={i} className="flex flex-col items-center gap-1">
+                  <div className={cn(
+                    "w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all",
+                    done ? "bg-brand-500 border-brand-500 text-white"
+                      : active ? "bg-white border-brand-500 text-brand-500"
+                        : "bg-white border-slate-200 text-petra-muted"
+                  )}>
+                    {done ? <CheckCircle2 className="w-5 h-5" /> : <Icon className="w-4 h-4" />}
+                  </div>
+                  <span className={cn(
+                    "text-[10px] font-medium",
+                    active ? "text-brand-600" : "text-petra-muted"
+                  )}>
+                    {s.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="relative h-1.5 bg-slate-200 rounded-full overflow-hidden">
+            <div
+              className="absolute inset-y-0 right-0 bg-gradient-to-l from-brand-500 to-brand-400 rounded-full transition-all duration-500"
+              style={{ width: `${(step / (STEPS.length - 1)) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Step content */}
+      <div className="card p-8 shadow-lg animate-fade-in">
+        {step === 4 ? (
+          <StepDone gcalConnected={gcalConnected} onGoToDashboard={async () => {
+            await fetch("/api/onboarding/progress", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ completedAt: new Date().toISOString() }),
+            });
+            router.push("/dashboard");
+          }} />
+        ) : step === 0 ? (
+          <StepWelcome onNext={() => setStep(1)} />
+        ) : step === 1 ? (
+          <StepClient onNext={() => setStep(2)} onBack={() => setStep(0)} />
+        ) : step === 2 ? (
+          <StepPricing onNext={() => setStep(3)} onBack={() => setStep(1)} />
+        ) : (
+          <StepGoogle
+            gcalConnected={gcalConnected}
+            onSkip={() => setStep(4)}
+            onBack={() => setStep(2)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Page export (wraps inner in Suspense) ────────────────────────────────────
+
+export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-50 to-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
-
-        {/* Skip button */}
-        {step < 4 && (
-          <div className="text-right mb-4">
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="text-sm text-petra-muted hover:text-petra-text flex items-center gap-1 ms-auto"
-            >
-              <X className="w-3.5 h-3.5" />
-              דלג לדשבורד
-            </button>
-          </div>
-        )}
-
-        {/* Progress bar */}
-        {step < 4 && (
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-3">
-              {STEPS.map((s, i) => {
-                const done = i < step;
-                const active = i === step;
-                const Icon = s.icon;
-                return (
-                  <div key={i} className="flex flex-col items-center gap-1">
-                    <div className={cn(
-                      "w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all",
-                      done ? "bg-brand-500 border-brand-500 text-white"
-                        : active ? "bg-white border-brand-500 text-brand-500"
-                          : "bg-white border-slate-200 text-petra-muted"
-                    )}>
-                      {done ? <CheckCircle2 className="w-5 h-5" /> : <Icon className="w-4 h-4" />}
-                    </div>
-                    <span className={cn(
-                      "text-[10px] font-medium",
-                      active ? "text-brand-600" : "text-petra-muted"
-                    )}>
-                      {s.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="relative h-1.5 bg-slate-200 rounded-full overflow-hidden">
-              <div
-                className="absolute inset-y-0 right-0 bg-gradient-to-l from-brand-500 to-brand-400 rounded-full transition-all duration-500"
-                style={{ width: `${(step / (STEPS.length - 1)) * 100}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Step content */}
-        <div className="card p-8 shadow-lg animate-fade-in">
-          {step === 4 ? (
-            <StepDone gcalConnected={gcalConnected} onGoToDashboard={() => {
-              // Mark onboarding as completed
-              fetch("/api/onboarding/progress", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ completedAt: new Date().toISOString() }),
-              }).then(() => router.push("/dashboard"));
-            }} />
-          ) : step === 0 ? (
-            <StepWelcome onNext={() => setStep(1)} />
-          ) : step === 1 ? (
-            <StepClient onNext={() => setStep(2)} onBack={() => setStep(0)} />
-          ) : step === 2 ? (
-            <StepPricing onNext={() => setStep(3)} onBack={() => setStep(1)} />
-          ) : (
-            <StepGoogle
-              gcalConnected={gcalConnected}
-              onSkip={() => setStep(4)}
-              onBack={() => setStep(2)}
-            />
-          )}
-        </div>
-      </div>
+      <Suspense fallback={<div className="text-petra-muted">טוען...</div>}>
+        <OnboardingInner />
+      </Suspense>
     </div>
   );
 }
@@ -188,7 +208,7 @@ function StepClient({ onNext, onBack }: { onNext: () => void; onBack: () => void
       await fetch("/api/onboarding/progress", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stepCompleted3: true }),
+        body: JSON.stringify({ stepCompleted1: true }),
       });
       onNext();
     } finally {
