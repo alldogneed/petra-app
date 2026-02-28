@@ -164,7 +164,7 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
-  const isMaster = user?.role === "MASTER";
+  const isMaster = user?.platformRole === "super_admin" || user?.platformRole === "admin";
 
   // Collect all groups and compute which are active
   const groups = navEntries.filter(isGroup) as NavGroup[];
