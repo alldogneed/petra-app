@@ -13,7 +13,7 @@ const PatchBoardingSchema = z.object({
   checkOut: z.string().datetime().nullable().optional(),
   actualCheckoutTime: z.string().datetime().optional(),
   status: z.enum(["reserved", "checked_in", "checked_out", "canceled"]).optional(),
-  roomId: z.string().uuid().optional(),
+  roomId: z.string().min(1).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
   checkinNotes: z.string().max(500).optional(),
   checkoutNotes: z.string().max(500).optional(),
