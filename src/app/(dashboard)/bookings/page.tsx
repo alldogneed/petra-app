@@ -534,16 +534,19 @@ export default function BookingsPage() {
                               `מחכים לראותכם! 🐾`,
                             ].filter(Boolean).join("\n");
                             return (
-                              <a
-                                href={`https://wa.me/${toWhatsAppPhone(booking.customer.phone)}?text=${encodeURIComponent(confirmMsg)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={() => updateMutation.mutate({ id: booking.id, status: "confirmed" })}
+                              <button
+                                onClick={() => {
+                                  updateMutation.mutate({ id: booking.id, status: "confirmed" }, {
+                                    onSuccess: () => {
+                                      window.open(`https://wa.me/${toWhatsAppPhone(booking.customer.phone)}?text=${encodeURIComponent(confirmMsg)}`, "_blank", "noopener,noreferrer");
+                                    }
+                                  });
+                                }}
                                 className="w-full px-4 py-2.5 rounded-lg bg-green-50 text-green-700 text-sm font-semibold hover:bg-green-100 transition-colors flex items-center justify-center gap-2 border border-green-200"
                               >
                                 <MessageCircle className="w-4 h-4" />
                                 אשר + שלח אישור WhatsApp
-                              </a>
+                              </button>
                             );
                           })()}
                         </div>

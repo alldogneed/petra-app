@@ -7,7 +7,7 @@ import { requireAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 
 const PatchLeadSchema = z.object({
-  stage: z.enum(["new", "contacted", "qualified", "won", "lost"]).optional(),
+  stage: z.string().optional(),
   notes: z.string().max(5000).nullable().optional(),
   lostReasonCode: z.string().max(50).nullable().optional(),
   lostReasonText: z.string().max(500).nullable().optional(),
@@ -101,7 +101,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    await prisma.lead.delete({ where: { id } });
+    await prisma.lead.delete({ where: { id, businessId: DEMO_BUSINESS_ID } });
 
     const { session } = authResult;
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_LEAD);

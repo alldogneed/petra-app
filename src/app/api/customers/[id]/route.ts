@@ -150,7 +150,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    await prisma.customer.delete({ where: { id: params.id } });
+    await prisma.customer.delete({ where: { id: params.id, businessId: DEMO_BUSINESS_ID } });
 
     const { session } = authResult;
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_CUSTOMER);

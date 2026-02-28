@@ -158,7 +158,7 @@ export async function DELETE(
       },
     });
 
-    await prisma.task.delete({ where: { id } });
+    await prisma.task.delete({ where: { id, businessId: DEMO_BUSINESS_ID } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

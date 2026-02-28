@@ -124,7 +124,7 @@ export async function DELETE(
     }
 
     await cancelAppointmentReminders(id);
-    await prisma.appointment.delete({ where: { id } });
+    await prisma.appointment.delete({ where: { id, businessId: DEMO_BUSINESS_ID } });
 
     const { session } = authResult;
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_APPOINTMENT);
