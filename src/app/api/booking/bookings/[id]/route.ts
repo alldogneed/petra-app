@@ -36,44 +36,62 @@ export async function PATCH(
       },
     });
 
-    // Auto-create appointment when booking is confirmed
+    // Auto-create linked record when booking is confirmed
     if (body.status === "confirmed") {
-      // Extract date and times from startAt/endAt
       const startAt = new Date(booking.startAt);
       const endAt = new Date(booking.endAt);
-      const pad = (n: number) => n.toString().padStart(2, "0");
-      const startTime = `${pad(startAt.getHours())}:${pad(startAt.getMinutes())}`;
-      const endTime = `${pad(endAt.getHours())}:${pad(endAt.getMinutes())}`;
-      const dateOnly = new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate());
-
-      // Use first dog from booking if available
       const firstPetId = booking.dogs[0]?.pet?.id ?? null;
 
-      // Check if appointment already exists for this booking (idempotency)
-      const existing = await prisma.appointment.findFirst({
-        where: {
-          businessId: booking.businessId,
-          customerId: booking.customerId,
-          serviceId: booking.serviceId,
-          date: dateOnly,
-          startTime,
-        },
-      });
+      if (booking.service.type === "boarding") {
+        // For boarding: create a BoardingStay linked to this booking (idempotent)
+        const existingStay = await prisma.boardingStay.findUnique({
+          where: { bookingId: booking.id },
+        });
+        if (!existingStay && firstPetId) {
+          await prisma.boardingStay.create({
+            data: {
+              businessId: booking.businessId,
+              customerId: booking.customerId,
+              petId: firstPetId,
+              checkIn: startAt,
+              checkOut: endAt,
+              status: "reserved",
+              bookingId: booking.id,
+            },
+          });
+        }
+      } else {
+        // For other services: create an Appointment
+        const pad = (n: number) => n.toString().padStart(2, "0");
+        const startTime = `${pad(startAt.getHours())}:${pad(startAt.getMinutes())}`;
+        const endTime = `${pad(endAt.getHours())}:${pad(endAt.getMinutes())}`;
+        const dateOnly = new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate());
 
-      if (!existing) {
-        await prisma.appointment.create({
-          data: {
+        const existing = await prisma.appointment.findFirst({
+          where: {
             businessId: booking.businessId,
             customerId: booking.customerId,
             serviceId: booking.serviceId,
-            petId: firstPetId,
             date: dateOnly,
             startTime,
-            endTime,
-            status: "scheduled",
-            notes: booking.notes,
           },
         });
+
+        if (!existing) {
+          await prisma.appointment.create({
+            data: {
+              businessId: booking.businessId,
+              customerId: booking.customerId,
+              serviceId: booking.serviceId,
+              petId: firstPetId,
+              date: dateOnly,
+              startTime,
+              endTime,
+              status: "scheduled",
+              notes: booking.notes,
+            },
+          });
+        }
       }
     }
 

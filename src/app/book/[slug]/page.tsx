@@ -34,6 +34,8 @@ interface BusinessInfo {
   address: string | null
   logo: string | null
   timezone: string
+  boardingCheckInTime: string
+  boardingCheckOutTime: string
   services: BusinessService[]
   availabilityRules: AvailabilityRule[]
 }
@@ -54,7 +56,7 @@ interface DogForm {
   isNew: boolean
 }
 
-type Step = "service" | "date" | "time" | "customer" | "dogs" | "confirm" | "deposit" | "done"
+type Step = "service" | "date" | "time" | "boarding-dates" | "customer" | "dogs" | "confirm" | "deposit" | "done"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -122,7 +124,7 @@ function ServiceIcon({ type, className }: { type: string; className?: string }) 
 
 // ─── Step indicator ─────────────────────────────────────────────────────────
 
-const STEPS: { key: Step; label: string }[] = [
+const STEPS_DEFAULT: { key: Step; label: string }[] = [
   { key: "service", label: "שירות" },
   { key: "date", label: "תאריך" },
   { key: "time", label: "שעה" },
@@ -131,7 +133,16 @@ const STEPS: { key: Step; label: string }[] = [
   { key: "confirm", label: "אישור" },
 ]
 
-function StepIndicator({ current }: { current: Step }) {
+const STEPS_BOARDING: { key: Step; label: string }[] = [
+  { key: "service", label: "שירות" },
+  { key: "boarding-dates", label: "תאריכים" },
+  { key: "customer", label: "פרטים" },
+  { key: "dogs", label: "כלבים" },
+  { key: "confirm", label: "אישור" },
+]
+
+function StepIndicator({ current, isBoarding }: { current: Step; isBoarding: boolean }) {
+  const STEPS = isBoarding ? STEPS_BOARDING : STEPS_DEFAULT
   const currentIdx = STEPS.findIndex((s) => s.key === current)
   if (currentIdx === -1) return null
   const progress = Math.round(((currentIdx) / (STEPS.length - 1)) * 100)
@@ -193,6 +204,12 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
     const n = new Date(); return { year: n.getFullYear(), month: n.getMonth() }
   })
 
+  // Boarding-specific state
+  const [boardingCheckInDate, setBoardingCheckInDate] = useState("")   // YYYY-MM-DD
+  const [boardingCheckInTime, setBoardingCheckInTime] = useState("")   // HH:mm
+  const [boardingCheckOutDate, setBoardingCheckOutDate] = useState("") // YYYY-MM-DD
+  const [boardingCheckOutTime, setBoardingCheckOutTime] = useState("") // HH:mm
+
   // Customer fields
   const [phone, setPhone] = useState("")
   const [customerName, setCustomerName] = useState("")
@@ -248,16 +265,27 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
   // ── Submit booking ─────────────────────────────────────────────────────────
   const submitBooking = async () => {
-    if (!selectedService || !selectedSlot) return
+    const isBoarding = selectedService?.type === "boarding"
+    if (!selectedService) return
+    if (!isBoarding && !selectedSlot) return
+    if (isBoarding && (!boardingCheckInDate || !boardingCheckOutDate)) return
     setSubmitting(true)
     setSubmitError("")
     try {
+      const startAt = isBoarding
+        ? `${boardingCheckInDate}T${boardingCheckInTime}:00`
+        : selectedSlot!.startAt
+      const checkoutAt = isBoarding
+        ? `${boardingCheckOutDate}T${boardingCheckOutTime}:00`
+        : undefined
+
       const res = await fetch(`/api/book/${slug}/booking`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           serviceId: selectedService.id,
-          startAt: selectedSlot.startAt,
+          startAt,
+          checkoutAt,
           phone,
           customerName: isNewCustomer ? customerName : undefined,
           customerEmail: isNewCustomer ? customerEmail : undefined,
@@ -411,7 +439,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
       {/* Main card */}
       <div className="max-w-lg mx-auto px-4 py-6">
-        {step !== "done" && step !== "deposit" && <StepIndicator current={step} />}
+        {step !== "done" && step !== "deposit" && <StepIndicator current={step} isBoarding={selectedService?.type === "boarding"} />}
 
         <div className="bg-white rounded-2xl shadow-card border border-petra-border overflow-hidden">
 
@@ -432,7 +460,17 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   {business.services.map((svc) => (
                     <button
                       key={svc.id}
-                      onClick={() => { setSelectedService(svc); setSelectedDate(""); setSelectedSlot(null); setStep("date") }}
+                      onClick={() => {
+                        setSelectedService(svc); setSelectedDate(""); setSelectedSlot(null)
+                        if (svc.type === "boarding") {
+                          setBoardingCheckInDate(""); setBoardingCheckOutDate("")
+                          setBoardingCheckInTime(business.boardingCheckInTime || "14:00")
+                          setBoardingCheckOutTime(business.boardingCheckOutTime || "11:00")
+                          setStep("boarding-dates")
+                        } else {
+                          setStep("date")
+                        }
+                      }}
                       className="w-full text-right p-4 rounded-xl border-2 border-petra-border hover:border-brand-300 hover:bg-brand-50/40 transition-all group"
                     >
                       <div className="flex items-center gap-3">
@@ -643,11 +681,130 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
             </div>
           )}
 
+          {/* ── Step: Boarding Dates ─────────────────────────────────────── */}
+          {step === "boarding-dates" && selectedService && (
+            <div className="p-6 animate-fade-in">
+              <div className="flex items-center justify-between mb-4">
+                <button onClick={() => setStep("service")} className="text-brand-600 text-sm flex items-center gap-1 hover:text-brand-700 hover:underline">
+                  <ChevronRight className="w-4 h-4" /> חזור
+                </button>
+                <h2 className="text-lg font-bold text-petra-text">תאריכי פנסיון</h2>
+              </div>
+
+              {/* Service summary */}
+              <div className="bg-brand-50 rounded-xl p-3 mb-5 flex items-center gap-2 border border-brand-100">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: selectedService.color ? `${selectedService.color}33` : "#FFF0E0" }}>
+                  <ServiceIcon type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
+                </div>
+                <span className="text-sm font-medium text-brand-800 flex-1 truncate">{selectedService.name}</span>
+                <span className="text-xs text-brand-600 font-medium">{formatPrice(selectedService.price)} / לילה</span>
+              </div>
+
+              <div className="space-y-5">
+                {/* Check-in */}
+                <div className="border border-petra-border rounded-xl p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-petra-text">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                    </div>
+                    צ׳ק-אין
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-petra-muted mb-1">תאריך *</label>
+                      <input
+                        type="date"
+                        className="input"
+                        value={boardingCheckInDate}
+                        min={toDateStr(new Date())}
+                        onChange={(e) => {
+                          setBoardingCheckInDate(e.target.value)
+                          // Reset checkout if it's before or equal to new check-in
+                          if (boardingCheckOutDate && boardingCheckOutDate <= e.target.value) {
+                            setBoardingCheckOutDate("")
+                          }
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-petra-muted mb-1">שעה</label>
+                      <input
+                        type="time"
+                        className="input"
+                        value={boardingCheckInTime}
+                        onChange={(e) => setBoardingCheckInTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Check-out */}
+                <div className="border border-petra-border rounded-xl p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-petra-text">
+                    <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center">
+                      <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                    </div>
+                    צ׳ק-אאוט
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-petra-muted mb-1">תאריך *</label>
+                      <input
+                        type="date"
+                        className="input"
+                        value={boardingCheckOutDate}
+                        min={boardingCheckInDate || toDateStr(new Date())}
+                        disabled={!boardingCheckInDate}
+                        onChange={(e) => setBoardingCheckOutDate(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-petra-muted mb-1">שעה</label>
+                      <input
+                        type="time"
+                        className="input"
+                        value={boardingCheckOutTime}
+                        onChange={(e) => setBoardingCheckOutTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Night count summary */}
+                {boardingCheckInDate && boardingCheckOutDate && (
+                  <div className="bg-slate-50 rounded-xl p-3 text-sm text-center text-petra-muted border border-slate-200">
+                    {(() => {
+                      const nights = Math.ceil((new Date(boardingCheckOutDate).getTime() - new Date(boardingCheckInDate).getTime()) / 86400000)
+                      return nights > 0 ? (
+                        <span>
+                          <span className="font-bold text-petra-text">{nights}</span> לילות ·{" "}
+                          {new Date(boardingCheckInDate + "T12:00:00").toLocaleDateString("he-IL", { day: "numeric", month: "short" })}
+                          {" — "}
+                          {new Date(boardingCheckOutDate + "T12:00:00").toLocaleDateString("he-IL", { day: "numeric", month: "short" })}
+                        </span>
+                      ) : (
+                        <span className="text-red-500">תאריך יציאה חייב להיות לאחר תאריך הכניסה</span>
+                      )
+                    })()}
+                  </div>
+                )}
+
+                <button
+                  disabled={!boardingCheckInDate || !boardingCheckOutDate || boardingCheckOutDate <= boardingCheckInDate}
+                  onClick={() => setStep("customer")}
+                  className="btn-primary w-full py-3 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  המשך
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ── Step: Customer ───────────────────────────────────────────── */}
           {step === "customer" && (
             <div className="p-6 animate-fade-in">
               <div className="flex items-center justify-between mb-4">
-                <button onClick={() => setStep("time")} className="text-brand-600 text-sm flex items-center gap-1 hover:text-brand-700 hover:underline">
+                <button onClick={() => setStep(selectedService?.type === "boarding" ? "boarding-dates" : "time")} className="text-brand-600 text-sm flex items-center gap-1 hover:text-brand-700 hover:underline">
                   <ChevronRight className="w-4 h-4" /> חזור
                 </button>
                 <h2 className="text-lg font-bold text-petra-text">פרטי בעל הכלב</h2>
@@ -894,7 +1051,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
           )}
 
           {/* ── Step: Confirm ────────────────────────────────────────────── */}
-          {step === "confirm" && selectedService && selectedSlot && (
+          {step === "confirm" && selectedService && (selectedSlot || selectedService.type === "boarding") && (
             <div className="p-6 animate-fade-in">
               <div className="flex items-center justify-between mb-4">
                 <button onClick={() => setStep("dogs")} className="text-brand-600 text-sm flex items-center gap-1 hover:text-brand-700 hover:underline">
@@ -922,11 +1079,28 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       <Clock className="w-4 h-4 text-blue-600" />
                     </div>
                     <div>
-                      <p className="text-xs text-petra-muted">מועד</p>
-                      <p className="font-semibold text-petra-text">
-                        {new Date(selectedDate + "T12:00:00").toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-                      </p>
-                      <p className="text-sm text-petra-muted">שעה {selectedSlot.time}</p>
+                      {selectedService.type === "boarding" ? (
+                        <>
+                          <p className="text-xs text-petra-muted">תאריכי פנסיון</p>
+                          <p className="font-semibold text-petra-text">
+                            כניסה: {new Date(boardingCheckInDate + "T12:00:00").toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "long" })} בשעה {boardingCheckInTime}
+                          </p>
+                          <p className="font-semibold text-petra-text">
+                            יציאה: {new Date(boardingCheckOutDate + "T12:00:00").toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "long" })} בשעה {boardingCheckOutTime}
+                          </p>
+                          <p className="text-sm text-petra-muted">
+                            {Math.ceil((new Date(boardingCheckOutDate).getTime() - new Date(boardingCheckInDate).getTime()) / 86400000)} לילות
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xs text-petra-muted">מועד</p>
+                          <p className="font-semibold text-petra-text">
+                            {new Date(selectedDate + "T12:00:00").toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                          </p>
+                          <p className="text-sm text-petra-muted">שעה {selectedSlot!.time}</p>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -1063,7 +1237,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
           )}
 
           {/* ── Step: Done ───────────────────────────────────────────────── */}
-          {step === "done" && bookingResult && selectedService && selectedSlot && (
+          {step === "done" && bookingResult && selectedService && (selectedSlot || selectedService.type === "boarding") && (
             <div className="p-8 text-center animate-fade-in">
               <div className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center ${bookingResult.status === "confirmed" ? "bg-emerald-100" : "bg-amber-100"}`}>
                 {bookingResult.status === "confirmed" ? (
@@ -1091,18 +1265,39 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   <span className="text-petra-muted">שירות:</span>
                   <span className="font-medium text-petra-text">{selectedService.name}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                  <span className="text-petra-muted">תאריך:</span>
-                  <span className="font-medium text-petra-text">
-                    {new Date(selectedDate + "T12:00:00").toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                  <span className="text-petra-muted">שעה:</span>
-                  <span className="font-medium text-petra-text">{selectedSlot.time}</span>
-                </div>
+                {selectedService.type === "boarding" ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                      <span className="text-petra-muted">כניסה:</span>
+                      <span className="font-medium text-petra-text">
+                        {new Date(boardingCheckInDate + "T12:00:00").toLocaleDateString("he-IL", { day: "numeric", month: "long" })} {boardingCheckInTime}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                      <span className="text-petra-muted">יציאה:</span>
+                      <span className="font-medium text-petra-text">
+                        {new Date(boardingCheckOutDate + "T12:00:00").toLocaleDateString("he-IL", { day: "numeric", month: "long" })} {boardingCheckOutTime}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                      <span className="text-petra-muted">תאריך:</span>
+                      <span className="font-medium text-petra-text">
+                        {new Date(selectedDate + "T12:00:00").toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                      <span className="text-petra-muted">שעה:</span>
+                      <span className="font-medium text-petra-text">{selectedSlot!.time}</span>
+                    </div>
+                  </>
+                )}
                 {dogs.filter(d => d.name.trim()).length > 0 && (
                   <div className="flex items-center gap-2">
                     <PawPrint className="w-4 h-4 text-purple-500 flex-shrink-0" />
@@ -1115,31 +1310,36 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
               {/* Action buttons */}
               <div className="space-y-2 mb-5">
                 {/* Add to Google Calendar */}
-                <a
-                  href={buildGoogleCalLink(selectedService, selectedDate, selectedSlot.time, business.name, business.address)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors text-sm font-medium"
-                >
-                  <CalendarPlus className="w-4 h-4" />
-                  הוסף ליומן Google
-                </a>
+                {selectedService.type !== "boarding" && selectedSlot && (
+                  <a
+                    href={buildGoogleCalLink(selectedService, selectedDate, selectedSlot.time, business.name, business.address)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors text-sm font-medium"
+                  >
+                    <CalendarPlus className="w-4 h-4" />
+                    הוסף ליומן Google
+                  </a>
+                )}
 
                 {/* Send self WA reminder */}
-                <a
-                  href={`https://wa.me/?text=${buildWhatsAppReminder(selectedService, selectedDate, selectedSlot.time, customerName, dogs.filter(d => d.name.trim()).map(d => d.name))}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors text-sm font-medium"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  שלח לעצמי תזכורת ב-WhatsApp
-                </a>
+                {selectedService.type !== "boarding" && selectedSlot && (
+                  <a
+                    href={`https://wa.me/?text=${buildWhatsAppReminder(selectedService, selectedDate, selectedSlot.time, customerName, dogs.filter(d => d.name.trim()).map(d => d.name))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors text-sm font-medium"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    שלח לעצמי תזכורת ב-WhatsApp
+                  </a>
+                )}
               </div>
 
               <button
                 onClick={() => {
                   setStep("service"); setSelectedService(null); setSelectedDate(""); setSelectedSlot(null)
+                  setBoardingCheckInDate(""); setBoardingCheckInTime(""); setBoardingCheckOutDate(""); setBoardingCheckOutTime("")
                   setPhone(""); setCustomerName(""); setCustomerEmail(""); setCustomerNotes(""); setCustomerAddress(""); setIsNewCustomer(null)
                   setExistingDogNames([])
                   setDogs([{ name: "", breed: "", sex: "", notes: "", isNew: true }])

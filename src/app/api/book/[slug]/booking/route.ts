@@ -34,6 +34,7 @@ const DogSchema = z.object({
 const BookingSchema = z.object({
   serviceId: z.string({ required_error: "serviceId is required" }),
   startAt: z.string({ required_error: "startAt is required" }).datetime({ message: "Invalid datetime format" }),
+  checkoutAt: z.string().datetime({ message: "Invalid datetime format" }).optional(), // boarding only
   phone: z.string({ required_error: "phone is required" }).min(9).max(15),
   customerName: z.string().min(2, "שם באורך של לפחות 2 תווים").optional(),
   customerEmail: z.string().email("כתובת אימייל לא חוקית").optional().or(z.literal("")),
@@ -76,6 +77,7 @@ export async function POST(
   const {
     serviceId,
     startAt: startAtStr, // ISO string
+    checkoutAt: checkoutAtStr, // boarding only
     phone,
     customerName,
     customerEmail,
@@ -105,16 +107,32 @@ export async function POST(
   if (isNaN(startAt.getTime())) {
     return NextResponse.json({ error: "Invalid startAt" }, { status: 400 })
   }
-  const endAt = new Date(startAt.getTime() + service.duration * 60_000)
 
-  // Re-validate the slot is still available (prevent double-booking)
-  const localDate = utcToLocalDateStr(startAt, business.timezone)
-  const availableSlots = await getAvailableSlots(business.id, serviceId, localDate)
-  const slotStillFree = availableSlots.some(
-    (s) => Math.abs(s.startAt.getTime() - startAt.getTime()) < 60_000
-  )
-  if (!slotStillFree) {
-    return NextResponse.json({ error: "Time slot is no longer available" }, { status: 409 })
+  const isBoarding = service.type === "boarding"
+
+  let endAt: Date
+  if (isBoarding && checkoutAtStr) {
+    endAt = new Date(checkoutAtStr)
+    if (isNaN(endAt.getTime())) {
+      return NextResponse.json({ error: "Invalid checkoutAt" }, { status: 400 })
+    }
+    if (endAt <= startAt) {
+      return NextResponse.json({ error: "תאריך יציאה חייב להיות אחרי תאריך כניסה" }, { status: 400 })
+    }
+  } else {
+    endAt = new Date(startAt.getTime() + service.duration * 60_000)
+  }
+
+  // For non-boarding services: re-validate the slot is still available (prevent double-booking)
+  if (!isBoarding) {
+    const localDate = utcToLocalDateStr(startAt, business.timezone)
+    const availableSlots = await getAvailableSlots(business.id, serviceId, localDate)
+    const slotStillFree = availableSlots.some(
+      (s) => Math.abs(s.startAt.getTime() - startAt.getTime()) < 60_000
+    )
+    if (!slotStillFree) {
+      return NextResponse.json({ error: "Time slot is no longer available" }, { status: 409 })
+    }
   }
 
   // Normalize phone (remove spaces/dashes for uniqueness check)
@@ -173,16 +191,19 @@ export async function POST(
     // Double-booking guard: check inside transaction with a unique-ish approach
     // (SQLite doesn't support SELECT FOR UPDATE, so we rely on the slot re-check above +
     //  the transaction serialization for the final insert)
-    const conflict = await tx.booking.findFirst({
-      where: {
-        businessId: business.id,
-        status: { in: ["confirmed", "pending"] },
-        startAt: { lt: endAt },
-        endAt: { gt: startAt },
-      },
-    })
-    if (conflict) {
-      throw new Error("SLOT_TAKEN")
+    // Boarding allows multiple concurrent stays, so skip this check for boarding
+    if (!isBoarding) {
+      const conflict = await tx.booking.findFirst({
+        where: {
+          businessId: business.id,
+          status: { in: ["confirmed", "pending"] },
+          startAt: { lt: endAt },
+          endAt: { gt: startAt },
+        },
+      })
+      if (conflict) {
+        throw new Error("SLOT_TAKEN")
+      }
     }
 
     const status = service.bookingMode === "automatic" ? "confirmed" : "pending"
@@ -226,34 +247,51 @@ export async function POST(
     status: string,
   }
 
-  // Auto-create appointment for automatically-confirmed bookings
+  // Auto-create linked record for automatically-confirmed bookings
   if (status === "confirmed") {
-    const pad = (n: number) => n.toString().padStart(2, "0")
-    const startTime = `${pad(startAt.getHours())}:${pad(startAt.getMinutes())}`
-    const endTime = `${pad(endAt.getHours())}:${pad(endAt.getMinutes())}`
-    const dateOnly = new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate())
     // First pet from booking dogs (already created inside transaction)
     const bookingWithDogs = await prisma.booking.findUnique({
       where: { id: booking.id },
       select: { dogs: { select: { petId: true }, take: 1 } },
     })
     const firstPetId = bookingWithDogs?.dogs[0]?.petId ?? null
-    const existing = await prisma.appointment.findFirst({
-      where: { businessId: business.id, customerId: customer.id, serviceId, date: dateOnly, startTime },
-    })
-    if (!existing) {
-      await prisma.appointment.create({
+
+    if (isBoarding) {
+      // For boarding: create a BoardingStay linked to this booking
+      await prisma.boardingStay.create({
         data: {
           businessId: business.id,
           customerId: customer.id,
-          serviceId,
-          petId: firstPetId,
-          date: dateOnly,
-          startTime,
-          endTime,
-          status: "scheduled",
+          petId: firstPetId as string,
+          checkIn: startAt,
+          checkOut: endAt,
+          status: "reserved",
+          bookingId: booking.id,
         },
       })
+    } else {
+      // For other services: create an Appointment
+      const pad = (n: number) => n.toString().padStart(2, "0")
+      const startTime = `${pad(startAt.getHours())}:${pad(startAt.getMinutes())}`
+      const endTime = `${pad(endAt.getHours())}:${pad(endAt.getMinutes())}`
+      const dateOnly = new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate())
+      const existing = await prisma.appointment.findFirst({
+        where: { businessId: business.id, customerId: customer.id, serviceId, date: dateOnly, startTime },
+      })
+      if (!existing) {
+        await prisma.appointment.create({
+          data: {
+            businessId: business.id,
+            customerId: customer.id,
+            serviceId,
+            petId: firstPetId,
+            date: dateOnly,
+            startTime,
+            endTime,
+            status: "scheduled",
+          },
+        })
+      }
     }
     notifyCustomerConfirmed(booking, customer)
   } else {

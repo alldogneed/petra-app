@@ -19,6 +19,8 @@ export async function GET(
       logo: true,
       timezone: true,
       status: true,
+      boardingCheckInTime: true,
+      boardingCheckOutTime: true,
       services: {
         where: { isPublicBookable: true, isActive: true },
         select: {

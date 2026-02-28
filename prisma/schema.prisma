@@ -389,6 +389,7 @@ model BoardingStay {
   petId        String
   customerId   String
   businessId   String
+  bookingId    String?   @unique // optional link back to originating online booking
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -396,6 +397,7 @@ model BoardingStay {
   pet        Pet       @relation(fields: [petId], references: [id])
   customer   Customer  @relation(fields: [customerId], references: [id])
   business   Business  @relation(fields: [businessId], references: [id])
+  booking    Booking?  @relation(fields: [bookingId], references: [id])
   payments   Payment[]
 }
 
@@ -850,13 +852,13 @@ model Booking {
   gcalLastSyncedAt DateTime?
   gcalSyncError    String?   // last error message if failed
 
-  business   Business    @relation(fields: [businessId], references: [id])
-  service    Service     @relation(fields: [serviceId], references: [id])
-  customer   Customer    @relation(fields: [customerId], references: [id])
-  dogs       BookingDog[]
-  syncJobs   SyncJob[]
+  business     Business      @relation(fields: [businessId], references: [id])
+  service      Service       @relation(fields: [serviceId], references: [id])
+  customer     Customer      @relation(fields: [customerId], references: [id])
+  dogs         BookingDog[]
+  syncJobs     SyncJob[]
+  boardingStay BoardingStay?
 
-  @@unique([businessId, startAt])
   @@index([businessId, startAt])
   @@index([businessId, status])
   @@index([customerId])

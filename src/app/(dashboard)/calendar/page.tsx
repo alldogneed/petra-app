@@ -1058,12 +1058,12 @@ export default function CalendarPage() {
         )}
 
         <div className={cn("font-medium truncate", isCanceled && "line-through")}>
-          {apt.customer.name}
+          {apt.pet ? apt.pet.name : apt.customer.name}
         </div>
-        <div className="opacity-80 truncate">{apt.service.name}</div>
-        {!compact && apt.pet && (
-          <div className="opacity-70 truncate">{apt.pet.name}</div>
+        {apt.pet && (
+          <div className="opacity-80 truncate">{apt.customer.name}</div>
         )}
+        <div className="opacity-80 truncate">{apt.service.name}</div>
         <div className="opacity-80">{apt.startTime}</div>
       </div>
     );

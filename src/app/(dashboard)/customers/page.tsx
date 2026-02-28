@@ -2365,29 +2365,27 @@ export default function CustomersPage() {
         <p className="text-sm text-petra-muted">
           {stats.total} לקוחות במערכת
         </p>
-        <div className="flex items-center gap-2">
-          <a
-            href="/api/customers/export"
-            download
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
-            title="ייצוא לקוחות ל-CSV"
-          >
-            <FileDown className="w-4 h-4" />
-            ייצוא CSV
-          </a>
-          <button
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white text-sm shadow-sm transition-all hover:shadow-md"
-            style={{ background: "linear-gradient(135deg, #f38d49, #FB923C)" }}
-            onClick={() => setShowOrderModal(true)}
-          >
-            <ShoppingCart className="w-4 h-4" />
-            הזמנה חדשה
-          </button>
-          <button className="btn-primary" onClick={() => setShowNewModal(true)}>
-            <Plus className="w-4 h-4" />
-            לקוח חדש
-          </button>
-        </div>
+        <button className="btn-primary" onClick={() => setShowNewModal(true)}>
+          <Plus className="w-4 h-4" />
+          לקוח חדש
+        </button>
+        <button
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white text-sm shadow-sm transition-all hover:shadow-md"
+          style={{ background: "linear-gradient(135deg, #f38d49, #FB923C)" }}
+          onClick={() => setShowOrderModal(true)}
+        >
+          <ShoppingCart className="w-4 h-4" />
+          הזמנה חדשה
+        </button>
+        <a
+          href="/api/customers/export"
+          download
+          className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors ms-auto"
+          title="ייצוא לקוחות ל-CSV"
+        >
+          <FileDown className="w-4 h-4" />
+          ייצוא CSV
+        </a>
       </div>
 
       {/* ─── Search & Filters Card ─── */}
