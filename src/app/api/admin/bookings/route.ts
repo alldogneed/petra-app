@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
-import { authResult.businessId } from "@/lib/utils"
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards"
 
 // GET /api/admin/bookings?status=pending&from=YYYY-MM-DD&to=YYYY-MM-DD&serviceId=...
