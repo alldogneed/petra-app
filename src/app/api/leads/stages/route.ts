@@ -1,16 +1,15 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const stages = await prisma.leadStage.findMany({
-      where: { businessId: DEMO_BUSINESS_ID },
+      where: { businessId: authResult.businessId },
       orderBy: { sortOrder: "asc" },
     });
 
@@ -26,7 +25,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
@@ -41,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     // Find max sortOrder among non-won/non-lost stages
     const allStages = await prisma.leadStage.findMany({
-      where: { businessId: DEMO_BUSINESS_ID },
+      where: { businessId: authResult.businessId },
       orderBy: { sortOrder: "asc" },
     });
 
@@ -65,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     const stage = await prisma.leadStage.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         name: name.trim(),
         color: color || "#6366F1",
         sortOrder: newSortOrder,

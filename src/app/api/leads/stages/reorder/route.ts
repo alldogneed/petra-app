@@ -1,12 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
@@ -21,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     // Verify all stage IDs belong to this business
     const dbStages = await prisma.leadStage.findMany({
-      where: { businessId: DEMO_BUSINESS_ID },
+      where: { businessId: authResult.businessId },
     });
     const dbIds = new Set(dbStages.map((s) => s.id));
 
@@ -45,7 +44,7 @@ export async function POST(request: NextRequest) {
     );
 
     const updated = await prisma.leadStage.findMany({
-      where: { businessId: DEMO_BUSINESS_ID },
+      where: { businessId: authResult.businessId },
       orderBy: { sortOrder: "asc" },
     });
 
