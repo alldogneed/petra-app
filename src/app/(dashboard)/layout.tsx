@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { AppShell } from "@/components/layout/app-shell";
 import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth";
@@ -11,41 +12,23 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  let user;
-  try {
-    user = await getCurrentUser();
-  } catch (err) {
-    console.error("[DashboardLayout] Failed to get current user:", err);
-    throw new Error("שגיאת חיבור למסד הנתונים. אנא נסה שוב.");
-  }
+  const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login");
   }
 
   // Block access if user hasn't accepted the current ToS version
-  let consent;
-  try {
-    consent = await prisma.userConsent.findFirst({
-      where: { userId: user.id, termsVersion: CURRENT_TOS_VERSION },
-    });
-  } catch (err) {
-    console.error("[DashboardLayout] Failed to query userConsent:", err);
-    throw new Error("שגיאת חיבור למסד הנתונים. אנא נסה שוב.");
-  }
+  const consent = await prisma.userConsent.findFirst({
+    where: { userId: user.id, termsVersion: CURRENT_TOS_VERSION },
+  });
   if (!consent) {
     redirect("/tos-accept");
   }
 
-  let progress;
-  try {
-    progress = await prisma.onboardingProgress.findUnique({
-      where: { userId: user.id },
-    });
-  } catch (err) {
-    console.error("[DashboardLayout] Failed to query onboardingProgress:", err);
-    throw new Error("שגיאת חיבור למסד הנתונים. אנא נסה שוב.");
-  }
+  const progress = await prisma.onboardingProgress.findUnique({
+    where: { userId: user.id },
+  });
 
   // If onboarding exists but not completed, redirect to /onboarding
   if (progress && !progress.completedAt) {
