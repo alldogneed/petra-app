@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import {
   Plus, X, Search, Edit2, Copy, Tag, Package, Clock,
-  CheckCircle2, XCircle, Layers, Link2, Share2,
+  CheckCircle2, XCircle, Layers, Link2, Share2, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -282,11 +282,13 @@ function ItemRow({
   onEdit,
   onDuplicate,
   onToggle,
+  onDelete,
 }: {
   item: PriceListItem;
   onEdit: () => void;
   onDuplicate: () => void;
   onToggle: () => void;
+  onDelete: () => void;
 }) {
   return (
     <div className={cn(
@@ -340,6 +342,15 @@ function ItemRow({
         <button onClick={onToggle} title={item.isActive ? "השבת" : "הפעל"} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
           {item.isActive ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <XCircle className="w-3.5 h-3.5 text-red-400" />}
         </button>
+        <button
+          onClick={() => {
+            if (confirm(`למחוק את "${item.name}"?`)) onDelete();
+          }}
+          title="מחק"
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );
@@ -392,6 +403,12 @@ export default function PriceListPage() {
           defaultQuantity: item.defaultQuantity,
         }),
       }).then((r) => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["price-list-items", priceList?.id] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/price-list-items/${id}`, { method: "DELETE" }).then((r) => r.json()),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["price-list-items", priceList?.id] }),
   });
 
@@ -561,6 +578,7 @@ export default function PriceListPage() {
                   onEdit={() => setModalState({ open: true, item })}
                   onDuplicate={() => duplicateMutation.mutate(item)}
                   onToggle={() => toggleMutation.mutate({ id: item.id, isActive: !item.isActive })}
+                  onDelete={() => deleteMutation.mutate(item.id)}
                 />
               ))}
             </div>

@@ -15,16 +15,27 @@ interface AppointmentForReminder {
 }
 
 /**
- * Schedule a WhatsApp reminder 24h before an appointment.
+ * Schedule a WhatsApp reminder 48h before an appointment.
  * Returns the created ScheduledMessage or null if the send time is in the past.
+ * Idempotent — skips creation if a PENDING reminder already exists for this appointment.
  */
 export async function scheduleAppointmentReminder(appt: AppointmentForReminder) {
   const [h, m] = appt.startTime.split(":").map(Number);
   const apptDatetime = new Date(appt.date);
   apptDatetime.setHours(h, m, 0, 0);
 
-  const sendAt = new Date(apptDatetime.getTime() - 24 * 60 * 60 * 1000);
+  const sendAt = new Date(apptDatetime.getTime() - 48 * 60 * 60 * 1000);
   if (sendAt <= new Date()) return null;
+
+  // Deduplicate: skip if a pending reminder already exists
+  const existing = await prisma.scheduledMessage.findFirst({
+    where: {
+      relatedEntityType: "APPOINTMENT",
+      relatedEntityId: appt.id,
+      status: "PENDING",
+    },
+  });
+  if (existing) return null;
 
   const formattedDate = new Intl.DateTimeFormat("he-IL", {
     weekday: "long",
@@ -33,14 +44,14 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
   }).format(apptDatetime);
 
   const petPart = appt.pet ? ` עם ${appt.pet.name}` : "";
-  const body = `שלום ${appt.customer.name}! תזכורת לפגישה שלנו מחר (${formattedDate}) – ${appt.service.name}${petPart} בשעה ${appt.startTime}. נתראה! 🐾`;
+  const body = `שלום ${appt.customer.name}! 🐾 תזכורת לפגישה שלנו בעוד יומיים (${formattedDate}) – ${appt.service.name}${petPart} בשעה ${appt.startTime}. נתראה!`;
 
   return prisma.scheduledMessage.create({
     data: {
       businessId: appt.businessId,
       customerId: appt.customerId,
       channel: "whatsapp",
-      templateKey: "appointment_reminder_24h",
+      templateKey: "appointment_reminder_48h",
       payloadJson: JSON.stringify({ body }),
       sendAt,
       status: "PENDING",

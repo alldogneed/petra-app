@@ -257,6 +257,132 @@ function BusinessTab() {
       >
         {saved ? <><CheckCircle2 className="w-4 h-4" /> נשמר!</> : <><Save className="w-4 h-4" /> שמור שינויים</>}
       </button>
+
+      {/* Password Change Section */}
+      <ChangePasswordSection />
+    </div>
+  );
+}
+
+function ChangePasswordSection() {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/account/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שגיאה");
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("הסיסמה שונתה בהצלחה");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setError(null);
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  function handleSubmit() {
+    setError(null);
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setError("יש למלא את כל השדות");
+      return;
+    }
+    if (newPassword.length < 8) {
+      setError("הסיסמה החדשה חייבת להכיל לפחות 8 תווים");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("הסיסמאות החדשות אינן תואמות");
+      return;
+    }
+    mutation.mutate();
+  }
+
+  return (
+    <div className="border-t border-slate-100 pt-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Shield className="w-4 h-4 text-brand-500" />
+        <h3 className="text-sm font-semibold text-petra-text">שינוי סיסמה</h3>
+      </div>
+      <div className="space-y-3">
+        <div>
+          <label className="label">סיסמה נוכחית</label>
+          <div className="relative">
+            <input
+              className="input w-full pl-10"
+              type={showCurrent ? "text" : "password"}
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              dir="ltr"
+              placeholder="••••••••"
+            />
+            <button
+              type="button"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
+              onClick={() => setShowCurrent((v) => !v)}
+            >
+              {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+        <div>
+          <label className="label">סיסמה חדשה</label>
+          <div className="relative">
+            <input
+              className="input w-full pl-10"
+              type={showNew ? "text" : "password"}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              dir="ltr"
+              placeholder="לפחות 8 תווים"
+            />
+            <button
+              type="button"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
+              onClick={() => setShowNew((v) => !v)}
+            >
+              {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+        <div>
+          <label className="label">אימות סיסמה חדשה</label>
+          <input
+            className="input w-full"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            dir="ltr"
+            placeholder="הזן שוב את הסיסמה החדשה"
+          />
+        </div>
+        {error && (
+          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {error}
+          </div>
+        )}
+        <button
+          className="btn-secondary flex items-center gap-2 text-sm"
+          onClick={handleSubmit}
+          disabled={mutation.isPending}
+        >
+          {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+          {mutation.isPending ? "מחליף..." : "החלף סיסמה"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -352,6 +478,7 @@ function IntegrationsTab() {
   const [showInvoicingModal, setShowInvoicingModal] = useState(false);
   const [showMappingModal, setShowMappingModal] = useState(false);
   const [showStripeModal, setShowStripeModal] = useState(false);
+  const [showWhatsAppTestModal, setShowWhatsAppTestModal] = useState(false);
 
   const { data: integrations, isLoading } = useQuery<Integration[]>({
     queryKey: ["integrations"],
@@ -445,6 +572,7 @@ function IntegrationsTab() {
         const isInvoicing = integ.id === "invoicing";
         const isGcal = integ.id === "google-calendar";
         const isStripe = integ.id === "stripe";
+        const isWhatsApp = integ.id === "whatsapp";
 
         return (
           <div key={integ.id} className="card p-5 flex items-start gap-4">
@@ -550,6 +678,14 @@ function IntegrationsTab() {
                   <ExternalLink className="w-3.5 h-3.5" />
                   חבר
                 </a>
+              ) : isWhatsApp && integ.connected ? (
+                <button
+                  className="btn-secondary text-sm flex items-center gap-1.5"
+                  onClick={() => setShowWhatsAppTestModal(true)}
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  בדיקת חיבור
+                </button>
               ) : (
                 <span className="text-xs text-petra-muted">בקרוב</span>
               )}
@@ -586,6 +722,10 @@ function IntegrationsTab() {
             queryClient.invalidateQueries({ queryKey: ["integrations"] });
           }}
         />
+      )}
+
+      {showWhatsAppTestModal && (
+        <WhatsAppTestModal onClose={() => setShowWhatsAppTestModal(false)} />
       )}
 
       {/* ── Make.com Webhook ── */}
@@ -766,6 +906,99 @@ function StripeConnectModal({
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
             {loading ? "מוודא ושומר..." : "חבר Stripe"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── WhatsApp Test Modal ─────────────────────────────────────────────────────
+
+function WhatsAppTestModal({ onClose }: { onClose: () => void }) {
+  const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ success: boolean; stub?: boolean; message?: string; error?: string } | null>(null);
+
+  async function handleTest() {
+    if (!phone.trim()) return;
+    setLoading(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/integrations/whatsapp/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setResult({ success: false, error: data.error || "שגיאה בשליחה" });
+      } else {
+        setResult(data);
+      }
+    } catch {
+      setResult({ success: false, error: "שגיאת רשת" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
+              <MessageCircle className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-petra-text">בדיקת WhatsApp</h2>
+              <p className="text-sm text-petra-muted mt-0.5">שלח הודעת בדיקה למספר טלפון</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="btn-ghost p-2">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="label">מספר טלפון לבדיקה</label>
+            <input
+              className="input w-full"
+              placeholder="05X-XXXXXXX"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              dir="ltr"
+              onKeyDown={(e) => e.key === "Enter" && handleTest()}
+            />
+            <p className="text-xs text-petra-muted mt-1">הזן מספר ישראלי (יתוקנן אוטומטית)</p>
+          </div>
+
+          {result && (
+            <div className={cn(
+              "flex items-start gap-2 p-3 rounded-xl text-sm border",
+              result.success
+                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                : "bg-red-50 border-red-200 text-red-700"
+            )}>
+              {result.success
+                ? <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                : <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+              <span>{result.success ? (result.message ?? "ההודעה נשלחה בהצלחה!") : result.error}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 p-6 border-t border-slate-100">
+          <button onClick={onClose} className="btn-secondary">סגור</button>
+          <button
+            onClick={handleTest}
+            disabled={loading || !phone.trim()}
+            className="btn-primary flex items-center gap-2"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
+            {loading ? "שולח..." : "שלח הודעת בדיקה"}
           </button>
         </div>
       </div>
