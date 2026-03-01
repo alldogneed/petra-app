@@ -131,6 +131,7 @@ const navEntries: NavEntry[] = [
       { name: "חשבוניות", href: "/invoices", icon: Receipt, minRole: "manager" },
       { name: "מחירון", href: "/pricing", icon: Tag, minRole: "manager" },
       { name: "הזמנות", href: "/orders", icon: ShoppingCart },
+      { name: "ייצוא נתונים", href: "/exports", icon: FileText, minRole: "manager" },
     ],
   },
   {
