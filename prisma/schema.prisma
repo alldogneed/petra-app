@@ -246,6 +246,7 @@ model Business {
   invoicingSettings InvoicingSettings?
   invoiceJobs       InvoiceJob[]
   invoiceDocuments  InvoiceDocument[]
+  stripeSettings    StripeSettings?
   serviceDogProfiles    ServiceDogProfile[]
   serviceDogRecipients  ServiceDogRecipient[]
   serviceDogPlacements  ServiceDogPlacement[]
@@ -1633,4 +1634,28 @@ model ServiceDogIDCard {
   @@index([serviceDogId])
   @@index([qrToken])
   @@index([businessId, isActive])
+}
+
+// ─────────────────────────────────────────────
+// STRIPE PAYMENT GATEWAY
+// ─────────────────────────────────────────────
+
+/// Per-business Stripe credentials for collecting online payments
+model StripeSettings {
+  id                     String    @id @default(uuid())
+  businessId             String    @unique
+  publishableKey         String    // pk_live_... or pk_test_... (safe to expose to frontend)
+  secretKeyEncrypted     String    // sk_live_... encrypted with STRIPE_ENCRYPTION_KEY
+  webhookSecretEncrypted String?   // whsec_... encrypted
+  accountId              String?   // retrieved from Stripe API on connect to verify keys
+  currency               String    @default("ILS")
+  status                 String    @default("active") // "active" | "disabled" | "error"
+  lastError              String?
+  connectedAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
 }

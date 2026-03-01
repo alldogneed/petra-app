@@ -1,7 +1,8 @@
 /**
  * Shared AES-256-GCM encryption helpers.
  *
- * Used by Google Calendar (GCAL_ENCRYPTION_KEY) and Invoicing (INVOICING_ENCRYPTION_KEY).
+ * Used by Google Calendar (GCAL_ENCRYPTION_KEY), Invoicing (INVOICING_ENCRYPTION_KEY),
+ * and Stripe (STRIPE_ENCRYPTION_KEY).
  * Key format: 64-char hex string (32 bytes).
  */
 
@@ -64,4 +65,16 @@ export function encryptInvoicingSecret(plaintext: string): string {
 
 export function decryptInvoicingSecret(ciphertext: string): string {
   return decrypt(ciphertext, INVOICING_KEY);
+}
+
+// ─── Stripe wrappers ───────────────────────────────────────────────────────
+
+const STRIPE_KEY = "STRIPE_ENCRYPTION_KEY";
+
+export function encryptStripeSecret(plaintext: string): string {
+  return encrypt(plaintext, STRIPE_KEY);
+}
+
+export function decryptStripeSecret(ciphertext: string): string {
+  return decrypt(ciphertext, STRIPE_KEY);
 }
