@@ -1,15 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
 import { createOrderReminder } from "@/lib/scheduled-messages";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
@@ -19,7 +18,7 @@ export async function GET(request: NextRequest) {
     const to = searchParams.get("to");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = { businessId: DEMO_BUSINESS_ID };
+    const where: any = { businessId: authResult.businessId };
     if (status) where.status = status;
     if (customerId) where.customerId = customerId;
     if (from || to) {
@@ -49,7 +48,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -65,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch business VAT settings
     const business = await prisma.business.findUnique({
-      where: { id: DEMO_BUSINESS_ID },
+      where: { id: authResult.businessId },
       select: { vatEnabled: true, vatRate: true },
     });
 
@@ -94,7 +93,7 @@ export async function POST(request: NextRequest) {
     const order = await prisma.$transaction(async (tx) => {
       const created = await tx.order.create({
         data: {
-          businessId: DEMO_BUSINESS_ID,
+          businessId: authResult.businessId,
           customerId,
           orderType: orderType || "sale",
           status: status || "draft",
@@ -116,7 +115,7 @@ export async function POST(request: NextRequest) {
         await tx.orderLine.create({
           data: {
             orderId: created.id,
-            businessId: DEMO_BUSINESS_ID,
+            businessId: authResult.businessId,
             priceListItemId: l.priceListItemId || null,
             name: cl.name,
             unit: cl.unit,
@@ -137,7 +136,7 @@ export async function POST(request: NextRequest) {
     // Schedule WhatsApp reminder if startAt is set and sendReminder is requested
     if (body.sendReminder !== false && startAt) {
       try {
-        await createOrderReminder(order.id, customerId, new Date(startAt), DEMO_BUSINESS_ID);
+        await createOrderReminder(order.id, customerId, new Date(startAt), authResult.businessId);
       } catch (err) {
         console.error("Failed to schedule reminder:", err);
         // Non-blocking — order was already created

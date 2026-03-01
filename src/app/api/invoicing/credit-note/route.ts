@@ -1,13 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { DOCUMENT_TYPE_LABELS } from "@/lib/invoicing/types";
 
 // POST /api/invoicing/credit-note — create a credit note referencing an original invoice
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
 
   try {
@@ -25,7 +24,7 @@ export async function POST(request: NextRequest) {
     const original = await prisma.invoiceDocument.findFirst({
       where: {
         id: originalInvoiceId,
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         status: "issued",
       },
     });
@@ -41,7 +40,7 @@ export async function POST(request: NextRequest) {
     const existingCreditNote = await prisma.invoiceDocument.findFirst({
       where: {
         originalInvoiceId,
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         status: { not: "cancelled" },
       },
     });
@@ -56,7 +55,7 @@ export async function POST(request: NextRequest) {
     // Create credit note as draft
     const creditNote = await prisma.invoiceDocument.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         customerId: original.customerId,
         paymentId: original.paymentId,
         orderId: original.orderId,

@@ -1,18 +1,17 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { InvoicingService } from "@/lib/invoicing/invoicing-service";
 
 // GET /api/invoicing/settings — get current invoicing settings (never exposes decrypted keys)
 export async function GET(request: NextRequest) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
 
   try {
     const settings = await prisma.invoicingSettings.findUnique({
-      where: { businessId: DEMO_BUSINESS_ID },
+      where: { businessId: authResult.businessId },
       select: {
         id: true,
         providerName: true,
@@ -37,7 +36,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/invoicing/settings — save credentials or update mapping only
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
 
   try {
@@ -47,7 +46,7 @@ export async function POST(request: NextRequest) {
     // Mapping-only update (no credential re-test needed)
     if (updateMappingOnly && documentMapping) {
       await prisma.invoicingSettings.update({
-        where: { businessId: DEMO_BUSINESS_ID },
+        where: { businessId: authResult.businessId },
         data: { documentMapping: JSON.stringify(documentMapping) },
       });
       return NextResponse.json({ success: true });
@@ -68,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     // Save
     await InvoicingService.saveSettings(
-      DEMO_BUSINESS_ID,
+      authResult.businessId,
       providerName,
       apiKey,
       apiSecret,
@@ -84,12 +83,12 @@ export async function POST(request: NextRequest) {
 
 // DELETE /api/invoicing/settings — disconnect invoicing
 export async function DELETE(request: NextRequest) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
 
   try {
     await prisma.invoicingSettings.deleteMany({
-      where: { businessId: DEMO_BUSINESS_ID },
+      where: { businessId: authResult.businessId },
     });
 
     return NextResponse.json({ success: true });

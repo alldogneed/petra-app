@@ -1,14 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { DOCUMENT_TYPE_LABELS } from "@/lib/invoicing/types";
 import { VAT_RATE } from "@/lib/constants";
 
 // GET /api/invoicing/documents — list documents with filters
 export async function GET(request: NextRequest) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
 
   try {
@@ -20,7 +19,7 @@ export async function GET(request: NextRequest) {
     const to = url.searchParams.get("to");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = { businessId: DEMO_BUSINESS_ID };
+    const where: any = { businessId: authResult.businessId };
     if (status) where.status = status;
     if (docType) where.docType = Number(docType);
     if (customerId) where.customerId = customerId;
@@ -49,7 +48,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/invoicing/documents — create a draft invoice
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
 
   try {
@@ -62,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     // Verify customer exists
     const customer = await prisma.customer.findFirst({
-      where: { id: customerId, businessId: DEMO_BUSINESS_ID },
+      where: { id: customerId, businessId: authResult.businessId },
       select: { id: true, name: true },
     });
     if (!customer) {
@@ -71,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     // Get business VAT info
     const business = await prisma.business.findUnique({
-      where: { id: DEMO_BUSINESS_ID },
+      where: { id: authResult.businessId },
       select: { vatNumber: true, vatRate: true },
     });
 
@@ -82,7 +81,7 @@ export async function POST(request: NextRequest) {
     // If orderId provided, snapshot lines from order
     if (orderId) {
       const order = await prisma.order.findFirst({
-        where: { id: orderId, businessId: DEMO_BUSINESS_ID },
+        where: { id: orderId, businessId: authResult.businessId },
         include: { lines: true },
       });
       if (order) {
@@ -110,13 +109,13 @@ export async function POST(request: NextRequest) {
 
     // Get provider settings
     const settings = await prisma.invoicingSettings.findUnique({
-      where: { businessId: DEMO_BUSINESS_ID },
+      where: { businessId: authResult.businessId },
       select: { providerName: true },
     });
 
     const doc = await prisma.invoiceDocument.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         customerId,
         paymentId: paymentId || null,
         orderId: orderId || null,

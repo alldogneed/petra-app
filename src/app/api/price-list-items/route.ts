@@ -1,8 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 // Map English category IDs (used by frontend) to Hebrew (stored in DB)
@@ -16,7 +15,7 @@ const CATEGORY_ID_TO_HE: Record<string, string> = {
 // GET /api/price-list-items?category=training
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
@@ -24,7 +23,7 @@ export async function GET(request: NextRequest) {
     const includeInactive = searchParams.get("includeInactive") === "true";
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = { businessId: DEMO_BUSINESS_ID };
+    const where: any = { businessId: authResult.businessId };
     if (!includeInactive) {
       where.isActive = true;
     }
@@ -48,7 +47,7 @@ export async function GET(request: NextRequest) {
 // POST /api/price-list-items
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -68,13 +67,13 @@ export async function POST(request: NextRequest) {
 
     // Auto-create default PriceList if none exists
     let priceList = await prisma.priceList.findFirst({
-      where: { businessId: DEMO_BUSINESS_ID, isActive: true },
+      where: { businessId: authResult.businessId, isActive: true },
     });
 
     if (!priceList) {
       priceList = await prisma.priceList.create({
         data: {
-          businessId: DEMO_BUSINESS_ID,
+          businessId: authResult.businessId,
           name: "מחירון ברירת מחדל",
           currency: "ILS",
         },
@@ -83,7 +82,7 @@ export async function POST(request: NextRequest) {
 
     const item = await prisma.priceListItem.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         priceListId: priceList.id,
         name: name.trim(),
         category: category || null,

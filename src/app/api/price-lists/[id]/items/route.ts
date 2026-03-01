@@ -1,15 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
@@ -18,7 +17,7 @@ export async function GET(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
       priceListId: params.id,
-      businessId: DEMO_BUSINESS_ID,
+      businessId: authResult.businessId,
     };
     if (activeOnly) where.isActive = true;
 
@@ -39,7 +38,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
@@ -51,7 +50,7 @@ export async function POST(
 
     const item = await prisma.priceListItem.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         priceListId: params.id,
         type: body.type || "service",
         name,

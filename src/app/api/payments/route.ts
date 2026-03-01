@@ -1,22 +1,21 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { InvoicingService } from "@/lib/invoicing/invoicing-service";
 import { enqueueInvoiceJob } from "@/lib/invoicing/invoicing-jobs";
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
 
-    const where: any = { businessId: DEMO_BUSINESS_ID };
+    const where: any = { businessId: authResult.businessId };
     if (status) {
       where.status = status;
     }
@@ -54,7 +53,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -105,7 +104,7 @@ export async function POST(request: NextRequest) {
         customerId,
         appointmentId: appointmentId || null,
         boardingStayId: boardingStayId || null,
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
       },
       include: {
         customer: {
@@ -130,14 +129,14 @@ export async function POST(request: NextRequest) {
     // Auto-issue invoicing document for paid payments
     if (status === "paid") {
       try {
-        const configured = await InvoicingService.isConfigured(DEMO_BUSINESS_ID);
+        const configured = await InvoicingService.isConfigured(authResult.businessId);
         if (configured) {
           try {
-            await InvoicingService.issue(DEMO_BUSINESS_ID, payment.id);
+            await InvoicingService.issue(authResult.businessId, payment.id);
           } catch {
             // On failure, enqueue for retry — don't fail the payment creation
             await enqueueInvoiceJob({
-              businessId: DEMO_BUSINESS_ID,
+              businessId: authResult.businessId,
               paymentId: payment.id,
               customerId,
               action: "issue_document",

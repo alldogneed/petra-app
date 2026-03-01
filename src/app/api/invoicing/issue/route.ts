@@ -1,8 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { InvoicingService } from "@/lib/invoicing/invoicing-service";
 import type { DocumentType } from "@/lib/invoicing/types";
 import { maskSensitive, logInvoicing } from "@/lib/invoicing/logger";
@@ -12,7 +11,7 @@ import { maskSensitive, logInvoicing } from "@/lib/invoicing/logger";
 // 1. Issue from draft: { invoiceId } — loads draft, sends to provider, updates record
 // 2. Direct issue from payment: { paymentId, docType? } — original flow
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
 
   try {
@@ -22,7 +21,7 @@ export async function POST(request: NextRequest) {
     // Flow 1: Issue from draft invoice
     if (invoiceId) {
       const draft = await prisma.invoiceDocument.findFirst({
-        where: { id: invoiceId, businessId: DEMO_BUSINESS_ID },
+        where: { id: invoiceId, businessId: authResult.businessId },
       });
 
       if (!draft) {
@@ -46,7 +45,7 @@ export async function POST(request: NextRequest) {
         // If linked to a payment, use the existing service flow
         if (draft.paymentId) {
           const result = await InvoicingService.issue(
-            DEMO_BUSINESS_ID,
+            authResult.businessId,
             draft.paymentId,
             { docType: draft.docType as DocumentType }
           );
@@ -68,7 +67,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Standalone draft (no payment) - issue directly via provider
-        const result = await InvoicingService.issueDraft(DEMO_BUSINESS_ID, invoiceId);
+        const result = await InvoicingService.issueDraft(authResult.businessId, invoiceId);
 
         return NextResponse.json(result);
       } catch (err) {
@@ -90,7 +89,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await InvoicingService.issue(
-      DEMO_BUSINESS_ID,
+      authResult.businessId,
       paymentId,
       docType ? { docType: docType as DocumentType } : undefined
     );
