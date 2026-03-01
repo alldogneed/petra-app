@@ -49,7 +49,8 @@ function OnboardingInner() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ completedAt: new Date().toISOString(), skipped: true }),
     });
-    router.push("/dashboard");
+    // Full reload to bypass Next.js router cache (avoids layout re-redirecting to onboarding)
+    window.location.href = "/dashboard";
   }
 
   return (
@@ -114,7 +115,7 @@ function OnboardingInner() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ completedAt: new Date().toISOString() }),
             });
-            router.push("/dashboard");
+            window.location.href = "/dashboard";
           }} />
         ) : step === 0 ? (
           <StepWelcome onNext={() => setStep(1)} />

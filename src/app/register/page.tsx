@@ -10,24 +10,25 @@ function PasswordStrength({ password }: { password: string }) {
   if (!password) return null;
 
   const checks = [
-    { label: "לפחות 8 תווים", ok: password.length >= 8 },
-    { label: "אות אחת לפחות", ok: /[A-Za-z]/.test(password) },
-    { label: "ספרה אחת לפחות", ok: /[0-9]/.test(password) },
+    { label: "12+ תווים", ok: password.length >= 12 },
+    { label: "אות גדולה", ok: /[A-Z]/.test(password) },
+    { label: "אות קטנה", ok: /[a-z]/.test(password) },
+    { label: "ספרה", ok: /[0-9]/.test(password) },
   ];
 
   const score = checks.filter((c) => c.ok).length;
-  const colors = ["#EF4444", "#F59E0B", "#10B981"];
-  const labels = ["חלשה", "בינונית", "חזקה"];
+  const colors = ["#EF4444", "#EF4444", "#F59E0B", "#F59E0B", "#10B981"];
+  const labels = ["חלשה", "חלשה", "בינונית", "בינונית", "חזקה"];
 
   return (
     <div className="mt-2 space-y-2">
       <div className="flex gap-1">
-        {[0, 1, 2].map((i) => (
+        {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
             className="h-1 flex-1 rounded-full transition-all duration-300"
             style={{
-              background: i < score ? colors[score - 1] : "#E2E8F0",
+              background: i < score ? colors[score] : "#E2E8F0",
             }}
           />
         ))}
@@ -47,9 +48,9 @@ function PasswordStrength({ password }: { password: string }) {
         {score > 0 && (
           <span
             className="text-[11px] font-medium"
-            style={{ color: colors[score - 1] }}
+            style={{ color: colors[score] }}
           >
-            {labels[score - 1]}
+            {labels[score]}
           </span>
         )}
       </div>
@@ -99,8 +100,9 @@ export default function RegisterPage() {
   const isValid =
     name.trim().length > 0 &&
     email.trim().length > 0 &&
-    password.length >= 8 &&
-    /[A-Za-z]/.test(password) &&
+    password.length >= 12 &&
+    /[A-Z]/.test(password) &&
+    /[a-z]/.test(password) &&
     /[0-9]/.test(password) &&
     tosAccepted;
 
@@ -207,7 +209,7 @@ export default function RegisterPage() {
               <input
                 type={showPassword ? "text" : "password"}
                 className="input pr-10 pl-10"
-                placeholder="לפחות 8 תווים"
+                placeholder="לפחות 12 תווים"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -284,6 +286,9 @@ export default function RegisterPage() {
 
         <p className="text-center text-xs text-petra-muted mt-4">
           Petra &copy; {new Date().getFullYear()}
+        </p>
+        <p className="text-center text-xs text-petra-muted mt-1">
+          כל הזכויות שמורות all-dog - המרכז הישראלי להתנהגות הכלב
         </p>
       </div>
     </div>

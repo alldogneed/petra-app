@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { createSession, setSessionCookie } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { logAudit, AUDIT_ACTIONS, getRequestContext } from "@/lib/audit";
+import { CURRENT_TOS_VERSION } from "@/lib/tos";
 
 const REGISTER_RATE_LIMIT = { max: 5, windowMs: 15 * 60 * 1000 }; // 5 per 15 min per IP
 
@@ -35,9 +36,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, email, password } = body;
+    const { name, email, password, tosAccepted, tosVersion } = body;
 
     // ── Validation ────────────────────────────────────────────────────────────
+    if (!tosAccepted || tosVersion !== CURRENT_TOS_VERSION) {
+      return NextResponse.json(
+        { error: "יש לאשר את תנאי השימוש כדי להמשיך" },
+        { status: 400 }
+      );
+    }
+
     if (!name?.trim() || !email?.trim() || !password) {
       return NextResponse.json(
         { error: "שם, אימייל וסיסמה הם שדות חובה" },
@@ -82,6 +90,22 @@ export async function POST(request: NextRequest) {
         platformRole: null,
         isActive: true,
       },
+    });
+
+    // ── Record ToS consent ────────────────────────────────────────────────────
+    const { ip: consentIp, userAgent: consentUa } = getRequestContext(request);
+    await prisma.userConsent.create({
+      data: {
+        id: `${user.id}:${CURRENT_TOS_VERSION}`,
+        userId: user.id,
+        termsVersion: CURRENT_TOS_VERSION,
+        ipAddress: consentIp,
+        userAgent: consentUa,
+      },
+    });
+    await prisma.platformUser.update({
+      where: { id: user.id },
+      data: { tosAcceptedVersion: CURRENT_TOS_VERSION, tosAcceptedAt: new Date() },
     });
 
     // ── Create onboarding progress (step 0, not started yet) ─────────────────

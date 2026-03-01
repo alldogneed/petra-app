@@ -49,7 +49,10 @@ export function SystemInbox() {
       const r = await fetch("/api/system-messages");
       if (!r.ok) return [];
       const data = await r.json();
-      return Array.isArray(data) ? data : [];
+      // API returns { messages, unreadCount }
+      if (data && Array.isArray(data.messages)) return data.messages;
+      if (Array.isArray(data)) return data;
+      return [];
     },
     refetchInterval: 60_000,
   });

@@ -184,6 +184,9 @@ function LoginForm() {
       <p className="text-center text-xs text-petra-muted mt-3">
         Petra &copy; {new Date().getFullYear()}
       </p>
+      <p className="text-center text-xs text-petra-muted mt-1">
+        כל הזכויות שמורות all-dog - המרכז הישראלי להתנהגות הכלב
+      </p>
     </div>
   );
 }

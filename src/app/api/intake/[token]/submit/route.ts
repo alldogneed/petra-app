@@ -15,6 +15,12 @@ export async function POST(
       return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
     }
 
+    // Guard: reject oversized payloads before touching DB (100 KB limit)
+    const contentLength = parseInt(request.headers.get("content-length") ?? "0", 10);
+    if (contentLength > 100_000) {
+      return NextResponse.json({ error: "הטופס גדול מדי" }, { status: 413 });
+    }
+
     const tokenHash = crypto.createHash("sha256").update(params.token).digest("hex");
 
     const form = await prisma.intakeForm.findUnique({
@@ -176,7 +182,7 @@ export async function POST(
       data: {
         status: "SUBMITTED",
         submittedAt: new Date(),
-        submissionJson: JSON.stringify(body),
+        submissionJson: JSON.stringify(body).slice(0, 100_000), // hard cap 100 KB
         dogId: petId,
       },
     });

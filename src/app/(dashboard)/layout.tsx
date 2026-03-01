@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Toaster } from "sonner";
+import { CURRENT_TOS_VERSION } from "@/lib/tos";
 
 export default async function DashboardLayout({
   children,
@@ -14,6 +15,14 @@ export default async function DashboardLayout({
 
   if (!user) {
     redirect("/login");
+  }
+
+  // Block access if user hasn't accepted the current ToS version
+  const consent = await prisma.userConsent.findFirst({
+    where: { userId: user.id, termsVersion: CURRENT_TOS_VERSION },
+  });
+  if (!consent) {
+    redirect("/tos-accept");
   }
 
   const progress = await prisma.onboardingProgress.findUnique({

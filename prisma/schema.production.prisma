@@ -41,6 +41,10 @@ model PlatformUser {
   gcalLastConnectedAt DateTime?
   gcalSyncEnabled     Boolean   @default(true) // toggle sync on/off
 
+  // Terms of Service
+  tosAcceptedVersion  String?   // e.g. "1.0" — version last accepted
+  tosAcceptedAt       DateTime? // timestamp of acceptance
+
   sessions            AdminSession[]
   passwordResetTokens PasswordResetToken[]
   businessMemberships BusinessUser[]
@@ -49,10 +53,26 @@ model PlatformUser {
   syncJobs       SyncJob[]
   onboardingProfile  OnboardingProfile?
   onboardingProgress OnboardingProgress?
+  consents       UserConsent[]
 
   @@index([email])
   @@index([googleId])
   @@index([platformRole])
+}
+
+/// Legal evidence of ToS acceptance — one row per user per version
+model UserConsent {
+  id           String   @id @default(cuid())
+  userId       String
+  termsVersion String   // e.g. "1.0"
+  acceptedAt   DateTime @default(now())
+  ipAddress    String?
+  userAgent    String?
+
+  user         PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([termsVersion])
 }
 
 /// Per-tenant membership (links PlatformUser to a Business)

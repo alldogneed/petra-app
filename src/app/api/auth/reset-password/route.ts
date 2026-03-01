@@ -9,8 +9,14 @@ import { logAudit, AUDIT_ACTIONS, getRequestContext } from "@/lib/audit";
 
 const RESET_RATE_LIMIT = { max: 10, windowMs: 15 * 60 * 1000 };
 
+// Must match registration requirements: 12+ chars, uppercase + lowercase + digit
 function isStrongPassword(pw: string): boolean {
-  return pw.length >= 8 && /[A-Za-z]/.test(pw) && /[0-9]/.test(pw);
+  return (
+    pw.length >= 12 &&
+    /[A-Z]/.test(pw) &&
+    /[a-z]/.test(pw) &&
+    /[0-9]/.test(pw)
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -34,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     if (!isStrongPassword(password)) {
       return NextResponse.json(
-        { error: "הסיסמה חייבת להכיל לפחות 8 תווים, אות אחת וספרה אחת" },
+        { error: "הסיסמה חייבת להכיל לפחות 12 תווים, אות גדולה, אות קטנה וספרה" },
         { status: 400 }
       );
     }
