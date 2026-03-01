@@ -8,11 +8,17 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-  MessageCircle,
   PawPrint,
   RefreshCw,
+  MessageCircle,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldX,
+  Search,
 } from "lucide-react";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface VaccinationEntry {
   healthId: string;
@@ -23,113 +29,262 @@ interface VaccinationEntry {
   customerId: string;
   customerName: string;
   customerPhone: string;
-  vaccineType: "rabies" | "dhpp";
+  vaccineType: "rabies" | "dhpp" | "deworming";
   vaccineLabel: string;
-  validUntil: string;
+  lastDate: string | null;
+  validUntil: string | null;
   daysUntil: number;
   isExpired: boolean;
+  isUnknown: boolean;
 }
 
-const DAY_OPTIONS = [7, 14, 30, 60, 90];
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function urgencyClass(entry: VaccinationEntry): string {
-  if (entry.isExpired) return "border-red-200 bg-red-50";
-  if (entry.daysUntil <= 7) return "border-orange-200 bg-orange-50";
-  if (entry.daysUntil <= 30) return "border-amber-100 bg-amber-50";
-  return "border-slate-100 bg-white";
+function computeStatus(
+  entry: VaccinationEntry
+): "valid" | "expiring_soon" | "expired" | "unknown" {
+  if (entry.isUnknown || entry.validUntil === null) return "unknown";
+  if (entry.isExpired) return "expired";
+  if (entry.daysUntil <= 30) return "expiring_soon";
+  return "valid";
 }
 
-function urgencyBadge(entry: VaccinationEntry) {
-  if (entry.isExpired) {
+function StatusBadge({
+  status,
+  daysUntil,
+}: {
+  status: string;
+  daysUntil: number;
+}) {
+  if (status === "valid") {
     return (
-      <span className="badge badge-danger">
-        פג תוקף לפני {Math.abs(entry.daysUntil)} ימים
+      <span className="flex items-center gap-1 text-emerald-700 font-medium text-xs">
+        <ShieldCheck className="w-3.5 h-3.5" />
+        תקף
+        <span className="text-emerald-500">({daysUntil} ימים)</span>
       </span>
     );
   }
-  if (entry.daysUntil <= 7) {
+  if (status === "expiring_soon") {
     return (
-      <span className="badge badge-danger">
-        נפקע בעוד {entry.daysUntil} ימים
+      <span className="badge badge-warning flex items-center gap-1">
+        <Clock className="w-3 h-3" />
+        {daysUntil === 0
+          ? "פוקע היום"
+          : daysUntil === 1
+          ? "פוקע מחר"
+          : `פוקע בעוד ${daysUntil} ימים`}
       </span>
     );
   }
-  if (entry.daysUntil <= 30) {
+  if (status === "expired") {
     return (
-      <span className="badge badge-warning">
-        נפקע בעוד {entry.daysUntil} ימים
+      <span className="badge badge-danger flex items-center gap-1">
+        <ShieldX className="w-3 h-3" />
+        פג תוקף
+        <span>
+          (לפני {Math.abs(daysUntil)} ימים)
+        </span>
       </span>
     );
   }
   return (
-    <span className="badge badge-neutral">
-      נפקע בעוד {entry.daysUntil} ימים
+    <span className="flex items-center gap-1 text-slate-400 text-xs">
+      <ShieldAlert className="w-3.5 h-3.5" />
+      לא ידוע
     </span>
   );
 }
 
-export default function VaccinationsPage() {
-  const [days, setDays] = useState(30);
-  const [typeFilter, setTypeFilter] = useState<"all" | "rabies" | "dhpp">("all");
+function rowBorderClass(status: string) {
+  if (status === "expired") return "border-r-4 border-r-red-400";
+  if (status === "expiring_soon") return "border-r-4 border-r-amber-400";
+  return "";
+}
 
-  const { data, isLoading, isError, refetch } = useQuery<{
+function buildWhatsApp(
+  phone: string,
+  petName: string,
+  vaccineLabel: string,
+  validUntil: string | null,
+  isExpired: boolean
+): string {
+  let msg: string;
+  if (isExpired) {
+    msg = `שלום! רצינו להודיע לך שה${vaccineLabel} של הכלב ${petName} פג תוקפו. אנא פנה לווטרינר בהקדם. – הצוות שלנו`;
+  } else {
+    const dateStr = validUntil
+      ? new Date(validUntil).toLocaleDateString("he-IL")
+      : "בקרוב";
+    msg = `שלום! רצינו להזכיר לך שה${vaccineLabel} של הכלב ${petName} עומד לפוג בתאריך ${dateStr}. כדאי לתאם חידוש. – הצוות שלנו`;
+  }
+  return `https://wa.me/${toWhatsAppPhone(phone)}?text=${encodeURIComponent(msg)}`;
+}
+
+type StatusFilter = "all" | "expired" | "expiring_soon" | "valid";
+type TypeFilter = "all" | "rabies" | "dhpp" | "deworming";
+const DAY_WINDOWS = [7, 14, 30, 60, 90];
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
+export default function VaccinationsPage() {
+  const [daysWindow, setDaysWindow] = useState(30);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [search, setSearch] = useState("");
+
+  const { data, isLoading, isError, refetch, isFetching } = useQuery<{
     vaccinations: VaccinationEntry[];
     total: number;
   }>({
-    queryKey: ["vaccinations", days],
+    queryKey: ["vaccinations-full", daysWindow],
     queryFn: () =>
-      fetch(`/api/pets/vaccinations?days=${days}`).then((r) => r.json()),
+      fetch(`/api/pets/vaccinations?days=${daysWindow}`).then((r) => r.json()),
+    staleTime: 60000,
   });
 
-  const allVaccinations = data?.vaccinations ?? [];
-  const vaccinations = typeFilter === "all"
-    ? allVaccinations
-    : allVaccinations.filter((v) => v.vaccineType === typeFilter);
+  // Compute status for each entry
+  const enriched = (data?.vaccinations ?? []).map((v) => ({
+    ...v,
+    status: computeStatus(v),
+  }));
 
-  const expired = vaccinations.filter((v) => v.isExpired);
-  const expiring = vaccinations.filter((v) => !v.isExpired);
+  // Apply filters
+  const filtered = enriched.filter((v) => {
+    if (typeFilter !== "all" && v.vaccineType !== typeFilter) return false;
+    if (statusFilter !== "all" && v.status !== statusFilter) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (
+        !v.petName.toLowerCase().includes(q) &&
+        !v.customerName.toLowerCase().includes(q) &&
+        !v.vaccineLabel.toLowerCase().includes(q)
+      )
+        return false;
+    }
+    return true;
+  });
 
-  const buildWhatsApp = (phone: string, petName: string, vaccineLabel: string, expiry: string) => {
-    const formatted = new Date(expiry).toLocaleDateString("he-IL");
-    const msg = encodeURIComponent(
-      `שלום! רצינו להזכיר לך שהחיסון (${vaccineLabel}) של ${petName} עומד לפוג בתאריך ${formatted}. כדאי לתאם עם הווטרינר לחידוש החיסון. – הצוות שלנו`
-    );
-    return `https://wa.me/${toWhatsAppPhone(phone)}?text=${msg}`;
+  // Sort: expired → expiring_soon → valid → unknown
+  const STATUS_ORDER: Record<string, number> = {
+    expired: 0,
+    expiring_soon: 1,
+    valid: 2,
+    unknown: 3,
   };
+  const sorted = [...filtered].sort(
+    (a, b) =>
+      (STATUS_ORDER[a.status] ?? 4) - (STATUS_ORDER[b.status] ?? 4) ||
+      a.daysUntil - b.daysUntil
+  );
 
-  const rabiesCount = allVaccinations.filter((v) => v.vaccineType === "rabies").length;
-  const dhppCount = allVaccinations.filter((v) => v.vaccineType === "dhpp").length;
+  const expiredCount = enriched.filter((v) => v.status === "expired").length;
+  const expiringSoonCount = enriched.filter(
+    (v) => v.status === "expiring_soon"
+  ).length;
+  const validCount = enriched.filter((v) => v.status === "valid").length;
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">תזכורות חיסונים</h1>
+          <h1 className="page-title">ניהול חיסונים</h1>
           <p className="text-sm text-petra-muted mt-1">
-            חיות מחמד עם חיסון שפג תוקפו או שעומד לפוג
+            מעקב חיסונים לכלבי העסק – כלבת, DHPP וטיפול נגד תולעים
           </p>
         </div>
         <button
           onClick={() => refetch()}
+          disabled={isFetching}
           className="btn-secondary gap-2 inline-flex items-center"
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className={cn("w-4 h-4", isFetching && "animate-spin")} />
           רענן
         </button>
       </div>
 
+      {/* Stat cards */}
+      {!isLoading && !isError && (
+        <div className="grid grid-cols-3 gap-4">
+          <button
+            onClick={() =>
+              setStatusFilter(statusFilter === "expired" ? "all" : "expired")
+            }
+            className={cn(
+              "stat-card text-right transition-all cursor-pointer",
+              statusFilter === "expired" && "ring-2 ring-red-400"
+            )}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <ShieldX className="w-4 h-4 text-red-500" />
+              <span className="text-sm text-petra-muted">פג תוקף</span>
+            </div>
+            <p className="text-2xl font-bold text-red-600">{expiredCount}</p>
+          </button>
+
+          <button
+            onClick={() =>
+              setStatusFilter(
+                statusFilter === "expiring_soon" ? "all" : "expiring_soon"
+              )
+            }
+            className={cn(
+              "stat-card text-right transition-all cursor-pointer",
+              statusFilter === "expiring_soon" && "ring-2 ring-amber-400"
+            )}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Clock className="w-4 h-4 text-amber-500" />
+              <span className="text-sm text-petra-muted">פוקע בקרוב</span>
+            </div>
+            <p className="text-2xl font-bold text-amber-600">
+              {expiringSoonCount}
+            </p>
+          </button>
+
+          <button
+            onClick={() =>
+              setStatusFilter(statusFilter === "valid" ? "all" : "valid")
+            }
+            className={cn(
+              "stat-card text-right transition-all cursor-pointer",
+              statusFilter === "valid" && "ring-2 ring-emerald-400"
+            )}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              <span className="text-sm text-petra-muted">תקף</span>
+            </div>
+            <p className="text-2xl font-bold text-emerald-600">{validCount}</p>
+          </button>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="card p-4 flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium text-petra-text">הצג בתוך:</span>
-          {DAY_OPTIONS.map((d) => (
+        {/* Search */}
+        <div className="relative flex-1 min-w-[180px]">
+          <input
+            type="text"
+            placeholder="חיפוש לפי כלב, לקוח..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input w-full pr-9"
+          />
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
+        </div>
+
+        {/* Days window */}
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-xs text-petra-muted ml-1">הצג תוך:</span>
+          {DAY_WINDOWS.map((d) => (
             <button
               key={d}
-              onClick={() => setDays(d)}
+              onClick={() => setDaysWindow(d)}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-                days === d
+                "px-2.5 py-1 rounded-lg text-xs font-medium border transition-all",
+                daysWindow === d
                   ? "bg-brand-500 text-white border-brand-500"
                   : "bg-white text-petra-muted border-slate-200 hover:border-brand-300"
               )}
@@ -138,170 +293,223 @@ export default function VaccinationsPage() {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-petra-text">סוג חיסון:</span>
-          {[
-            { value: "all", label: "הכל" },
-            { value: "rabies", label: `כלבת (${rabiesCount})` },
-            { value: "dhpp", label: `DHPP (${dhppCount})` },
-          ].map((opt) => (
+
+        {/* Vaccine type */}
+        <div className="flex items-center gap-1 flex-wrap">
+          {(
+            [
+              { value: "all", label: "הכל" },
+              { value: "rabies", label: "כלבת" },
+              { value: "dhpp", label: "DHPP" },
+              { value: "deworming", label: "תולעים" },
+            ] as const
+          ).map((opt) => (
             <button
               key={opt.value}
-              onClick={() => setTypeFilter(opt.value as "all" | "rabies" | "dhpp")}
+              onClick={() => setTypeFilter(opt.value)}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                "px-2.5 py-1 rounded-lg text-xs font-medium border transition-all",
                 typeFilter === opt.value
-                  ? "bg-brand-500 text-white border-brand-500"
-                  : "bg-white text-petra-muted border-slate-200 hover:border-brand-300"
+                  ? "bg-slate-700 text-white border-slate-700"
+                  : "bg-white text-petra-muted border-slate-200 hover:border-slate-400"
               )}
             >
               {opt.label}
             </button>
           ))}
         </div>
+
         {data && (
           <span className="ms-auto text-sm text-petra-muted">
-            {vaccinations.length} רשומות
+            {sorted.length} רשומות
           </span>
         )}
       </div>
 
-      {/* Loading / Error */}
+      {/* Loading */}
       {isLoading && (
         <div className="card p-10 text-center text-petra-muted text-sm">
           <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin opacity-40" />
           טוען...
         </div>
       )}
+
+      {/* Error */}
       {isError && (
         <div className="card p-8 text-center text-red-500 text-sm">
           שגיאה בטעינת נתונים
         </div>
       )}
 
-      {!isLoading && !isError && vaccinations.length === 0 && (
-        <div className="card p-12 text-center">
-          <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-emerald-400 opacity-60" />
+      {/* Empty */}
+      {!isLoading && !isError && sorted.length === 0 && (
+        <div className="card p-12 text-center space-y-2">
+          <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-400 opacity-60" />
           <p className="text-petra-muted text-sm">
-            אין חיסונים שפגו תוקפם או שיפקעו בתוך {days} הימים הקרובים
+            {statusFilter !== "all" || typeFilter !== "all" || search
+              ? "לא נמצאו חיסונים מתאימים לפילטר הנבחר"
+              : "לא נמצאו חיסונים שעומדים לפוג בחלון הזמן הנבחר"}
           </p>
+          {!search && statusFilter === "all" && typeFilter === "all" && (
+            <p className="text-xs text-petra-muted">
+              נסה להרחיב את חלון הזמן (לדוגמה: 90 ימים)
+            </p>
+          )}
         </div>
       )}
 
-      {/* Expired section */}
-      {expired.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-500" />
-            <h2 className="text-sm font-bold text-red-600">
-              חיסונים שפג תוקפם ({expired.length})
-            </h2>
-          </div>
-          <div className="space-y-2">
-            {expired.map((v) => (
-              <VaccinationRow
-                key={v.healthId}
-                entry={v}
-                waLink={buildWhatsApp(v.customerPhone, v.petName, v.vaccineLabel, v.validUntil)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Expiring soon section */}
-      {expiring.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-amber-500" />
-            <h2 className="text-sm font-bold text-amber-600">
-              חיסונים שעומדים לפוג ({expiring.length})
-            </h2>
-          </div>
-          <div className="space-y-2">
-            {expiring.map((v) => (
-              <VaccinationRow
-                key={v.healthId}
-                entry={v}
-                waLink={buildWhatsApp(v.customerPhone, v.petName, v.vaccineLabel, v.validUntil)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
-  );
-}
-
-function VaccinationRow({
-  entry,
-  waLink,
-}: {
-  entry: VaccinationEntry;
-  waLink: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between p-4 rounded-xl border gap-4",
-        urgencyClass(entry)
-      )}
-    >
-      {/* Pet info */}
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
-          <PawPrint className="w-4 h-4 text-brand-500" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-petra-text">
-            {entry.petName}
-            {entry.breed && (
-              <span className="text-petra-muted font-normal mr-1 text-xs">
-                ({entry.breed})
+      {/* Alert banner */}
+      {!isLoading && !isError && sorted.length > 0 && (expiredCount > 0 || expiringSoonCount > 0) && (
+        <div className="card p-4 bg-amber-50 border-amber-200 flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+          <p className="text-sm text-amber-800">
+            {expiredCount > 0 && (
+              <span className="font-semibold text-red-700">
+                {expiredCount} חיסונים פגי תוקף
               </span>
             )}
-          </p>
-          <Link
-            href={`/customers/${entry.customerId}`}
-            className="text-xs text-brand-600 hover:underline"
-          >
-            {entry.customerName}
-          </Link>
-        </div>
-      </div>
-
-      {/* Expiry info */}
-      <div className="flex items-center gap-3 flex-shrink-0">
-        <div className="text-right">
-          <p className="text-xs text-petra-muted flex items-center gap-1 justify-end">
-            <Syringe className="w-3 h-3" />
-            {entry.vaccineLabel}
-          </p>
-          <p className="text-xs font-medium text-petra-text">
-            {new Date(entry.validUntil).toLocaleDateString("he-IL")}
+            {expiredCount > 0 && expiringSoonCount > 0 && " · "}
+            {expiringSoonCount > 0 && (
+              <span className="font-semibold text-amber-700">
+                {expiringSoonCount} חיסונים עומדים לפוג
+              </span>
+            )}
+            {" – מומלץ לשלוח תזכורת לבעלי הכלבים"}
           </p>
         </div>
-        {urgencyBadge(entry)}
-      </div>
+      )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <a
-          href={waLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-200 text-xs font-medium"
-        >
-          <MessageCircle className="w-3.5 h-3.5" />
-          WhatsApp
-        </a>
-        <Link
-          href={`/customers/${entry.customerId}`}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 transition-colors border border-brand-200 text-xs font-medium"
-        >
-          פרופיל
-        </Link>
-      </div>
+      {/* Table */}
+      {!isLoading && !isError && sorted.length > 0 && (
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-100">
+                <tr>
+                  <th className="table-header-cell">שם הכלב</th>
+                  <th className="table-header-cell">בעל הכלב</th>
+                  <th className="table-header-cell">סוג חיסון</th>
+                  <th className="table-header-cell">תאריך אחרון</th>
+                  <th className="table-header-cell">תוקף עד</th>
+                  <th className="table-header-cell">סטטוס</th>
+                  <th className="table-header-cell">פעולות</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {sorted.map((v) => (
+                  <tr
+                    key={`${v.healthId}-${v.vaccineType}`}
+                    className={cn(
+                      "hover:bg-slate-50 transition-colors",
+                      rowBorderClass(v.status)
+                    )}
+                  >
+                    {/* Pet */}
+                    <td className="table-cell">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-brand-50 flex items-center justify-center flex-shrink-0">
+                          <PawPrint className="w-3.5 h-3.5 text-brand-500" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-petra-text">
+                            {v.petName}
+                          </p>
+                          {v.breed && (
+                            <p className="text-xs text-petra-muted">{v.breed}</p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Customer */}
+                    <td className="table-cell">
+                      <Link
+                        href={`/customers/${v.customerId}`}
+                        className="text-brand-600 hover:underline"
+                      >
+                        {v.customerName}
+                      </Link>
+                    </td>
+
+                    {/* Vaccine type */}
+                    <td className="table-cell">
+                      <span className="flex items-center gap-1.5 font-medium text-petra-text">
+                        <Syringe className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />
+                        {v.vaccineLabel}
+                      </span>
+                    </td>
+
+                    {/* Last date */}
+                    <td className="table-cell text-petra-muted">
+                      {v.lastDate
+                        ? new Date(v.lastDate).toLocaleDateString("he-IL")
+                        : "—"}
+                    </td>
+
+                    {/* Valid until */}
+                    <td className="table-cell">
+                      {v.validUntil ? (
+                        <span
+                          className={cn(
+                            "font-medium",
+                            v.status === "expired"
+                              ? "text-red-600"
+                              : v.status === "expiring_soon"
+                              ? "text-amber-700"
+                              : "text-petra-text"
+                          )}
+                        >
+                          {new Date(v.validUntil).toLocaleDateString("he-IL")}
+                        </span>
+                      ) : (
+                        <span className="text-petra-muted">—</span>
+                      )}
+                    </td>
+
+                    {/* Status */}
+                    <td className="table-cell">
+                      <StatusBadge
+                        status={v.status}
+                        daysUntil={v.daysUntil}
+                      />
+                    </td>
+
+                    {/* Actions */}
+                    <td className="table-cell">
+                      <div className="flex items-center gap-2">
+                        {(v.status === "expired" ||
+                          v.status === "expiring_soon") && (
+                          <a
+                            href={buildWhatsApp(
+                              v.customerPhone,
+                              v.petName,
+                              v.vaccineLabel,
+                              v.validUntil,
+                              v.isExpired
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-200 text-xs font-medium"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            תזכורת
+                          </a>
+                        )}
+                        <Link
+                          href={`/customers/${v.customerId}`}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 transition-colors border border-brand-200 text-xs font-medium"
+                        >
+                          פרופיל
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

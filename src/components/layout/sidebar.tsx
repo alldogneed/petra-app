@@ -39,6 +39,7 @@ import {
   FileText,
   ShieldCheck,
   MessageSquare,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -82,6 +83,7 @@ function canSee(item: { minRole?: string }, role: string | null, platformRole?: 
 const navEntries: NavEntry[] = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
   { name: "לקוחות", href: "/customers", icon: Users },
+  { name: "ייבוא נתונים", href: "/import", icon: Upload },
   { name: "מערכת מכירות", href: "/leads", icon: Target, minRole: "user" },
   {
     key: "tasks",

@@ -57,6 +57,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { formatCurrency, fetchJSON, cn, toWhatsAppPhone } from "@/lib/utils";
 import { SetupChecklist } from "@/components/onboarding/SetupChecklist";
 import { TeamWelcomeModal } from "@/components/onboarding/TeamWelcomeModal";
+import OnboardingWizardModal from "@/components/onboarding/OnboardingWizardModal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1795,6 +1796,7 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [showNewAppointment, setShowNewAppointment] = useState(false);
+  const [showOnboardingWizard, setShowOnboardingWizard] = useState(false);
   const [intakeCopied, setIntakeCopied] = useState(false);
   const [intakeLoading, setIntakeLoading] = useState(false);
   const [serviceFilter, setServiceFilter] = useState("all");
@@ -1979,6 +1981,42 @@ export default function DashboardPage() {
 
       {/* Welcome modal — shown once to new team members (non-owners) */}
       <TeamWelcomeModal />
+
+      {/* Onboarding Wizard card — shown when business has no customers and no appointments */}
+      {data.totalCustomers === 0 && data.todayAppointments === 0 && (
+        <div
+          className="card p-6 flex items-center gap-4 animate-slide-up"
+          style={{
+            background: "linear-gradient(135deg, rgba(249,115,22,0.05) 0%, rgba(251,146,60,0.03) 100%)",
+            borderColor: "rgba(249,115,22,0.18)",
+          }}
+        >
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 text-2xl"
+            style={{ background: "linear-gradient(135deg, #F97316, #FB923C)" }}
+          >
+            🐾
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-petra-text text-base">מוכנים להתחיל?</h3>
+            <p className="text-sm text-petra-muted mt-0.5">
+              הגדר את העסק שלך ב-2 דקות — הוסף שירות ראשון, לקוח ראשון, וסיימת!
+            </p>
+          </div>
+          <button
+            onClick={() => setShowOnboardingWizard(true)}
+            className="btn-primary flex items-center gap-2 flex-shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            התחל הגדרה
+          </button>
+        </div>
+      )}
+
+      {/* Onboarding Wizard modal */}
+      {showOnboardingWizard && (
+        <OnboardingWizardModal onClose={() => setShowOnboardingWizard(false)} />
+      )}
 
       {/* Daily Focus — Today's & Overdue Tasks */}
       <DailyFocusSection

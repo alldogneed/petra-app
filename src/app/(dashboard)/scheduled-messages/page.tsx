@@ -10,13 +10,15 @@ import {
   XCircle,
   AlertTriangle,
   User,
-  Phone,
   MessageSquare,
+  Mail,
+  Phone,
   Ban,
   ChevronRight,
   ChevronLeft,
+  RefreshCw,
 } from "lucide-react";
-import { cn, fetchJSON, formatDate, formatTime } from "@/lib/utils";
+import { cn, fetchJSON, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface ScheduledMessage {
@@ -25,7 +27,7 @@ interface ScheduledMessage {
   templateKey: string;
   payloadJson: string;
   sendAt: string;
-  status: string; // PENDING | SENT | FAILED | CANCELED
+  status: string;
   relatedEntityType: string | null;
   relatedEntityId: string | null;
   createdAt: string;
@@ -37,60 +39,139 @@ interface PageData {
   total: number;
   page: number;
   pages: number;
+  stats?: {
+    PENDING: number;
+    SENT: number;
+    FAILED: number;
+    CANCELED: number;
+  };
 }
 
-const STATUS_INFO: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  PENDING:  { label: "ממתין",  color: "#F59E0B", icon: Clock },
-  SENT:     { label: "נשלח",   color: "#22C55E", icon: CheckCircle2 },
-  FAILED:   { label: "נכשל",   color: "#EF4444", icon: AlertTriangle },
-  CANCELED: { label: "בוטל",   color: "#94A3B8", icon: XCircle },
+const STATUS_INFO: Record<
+  string,
+  { label: string; badgeClass: string; icon: React.ElementType; iconColor: string; bgColor: string }
+> = {
+  PENDING: {
+    label: "ממתין",
+    badgeClass: "badge-warning",
+    icon: Clock,
+    iconColor: "#F59E0B",
+    bgColor: "#FEF3C715",
+  },
+  SENT: {
+    label: "נשלח",
+    badgeClass: "badge-success",
+    icon: CheckCircle2,
+    iconColor: "#22C55E",
+    bgColor: "#F0FDF415",
+  },
+  FAILED: {
+    label: "נכשל",
+    badgeClass: "badge-danger",
+    icon: AlertTriangle,
+    iconColor: "#EF4444",
+    bgColor: "#FEF2F215",
+  },
+  CANCELED: {
+    label: "בוטל",
+    badgeClass: "badge-neutral",
+    icon: XCircle,
+    iconColor: "#94A3B8",
+    bgColor: "#F1F5F915",
+  },
 };
 
-const CHANNEL_LABELS: Record<string, { label: string; color: string }> = {
-  whatsapp: { label: "WhatsApp", color: "#22C55E" },
-  sms:      { label: "SMS",      color: "#3B82F6" },
-  email:    { label: "אימייל",   color: "#6366F1" },
+const CHANNEL_INFO: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  whatsapp: { label: "WhatsApp", icon: MessageSquare, color: "#22C55E" },
+  sms: { label: "SMS", icon: Phone, color: "#3B82F6" },
+  email: { label: "אימייל", icon: Mail, color: "#6366F1" },
 };
 
 const FILTER_STATUSES = [
-  { id: "ALL",      label: "הכל" },
-  { id: "PENDING",  label: "ממתינות" },
-  { id: "SENT",     label: "נשלחו" },
-  { id: "FAILED",   label: "נכשלו" },
+  { id: "ALL", label: "הכל" },
+  { id: "PENDING", label: "ממתינות" },
+  { id: "SENT", label: "נשלחו" },
+  { id: "FAILED", label: "נכשלו" },
   { id: "CANCELED", label: "בוטלו" },
+];
+
+const FILTER_CHANNELS = [
+  { id: "ALL", label: "כל הערוצים" },
+  { id: "whatsapp", label: "WhatsApp" },
+  { id: "sms", label: "SMS" },
+  { id: "email", label: "אימייל" },
 ];
 
 function getPayloadPreview(payloadJson: string): string {
   try {
     const p = JSON.parse(payloadJson);
-    return p.body || p.text || p.message || "";
+    return p.body || p.message || p.text || "";
   } catch {
     return "";
   }
 }
 
+function formatSendAt(dateStr: string): { date: string; time: string } {
+  const d = new Date(dateStr);
+  const date = new Intl.DateTimeFormat("he-IL", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(d);
+  const time = new Intl.DateTimeFormat("he-IL", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
+  return { date, time };
+}
+
 export default function ScheduledMessagesPage() {
   const [activeStatus, setActiveStatus] = useState("ALL");
+  const [activeChannel, setActiveChannel] = useState("ALL");
   const [page, setPage] = useState(1);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const qc = useQueryClient();
 
-  const { data, isLoading } = useQuery<PageData>({
-    queryKey: ["scheduled-messages", activeStatus, page],
-    queryFn: () =>
-      fetchJSON<PageData>(`/api/scheduled-messages?status=${activeStatus}&page=${page}`),
+  const queryKey = ["scheduled-messages", activeStatus, activeChannel, page];
+
+  const { data, isLoading, refetch, isFetching } = useQuery<PageData>({
+    queryKey,
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (activeStatus !== "ALL") params.set("status", activeStatus);
+      if (activeChannel !== "ALL") params.set("channel", activeChannel);
+      params.set("page", String(page));
+      params.set("limit", "20");
+      return fetchJSON<PageData>(`/api/scheduled-messages?${params.toString()}`);
+    },
+  });
+
+  // Fetch stats for all statuses (always without filter)
+  const { data: allData } = useQuery<PageData>({
+    queryKey: ["scheduled-messages-stats"],
+    queryFn: () => fetchJSON<PageData>("/api/scheduled-messages?limit=1"),
   });
 
   const messages = data?.messages ?? [];
   const totalPages = data?.pages ?? 1;
 
+  const stats = allData?.stats ?? { PENDING: 0, SENT: 0, FAILED: 0, CANCELED: 0 };
+
   const cancelMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/scheduled-messages/${id}`, { method: "PATCH" }).then((r) => r.json()),
+      fetch(`/api/scheduled-messages/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "CANCELED" }),
+      }).then((r) => r.json()),
     onSuccess: (res) => {
-      if (res.error) { toast.error(res.error); return; }
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
       qc.invalidateQueries({ queryKey: ["scheduled-messages"] });
-      toast.success("הודעה בוטלה");
+      toast.success("הודעה בוטלה בהצלחה");
       setCancelId(null);
     },
     onError: () => toast.error("שגיאה בביטול הודעה"),
@@ -101,48 +182,159 @@ export default function ScheduledMessagesPage() {
     setPage(1);
   }
 
-  const pendingCount = data?.total ?? 0;
+  function handleChannelChange(c: string) {
+    setActiveChannel(c);
+    setPage(1);
+  }
+
+  const statCards = [
+    {
+      key: "PENDING",
+      label: "ממתינות",
+      value: stats.PENDING,
+      icon: Clock,
+      color: "#F59E0B",
+      bg: "bg-amber-50",
+      textColor: "text-amber-600",
+    },
+    {
+      key: "SENT",
+      label: "נשלחו",
+      value: stats.SENT,
+      icon: CheckCircle2,
+      color: "#22C55E",
+      bg: "bg-green-50",
+      textColor: "text-green-600",
+    },
+    {
+      key: "FAILED",
+      label: "נכשלו",
+      value: stats.FAILED,
+      icon: AlertTriangle,
+      color: "#EF4444",
+      bg: "bg-red-50",
+      textColor: "text-red-600",
+    },
+    {
+      key: "CANCELED",
+      label: "בוטלו",
+      value: stats.CANCELED,
+      icon: XCircle,
+      color: "#94A3B8",
+      bg: "bg-slate-50",
+      textColor: "text-slate-500",
+    },
+  ];
 
   return (
-    <div>
+    <div dir="rtl">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
+      <div className="page-header flex items-center gap-3 mb-6 flex-wrap">
         <div>
-          <h1 className="page-title">תור שליחה</h1>
+          <h1 className="page-title">הודעות אוטומטיות</h1>
           <p className="text-sm text-petra-muted mt-0.5">
-            הודעות אוטומטיות מתוזמנות
-            {activeStatus !== "ALL" && ` • ${pendingCount} תוצאות`}
+            הודעות שנוצרו אוטומטית על ידי המערכת ומתוזמנות לשליחה
           </p>
         </div>
         <div className="flex-1" />
-        <Link href="/automations" className="btn-secondary flex items-center gap-2 text-sm">
-          <Send className="w-4 h-4" />
-          ניהול אוטומציות
-        </Link>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="btn-secondary flex items-center gap-2 text-sm"
+        >
+          <RefreshCw className={cn("w-4 h-4", isFetching && "animate-spin")} />
+          רענן
+        </button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        {statCards.map((s) => {
+          const Icon = s.icon;
+          return (
+            <button
+              key={s.key}
+              onClick={() => handleStatusChange(s.key)}
+              className={cn(
+                "card p-4 text-right transition-all hover:shadow-md",
+                activeStatus === s.key && "ring-2 ring-brand-500"
+              )}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div
+                  className={cn("w-9 h-9 rounded-xl flex items-center justify-center", s.bg)}
+                >
+                  <Icon className="w-4 h-4" style={{ color: s.color }} />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-petra-text">{s.value}</p>
+              <p className={cn("text-xs font-medium mt-0.5", s.textColor)}>{s.label}</p>
+            </button>
+          );
+        })}
       </div>
 
       {/* Filters */}
-      <div className="flex gap-1.5 flex-wrap mb-5">
-        {FILTER_STATUSES.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => handleStatusChange(s.id)}
-            className={cn(
-              "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              activeStatus === s.id
-                ? "bg-brand-500 text-white"
-                : "bg-slate-100 text-petra-muted hover:bg-slate-200"
-            )}
-          >
-            {s.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap gap-3 mb-5 items-center">
+        {/* Status filter */}
+        <div className="flex gap-1.5 flex-wrap">
+          {FILTER_STATUSES.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => handleStatusChange(s.id)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                activeStatus === s.id
+                  ? "bg-brand-500 text-white"
+                  : "bg-slate-100 text-petra-muted hover:bg-slate-200"
+              )}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-5 bg-slate-200 hidden sm:block" />
+
+        {/* Channel filter */}
+        <div className="flex gap-1.5 flex-wrap">
+          {FILTER_CHANNELS.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => handleChannelChange(c.id)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                activeChannel === c.id
+                  ? "bg-slate-700 text-white"
+                  : "bg-slate-100 text-petra-muted hover:bg-slate-200"
+              )}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+
+        {data && (
+          <span className="text-xs text-petra-muted mr-auto">
+            {data.total} תוצאות
+          </span>
+        )}
       </div>
 
-      {/* List */}
+      {/* Table */}
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3, 4].map((i) => <div key={i} className="card p-5 animate-pulse h-20" />)}
+        <div className="card overflow-hidden">
+          <div className="divide-y divide-slate-100">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="p-4 animate-pulse flex gap-4 items-center">
+                <div className="w-32 h-4 bg-slate-200 rounded" />
+                <div className="w-20 h-4 bg-slate-200 rounded" />
+                <div className="flex-1 h-4 bg-slate-200 rounded" />
+                <div className="w-24 h-4 bg-slate-200 rounded" />
+                <div className="w-16 h-6 bg-slate-200 rounded-full" />
+              </div>
+            ))}
+          </div>
         </div>
       ) : messages.length === 0 ? (
         <div className="empty-state">
@@ -151,7 +343,9 @@ export default function ScheduledMessagesPage() {
           </div>
           <h3 className="text-base font-semibold text-petra-text mb-1">אין הודעות מתוזמנות</h3>
           <p className="text-sm text-petra-muted mb-4">
-            הודעות יופיעו כאן כשאוטומציות יפעלו
+            {activeStatus !== "ALL" || activeChannel !== "ALL"
+              ? "לא נמצאו הודעות עם הפילטרים הנוכחיים"
+              : "הודעות יופיעו כאן כשאוטומציות יפעלו"}
           </p>
           <Link href="/automations" className="btn-primary flex items-center gap-2 w-fit mx-auto">
             <Send className="w-4 h-4" />
@@ -159,89 +353,126 @@ export default function ScheduledMessagesPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-3">
-          {messages.map((msg) => {
-            const si = STATUS_INFO[msg.status] ?? STATUS_INFO.PENDING;
-            const StatusIcon = si.icon;
-            const ch = CHANNEL_LABELS[msg.channel] ?? { label: msg.channel, color: "#94A3B8" };
-            const preview = getPayloadPreview(msg.payloadJson);
-            const sendDate = new Date(msg.sendAt);
-            const isPast = sendDate < new Date();
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="table-header-cell text-right">לקוח</th>
+                  <th className="table-header-cell text-right">ערוץ</th>
+                  <th className="table-header-cell text-right">תוכן ההודעה</th>
+                  <th className="table-header-cell text-right">מועד שליחה</th>
+                  <th className="table-header-cell text-right">סטטוס</th>
+                  <th className="table-header-cell text-right">פעולות</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {messages.map((msg) => {
+                  const si = STATUS_INFO[msg.status] ?? STATUS_INFO.PENDING;
+                  const StatusIcon = si.icon;
+                  const ch = CHANNEL_INFO[msg.channel] ?? {
+                    label: msg.channel,
+                    icon: MessageSquare,
+                    color: "#94A3B8",
+                  };
+                  const ChIcon = ch.icon;
+                  const preview = getPayloadPreview(msg.payloadJson);
+                  const { date: sendDate, time: sendTime } = formatSendAt(msg.sendAt);
+                  const isPast =
+                    msg.status === "PENDING" && new Date(msg.sendAt) < new Date();
 
-            return (
-              <div key={msg.id} className="card p-4">
-                <div className="flex items-start gap-3">
-                  {/* Status icon */}
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                    style={{ background: `${si.color}15` }}
-                  >
-                    <StatusIcon className="w-5 h-5" style={{ color: si.color }} />
-                  </div>
+                  return (
+                    <tr key={msg.id} className="hover:bg-slate-50 transition-colors">
+                      {/* Customer */}
+                      <td className="table-cell">
+                        <Link
+                          href={`/customers/${msg.customer.id}`}
+                          className="flex items-center gap-2 group"
+                        >
+                          <div className="w-7 h-7 rounded-full bg-brand-50 flex items-center justify-center flex-shrink-0">
+                            <User className="w-3.5 h-3.5 text-brand-600" />
+                          </div>
+                          <span className="text-sm font-medium text-petra-text group-hover:text-brand-500 transition-colors">
+                            {msg.customer.name}
+                          </span>
+                        </Link>
+                      </td>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                      <Link
-                        href={`/customers/${msg.customer.id}`}
-                        className="text-sm font-semibold text-petra-text hover:text-brand-500 transition-colors flex items-center gap-1"
-                      >
-                        <User className="w-3.5 h-3.5" />
-                        {msg.customer.name}
-                      </Link>
-                      <span
-                        className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                        style={{ background: `${si.color}15`, color: si.color }}
-                      >
-                        {si.label}
-                      </span>
-                      <span
-                        className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                        style={{ background: `${ch.color}15`, color: ch.color }}
-                      >
-                        {ch.label}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-petra-muted mb-1">
-                      <span className="flex items-center gap-1" dir="ltr">
-                        <Phone className="w-3 h-3" />
-                        {msg.customer.phone}
-                      </span>
-                      <span className={cn("flex items-center gap-1", msg.status === "PENDING" && isPast && "text-red-500")}>
-                        <Clock className="w-3 h-3" />
-                        {formatDate(msg.sendAt)} {formatTime(msg.sendAt)}
-                        {msg.status === "PENDING" && isPast && " • באיחור"}
-                      </span>
-                      {msg.templateKey && (
-                        <span className="flex items-center gap-1">
-                          <MessageSquare className="w-3 h-3" />
-                          {msg.templateKey}
+                      {/* Channel */}
+                      <td className="table-cell">
+                        <span
+                          className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full w-fit"
+                          style={{
+                            background: `${ch.color}18`,
+                            color: ch.color,
+                          }}
+                        >
+                          <ChIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                          {ch.label}
                         </span>
-                      )}
-                    </div>
+                      </td>
 
-                    {preview && (
-                      <p className="text-xs text-petra-muted bg-slate-50 rounded-lg px-2.5 py-1.5 truncate">
-                        {preview}
-                      </p>
-                    )}
-                  </div>
+                      {/* Content */}
+                      <td className="table-cell max-w-xs">
+                        {preview ? (
+                          <p className="text-sm text-petra-muted truncate max-w-[220px]" title={preview}>
+                            {preview}
+                          </p>
+                        ) : (
+                          <span className="text-xs text-slate-300 italic">{msg.templateKey}</span>
+                        )}
+                      </td>
 
-                  {/* Cancel action for pending */}
-                  {msg.status === "PENDING" && (
-                    <button
-                      onClick={() => setCancelId(msg.id)}
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0"
-                      title="בטל הודעה"
-                    >
-                      <Ban className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                      {/* Send At */}
+                      <td className="table-cell whitespace-nowrap">
+                        <div
+                          className={cn(
+                            "text-sm",
+                            isPast ? "text-red-500 font-medium" : "text-petra-text"
+                          )}
+                        >
+                          {sendDate}
+                        </div>
+                        <div
+                          className={cn(
+                            "text-xs mt-0.5 flex items-center gap-1",
+                            isPast ? "text-red-400" : "text-petra-muted"
+                          )}
+                        >
+                          <Clock className="w-3 h-3" />
+                          {sendTime}
+                          {isPast && <span className="text-red-400">• באיחור</span>}
+                        </div>
+                      </td>
+
+                      {/* Status */}
+                      <td className="table-cell">
+                        <span className={cn("badge flex items-center gap-1.5 w-fit", si.badgeClass)}>
+                          <StatusIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                          {si.label}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="table-cell">
+                        {msg.status === "PENDING" ? (
+                          <button
+                            onClick={() => setCancelId(msg.id)}
+                            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 transition-colors font-medium"
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                            בטל
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -252,6 +483,7 @@ export default function ScheduledMessagesPage() {
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
             className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-40 transition-colors"
+            aria-label="עמוד קודם"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -262,13 +494,14 @@ export default function ScheduledMessagesPage() {
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
             className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-40 transition-colors"
+            aria-label="עמוד הבא"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Cancel confirm */}
+      {/* Cancel Confirm Modal */}
       {cancelId && (
         <div className="modal-overlay" onClick={() => setCancelId(null)}>
           <div className="modal-backdrop" />
@@ -278,7 +511,9 @@ export default function ScheduledMessagesPage() {
                 <Ban className="w-6 h-6 text-red-500" />
               </div>
               <h3 className="text-base font-semibold text-petra-text mb-1">ביטול הודעה</h3>
-              <p className="text-sm text-petra-muted mb-4">ההודעה לא תישלח. לא ניתן לבטל את הביטול.</p>
+              <p className="text-sm text-petra-muted mb-5">
+                ההודעה לא תישלח. לא ניתן לבטל פעולה זו.
+              </p>
               <div className="flex gap-2">
                 <button
                   onClick={() => setCancelId(null)}

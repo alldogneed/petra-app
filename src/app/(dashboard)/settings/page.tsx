@@ -363,6 +363,19 @@ function IntegrationsTab() {
     onError: () => toast.error("שגיאה בניתוק Google Calendar. נסה שוב."),
   });
 
+  const syncGcalMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/integrations/google/sync", { method: "POST" }).then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || "שגיאה בסנכרון");
+        return data;
+      }),
+    onSuccess: (data) => {
+      toast.success(data.message || "הסנכרון הושלם בהצלחה");
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה בסנכרון Google Calendar. נסה שוב."),
+  });
+
   const disconnectInvoicingMutation = useMutation({
     mutationFn: () =>
       fetch("/api/invoicing/settings", { method: "DELETE" }).then((r) => {
@@ -459,13 +472,24 @@ function IntegrationsTab() {
                   </button>
                 )
               ) : isGcal && integ.connected && integ.disconnectUrl ? (
-                <button
-                  className="btn-ghost text-sm text-red-500 hover:text-red-600 hover:bg-red-50"
-                  onClick={() => disconnectGcalMutation.mutate()}
-                  disabled={disconnectGcalMutation.isPending}
-                >
-                  {disconnectGcalMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "נתק"}
-                </button>
+                <>
+                  <button
+                    className="btn-secondary text-sm flex items-center gap-1.5"
+                    onClick={() => syncGcalMutation.mutate()}
+                    disabled={syncGcalMutation.isPending}
+                    title="סנכרן פגישות קיימות ל-Google Calendar"
+                  >
+                    {syncGcalMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RepeatIcon className="w-3.5 h-3.5" />}
+                    סנכרן עכשיו
+                  </button>
+                  <button
+                    className="btn-ghost text-sm text-red-500 hover:text-red-600 hover:bg-red-50"
+                    onClick={() => disconnectGcalMutation.mutate()}
+                    disabled={disconnectGcalMutation.isPending}
+                  >
+                    {disconnectGcalMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "נתק"}
+                  </button>
+                </>
               ) : integ.connectUrl ? (
                 <a href={integ.connectUrl} className="btn-primary text-sm flex items-center gap-1.5">
                   <ExternalLink className="w-3.5 h-3.5" />
