@@ -2,8 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { cancelBoardingCheckoutReminders, rescheduleBoardingCheckoutReminder, scheduleBoardingThankYou } from "@/lib/reminder-service";
 
@@ -25,11 +24,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const stay = await prisma.boardingStay.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId: authResult.businessId },
       include: {
         room: true,
         pet: true,
@@ -54,12 +53,12 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     // Verify stay belongs to this business
     const existing = await prisma.boardingStay.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId: authResult.businessId },
     });
     if (!existing) {
       return NextResponse.json({ error: "שהייה לא נמצאה" }, { status: 404 });
@@ -182,11 +181,11 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const existing = await prisma.boardingStay.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId: authResult.businessId },
     });
     if (!existing) {
       return NextResponse.json({ error: "שהייה לא נמצאה" }, { status: 404 });

@@ -1,8 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 const MEAL_SLOTS = [
   { key: "breakfast", label: "ארוחת בוקר", emoji: "🌅" },
@@ -18,7 +17,7 @@ const MEAL_SLOTS = [
  */
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const today = new Date();
@@ -28,7 +27,7 @@ export async function GET(request: NextRequest) {
     // Get all currently checked-in boarding stays
     const stays = await prisma.boardingStay.findMany({
       where: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         status: "checked_in",
       },
       include: {
@@ -59,7 +58,7 @@ export async function GET(request: NextRequest) {
             // Find existing task for today
             let task = await prisma.task.findFirst({
               where: {
-                businessId: DEMO_BUSINESS_ID,
+                businessId: authResult.businessId,
                 category: "FEEDING",
                 relatedEntityType: "PET",
                 relatedEntityId: petId,
@@ -72,7 +71,7 @@ export async function GET(request: NextRequest) {
             if (!task) {
               task = await prisma.task.create({
                 data: {
-                  businessId: DEMO_BUSINESS_ID,
+                  businessId: authResult.businessId,
                   title: taskTitle,
                   category: "FEEDING",
                   priority: "MEDIUM",

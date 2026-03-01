@@ -1,8 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // DELETE - remove a block
 export async function DELETE(
@@ -10,12 +9,12 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     // Verify the block belongs to the business
     const block = await prisma.availabilityBlock.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId: authResult.businessId },
     });
 
     if (!block) {

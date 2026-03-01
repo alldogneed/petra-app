@@ -1,15 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { scheduleBoardingCheckoutReminder } from "@/lib/reminder-service";
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
@@ -17,7 +16,7 @@ export async function GET(request: NextRequest) {
     const to = searchParams.get("to");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = { businessId: DEMO_BUSINESS_ID };
+    const where: any = { businessId: authResult.businessId };
 
     // Optional date range filter for calendar/timeline
     if (from && to) {
@@ -59,7 +58,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -82,7 +81,7 @@ export async function POST(request: NextRequest) {
     if (roomId) {
       const conflicting = await prisma.boardingStay.findFirst({
         where: {
-          businessId: DEMO_BUSINESS_ID,
+          businessId: authResult.businessId,
           roomId,
           status: { in: ["reserved", "checked_in"] },
           checkIn: { lt: checkOut ? new Date(checkOut) : new Date("2099-12-31") },
@@ -120,7 +119,7 @@ export async function POST(request: NextRequest) {
 
     const stay = await prisma.boardingStay.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         checkIn: new Date(checkIn),
         checkOut: checkOut ? new Date(checkOut) : undefined,
         petId,
@@ -149,7 +148,7 @@ export async function POST(request: NextRequest) {
     if (stay.checkOut) {
       scheduleBoardingCheckoutReminder({
         id: stay.id,
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         customerId: stay.customerId,
         checkOut: stay.checkOut,
         pet: { name: stay.pet.name },

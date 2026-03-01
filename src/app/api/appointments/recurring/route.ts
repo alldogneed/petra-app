@@ -1,15 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // POST /api/appointments/recurring
 // Body: { date, startTime, endTime, serviceId, customerId, petId?, notes?,
 //         repeatEvery: "week"|"2weeks"|"month", occurrences: number }
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
@@ -49,7 +48,7 @@ export async function POST(request: NextRequest) {
         petId: petId || null,
         notes: notes || null,
         status: "scheduled",
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
       };
     });
 

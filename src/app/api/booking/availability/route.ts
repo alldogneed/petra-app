@@ -1,17 +1,16 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // GET availability rules for a business
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const rules = await prisma.availabilityRule.findMany({
-      where: { businessId: DEMO_BUSINESS_ID },
+      where: { businessId: authResult.businessId },
       orderBy: { dayOfWeek: "asc" },
     });
 
@@ -36,7 +35,7 @@ export async function GET(request: NextRequest) {
 // POST - save/update availability rules
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
@@ -53,12 +52,12 @@ export async function POST(request: NextRequest) {
         prisma.availabilityRule.upsert({
           where: {
             businessId_dayOfWeek: {
-              businessId: DEMO_BUSINESS_ID,
+              businessId: authResult.businessId,
               dayOfWeek: rule.dayOfWeek,
             },
           },
           create: {
-            businessId: DEMO_BUSINESS_ID,
+            businessId: authResult.businessId,
             dayOfWeek: rule.dayOfWeek,
             isOpen: rule.isOpen,
             openTime: rule.openTime,

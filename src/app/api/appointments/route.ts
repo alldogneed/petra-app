@@ -1,15 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { scheduleAppointmentReminder } from "@/lib/reminder-service";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
@@ -17,7 +16,7 @@ export async function GET(request: NextRequest) {
     const to = searchParams.get("to");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = { businessId: DEMO_BUSINESS_ID };
+    const where: any = { businessId: authResult.businessId };
 
     if (from || to) {
       where.date = {};
@@ -48,7 +47,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -78,7 +77,7 @@ export async function POST(request: NextRequest) {
         petId: petId || null,
         notes: notes || null,
         status: "scheduled",
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
       },
       include: {
         service: true,
@@ -92,7 +91,7 @@ export async function POST(request: NextRequest) {
     // Schedule a WhatsApp reminder 24h before (fire-and-forget, don't block response)
     scheduleAppointmentReminder({
       id: appointment.id,
-      businessId: DEMO_BUSINESS_ID,
+      businessId: authResult.businessId,
       customerId: appointment.customerId,
       date: appointment.date,
       startTime: appointment.startTime,

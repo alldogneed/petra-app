@@ -1,18 +1,17 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // GET - list future blocks for the business
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const blocks = await prisma.availabilityBlock.findMany({
       where: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         endAt: { gte: new Date() },
       },
       orderBy: { startAt: "asc" },
@@ -28,7 +27,7 @@ export async function GET(request: NextRequest) {
 // POST - create a new block
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
@@ -53,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     const block = await prisma.availabilityBlock.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         startAt: start,
         endAt: end,
         reason: reason || null,
