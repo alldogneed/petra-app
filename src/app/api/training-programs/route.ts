@@ -1,13 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
@@ -15,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     const programs = await prisma.trainingProgram.findMany({
       where: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         ...(status && { status }),
       },
       include: {
@@ -47,7 +46,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -58,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     const program = await prisma.trainingProgram.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         dogId: body.dogId,
         customerId: body.customerId,
         name: body.name,

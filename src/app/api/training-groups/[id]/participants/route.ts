@@ -1,8 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // POST /api/training-groups/[id]/participants – add a participant to the group
 export async function POST(
@@ -10,7 +9,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(req);
+    const authResult = await requireBusinessAuth(req);
     if (isGuardError(authResult)) return authResult;
 
     const body = await req.json();
@@ -36,7 +35,7 @@ export async function POST(
 
     // Check group belongs to business and check max participants
     const group = await prisma.trainingGroup.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId: authResult.businessId },
       select: { maxParticipants: true, _count: { select: { participants: true } } },
     });
 
@@ -69,7 +68,7 @@ export async function POST(
 // DELETE /api/training-groups/[id]/participants – remove participant (pass participantId in body)
 export async function DELETE(req: NextRequest) {
   try {
-    const authResult = await requireAuth(req);
+    const authResult = await requireBusinessAuth(req);
     if (isGuardError(authResult)) return authResult;
 
     const body = await req.json();

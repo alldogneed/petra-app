@@ -1,8 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // POST /api/training-programs/[id]/sessions – add a training session
 export async function POST(
@@ -10,7 +9,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(req);
+    const authResult = await requireBusinessAuth(req);
     if (isGuardError(authResult)) return authResult;
 
     const body = await req.json();
@@ -22,7 +21,7 @@ export async function POST(
 
     // Verify program belongs to this business
     const program = await prisma.trainingProgram.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId: authResult.businessId },
     });
     if (!program) {
       return NextResponse.json({ error: "Training program not found" }, { status: 404 });
