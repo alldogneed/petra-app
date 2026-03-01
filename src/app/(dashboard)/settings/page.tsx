@@ -42,6 +42,7 @@ import {
   Plus,
   ToggleLeft,
   ToggleRight,
+  CreditCard,
 } from "lucide-react";
 
 const RepeatIcon = Repeat;
@@ -329,6 +330,11 @@ interface Integration {
   lastConnectedAt?: string | null;
   connectUrl?: string | null;
   disconnectUrl?: string | null;
+  // Stripe-specific
+  publishableKey?: string | null;
+  accountId?: string | null;
+  // WhatsApp-specific
+  fromNumber?: string | null;
 }
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -336,6 +342,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   "message-circle": MessageCircle,
   mail: Mail,
   "file-text": FileText,
+  "credit-card": CreditCard,
 };
 
 function IntegrationsTab() {
@@ -344,6 +351,7 @@ function IntegrationsTab() {
   const gcalStatus = searchParams.get("gcal");
   const [showInvoicingModal, setShowInvoicingModal] = useState(false);
   const [showMappingModal, setShowMappingModal] = useState(false);
+  const [showStripeModal, setShowStripeModal] = useState(false);
 
   const { data: integrations, isLoading } = useQuery<Integration[]>({
     queryKey: ["integrations"],
@@ -389,6 +397,19 @@ function IntegrationsTab() {
     onError: () => toast.error("שגיאה בניתוק מערכת החשבוניות. נסה שוב."),
   });
 
+  const disconnectStripeMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/integrations/stripe", { method: "DELETE" }).then((r) => {
+        if (!r.ok) throw new Error("Disconnect failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      toast.success("Stripe נותק");
+    },
+    onError: () => toast.error("שגיאה בניתוק Stripe. נסה שוב."),
+  });
+
   if (isLoading)
     return (
       <div className="animate-pulse space-y-3 max-w-2xl">
@@ -423,6 +444,7 @@ function IntegrationsTab() {
         const Icon = ICON_MAP[integ.icon] ?? Plug;
         const isInvoicing = integ.id === "invoicing";
         const isGcal = integ.id === "google-calendar";
+        const isStripe = integ.id === "stripe";
 
         return (
           <div key={integ.id} className="card p-5 flex items-start gap-4">
@@ -442,9 +464,42 @@ function IntegrationsTab() {
               {integ.connected && integ.connectedEmail && (
                 <p className="text-xs text-emerald-600 mt-1">{integ.connectedEmail}</p>
               )}
+              {isStripe && integ.connected && integ.accountId && (
+                <p className="text-xs text-emerald-600 mt-1">Account: {integ.accountId}</p>
+              )}
+              {integ.id === "whatsapp" && integ.connected && integ.fromNumber && (
+                <p className="text-xs text-emerald-600 mt-1">מספר שולח: {integ.fromNumber}</p>
+              )}
             </div>
             <div className="flex-shrink-0 flex items-center gap-2">
-              {isInvoicing ? (
+              {isStripe ? (
+                integ.connected ? (
+                  <>
+                    <button
+                      className="btn-ghost text-sm flex items-center gap-1.5"
+                      onClick={() => setShowStripeModal(true)}
+                    >
+                      <Settings2 className="w-3.5 h-3.5" />
+                      עדכן
+                    </button>
+                    <button
+                      className="btn-ghost text-sm text-red-500 hover:text-red-600 hover:bg-red-50"
+                      onClick={() => disconnectStripeMutation.mutate()}
+                      disabled={disconnectStripeMutation.isPending}
+                    >
+                      {disconnectStripeMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "נתק"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="btn-primary text-sm flex items-center gap-1.5"
+                    onClick={() => setShowStripeModal(true)}
+                  >
+                    <CreditCard className="w-3.5 h-3.5" />
+                    חבר
+                  </button>
+                )
+              ) : isInvoicing ? (
                 integ.connected ? (
                   <>
                     <button
@@ -523,8 +578,197 @@ function IntegrationsTab() {
         />
       )}
 
+      {showStripeModal && (
+        <StripeConnectModal
+          onClose={() => setShowStripeModal(false)}
+          onSuccess={() => {
+            setShowStripeModal(false);
+            queryClient.invalidateQueries({ queryKey: ["integrations"] });
+          }}
+        />
+      )}
+
       {/* ── Make.com Webhook ── */}
       <MakeWebhookCard />
+    </div>
+  );
+}
+
+// ─── Stripe Connect Modal ─────────────────────────────────────────────────────
+
+function StripeConnectModal({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [publishableKey, setPublishableKey] = useState("");
+  const [secretKey, setSecretKey] = useState("");
+  const [webhookSecret, setWebhookSecret] = useState("");
+  const [currency, setCurrency] = useState("ILS");
+  const [showSecret, setShowSecret] = useState(false);
+  const [showWebhook, setShowWebhook] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave() {
+    setError(null);
+    if (!publishableKey.trim() || !secretKey.trim()) {
+      setError("נדרשים Publishable Key ו-Secret Key");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/integrations/stripe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          publishableKey: publishableKey.trim(),
+          secretKey: secretKey.trim(),
+          webhookSecret: webhookSecret.trim() || undefined,
+          currency,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "שגיאה בחיבור");
+        return;
+      }
+      toast.success("Stripe חובר בהצלחה!");
+      onSuccess();
+    } catch {
+      setError("שגיאת רשת — בדוק את החיבור ונסה שוב");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
+              <CreditCard className="w-5 h-5 text-violet-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-petra-text">חיבור Stripe</h2>
+              <p className="text-sm text-petra-muted mt-0.5">קבל תשלומים בכרטיס אשראי מלקוחות</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="btn-ghost p-2">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 space-y-4">
+          {/* Info box */}
+          <div className="bg-violet-50 border border-violet-100 rounded-xl p-4 text-sm text-violet-800">
+            <p className="font-medium mb-1">איך מוצאים את המפתחות?</p>
+            <ol className="list-decimal list-inside space-y-0.5 text-xs">
+              <li>היכנס ל-<strong>dashboard.stripe.com</strong></li>
+              <li>עבור אל <strong>Developers → API keys</strong></li>
+              <li>העתק את ה-Publishable key ואת ה-Secret key</li>
+              <li>לוובהוק: עבור אל <strong>Webhooks → Add endpoint</strong>, הוסף את ה-URL של Petra</li>
+            </ol>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="label">Publishable Key (pk_...)</label>
+            <input
+              className="input w-full font-mono text-sm"
+              placeholder="pk_live_... או pk_test_..."
+              value={publishableKey}
+              onChange={(e) => setPublishableKey(e.target.value)}
+              dir="ltr"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="label">Secret Key (sk_...)</label>
+            <div className="relative">
+              <input
+                className="input w-full font-mono text-sm pr-10"
+                placeholder="sk_live_... או sk_test_..."
+                type={showSecret ? "text" : "password"}
+                value={secretKey}
+                onChange={(e) => setSecretKey(e.target.value)}
+                dir="ltr"
+              />
+              <button
+                type="button"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
+                onClick={() => setShowSecret((v) => !v)}
+              >
+                {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="label">Webhook Secret (whsec_...) — אופציונלי</label>
+            <div className="relative">
+              <input
+                className="input w-full font-mono text-sm pr-10"
+                placeholder="whsec_... (לאימות אירועי Stripe)"
+                type={showWebhook ? "text" : "password"}
+                value={webhookSecret}
+                onChange={(e) => setWebhookSecret(e.target.value)}
+                dir="ltr"
+              />
+              <button
+                type="button"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
+                onClick={() => setShowWebhook((v) => !v)}
+              >
+                {showWebhook ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-petra-muted">
+              Webhook URL לרשום ב-Stripe:{" "}
+              <span className="font-mono bg-slate-100 px-1 rounded text-xs" dir="ltr">
+                {typeof window !== "undefined" ? window.location.origin : ""}/api/webhooks/stripe
+              </span>
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="label">מטבע</label>
+            <select
+              className="input w-full"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+            >
+              <option value="ILS">ILS — שקל ישראלי (₪)</option>
+              <option value="USD">USD — דולר ($)</option>
+              <option value="EUR">EUR — יורו (€)</option>
+            </select>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {error}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-3 p-6 border-t border-slate-100">
+          <button onClick={onClose} className="btn-secondary">ביטול</button>
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            className="btn-primary flex items-center gap-2"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+            {loading ? "מוודא ושומר..." : "חבר Stripe"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

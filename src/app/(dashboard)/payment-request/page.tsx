@@ -16,7 +16,10 @@ import {
   MessageCircle,
   Link as LinkIcon,
   ExternalLink,
+  CreditCard,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -96,6 +99,10 @@ export default function PaymentRequestPage() {
 
   // Payment URL — auto-filled from first selected product that has one, overridable by user
   const [customPaymentUrl, setCustomPaymentUrl] = useState("");
+
+  // Stripe payment link — generated on demand
+  const [stripeLink, setStripeLink] = useState<string | null>(null);
+  const [stripeLoading, setStripeLoading] = useState(false);
 
   // Customer search query
   const { data: searchResults = [] } = useQuery<Customer[]>({
@@ -179,6 +186,43 @@ export default function PaymentRequestPage() {
       next.delete(productId);
       return next;
     });
+  }
+
+  // ─── Stripe payment link ─────────────────────────────────────
+
+  async function generateStripeLink() {
+    if (!canSend) return;
+    setStripeLoading(true);
+    try {
+      const itemNames = selectedProductsList
+        .map(({ product, qty }) => `${product.name}${qty > 1 ? ` x${qty}` : ""}`)
+        .join(", ");
+
+      const res = await fetch("/api/payments/stripe/payment-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: finalPrice,
+          description: itemNames || "תשלום",
+          customerId: selectedCustomer?.id,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "שגיאה ביצירת קישור Stripe");
+        return;
+      }
+
+      setStripeLink(data.url);
+      setCustomPaymentUrl(data.url);
+      toast.success("קישור Stripe נוצר!");
+    } catch {
+      toast.error("שגיאת רשת — נסה שוב");
+    } finally {
+      setStripeLoading(false);
+    }
   }
 
   // ─── WhatsApp message ────────────────────────────────────────
@@ -566,13 +610,37 @@ export default function PaymentRequestPage() {
                       </a>
                     )}
                   </div>
+                  {/* Stripe generate button */}
+                  {canSend && (
+                    <button
+                      onClick={generateStripeLink}
+                      disabled={stripeLoading}
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-violet-200 bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-medium transition-colors disabled:opacity-60"
+                    >
+                      {stripeLoading ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <CreditCard className="w-3.5 h-3.5" />
+                      )}
+                      {stripeLoading ? "יוצר קישור Stripe..." : `צור קישור Stripe — ₪${finalPrice}`}
+                    </button>
+                  )}
                   <input
                     type="url"
                     value={customPaymentUrl}
-                    onChange={(e) => setCustomPaymentUrl(e.target.value)}
+                    onChange={(e) => {
+                      setCustomPaymentUrl(e.target.value);
+                      if (stripeLink && e.target.value !== stripeLink) setStripeLink(null);
+                    }}
                     placeholder={autoPaymentUrl || "הדבק קישור לדף תשלום..."}
                     className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 placeholder:text-slate-300"
                   />
+                  {stripeLink && customPaymentUrl === stripeLink && (
+                    <p className="text-xs text-violet-600 flex items-center gap-1">
+                      <CreditCard className="w-3 h-3" />
+                      קישור Stripe נוצר — ישלח בהודעה
+                    </p>
+                  )}
                   {!customPaymentUrl && autoPaymentUrl && (
                     <p className="text-xs text-slate-400">
                       ↑ קישור אוטומטי מהמוצר הנבחר
