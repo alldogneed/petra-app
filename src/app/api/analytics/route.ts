@@ -1,13 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // GET /api/analytics – aggregated analytics data for dashboard
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
@@ -55,74 +54,74 @@ export async function GET(request: NextRequest) {
       appointmentsByDate,
     ] = await Promise.all([
       // Total customers
-      prisma.customer.count({ where: { businessId: DEMO_BUSINESS_ID } }),
+      prisma.customer.count({ where: { businessId: authResult.businessId } }),
       // New customers this period
       prisma.customer.count({
-        where: { businessId: DEMO_BUSINESS_ID, createdAt: { gte: fromDate } },
+        where: { businessId: authResult.businessId, createdAt: { gte: fromDate } },
       }),
       // New customers previous period
       prisma.customer.count({
-        where: { businessId: DEMO_BUSINESS_ID, createdAt: { gte: prevFrom, lt: prevTo } },
+        where: { businessId: authResult.businessId, createdAt: { gte: prevFrom, lt: prevTo } },
       }),
       // Appointments this period
       prisma.appointment.count({
-        where: { businessId: DEMO_BUSINESS_ID, date: { gte: fromDate } },
+        where: { businessId: authResult.businessId, date: { gte: fromDate } },
       }),
       // Appointments previous period
       prisma.appointment.count({
-        where: { businessId: DEMO_BUSINESS_ID, date: { gte: prevFrom, lt: prevTo } },
+        where: { businessId: authResult.businessId, date: { gte: prevFrom, lt: prevTo } },
       }),
       // Completed appointments
       prisma.appointment.count({
-        where: { businessId: DEMO_BUSINESS_ID, date: { gte: fromDate }, status: { in: ["completed", "COMPLETED"] } },
+        where: { businessId: authResult.businessId, date: { gte: fromDate }, status: { in: ["completed", "COMPLETED"] } },
       }),
       // Canceled appointments
       prisma.appointment.count({
-        where: { businessId: DEMO_BUSINESS_ID, date: { gte: fromDate }, status: "canceled" },
+        where: { businessId: authResult.businessId, date: { gte: fromDate }, status: "canceled" },
       }),
       // Payments this period
       prisma.payment.aggregate({
-        where: { businessId: DEMO_BUSINESS_ID, createdAt: { gte: fromDate } },
+        where: { businessId: authResult.businessId, createdAt: { gte: fromDate } },
         _sum: { amount: true },
         _count: true,
       }),
       // Payments previous period
       prisma.payment.aggregate({
-        where: { businessId: DEMO_BUSINESS_ID, createdAt: { gte: prevFrom, lt: prevTo } },
+        where: { businessId: authResult.businessId, createdAt: { gte: prevFrom, lt: prevTo } },
         _sum: { amount: true },
       }),
       // Open tasks
       prisma.task.count({
-        where: { businessId: DEMO_BUSINESS_ID, status: "OPEN" },
+        where: { businessId: authResult.businessId, status: "OPEN" },
       }),
       // Completed tasks this period
       prisma.task.count({
-        where: { businessId: DEMO_BUSINESS_ID, status: "COMPLETED", completedAt: { gte: fromDate } },
+        where: { businessId: authResult.businessId, status: "COMPLETED", completedAt: { gte: fromDate } },
       }),
       // Active leads
       prisma.lead.count({
-        where: { businessId: DEMO_BUSINESS_ID, stage: { in: ["new", "contacted", "qualified"] } },
+        where: { businessId: authResult.businessId, stage: { in: ["new", "contacted", "qualified"] } },
       }),
       // Won leads this period
       prisma.lead.count({
-        where: { businessId: DEMO_BUSINESS_ID, stage: "won", updatedAt: { gte: fromDate } },
+        where: { businessId: authResult.businessId, stage: "won", updatedAt: { gte: fromDate } },
       }),
       // Lost leads this period
       prisma.lead.count({
-        where: { businessId: DEMO_BUSINESS_ID, stage: "lost", lostAt: { gte: fromDate } },
+        where: { businessId: authResult.businessId, stage: "lost", lostAt: { gte: fromDate } },
       }),
       // Active training programs
       prisma.trainingProgram.count({
-        where: { businessId: DEMO_BUSINESS_ID, status: "ACTIVE" },
+        where: { businessId: authResult.businessId, status: "ACTIVE" },
       }),
       // Boarding stays this period
       prisma.boardingStay.count({
-        where: { businessId: DEMO_BUSINESS_ID, checkIn: { gte: fromDate } },
+        where: { businessId: authResult.businessId, checkIn: { gte: fromDate } },
       }),
       // Appointments by date (for chart) - last 30 days
       prisma.appointment.groupBy({
         by: ["date"],
-        where: { businessId: DEMO_BUSINESS_ID, date: { gte: fromDate } },
+        where: { businessId: authResult.businessId, date: { gte: fromDate } },
         _count: true,
         orderBy: { date: "asc" },
       }),
@@ -133,7 +132,7 @@ export async function GET(request: NextRequest) {
 
     // Appointments by day of week and hour (for scheduling heatmap)
     const allAppointments = await prisma.appointment.findMany({
-      where: { businessId: DEMO_BUSINESS_ID, date: { gte: fromDate } },
+      where: { businessId: authResult.businessId, date: { gte: fromDate } },
       select: { date: true, startTime: true },
     });
 
@@ -154,7 +153,7 @@ export async function GET(request: NextRequest) {
 
     // Top customers by revenue this period
     const topCustomerPayments = await prisma.payment.findMany({
-      where: { businessId: DEMO_BUSINESS_ID, status: "paid", paidAt: { gte: fromDate } },
+      where: { businessId: authResult.businessId, status: "paid", paidAt: { gte: fromDate } },
       select: {
         amount: true,
         customer: { select: { id: true, name: true } },
@@ -177,7 +176,7 @@ export async function GET(request: NextRequest) {
     // Revenue by service type this period (via appointment.service)
     const servicePayments = await prisma.payment.findMany({
       where: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         status: "paid",
         paidAt: { gte: fromDate },
         appointmentId: { not: null },
@@ -201,7 +200,7 @@ export async function GET(request: NextRequest) {
     // Retention: customers with more than 1 appointment (returning) vs total with any appointment
     const allCustomerAppointments = await prisma.appointment.groupBy({
       by: ["customerId"],
-      where: { businessId: DEMO_BUSINESS_ID },
+      where: { businessId: authResult.businessId },
       _count: true,
     });
     const returningCustomers = allCustomerAppointments.filter((c) => c._count > 1).length;
@@ -215,7 +214,7 @@ export async function GET(request: NextRequest) {
 
     // Pet demographics (species + top breeds) — static, not period-dependent
     const allPets = await prisma.pet.findMany({
-      where: { customer: { businessId: DEMO_BUSINESS_ID } },
+      where: { customer: { businessId: authResult.businessId } },
       select: { species: true, breed: true },
     });
     const speciesCount: Record<string, number> = {};

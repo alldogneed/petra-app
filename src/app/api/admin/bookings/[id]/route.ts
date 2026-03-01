@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
-import { DEMO_BUSINESS_ID } from "@/lib/utils"
-import { requireAuth, isGuardError } from "@/lib/auth-guards"
+import { authResult.businessId } from "@/lib/utils"
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards"
 
 // Stub notification
 function notifyCustomer(booking: { id: string }, customer: { phone: string; name: string }, status: string) {
@@ -15,10 +15,10 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await requireAuth(req)
+  const authResult = await requireBusinessAuth(req)
   if (isGuardError(authResult)) return authResult
 
-  const businessId = DEMO_BUSINESS_ID
+  const businessId = authResult.businessId
   const { action, note } = await req.json()
 
   if (!["approve", "decline", "cancel"].includes(action)) {
@@ -61,10 +61,10 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await requireAuth(req)
+  const authResult = await requireBusinessAuth(req)
   if (isGuardError(authResult)) return authResult
 
-  const businessId = DEMO_BUSINESS_ID
+  const businessId = authResult.businessId
   const booking = await prisma.booking.findFirst({
     where: { id: params.id, businessId },
     include: {

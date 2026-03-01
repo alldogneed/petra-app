@@ -1,17 +1,16 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const services = await prisma.service.findMany({
-      where: { businessId: DEMO_BUSINESS_ID },
+      where: { businessId: authResult.businessId },
       orderBy: { name: "asc" },
     });
 
@@ -27,7 +26,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -64,7 +63,7 @@ export async function POST(request: NextRequest) {
         paymentUrl: paymentUrl || null,
         depositRequired: depositRequired ?? false,
         depositAmount: depositAmount ? Number(depositAmount) : null,
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
       },
     });
 

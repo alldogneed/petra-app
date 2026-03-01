@@ -1,19 +1,17 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { getCurrentUser } from "@/lib/auth";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // GET /api/exports – list export jobs
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireBusinessAuth(request);
+    if (isGuardError(authResult)) return authResult;
+    const { businessId } = authResult;
 
     const exports = await prisma.exportJob.findMany({
-      where: { businessId: DEMO_BUSINESS_ID },
+      where: { businessId },
       orderBy: { createdAt: "desc" },
       take: 20,
     });
@@ -28,10 +26,9 @@ export async function GET() {
 // POST /api/exports – create a new export job
 export async function POST(request: NextRequest) {
   try {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireBusinessAuth(request);
+    if (isGuardError(authResult)) return authResult;
+    const { businessId, session } = authResult;
 
     const body = await request.json();
     const { exportType, format, outputMode, filterFromDate, filterToDate } = body;
@@ -42,8 +39,8 @@ export async function POST(request: NextRequest) {
 
     const exportJob = await prisma.exportJob.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
-        userId: currentUser.id,
+        businessId,
+        userId: session.user.id,
         exportType,
         format: format || "xlsx",
         outputMode: outputMode || "separate",

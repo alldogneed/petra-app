@@ -7,13 +7,12 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import * as XLSX from "xlsx";
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
@@ -31,7 +30,7 @@ export async function GET(request: NextRequest) {
     // --- Customers sheet ---
     if (type === "customers" || type === "both") {
       const customers = await prisma.customer.findMany({
-        where: { businessId: DEMO_BUSINESS_ID, ...dateFilter },
+        where: { businessId: authResult.businessId, ...dateFilter },
         include: {
           pets: { select: { name: true, species: true, breed: true, gender: true, weight: true } },
           _count: { select: { appointments: true } },
@@ -82,7 +81,7 @@ export async function GET(request: NextRequest) {
     if (type === "pets" || type === "both") {
       const pets = await prisma.pet.findMany({
         where: {
-          customer: { businessId: DEMO_BUSINESS_ID },
+          customer: { businessId: authResult.businessId },
           ...(dateFilter.createdAt ? { createdAt: dateFilter.createdAt } : {}),
         },
         include: { customer: { select: { name: true, phone: true } } },

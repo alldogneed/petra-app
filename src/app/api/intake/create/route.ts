@@ -1,13 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import crypto from "crypto";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
@@ -22,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     const form = await prisma.intakeForm.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         customerId: customerId || null,
         dogId: dogId || null,
         tokenHash,

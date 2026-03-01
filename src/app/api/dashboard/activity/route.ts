@@ -1,8 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 const ACTION_LABELS: Record<string, string> = {
   LOGIN: "התחברות למערכת",
@@ -26,11 +25,11 @@ const ACTION_LABELS: Record<string, string> = {
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const businessId = DEMO_BUSINESS_ID;
+    const { businessId } = authResult;
 
     const [activityLogs, scheduledMessages] = await Promise.all([
       prisma.activityLog.findMany({

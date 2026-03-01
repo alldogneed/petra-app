@@ -36,7 +36,7 @@ export async function GET() {
       {
         id: "google-calendar",
         name: "Google Calendar",
-        description: "סנכרון תורים עם גוגל קלנדר",
+        description: "פגישות חדשות יסונכרנו אוטומטית ללוח Petra Bookings ב-Google Calendar שלך",
         icon: "calendar",
         connected: user?.gcalConnected ?? false,
         connectedEmail: user?.gcalConnectedEmail ?? null,

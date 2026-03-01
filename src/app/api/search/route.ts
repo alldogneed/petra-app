@@ -1,12 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
@@ -28,7 +27,7 @@ export async function GET(request: NextRequest) {
     const [customers, pets, appointments, boarding] = await Promise.all([
       prisma.customer.findMany({
         where: {
-          businessId: DEMO_BUSINESS_ID,
+          businessId: authResult.businessId,
           OR: [
             { name: { contains: q } },
             { phone: { contains: q } },
@@ -41,7 +40,7 @@ export async function GET(request: NextRequest) {
 
       prisma.pet.findMany({
         where: {
-          customer: { businessId: DEMO_BUSINESS_ID },
+          customer: { businessId: authResult.businessId },
           OR: [
             { name: { contains: q } },
             { breed: { contains: q } },
@@ -58,7 +57,7 @@ export async function GET(request: NextRequest) {
 
       prisma.appointment.findMany({
         where: {
-          businessId: DEMO_BUSINESS_ID,
+          businessId: authResult.businessId,
           OR: [
             { notes: { contains: q } },
             { customer: { name: { contains: q } } },
@@ -79,7 +78,7 @@ export async function GET(request: NextRequest) {
 
       prisma.boardingStay.findMany({
         where: {
-          businessId: DEMO_BUSINESS_ID,
+          businessId: authResult.businessId,
           OR: [
             { notes: { contains: q } },
             { pet: { name: { contains: q } } },

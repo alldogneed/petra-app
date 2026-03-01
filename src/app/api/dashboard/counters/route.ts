@@ -1,14 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // GET /api/dashboard/counters
 // Lightweight endpoint for sidebar badges — returns urgent counts only.
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const now = new Date();
@@ -17,7 +16,7 @@ export async function GET(request: NextRequest) {
       // Open tasks (not completed/canceled)
       prisma.task.count({
         where: {
-          businessId: DEMO_BUSINESS_ID,
+          businessId: authResult.businessId,
           status: "OPEN",
         },
       }),
@@ -25,7 +24,7 @@ export async function GET(request: NextRequest) {
       // Leads with a follow-up that is past-due and status is still "pending"
       prisma.lead.count({
         where: {
-          businessId: DEMO_BUSINESS_ID,
+          businessId: authResult.businessId,
           nextFollowUpAt: { lt: now },
           followUpStatus: "pending",
           stage: { not: "won" },
@@ -35,7 +34,7 @@ export async function GET(request: NextRequest) {
 
       // Online bookings awaiting approval
       prisma.booking.count({
-        where: { businessId: DEMO_BUSINESS_ID, status: "pending" },
+        where: { businessId: authResult.businessId, status: "pending" },
       }),
     ]);
 

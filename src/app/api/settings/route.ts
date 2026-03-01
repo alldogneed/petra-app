@@ -1,17 +1,16 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const business = await prisma.business.findUnique({
-      where: { id: DEMO_BUSINESS_ID },
+      where: { id: authResult.businessId },
       include: {
         _count: {
           select: {
@@ -41,13 +40,13 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
 
     const existing = await prisma.business.findUnique({
-      where: { id: DEMO_BUSINESS_ID },
+      where: { id: authResult.businessId },
     });
 
     if (!existing) {
@@ -94,7 +93,7 @@ export async function PATCH(request: NextRequest) {
     if (customerTags !== undefined) data.customerTags = customerTags;
 
     const business = await prisma.business.update({
-      where: { id: DEMO_BUSINESS_ID },
+      where: { id: authResult.businessId },
       data,
       include: {
         _count: {
