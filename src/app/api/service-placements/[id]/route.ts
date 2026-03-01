@@ -1,8 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { createComplianceEvent } from "@/lib/service-dog-engine";
 
 export async function GET(
@@ -10,11 +9,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const placement = await prisma.serviceDogPlacement.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId: authResult.businessId },
       include: {
         serviceDog: { include: { pet: true } },
         recipient: true,
@@ -38,13 +37,13 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
 
     const placement = await prisma.serviceDogPlacement.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId: authResult.businessId },
       include: {
         serviceDog: { include: { pet: true } },
         recipient: true,
@@ -81,7 +80,7 @@ export async function PATCH(
     if (oldStatus !== newStatus && (newStatus === "TERMINATED" || newStatus === "COMPLETED")) {
       await createComplianceEvent(
         placement.serviceDogId,
-        DEMO_BUSINESS_ID,
+        authResult.businessId,
         "PLACEMENT_ENDED",
         `שיבוץ הסתיים: ${placement.serviceDog.pet.name} → ${placement.recipient.name}`,
         { placementId: params.id }

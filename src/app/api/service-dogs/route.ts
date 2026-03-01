@@ -1,15 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { seedMedicalProtocols } from "@/lib/service-dog-engine";
 import { computeMedicalComplianceStatus } from "@/lib/service-dog-engine";
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
@@ -18,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     const dogs = await prisma.serviceDogProfile.findMany({
       where: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         ...(phase && { phase }),
         ...(trainingStatus && { trainingStatus }),
       },
@@ -57,7 +56,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -75,7 +74,7 @@ export async function POST(request: NextRequest) {
     const pet = await prisma.pet.findFirst({
       where: {
         id: petId,
-        customer: { businessId: DEMO_BUSINESS_ID },
+        customer: { businessId: authResult.businessId },
       },
     });
 
@@ -97,7 +96,7 @@ export async function POST(request: NextRequest) {
     const profile = await prisma.serviceDogProfile.create({
       data: {
         petId,
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         phase: initialPhase,
         serviceType: serviceType || null,
         notes: notes || null,
@@ -106,7 +105,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Seed initial medical protocols
-    await seedMedicalProtocols(profile.id, DEMO_BUSINESS_ID, initialPhase);
+    await seedMedicalProtocols(profile.id, authResult.businessId, initialPhase);
 
     return NextResponse.json(profile, { status: 201 });
   } catch (error) {

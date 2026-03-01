@@ -1,13 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { createComplianceEvent } from "@/lib/service-dog-engine";
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
@@ -15,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     const placements = await prisma.serviceDogPlacement.findMany({
       where: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         ...(status && { status }),
       },
       include: {
@@ -34,7 +33,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
@@ -46,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     // Verify both exist in business
     const dog = await prisma.serviceDogProfile.findFirst({
-      where: { id: serviceDogId, businessId: DEMO_BUSINESS_ID },
+      where: { id: serviceDogId, businessId: authResult.businessId },
       include: { pet: true },
     });
 
@@ -55,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     const recipient = await prisma.serviceDogRecipient.findFirst({
-      where: { id: recipientId, businessId: DEMO_BUSINESS_ID },
+      where: { id: recipientId, businessId: authResult.businessId },
     });
 
     if (!recipient) {
@@ -77,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     const placement = await prisma.serviceDogPlacement.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         serviceDogId,
         recipientId,
         placementDate: placementDate ? new Date(placementDate) : new Date(),
@@ -101,7 +100,7 @@ export async function POST(request: NextRequest) {
     // Create compliance event
     await createComplianceEvent(
       serviceDogId,
-      DEMO_BUSINESS_ID,
+      authResult.businessId,
       "PLACEMENT_STARTED",
       `שיבוץ חדש: ${dog.pet.name} → ${recipient.name}`,
       { placementId: placement.id }
