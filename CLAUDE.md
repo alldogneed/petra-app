@@ -398,11 +398,16 @@ GOOGLE_CLIENT_SECRET=""
 GOOGLE_REDIRECT_URI="http://localhost:3000/api/auth/google/callback"
 APP_URL="http://localhost:3000"
 GCAL_REDIRECT_URI="http://localhost:3000/api/integrations/google/callback"
-GCAL_ENCRYPTION_KEY=""               # 32-byte hex key for OAuth token encryption
+GCAL_ENCRYPTION_KEY=""               # 32-byte hex key for OAuth token encryption (openssl rand -hex 32)
+INVOICING_ENCRYPTION_KEY=""          # 32-byte hex key for Morning API secret encryption
+STRIPE_ENCRYPTION_KEY=""             # 32-byte hex key for Stripe secret key encryption
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 CRON_SECRET=""                       # Bearer token for cron routes
 RESEND_API_KEY=""
 EMAIL_FROM="Petra <onboarding@resend.dev>"
+TWILIO_ACCOUNT_SID=""                # Twilio SID for WhatsApp sending
+TWILIO_AUTH_TOKEN=""                 # Twilio Auth Token
+TWILIO_WHATSAPP_FROM="+14155238886"  # Twilio WhatsApp sandbox number (or approved business number)
 ```
 
 ---
