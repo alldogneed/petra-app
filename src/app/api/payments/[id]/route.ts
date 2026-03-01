@@ -71,7 +71,7 @@ export async function PATCH(
     if (body.notes !== undefined) data.notes = body.notes;
 
     const payment = await prisma.payment.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data,
       include: {
         customer: { select: { id: true, name: true, phone: true } },
@@ -101,7 +101,7 @@ export async function DELETE(
       return NextResponse.json({ error: "תשלום לא נמצא" }, { status: 404 });
     }
 
-    await prisma.payment.delete({ where: { id: params.id } });
+    await prisma.payment.delete({ where: { id: params.id, businessId: authResult.businessId } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE payment error:", error);

@@ -121,7 +121,7 @@ export async function POST(
     docs.push(newDoc);
 
     await prisma.customer.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: { documents: JSON.stringify(docs) },
     });
 
@@ -179,7 +179,7 @@ export async function DELETE(
     const filtered = docs.filter((d) => d.id !== docId);
 
     await prisma.customer.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: { documents: JSON.stringify(filtered) },
     });
 

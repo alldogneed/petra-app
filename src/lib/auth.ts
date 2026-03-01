@@ -59,7 +59,7 @@ export async function ensureUserHasBusiness(
   });
   if (existing) return existing.businessId;
 
-  // Auto-create a business for this user
+  // Auto-create a business for this user (atomic transaction)
   const slugBase = displayName
     .toLowerCase()
     .replace(/[^a-z0-9\u0590-\u05ff]+/g, "-")
@@ -68,22 +68,26 @@ export async function ensureUserHasBusiness(
   const slugSuffix = Math.random().toString(36).slice(2, 7);
   const slug = `${slugBase}-${slugSuffix}`;
 
-  const business = await prisma.business.create({
-    data: {
-      name: `העסק של ${displayName}`,
-      slug,
-      status: "active",
-      tier: "basic",
-    },
-  });
+  const business = await prisma.$transaction(async (tx) => {
+    const biz = await tx.business.create({
+      data: {
+        name: `העסק של ${displayName}`,
+        slug,
+        status: "active",
+        tier: "basic",
+      },
+    });
 
-  await prisma.businessUser.create({
-    data: {
-      businessId: business.id,
-      userId,
-      role: "owner",
-      isActive: true,
-    },
+    await tx.businessUser.create({
+      data: {
+        businessId: biz.id,
+        userId,
+        role: "owner",
+        isActive: true,
+      },
+    });
+
+    return biz;
   });
 
   return business.id;

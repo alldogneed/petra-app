@@ -58,7 +58,7 @@ export async function PATCH(
     if (body.orderType !== undefined) data.orderType = body.orderType;
 
     const order = await prisma.order.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data,
       include: {
         customer: { select: { id: true, name: true, phone: true } },
@@ -115,7 +115,7 @@ export async function DELETE(
       data: { status: "CANCELED" },
     });
 
-    await prisma.order.delete({ where: { id: params.id } });
+    await prisma.order.delete({ where: { id: params.id, businessId: authResult.businessId } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Error deleting order:", error);

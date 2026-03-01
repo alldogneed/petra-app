@@ -37,7 +37,7 @@ export async function PATCH(
     if (body.depositRequired !== undefined) data.depositRequired = body.depositRequired;
     if (body.depositAmount !== undefined) data.depositAmount = body.depositAmount ? Number(body.depositAmount) : null;
 
-    const service = await prisma.service.update({ where: { id }, data });
+    const service = await prisma.service.update({ where: { id, businessId: authResult.businessId }, data });
 
     return NextResponse.json(service);
   } catch (error) {
@@ -67,7 +67,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Service not found" }, { status: 404 });
     }
 
-    await prisma.service.delete({ where: { id } });
+    await prisma.service.delete({ where: { id, businessId: authResult.businessId } });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

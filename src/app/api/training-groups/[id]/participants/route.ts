@@ -78,6 +78,15 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "participantId is required" }, { status: 400 });
     }
 
+    // Verify participant belongs to a group owned by this business
+    const participant = await prisma.trainingGroupParticipant.findUnique({
+      where: { id: participantId },
+      select: { trainingGroup: { select: { businessId: true } } },
+    });
+    if (!participant || participant.trainingGroup.businessId !== authResult.businessId) {
+      return NextResponse.json({ error: "Participant not found" }, { status: 404 });
+    }
+
     await prisma.trainingGroupParticipant.delete({
       where: { id: participantId },
     });
