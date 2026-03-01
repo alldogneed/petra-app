@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { encryptStripeSecret, decryptStripeSecret } from "@/lib/encryption";
+import { encryptStripeSecret } from "@/lib/encryption";
 import { verifyStripeKey } from "@/lib/stripe";
 
 // GET /api/integrations/stripe — get current Stripe connection status (never exposes decrypted keys)
@@ -127,15 +127,3 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
-// Internal helper used by other routes — load and decrypt Stripe secret key
-export async function loadStripeSecretKey(businessId: string): Promise<string> {
-  const settings = await prisma.stripeSettings.findUnique({
-    where: { businessId },
-    select: { secretKeyEncrypted: true, status: true },
-  });
-
-  if (!settings) throw new Error("Stripe לא מוגדר לעסק זה");
-  if (settings.status !== "active") throw new Error("Stripe מושבת");
-
-  return decryptStripeSecret(settings.secretKeyEncrypted);
-}

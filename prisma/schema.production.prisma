@@ -245,6 +245,7 @@ model Business {
   intakeForms       IntakeForm[]
   leadStages        LeadStage[]
   invoicingSettings InvoicingSettings?
+  stripeSettings    StripeSettings?
   invoiceJobs       InvoiceJob[]
   invoiceDocuments  InvoiceDocument[]
   serviceDogProfiles    ServiceDogProfile[]
@@ -1349,6 +1350,25 @@ model InvoicingSettings {
   connectedAt             DateTime?
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+}
+
+model StripeSettings {
+  id                     String    @id @default(uuid())
+  businessId             String    @unique
+  publishableKey         String
+  secretKeyEncrypted     String
+  webhookSecretEncrypted String?
+  accountId              String?
+  currency               String    @default("ILS")
+  status                 String    @default("active")
+  lastError              String?
+  connectedAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   business Business @relation(fields: [businessId], references: [id])
 

@@ -8,6 +8,8 @@
  */
 
 import Stripe from "stripe";
+import { prisma } from "@/lib/prisma";
+import { decryptStripeSecret } from "@/lib/encryption";
 
 // ─── Client factory ──────────────────────────────────────────────────────────
 
@@ -92,6 +94,20 @@ export async function createCheckoutSession(
   });
 
   return { sessionId: session.id, url: session.url! };
+}
+
+// ─── Load and decrypt Stripe secret key for a business ───────────────────────
+
+export async function loadStripeSecretKey(businessId: string): Promise<string> {
+  const settings = await prisma.stripeSettings.findUnique({
+    where: { businessId },
+    select: { secretKeyEncrypted: true, status: true },
+  });
+
+  if (!settings) throw new Error("Stripe לא מוגדר לעסק זה");
+  if (settings.status !== "active") throw new Error("Stripe מושבת");
+
+  return decryptStripeSecret(settings.secretKeyEncrypted);
 }
 
 // ─── Webhook signature verification ─────────────────────────────────────────
