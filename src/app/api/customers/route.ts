@@ -62,9 +62,12 @@ export async function GET(request: NextRequest) {
               service: { select: { name: true, type: true } },
             },
             orderBy: { date: "desc" },
+            take: 20,
           },
           payments: {
             select: { amount: true, status: true, isDeposit: true },
+            orderBy: { createdAt: "desc" },
+            take: 50,
           },
           _count: { select: { pets: true, appointments: true } },
         },

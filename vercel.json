@@ -1,6 +1,7 @@
 {
   "buildCommand": "npm run vercel-build",
   "framework": "nextjs",
+  "regions": ["nrt1"],
   "crons": [
     {
       "path": "/api/cron/send-reminders",
