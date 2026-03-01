@@ -171,10 +171,23 @@ export default function ScheduledMessagesPage() {
         return;
       }
       qc.invalidateQueries({ queryKey: ["scheduled-messages"] });
+      qc.invalidateQueries({ queryKey: ["scheduled-messages-stats"] });
       toast.success("הודעה בוטלה בהצלחה");
       setCancelId(null);
     },
     onError: () => toast.error("שגיאה בביטול הודעה"),
+  });
+
+  const sendNowMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/scheduled-messages/${id}/send`, { method: "POST" }).then((r) => r.json()),
+    onSuccess: (res, id) => {
+      if (res.error) { toast.error(res.error); return; }
+      qc.invalidateQueries({ queryKey: ["scheduled-messages"] });
+      qc.invalidateQueries({ queryKey: ["scheduled-messages-stats"] });
+      toast.success(res.stub ? "הודעה נרשמה (Stub — אין Twilio)" : "הודעה נשלחה בהצלחה!");
+    },
+    onError: () => toast.error("שגיאה בשליחת הודעה"),
   });
 
   function handleStatusChange(s: string) {
@@ -455,17 +468,31 @@ export default function ScheduledMessagesPage() {
 
                       {/* Actions */}
                       <td className="table-cell">
-                        {msg.status === "PENDING" ? (
-                          <button
-                            onClick={() => setCancelId(msg.id)}
-                            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 transition-colors font-medium"
-                          >
-                            <Ban className="w-3.5 h-3.5" />
-                            בטל
-                          </button>
-                        ) : (
-                          <span className="text-xs text-slate-300">—</span>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {(msg.status === "PENDING" || msg.status === "FAILED") && (
+                            <button
+                              onClick={() => sendNowMutation.mutate(msg.id)}
+                              disabled={sendNowMutation.isPending}
+                              title="שלח עכשיו"
+                              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors font-medium"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              שלח עכשיו
+                            </button>
+                          )}
+                          {msg.status === "PENDING" && (
+                            <button
+                              onClick={() => setCancelId(msg.id)}
+                              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 transition-colors font-medium"
+                            >
+                              <Ban className="w-3.5 h-3.5" />
+                              בטל
+                            </button>
+                          )}
+                          {msg.status !== "PENDING" && msg.status !== "FAILED" && (
+                            <span className="text-xs text-slate-300">—</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
