@@ -1,8 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 /**
  * GET /api/pets/medications
@@ -14,7 +13,7 @@ import { requireAuth, isGuardError } from "@/lib/auth-guards";
  */
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
@@ -26,7 +25,7 @@ export async function GET(request: NextRequest) {
     // Find pets with active medications
     const medications = await prisma.dogMedication.findMany({
       where: {
-        pet: { customer: { businessId: DEMO_BUSINESS_ID } },
+        pet: { customer: { businessId: authResult.businessId } },
         AND: [
           {
             OR: [
@@ -63,7 +62,7 @@ export async function GET(request: NextRequest) {
     if (boardedOnly) {
       const checkedInPetIds = await prisma.boardingStay.findMany({
         where: {
-          pet: { customer: { businessId: DEMO_BUSINESS_ID } },
+          pet: { customer: { businessId: authResult.businessId } },
           status: "checked_in",
         },
         select: { petId: true },

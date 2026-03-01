@@ -1,40 +1,46 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // GET /api/pets/vaccinations?days=30
-// Returns pets whose rabies OR DHPP vaccination expires within N days (or is already expired).
-// DHPP expiry is estimated as dhppLastDate + 365 days.
+// Returns vaccination records whose expiry is within the next N days (or already expired).
+// Covers: rabies (uses rabiesValidUntil), DHPP (estimated +1yr from dhppLastDate),
+//         deworming (estimated +6mo from dewormingLastDate).
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
-    const days = parseInt(searchParams.get("days") ?? "30", 10);
+    const days = Math.min(Math.max(parseInt(searchParams.get("days") ?? "30", 10), 1), 365);
 
     const now = new Date();
     const cutoff = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
-    // For DHPP: find dogs whose dhppLastDate was > (cutoff - 365) days ago
-    // i.e. dhppLastDate < cutoff - 365days  →  dhppLastDate < now - (365-days)days
+
+    // Cutoffs for estimated expiry calculations
     const dhppCutoff = new Date(cutoff.getTime() - 365 * 24 * 60 * 60 * 1000);
+    const dewormCutoff = new Date(cutoff.getTime() - 180 * 24 * 60 * 60 * 1000);
 
     const healths = await prisma.dogHealth.findMany({
       where: {
-        pet: { customer: { businessId: DEMO_BUSINESS_ID } },
+        pet: { customer: { businessId: authResult.businessId } },
         OR: [
+          // Rabies: expiry date is within window
           { rabiesValidUntil: { lte: cutoff }, rabiesUnknown: false },
-          // DHPP: was given >=(365-days) days ago, so calculated expiry is within window
+          // DHPP: last date was >= (365 - days) days ago
           { dhppLastDate: { not: null, lte: dhppCutoff } },
+          // Deworming: last date was >= (180 - days) days ago
+          { dewormingLastDate: { not: null, lte: dewormCutoff } },
         ],
       },
       select: {
         id: true,
+        rabiesLastDate: true,
         rabiesValidUntil: true,
         rabiesUnknown: true,
         dhppLastDate: true,
+        dewormingLastDate: true,
         pet: {
           select: {
             id: true,
@@ -56,11 +62,13 @@ export async function GET(request: NextRequest) {
       customerId: string;
       customerName: string;
       customerPhone: string;
-      vaccineType: "rabies" | "dhpp";
+      vaccineType: "rabies" | "dhpp" | "deworming";
       vaccineLabel: string;
-      validUntil: string;
+      lastDate: string | null;
+      validUntil: string | null;
       daysUntil: number;
       isExpired: boolean;
+      isUnknown: boolean;
     };
 
     const results: VaccinationEntry[] = [];
@@ -77,44 +85,82 @@ export async function GET(request: NextRequest) {
         customerPhone: h.pet.customer.phone,
       };
 
-      // Rabies
-      if (!h.rabiesUnknown && h.rabiesValidUntil && new Date(h.rabiesValidUntil) <= cutoff) {
+      // ── Rabies ──────────────────────────────────────────────────
+      if (!h.rabiesUnknown && h.rabiesValidUntil) {
         const expiry = new Date(h.rabiesValidUntil);
-        const daysUntil = Math.round((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        results.push({
-          ...base,
-          vaccineType: "rabies",
-          vaccineLabel: "כלבת",
-          validUntil: expiry.toISOString(),
-          daysUntil,
-          isExpired: expiry < now,
-        });
+        if (expiry <= cutoff) {
+          const daysUntil = Math.round(
+            (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+          );
+          results.push({
+            ...base,
+            vaccineType: "rabies",
+            vaccineLabel: "כלבת",
+            lastDate: h.rabiesLastDate ? h.rabiesLastDate.toISOString() : null,
+            validUntil: expiry.toISOString(),
+            daysUntil,
+            isExpired: expiry < now,
+            isUnknown: false,
+          });
+        }
       }
 
-      // DHPP (estimated 1-year validity from last date)
+      // ── DHPP (estimated 1-year validity from last date) ──────────
       if (h.dhppLastDate) {
-        const expiry = new Date(new Date(h.dhppLastDate).getTime() + 365 * 24 * 60 * 60 * 1000);
+        const expiry = new Date(
+          new Date(h.dhppLastDate).getTime() + 365 * 24 * 60 * 60 * 1000
+        );
         if (expiry <= cutoff) {
-          const daysUntil = Math.round((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          const daysUntil = Math.round(
+            (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+          );
           results.push({
             ...base,
             healthId: h.id + "_dhpp",
             vaccineType: "dhpp",
             vaccineLabel: "DHPP",
+            lastDate: h.dhppLastDate.toISOString(),
             validUntil: expiry.toISOString(),
             daysUntil,
             isExpired: expiry < now,
+            isUnknown: false,
+          });
+        }
+      }
+
+      // ── Deworming (estimated 6-month validity from last date) ────
+      if (h.dewormingLastDate) {
+        const expiry = new Date(
+          new Date(h.dewormingLastDate).getTime() + 180 * 24 * 60 * 60 * 1000
+        );
+        if (expiry <= cutoff) {
+          const daysUntil = Math.round(
+            (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+          );
+          results.push({
+            ...base,
+            healthId: h.id + "_deworming",
+            vaccineType: "deworming",
+            vaccineLabel: "טיפול נגד תולעים",
+            lastDate: h.dewormingLastDate.toISOString(),
+            validUntil: expiry.toISOString(),
+            daysUntil,
+            isExpired: expiry < now,
+            isUnknown: false,
           });
         }
       }
     }
 
-    // Sort: expired first, then by daysUntil
+    // Sort: expired first (most negative daysUntil), then ascending
     results.sort((a, b) => a.daysUntil - b.daysUntil);
 
     return NextResponse.json({ vaccinations: results, total: results.length });
   } catch (error) {
     console.error("GET pets/vaccinations error:", error);
-    return NextResponse.json({ error: "שגיאה בטעינת נתוני חיסונים" }, { status: 500 });
+    return NextResponse.json(
+      { error: "שגיאה בטעינת נתוני חיסונים" },
+      { status: 500 }
+    );
   }
 }

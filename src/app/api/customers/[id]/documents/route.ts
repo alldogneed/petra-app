@@ -4,8 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DOCUMENT_CATEGORIES = [
@@ -23,11 +22,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const customer = await prisma.customer.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId: authResult.businessId },
       select: { documents: true },
     });
     if (!customer) {
@@ -56,7 +55,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const formData = await request.formData();
@@ -77,7 +76,7 @@ export async function POST(
     }
 
     const customer = await prisma.customer.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId: authResult.businessId },
       select: { documents: true },
     });
     if (!customer) {
@@ -141,7 +140,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
@@ -152,7 +151,7 @@ export async function DELETE(
     }
 
     const customer = await prisma.customer.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId: authResult.businessId },
       select: { documents: true },
     });
     if (!customer) {

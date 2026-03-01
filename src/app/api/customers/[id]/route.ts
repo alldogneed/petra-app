@@ -2,8 +2,7 @@ export const dynamic = 'force-dynamic';
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 
 const PatchCustomerSchema = z.object({
@@ -22,11 +21,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const customer = await prisma.customer.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId: authResult.businessId },
       include: {
         pets: {
           include: {
@@ -101,7 +100,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const raw = await request.json();
@@ -117,7 +116,7 @@ export async function PATCH(
     }
 
     const customer = await prisma.customer.update({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId: authResult.businessId },
       data,
     });
 
@@ -139,18 +138,18 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     // Verify customer belongs to this business before deleting
     const customer = await prisma.customer.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId: authResult.businessId },
     });
     if (!customer) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    await prisma.customer.delete({ where: { id: params.id, businessId: DEMO_BUSINESS_ID } });
+    await prisma.customer.delete({ where: { id: params.id, businessId: authResult.businessId } });
 
     const { session } = authResult;
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_CUSTOMER);

@@ -1,16 +1,15 @@
 export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     // Verify customer exists and belongs to this business
@@ -18,7 +17,7 @@ export async function POST(
       where: { id: params.id },
       select: { id: true, businessId: true },
     });
-    if (!customer || customer.businessId !== DEMO_BUSINESS_ID) {
+    if (!customer || customer.businessId !== authResult.businessId) {
       return NextResponse.json({ error: "Customer not found" }, { status: 404 });
     }
 
@@ -56,7 +55,7 @@ export async function POST(
         type: "pet_added",
         description: `חיית מחמד חדשה נוספה: ${pet.name}`,
         customerId: params.id,
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
       },
     });
 

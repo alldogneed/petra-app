@@ -1,12 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
-async function verifyPet(petId: string) {
+async function verifyPet(petId: string, businessId: string) {
   return prisma.pet.findFirst({
-    where: { id: petId, customer: { businessId: DEMO_BUSINESS_ID } },
+    where: { id: petId, customer: { businessId } },
   });
 }
 
@@ -16,10 +15,11 @@ export async function GET(
   { params }: { params: { petId: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { businessId } = authResult;
 
-    const pet = await verifyPet(params.petId);
+    const pet = await verifyPet(params.petId, businessId);
     if (!pet) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
 
     const medications = await prisma.dogMedication.findMany({
@@ -40,10 +40,11 @@ export async function POST(
   { params }: { params: { petId: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { businessId } = authResult;
 
-    const pet = await verifyPet(params.petId);
+    const pet = await verifyPet(params.petId, businessId);
     if (!pet) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
 
     const body = await request.json();

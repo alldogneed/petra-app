@@ -1,21 +1,20 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { petId: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const pet = await prisma.pet.findFirst({
       where: {
         id: params.petId,
-        customer: { businessId: DEMO_BUSINESS_ID },
+        customer: { businessId: authResult.businessId },
       },
       include: {
         customer: { select: { id: true, name: true, phone: true, email: true } },
@@ -55,12 +54,12 @@ export async function PATCH(
   { params }: { params: { petId: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     // Verify the pet belongs to this business before updating
     const existing = await prisma.pet.findFirst({
-      where: { id: params.petId, customer: { businessId: DEMO_BUSINESS_ID } },
+      where: { id: params.petId, customer: { businessId: authResult.businessId } },
     });
     if (!existing) {
       return NextResponse.json({ error: "Pet not found" }, { status: 404 });

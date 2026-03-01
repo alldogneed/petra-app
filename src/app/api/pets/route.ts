@@ -1,14 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // GET /api/pets?search=&species=&q=
 // Returns all pets for the business with customer info
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
@@ -16,7 +15,7 @@ export async function GET(request: NextRequest) {
     const species = searchParams.get("species") || "";
 
     const where: Record<string, unknown> = {
-      customer: { businessId: DEMO_BUSINESS_ID },
+      customer: { businessId: authResult.businessId },
     };
 
     if (search) {

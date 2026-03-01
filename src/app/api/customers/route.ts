@@ -1,17 +1,16 @@
 export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const businessId = DEMO_BUSINESS_ID;
+    const { businessId } = authResult;
     const { searchParams } = new URL(request.url);
     const rawSearch = searchParams.get("search");
     const search = rawSearch ? rawSearch.slice(0, 100) : null; // max 100 chars
@@ -189,10 +188,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
     }
 
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const businessId = DEMO_BUSINESS_ID;
+    const { businessId } = authResult;
     const body = await request.json();
 
     if (!body.name || typeof body.name !== "string" || !body.name.trim()) {

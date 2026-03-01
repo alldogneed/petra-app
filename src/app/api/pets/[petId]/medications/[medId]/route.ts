@@ -1,12 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
-async function verifyMed(petId: string, medId: string) {
+async function verifyMed(petId: string, medId: string, businessId: string) {
   return prisma.dogMedication.findFirst({
-    where: { id: medId, petId, pet: { customer: { businessId: DEMO_BUSINESS_ID } } },
+    where: { id: medId, petId, pet: { customer: { businessId } } },
   });
 }
 
@@ -16,10 +15,11 @@ export async function PATCH(
   { params }: { params: { petId: string; medId: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { businessId } = authResult;
 
-    const existing = await verifyMed(params.petId, params.medId);
+    const existing = await verifyMed(params.petId, params.medId, businessId);
     if (!existing) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
 
     const body = await request.json();
@@ -51,10 +51,11 @@ export async function DELETE(
   { params }: { params: { petId: string; medId: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { businessId } = authResult;
 
-    const existing = await verifyMed(params.petId, params.medId);
+    const existing = await verifyMed(params.petId, params.medId, businessId);
     if (!existing) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
 
     await prisma.dogMedication.delete({ where: { id: params.medId } });
