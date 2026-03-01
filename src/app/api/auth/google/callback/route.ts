@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createSession } from "@/lib/auth";
 import { exchangeCodeForTokens, fetchGoogleProfile } from "@/lib/google-oauth";
+import { CURRENT_TOS_VERSION } from "@/lib/tos";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
@@ -80,14 +81,20 @@ export async function GET(request: NextRequest) {
     // Create session
     const { token } = await createSession(user.id, request);
 
-    // Redirect to dashboard with session cookie
-    const response = NextResponse.redirect(new URL("/dashboard", APP_URL));
+    // Check if user has accepted current ToS version
+    const consent = await prisma.userConsent.findFirst({
+      where: { userId: user.id, termsVersion: CURRENT_TOS_VERSION },
+    });
+
+    // Redirect: new/existing users without ToS consent go to /tos-accept, others to /dashboard
+    const redirectPath = consent ? "/dashboard" : "/tos-accept";
+    const response = NextResponse.redirect(new URL(redirectPath, APP_URL));
     response.cookies.set("petra_session", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 7 * 24 * 60 * 60, // 7 days
+      maxAge: 8 * 60 * 60, // 8 hours — must match SESSION_TTL_REGULAR in session.ts
     });
     // Clear the OAuth state cookie
     response.cookies.delete("google_oauth_state");
