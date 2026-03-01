@@ -1,8 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 const ACTION_LABELS: Record<string, string> = {
   CREATED: "נוצרה",
@@ -18,14 +17,14 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { id } = params;
 
     // Verify task belongs to this business
     const task = await prisma.task.findFirst({
-      where: { id, businessId: DEMO_BUSINESS_ID },
+      where: { id, businessId: authResult.businessId },
       select: { id: true },
     });
 

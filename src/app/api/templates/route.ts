@@ -1,21 +1,20 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 // GET /api/templates – list all message templates (alias for /api/messages)
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
     const channel = searchParams.get("channel");
     const automationOnly = searchParams.get("automation");
 
-    const where: any = { businessId: DEMO_BUSINESS_ID };
+    const where: any = { businessId: authResult.businessId };
     if (channel) where.channel = channel;
 
     const templates = await prisma.messageTemplate.findMany({
@@ -36,7 +35,7 @@ export async function GET(request: NextRequest) {
 // POST /api/templates – create a message template
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -55,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     const template = await prisma.messageTemplate.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         name,
         channel,
         subject: subject || null,
