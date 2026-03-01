@@ -553,7 +553,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
             {/* Messages Dropdown — Quick WhatsApp Send */}
             {messagesOpen && (
-              <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
+              <div className="absolute left-0 top-full mt-2 w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
                 {msgStep === "select-customer" ? (
                   <>
                     {/* Header */}
@@ -712,7 +712,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
             {/* Notifications Dropdown */}
             {notificationsOpen && (
-              <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
+              <div className="absolute left-0 top-full mt-2 w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                   <h3 className="text-sm font-bold text-petra-text">התראות</h3>
                   {unreadNotifications > 0 && (

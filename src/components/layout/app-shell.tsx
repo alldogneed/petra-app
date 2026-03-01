@@ -2,6 +2,7 @@
 
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
+import { MobileBottomNav } from "./mobile-bottom-nav";
 import { type ReactNode, useState } from "react";
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -25,6 +26,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <Topbar onMenuToggle={() => setMobileOpen((prev) => !prev)} />
         <main className="p-4 md:p-6">{children}</main>
+        <MobileBottomNav />
       </div>
     </div>
   );
