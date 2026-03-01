@@ -143,11 +143,18 @@ export async function getAvailableSlots(
   const dayOfWeek = DOW_MAP[localDayOfWeek ?? "Sun"] ?? 0
 
   const rule = rules.find((r) => r.dayOfWeek === dayOfWeek)
-  if (!rule || !rule.isOpen) return []
+
+  // Default when no availability rules are configured:
+  // Open Sunday–Thursday (Israeli work week 0–4), closed Friday (5) & Saturday (6)
+  const isOpen = rule ? rule.isOpen : dayOfWeek <= 4
+  if (!isOpen) return []
+
+  const openTime  = rule?.openTime  ?? "09:00"
+  const closeTime = rule?.closeTime ?? "18:00"
 
   // 3. Convert working window to UTC
-  const windowStart = localTimeToUtc(rule.openTime, localDateStr, timezone)
-  const windowEnd   = localTimeToUtc(rule.closeTime, localDateStr, timezone)
+  const windowStart = localTimeToUtc(openTime, localDateStr, timezone)
+  const windowEnd   = localTimeToUtc(closeTime, localDateStr, timezone)
 
   // 4. Build busy intervals from blocks and existing bookings (including buffers)
   // For booking buffers, refetch service data per booking

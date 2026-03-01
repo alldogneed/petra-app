@@ -50,7 +50,7 @@ import { useSearchParams } from "next/navigation";
 import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
 import { MessagesPanel } from "@/components/messages/messages-panel";
 import { toast } from "sonner";
-import { TIERS } from "@/lib/constants";
+import { TIERS, SERVICE_TYPES } from "@/lib/constants";
 import { useAuth } from "@/providers/auth-provider";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -678,13 +678,13 @@ function IntegrationsTab() {
                   <ExternalLink className="w-3.5 h-3.5" />
                   חבר
                 </a>
-              ) : isWhatsApp && integ.connected ? (
+              ) : isWhatsApp ? (
                 <button
                   className="btn-secondary text-sm flex items-center gap-1.5"
                   onClick={() => setShowWhatsAppTestModal(true)}
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
-                  בדיקת חיבור
+                  {integ.connected ? "בדיקת חיבור" : "בדיקת Stub"}
                 </button>
               ) : (
                 <span className="text-xs text-petra-muted">בקרוב</span>
@@ -2596,6 +2596,405 @@ function TasksTab() {
   );
 }
 
+// ─── Services Tab ────────────────────────────────────────────────────────────
+
+interface Service {
+  id: string;
+  name: string;
+  type: string;
+  duration: number;
+  price: number;
+  color: string | null;
+  isActive: boolean;
+  isPublicBookable: boolean;
+  description: string | null;
+  includesVat: boolean;
+  bookingMode: string;
+  paymentUrl: string | null;
+  depositRequired: boolean;
+  depositAmount: number | null;
+  bufferBefore: number;
+  bufferAfter: number;
+}
+
+const EMPTY_SERVICE: Omit<Service, "id"> = {
+  name: "",
+  type: "training",
+  duration: 60,
+  price: 0,
+  color: "#3B82F6",
+  isActive: true,
+  isPublicBookable: false,
+  description: null,
+  includesVat: false,
+  bookingMode: "automatic",
+  paymentUrl: null,
+  depositRequired: false,
+  depositAmount: null,
+  bufferBefore: 0,
+  bufferAfter: 0,
+};
+
+const SERVICE_COLORS = ["#3B82F6", "#8B5CF6", "#EC4899", "#F97316", "#10B981", "#14B8A6", "#F59E0B", "#EF4444"];
+
+function ServicesTab() {
+  const queryClient = useQueryClient();
+  const [showModal, setShowModal] = useState(false);
+  const [editSvc, setEditSvc] = useState<Service | null>(null);
+  const [form, setForm] = useState<Omit<Service, "id">>(EMPTY_SERVICE);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const { data: services = [], isLoading } = useQuery<Service[]>({
+    queryKey: ["services"],
+    queryFn: () => fetchJSON<Service[]>("/api/services"),
+  });
+
+  function openCreate() {
+    setEditSvc(null);
+    setForm(EMPTY_SERVICE);
+    setFormErrors({});
+    setShowModal(true);
+  }
+
+  function openEdit(svc: Service) {
+    setEditSvc(svc);
+    setForm({
+      name: svc.name,
+      type: svc.type,
+      duration: svc.duration,
+      price: svc.price,
+      color: svc.color ?? "#3B82F6",
+      isActive: svc.isActive,
+      isPublicBookable: svc.isPublicBookable,
+      description: svc.description,
+      includesVat: svc.includesVat,
+      bookingMode: svc.bookingMode,
+      paymentUrl: svc.paymentUrl,
+      depositRequired: svc.depositRequired,
+      depositAmount: svc.depositAmount,
+      bufferBefore: svc.bufferBefore,
+      bufferAfter: svc.bufferAfter,
+    });
+    setFormErrors({});
+    setShowModal(true);
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const errors: Record<string, string> = {};
+      if (!form.name.trim()) errors.name = "שם השירות הוא שדה חובה";
+      if (form.price < 0) errors.price = "מחיר לא יכול להיות שלילי";
+      if (form.duration < 1) errors.duration = "משך חייב להיות לפחות דקה אחת";
+      if (Object.keys(errors).length) { setFormErrors(errors); throw new Error("validation"); }
+
+      const url = editSvc ? `/api/services/${editSvc.id}` : "/api/services";
+      const method = editSvc ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          description: form.description?.trim() || null,
+          paymentUrl: form.paymentUrl?.trim() || null,
+          depositAmount: form.depositRequired ? form.depositAmount : null,
+        }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || "שגיאה"); }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["services"] });
+      setShowModal(false);
+      toast.success(editSvc ? "השירות עודכן בהצלחה" : "השירות נוצר בהצלחה");
+    },
+    onError: (err: Error) => {
+      if (err.message !== "validation") toast.error(err.message || "שגיאה בשמירה");
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, field, value }: { id: string; field: string; value: boolean }) =>
+      fetch(`/api/services/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["services"] }),
+    onError: () => toast.error("שגיאה בעדכון השירות"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/services/${id}`, { method: "DELETE" }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["services"] });
+      toast.success("השירות נמחק");
+    },
+    onError: () => toast.error("שגיאה במחיקת השירות"),
+  });
+
+  const typeLabel = (t: string) => SERVICE_TYPES.find((s) => s.id === t)?.label ?? t;
+
+  return (
+    <div className="max-w-2xl space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-bold text-petra-text">שירותים</h2>
+          <p className="text-xs text-petra-muted mt-0.5">נהל את השירותים שאתה מציע ושלוט מי מופיע בהזמנה המקוונת</p>
+        </div>
+        <button onClick={openCreate} className="btn-primary flex items-center gap-2 text-sm">
+          <Plus className="w-4 h-4" />
+          שירות חדש
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="card p-8 text-center"><Loader2 className="w-5 h-5 mx-auto animate-spin opacity-40" /></div>
+      ) : services.length === 0 ? (
+        <div className="card p-8 text-center text-petra-muted text-sm">
+          <p>אין שירותים עדיין</p>
+          <button onClick={openCreate} className="mt-3 text-brand-500 hover:underline text-xs">צור שירות ראשון</button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {services.map((svc) => (
+            <div key={svc.id} className={cn("card p-4 transition-opacity", !svc.isActive && "opacity-60")}>
+              <div className="flex items-center gap-3">
+                {/* Color dot */}
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: svc.color ?? "#3B82F6" }} />
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold text-petra-text">{svc.name}</span>
+                    <span className="badge badge-neutral text-[10px]">{typeLabel(svc.type)}</span>
+                    {!svc.isActive && <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">לא פעיל</span>}
+                    {svc.isPublicBookable && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium border border-green-200">הזמנה מקוונת</span>
+                    )}
+                  </div>
+                  <div className="flex gap-3 text-xs text-petra-muted mt-0.5">
+                    <span>{svc.duration} דק׳</span>
+                    <span>₪{svc.price}</span>
+                  </div>
+                </div>
+                {/* Toggles + Actions */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* isPublicBookable toggle */}
+                  <button
+                    onClick={() => toggleMutation.mutate({ id: svc.id, field: "isPublicBookable", value: !svc.isPublicBookable })}
+                    className={cn(
+                      "flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg transition-colors border",
+                      svc.isPublicBookable
+                        ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                        : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
+                    )}
+                    title={svc.isPublicBookable ? "מוצג בהזמנה מקוונת — לחץ לביטול" : "לחץ להפעלת הזמנה מקוונת"}
+                  >
+                    {svc.isPublicBookable ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                    הזמנה מקוונת
+                  </button>
+                  {/* isActive toggle */}
+                  <button
+                    onClick={() => toggleMutation.mutate({ id: svc.id, field: "isActive", value: !svc.isActive })}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                    title={svc.isActive ? "כבה שירות" : "הפעל שירות"}
+                  >
+                    {svc.isActive ? <ToggleRight className="w-5 h-5 text-brand-500" /> : <ToggleLeft className="w-5 h-5 text-slate-400" />}
+                  </button>
+                  <button onClick={() => openEdit(svc)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => { if (confirm(`למחוק את השירות "${svc.name}"?`)) deleteMutation.mutate(svc.id); }}
+                    className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Service Modal */}
+      {showModal && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-backdrop" />
+          <div className="modal-content max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-semibold text-petra-text">{editSvc ? "עריכת שירות" : "שירות חדש"}</h3>
+              <button onClick={() => setShowModal(false)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4 text-slate-400" /></button>
+            </div>
+
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+              {/* Name */}
+              <div>
+                <label className="label">שם השירות *</label>
+                <input
+                  className={cn("input w-full", formErrors.name && "border-red-300")}
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder='למשל: "אילוף פרטי"'
+                />
+                {formErrors.name && <p className="text-xs text-red-500 mt-1">{formErrors.name}</p>}
+              </div>
+
+              {/* Type + Duration */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">סוג שירות</label>
+                  <select className="input w-full" value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
+                    {SERVICE_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">משך (דקות)</label>
+                  <input
+                    type="number" min={1} className={cn("input w-full", formErrors.duration && "border-red-300")}
+                    value={form.duration}
+                    onChange={(e) => setForm((f) => ({ ...f, duration: Number(e.target.value) }))}
+                  />
+                  {formErrors.duration && <p className="text-xs text-red-500 mt-1">{formErrors.duration}</p>}
+                </div>
+              </div>
+
+              {/* Price */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">מחיר (₪)</label>
+                  <input
+                    type="number" min={0} className={cn("input w-full", formErrors.price && "border-red-300")}
+                    value={form.price}
+                    onChange={(e) => setForm((f) => ({ ...f, price: Number(e.target.value) }))}
+                  />
+                  {formErrors.price && <p className="text-xs text-red-500 mt-1">{formErrors.price}</p>}
+                </div>
+                <div>
+                  <label className="label flex items-center gap-1.5">
+                    <span>כולל מע״מ</span>
+                  </label>
+                  <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                    <input type="checkbox" checked={form.includesVat} onChange={(e) => setForm((f) => ({ ...f, includesVat: e.target.checked }))} />
+                    <span className="text-sm text-petra-text">כולל מע״מ</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Color */}
+              <div>
+                <label className="label">צבע</label>
+                <div className="flex gap-2 flex-wrap">
+                  {SERVICE_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, color: c }))}
+                      className={cn("w-7 h-7 rounded-full border-2 transition-transform", form.color === c ? "border-petra-text scale-110" : "border-transparent hover:scale-105")}
+                      style={{ background: c }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="label">תיאור (אופציונלי)</label>
+                <textarea
+                  className="input w-full resize-none text-sm"
+                  rows={2}
+                  value={form.description ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value || null }))}
+                  placeholder="תיאור קצר של השירות..."
+                />
+              </div>
+
+              {/* Buffers */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">זמן מרווח לפני (דקות)</label>
+                  <input type="number" min={0} className="input w-full" value={form.bufferBefore} onChange={(e) => setForm((f) => ({ ...f, bufferBefore: Number(e.target.value) }))} />
+                </div>
+                <div>
+                  <label className="label">זמן מרווח אחרי (דקות)</label>
+                  <input type="number" min={0} className="input w-full" value={form.bufferAfter} onChange={(e) => setForm((f) => ({ ...f, bufferAfter: Number(e.target.value) }))} />
+                </div>
+              </div>
+
+              {/* Online booking section */}
+              <div className="border border-slate-200 rounded-xl p-4 space-y-3 bg-slate-50/50">
+                <div className="flex items-center gap-2">
+                  <ExternalLink className="w-4 h-4 text-brand-500" />
+                  <h4 className="text-sm font-semibold text-petra-text">הזמנה מקוונת</h4>
+                </div>
+
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div
+                    onClick={() => setForm((f) => ({ ...f, isPublicBookable: !f.isPublicBookable }))}
+                    className={cn(
+                      "w-10 h-6 rounded-full transition-colors flex items-center px-1 cursor-pointer",
+                      form.isPublicBookable ? "bg-brand-500" : "bg-slate-300"
+                    )}
+                  >
+                    <div className={cn("w-4 h-4 rounded-full bg-white shadow transition-transform", form.isPublicBookable ? "translate-x-4" : "translate-x-0")} />
+                  </div>
+                  <span className="text-sm text-petra-text font-medium">אפשר הזמנה מקוונת</span>
+                </label>
+                <p className="text-xs text-petra-muted">כאשר מופעל, השירות יופיע בדף ההזמנה הציבורי</p>
+
+                {form.isPublicBookable && (
+                  <>
+                    <div>
+                      <label className="label">מצב אישור</label>
+                      <select className="input w-full" value={form.bookingMode} onChange={(e) => setForm((f) => ({ ...f, bookingMode: e.target.value }))}>
+                        <option value="automatic">אוטומטי — מאושר מיד</option>
+                        <option value="requires_approval">דורש אישור ידני</option>
+                      </select>
+                    </div>
+
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={form.depositRequired} onChange={(e) => setForm((f) => ({ ...f, depositRequired: e.target.checked, depositAmount: e.target.checked ? f.depositAmount : null }))} />
+                      <span className="text-sm text-petra-text">דרוש מקדמה</span>
+                    </label>
+
+                    {form.depositRequired && (
+                      <div>
+                        <label className="label">סכום מקדמה (₪)</label>
+                        <input
+                          type="number" min={0} className="input w-full"
+                          value={form.depositAmount ?? ""}
+                          onChange={(e) => setForm((f) => ({ ...f, depositAmount: e.target.value ? Number(e.target.value) : null }))}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Active toggle */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.isActive} onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))} />
+                <span className="text-sm text-petra-text">שירות פעיל</span>
+              </label>
+            </div>
+
+            <div className="flex gap-2 pt-4 mt-2 border-t border-slate-100">
+              <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl bg-slate-100 text-sm font-medium hover:bg-slate-200">ביטול</button>
+              <button
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+                className="flex-1 py-2.5 rounded-xl bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 disabled:opacity-50"
+              >
+                {saveMutation.isPending ? "שומר..." : editSvc ? "שמור שינויים" : "צור שירות"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Settings Page ──────────────────────────────────────────────────────
 
 import AvailabilityTab from "./availability-tab";
@@ -2605,12 +3004,13 @@ export default function SettingsPage() {
   const gcalParam = searchParams.get("gcal");
   const { isOwner } = useAuth();
   const invoicingParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data" | "tasks" | "messages">(
-    gcalParam ? "integrations" : invoicingParam === "invoicing" ? "invoicing" : invoicingParam === "messages" ? "messages" : invoicingParam === "tasks" ? "tasks" : "business"
+  const [activeTab, setActiveTab] = useState<"business" | "services" | "team" | "availability" | "integrations" | "invoicing" | "data" | "tasks" | "messages">(
+    gcalParam ? "integrations" : invoicingParam === "invoicing" ? "invoicing" : invoicingParam === "messages" ? "messages" : invoicingParam === "tasks" ? "tasks" : invoicingParam === "services" ? "services" : "business"
   );
 
   const tabs = [
     { id: "business" as const, label: "פרטי העסק", icon: Building2 },
+    { id: "services" as const, label: "שירותים", icon: Settings2 },
     { id: "availability" as const, label: "זמינות", icon: Calendar },
     ...(isOwner ? [{ id: "team" as const, label: "ניהול צוות", icon: Users2 }] : []),
     { id: "invoicing" as const, label: "חשבוניות", icon: FileText },
@@ -2647,6 +3047,7 @@ export default function SettingsPage() {
       </div>
 
       {activeTab === "business" && <BusinessTab />}
+      {activeTab === "services" && <ServicesTab />}
       {activeTab === "availability" && <AvailabilityTab />}
       {activeTab === "team" && isOwner && <TeamTab />}
       {activeTab === "invoicing" && <InvoicingTab />}

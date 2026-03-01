@@ -398,7 +398,10 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
   const isOpenDay = (date: Date) => {
     const dow = date.getDay()
     const rule = business.availabilityRules.find((r) => r.dayOfWeek === dow)
-    return rule?.isOpen ?? false
+    if (rule) return rule.isOpen
+    // Default when no availability rules are configured:
+    // Open Sunday–Thursday (Israeli work week), closed Friday & Saturday
+    return dow <= 4
   }
 
   const today = toDateStr(new Date())
