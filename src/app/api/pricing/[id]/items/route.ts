@@ -2,20 +2,20 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // GET /api/pricing/[id]/items – פריטי מחירון
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  const { businessId } = authResult;
 
   try {
     const priceList = await prisma.priceList.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId },
     });
 
     if (!priceList) {
@@ -23,7 +23,7 @@ export async function GET(
     }
 
     const items = await prisma.priceListItem.findMany({
-      where: { priceListId: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { priceListId: params.id, businessId },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     });
 
@@ -39,12 +39,13 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  const { businessId } = authResult;
 
   try {
     const priceList = await prisma.priceList.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId },
     });
 
     if (!priceList) {
@@ -68,7 +69,7 @@ export async function POST(
 
     const item = await prisma.priceListItem.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId,
         priceListId: params.id,
         name: name.trim(),
         description: description?.trim() || null,

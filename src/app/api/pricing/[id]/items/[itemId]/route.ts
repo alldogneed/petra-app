@@ -2,23 +2,23 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // PATCH /api/pricing/[id]/items/[itemId] – עדכון פריט
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string; itemId: string } }
 ) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  const { businessId } = authResult;
 
   try {
     const existing = await prisma.priceListItem.findFirst({
       where: {
         id: params.itemId,
         priceListId: params.id,
-        businessId: DEMO_BUSINESS_ID,
+        businessId,
       },
     });
 
@@ -54,15 +54,16 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string; itemId: string } }
 ) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  const { businessId } = authResult;
 
   try {
     const existing = await prisma.priceListItem.findFirst({
       where: {
         id: params.itemId,
         priceListId: params.id,
-        businessId: DEMO_BUSINESS_ID,
+        businessId,
       },
     });
 

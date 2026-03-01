@@ -2,20 +2,20 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // PATCH /api/pricing/[id] – עדכון מחירון
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  const { businessId } = authResult;
 
   try {
     const existing = await prisma.priceList.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId },
     });
 
     if (!existing) {
@@ -34,7 +34,7 @@ export async function PATCH(
       data,
       include: {
         items: {
-          where: { businessId: DEMO_BUSINESS_ID },
+          where: { businessId },
           orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
         },
       },
@@ -52,12 +52,13 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await requireAuth(request);
+  const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  const { businessId } = authResult;
 
   try {
     const existing = await prisma.priceList.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId },
     });
 
     if (!existing) {
@@ -66,7 +67,7 @@ export async function DELETE(
 
     // מחק קודם את הפריטים של המחירון
     await prisma.priceListItem.deleteMany({
-      where: { priceListId: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { priceListId: params.id, businessId },
     });
 
     await prisma.priceList.delete({ where: { id: params.id } });

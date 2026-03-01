@@ -8,8 +8,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -64,12 +63,13 @@ function validateRow(row: ImportRow, index: number): RowError[] {
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
-  const authResult = await requireAuth(req);
+  const authResult = await requireBusinessAuth(req);
   if (isGuardError(authResult)) return authResult;
+  const { businessId } = authResult;
 
   try {
     const batches = await prisma.importBatch.findMany({
-      where: { businessId: DEMO_BUSINESS_ID },
+      where: { businessId },
       include: { _count: { select: { issues: true } } },
       orderBy: { createdAt: "desc" },
       take: 20,
@@ -106,8 +106,9 @@ export async function GET(req: NextRequest) {
 // ── POST ──────────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  const authResult = await requireAuth(req);
+  const authResult = await requireBusinessAuth(req);
   if (isGuardError(authResult)) return authResult;
+  const { businessId } = authResult;
 
   try {
     const body = await req.json();
@@ -160,7 +161,7 @@ export async function POST(req: NextRequest) {
         // Create customer
         const customer = await prisma.customer.create({
           data: {
-            businessId: DEMO_BUSINESS_ID,
+            businessId,
             name: row.name!.trim(),
             phone: row.phone!.trim(),
             email: row.email?.trim() || null,
@@ -206,7 +207,7 @@ export async function POST(req: NextRequest) {
 
     const batch = await prisma.importBatch.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId,
         sourceFilename,
         status: "imported",
         statsJson,

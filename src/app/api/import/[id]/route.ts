@@ -6,8 +6,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 
@@ -15,12 +14,13 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await requireAuth(req);
+  const authResult = await requireBusinessAuth(req);
   if (isGuardError(authResult)) return authResult;
+  const { businessId } = authResult;
 
   try {
     const batch = await prisma.importBatch.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId },
       include: { issues: true },
     });
 
@@ -71,12 +71,13 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await requireAuth(req);
+  const authResult = await requireBusinessAuth(req);
   if (isGuardError(authResult)) return authResult;
+  const { businessId } = authResult;
 
   try {
     const batch = await prisma.importBatch.findFirst({
-      where: { id: params.id, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.id, businessId },
     });
 
     if (!batch) {
@@ -115,7 +116,7 @@ export async function DELETE(
         await prisma.customer.deleteMany({
           where: {
             id: { in: createdCustomerIds },
-            businessId: DEMO_BUSINESS_ID,
+            businessId,
           },
         });
       }
