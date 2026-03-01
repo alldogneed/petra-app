@@ -1,15 +1,19 @@
 export const dynamic = 'force-dynamic';
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
 
 // GET /api/integrations – list connected integrations with real gcal status
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const businessId = session.memberships.find((m) => m.isActive)?.businessId;
+    if (!businessId) {
+      return NextResponse.json({ error: "No active business" }, { status: 403 });
     }
 
     // Fetch real gcal status from PlatformUser
@@ -24,7 +28,7 @@ export async function GET() {
         },
       }),
       prisma.invoicingSettings.findUnique({
-        where: { businessId: DEMO_BUSINESS_ID },
+        where: { businessId },
         select: { providerName: true, status: true, connectedAt: true },
       }),
     ]);

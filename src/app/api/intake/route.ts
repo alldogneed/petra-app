@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import {
   generateIntakeToken,
   hashToken,
@@ -14,11 +14,15 @@ import {
 
 /** GET /api/intake - list intake forms for a customer */
 export async function GET(request: NextRequest) {
+  const authResult = await requireBusinessAuth(request);
+  if (isGuardError(authResult)) return authResult;
+  const { businessId } = authResult;
+
   try {
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get("customerId");
 
-    const where: Record<string, unknown> = { businessId: DEMO_BUSINESS_ID };
+    const where: Record<string, unknown> = { businessId };
     if (customerId) where.customerId = customerId;
 
     const forms = await prisma.intakeForm.findMany({
@@ -38,6 +42,10 @@ export async function GET(request: NextRequest) {
 
 /** POST /api/intake - create a new intake form and return token + deeplink */
 export async function POST(request: NextRequest) {
+  const authResult = await requireBusinessAuth(request);
+  if (isGuardError(authResult)) return authResult;
+  const { businessId } = authResult;
+
   try {
     const body = await request.json();
     const { customerId, dogId, phone, messageOverride } = body;
@@ -46,12 +54,12 @@ export async function POST(request: NextRequest) {
     const [customer, business] = await Promise.all([
       customerId
         ? prisma.customer.findFirst({
-            where: { id: customerId, businessId: DEMO_BUSINESS_ID },
+            where: { id: customerId, businessId },
             select: { id: true, name: true, phone: true },
           })
         : null,
       prisma.business.findUnique({
-        where: { id: DEMO_BUSINESS_ID },
+        where: { id: businessId },
         select: { name: true },
       }),
     ]);
@@ -72,7 +80,7 @@ export async function POST(request: NextRequest) {
     // Create the intake form record
     const form = await prisma.intakeForm.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId,
         customerId: customerId || null,
         dogId: dogId || null,
         tokenHash,

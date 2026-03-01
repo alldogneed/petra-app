@@ -18,7 +18,6 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
@@ -67,6 +66,8 @@ export async function POST(request: NextRequest) {
   const phone = typeof body.phone === "string" ? body.phone.trim() : undefined;
   const email = typeof body.email === "string" ? body.email.trim() : undefined;
   const source = typeof body.source === "string" ? body.source.trim() : "all-dog";
+  const businessId =
+    typeof body.businessId === "string" ? body.businessId.trim() : undefined;
   const petName = typeof body.petName === "string" ? body.petName.trim() : undefined;
   const petBreed = typeof body.petBreed === "string" ? body.petBreed.trim() : undefined;
   const rawNotes = typeof body.notes === "string" ? body.notes.trim() : undefined;
@@ -74,6 +75,13 @@ export async function POST(request: NextRequest) {
   if (!name && !phone) {
     return NextResponse.json(
       { error: "At least one of: name, phone is required" },
+      { status: 400 }
+    );
+  }
+
+  if (!businessId) {
+    return NextResponse.json(
+      { error: "businessId is required in the request body" },
       { status: 400 }
     );
   }
@@ -89,7 +97,7 @@ export async function POST(request: NextRequest) {
   try {
     const lead = await prisma.lead.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId,
         name: name || phone || "ליד מהאתר",
         phone: phone || undefined,
         email: email || undefined,

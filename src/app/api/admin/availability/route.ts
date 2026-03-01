@@ -1,8 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
-import { DEMO_BUSINESS_ID } from "@/lib/utils"
-import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards"
+import { requirePlatformPermission, resolveSession, isGuardError } from "@/lib/auth-guards"
 import { PLATFORM_PERMS } from "@/lib/permissions"
 
 const DEFAULT_RULES = [
@@ -20,7 +19,15 @@ export async function GET(request: NextRequest) {
   const guard = await requirePlatformPermission(request, PLATFORM_PERMS.TENANTS_READ);
   if (isGuardError(guard)) return guard;
 
-  const businessId = DEMO_BUSINESS_ID
+  const { searchParams } = new URL(request.url);
+  const session = await resolveSession(request);
+  const businessId =
+    searchParams.get("businessId") ||
+    session?.memberships.find((m) => m.isActive)?.businessId ||
+    ""
+  if (!businessId) {
+    return NextResponse.json({ error: "businessId required" }, { status: 400 });
+  }
   let rules = await prisma.availabilityRule.findMany({
     where: { businessId },
     orderBy: { dayOfWeek: "asc" },
@@ -39,13 +46,21 @@ export async function GET(request: NextRequest) {
 }
 
 // PUT /api/admin/availability
-// Body: { rules: [{ dayOfWeek, isOpen, openTime, closeTime }] }
+// Body: { rules: [{ dayOfWeek, isOpen, openTime, closeTime }], businessId? }
 export async function PUT(req: NextRequest) {
   const guard = await requirePlatformPermission(req, PLATFORM_PERMS.TENANTS_WRITE);
   if (isGuardError(guard)) return guard;
 
-  const businessId = DEMO_BUSINESS_ID
-  const { rules } = await req.json()
+  const body = await req.json();
+  const { rules } = body;
+  const session = await resolveSession(req);
+  const businessId =
+    body.businessId ||
+    session?.memberships.find((m) => m.isActive)?.businessId ||
+    ""
+  if (!businessId) {
+    return NextResponse.json({ error: "businessId required" }, { status: 400 });
+  }
 
   if (!Array.isArray(rules)) {
     return NextResponse.json({ error: "rules must be an array" }, { status: 400 })

@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getValidAccessToken, ensureUserCalendar, buildEventPayload } from "@/lib/google-calendar";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
 
 const GOOGLE_CALENDAR_BASE = "https://www.googleapis.com/calendar/v3";
 
@@ -17,6 +16,11 @@ export async function POST() {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const businessId = session.memberships.find((m) => m.isActive)?.businessId;
+    if (!businessId) {
+      return NextResponse.json({ error: "No active business" }, { status: 403 });
     }
 
     const user = await prisma.platformUser.findUnique({
@@ -38,7 +42,7 @@ export async function POST() {
     // Fetch upcoming non-cancelled bookings for this business
     const bookings = await prisma.booking.findMany({
       where: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId,
         status: { notIn: ["cancelled", "declined"] },
         startAt: { gte: new Date() },
         gcalSyncStatus: { not: "synced" },
