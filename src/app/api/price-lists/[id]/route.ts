@@ -1,18 +1,18 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const priceList = await prisma.priceList.findUnique({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       include: { items: { orderBy: { sortOrder: "asc" } } },
     });
 
@@ -32,7 +32,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
@@ -43,7 +43,7 @@ export async function PATCH(
     if (body.isActive !== undefined) data.isActive = body.isActive;
 
     const priceList = await prisma.priceList.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data,
     });
 
@@ -59,10 +59,12 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    await prisma.priceList.delete({ where: { id: params.id } });
+    await prisma.priceList.delete({
+      where: { id: params.id, businessId: authResult.businessId },
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Error deleting price list:", error);

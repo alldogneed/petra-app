@@ -11,23 +11,41 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  let user;
+  try {
+    user = await getCurrentUser();
+  } catch (err) {
+    console.error("[DashboardLayout] Failed to get current user:", err);
+    throw new Error("שגיאת חיבור למסד הנתונים. אנא נסה שוב.");
+  }
 
   if (!user) {
     redirect("/login");
   }
 
   // Block access if user hasn't accepted the current ToS version
-  const consent = await prisma.userConsent.findFirst({
-    where: { userId: user.id, termsVersion: CURRENT_TOS_VERSION },
-  });
+  let consent;
+  try {
+    consent = await prisma.userConsent.findFirst({
+      where: { userId: user.id, termsVersion: CURRENT_TOS_VERSION },
+    });
+  } catch (err) {
+    console.error("[DashboardLayout] Failed to query userConsent:", err);
+    throw new Error("שגיאת חיבור למסד הנתונים. אנא נסה שוב.");
+  }
   if (!consent) {
     redirect("/tos-accept");
   }
 
-  const progress = await prisma.onboardingProgress.findUnique({
-    where: { userId: user.id },
-  });
+  let progress;
+  try {
+    progress = await prisma.onboardingProgress.findUnique({
+      where: { userId: user.id },
+    });
+  } catch (err) {
+    console.error("[DashboardLayout] Failed to query onboardingProgress:", err);
+    throw new Error("שגיאת חיבור למסד הנתונים. אנא נסה שוב.");
+  }
 
   // If onboarding exists but not completed, redirect to /onboarding
   if (progress && !progress.completedAt) {

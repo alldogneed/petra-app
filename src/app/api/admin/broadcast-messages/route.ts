@@ -32,23 +32,27 @@ export async function GET(req: NextRequest) {
   if (deny) return deny;
 
   // Group by title + content + type (deduplicate per broadcast wave)
+  // NOTE: PostgreSQL requires double-quoting for camelCase identifiers
   const rows = await prisma.$queryRaw<
-    { title: string; content: string; type: string; sentAt: string; businesses: number }[]
+    { title: string; content: string; type: string; sentAt: Date; businesses: bigint }[]
   >`
     SELECT
       title,
       content,
       type,
-      MIN(createdAt) AS sentAt,
-      COUNT(DISTINCT businessId) AS businesses
-    FROM SystemMessage
+      MIN("createdAt") AS "sentAt",
+      COUNT(DISTINCT "businessId") AS businesses
+    FROM "SystemMessage"
     WHERE icon = 'broadcast'
     GROUP BY title, content, type
-    ORDER BY sentAt DESC
+    ORDER BY "sentAt" DESC
     LIMIT 30
   `;
 
-  return NextResponse.json({ broadcasts: rows });
+  // Convert bigint (PostgreSQL COUNT return type) to number for JSON serialization
+  return NextResponse.json({
+    broadcasts: rows.map((r) => ({ ...r, businesses: Number(r.businesses) })),
+  });
 }
 
 // ─── POST: send broadcast to all businesses ────────────────────────────────────

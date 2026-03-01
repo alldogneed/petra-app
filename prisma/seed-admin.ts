@@ -141,7 +141,9 @@ async function main() {
     update: {},
   });
 
-  // Mark all demo users as having completed onboarding
+  const TOS_VERSION = "1.0";
+
+  // Mark all demo users as having completed onboarding AND accepted ToS
   for (const u of [owner, superAdmin, master, admin]) {
     await prisma.onboardingProgress.upsert({
       where: { userId: u.id },
@@ -157,8 +159,19 @@ async function main() {
       },
       update: {},
     });
+
+    // Create ToS acceptance record so demo users can access the dashboard
+    await prisma.userConsent.upsert({
+      where: { id: `${u.id}:${TOS_VERSION}` },
+      create: {
+        id: `${u.id}:${TOS_VERSION}`,
+        userId: u.id,
+        termsVersion: TOS_VERSION,
+      },
+      update: {},
+    });
   }
-  console.log("✅ Onboarding progress seeded for owner + superAdmin");
+  console.log("✅ Onboarding progress + ToS consent seeded for all demo users");
 
   // Seed initial feature flags
   const flags = [

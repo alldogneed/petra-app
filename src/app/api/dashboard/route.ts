@@ -305,15 +305,26 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.daysSinceVisit - a.daysSinceVisit)
       .slice(0, 8);
 
-    // Get top service name
+    // Get top service name (inline — no extra round-trip needed)
     let topService: { name: string; count: number } | null = null;
     if (topServiceResult.length > 0) {
-      const svc = await prisma.service.findUnique({
-        where: { id: topServiceResult[0].serviceId },
-        select: { name: true },
-      });
-      if (svc) {
-        topService = { name: svc.name, count: topServiceResult[0]._count.id };
+      const topServiceId = topServiceResult[0].serviceId;
+      // Re-use data already fetched: upcomingAppointments includes service details
+      const svcFromUpcoming = upcomingAppointments.find(
+        (a) => a.service.id === topServiceId
+      );
+      const svcName = svcFromUpcoming?.service.name;
+      if (svcName) {
+        topService = { name: svcName, count: topServiceResult[0]._count.id };
+      } else {
+        // Fallback: service wasn't in upcoming appointments — look it up
+        const svc = await prisma.service.findUnique({
+          where: { id: topServiceId },
+          select: { name: true },
+        });
+        if (svc) {
+          topService = { name: svc.name, count: topServiceResult[0]._count.id };
+        }
       }
     }
 

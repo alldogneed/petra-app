@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 // PATCH /api/boarding/rooms/[id] – update room name / capacity / type / status
 export async function PATCH(
@@ -9,14 +9,14 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
     const { name, capacity, type, status } = body;
 
     const room = await prisma.room.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: {
         ...(name !== undefined && { name }),
         ...(capacity !== undefined && { capacity: Number(capacity) }),
@@ -55,12 +55,13 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireAuth(request);
+    const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const activeStays = await prisma.boardingStay.count({
       where: {
         roomId: params.id,
+        businessId: authResult.businessId,
         status: { in: ["reserved", "checked_in"] },
       },
     });
@@ -72,7 +73,9 @@ export async function DELETE(
       );
     }
 
-    await prisma.room.delete({ where: { id: params.id } });
+    await prisma.room.delete({
+      where: { id: params.id, businessId: authResult.businessId },
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE room error:", error);

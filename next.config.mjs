@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  // Prevent webpack from bundling Prisma (it uses native binaries — must stay external)
+  serverExternalPackages: ["@prisma/client", "prisma"],
   productionBrowserSourceMaps: false,
   eslint: { ignoreDuringBuilds: true },
   async headers() {
