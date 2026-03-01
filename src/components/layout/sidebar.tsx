@@ -39,7 +39,6 @@ import {
   FileText,
   ShieldCheck,
   MessageSquare,
-  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -83,7 +82,6 @@ function canSee(item: { minRole?: string }, role: string | null, platformRole?: 
 const navEntries: NavEntry[] = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
   { name: "לקוחות", href: "/customers", icon: Users },
-  { name: "ייבוא נתונים", href: "/import", icon: Upload },
   { name: "מערכת מכירות", href: "/leads", icon: Target, minRole: "user" },
   {
     key: "tasks",
@@ -131,7 +129,6 @@ const navEntries: NavEntry[] = [
       { name: "חשבוניות", href: "/invoices", icon: Receipt, minRole: "manager" },
       { name: "מחירון", href: "/pricing", icon: Tag, minRole: "manager" },
       { name: "הזמנות", href: "/orders", icon: ShoppingCart },
-      { name: "ייצוא נתונים", href: "/exports", icon: FileText, minRole: "manager" },
     ],
   },
   {
