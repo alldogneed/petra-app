@@ -42,9 +42,10 @@ interface LeadTreatmentModalProps {
     isOpen: boolean;
     onClose: () => void;
     stages: LeadStage[];
+    onWon?: (name: string, customerId: string) => void;
 }
 
-export function LeadTreatmentModal({ lead, isOpen, onClose, stages }: LeadTreatmentModalProps) {
+export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: LeadTreatmentModalProps) {
     const queryClient = useQueryClient();
 
     // Call log fields
@@ -102,6 +103,18 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages }: LeadTreatm
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
     });
 
+    const closeWonMutation = useMutation({
+        mutationFn: () =>
+            fetch(`/api/leads/${lead!.id}/close-won`, { method: "POST" }).then((r) => r.json()),
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ["leads"] });
+            queryClient.invalidateQueries({ queryKey: ["customers"] });
+            if (data.customerId && onWon) {
+                onWon(lead!.name, data.customerId);
+            }
+        },
+    });
+
     const addCallLogMutation = useMutation({
         mutationFn: (data: { summary: string; treatment: string }) =>
             fetch(`/api/leads/${lead!.id}/logs`, {
@@ -144,15 +157,29 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages }: LeadTreatm
     /** Full save: stage + optional lost reason + optional edit details, then close */
     const handleSave = async () => {
         if (!lead) return;
+
+        // If moving to won stage — call close-won to create customer
+        if (isSelectedWon) {
+            // Save edited details first if needed
+            if (isEditing) {
+                await updateLeadMutation.mutateAsync({
+                    name: editForm.name,
+                    phone: editForm.phone || null,
+                    email: editForm.email || null,
+                    source: editForm.source,
+                });
+            }
+            await closeWonMutation.mutateAsync();
+            onClose();
+            return;
+        }
+
         await updateLeadMutation.mutateAsync({
             stage: selectedStage,
             ...(isSelectedLost && {
                 lostReasonCode: lostReason,
                 lostReasonText: lostReasonText,
                 lostAt: new Date().toISOString(),
-            }),
-            ...(isSelectedWon && {
-                wonAt: new Date().toISOString(),
             }),
             ...(isEditing && {
                 name: editForm.name,

@@ -978,10 +978,14 @@ export default function LeadsPage() {
           old.map(l => l.id === activeLeadId ? { ...l, stage: targetStageId } : l)
         );
 
-        moveMutation.mutate({ id: activeLeadId, stage: targetStageId });
-
-        if (targetStage && (targetStage.isLost || targetStage.isWon)) {
+        if (targetStage?.isWon) {
+          // Open treatment modal — it will call close-won and create the customer
           setSelectedLead({ ...lead, stage: targetStageId });
+        } else {
+          moveMutation.mutate({ id: activeLeadId, stage: targetStageId });
+          if (targetStage?.isLost) {
+            setSelectedLead({ ...lead, stage: targetStageId });
+          }
         }
       }
     }
@@ -1340,6 +1344,11 @@ export default function LeadsPage() {
         isOpen={!!selectedLead}
         onClose={() => setSelectedLead(null)}
         stages={stages}
+        onWon={(name, customerId) => {
+          setSelectedLead(null);
+          setWonToast({ name, customerId });
+          setTimeout(() => setWonToast(null), 6000);
+        }}
       />
 
       {detailsLead && (
