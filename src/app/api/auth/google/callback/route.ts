@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { createSession } from "@/lib/auth";
+import { createSession, ensureUserHasBusiness } from "@/lib/auth";
 import { exchangeCodeForTokens, fetchGoogleProfile } from "@/lib/google-oauth";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 
@@ -77,6 +77,12 @@ export async function GET(request: NextRequest) {
     if (!user.isActive) {
       return redirectToLogin("account_disabled");
     }
+
+    // Ensure user has a business workspace (creates one if missing)
+    await ensureUserHasBusiness(
+      user.id,
+      user.name || profile.name || profile.email.split("@")[0]
+    );
 
     // Create session
     const { token } = await createSession(user.id, request);

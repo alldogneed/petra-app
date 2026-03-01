@@ -41,6 +41,54 @@ export async function deleteSession(token: string) {
   return _deleteSession(token);
 }
 
+// ─── Business membership helper ───────────────────────────────────────────────
+
+/**
+ * Ensures a user has at least one active Business membership.
+ * If not, auto-creates a Business + BusinessUser (owner).
+ * Used for new registrations (Google OAuth, legacy users without membership).
+ */
+export async function ensureUserHasBusiness(
+  userId: string,
+  displayName: string
+): Promise<string> {
+  // Check for existing active membership
+  const existing = await prisma.businessUser.findFirst({
+    where: { userId, isActive: true },
+    select: { businessId: true },
+  });
+  if (existing) return existing.businessId;
+
+  // Auto-create a business for this user
+  const slugBase = displayName
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0590-\u05ff]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 30) || "business";
+  const slugSuffix = Math.random().toString(36).slice(2, 7);
+  const slug = `${slugBase}-${slugSuffix}`;
+
+  const business = await prisma.business.create({
+    data: {
+      name: `העסק של ${displayName}`,
+      slug,
+      status: "active",
+      tier: "basic",
+    },
+  });
+
+  await prisma.businessUser.create({
+    data: {
+      businessId: business.id,
+      userId,
+      role: "owner",
+      isActive: true,
+    },
+  });
+
+  return business.id;
+}
+
 // ─── Cookie helpers (Next.js 14 synchronous cookies() API) ───────────────────
 
 export function getSessionToken(): string | null {

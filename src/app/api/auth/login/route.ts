@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { createSession, setSessionCookie } from "@/lib/auth";
+import { createSession, setSessionCookie, ensureUserHasBusiness } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-log";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
@@ -48,6 +48,11 @@ export async function POST(request: NextRequest) {
         { error: "אימייל או סיסמה שגויים" },
         { status: 401 }
       );
+    }
+
+    // Ensure user has a business workspace (safety net for legacy users)
+    if (user.businessMemberships.length === 0) {
+      await ensureUserHasBusiness(user.id, user.name);
     }
 
     // Create session

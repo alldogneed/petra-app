@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { createSession, setSessionCookie } from "@/lib/auth";
+import { createSession, setSessionCookie, ensureUserHasBusiness } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { logAudit, AUDIT_ACTIONS, getRequestContext } from "@/lib/audit";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
@@ -108,6 +108,10 @@ export async function POST(request: NextRequest) {
       data: { tosAcceptedVersion: CURRENT_TOS_VERSION, tosAcceptedAt: new Date() },
     });
 
+    // ── Create Business + BusinessUser membership ─────────────────────────────
+    // Every new user gets their own isolated business workspace
+    const businessId = await ensureUserHasBusiness(user.id, name.trim());
+
     // ── Create onboarding progress (step 0, not started yet) ─────────────────
     await prisma.onboardingProgress.create({
       data: {
@@ -137,6 +141,7 @@ export async function POST(request: NextRequest) {
         id: user.id,
         email: user.email,
         name: user.name,
+        businessId,
       },
     });
   } catch (error) {
