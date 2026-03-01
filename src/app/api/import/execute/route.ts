@@ -7,13 +7,12 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { normalizePhone, RawCustomerRow, RawPetRow } from "@/lib/import-utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
-  const authResult = await requireAuth(req);
+  const authResult = await requireBusinessAuth(req);
   if (isGuardError(authResult)) return authResult;
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -25,7 +24,7 @@ export async function POST(req: NextRequest) {
     if (!batchId) return NextResponse.json({ error: "batchId נדרש" }, { status: 400 });
 
     const batch = await prisma.importBatch.findFirst({
-      where: { id: batchId, businessId: DEMO_BUSINESS_ID },
+      where: { id: batchId, businessId: authResult.businessId },
     });
     if (!batch) return NextResponse.json({ error: "מנה לא נמצאה" }, { status: 404 });
     if (batch.status === "imported") return NextResponse.json({ error: "מנה כבר יובאה" }, { status: 409 });
@@ -47,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     // Load existing customers for merge
     const existingCustomers = await prisma.customer.findMany({
-      where: { businessId: DEMO_BUSINESS_ID },
+      where: { businessId: authResult.businessId },
       select: { id: true, phone: true, phoneNorm: true, notes: true },
     });
     for (const c of existingCustomers) {
@@ -81,7 +80,7 @@ export async function POST(req: NextRequest) {
         // Create new customer
         const newCustomer = await prisma.customer.create({
           data: {
-            businessId: DEMO_BUSINESS_ID,
+            businessId: authResult.businessId,
             name: row.full_name!,
             phone: phoneRaw,
             phoneNorm,

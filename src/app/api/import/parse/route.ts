@@ -7,13 +7,12 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { parseImportFile, normalizePhone } from "@/lib/import-utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
-  const authResult = await requireAuth(req);
+  const authResult = await requireBusinessAuth(req);
   if (isGuardError(authResult)) return authResult;
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -41,7 +40,7 @@ export async function POST(req: NextRequest) {
     let inFileDuplicates = 0;
     const dedupedCustomers = parseResult.customers.filter((c) => {
       const norm = normalizePhone(c.phone!)!;
-      const key = `${DEMO_BUSINESS_ID}::${norm.phoneNorm}`;
+      const key = `${authResult.businessId}::${norm.phoneNorm}`;
       if (phoneNormMap.has(key)) {
         inFileDuplicates++;
         return false; // drop duplicate rows from file — will merge on execute
@@ -52,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     // Check against existing DB customers
     const existingPhones = await prisma.customer.findMany({
-      where: { businessId: DEMO_BUSINESS_ID },
+      where: { businessId: authResult.businessId },
       select: { id: true, phoneNorm: true, phone: true },
     });
     const existingNorms = new Set(existingPhones.map((c) => c.phoneNorm ?? normalizePhone(c.phone)?.phoneNorm ?? ""));
@@ -87,7 +86,7 @@ export async function POST(req: NextRequest) {
     const rollbackDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const batch = await prisma.importBatch.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId: authResult.businessId,
         sourceFilename: file.name,
         status: "validated",
         rollbackDeadline,

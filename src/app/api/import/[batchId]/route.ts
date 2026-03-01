@@ -7,19 +7,18 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { batchId: string } }
 ) {
-  const authResult = await requireAuth(req);
+  const authResult = await requireBusinessAuth(req);
   if (isGuardError(authResult)) return authResult;
 
   try {
     const batch = await prisma.importBatch.findFirst({
-      where: { id: params.batchId, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.batchId, businessId: authResult.businessId },
       include: { issues: true },
     });
     if (!batch) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
@@ -69,12 +68,12 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { batchId: string } }
 ) {
-  const authResult = await requireAuth(req);
+  const authResult = await requireBusinessAuth(req);
   if (isGuardError(authResult)) return authResult;
 
   try {
     const batch = await prisma.importBatch.findFirst({
-      where: { id: params.batchId, businessId: DEMO_BUSINESS_ID },
+      where: { id: params.batchId, businessId: authResult.businessId },
     });
     if (!batch) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
     if (batch.status !== "imported") {
@@ -94,7 +93,7 @@ export async function DELETE(
     }
     if (createdCustomerIds.length > 0) {
       await prisma.customer.deleteMany({
-        where: { id: { in: createdCustomerIds }, businessId: DEMO_BUSINESS_ID },
+        where: { id: { in: createdCustomerIds }, businessId: authResult.businessId },
       });
     }
 
