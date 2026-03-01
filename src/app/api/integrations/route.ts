@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch real gcal status from PlatformUser
-    const [user, invoicingSettings] = await Promise.all([
+    const [user, invoicingSettings, stripeSettings] = await Promise.all([
       prisma.platformUser.findUnique({
         where: { id: session.user.id },
         select: {
@@ -30,6 +30,10 @@ export async function GET(request: NextRequest) {
       prisma.invoicingSettings.findUnique({
         where: { businessId },
         select: { providerName: true, status: true, connectedAt: true },
+      }),
+      prisma.stripeSettings.findUnique({
+        where: { businessId },
+        select: { publishableKey: true, accountId: true, status: true, connectedAt: true },
       }),
     ]);
 
@@ -61,11 +65,24 @@ export async function GET(request: NextRequest) {
         disconnectUrl: invoicingConnected ? "/api/invoicing/settings" : null,
       },
       {
+        id: "stripe",
+        name: "Stripe — תשלומים מקוונים",
+        description: "שלח ללקוחות קישור לתשלום בכרטיס אשראי ועקוב אחר תשלומים אוטומטית",
+        icon: "credit-card",
+        connected: !!stripeSettings && stripeSettings.status === "active",
+        publishableKey: stripeSettings?.publishableKey ?? null,
+        accountId: stripeSettings?.accountId ?? null,
+        connectedAt: stripeSettings?.connectedAt ?? null,
+        connectUrl: null, // handled by inline settings form
+        disconnectUrl: stripeSettings ? "/api/integrations/stripe" : null,
+      },
+      {
         id: "whatsapp",
-        name: "WhatsApp Business",
-        description: "שליחת הודעות אוטומטיות",
+        name: "WhatsApp Business (Twilio)",
+        description: "שליחת הודעות WhatsApp אוטומטיות — תזכורות, ימי הולדת, חיסונים",
         icon: "message-circle",
-        connected: false,
+        connected: !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN),
+        fromNumber: process.env.TWILIO_WHATSAPP_FROM ?? null,
         connectUrl: null,
       },
       {
