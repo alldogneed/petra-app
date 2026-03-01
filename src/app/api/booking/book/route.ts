@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
 import { enqueueSyncJob } from "@/lib/sync-jobs";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -34,16 +33,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get service for duration
+    // Get service for duration + businessId
     const service = await prisma.service.findUnique({ where: { id: serviceId } });
     if (!service) {
       return NextResponse.json({ error: "שירות לא נמצא" }, { status: 404 });
     }
 
+    const businessId = service.businessId;
+
     // Find or create customer
     let customer = await prisma.customer.findFirst({
       where: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId,
         phone: customerPhone,
       },
     });
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
     if (!customer) {
       customer = await prisma.customer.create({
         data: {
-          businessId: DEMO_BUSINESS_ID,
+          businessId,
           name: customerName,
           phone: customerPhone,
           email: customerEmail || null,
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
     // Check for conflicts
     const conflict = await prisma.booking.findFirst({
       where: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId,
         startAt: { lt: endAt },
         endAt: { gt: startAt },
         status: { in: ["pending", "confirmed"] },
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     const booking = await prisma.booking.create({
       data: {
-        businessId: DEMO_BUSINESS_ID,
+        businessId,
         serviceId,
         customerId: customer.id,
         startAt,
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Enqueue Google Calendar sync (fire-and-forget, don't block response)
-    enqueueSyncJob(booking.id, DEMO_BUSINESS_ID, "create").catch((err) =>
+    enqueueSyncJob(booking.id, businessId, "create").catch((err) =>
       console.error("Failed to enqueue sync job:", err)
     );
 

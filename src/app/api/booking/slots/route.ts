@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DEMO_BUSINESS_ID } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +15,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get the service for duration
+    // Get the service for duration + businessId
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
     });
@@ -24,6 +23,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "שירות לא נמצא" }, { status: 404 });
     }
 
+    const businessId = service.businessId;
     const date = new Date(dateStr);
     const dayOfWeek = date.getDay(); // 0=Sunday
 
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const rule = await prisma.availabilityRule.findUnique({
       where: {
         businessId_dayOfWeek: {
-          businessId: DEMO_BUSINESS_ID,
+          businessId,
           dayOfWeek,
         },
       },
@@ -55,14 +55,14 @@ export async function GET(request: NextRequest) {
     const [existingBookings, existingAppointments] = await Promise.all([
       prisma.booking.findMany({
         where: {
-          businessId: DEMO_BUSINESS_ID,
+          businessId,
           startAt: { gte: startOfDay, lte: endOfDay },
           status: { in: ["pending", "confirmed"] },
         },
       }),
       prisma.appointment.findMany({
         where: {
-          businessId: DEMO_BUSINESS_ID,
+          businessId,
           date: { gte: startOfDay, lte: endOfDay },
           status: { notIn: ["CANCELED", "canceled"] },
         },
