@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const [customers, pets, appointments, boarding] = await Promise.all([
+    const [customers, pets, appointments, boarding, leads, tasks] = await Promise.all([
       prisma.customer.findMany({
         where: {
           businessId: authResult.businessId,
@@ -99,6 +99,35 @@ export async function GET(request: NextRequest) {
         take: 5,
         orderBy: { checkIn: "desc" },
       }),
+
+      prisma.lead.findMany({
+        where: {
+          businessId: authResult.businessId,
+          OR: [
+            { name: { contains: q } },
+            { phone: { contains: q } },
+            { email: { contains: q } },
+            { notes: { contains: q } },
+          ],
+        },
+        select: { id: true, name: true, phone: true, email: true, stage: true },
+        take: 5,
+        orderBy: { createdAt: "desc" },
+      }),
+
+      prisma.task.findMany({
+        where: {
+          businessId: authResult.businessId,
+          status: { not: "COMPLETED" },
+          OR: [
+            { title: { contains: q } },
+            { description: { contains: q } },
+          ],
+        },
+        select: { id: true, title: true, status: true, priority: true, dueDate: true },
+        take: 5,
+        orderBy: { createdAt: "desc" },
+      }),
     ]);
 
     return NextResponse.json({
@@ -106,6 +135,8 @@ export async function GET(request: NextRequest) {
       pets,
       appointments,
       boarding,
+      leads,
+      tasks,
     });
   } catch (error) {
     console.error("Failed to search:", error);

@@ -51,17 +51,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // In a real app, this would trigger a background job
-    // For demo, mark as completed immediately
-    const updated = await prisma.exportJob.update({
-      where: { id: exportJob.id },
-      data: {
-        status: "completed",
-        fileName: `${exportType}_export_${new Date().toISOString().slice(0, 10)}.${format || "xlsx"}`,
-      },
-    });
-
-    return NextResponse.json(updated, { status: 201 });
+    return NextResponse.json(exportJob, { status: 201 });
   } catch (error) {
     console.error("POST export error:", error);
     return NextResponse.json({ error: "שגיאה ביצירת ייצוא" }, { status: 500 });

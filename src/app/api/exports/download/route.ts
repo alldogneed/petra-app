@@ -10,16 +10,49 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import * as XLSX from "xlsx";
 
+// Map ExportJob.exportType → download "type" param
+const EXPORT_TYPE_MAP: Record<string, string> = {
+  customers: "customers",
+  dogs: "pets",
+  customers_dogs: "both",
+  pets: "pets",
+};
+
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get("type") || "customers"; // customers | pets | both
-    const format = searchParams.get("format") || "xlsx"; // xlsx | csv
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
+    const jobId = searchParams.get("jobId");
+
+    let type = searchParams.get("type") || "customers"; // customers | pets | both
+    let format = searchParams.get("format") || "xlsx"; // xlsx | csv
+    let from = searchParams.get("from");
+    let to = searchParams.get("to");
+
+    // If jobId provided, look up the export job for its params
+    if (jobId) {
+      const job = await prisma.exportJob.findFirst({
+        where: { id: jobId, businessId: authResult.businessId },
+      });
+      if (!job) {
+        return new Response(JSON.stringify({ error: "ייצוא לא נמצא" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      type = EXPORT_TYPE_MAP[job.exportType] || "customers";
+      format = job.format || "xlsx";
+      from = job.filterFromDate ? job.filterFromDate.toISOString().slice(0, 10) : null;
+      to = job.filterToDate ? job.filterToDate.toISOString().slice(0, 10) : null;
+
+      // Mark job as downloaded
+      await prisma.exportJob.update({
+        where: { id: jobId },
+        data: { status: "completed" },
+      }).catch(() => {});
+    }
 
     const dateFilter: { createdAt?: { gte?: Date; lte?: Date } } = {};
     if (from) dateFilter.createdAt = { ...dateFilter.createdAt, gte: new Date(from) };

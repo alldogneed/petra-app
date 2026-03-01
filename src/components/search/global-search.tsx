@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Users, PawPrint, Calendar, Hotel, X, Loader2 } from "lucide-react";
+import { Search, Users, PawPrint, Calendar, Hotel, X, Loader2, UserPlus, CheckSquare } from "lucide-react";
 interface SearchResults {
   customers: {
     id: string;
@@ -30,6 +30,20 @@ interface SearchResults {
     pet: { name: string };
     customer: { name: string };
     room: { name: string } | null;
+  }[];
+  leads: {
+    id: string;
+    name: string;
+    phone: string;
+    email: string | null;
+    stage: string;
+  }[];
+  tasks: {
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    dueDate: string | null;
   }[];
 }
 
@@ -98,7 +112,9 @@ export function GlobalSearch() {
       ? results.customers.length +
         results.pets.length +
         results.appointments.length +
-        results.boarding.length
+        results.boarding.length +
+        results.leads.length +
+        results.tasks.length
       : 0;
 
   if (!open) {
@@ -157,7 +173,7 @@ export function GlobalSearch() {
               type="text"
               value={query}
               onChange={(e) => handleInput(e.target.value)}
-              placeholder="חפש לקוח, חיית מחמד, תור..."
+              placeholder="חפש לקוח, חיית מחמד, תור, ליד, משימה..."
               className="flex-1 text-sm text-petra-text bg-transparent border-none outline-none placeholder-slate-400"
               dir="rtl"
             />
@@ -234,6 +250,42 @@ export function GlobalSearch() {
                   title: `${b.customer.name} – ${b.pet.name}`,
                   subtitle: `${new Date(b.checkIn).toLocaleDateString("he-IL")}${b.room ? ` · ${b.room.name}` : ""}`,
                   onClick: () => navigate(`/boarding`),
+                }))}
+              />
+            )}
+
+            {results && results.leads.length > 0 && (
+              <ResultSection
+                title="לידים"
+                icon={UserPlus}
+                items={results.leads.map((l) => ({
+                  id: l.id,
+                  title: l.name,
+                  subtitle: `${l.phone}${l.email ? ` · ${l.email}` : ""} · ${
+                    l.stage === "new" ? "חדש" :
+                    l.stage === "contacted" ? "פנייה בוצעה" :
+                    l.stage === "qualified" ? "מוכשר" :
+                    l.stage === "won" ? "נסגר בהצלחה" :
+                    l.stage === "lost" ? "אבוד" : l.stage
+                  }`,
+                  onClick: () => navigate(`/leads`),
+                }))}
+              />
+            )}
+
+            {results && results.tasks.length > 0 && (
+              <ResultSection
+                title="משימות"
+                icon={CheckSquare}
+                items={results.tasks.map((t) => ({
+                  id: t.id,
+                  title: t.title,
+                  subtitle: `${
+                    t.priority === "URGENT" ? "דחוף" :
+                    t.priority === "HIGH" ? "גבוה" :
+                    t.priority === "MEDIUM" ? "בינוני" : "נמוך"
+                  }${t.dueDate ? ` · ${new Date(t.dueDate).toLocaleDateString("he-IL")}` : ""}`,
+                  onClick: () => navigate(`/tasks`),
                 }))}
               />
             )}

@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 import { getCurrentUser } from "@/lib/auth";
 
 // GET /api/account – get current user account details
@@ -41,7 +42,7 @@ export async function GET() {
   }
 }
 
-// PATCH /api/account – update current user's profile
+// PATCH /api/account – update current user's profile (name, avatarUrl)
 export async function PATCH(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser();
@@ -71,3 +72,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "שגיאה בעדכון חשבון" }, { status: 500 });
   }
 }
+
+// POST /api/account/change-password — change own password
+// Body: { currentPassword, newPassword }
+// Note: This endpoint lives at /api/account but handles the password-change sub-action
+// via a dedicated route file at /api/account/change-password/route.ts
