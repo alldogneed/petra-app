@@ -110,13 +110,13 @@ export async function getSessionByToken(token: string): Promise<FullSession | nu
   }
   if (!session.user.isActive) return null;
 
-  // Refresh lastSeenAt
-  await prisma.adminSession
-    .update({
-      where: { token: tokenHashed },
-      data: { lastSeenAt: now },
-    })
-    .catch(() => null);
+  // Refresh lastSeenAt at most once every 5 minutes to avoid an extra DB write on every request
+  const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+  if (session.lastSeenAt < fiveMinutesAgo) {
+    prisma.adminSession
+      .update({ where: { token: tokenHashed }, data: { lastSeenAt: now } })
+      .catch(() => null); // fire-and-forget — non-blocking
+  }
 
   const user: SessionUser = {
     id: session.user.id,
