@@ -600,7 +600,7 @@ export default function TrainingPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1.5 mb-6 overflow-x-auto pb-1">
+      <div className="flex gap-1.5 mb-6 overflow-x-auto pb-1 scrollbar-hide">
         {TABS.map((tab) => (
           <button
             key={tab.id}

@@ -453,7 +453,7 @@ function TemplatesTab() {
                     {CHANNEL_LABELS[template.channel] ?? template.channel}
                   </span>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                   <button
                     onClick={() => setSendingTemplate(template)}
                     className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
@@ -766,7 +766,7 @@ function AutomationsTab() {
                 </button>
                 <button
                   onClick={() => openEdit(rule)}
-                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 opacity-0 group-hover:opacity-100 transition-all"
+                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
                 </button>
@@ -774,7 +774,7 @@ function AutomationsTab() {
                   onClick={() => {
                     if (confirm("למחוק אוטומציה זו?")) deleteMutation.mutate(rule.id);
                   }}
-                  className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                  className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

@@ -379,7 +379,7 @@ export default function InvoicesPage() {
       {!isLoading && <SummaryCards documents={documents} />}
 
       {/* Status Filter Tabs */}
-      <div className="flex gap-1 mb-3 p-1 bg-slate-100 rounded-xl w-fit overflow-x-auto">
+      <div className="flex gap-1 mb-3 p-1 bg-slate-100 rounded-xl overflow-x-auto scrollbar-hide">
         {statusTabs.map((tab) => (
           <button
             key={tab.id}

@@ -558,7 +558,7 @@ function DraggableLeadCard({
             </span>
           )}
         </div>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
           <button
             onClick={(e) => { e.stopPropagation(); onDetails(); }}
             className="w-7 h-7 flex items-center justify-center rounded-full text-brand-600 hover:bg-brand-100 transition-colors"

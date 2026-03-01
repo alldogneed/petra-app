@@ -1414,7 +1414,7 @@ function TaskCard({
         </div>
 
         {/* Quick actions */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        <div className="flex items-center gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 flex-shrink-0">
           {!isCompleted && (
             <>
               <button

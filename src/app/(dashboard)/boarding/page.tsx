@@ -806,12 +806,13 @@ function StayRow({
                 onClick={(e) => e.stopPropagation()}
               >
                 <MessageCircle className="w-3 h-3" />
-                תזכורת
+                <span className="hidden sm:inline">תזכורת</span>
               </a>
             );
           })()}
           <button className="btn-ghost text-xs" onClick={() => onCheckin(stay.id)}>
-            <CheckCircle2 className="w-3.5 h-3.5" />צ׳ק-אין
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">צ׳ק-אין</span>
           </button>
         </div>
       )}
@@ -836,7 +837,7 @@ function StayRow({
                 onClick={(e) => e.stopPropagation()}
               >
                 <MessageCircle className="w-3 h-3" />
-                תזכורת
+                <span className="hidden sm:inline">תזכורת</span>
               </a>
             );
           })()}
@@ -877,15 +878,17 @@ function StayRow({
                 onClick={(e) => e.stopPropagation()}
               >
                 <MessageCircle className="w-3 h-3" />
-                הוראות
+                <span className="hidden sm:inline">הוראות</span>
               </a>
             );
           })()}
           <button className="btn-ghost text-xs" onClick={() => onExtend(stay.id)} title="הארך שהות">
-            <Calendar className="w-3.5 h-3.5" />הארך
+            <Calendar className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">הארך</span>
           </button>
           <button className="btn-ghost text-xs" onClick={() => onCheckout(stay.id)}>
-            <Clock className="w-3.5 h-3.5" />צ׳ק-אאוט
+            <Clock className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">צ׳ק-אאוט</span>
           </button>
         </div>
       )}
