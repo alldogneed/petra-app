@@ -61,6 +61,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  try {
   const guard = await requirePlatformPermission(request, PLATFORM_PERMS.USERS_WRITE);
   if (isGuardError(guard)) return guard;
 
@@ -89,4 +90,8 @@ export async function PATCH(
   });
 
   return NextResponse.json(updated);
+  } catch (error) {
+    console.error("Admin PATCH user error:", error);
+    return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
+  }
 }

@@ -309,6 +309,9 @@ model Customer {
   invoiceJobs      InvoiceJob[]
   invoiceDocuments InvoiceDocument[]
   serviceRecipients ServiceDogRecipient[]
+
+  @@index([businessId])
+  @@index([businessId, createdAt])
 }
 
 model Pet {

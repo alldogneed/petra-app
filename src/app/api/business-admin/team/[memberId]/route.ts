@@ -8,6 +8,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { memberId: string } }
 ) {
+  try {
   const authResult = await requireAuth(request);
   if (isGuardError(authResult)) return authResult;
 
@@ -52,4 +53,8 @@ export async function PATCH(
   });
 
   return NextResponse.json(updated);
+  } catch (error) {
+    console.error("Business admin PATCH team member error:", error);
+    return NextResponse.json({ error: "Failed to update team member" }, { status: 500 });
+  }
 }

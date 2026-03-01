@@ -101,6 +101,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
                 body: JSON.stringify(data),
             }).then((r) => r.json()),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
+        onError: () => alert("שגיאה בעדכון הליד. נסה שוב."),
     });
 
     const closeWonMutation = useMutation({
@@ -113,6 +114,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
                 onWon(lead!.name, data.customerId);
             }
         },
+        onError: () => alert("שגיאה בסגירת הליד. נסה שוב."),
     });
 
     const addCallLogMutation = useMutation({

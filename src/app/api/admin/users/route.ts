@@ -81,6 +81,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const guard = await requirePlatformPermission(request, PLATFORM_PERMS.USERS_WRITE);
   if (isGuardError(guard)) return guard;
 
@@ -120,4 +121,8 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json(user, { status: 201 });
+  } catch (error) {
+    console.error("Admin POST user error:", error);
+    return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
+  }
 }

@@ -1116,8 +1116,8 @@ function VaccinationAlertWidget() {
 
       <div className="divide-y divide-slate-50">
         {data.vaccinations.map((v) => {
-          const expiry = new Date(v.rabiesValidUntil);
-          const expiryStr = expiry.toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" });
+          const expiry = v.rabiesValidUntil ? new Date(v.rabiesValidUntil) : null;
+          const expiryStr = expiry && !isNaN(expiry.getTime()) ? expiry.toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" }) : "";
           const waMsg = `שלום ${v.customerName}! 💉\nחיסון הכלבת של ${v.petName} ${v.isExpired ? "פג תוקפו" : `עומד לפוג בתאריך ${expiryStr}`}.\nנא לדאוג לחידוש החיסון בהקדם. 🐾`;
           const waLink = `https://wa.me/${toWhatsAppPhone(v.customerPhone)}?text=${encodeURIComponent(waMsg)}`;
           const sent = sentIds.has(v.petId);
@@ -2096,14 +2096,14 @@ export default function DashboardPage() {
                 {data.todayArrivals.map((s) => (
                   <div key={s.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50">
                     <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700">
-                      {s.pet.name.charAt(0)}
+                      {s.pet?.name?.charAt(0) ?? "🐾"}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-petra-text truncate">{s.pet.name}</p>
-                      <p className="text-[10px] text-petra-muted truncate">{s.customer.name}{s.room ? ` · ${s.room.name}` : ""}</p>
+                      <p className="text-xs font-medium text-petra-text truncate">{s.pet?.name ?? ""}</p>
+                      <p className="text-[10px] text-petra-muted truncate">{s.customer?.name}{s.room ? ` · ${s.room.name}` : ""}</p>
                     </div>
                     <a
-                      href={`https://wa.me/${toWhatsAppPhone(s.customer.phone)}?text=${encodeURIComponent(`שלום ${s.customer.name}! מזכירים לך שהיום הגעה של ${s.pet.name} לפנסיון 🐾`)}`}
+                      href={`https://wa.me/${toWhatsAppPhone(s.customer?.phone ?? "")}?text=${encodeURIComponent(`שלום ${s.customer?.name}! מזכירים לך שהיום הגעה של ${s.pet?.name} לפנסיון 🐾`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex-shrink-0"
@@ -2128,14 +2128,14 @@ export default function DashboardPage() {
                 {data.todayDepartures.map((s) => (
                   <div key={s.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50">
                     <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-700">
-                      {s.pet.name.charAt(0)}
+                      {s.pet?.name?.charAt(0) ?? "🐾"}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-petra-text truncate">{s.pet.name}</p>
-                      <p className="text-[10px] text-petra-muted truncate">{s.customer.name}{s.room ? ` · ${s.room.name}` : ""}</p>
+                      <p className="text-xs font-medium text-petra-text truncate">{s.pet?.name ?? ""}</p>
+                      <p className="text-[10px] text-petra-muted truncate">{s.customer?.name}{s.room ? ` · ${s.room.name}` : ""}</p>
                     </div>
                     <a
-                      href={`https://wa.me/${toWhatsAppPhone(s.customer.phone)}?text=${encodeURIComponent(`שלום ${s.customer.name}! כלב שלך ${s.pet.name} מחכה לפיקאפ היום מהפנסיון 🐾`)}`}
+                      href={`https://wa.me/${toWhatsAppPhone(s.customer?.phone ?? "")}?text=${encodeURIComponent(`שלום ${s.customer?.name}! כלב שלך ${s.pet?.name} מחכה לפיקאפ היום מהפנסיון 🐾`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex-shrink-0"
