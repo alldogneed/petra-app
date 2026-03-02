@@ -435,6 +435,7 @@ export default function TrainingPage() {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       setSessionLogTarget(null);
     },
+    onError: () => { setSessionLogTarget(null); toast.error("שגיאה בשמירת המפגש. נסה שוב."); },
   });
 
   const createGroupMutation = useMutation({
@@ -452,6 +453,7 @@ export default function TrainingPage() {
       setShowNewGroup(false);
       setShowNewWorkshop(false);
     },
+    onError: () => toast.error("שגיאה ביצירת הקבוצה. נסה שוב."),
   });
 
   const addParticipantMutation = useMutation({
@@ -471,6 +473,7 @@ export default function TrainingPage() {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
       setShowAssignDog(null);
     },
+    onError: (err: Error) => toast.error(err.message || "שגיאה בהוספת כלב לקבוצה"),
   });
 
   const removeParticipantMutation = useMutation({
@@ -484,6 +487,7 @@ export default function TrainingPage() {
       return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["training-groups"] }),
+    onError: () => toast.error("שגיאה בהסרת הכלב מהקבוצה"),
   });
 
   const createProgramMutation = useMutation({
@@ -500,6 +504,7 @@ export default function TrainingPage() {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       setShowSellPackage(false);
     },
+    onError: () => toast.error("שגיאה ביצירת תוכנית אימון. נסה שוב."),
   });
 
   const updateProgramSettingsMutation = useMutation({
@@ -528,6 +533,7 @@ export default function TrainingPage() {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       setEditingProgram(null);
     },
+    onError: () => { setEditingProgram(null); toast.error("שגיאה בעדכון הגדרות התוכנית. נסה שוב."); },
   });
 
   // ─── Helpers ───
@@ -936,7 +942,7 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
           ];
           return (
             <a
-              href={`https://wa.me/${toWhatsAppPhone(program.customer.phone)}?text=${encodeURIComponent(lines.join("\n"))}`}
+              href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer.phone)}&text=${encodeURIComponent(lines.join("\n"))}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[10px] text-green-700 hover:text-green-800 font-medium flex items-center gap-0.5 bg-green-50 px-1.5 py-0.5 rounded"
@@ -1184,7 +1190,7 @@ function IndividualTab({
                             if (lastSession?.summary) {
                               lines.push("", `💬 סיכום מפגש אחרון:`, lastSession.summary);
                             }
-                            return `https://wa.me/${toWhatsAppPhone(program.customer.phone)}?text=${encodeURIComponent(lines.join("\n"))}`;
+                            return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer.phone)}&text=${encodeURIComponent(lines.join("\n"))}`;
                           })()}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -1212,7 +1218,7 @@ function IndividualTab({
                               `🏆 ${program.dog.name} סיים/ה בהצלחה את תוכנית האילוף!`,
                               `מברכים אתכם ומאחלים המשך הנאה עם הכלב! 🐾`,
                             ].filter(Boolean);
-                            return `https://wa.me/${toWhatsAppPhone(program.customer.phone)}?text=${encodeURIComponent(lines.join("\n"))}`;
+                            return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer.phone)}&text=${encodeURIComponent(lines.join("\n"))}`;
                           })()}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -1680,7 +1686,7 @@ function GroupCard({
                       const msg = encodeURIComponent(
                         `היי! תזכורת לסדנת "${group.name}"${group.location ? ` ב${group.location}` : ""}${group.defaultTime ? ` בשעה ${group.defaultTime}` : ""}. נתראה!`
                       );
-                      window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+                      window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${msg}`, "_blank");
                     }
                   });
                 }}

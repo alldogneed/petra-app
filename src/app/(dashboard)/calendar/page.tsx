@@ -846,7 +846,7 @@ export default function CalendarPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status, ...(cancellationNote ? { cancellationNote } : {}) }),
-      }).then((r) => r.json()),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       setSelectedAppointment(null);
@@ -1205,7 +1205,7 @@ export default function CalendarPage() {
                 });
                 lines.push("");
               }
-              const waUrl = `https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`;
+              const waUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(lines.join("\n"))}`;
               return (
                 <a
                   href={waUrl}
@@ -1236,7 +1236,7 @@ export default function CalendarPage() {
                   `${i + 1}. ${a.startTime} — ${a.customer.name}${a.pet ? ` (${a.pet.name})` : ""} · ${a.service.name}`
                 ),
               ];
-              const waUrl = `https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`;
+              const waUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(lines.join("\n"))}`;
               return (
                 <a
                   href={waUrl}
@@ -1972,7 +1972,7 @@ export default function CalendarPage() {
               <div className="flex items-center gap-2 text-petra-muted">
                 <Phone className="w-4 h-4" />
                 <a
-                  href={`https://wa.me/${toWhatsAppPhone(selectedAppointment.customer.phone)}`}
+                  href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(selectedAppointment.customer.phone)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-green-600 transition-colors"
@@ -2059,7 +2059,7 @@ export default function CalendarPage() {
                 const appt = selectedAppointment;
                 const date = new Date(appt.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
                 const msg = `שלום ${appt.customer.name}! 😊\nתזכורת לתור שלך:\n📅 ${date} בשעה ${appt.startTime}\n🐾 ${appt.service.name}${appt.pet ? ` עם ${appt.pet.name}` : ""}\n\nנתראה! 🌟`;
-                return `https://wa.me/${toWhatsAppPhone(appt.customer.phone)}?text=${encodeURIComponent(msg)}`;
+                return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(appt.customer.phone)}&text=${encodeURIComponent(msg)}`;
               })()}
               target="_blank"
               rel="noopener noreferrer"
@@ -2224,7 +2224,7 @@ export default function CalendarPage() {
                             const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
                             const bookingUrl = `${baseUrl}/book/demo-business-001`;
                             const msg = `שלום ${selectedAppointment.customer.name}! 😊\nתודה על הביקור! מוזמנ/ת לקבוע את התור הבא:\n${bookingUrl}\nנתראה! 🐾`;
-                            return `https://wa.me/${toWhatsAppPhone(selectedAppointment.customer.phone)}?text=${encodeURIComponent(msg)}`;
+                            return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(selectedAppointment.customer.phone)}&text=${encodeURIComponent(msg)}`;
                           })()}
                           target="_blank"
                           rel="noopener noreferrer"

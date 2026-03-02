@@ -82,9 +82,7 @@ function StatusBadge({
       <span className="badge badge-danger flex items-center gap-1">
         <ShieldX className="w-3 h-3" />
         פג תוקף
-        <span>
-          (לפני {Math.abs(daysUntil)} ימים)
-        </span>
+        <span>(לפני {Math.abs(daysUntil)} ימים)</span>
       </span>
     );
   }
@@ -118,17 +116,15 @@ function buildWhatsApp(
       : "בקרוב";
     msg = `שלום! רצינו להזכיר לך שה${vaccineLabel} של הכלב ${petName} עומד לפוג בתאריך ${dateStr}. כדאי לתאם חידוש. – הצוות שלנו`;
   }
-  return `https://wa.me/${toWhatsAppPhone(phone)}?text=${encodeURIComponent(msg)}`;
+  return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(phone)}&text=${encodeURIComponent(msg)}`;
 }
 
-type StatusFilter = "all" | "expired" | "expiring_soon" | "valid";
+type StatusFilter = "all" | "expired" | "expiring_soon" | "valid" | "unknown";
 type TypeFilter = "all" | "rabies" | "dhpp" | "deworming";
-const DAY_WINDOWS = [7, 14, 30, 60, 90];
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function VaccinationsPage() {
-  const [daysWindow, setDaysWindow] = useState(30);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [search, setSearch] = useState("");
@@ -137,9 +133,9 @@ export default function VaccinationsPage() {
     vaccinations: VaccinationEntry[];
     total: number;
   }>({
-    queryKey: ["vaccinations-full", daysWindow],
+    queryKey: ["vaccinations-full"],
     queryFn: () =>
-      fetch(`/api/pets/vaccinations?days=${daysWindow}`).then((r) => r.json()),
+      fetch("/api/pets/vaccinations?all=true").then((r) => r.json()),
     staleTime: 60000,
   });
 
@@ -165,12 +161,12 @@ export default function VaccinationsPage() {
     return true;
   });
 
-  // Sort: expired → expiring_soon → valid → unknown
+  // Sort: expired → unknown → expiring_soon → valid
   const STATUS_ORDER: Record<string, number> = {
     expired: 0,
-    expiring_soon: 1,
-    valid: 2,
-    unknown: 3,
+    unknown: 1,
+    expiring_soon: 2,
+    valid: 3,
   };
   const sorted = [...filtered].sort(
     (a, b) =>
@@ -182,7 +178,7 @@ export default function VaccinationsPage() {
   const expiringSoonCount = enriched.filter(
     (v) => v.status === "expiring_soon"
   ).length;
-  const validCount = enriched.filter((v) => v.status === "valid").length;
+  const unknownCount = enriched.filter((v) => v.status === "unknown").length;
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
@@ -245,18 +241,18 @@ export default function VaccinationsPage() {
 
           <button
             onClick={() =>
-              setStatusFilter(statusFilter === "valid" ? "all" : "valid")
+              setStatusFilter(statusFilter === "unknown" ? "all" : "unknown")
             }
             className={cn(
               "stat-card text-right transition-all cursor-pointer",
-              statusFilter === "valid" && "ring-2 ring-emerald-400"
+              statusFilter === "unknown" && "ring-2 ring-slate-400"
             )}
           >
             <div className="flex items-center gap-2 mb-1">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span className="text-sm text-petra-muted">תקף</span>
+              <ShieldAlert className="w-4 h-4 text-slate-400" />
+              <span className="text-sm text-petra-muted">לא ידוע</span>
             </div>
-            <p className="text-2xl font-bold text-emerald-600">{validCount}</p>
+            <p className="text-2xl font-bold text-slate-500">{unknownCount}</p>
           </button>
         </div>
       )}
@@ -273,25 +269,6 @@ export default function VaccinationsPage() {
             className="input w-full pr-9"
           />
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
-        </div>
-
-        {/* Days window */}
-        <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-xs text-petra-muted ml-1">הצג תוך:</span>
-          {DAY_WINDOWS.map((d) => (
-            <button
-              key={d}
-              onClick={() => setDaysWindow(d)}
-              className={cn(
-                "px-2.5 py-1 rounded-lg text-xs font-medium border transition-all",
-                daysWindow === d
-                  ? "bg-brand-500 text-white border-brand-500"
-                  : "bg-white text-petra-muted border-slate-200 hover:border-brand-300"
-              )}
-            >
-              {d} ימים
-            </button>
-          ))}
         </div>
 
         {/* Vaccine type */}
@@ -312,6 +289,32 @@ export default function VaccinationsPage() {
                 typeFilter === opt.value
                   ? "bg-slate-700 text-white border-slate-700"
                   : "bg-white text-petra-muted border-slate-200 hover:border-slate-400"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Status filter */}
+        <div className="flex items-center gap-1 flex-wrap">
+          {(
+            [
+              { value: "all", label: "הכל" },
+              { value: "expired", label: "פג תוקף" },
+              { value: "expiring_soon", label: "פוקע בקרוב" },
+              { value: "valid", label: "תקף" },
+              { value: "unknown", label: "לא ידוע" },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setStatusFilter(opt.value)}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-xs font-medium border transition-all",
+                statusFilter === opt.value
+                  ? "bg-brand-500 text-white border-brand-500"
+                  : "bg-white text-petra-muted border-slate-200 hover:border-brand-300"
               )}
             >
               {opt.label}
@@ -348,18 +351,13 @@ export default function VaccinationsPage() {
           <p className="text-petra-muted text-sm">
             {statusFilter !== "all" || typeFilter !== "all" || search
               ? "לא נמצאו חיסונים מתאימים לפילטר הנבחר"
-              : "לא נמצאו חיסונים שעומדים לפוג בחלון הזמן הנבחר"}
+              : "לא נמצאו רשומות חיסון. הוסף תאריכי חיסון בפרופיל החיות."}
           </p>
-          {!search && statusFilter === "all" && typeFilter === "all" && (
-            <p className="text-xs text-petra-muted">
-              נסה להרחיב את חלון הזמן (לדוגמה: 90 ימים)
-            </p>
-          )}
         </div>
       )}
 
       {/* Alert banner */}
-      {!isLoading && !isError && sorted.length > 0 && (expiredCount > 0 || expiringSoonCount > 0) && (
+      {!isLoading && !isError && (expiredCount > 0 || expiringSoonCount > 0) && (
         <div className="card p-4 bg-amber-50 border-amber-200 flex items-center gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
           <p className="text-sm text-amber-800">

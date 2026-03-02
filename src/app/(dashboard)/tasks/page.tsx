@@ -777,7 +777,7 @@ function TaskTemplatesModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => r.json()),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["task-templates"] });
       setShowNewTpl(false);
@@ -789,7 +789,7 @@ function TaskTemplatesModal({
 
   const deleteTemplateMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/task-templates/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/task-templates/${id}`, { method: "DELETE" }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["task-templates"] });
       toast.success("תבנית נמחקה");
@@ -808,7 +808,7 @@ function TaskTemplatesModal({
           category: tpl.defaultCategory,
           priority: tpl.defaultPriority,
         }),
-      }).then((r) => r.json()),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       onTaskCreated();
       toast.success("משימה נוצרה מהתבנית");
@@ -1044,7 +1044,7 @@ function RecurringTasksModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => r.json()),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["task-recurrence-rules"] });
       setShowNew(false);
@@ -1060,13 +1060,14 @@ function RecurringTasksModal({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive }),
-      }).then((r) => r.json()),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["task-recurrence-rules"] }),
+    onError: () => toast.error("שגיאה בעדכון החוק. נסה שוב."),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/task-recurrence/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/task-recurrence/${id}`, { method: "DELETE" }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["task-recurrence-rules"] });
       toast.success("חוק נמחק");

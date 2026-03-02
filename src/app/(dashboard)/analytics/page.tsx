@@ -159,7 +159,7 @@ function AnalyticsContent() {
                   `✅ משימות הושלמו: ${data.tasks.completedThisPeriod}`,
                   `🐾 שהות פנסיון: ${data.boarding.staysThisPeriod}`,
                 ].join("\n");
-                return `https://wa.me/?text=${encodeURIComponent(lines)}`;
+                return `https://web.whatsapp.com/send?text=${encodeURIComponent(lines)}`;
               })()}
               target="_blank"
               rel="noopener noreferrer"

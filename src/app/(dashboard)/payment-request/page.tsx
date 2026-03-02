@@ -275,7 +275,7 @@ export default function PaymentRequestPage() {
       message += `\n\nלתשלום: ${effectivePaymentUrl}`;
     }
 
-    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    return `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
   }
 
   const canSend = selectedCustomer && selectedItems.size > 0 && finalPrice > 0;

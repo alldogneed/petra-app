@@ -891,21 +891,21 @@ export default function LeadsPage() {
 
   const moveMutation = useMutation({
     mutationFn: ({ id, stage }: { id: string; stage: string }) =>
-      fetch(`/api/leads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage }) }).then((r) => r.json()),
+      fetch(`/api/leads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage }) }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
     onError: () => toast.error("שגיאה בהזזת הליד. נסה שוב."),
   });
 
   const updateStageMutation = useMutation({
     mutationFn: ({ id, ...data }: { id: string; name?: string; color?: string }) =>
-      fetch(`/api/leads/stages/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => r.json()),
+      fetch(`/api/leads/stages/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lead-stages"] }),
     onError: () => toast.error("שגיאה בעדכון השלב. נסה שוב."),
   });
 
   const createStageMutation = useMutation({
     mutationFn: (data: { name: string; color?: string }) =>
-      fetch("/api/leads/stages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => r.json()),
+      fetch("/api/leads/stages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lead-stages"] });
       toast.success("השלב נוצר בהצלחה");
@@ -915,7 +915,7 @@ export default function LeadsPage() {
 
   const deleteStageMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/leads/stages/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/leads/stages/${id}`, { method: "DELETE" }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lead-stages"] });
       toast.success("השלב נמחק");
@@ -925,14 +925,14 @@ export default function LeadsPage() {
 
   const reorderMutation = useMutation({
     mutationFn: (stageIds: string[]) =>
-      fetch("/api/leads/stages/reorder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stageIds }) }).then((r) => r.json()),
+      fetch("/api/leads/stages/reorder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stageIds }) }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lead-stages"] }),
     onError: () => toast.error("שגיאה בסידור השלבים. נסה שוב."),
   });
 
   const convertMutation = useMutation({
     mutationFn: (leadId: string) =>
-      fetch(`/api/leads/${leadId}/convert`, { method: "POST" }).then((r) => r.json()),
+      fetch(`/api/leads/${leadId}/convert`, { method: "POST" }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: (data, leadId) => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });

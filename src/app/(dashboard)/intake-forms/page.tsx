@@ -135,7 +135,7 @@ function NewIntakeModal({
               onClick={() => {
                 const msg = `שלום! אנא מלא/י את טופס הקבלה לפני הביקור: ${intakeUrl}`;
                 if (targetPhone) {
-                  window.open(`https://wa.me/${toWhatsAppPhone(targetPhone)}?text=${encodeURIComponent(msg)}`, "_blank");
+                  window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(targetPhone)}&text=${encodeURIComponent(msg)}`, "_blank");
                 }
               }}
             >
@@ -240,10 +240,11 @@ export default function IntakeFormsPage() {
   const [showNewModal, setShowNewModal] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: forms = [], isLoading } = useQuery<IntakeForm[]>({
+  const { data: rawForms, isLoading } = useQuery({
     queryKey: ["intakeForms"],
     queryFn: () => fetch("/api/intake/list").then((r) => r.json()),
   });
+  const forms: IntakeForm[] = Array.isArray(rawForms) ? rawForms : [];
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -417,7 +418,7 @@ export default function IntakeFormsPage() {
                                   .then((data) => {
                                     queryClient.invalidateQueries({ queryKey: ["intakeForms"] });
                                     const msg = `שלום! אנא מלא/י את טופס הקבלה לפני הביקור: ${data.url}`;
-                                    window.open(`https://wa.me/${toWhatsAppPhone(form.customer!.phone)}?text=${encodeURIComponent(msg)}`, "_blank");
+                                    window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(form.customer!.phone)}&text=${encodeURIComponent(msg)}`, "_blank");
                                   });
                               }}
                             >

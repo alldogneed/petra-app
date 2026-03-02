@@ -291,7 +291,7 @@ function QuickActions({
     <div className="flex items-center gap-1">
       {/* WhatsApp — with official logo */}
       <a
-        href={`https://wa.me/${waPhone}`}
+        href={`https://web.whatsapp.com/send?phone=${waPhone}`}
         target="_blank"
         rel="noopener noreferrer"
         className="w-8 h-8 rounded-lg flex items-center justify-center text-[#25D366] hover:bg-[#E8FEF0] transition-colors"
@@ -2955,7 +2955,7 @@ export default function CustomersPage() {
                   {selectedCustomers.map((c) => (
                     <a
                       key={c.id}
-                      href={`https://wa.me/${toWhatsAppPhone(c.phone)}?text=${encodeURIComponent(bulkWaMessage || "")}`}
+                      href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(c.phone)}&text=${encodeURIComponent(bulkWaMessage || "")}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-green-50 border border-slate-100 hover:border-green-200 transition-colors group"
@@ -2981,7 +2981,7 @@ export default function CustomersPage() {
                     selectedCustomers.forEach((c, i) => {
                       setTimeout(() => {
                         window.open(
-                          `https://wa.me/${toWhatsAppPhone(c.phone)}?text=${encodeURIComponent(bulkWaMessage || "")}`,
+                          `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(c.phone)}&text=${encodeURIComponent(bulkWaMessage || "")}`,
                           `_wa_${c.id}`
                         );
                       }, i * 400);

@@ -484,7 +484,7 @@ export default function PriceListPage() {
                 }
                 lines.push("");
               }
-              return `https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`;
+              return `https://web.whatsapp.com/send?text=${encodeURIComponent(lines.join("\n"))}`;
             })()}
             target="_blank"
             rel="noopener noreferrer"

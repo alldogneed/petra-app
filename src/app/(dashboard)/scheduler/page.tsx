@@ -386,7 +386,7 @@ export default function SchedulerPage() {
           <div className="flex flex-col gap-3 mt-6">
             {bookingResult.phone && (
               <a
-                href={`https://wa.me/${waPhone}?text=${waMsg}`}
+                href={`https://web.whatsapp.com/send?phone=${waPhone}&text=${waMsg}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-white font-medium transition-colors"
