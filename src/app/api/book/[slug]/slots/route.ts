@@ -3,18 +3,18 @@ import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { getAvailableSlots } from "@/lib/slots"
 
-// GET /api/book/[slug]/slots?serviceId=...&date=YYYY-MM-DD
+// GET /api/book/[slug]/slots?priceListItemId=...&date=YYYY-MM-DD
 // Public: returns available time slots
 export async function GET(
   req: NextRequest,
   { params }: { params: { slug: string } }
 ) {
   const { searchParams } = new URL(req.url)
-  const serviceId = searchParams.get("serviceId")
+  const priceListItemId = searchParams.get("priceListItemId")
   const date = searchParams.get("date") // YYYY-MM-DD in business's local timezone
 
-  if (!serviceId || !date) {
-    return NextResponse.json({ error: "serviceId and date are required" }, { status: 400 })
+  if (!priceListItemId || !date) {
+    return NextResponse.json({ error: "priceListItemId and date are required" }, { status: 400 })
   }
 
   // Validate date format
@@ -31,16 +31,16 @@ export async function GET(
     return NextResponse.json({ error: "Business not found" }, { status: 404 })
   }
 
-  // Verify service belongs to this business and is publicly bookable
-  const service = await prisma.service.findFirst({
-    where: { id: serviceId, businessId: business.id, isPublicBookable: true, isActive: true },
+  // Verify item belongs to this business and is bookable online
+  const item = await prisma.priceListItem.findFirst({
+    where: { id: priceListItemId, businessId: business.id, isBookableOnline: true, isActive: true },
   })
 
-  if (!service) {
+  if (!item) {
     return NextResponse.json({ error: "Service not found" }, { status: 404 })
   }
 
-  const slots = await getAvailableSlots(business.id, serviceId, date)
+  const slots = await getAvailableSlots(business.id, item.durationMinutes ?? 60, date)
 
   return NextResponse.json({
     date,

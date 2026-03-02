@@ -720,6 +720,7 @@ model PriceListItem {
   business   Business    @relation(fields: [businessId], references: [id])
   priceList  PriceList   @relation(fields: [priceListId], references: [id])
   orderLines OrderLine[]
+  bookings   Booking[]
 
   @@index([businessId, isActive])
   @@index([businessId, category])
@@ -867,10 +868,11 @@ model AvailabilityBlock {
 
 /// Online booking (public-facing, separate from internal Appointment)
 model Booking {
-  id          String   @id @default(uuid())
-  businessId  String
-  serviceId   String
-  customerId  String
+  id              String   @id @default(uuid())
+  businessId      String
+  serviceId       String?  // nullable — legacy bookings only
+  priceListItemId String?  // new — bookings via price list item
+  customerId      String
   startAt     DateTime // UTC
   endAt       DateTime // UTC (startAt + service.duration)
   status      String   @default("pending") // "pending" | "confirmed" | "declined" | "cancelled"
@@ -887,9 +889,10 @@ model Booking {
   gcalLastSyncedAt DateTime?
   gcalSyncError    String?   // last error message if failed
 
-  business     Business      @relation(fields: [businessId], references: [id])
-  service      Service       @relation(fields: [serviceId], references: [id])
-  customer     Customer      @relation(fields: [customerId], references: [id])
+  business      Business       @relation(fields: [businessId], references: [id])
+  service       Service?       @relation(fields: [serviceId], references: [id])
+  priceListItem PriceListItem? @relation(fields: [priceListItemId], references: [id])
+  customer      Customer       @relation(fields: [customerId], references: [id])
   dogs         BookingDog[]
   syncJobs     SyncJob[]
   boardingStay BoardingStay?

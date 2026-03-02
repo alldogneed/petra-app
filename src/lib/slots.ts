@@ -94,16 +94,14 @@ function addMinutes(date: Date, minutes: number): Date {
 
 export async function getAvailableSlots(
   businessId: string,
-  serviceId: string,
-  localDateStr: string // "YYYY-MM-DD" in business timezone
+  duration: number,   // service/item duration in minutes
+  localDateStr: string, // "YYYY-MM-DD" in business timezone
+  bufferBefore = 0,
+  bufferAfter = 0,
 ): Promise<SlotResult[]> {
-  // 1. Load business, service, availability rule, blocks, and existing bookings in parallel
-  const [business, service, rules, blocks, existingBookings] = await Promise.all([
+  // 1. Load business, availability rule, blocks, and existing bookings in parallel
+  const [business, rules, blocks, existingBookings] = await Promise.all([
     prisma.business.findUniqueOrThrow({ where: { id: businessId }, select: { timezone: true } }),
-    prisma.service.findUniqueOrThrow({
-      where: { id: serviceId },
-      select: { duration: true, bufferBefore: true, bufferAfter: true },
-    }),
     prisma.availabilityRule.findMany({ where: { businessId } }),
     // Blocks that could possibly touch our target day (fetch ± 1 day in UTC to be safe)
     prisma.availabilityBlock.findMany({
@@ -125,7 +123,6 @@ export async function getAvailableSlots(
   ])
 
   const { timezone } = business
-  const { duration, bufferAfter } = service
 
   // 2. Find day-of-week rule. localDateStr is YYYY-MM-DD; parse to get local day.
   // We must interpret the day-of-week in the business timezone.
@@ -157,17 +154,20 @@ export async function getAvailableSlots(
   const windowEnd   = localTimeToUtc(closeTime, localDateStr, timezone)
 
   // 4. Build busy intervals from blocks and existing bookings (including buffers)
-  // For booking buffers, refetch service data per booking
-  // (already loaded above without join – fetch services for existing bookings)
-  const uniqueServiceIds = Array.from(new Set(existingBookings.map((b) => b.serviceId)))
-  const existingServices = await prisma.service.findMany({
-    where: { id: { in: uniqueServiceIds } },
-    select: { id: true, bufferBefore: true, bufferAfter: true },
-  })
+  // For legacy service-based bookings, look up their buffer values.
+  const uniqueServiceIds = Array.from(
+    new Set(existingBookings.map((b) => b.serviceId).filter((id): id is string => id !== null))
+  )
+  const existingServices = uniqueServiceIds.length > 0
+    ? await prisma.service.findMany({
+        where: { id: { in: uniqueServiceIds } },
+        select: { id: true, bufferBefore: true, bufferAfter: true },
+      })
+    : []
   const svcMap = Object.fromEntries(existingServices.map((s) => [s.id, s]))
 
   const busyFromBookings: Interval[] = existingBookings.map((bk) => {
-    const svc = svcMap[bk.serviceId]
+    const svc = bk.serviceId ? svcMap[bk.serviceId] : null
     return {
       start: addMinutes(bk.startAt, -(svc?.bufferBefore ?? 0)),
       end:   addMinutes(bk.endAt,    svc?.bufferAfter ?? 0),

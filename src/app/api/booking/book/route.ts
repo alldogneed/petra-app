@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { serviceId, date, time, customerName, customerPhone, customerEmail, notes } = body;
+    const { priceListItemId, date, time, customerName, customerPhone, customerEmail, notes } = body;
 
     // Rate limit by phone: 5 bookings per hour (prevents fake customer creation)
     if (customerPhone) {
@@ -26,20 +26,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!serviceId || !date || !time || !customerName || !customerPhone) {
+    if (!priceListItemId || !date || !time || !customerName || !customerPhone) {
       return NextResponse.json(
         { error: "שדות חובה חסרים" },
         { status: 400 }
       );
     }
 
-    // Get service for duration + businessId
-    const service = await prisma.service.findUnique({ where: { id: serviceId } });
-    if (!service) {
+    // Get price list item for duration + businessId
+    const item = await prisma.priceListItem.findUnique({ where: { id: priceListItemId } });
+    if (!item) {
       return NextResponse.json({ error: "שירות לא נמצא" }, { status: 404 });
     }
 
-    const businessId = service.businessId;
+    const businessId = item.businessId;
+    const duration = item.durationMinutes ?? 60;
 
     // Find or create customer
     let customer = await prisma.customer.findFirst({
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
     const [h, m] = time.split(":").map(Number);
     const startAt = new Date(date);
     startAt.setHours(h, m, 0, 0);
-    const endAt = new Date(startAt.getTime() + (service.duration || 60) * 60000);
+    const endAt = new Date(startAt.getTime() + duration * 60000);
 
     // Check for conflicts
     const conflict = await prisma.booking.findFirst({
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
     const booking = await prisma.booking.create({
       data: {
         businessId,
-        serviceId,
+        priceListItemId,
         customerId: customer.id,
         startAt,
         endAt,
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
         source: "online",
       },
       include: {
-        service: true,
+        priceListItem: true,
         customer: true,
       },
     });

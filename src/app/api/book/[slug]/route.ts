@@ -21,20 +21,17 @@ export async function GET(
       status: true,
       boardingCheckInTime: true,
       boardingCheckOutTime: true,
-      services: {
-        where: { isPublicBookable: true, isActive: true },
+      priceListItems: {
+        where: { isBookableOnline: true, isActive: true },
         select: {
           id: true,
           name: true,
-          type: true,
-          duration: true,
-          price: true,
-          includesVat: true,
+          category: true,
+          durationMinutes: true,
+          basePrice: true,
           description: true,
-          color: true,
           depositRequired: true,
           depositAmount: true,
-          bookingMode: true,
           paymentUrl: true,
         },
         orderBy: { name: "asc" },
@@ -53,5 +50,21 @@ export async function GET(
     return NextResponse.json({ error: "Business is not accepting bookings" }, { status: 403 })
   }
 
-  return NextResponse.json({ business })
+  // Map price list items to the service shape expected by the booking wizard
+  const services = business.priceListItems.map((item) => ({
+    id: item.id,
+    name: item.name,
+    type: "service",
+    duration: item.durationMinutes ?? 60,
+    price: item.basePrice,
+    description: item.description ?? null,
+    color: null,
+    depositRequired: item.depositRequired,
+    depositAmount: item.depositAmount ?? null,
+    bookingMode: "direct",
+    paymentUrl: item.paymentUrl ?? null,
+  }))
+
+  const { priceListItems: _unused, ...businessData } = business
+  return NextResponse.json({ business: { ...businessData, services } })
 }

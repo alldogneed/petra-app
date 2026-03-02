@@ -247,7 +247,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
       setSlotsLoading(true)
       setSlots([])
       try {
-        const res = await fetch(`/api/book/${slug}/slots?serviceId=${serviceId}&date=${date}`)
+        const res = await fetch(`/api/book/${slug}/slots?priceListItemId=${serviceId}&date=${date}`)
         const data = await res.json()
         setSlots(data.slots ?? [])
       } finally {
@@ -283,7 +283,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          serviceId: selectedService.id,
+          priceListItemId: selectedService.id,
           startAt,
           checkoutAt,
           phone,
