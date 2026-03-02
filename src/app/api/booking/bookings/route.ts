@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         service: true,
+        priceListItem: true,
         customer: true,
         dogs: {
           include: { pet: true },

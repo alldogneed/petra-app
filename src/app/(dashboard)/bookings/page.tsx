@@ -32,9 +32,16 @@ interface BookingData {
   notes: string | null;
   source: string;
   createdAt: string;
-  service: { id: string; name: string; duration: number; price: number };
+  service: { id: string; name: string; duration: number; price: number } | null;
+  priceListItem: { id: string; name: string; durationMinutes: number | null; basePrice: number } | null;
   customer: { id: string; name: string; phone: string; email: string | null };
   dogs: Array<{ pet: { id: string; name: string } }>;
+}
+
+function getServiceInfo(b: BookingData) {
+  if (b.service) return { name: b.service.name, price: b.service.price };
+  if (b.priceListItem) return { name: b.priceListItem.name, price: b.priceListItem.basePrice };
+  return { name: "—", price: 0 };
 }
 
 const BOOKING_STATUSES = [
@@ -232,6 +239,7 @@ export default function BookingsPage() {
             const startDate = new Date(booking.startAt);
             const endDate = new Date(booking.endAt);
             const dogNames = booking.dogs.map((d) => d.pet.name).join(", ");
+            const svcInfo = getServiceInfo(booking);
 
             return (
               <div
@@ -256,7 +264,7 @@ export default function BookingsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="text-sm font-semibold text-petra-text">
-                        {booking.service.name}
+                        {svcInfo.name}
                       </h3>
                       <span
                         className="text-[10px] px-2 py-0.5 rounded-full font-medium"
@@ -304,7 +312,7 @@ export default function BookingsPage() {
                   {/* Price */}
                   <div className="text-right flex-shrink-0">
                     <span className="text-sm font-bold text-petra-text">
-                      {formatCurrency(booking.service.price)}
+                      {formatCurrency(svcInfo.price)}
                     </span>
                   </div>
                 </div>
@@ -341,7 +349,7 @@ export default function BookingsPage() {
                     הורד
                   </button>
                   <a
-                    href={`https://wa.me/?text=${encodeURIComponent(`הזמן תור אונליין: ${bookingLink}`)}`}
+                    href={`https://web.whatsapp.com/send?text=${encodeURIComponent(`הזמן תור אונליין: ${bookingLink}`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-50 text-green-700 text-sm font-medium hover:bg-green-100 transition-colors border border-green-200"
@@ -373,6 +381,8 @@ export default function BookingsPage() {
 
             {(() => {
               const booking = selectedBooking;
+              const modalSvcInfo = getServiceInfo(booking);
+              const modalDuration = booking.service?.duration ?? booking.priceListItem?.durationMinutes ?? 60;
               const statusInfo = STATUS_INFO[booking.status] || STATUS_INFO.pending;
               const startDate = new Date(booking.startAt);
               const endDate = new Date(booking.endAt);
@@ -398,11 +408,11 @@ export default function BookingsPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-petra-muted">שירות</p>
-                        <p className="font-semibold text-petra-text">{booking.service.name}</p>
-                        <p className="text-xs text-petra-muted">{booking.service.duration} דקות</p>
+                        <p className="font-semibold text-petra-text">{modalSvcInfo.name}</p>
+                        <p className="text-xs text-petra-muted">{modalDuration} דקות</p>
                       </div>
                       <span className="text-lg font-bold text-petra-text">
-                        {formatCurrency(booking.service.price)}
+                        {formatCurrency(modalSvcInfo.price)}
                       </span>
                     </div>
 
@@ -528,7 +538,7 @@ export default function BookingsPage() {
                               "",
                               `📅 תאריך: ${dateStr}`,
                               `🕐 שעה: ${timeStr}`,
-                              `🐾 שירות: ${booking.service.name}`,
+                              `🐾 שירות: ${modalSvcInfo.name}`,
                               petNames ? `🐕 חיית מחמד: ${petNames}` : "",
                               "",
                               `מחכים לראותכם! 🐾`,
@@ -538,7 +548,7 @@ export default function BookingsPage() {
                                 onClick={() => {
                                   updateMutation.mutate({ id: booking.id, status: "confirmed" }, {
                                     onSuccess: () => {
-                                      window.open(`https://wa.me/${toWhatsAppPhone(booking.customer.phone)}?text=${encodeURIComponent(confirmMsg)}`, "_blank", "noopener,noreferrer");
+                                      window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(booking.customer.phone)}&text=${encodeURIComponent(confirmMsg)}`, "_blank", "noopener,noreferrer");
                                     }
                                   });
                                 }}

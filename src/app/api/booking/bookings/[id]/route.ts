@@ -39,6 +39,7 @@ export async function PATCH(
       },
       include: {
         service: true,
+        priceListItem: true,
         customer: true,
         dogs: { include: { pet: { select: { id: true } } } },
       },
@@ -50,7 +51,9 @@ export async function PATCH(
       const endAt = new Date(booking.endAt);
       const firstPetId = booking.dogs[0]?.pet?.id ?? null;
 
-      if (booking.service.type === "boarding") {
+      const serviceType = booking.service?.type ?? "service";
+
+      if (serviceType === "boarding") {
         // For boarding: create a BoardingStay linked to this booking (idempotent)
         const existingStay = await prisma.boardingStay.findUnique({
           where: { bookingId: booking.id },
@@ -68,8 +71,8 @@ export async function PATCH(
             },
           });
         }
-      } else {
-        // For other services: create an Appointment
+      } else if (booking.serviceId) {
+        // For service-based bookings: create an Appointment
         const pad = (n: number) => n.toString().padStart(2, "0");
         const startTime = `${pad(startAt.getHours())}:${pad(startAt.getMinutes())}`;
         const endTime = `${pad(endAt.getHours())}:${pad(endAt.getMinutes())}`;
@@ -101,6 +104,7 @@ export async function PATCH(
           });
         }
       }
+      // priceListItem-based bookings: appointment creation skipped (serviceId required on Appointment)
     }
 
     // Enqueue Google Calendar sync based on status change
