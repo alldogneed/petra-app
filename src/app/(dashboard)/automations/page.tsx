@@ -114,7 +114,7 @@ export default function AutomationsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה ביצירה"); return d; }),
     onSuccess: (res) => {
       if (res.error) { toast.error(res.error); return; }
       qc.invalidateQueries({ queryKey: ["automations"] });
@@ -130,7 +130,7 @@ export default function AutomationsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: (res) => {
       if (res.error) { toast.error(res.error); return; }
       qc.invalidateQueries({ queryKey: ["automations"] });
@@ -142,7 +142,7 @@ export default function AutomationsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/automations/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/automations/${id}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקה"); return d; }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["automations"] });
       toast.success("אוטומציה נמחקה");
@@ -157,7 +157,7 @@ export default function AutomationsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive }),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: (res) => {
       if (res.error) { toast.error(res.error); return; }
       qc.invalidateQueries({ queryKey: ["automations"] });

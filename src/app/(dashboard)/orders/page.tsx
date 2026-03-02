@@ -106,7 +106,7 @@ function CancelDialog({ orderId, onClose }: { orderId: string; onClose: () => vo
 
   const cancelMutation = useMutation({
     mutationFn: () =>
-      fetch(`/api/orders/${orderId}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/orders/${orderId}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בביטול"); return d; }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       toast.success("ההזמנה בוטלה בהצלחה");
@@ -182,7 +182,7 @@ export default function OrdersPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       if (status === "completed") toast.success("ההזמנה סומנה כהושלמה");

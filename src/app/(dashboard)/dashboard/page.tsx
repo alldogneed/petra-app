@@ -53,6 +53,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
+import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { formatCurrency, fetchJSON, cn, toWhatsAppPhone } from "@/lib/utils";
 import { SetupChecklist } from "@/components/onboarding/SetupChecklist";
@@ -1089,7 +1090,7 @@ function VaccinationAlertWidget() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה ביצירת משימה"); return d; }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
   });
 
@@ -1659,7 +1660,7 @@ function NewAppointmentModal({
           petId: form.petId || null,
           notes: form.notes || null,
         }),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה ביצירת פגישה"); return d; }),
     onSuccess: () => {
       setForm({ customerId: "", petId: "", serviceId: "", date: today, startTime: "09:00", endTime: "10:00", notes: "" });
       onCreated();

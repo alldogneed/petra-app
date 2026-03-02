@@ -41,6 +41,7 @@ import {
   ListTodo,
   Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { CreateOrderModal } from "@/components/orders/CreateOrderModal";
 import { useAuth } from "@/providers/auth-provider";
 import {
@@ -305,7 +306,8 @@ function AddPetModal({
         fd.append("file", profilePhoto);
         fd.append("type", "profile_photo");
         fd.append("label", "תמונת פרופיל");
-        await fetch(`/api/pets/${pet.id}/attachments`, { method: "POST", body: fd });
+        const attachRes = await fetch(`/api/pets/${pet.id}/attachments`, { method: "POST", body: fd });
+        if (!attachRes.ok) throw new Error("שגיאה בהעלאת תמונת פרופיל");
       }
 
       if (pendingFiles.length > 0) {
@@ -313,10 +315,11 @@ function AddPetModal({
         for (const file of pendingFiles) {
           const fd = new FormData();
           fd.append("file", file);
-          await fetch(`/api/pets/${pet.id}/documents`, {
+          const docRes = await fetch(`/api/pets/${pet.id}/documents`, {
             method: "POST",
             body: fd,
           });
+          if (!docRes.ok) throw new Error("שגיאה בהעלאת מסמך");
         }
         setUploadStatus("");
       }
@@ -653,7 +656,10 @@ function PetDocumentsModal({
   const { data: docs = [], isLoading } = useQuery<PetDoc[]>({
     queryKey: ["petDocs", petId],
     queryFn: () =>
-      fetch(`/api/pets/${petId}/documents`).then((r) => r.json()),
+      fetch(`/api/pets/${petId}/documents`).then((r) => {
+        if (!r.ok) throw new Error("Failed to fetch documents");
+        return r.json();
+      }),
     enabled: isOpen,
   });
 
@@ -661,9 +667,10 @@ function PetDocumentsModal({
     mutationFn: (docId: string) =>
       fetch(`/api/pets/${petId}/documents?docId=${docId}`, {
         method: "DELETE",
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקה"); return d; }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["petDocs", petId] }),
+    onError: () => toast.error("שגיאה במחיקת מסמך"),
   });
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1033,7 +1040,7 @@ function EditPetModal({
           microchip: form.microchip,
           tags: JSON.stringify(form.selectedTags),
         }),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       onClose();
@@ -1141,7 +1148,7 @@ function EditPetNoteModal({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: text || null }),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       onClose();
@@ -1387,7 +1394,7 @@ function CustomerDocumentsSection({
     mutationFn: (docId: string) =>
       fetch(`/api/customers/${customerId}/documents?docId=${docId}`, {
         method: "DELETE",
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקה"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customerDocs", customerId] });
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
@@ -2109,7 +2116,7 @@ function EditHealthModal({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       onClose();
@@ -2284,7 +2291,7 @@ function EditBehaviorModal({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       onClose();
@@ -2431,7 +2438,7 @@ export default function CustomerProfilePage() {
 
   const deleteMedMutation = useMutation({
     mutationFn: ({ petId, id }: { petId: string; id: string }) =>
-      fetch(`/api/pets/${petId}/medications/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/pets/${petId}/medications/${id}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקה"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       setDeletingMed(null);

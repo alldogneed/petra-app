@@ -164,7 +164,7 @@ export default function ScheduledMessagesPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "CANCELED" }),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בביטול"); return d; }),
     onSuccess: (res) => {
       if (res.error) {
         toast.error(res.error);
@@ -180,7 +180,7 @@ export default function ScheduledMessagesPage() {
 
   const sendNowMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/scheduled-messages/${id}/send`, { method: "POST" }).then((r) => r.json()),
+      fetch(`/api/scheduled-messages/${id}/send`, { method: "POST" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בשליחה"); return d; }),
     onSuccess: (res, id) => {
       if (res.error) { toast.error(res.error); return; }
       qc.invalidateQueries({ queryKey: ["scheduled-messages"] });

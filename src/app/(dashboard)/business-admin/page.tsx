@@ -523,7 +523,7 @@ function TeamTab({ currentUserId }: { currentUserId: string }) {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ba-team"] });
       queryClient.invalidateQueries({ queryKey: ["ba-overview"] });

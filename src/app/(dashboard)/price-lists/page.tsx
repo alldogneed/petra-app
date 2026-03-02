@@ -386,7 +386,7 @@ export default function PriceListPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive }),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["price-list-items", priceList?.id] }),
   });
 
@@ -402,13 +402,13 @@ export default function PriceListPage() {
           durationMinutes: item.durationMinutes, description: item.description,
           defaultQuantity: item.defaultQuantity,
         }),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בשכפול"); return d; }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["price-list-items", priceList?.id] }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/price-list-items/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/price-list-items/${id}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקה"); return d; }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["price-list-items", priceList?.id] }),
   });
 

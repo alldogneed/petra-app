@@ -119,7 +119,7 @@ function BusinessTab() {
 
   const mutation = useMutation({
     mutationFn: (data: Partial<Business>) =>
-      fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => r.json()),
+      fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בשמירה"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       setSaved(true);
@@ -1709,7 +1709,7 @@ function DataTab() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ exportType, format: exportFormat, outputMode, filterFromDate: filterFromDate || null, filterToDate: filterToDate || null }),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה ביצירת הייצוא"); return d; }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["exports"] }),
     onError: () => toast.error("שגיאה ביצירת הייצוא"),
   });
@@ -2417,7 +2417,7 @@ function TasksTab() {
 
   const createTemplateMutation = useMutation({
     mutationFn: (data: typeof emptyTemplate) =>
-      fetch("/api/task-templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => r.json()),
+      fetch("/api/task-templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה ביצירת תבנית"); return d; }),
     onSuccess: (res) => {
       if (res.error) { toast.error(res.error); return; }
       qc.invalidateQueries({ queryKey: ["task-templates"] });
@@ -2428,7 +2428,7 @@ function TasksTab() {
 
   const updateTemplateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: typeof emptyTemplate }) =>
-      fetch(`/api/task-templates/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => r.json()),
+      fetch(`/api/task-templates/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון תבנית"); return d; }),
     onSuccess: (res) => {
       if (res.error) { toast.error(res.error); return; }
       qc.invalidateQueries({ queryKey: ["task-templates"] });
@@ -2439,13 +2439,13 @@ function TasksTab() {
   });
 
   const deleteTemplateMutation = useMutation({
-    mutationFn: (id: string) => fetch(`/api/task-templates/${id}`, { method: "DELETE" }).then((r) => r.json()),
+    mutationFn: (id: string) => fetch(`/api/task-templates/${id}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקת תבנית"); return d; }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["task-templates"] }); toast.success("תבנית נמחקה"); },
   });
 
   const createRuleMutation = useMutation({
     mutationFn: (data: typeof emptyRule) =>
-      fetch("/api/task-recurrence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, startAt: new Date(data.startAt).toISOString() }) }).then((r) => r.json()),
+      fetch("/api/task-recurrence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, startAt: new Date(data.startAt).toISOString() }) }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה ביצירת כלל"); return d; }),
     onSuccess: (res) => {
       if (res.error) { toast.error(res.error); return; }
       qc.invalidateQueries({ queryKey: ["task-recurrence"] });
@@ -2456,7 +2456,7 @@ function TasksTab() {
 
   const toggleRuleMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      fetch(`/api/task-recurrence/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive }) }).then((r) => r.json()),
+      fetch(`/api/task-recurrence/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive }) }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון כלל"); return d; }),
     onSuccess: (res) => {
       if (res.error) { toast.error(res.error); return; }
       qc.invalidateQueries({ queryKey: ["task-recurrence"] });
@@ -2464,7 +2464,7 @@ function TasksTab() {
   });
 
   const deleteRuleMutation = useMutation({
-    mutationFn: (id: string) => fetch(`/api/task-recurrence/${id}`, { method: "DELETE" }).then((r) => r.json()),
+    mutationFn: (id: string) => fetch(`/api/task-recurrence/${id}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקת כלל"); return d; }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["task-recurrence"] }); toast.success("כלל נמחק"); },
   });
 
@@ -2854,14 +2854,14 @@ function ServicesTab() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: value }),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון השירות"); return d; }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["services"] }),
     onError: () => toast.error("שגיאה בעדכון השירות"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/services/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/services/${id}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקת השירות"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["services"] });
       toast.success("השירות נמחק");

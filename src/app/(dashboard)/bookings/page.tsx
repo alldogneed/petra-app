@@ -95,7 +95,7 @@ export default function BookingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status, ...(notes !== undefined && { notes }) }),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       toast.success("ההזמנה עודכנה בהצלחה");

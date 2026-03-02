@@ -78,13 +78,13 @@ export default function OrderDetailPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "confirmed" }),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["order", orderId] }),
   });
 
   const cancelMutation = useMutation({
     mutationFn: () =>
-      fetch(`/api/orders/${orderId}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/orders/${orderId}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בביטול"); return d; }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       router.push("/orders");

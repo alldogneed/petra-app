@@ -131,7 +131,7 @@ export async function POST(
   // For non-boarding services: re-validate the slot is still available (prevent double-booking)
   if (!isBoarding) {
     const localDate = utcToLocalDateStr(startAt, business.timezone)
-    const availableSlots = await getAvailableSlots(business.id, serviceId, localDate)
+    const availableSlots = await getAvailableSlots(business.id, service.duration, localDate)
     const slotStillFree = availableSlots.some(
       (s) => Math.abs(s.startAt.getTime() - startAt.getTime()) < 60_000
     )

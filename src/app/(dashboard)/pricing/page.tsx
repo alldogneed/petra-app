@@ -582,7 +582,7 @@ function PriceListPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildItemPayload(data)),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בהוספה"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["price-list-items", priceList.id] });
       queryClient.invalidateQueries({ queryKey: ["price-lists"] });
@@ -598,7 +598,7 @@ function PriceListPanel({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildItemPayload(data)),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["price-list-items", priceList.id] });
       setEditItem(null);
@@ -613,7 +613,7 @@ function PriceListPanel({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive }),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["price-list-items", priceList.id] }),
   });
@@ -634,7 +634,7 @@ function PriceListPanel({
           description: item.description,
           paymentUrl: item.paymentUrl,
         }),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בשכפול"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["price-list-items", priceList.id] });
       queryClient.invalidateQueries({ queryKey: ["price-lists"] });
@@ -644,7 +644,7 @@ function PriceListPanel({
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/price-list-items/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/price-list-items/${id}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקה"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["price-list-items", priceList.id] });
       queryClient.invalidateQueries({ queryKey: ["price-lists"] });
@@ -966,7 +966,7 @@ export default function PricingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה ביצירה"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["price-lists"] });
       setShowNewList(false);
@@ -981,7 +981,7 @@ export default function PricingPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive }),
-      }).then((r) => r.json()),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["price-lists"] });
       setTogglingId(null);
@@ -991,7 +991,7 @@ export default function PricingPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/price-lists/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/price-lists/${id}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקה"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["price-lists"] });
       setDeleteList(null);
