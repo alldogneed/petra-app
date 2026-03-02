@@ -146,6 +146,7 @@ function formatDateFull(d: string) {
 function calcNights(checkIn: string, checkOut: string): number {
   const d1 = new Date(checkIn);
   const d2 = new Date(checkOut);
+  if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return 0;
   return Math.max(0, Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)));
 }
 
@@ -1700,8 +1701,7 @@ export default function BoardingPage() {
   const deleteRoomMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/boarding/rooms/${id}`, { method: "DELETE" })
-        .then((r) => r.json())
-        .then((data) => { if (data.error) throw new Error(data.error); return data; }),
+        .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקת החדר"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       toast.success("החדר נמחק");

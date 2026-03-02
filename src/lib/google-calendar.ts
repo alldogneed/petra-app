@@ -252,7 +252,8 @@ interface BookingWithRelations {
   startAt: Date;
   endAt: Date;
   notes: string | null;
-  service: { name: string; price: number };
+  service: { name: string; price: number } | null;
+  priceListItem: { name: string; basePrice: number } | null;
   customer: { name: string; phone: string; address: string | null; email: string | null };
   dogs: { pet: { name: string } }[];
   business?: { name: string; address: string | null };
@@ -282,12 +283,15 @@ export function buildEventPayload(
       ? booking.dogs.map((d) => d.pet.name).join(", ")
       : "";
 
+  const serviceName = booking.service?.name ?? booking.priceListItem?.name ?? "—";
+  const servicePrice = booking.service?.price ?? booking.priceListItem?.basePrice ?? 0;
+
   const summary = petNames
-    ? `${booking.service.name} – ${booking.customer.name} – ${petNames}`
-    : `${booking.service.name} – ${booking.customer.name}`;
+    ? `${serviceName} – ${booking.customer.name} – ${petNames}`
+    : `${serviceName} – ${booking.customer.name}`;
 
   // Location: use customer address for "home visit" services, else business address
-  const serviceNameLower = booking.service.name.toLowerCase();
+  const serviceNameLower = serviceName.toLowerCase();
   const isHomeVisit =
     serviceNameLower.includes("ביקור") ||
     serviceNameLower.includes("בית") ||
@@ -306,8 +310,8 @@ export function buildEventPayload(
     `📞 טלפון: ${booking.customer.phone}`,
     booking.customer.email ? `📧 אימייל: ${booking.customer.email}` : null,
     ``,
-    `🐾 שירות: ${booking.service.name}`,
-    `💰 מחיר: ₪${booking.service.price.toFixed(2)}`,
+    `🐾 שירות: ${serviceName}`,
+    `💰 מחיר: ₪${servicePrice.toFixed(2)}`,
     petNames ? `🐶 כלבים: ${petNames}` : null,
     ``,
     booking.notes ? `📝 הערות: ${booking.notes}` : null,
@@ -535,10 +539,11 @@ async function fetchBookingWithRelations(bookingId: string) {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
     include: {
-      service: { select: { name: true, price: true } },
-      customer: { select: { name: true, phone: true, address: true, email: true } },
-      dogs: { include: { pet: { select: { name: true } } } },
-      business: { select: { name: true, address: true } },
+      service:       { select: { name: true, price: true } },
+      priceListItem: { select: { name: true, basePrice: true } },
+      customer:      { select: { name: true, phone: true, address: true, email: true } },
+      dogs:          { include: { pet: { select: { name: true } } } },
+      business:      { select: { name: true, address: true } },
     },
   });
 

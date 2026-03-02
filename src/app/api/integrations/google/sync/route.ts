@@ -48,10 +48,11 @@ export async function POST() {
         gcalSyncStatus: { not: "synced" },
       },
       include: {
-        service: { select: { name: true, price: true } },
-        customer: { select: { name: true, phone: true, address: true, email: true } },
-        dogs: { include: { pet: { select: { name: true } } } },
-        business: { select: { name: true, address: true } },
+        service:       { select: { name: true, price: true } },
+        priceListItem: { select: { name: true, basePrice: true } },
+        customer:      { select: { name: true, phone: true, address: true, email: true } },
+        dogs:          { include: { pet: { select: { name: true } } } },
+        business:      { select: { name: true, address: true } },
       },
       take: 100,
     });
