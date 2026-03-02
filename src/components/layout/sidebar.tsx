@@ -195,8 +195,8 @@ export function Sidebar({
   });
 
   // Accordion: on every navigation, open ONLY the active group and close all others.
-  // Also scrolls the active nav item into view so the sidebar is never "stuck" at
-  // the wrong scroll position (e.g. after the boarding group collapses).
+  // Also resets the nav scroll to the top so the sidebar is never "stuck" showing
+  // only the bottom items (e.g. after the boarding group expands and the user scrolls).
   useEffect(() => {
     const activeGroup = groups.find((g) => isGroupActive(g));
     // Always sync — even when no group is active (non-group pages), close all groups
@@ -206,14 +206,11 @@ export function Sidebar({
       const changed = groups.some((g) => (prev[g.key] ?? false) !== next[g.key]);
       return changed ? next : prev;
     });
-    // After React commits the DOM update (next animation frame), scroll the active
-    // nav item into view so it's always reachable regardless of previous scroll pos.
-    const raf = requestAnimationFrame(() => {
-      navRef.current
-        ?.querySelector<HTMLElement>("[data-nav-active]")
-        ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    });
-    return () => cancelAnimationFrame(raf);
+    // Always reset the nav scroll position to the top on every navigation.
+    // This prevents the sidebar from appearing "broken" after the boarding group
+    // expands and the user has scrolled — which could leave top items (Dashboard,
+    // Customers…) above the visible fold and unreachable.
+    if (navRef.current) navRef.current.scrollTop = 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
@@ -254,7 +251,6 @@ export function Sidebar({
         key={item.href}
         href={item.href}
         onClick={isMobile ? onMobileClose : undefined}
-        data-nav-active={isActive ? "" : undefined}
         className={cn(
           "flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
           isChild && isExpanded && "pr-8",
