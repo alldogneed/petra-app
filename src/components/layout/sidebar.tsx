@@ -41,7 +41,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { HelpCenter } from "@/components/help/HelpCenter";
 import { useAuth } from "@/providers/auth-provider";
@@ -170,6 +170,9 @@ export function Sidebar({
   const { user } = useAuth();
   const isMaster = user?.platformRole === "super_admin" || user?.platformRole === "admin";
 
+  // Ref to the desktop nav element for scroll management
+  const navRef = useRef<HTMLElement>(null);
+
   // Collect all groups and compute which are active
   const groups = navEntries.filter(isGroup) as NavGroup[];
 
@@ -191,7 +194,9 @@ export function Sidebar({
     return initial;
   });
 
-  // Accordion: on every navigation, open ONLY the active group and close all others
+  // Accordion: on every navigation, open ONLY the active group and close all others.
+  // Also scrolls the active nav item into view so the sidebar is never "stuck" at
+  // the wrong scroll position (e.g. after the boarding group collapses).
   useEffect(() => {
     const activeGroup = groups.find((g) => isGroupActive(g));
     // Always sync — even when no group is active (non-group pages), close all groups
@@ -201,6 +206,14 @@ export function Sidebar({
       const changed = groups.some((g) => (prev[g.key] ?? false) !== next[g.key]);
       return changed ? next : prev;
     });
+    // After React commits the DOM update (next animation frame), scroll the active
+    // nav item into view so it's always reachable regardless of previous scroll pos.
+    const raf = requestAnimationFrame(() => {
+      navRef.current
+        ?.querySelector<HTMLElement>("[data-nav-active]")
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
@@ -241,6 +254,7 @@ export function Sidebar({
         key={item.href}
         href={item.href}
         onClick={isMobile ? onMobileClose : undefined}
+        data-nav-active={isActive ? "" : undefined}
         className={cn(
           "flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
           isChild && isExpanded && "pr-8",
@@ -424,7 +438,7 @@ export function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="sidebar-nav flex-1 px-3 py-2 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.3) transparent" }}>
+        <nav ref={!isMobile ? navRef : undefined} className="sidebar-nav flex-1 px-3 py-2 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.3) transparent" }}>
           <div className="space-y-0.5">
             {navEntries
               .filter((entry) => canSee(entry, user?.businessRole ?? null, user?.platformRole))
