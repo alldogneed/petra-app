@@ -380,7 +380,7 @@ function TemplatesTab() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/messages/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/messages/${id}`, { method: "DELETE" }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["messages"] });
       toast.success("התבנית נמחקה");
@@ -643,14 +643,14 @@ function AutomationsTab() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive }),
-      }).then((r) => r.json()),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["automations"] }),
     onError: () => toast.error("שגיאה בעדכון האוטומציה. נסה שוב."),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/automations/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/automations/${id}`, { method: "DELETE" }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["automations"] });
       toast.success("האוטומציה נמחקה");

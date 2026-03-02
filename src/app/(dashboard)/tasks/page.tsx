@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   isToday,
   isPast,
@@ -162,7 +162,7 @@ export default function TasksPage() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [showTemplates, setShowTemplates] = useState(false);
   const [showRecurring, setShowRecurring] = useState(false);
-  const [, setTick] = useState(0);
+  const [tick, setTick] = useState(0);
   const queryClient = useQueryClient();
 
   // Auto-refresh every 30 seconds for live status updates
@@ -195,13 +195,20 @@ export default function TasksPage() {
     },
   });
 
+  // Compute each task's status once per data/tick — avoids O(n log n) redundant calls
+  const taskStatuses = useMemo(() => {
+    const map = new Map<string, ComputedStatus>();
+    for (const t of allTasks) map.set(t.id, computeTaskStatus(t));
+    return map;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allTasks, tick]);
+
   // Apply computed status filter + search on client
-  const filteredTasks = allTasks.filter((task) => {
+  const filteredTasks = useMemo(() => allTasks.filter((task) => {
     if (activeFilter !== "ALL") {
       if (activeFilter === "COMPLETED" && task.status !== "COMPLETED") return false;
       if (activeFilter !== "COMPLETED") {
-        const computed = computeTaskStatus(task);
-        if (computed !== activeFilter) return false;
+        if (taskStatuses.get(task.id) !== activeFilter) return false;
       }
     }
     if (searchQuery.trim()) {
@@ -212,29 +219,28 @@ export default function TasksPage() {
       );
     }
     return true;
-  });
+  }), [allTasks, activeFilter, searchQuery, taskStatuses]);
 
   // Sort: overdue first, then active, then scheduled, then completed
-  const sortedTasks = [...filteredTasks].sort((a, b) => {
+  const sortedTasks = useMemo(() => [...filteredTasks].sort((a, b) => {
     const order: Record<ComputedStatus, number> = { overdue: 0, active: 1, scheduled: 2, completed: 3 };
-    const statusA = computeTaskStatus(a);
-    const statusB = computeTaskStatus(b);
+    const statusA = taskStatuses.get(a.id) ?? "scheduled";
+    const statusB = taskStatuses.get(b.id) ?? "scheduled";
     if (order[statusA] !== order[statusB]) return order[statusA] - order[statusB];
-    // Within same status group, sort by due date
     const dateA = a.dueAt || a.dueDate || a.createdAt;
     const dateB = b.dueAt || b.dueDate || b.createdAt;
     return new Date(dateA).getTime() - new Date(dateB).getTime();
-  });
+  }), [filteredTasks, taskStatuses]);
 
   // Count by status for filter badges
-  const statusCounts = allTasks.reduce(
+  const statusCounts = useMemo(() => allTasks.reduce(
     (acc, task) => {
-      const s = computeTaskStatus(task);
+      const s = taskStatuses.get(task.id) ?? "scheduled";
       acc[s] = (acc[s] || 0) + 1;
       return acc;
     },
     {} as Record<string, number>
-  );
+  ), [allTasks, taskStatuses]);
 
   const createMutation = useMutation({
     mutationFn: (data: { title: string; description: string; category: string; priority: string; dueDate: string; dueAt: string }) => {
@@ -251,13 +257,16 @@ export default function TasksPage() {
       if (data.dueDate && data.dueAt) {
         payload.dueAt = new Date(`${data.dueDate}T${data.dueAt}:00`).toISOString();
       }
-      return fetchJSON("/api/tasks", {
+      return fetchJSON<Task>("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
     },
-    onSuccess: () => {
+    onSuccess: (newTask: Task) => {
+      queryClient.setQueryData<Task[]>(["tasks", activeCategory], (old) =>
+        [newTask, ...(old ?? [])]
+      );
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setShowNewTask(false);
@@ -268,28 +277,54 @@ export default function TasksPage() {
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
-      fetchJSON(`/api/tasks/${id}`, {
+      fetchJSON<Task>(`/api/tasks/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ["tasks", activeCategory] });
+      const prev = queryClient.getQueryData<Task[]>(["tasks", activeCategory]);
+      queryClient.setQueryData<Task[]>(["tasks", activeCategory], (old) =>
+        old?.map((t) => t.id === id
+          ? { ...t, status, completedAt: status === "COMPLETED" ? new Date().toISOString() : null }
+          : t) ?? []
+      );
+      return { prev };
+    },
+    onSuccess: (updatedTask: Task) => {
+      // Replace with authoritative server response — no refetch needed
+      queryClient.setQueryData<Task[]>(["tasks", activeCategory], (old) =>
+        old?.map((t) => t.id === updatedTask.id ? updatedTask : t) ?? []
+      );
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
-    onError: () => toast.error("שגיאה בעדכון המשימה. נסה שוב."),
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["tasks", activeCategory], ctx.prev);
+      toast.error("שגיאה בעדכון המשימה. נסה שוב.");
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       fetchJSON(`/api/tasks/${id}`, { method: "DELETE" }),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["tasks", activeCategory] });
+      const prev = queryClient.getQueryData<Task[]>(["tasks", activeCategory]);
+      queryClient.setQueryData<Task[]>(["tasks", activeCategory], (old) =>
+        old?.filter((t) => t.id !== id) ?? []
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["tasks", activeCategory], ctx.prev);
+      toast.error("שגיאה במחיקת המשימה. נסה שוב.");
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setDeleteConfirm(null);
       toast.success("המשימה נמחקה");
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
-    onError: () => toast.error("שגיאה במחיקת המשימה. נסה שוב."),
   });
 
   const bulkCompleteMutation = useMutation({
@@ -316,13 +351,16 @@ export default function TasksPage() {
       } else {
         payload.dueAt = null;
       }
-      return fetchJSON(`/api/tasks/${id}`, {
+      return fetchJSON<Task>(`/api/tasks/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
     },
-    onSuccess: () => {
+    onSuccess: (updatedTask: Task) => {
+      queryClient.setQueryData<Task[]>(["tasks", activeCategory], (old) =>
+        old?.map((t) => t.id === updatedTask.id ? updatedTask : t) ?? []
+      );
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setPostponeTask(null);
@@ -365,13 +403,16 @@ export default function TasksPage() {
       } else {
         payload.dueAt = null;
       }
-      return fetchJSON(`/api/tasks/${id}`, {
+      return fetchJSON<Task>(`/api/tasks/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
     },
-    onSuccess: () => {
+    onSuccess: (updatedTask: Task) => {
+      queryClient.setQueryData<Task[]>(["tasks", activeCategory], (old) =>
+        old?.map((t) => t.id === updatedTask.id ? updatedTask : t) ?? []
+      );
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setEditTask(null);

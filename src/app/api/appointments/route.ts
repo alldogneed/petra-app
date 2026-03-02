@@ -26,10 +26,14 @@ export async function GET(request: NextRequest) {
 
     const appointments = await prisma.appointment.findMany({
       where,
-      include: {
-        service: true,
-        customer: true,
-        pet: true,
+      select: {
+        id: true, date: true, startTime: true, endTime: true,
+        status: true, notes: true, cancellationNote: true,
+        businessId: true, createdAt: true, updatedAt: true,
+        serviceId: true, customerId: true, petId: true,
+        service: { select: { id: true, name: true, color: true, type: true, duration: true, price: true } },
+        customer: { select: { id: true, name: true, phone: true, email: true } },
+        pet: { select: { id: true, name: true, species: true, breed: true } },
       },
       orderBy: { date: "asc" },
       take: 500,
@@ -79,10 +83,14 @@ export async function POST(request: NextRequest) {
         status: "scheduled",
         businessId: authResult.businessId,
       },
-      include: {
-        service: true,
-        customer: true,
-        pet: true,
+      select: {
+        id: true, date: true, startTime: true, endTime: true,
+        status: true, notes: true, cancellationNote: true,
+        businessId: true, createdAt: true, updatedAt: true,
+        serviceId: true, customerId: true, petId: true,
+        service: { select: { id: true, name: true, color: true, type: true, duration: true, price: true } },
+        customer: { select: { id: true, name: true, phone: true, email: true } },
+        pet: { select: { id: true, name: true, species: true, breed: true } },
       },
     });
 

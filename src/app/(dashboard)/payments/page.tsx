@@ -492,7 +492,7 @@ export default function PaymentsPage() {
                       <span className="text-sm font-semibold text-petra-text">
                         {formatCurrency(payment.amount)}
                         {payment.isDeposit && (
-                          <span className="badge-warning text-[9px] mr-1">מקדמה</span>
+                          <span className="badge-warning text-[9px] ms-1">מקדמה</span>
                         )}
                       </span>
                       <span
@@ -671,7 +671,7 @@ export default function PaymentsPage() {
                           {formatCurrency(payment.amount)}
                         </span>
                         {payment.isDeposit && (
-                          <span className="badge-warning text-[9px] mr-1">מקדמה</span>
+                          <span className="badge-warning text-[9px] ms-1">מקדמה</span>
                         )}
                       </td>
                       <td className="table-cell">
@@ -853,10 +853,10 @@ function NewPaymentModal({
     queryFn: () => fetchJSON("/api/customers?full=1"),
   });
 
-  const filteredCustomers = customers.filter(
-    (c) =>
-      c.name.includes(customerSearch) || c.phone.includes(customerSearch)
-  );
+  const filteredCustomers = customers.filter((c) => {
+    const q = customerSearch.toLowerCase();
+    return c.name.toLowerCase().includes(q) || c.phone.includes(customerSearch);
+  });
 
   const createMutation = useMutation({
     mutationFn: (data: typeof form) =>

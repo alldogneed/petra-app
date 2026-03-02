@@ -8,10 +8,10 @@ export const metadata: Metadata = {
   description: "מערכת ניהול מתקדמת לעסקי חיות מחמד - אילוף, פנסיון, טיפוח",
   icons: {
     icon: [
-      { url: "/logo.svg", type: "image/svg+xml" },
       { url: "/favicon.ico", type: "image/x-icon" },
+      { url: "/icon.png", type: "image/png" },
     ],
-    apple: "/logo.svg",
+    apple: "/apple-icon.png",
   },
 };
 

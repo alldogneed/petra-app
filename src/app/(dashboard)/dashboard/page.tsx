@@ -807,7 +807,7 @@ function TopDebtorsWidget({ debtors }: { debtors: DashboardStats["topDebtors"] }
       <div className="divide-y divide-slate-50">
         {debtors.map((debtor) => {
           const waMsg = `שלום ${debtor.name}! 😊\nתזכורת לגבי תשלום ממתין בסך ${formatCurrency(debtor.total)}.\nנשמח לקבל את התשלום בהקדם 🙏`;
-          const waLink = `https://wa.me/${toWhatsAppPhone(debtor.phone)}?text=${encodeURIComponent(waMsg)}`;
+          const waLink = `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(debtor.phone)}&text=${encodeURIComponent(waMsg)}`;
           const sent = sentIds.has(debtor.id);
 
           return (
@@ -871,7 +871,7 @@ function TomorrowReminders({
 
   function sendOne(a: DashboardStats["tomorrowAppointments"][0]) {
     const phone = toWhatsAppPhone(a.customerPhone);
-    window.open(`https://wa.me/${phone}?text=${buildMsg(a)}`, "_blank");
+    window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${buildMsg(a)}`, "_blank");
     setSent((prev) => new Set([...prev, a.id]));
   }
 
@@ -879,7 +879,7 @@ function TomorrowReminders({
     withPhone.forEach((a, i) => {
       setTimeout(() => {
         const phone = toWhatsAppPhone(a.customerPhone);
-        window.open(`https://wa.me/${phone}?text=${buildMsg(a)}`, "_blank");
+        window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${buildMsg(a)}`, "_blank");
         setSent((prev) => new Set([...prev, a.id]));
       }, i * 600);
     });
@@ -1004,7 +1004,7 @@ function BirthdayWidget() {
       <div className="divide-y divide-slate-50">
         {data.birthdays.map((b) => {
           const waMsg = `היי ${b.customerName}! 🎂 יום הולדת שמח ל${b.petName}! ${b.daysUntil === 0 ? "זה היום! 🎉" : `עוד ${b.daysUntil} ימים`} כבר ${b.age} שנה! 🐾`;
-          const waLink = `https://wa.me/${toWhatsAppPhone(b.customerPhone)}?text=${encodeURIComponent(waMsg)}`;
+          const waLink = `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(b.customerPhone)}&text=${encodeURIComponent(waMsg)}`;
 
           return (
             <div
@@ -1061,12 +1061,17 @@ interface VaccinationItem {
   petId: string;
   petName: string;
   species: string;
+  breed: string | null;
   customerId: string;
   customerName: string;
   customerPhone: string;
-  rabiesValidUntil: string;
+  vaccineType: "rabies" | "dhpp" | "deworming";
+  vaccineLabel: string;
+  lastDate: string | null;
+  validUntil: string | null;
   daysUntil: number;
   isExpired: boolean;
+  isUnknown: boolean;
 }
 
 function VaccinationAlertWidget() {
@@ -1116,10 +1121,10 @@ function VaccinationAlertWidget() {
 
       <div className="divide-y divide-slate-50">
         {data.vaccinations.map((v) => {
-          const expiry = v.rabiesValidUntil ? new Date(v.rabiesValidUntil) : null;
+          const expiry = v.validUntil ? new Date(v.validUntil) : null;
           const expiryStr = expiry && !isNaN(expiry.getTime()) ? expiry.toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" }) : "";
-          const waMsg = `שלום ${v.customerName}! 💉\nחיסון הכלבת של ${v.petName} ${v.isExpired ? "פג תוקפו" : `עומד לפוג בתאריך ${expiryStr}`}.\nנא לדאוג לחידוש החיסון בהקדם. 🐾`;
-          const waLink = `https://wa.me/${toWhatsAppPhone(v.customerPhone)}?text=${encodeURIComponent(waMsg)}`;
+          const waMsg = `שלום ${v.customerName}! 💉\nחיסון ${v.vaccineLabel} של ${v.petName} ${v.isExpired ? "פג תוקפו" : `עומד לפוג בתאריך ${expiryStr}`}.\nנא לדאוג לחידוש החיסון בהקדם. 🐾`;
+          const waLink = `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(v.customerPhone)}&text=${encodeURIComponent(waMsg)}`;
           const sent = sentIds.has(v.petId);
 
           return (
@@ -1274,7 +1279,7 @@ function AtRiskCustomersWidget({ customers }: { customers: DashboardStats["atRis
     withPhone.forEach((c, i) => {
       setTimeout(() => {
         const text = encodeURIComponent(buildMsg(c));
-        window.open(`https://wa.me/${toWhatsAppPhone(c.phone)}?text=${text}`, "_blank");
+        window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(c.phone)}&text=${text}`, "_blank");
         setSentIds((prev) => new Set([...prev, c.id]));
         if (i === withPhone.length - 1) setBulkSending(false);
       }, i * 700);
@@ -1320,7 +1325,7 @@ function AtRiskCustomersWidget({ customers }: { customers: DashboardStats["atRis
         {customers.map((c) => {
           const sent = sentIds.has(c.id);
           const waMsg = buildMsg(c);
-          const waLink = `https://wa.me/${toWhatsAppPhone(c.phone)}?text=${encodeURIComponent(waMsg)}`;
+          const waLink = `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(c.phone)}&text=${encodeURIComponent(waMsg)}`;
           const urgency = c.daysSinceVisit >= 120 ? "text-red-600" : "text-orange-600";
 
           return (
@@ -1428,7 +1433,7 @@ function PetBirthdaysWidget({ birthdays }: { birthdays: DashboardStats["upcoming
               </div>
               {pet.customer.phone && (
                 <a
-                  href={`https://wa.me/${toWhatsAppPhone(pet.customer.phone)}?text=${encodeURIComponent(greetingLines)}`}
+                  href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(pet.customer.phone)}&text=${encodeURIComponent(greetingLines)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
@@ -1958,7 +1963,7 @@ export default function DashboardPage() {
                 lines.push(`⚠️ *משימות באיחור: ${data.overdueTasks.length}*`);
               }
               lines.push("✅ *יום טוב לכולם!*");
-              const waUrl = `https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`;
+              const waUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(lines.join("\n"))}`;
               return (
                 <a
                   href={waUrl}
@@ -2103,7 +2108,7 @@ export default function DashboardPage() {
                       <p className="text-[10px] text-petra-muted truncate">{s.customer?.name}{s.room ? ` · ${s.room.name}` : ""}</p>
                     </div>
                     <a
-                      href={`https://wa.me/${toWhatsAppPhone(s.customer?.phone ?? "")}?text=${encodeURIComponent(`שלום ${s.customer?.name}! מזכירים לך שהיום הגעה של ${s.pet?.name} לפנסיון 🐾`)}`}
+                      href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(s.customer?.phone ?? "")}&text=${encodeURIComponent(`שלום ${s.customer?.name}! מזכירים לך שהיום הגעה של ${s.pet?.name} לפנסיון 🐾`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex-shrink-0"
@@ -2135,7 +2140,7 @@ export default function DashboardPage() {
                       <p className="text-[10px] text-petra-muted truncate">{s.customer?.name}{s.room ? ` · ${s.room.name}` : ""}</p>
                     </div>
                     <a
-                      href={`https://wa.me/${toWhatsAppPhone(s.customer?.phone ?? "")}?text=${encodeURIComponent(`שלום ${s.customer?.name}! כלב שלך ${s.pet?.name} מחכה לפיקאפ היום מהפנסיון 🐾`)}`}
+                      href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(s.customer?.phone ?? "")}&text=${encodeURIComponent(`שלום ${s.customer?.name}! כלב שלך ${s.pet?.name} מחכה לפיקאפ היום מהפנסיון 🐾`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex-shrink-0"

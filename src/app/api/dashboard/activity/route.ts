@@ -31,9 +31,16 @@ export async function GET(request: NextRequest) {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const { businessId } = authResult;
 
+    // Get all user IDs that belong to this business
+    const businessMembers = await prisma.businessUser.findMany({
+      where: { businessId },
+      select: { userId: true },
+    });
+    const businessUserIds = businessMembers.map((m) => m.userId);
+
     const [activityLogs, scheduledMessages] = await Promise.all([
       prisma.activityLog.findMany({
-        where: { createdAt: { gte: since } },
+        where: { createdAt: { gte: since }, userId: { in: businessUserIds } },
         orderBy: { createdAt: "desc" },
         take: 30,
       }),

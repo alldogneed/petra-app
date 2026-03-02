@@ -570,7 +570,7 @@ function DraggableLeadCard({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                window.open(`https://wa.me/${toWhatsAppPhone(lead.phone!)}`, "_blank");
+                window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(lead.phone!)}`, "_blank");
               }}
               className="w-7 h-7 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors"
               title="שלח וואטסאפ"
@@ -586,6 +586,7 @@ function DraggableLeadCard({
                   if (converting) return;
                   setConverting(true);
                   onWon();
+                  setTimeout(() => setConverting(false), 4000);
                 }}
                 disabled={converting}
                 className="w-7 h-7 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors disabled:opacity-50"

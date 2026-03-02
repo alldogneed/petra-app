@@ -62,23 +62,19 @@ export async function PATCH(
     }
     const body = parsed.data;
 
+    // Minimal ownership check — only fetch fields needed below
     const existing = await prisma.task.findFirst({
       where: { id, businessId: authResult.businessId },
+      select: { id: true, status: true },
     });
-
     if (!existing) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
     const { title, description, category, priority, status, dueAt, dueDate, relatedEntityType, relatedEntityId, reminderEnabled } = body;
 
-    // If status is changing to COMPLETED, set completedAt automatically
-    const isCompleting =
-      status === "COMPLETED" && existing.status !== "COMPLETED";
-    const isReopening =
-      status !== undefined &&
-      status !== "COMPLETED" &&
-      existing.status === "COMPLETED";
+    const isCompleting = status === "COMPLETED" && existing.status !== "COMPLETED";
+    const isReopening = status !== undefined && status !== "COMPLETED" && existing.status === "COMPLETED";
 
     const task = await prisma.task.update({
       where: { id },
@@ -107,17 +103,17 @@ export async function PATCH(
       undefined;
     if (action) logActivity(session.user.id, session.user.name, action);
 
-    // Write audit log entry
+    // Fire-and-forget audit log — don't block the response
     const auditAction = isCompleting ? "COMPLETED" : isReopening ? "REOPENED" :
       status === "CANCELED" ? "CANCELED" : "UPDATED";
-    await prisma.taskAuditLog.create({
+    prisma.taskAuditLog.create({
       data: {
         taskId: id,
         action: auditAction,
         userId: session.user.id,
         payload: JSON.stringify({ status, title, priority }),
       },
-    });
+    }).catch((err) => console.error("Audit log error:", err));
 
     return NextResponse.json(task);
   } catch (error) {

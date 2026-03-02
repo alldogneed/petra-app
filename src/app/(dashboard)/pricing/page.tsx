@@ -3,33 +3,33 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
-  Plus,
-  Pencil,
-  Trash2,
-  Tag,
-  ChevronLeft,
-  X,
-  Loader2,
-  PackageOpen,
-  ToggleLeft,
-  ToggleRight,
-  ShoppingBag,
-  AlertTriangle,
+  Plus, Pencil, Trash2, Tag, ChevronRight, X,
+  Loader2, PackageOpen, ToggleLeft, ToggleRight,
+  ShoppingBag, AlertTriangle, Clock, Package, Copy,
+  CheckCircle2, XCircle, Link2, CalendarCheck, CreditCard,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
+import { toast } from "sonner";
 
 // ─── Types ───────────────────────────────────────────────────
 
 interface PriceListItem {
   id: string;
   priceListId: string;
+  type: "service" | "product";
   name: string;
   description: string | null;
+  category: string | null;
   unit: string;
   basePrice: number;
   taxMode: string;
+  durationMinutes: number | null;
   isActive: boolean;
   sortOrder: number;
+  paymentUrl: string | null;
+  isBookableOnline: boolean;
+  depositRequired: boolean;
+  depositAmount: number | null;
 }
 
 interface PriceList {
@@ -38,63 +38,47 @@ interface PriceList {
   currency: string;
   isActive: boolean;
   createdAt: string;
-  items: PriceListItem[];
+  _count: { items: number };
 }
 
 // ─── Constants ───────────────────────────────────────────────
 
-const UNIT_OPTIONS = [
-  { value: "יח׳", label: "יחידה (יח׳)" },
-  { value: "שעה", label: "שעה" },
-  { value: "חודש", label: "חודש" },
-  { value: "ביקור", label: "ביקור" },
-  { value: "קג", label: "קילוגרם (ק״ג)" },
+const UNITS: { id: string; label: string }[] = [
+  { id: "per_session", label: "לפגישה" },
+  { id: "per_day", label: "ליום" },
+  { id: "per_night", label: "ללילה" },
+  { id: "per_hour", label: "לשעה" },
+  { id: "per_item", label: "ליחידה" },
+  { id: "fixed", label: "מחיר קבוע" },
 ];
 
-const TAX_MODE_OPTIONS = [
-  { value: "inclusive", label: "כולל מע״מ" },
-  { value: "exclusive", label: "לא כולל מע״מ" },
-  { value: "exempt", label: "פטור ממע״מ" },
-];
+const UNIT_LABEL: Record<string, string> = Object.fromEntries(
+  UNITS.map((u) => [u.id, u.label])
+);
 
-const TAX_MODE_LABELS: Record<string, string> = {
+const TAX_LABELS: Record<string, string> = {
+  taxable: "חייב מע״מ",
+  exempt: "פטור מע״מ",
+  inherit: "לפי הגדרת עסק",
   inclusive: "כולל מע״מ",
   exclusive: "+ מע״מ",
-  exempt: "פטור",
-  inherit: "כולל מע״מ",
 };
 
-const EMPTY_ITEM_FORM = {
-  name: "",
-  description: "",
-  unit: "יח׳",
-  unitPrice: "",
-  taxMode: "inclusive",
-  isActive: true,
-};
+const CATEGORIES = ["אילוף", "טיפוח", "פנסיון", "ייעוץ", "מוצרים", "תוסף", "אחר"];
 
-const EMPTY_LIST_FORM = {
-  name: "",
-  currency: "ILS",
-  isActive: true,
-};
+// ─── New Price List Modal ─────────────────────────────────────
 
-// ─── Modals ───────────────────────────────────────────────────
-
-interface NewPriceListModalProps {
+function NewPriceListModal({
+  onClose,
+  onSave,
+  isSaving,
+}: {
   onClose: () => void;
-  onSave: (data: { name: string; currency: string; isActive: boolean }) => void;
+  onSave: (data: { name: string; currency: string }) => void;
   isSaving: boolean;
-}
-
-function NewPriceListModal({ onClose, onSave, isSaving }: NewPriceListModalProps) {
-  const [form, setForm] = useState(EMPTY_LIST_FORM);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name.trim()) return;
-    onSave(form);
-  };
+}) {
+  const [name, setName] = useState("");
+  const [currency, setCurrency] = useState("ILS");
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -106,14 +90,20 @@ function NewPriceListModal({ onClose, onSave, isSaving }: NewPriceListModalProps
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (name.trim()) onSave({ name: name.trim(), currency });
+          }}
+          className="space-y-4"
+        >
           <div>
             <label className="label">שם המחירון *</label>
             <input
               className="input mt-1"
               placeholder="לדוגמה: מחירון אילוף 2025"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               autoFocus
               required
             />
@@ -123,38 +113,21 @@ function NewPriceListModal({ onClose, onSave, isSaving }: NewPriceListModalProps
             <label className="label">מטבע</label>
             <select
               className="input mt-1"
-              value={form.currency}
-              onChange={(e) => setForm({ ...form, currency: e.target.value })}
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
             >
-              <option value="ILS">שקל (ILS)</option>
-              <option value="USD">דולר (USD)</option>
-              <option value="EUR">יורו (EUR)</option>
+              <option value="ILS">שקל (₪)</option>
+              <option value="USD">דולר ($)</option>
+              <option value="EUR">יורו (€)</option>
             </select>
           </div>
 
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex gap-3 pt-1">
             <button
-              type="button"
-              onClick={() => setForm({ ...form, isActive: !form.isActive })}
-              className={cn(
-                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none",
-                form.isActive ? "bg-brand-500" : "bg-slate-300"
-              )}
+              type="submit"
+              disabled={isSaving || !name.trim()}
+              className="btn-primary flex-1 gap-2 justify-center"
             >
-              <span
-                className={cn(
-                  "inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform",
-                  form.isActive ? "translate-x-4" : "translate-x-1"
-                )}
-              />
-            </button>
-            <label className="text-sm text-petra-text cursor-pointer" onClick={() => setForm({ ...form, isActive: !form.isActive })}>
-              מחירון פעיל
-            </label>
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <button type="submit" disabled={isSaving || !form.name.trim()} className="btn-primary flex-1 gap-2 justify-center">
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               צור מחירון
             </button>
@@ -172,45 +145,52 @@ function NewPriceListModal({ onClose, onSave, isSaving }: NewPriceListModalProps
 
 interface ItemFormData {
   name: string;
-  description: string;
+  type: "service" | "product";
+  category: string;
   unit: string;
-  unitPrice: string;
+  basePrice: string;
+  description: string;
   taxMode: string;
-  isActive: boolean;
+  durationMinutes: string;
+  paymentUrl: string;
+  isBookableOnline: boolean;
+  depositRequired: boolean;
+  depositAmount: string;
 }
 
-interface ItemModalProps {
-  initialData?: PriceListItem | null;
+function ItemModal({
+  item,
+  onClose,
+  onSave,
+  isSaving,
+}: {
+  item?: PriceListItem | null;
   onClose: () => void;
   onSave: (data: ItemFormData) => void;
   isSaving: boolean;
-}
-
-function ItemModal({ initialData, onClose, onSave, isSaving }: ItemModalProps) {
-  const [form, setForm] = useState<ItemFormData>(
-    initialData
-      ? {
-          name: initialData.name,
-          description: initialData.description ?? "",
-          unit: initialData.unit,
-          unitPrice: String(initialData.basePrice),
-          taxMode: initialData.taxMode,
-          isActive: initialData.isActive,
-        }
-      : EMPTY_ITEM_FORM
-  );
-
-  const isEdit = Boolean(initialData);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name.trim() || !form.unitPrice) return;
-    onSave(form);
-  };
+}) {
+  const isEdit = Boolean(item);
+  const [form, setForm] = useState<ItemFormData>({
+    name: item?.name ?? "",
+    type: item?.type ?? "service",
+    category: item?.category ?? "",
+    unit: item?.unit ?? "per_session",
+    basePrice: item?.basePrice?.toString() ?? "",
+    description: item?.description ?? "",
+    taxMode: item?.taxMode ?? "taxable",
+    durationMinutes: item?.durationMinutes?.toString() ?? "",
+    paymentUrl: item?.paymentUrl ?? "",
+    isBookableOnline: item?.isBookableOnline ?? false,
+    depositRequired: item?.depositRequired ?? false,
+    depositAmount: item?.depositAmount?.toString() ?? "",
+  });
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-content max-w-lg max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-petra-text">
             {isEdit ? "עריכת פריט" : "פריט חדש"}
@@ -220,12 +200,42 @@ function ItemModal({ initialData, onClose, onSave, isSaving }: ItemModalProps) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!form.name.trim() || form.basePrice === "") return;
+            onSave(form);
+          }}
+          className="space-y-4"
+        >
+          {/* Type toggle */}
+          <div className="flex gap-2">
+            {(["service", "product"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setForm({ ...form, type: t })}
+                className={cn(
+                  "flex-1 py-2 rounded-xl text-sm font-medium border transition-all flex items-center justify-center gap-2",
+                  form.type === t
+                    ? "border-brand-400 bg-brand-50 text-brand-600"
+                    : "border-petra-border text-petra-muted hover:bg-slate-50"
+                )}
+              >
+                {t === "service" ? (
+                  <><Clock className="w-3.5 h-3.5" /> שירות</>
+                ) : (
+                  <><Package className="w-3.5 h-3.5" /> מוצר</>
+                )}
+              </button>
+            ))}
+          </div>
+
           <div>
-            <label className="label">שם הפריט *</label>
+            <label className="label">שם *</label>
             <input
               className="input mt-1"
-              placeholder="לדוגמה: שיעור פרטי - כלב גדול"
+              placeholder="לדוגמה: שיעור אילוף יחיד"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               autoFocus
@@ -233,18 +243,20 @@ function ItemModal({ initialData, onClose, onSave, isSaving }: ItemModalProps) {
             />
           </div>
 
-          <div>
-            <label className="label">תיאור (אופציונלי)</label>
-            <textarea
-              className="input mt-1 resize-none"
-              rows={2}
-              placeholder="תיאור קצר של השירות..."
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-            />
-          </div>
-
           <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">קטגוריה</label>
+              <input
+                className="input mt-1"
+                list="item-categories"
+                placeholder="לדוגמה: אילוף"
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+              />
+              <datalist id="item-categories">
+                {CATEGORIES.map((c) => <option key={c} value={c} />)}
+              </datalist>
+            </div>
             <div>
               <label className="label">יחידת מידה</label>
               <select
@@ -252,14 +264,14 @@ function ItemModal({ initialData, onClose, onSave, isSaving }: ItemModalProps) {
                 value={form.unit}
                 onChange={(e) => setForm({ ...form, unit: e.target.value })}
               >
-                {UNIT_OPTIONS.map((u) => (
-                  <option key={u.value} value={u.value}>
-                    {u.label}
-                  </option>
+                {UNITS.map((u) => (
+                  <option key={u.id} value={u.id}>{u.label}</option>
                 ))}
               </select>
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">מחיר (₪) *</label>
               <input
@@ -268,56 +280,137 @@ function ItemModal({ initialData, onClose, onSave, isSaving }: ItemModalProps) {
                 min="0"
                 step="0.01"
                 placeholder="0.00"
-                value={form.unitPrice}
-                onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
+                value={form.basePrice}
+                onChange={(e) => setForm({ ...form, basePrice: e.target.value })}
+                dir="ltr"
                 required
               />
             </div>
+            <div>
+              <label className="label">מע״מ</label>
+              <select
+                className="input mt-1"
+                value={form.taxMode}
+                onChange={(e) => setForm({ ...form, taxMode: e.target.value })}
+              >
+                <option value="taxable">חייב מע״מ</option>
+                <option value="exempt">פטור מע״מ</option>
+                <option value="inherit">לפי הגדרת עסק</option>
+              </select>
+            </div>
           </div>
+
+          {form.type === "service" && (
+            <div>
+              <label className="label">משך (דקות)</label>
+              <input
+                className="input mt-1"
+                type="number"
+                min="0"
+                placeholder="60"
+                value={form.durationMinutes}
+                onChange={(e) => setForm({ ...form, durationMinutes: e.target.value })}
+                dir="ltr"
+              />
+            </div>
+          )}
 
           <div>
-            <label className="label">מע״מ</label>
-            <select
-              className="input mt-1"
-              value={form.taxMode}
-              onChange={(e) => setForm({ ...form, taxMode: e.target.value })}
-            >
-              {TAX_MODE_OPTIONS.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
+            <label className="label">תיאור</label>
+            <textarea
+              className="input mt-1 resize-none"
+              rows={2}
+              placeholder="תיאור קצר (אופציונלי)"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
           </div>
 
-          <div className="flex items-center gap-3 pt-1">
-            <button
-              type="button"
-              onClick={() => setForm({ ...form, isActive: !form.isActive })}
-              className={cn(
-                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                form.isActive ? "bg-brand-500" : "bg-slate-300"
-              )}
-            >
-              <span
+          {/* ── קישור תשלום ── */}
+          <div className="rounded-xl border border-petra-border p-4 space-y-3 bg-slate-50/50">
+            <p className="text-xs font-semibold text-petra-text flex items-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5 text-brand-500" />
+              קישור לדף תשלום
+            </p>
+            <input
+              className="input bg-white"
+              type="url"
+              placeholder="https://meshulam.co.il/p/..."
+              value={form.paymentUrl}
+              onChange={(e) => setForm({ ...form, paymentUrl: e.target.value })}
+              dir="ltr"
+            />
+            <p className="text-[11px] text-petra-muted">
+              קישור לדף תשלום של המסלקה שלך (Meshulam, Tranzila, iCount וכו׳). יישלח ללקוח אחרי הזמנה.
+            </p>
+          </div>
+
+          {/* ── תור אונליין ── */}
+          <div className="rounded-xl border border-petra-border p-4 space-y-3 bg-slate-50/50">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-petra-text flex items-center gap-1.5">
+                <CalendarCheck className="w-3.5 h-3.5 text-brand-500" />
+                זמין לתיאום תור אונליין
+              </p>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, isBookableOnline: !form.isBookableOnline })}
                 className={cn(
-                  "inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform",
-                  form.isActive ? "translate-x-4" : "translate-x-1"
+                  "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+                  form.isBookableOnline ? "bg-brand-500" : "bg-slate-300"
                 )}
-              />
-            </button>
-            <label
-              className="text-sm text-petra-text cursor-pointer"
-              onClick={() => setForm({ ...form, isActive: !form.isActive })}
-            >
-              פריט פעיל
-            </label>
+              >
+                <span className={cn(
+                  "inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform",
+                  form.isBookableOnline ? "translate-x-4" : "translate-x-1"
+                )} />
+              </button>
+            </div>
+
+            {form.isBookableOnline && (
+              <>
+                <p className="text-[11px] text-petra-muted">
+                  הפריט יופיע בדף הזמנות האונליין שלך. הלקוח יוכל לבחור את השירות ולתאם תור.
+                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-petra-text">דרוש מקדמה</p>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, depositRequired: !form.depositRequired, depositAmount: "" })}
+                    className={cn(
+                      "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+                      form.depositRequired ? "bg-brand-500" : "bg-slate-300"
+                    )}
+                  >
+                    <span className={cn(
+                      "inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform",
+                      form.depositRequired ? "translate-x-4" : "translate-x-1"
+                    )} />
+                  </button>
+                </div>
+                {form.depositRequired && (
+                  <div>
+                    <label className="label">סכום מקדמה (₪)</label>
+                    <input
+                      className="input mt-1 bg-white"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="50.00"
+                      value={form.depositAmount}
+                      onChange={(e) => setForm({ ...form, depositAmount: e.target.value })}
+                      dir="ltr"
+                    />
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-1">
             <button
               type="submit"
-              disabled={isSaving || !form.name.trim() || !form.unitPrice}
+              disabled={isSaving || !form.name.trim() || form.basePrice === ""}
               className="btn-primary flex-1 gap-2 justify-center"
             >
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
@@ -333,40 +426,123 @@ function ItemModal({ initialData, onClose, onSave, isSaving }: ItemModalProps) {
   );
 }
 
-// ─── Delete Confirm Modal ─────────────────────────────────────
+// ─── Item Row ─────────────────────────────────────────────────
 
-interface ConfirmDeleteModalProps {
-  message: string;
-  onConfirm: () => void;
-  onClose: () => void;
-  isDeleting: boolean;
-}
-
-function ConfirmDeleteModal({ message, onConfirm, onClose, isDeleting }: ConfirmDeleteModalProps) {
+function ItemRow({
+  item,
+  onEdit,
+  onDuplicate,
+  onToggle,
+  onDelete,
+}: {
+  item: PriceListItem;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content max-w-sm" onClick={(e) => e.stopPropagation()}>
-        <div className="flex flex-col items-center gap-4 text-center py-2">
-          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
-            <AlertTriangle className="w-6 h-6 text-red-500" />
-          </div>
-          <p className="text-petra-text font-medium">{message}</p>
-          <p className="text-sm text-petra-muted">פעולה זו היא בלתי הפיכה.</p>
-          <div className="flex gap-3 w-full pt-1">
-            <button
-              type="button"
-              onClick={onConfirm}
-              disabled={isDeleting}
-              className="btn-danger flex-1 gap-2 justify-center"
-            >
-              {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-              מחק
-            </button>
-            <button type="button" onClick={onClose} className="btn-secondary flex-1">
-              ביטול
-            </button>
-          </div>
+    <div
+      className={cn(
+        "flex items-center gap-3 px-4 py-3 border-b border-petra-border hover:bg-slate-50/50 transition-colors group",
+        !item.isActive && "opacity-50"
+      )}
+    >
+      <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 bg-slate-100">
+        {item.type === "service" ? (
+          <Clock className="w-3.5 h-3.5 text-slate-500" />
+        ) : (
+          <Package className="w-3.5 h-3.5 text-slate-500" />
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-semibold text-petra-text">{item.name}</span>
+          {item.category && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-petra-muted font-medium">
+              {item.category}
+            </span>
+          )}
+          {item.durationMinutes ? (
+            <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
+              <Clock className="w-2.5 h-2.5" />{item.durationMinutes}ד׳
+            </span>
+          ) : null}
         </div>
+        {item.description && (
+          <p className="text-xs text-petra-muted truncate mt-0.5">{item.description}</p>
+        )}
+        <p className="text-[10px] text-petra-muted mt-0.5">{UNIT_LABEL[item.unit] ?? item.unit}</p>
+      </div>
+
+      <div className="text-left flex-shrink-0">
+        <p className="text-sm font-bold text-petra-text">{formatCurrency(item.basePrice)}</p>
+        {item.taxMode && item.taxMode !== "inherit" && (
+          <p className="text-[10px] text-petra-muted">{TAX_LABELS[item.taxMode]}</p>
+        )}
+      </div>
+
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {item.isBookableOnline && (
+          <span
+            title="זמין לתיאום תור אונליין"
+            className="w-6 h-6 rounded-lg flex items-center justify-center bg-brand-50 text-brand-500"
+          >
+            <CalendarCheck className="w-3.5 h-3.5" />
+          </span>
+        )}
+        {item.paymentUrl && (
+          <a
+            href={item.paymentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="דף תשלום"
+            className="w-6 h-6 rounded-lg flex items-center justify-center text-emerald-500 hover:bg-emerald-50 transition-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CreditCard className="w-3.5 h-3.5" />
+          </a>
+        )}
+      </div>
+
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          type="button"
+          onClick={onEdit}
+          title="ערוך"
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-all"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onDuplicate}
+          title="שכפל"
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+        >
+          <Copy className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onToggle}
+          title={item.isActive ? "השבת" : "הפעל"}
+          className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+        >
+          {item.isActive ? (
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+          ) : (
+            <XCircle className="w-3.5 h-3.5 text-red-400" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          title="מחק"
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );
@@ -374,68 +550,118 @@ function ConfirmDeleteModal({ message, onConfirm, onClose, isDeleting }: Confirm
 
 // ─── Price List Panel ─────────────────────────────────────────
 
-interface PriceListPanelProps {
+function PriceListPanel({
+  priceList,
+  onClose,
+}: {
   priceList: PriceList;
   onClose: () => void;
-}
-
-function PriceListPanel({ priceList, onClose }: PriceListPanelProps) {
+}) {
   const queryClient = useQueryClient();
   const [showAddItem, setShowAddItem] = useState(false);
   const [editItem, setEditItem] = useState<PriceListItem | null>(null);
-  const [deleteItem, setDeleteItem] = useState<PriceListItem | null>(null);
 
-  // Current data from cache (updated reactively)
-  const { data: lists = [] } = useQuery<PriceList[]>({
-    queryKey: ["pricing"],
-    queryFn: () => fetch("/api/pricing").then((r) => r.json()),
+  const { data: items = [], isLoading } = useQuery<PriceListItem[]>({
+    queryKey: ["price-list-items", priceList.id],
+    queryFn: () =>
+      fetch(`/api/price-lists/${priceList.id}/items?active=false`).then((r) => r.json()),
   });
 
-  const currentList = lists.find((l) => l.id === priceList.id) ?? priceList;
-  const items = currentList.items ?? [];
+  const buildItemPayload = (data: ItemFormData) => ({
+    ...data,
+    basePrice: parseFloat(data.basePrice),
+    durationMinutes: data.durationMinutes ? parseInt(data.durationMinutes) : null,
+    paymentUrl: data.paymentUrl || null,
+    category: data.category || null,
+    depositAmount: data.depositRequired && data.depositAmount ? parseFloat(data.depositAmount) : null,
+  });
 
-  // ── Add Item ──────────────────────────────────────────────
-  const addItemMutation = useMutation({
+  const addMutation = useMutation({
     mutationFn: (data: ItemFormData) =>
-      fetch(`/api/pricing/${priceList.id}/items`, {
+      fetch(`/api/price-lists/${priceList.id}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(buildItemPayload(data)),
       }).then((r) => r.json()),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pricing"] });
+      queryClient.invalidateQueries({ queryKey: ["price-list-items", priceList.id] });
+      queryClient.invalidateQueries({ queryKey: ["price-lists"] });
       setShowAddItem(false);
+      toast.success("פריט נוסף");
     },
+    onError: () => toast.error("שגיאה בהוספת פריט"),
   });
 
-  // ── Edit Item ─────────────────────────────────────────────
-  const editItemMutation = useMutation({
+  const editMutation = useMutation({
     mutationFn: (data: ItemFormData) =>
-      fetch(`/api/pricing/${priceList.id}/items/${editItem!.id}`, {
+      fetch(`/api/price-list-items/${editItem!.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(buildItemPayload(data)),
       }).then((r) => r.json()),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pricing"] });
+      queryClient.invalidateQueries({ queryKey: ["price-list-items", priceList.id] });
       setEditItem(null);
+      toast.success("פריט עודכן");
     },
+    onError: () => toast.error("שגיאה בעדכון פריט"),
   });
 
-  // ── Delete Item ───────────────────────────────────────────
-  const deleteItemMutation = useMutation({
-    mutationFn: () =>
-      fetch(`/api/pricing/${priceList.id}/items/${deleteItem!.id}`, {
-        method: "DELETE",
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      fetch(`/api/price-list-items/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
+      }).then((r) => r.json()),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["price-list-items", priceList.id] }),
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: (item: PriceListItem) =>
+      fetch(`/api/price-lists/${priceList.id}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: `${item.name} (עותק)`,
+          type: item.type,
+          category: item.category,
+          unit: item.unit,
+          basePrice: item.basePrice,
+          taxMode: item.taxMode,
+          durationMinutes: item.durationMinutes,
+          description: item.description,
+          paymentUrl: item.paymentUrl,
+        }),
       }).then((r) => r.json()),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pricing"] });
-      setDeleteItem(null);
+      queryClient.invalidateQueries({ queryKey: ["price-list-items", priceList.id] });
+      queryClient.invalidateQueries({ queryKey: ["price-lists"] });
+      toast.success("פריט שוכפל");
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/price-list-items/${id}`, { method: "DELETE" }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["price-list-items", priceList.id] });
+      queryClient.invalidateQueries({ queryKey: ["price-lists"] });
+      toast.success("פריט נמחק");
+    },
+    onError: () => toast.error("שגיאה במחיקת פריט"),
+  });
+
+  // Group active items by category
   const activeItems = items.filter((i) => i.isActive);
   const inactiveItems = items.filter((i) => !i.isActive);
+  const grouped: Record<string, PriceListItem[]> = {};
+  activeItems.forEach((item) => {
+    const cat = item.category || "כללי";
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(item);
+  });
 
   return (
     <>
@@ -443,22 +669,22 @@ function PriceListPanel({ priceList, onClose }: PriceListPanelProps) {
         {/* Backdrop */}
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose} />
 
-        {/* Panel */}
-        <div className="fixed top-0 left-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col animate-slide-up overflow-hidden">
-          {/* Panel Header */}
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
+        {/* Panel slides in from the right */}
+        <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-white shadow-2xl z-50 flex flex-col overflow-hidden">
+          {/* Header */}
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-white flex-shrink-0">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={onClose}
                 className="btn-ghost p-1.5 rounded-lg"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4" />
               </button>
               <div>
-                <h2 className="text-base font-bold text-petra-text">{currentList.name}</h2>
+                <h2 className="text-base font-bold text-petra-text">{priceList.name}</h2>
                 <p className="text-xs text-petra-muted">
-                  {currentList.currency} · {items.length} פריטים
+                  {priceList.currency} · {items.length} פריטים
                 </p>
               </div>
             </div>
@@ -472,14 +698,20 @@ function PriceListPanel({ priceList, onClose }: PriceListPanelProps) {
             </button>
           </div>
 
-          {/* Items List */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-2">
-            {items.length === 0 ? (
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto">
+            {isLoading ? (
+              <div className="p-4 space-y-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />
+                ))}
+              </div>
+            ) : items.length === 0 ? (
               <div className="empty-state py-16">
                 <div className="empty-state-icon">
                   <PackageOpen className="w-8 h-8" />
                 </div>
-                <p className="text-sm text-petra-muted mt-2">אין פריטים במחירון</p>
+                <p className="text-sm font-semibold text-petra-text mt-2">אין פריטים במחירון</p>
                 <button
                   type="button"
                   onClick={() => setShowAddItem(true)}
@@ -490,146 +722,101 @@ function PriceListPanel({ priceList, onClose }: PriceListPanelProps) {
                 </button>
               </div>
             ) : (
-              <>
-                {activeItems.length > 0 && (
-                  <div className="space-y-2">
-                    {activeItems.map((item) => (
+              <div>
+                {Object.entries(grouped).map(([cat, catItems]) => (
+                  <div key={cat}>
+                    <div className="px-4 py-2 bg-slate-50/80 border-b border-petra-border">
+                      <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">
+                        {cat}
+                      </span>
+                      <span className="text-xs text-slate-400 mr-2">({catItems.length})</span>
+                    </div>
+                    {catItems.map((item) => (
                       <ItemRow
                         key={item.id}
                         item={item}
-                        currency={currentList.currency}
                         onEdit={() => setEditItem(item)}
-                        onDelete={() => setDeleteItem(item)}
+                        onDuplicate={() => duplicateMutation.mutate(item)}
+                        onToggle={() =>
+                          toggleMutation.mutate({ id: item.id, isActive: !item.isActive })
+                        }
+                        onDelete={() => {
+                          if (confirm(`למחוק את "${item.name}"?`)) {
+                            deleteMutation.mutate(item.id);
+                          }
+                        }}
                       />
                     ))}
                   </div>
-                )}
+                ))}
 
                 {inactiveItems.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-petra-muted pt-2 pb-1">לא פעיל</p>
+                  <div>
+                    <div className="px-4 py-2 bg-slate-50/80 border-b border-petra-border">
+                      <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">
+                        לא פעיל
+                      </span>
+                      <span className="text-xs text-slate-400 mr-2">({inactiveItems.length})</span>
+                    </div>
                     {inactiveItems.map((item) => (
                       <ItemRow
                         key={item.id}
                         item={item}
-                        currency={currentList.currency}
                         onEdit={() => setEditItem(item)}
-                        onDelete={() => setDeleteItem(item)}
-                        dimmed
+                        onDuplicate={() => duplicateMutation.mutate(item)}
+                        onToggle={() =>
+                          toggleMutation.mutate({ id: item.id, isActive: !item.isActive })
+                        }
+                        onDelete={() => {
+                          if (confirm(`למחוק את "${item.name}"?`)) {
+                            deleteMutation.mutate(item.id);
+                          }
+                        }}
                       />
                     ))}
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Modals */}
       {showAddItem && (
         <ItemModal
           onClose={() => setShowAddItem(false)}
-          onSave={(data) => addItemMutation.mutate(data)}
-          isSaving={addItemMutation.isPending}
+          onSave={(data) => addMutation.mutate(data)}
+          isSaving={addMutation.isPending}
         />
       )}
 
       {editItem && (
         <ItemModal
-          initialData={editItem}
+          item={editItem}
           onClose={() => setEditItem(null)}
-          onSave={(data) => editItemMutation.mutate(data)}
-          isSaving={editItemMutation.isPending}
-        />
-      )}
-
-      {deleteItem && (
-        <ConfirmDeleteModal
-          message={`האם למחוק את הפריט "${deleteItem.name}"?`}
-          onConfirm={() => deleteItemMutation.mutate()}
-          onClose={() => setDeleteItem(null)}
-          isDeleting={deleteItemMutation.isPending}
+          onSave={(data) => editMutation.mutate(data)}
+          isSaving={editMutation.isPending}
         />
       )}
     </>
   );
 }
 
-// ─── Item Row ─────────────────────────────────────────────────
-
-interface ItemRowProps {
-  item: PriceListItem;
-  currency: string;
-  onEdit: () => void;
-  onDelete: () => void;
-  dimmed?: boolean;
-}
-
-function ItemRow({ item, onEdit, onDelete, dimmed }: ItemRowProps) {
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between p-3.5 rounded-xl border border-slate-100 bg-white hover:border-slate-200 transition-all group",
-        dimmed && "opacity-60"
-      )}
-    >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold text-petra-text truncate">{item.name}</p>
-          {item.taxMode && (
-            <span className="badge badge-neutral text-[10px] shrink-0">
-              {TAX_MODE_LABELS[item.taxMode] ?? item.taxMode}
-            </span>
-          )}
-        </div>
-        {item.description && (
-          <p className="text-xs text-petra-muted mt-0.5 truncate">{item.description}</p>
-        )}
-        <p className="text-xs text-petra-muted mt-0.5">{item.unit}</p>
-      </div>
-
-      <div className="flex items-center gap-3 mr-3">
-        <p className="text-sm font-bold text-petra-text whitespace-nowrap">
-          {formatCurrency(item.basePrice)}
-        </p>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            type="button"
-            onClick={onEdit}
-            className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors"
-            title="ערוך"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
-            title="מחק"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Price List Card ──────────────────────────────────────────
 
-interface PriceListCardProps {
+function PriceListCard({
+  list,
+  onOpen,
+  onToggleActive,
+  onDelete,
+  isTogglingActive,
+}: {
   list: PriceList;
   onOpen: () => void;
   onToggleActive: () => void;
   onDelete: () => void;
   isTogglingActive: boolean;
-}
-
-function PriceListCard({ list, onOpen, onToggleActive, onDelete, isTogglingActive }: PriceListCardProps) {
-  const activeItems = list.items?.filter((i) => i.isActive).length ?? 0;
-  const totalItems = list.items?.length ?? 0;
-
+}) {
   return (
     <div
       className={cn(
@@ -638,8 +825,8 @@ function PriceListCard({ list, onOpen, onToggleActive, onDelete, isTogglingActiv
       )}
       onClick={onOpen}
     >
-      {/* Active/inactive indicator */}
-      <div className="absolute top-3 left-3">
+      {/* Status dot */}
+      <div className="absolute top-3.5 left-4">
         <span
           className={cn(
             "inline-block w-2 h-2 rounded-full",
@@ -650,16 +837,16 @@ function PriceListCard({ list, onOpen, onToggleActive, onDelete, isTogglingActiv
 
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
             <Tag className="w-5 h-5 text-brand-500" />
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-petra-text">{list.name}</h3>
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold text-petra-text truncate">{list.name}</h3>
             <p className="text-xs text-petra-muted mt-0.5">{list.currency}</p>
           </div>
         </div>
 
-        {/* Actions — shown on hover */}
+        {/* Actions on hover */}
         <div
           className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={(e) => e.stopPropagation()}
@@ -695,27 +882,19 @@ function PriceListCard({ list, onOpen, onToggleActive, onDelete, isTogglingActiv
         </div>
       </div>
 
-      <div className="mt-4 flex items-center gap-4">
+      <div className="mt-4 flex items-end justify-between">
         <div>
-          <p className="text-lg font-bold text-petra-text">{totalItems}</p>
+          <p className="text-2xl font-bold text-petra-text">{list._count.items}</p>
           <p className="text-xs text-petra-muted">פריטים</p>
         </div>
-        {totalItems > 0 && (
-          <div>
-            <p className="text-lg font-bold text-emerald-600">{activeItems}</p>
-            <p className="text-xs text-petra-muted">פעילים</p>
-          </div>
-        )}
-        <div className="mr-auto">
-          <span
-            className={cn(
-              "badge text-xs",
-              list.isActive ? "badge-success" : "badge-neutral"
-            )}
-          >
-            {list.isActive ? "פעיל" : "לא פעיל"}
-          </span>
-        </div>
+        <span
+          className={cn(
+            "badge text-xs",
+            list.isActive ? "badge-success" : "badge-neutral"
+          )}
+        >
+          {list.isActive ? "פעיל" : "לא פעיל"}
+        </span>
       </div>
 
       <p className="text-xs text-petra-muted mt-3 border-t border-slate-100 pt-3">
@@ -725,68 +904,101 @@ function PriceListCard({ list, onOpen, onToggleActive, onDelete, isTogglingActiv
   );
 }
 
+// ─── Confirm Delete Modal ─────────────────────────────────────
+
+function ConfirmDeleteModal({
+  message,
+  onConfirm,
+  onClose,
+  isDeleting,
+}: {
+  message: string;
+  onConfirm: () => void;
+  onClose: () => void;
+  isDeleting: boolean;
+}) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="flex flex-col items-center gap-4 text-center py-2">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+            <AlertTriangle className="w-6 h-6 text-red-500" />
+          </div>
+          <p className="text-petra-text font-medium">{message}</p>
+          <p className="text-sm text-petra-muted">פעולה זו היא בלתי הפיכה.</p>
+          <div className="flex gap-3 w-full pt-1">
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={isDeleting}
+              className="btn-danger flex-1 gap-2 justify-center"
+            >
+              {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              מחק
+            </button>
+            <button type="button" onClick={onClose} className="btn-secondary flex-1">
+              ביטול
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────
 
 export default function PricingPage() {
   const queryClient = useQueryClient();
-
   const [showNewList, setShowNewList] = useState(false);
   const [selectedList, setSelectedList] = useState<PriceList | null>(null);
   const [deleteList, setDeleteList] = useState<PriceList | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
-  // ── Query ─────────────────────────────────────────────────
-
   const { data: priceLists = [], isLoading } = useQuery<PriceList[]>({
-    queryKey: ["pricing"],
-    queryFn: () => fetch("/api/pricing").then((r) => r.json()),
+    queryKey: ["price-lists"],
+    queryFn: () => fetch("/api/price-lists").then((r) => r.json()),
   });
 
-  // ── Mutations ─────────────────────────────────────────────
-
-  const createListMutation = useMutation({
-    mutationFn: (data: { name: string; currency: string; isActive: boolean }) =>
-      fetch("/api/pricing", {
+  const createMutation = useMutation({
+    mutationFn: (data: { name: string; currency: string }) =>
+      fetch("/api/price-lists", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }).then((r) => r.json()),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pricing"] });
+      queryClient.invalidateQueries({ queryKey: ["price-lists"] });
       setShowNewList(false);
+      toast.success("מחירון נוצר");
     },
+    onError: () => toast.error("שגיאה ביצירת מחירון"),
   });
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      fetch(`/api/pricing/${id}`, {
+      fetch(`/api/price-lists/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive }),
       }).then((r) => r.json()),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pricing"] });
+      queryClient.invalidateQueries({ queryKey: ["price-lists"] });
       setTogglingId(null);
     },
+    onError: () => toast.error("שגיאה בעדכון מחירון"),
   });
 
-  const deleteListMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/pricing/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/price-lists/${id}`, { method: "DELETE" }).then((r) => r.json()),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pricing"] });
+      queryClient.invalidateQueries({ queryKey: ["price-lists"] });
       setDeleteList(null);
+      toast.success("מחירון נמחק");
     },
+    onError: () => toast.error("שגיאה במחיקת מחירון"),
   });
-
-  // ── Handlers ──────────────────────────────────────────────
-
-  const handleToggleActive = (list: PriceList) => {
-    setTogglingId(list.id);
-    toggleActiveMutation.mutate({ id: list.id, isActive: !list.isActive });
-  };
-
-  // ── Render ────────────────────────────────────────────────
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
@@ -795,7 +1007,7 @@ export default function PricingPage() {
         <div>
           <h1 className="page-title">מחירונים</h1>
           <p className="text-sm text-petra-muted mt-1">
-            נהל את רשימות המחירים, השירותים ועלויות הטיפול
+            נהל רשימות מחירים, שירותים ומוצרים
           </p>
         </div>
         <button
@@ -810,9 +1022,10 @@ export default function PricingPage() {
 
       {/* Content */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-20 gap-2 text-petra-muted text-sm">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          טוען מחירונים...
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-36 bg-slate-100 rounded-2xl animate-pulse" />
+          ))}
         </div>
       ) : priceLists.length === 0 ? (
         <div className="empty-state py-20">
@@ -839,7 +1052,10 @@ export default function PricingPage() {
               key={list.id}
               list={list}
               onOpen={() => setSelectedList(list)}
-              onToggleActive={() => handleToggleActive(list)}
+              onToggleActive={() => {
+                setTogglingId(list.id);
+                toggleActiveMutation.mutate({ id: list.id, isActive: !list.isActive });
+              }}
               onDelete={() => setDeleteList(list)}
               isTogglingActive={togglingId === list.id}
             />
@@ -847,16 +1063,14 @@ export default function PricingPage() {
         </div>
       )}
 
-      {/* New Price List Modal */}
       {showNewList && (
         <NewPriceListModal
           onClose={() => setShowNewList(false)}
-          onSave={(data) => createListMutation.mutate(data)}
-          isSaving={createListMutation.isPending}
+          onSave={(data) => createMutation.mutate(data)}
+          isSaving={createMutation.isPending}
         />
       )}
 
-      {/* Price List Panel (items) */}
       {selectedList && (
         <PriceListPanel
           priceList={selectedList}
@@ -864,13 +1078,12 @@ export default function PricingPage() {
         />
       )}
 
-      {/* Delete Price List Confirm */}
       {deleteList && (
         <ConfirmDeleteModal
           message={`האם למחוק את המחירון "${deleteList.name}" וכל הפריטים שבו?`}
-          onConfirm={() => deleteListMutation.mutate(deleteList.id)}
+          onConfirm={() => deleteMutation.mutate(deleteList.id)}
           onClose={() => setDeleteList(null)}
-          isDeleting={deleteListMutation.isPending}
+          isDeleting={deleteMutation.isPending}
         />
       )}
     </div>

@@ -31,24 +31,29 @@ export async function GET(
           include: {
             health: true,
             behavior: true,
-            medications: { orderBy: { createdAt: "desc" } },
+            medications: { orderBy: { createdAt: "desc" }, take: 50 },
           },
         },
         appointments: {
-          include: {
-            service: { select: { name: true, color: true } },
-            pet: { select: { name: true, species: true } },
+          select: {
+            id: true, date: true, startTime: true, endTime: true,
+            status: true, notes: true, cancellationNote: true,
+            service: { select: { id: true, name: true, color: true } },
+            pet: { select: { id: true, name: true, species: true } },
           },
           orderBy: { date: "desc" },
           take: 20,
         },
         payments: {
-          include: {
+          select: {
+            id: true, amount: true, status: true, method: true,
+            paidAt: true, createdAt: true, notes: true, isDeposit: true,
             appointment: {
-              include: { service: { select: { name: true } } },
+              select: { id: true, date: true, service: { select: { name: true } } },
             },
             boardingStay: {
-              include: {
+              select: {
+                id: true,
                 pet: { select: { name: true } },
                 room: { select: { name: true } },
               },
@@ -58,23 +63,35 @@ export async function GET(
           take: 20,
         },
         orders: {
-          include: {
-            lines: true,
+          select: {
+            id: true, status: true, total: true, createdAt: true,
+            lines: {
+              select: {
+                id: true, name: true, quantity: true,
+                unitPrice: true, lineTotal: true,
+              },
+            },
             payments: { select: { id: true, amount: true, status: true } },
           },
           orderBy: { createdAt: "desc" },
           take: 20,
         },
         trainingPrograms: {
-          include: {
+          select: {
+            id: true, status: true, startDate: true, createdAt: true,
             dog: { select: { name: true } },
-            goals: { orderBy: { sortOrder: "asc" } },
+            goals: {
+              select: { id: true, title: true, status: true, progressPercent: true, sortOrder: true },
+              orderBy: { sortOrder: "asc" },
+              take: 30,
+            },
             sessions: { where: { status: "COMPLETED" }, select: { id: true } },
           },
           orderBy: { createdAt: "desc" },
           take: 10,
         },
         timelineEvents: {
+          select: { id: true, type: true, description: true, metadata: true, createdAt: true },
           orderBy: { createdAt: "desc" },
           take: 20,
         },

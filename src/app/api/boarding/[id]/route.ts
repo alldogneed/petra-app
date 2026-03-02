@@ -56,9 +56,10 @@ export async function PATCH(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    // Verify stay belongs to this business
+    // Verify stay belongs to this business (minimal select — only fields used below)
     const existing = await prisma.boardingStay.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
+      select: { id: true, notes: true, status: true, roomId: true, businessId: true },
     });
     if (!existing) {
       return NextResponse.json({ error: "שהייה לא נמצאה" }, { status: 404 });
@@ -100,9 +101,19 @@ export async function PATCH(
         ...(body.roomId !== undefined && { roomId: body.roomId }),
         ...(notesUpdate !== undefined && { notes: notesUpdate }),
       },
-      include: {
-        room: true,
-        pet: true,
+      select: {
+        id: true, checkIn: true, checkOut: true, status: true, notes: true,
+        businessId: true, customerId: true, petId: true, roomId: true,
+        room: { select: { id: true, name: true } },
+        pet: {
+          select: {
+            id: true, name: true, species: true, breed: true,
+            foodNotes: true, medicalNotes: true,
+            health: { select: { allergies: true, medicalConditions: true, activityLimitations: true } },
+            behavior: { select: { dogAggression: true, humanAggression: true, biteHistory: true, biteDetails: true, separationAnxiety: true, leashReactivity: true, resourceGuarding: true } },
+            medications: { select: { medName: true, dosage: true, frequency: true, times: true } },
+          },
+        },
         customer: { select: { id: true, name: true, phone: true } },
       },
     });

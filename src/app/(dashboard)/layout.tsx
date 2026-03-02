@@ -18,24 +18,24 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  // Block access if user hasn't accepted the current ToS version
-  const consent = await prisma.userConsent.findFirst({
-    where: { userId: user.id, termsVersion: CURRENT_TOS_VERSION },
-  });
+  // Run ToS and onboarding checks in parallel to avoid sequential DB round-trips
+  const [consent, progress] = await Promise.all([
+    prisma.userConsent.findFirst({
+      where: { userId: user.id, termsVersion: CURRENT_TOS_VERSION },
+      select: { id: true },
+    }),
+    prisma.onboardingProgress.findUnique({
+      where: { userId: user.id },
+      select: { completedAt: true },
+    }),
+  ]);
+
   if (!consent) {
     redirect("/tos-accept");
   }
 
-  const progress = await prisma.onboardingProgress.findUnique({
-    where: { userId: user.id },
-  });
-
-  // If onboarding exists but not completed, redirect to /onboarding
-  if (progress && !progress.completedAt) {
-    redirect("/onboarding");
-  }
-  // If no progress record exists at all, redirect to /onboarding
-  if (!progress) {
+  // If onboarding exists but not completed, or doesn't exist at all → redirect
+  if (!progress || !progress.completedAt) {
     redirect("/onboarding");
   }
 

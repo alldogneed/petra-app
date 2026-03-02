@@ -34,6 +34,9 @@ export async function PATCH(
     if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
     if (body.sortOrder !== undefined) data.sortOrder = Number(body.sortOrder);
     if (body.paymentUrl !== undefined) data.paymentUrl = body.paymentUrl || null;
+    if (body.isBookableOnline !== undefined) data.isBookableOnline = Boolean(body.isBookableOnline);
+    if (body.depositRequired !== undefined) data.depositRequired = Boolean(body.depositRequired);
+    if (body.depositAmount !== undefined) data.depositAmount = body.depositAmount ? Number(body.depositAmount) : null;
 
     const item = await prisma.priceListItem.update({
       where: { id: params.id },

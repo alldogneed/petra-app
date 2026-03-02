@@ -766,40 +766,26 @@ function PetDocumentsModal({
 // ─── Edit Customer Modal ─────────────────────────────────────────────────────
 
 function WhatsAppComposeModal({
-  customerId,
   customerName,
+  customerPhone,
   onClose,
   onSent,
 }: {
-  customerId: string;
   customerName: string;
+  customerPhone: string;
   onClose: () => void;
   onSent: () => void;
 }) {
   const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
 
-  async function handleSend() {
+  function handleSend() {
     if (!message.trim()) return;
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/customers/${customerId}/whatsapp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: message.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "שגיאה בשליחה"); return; }
-      setSent(true);
-      setTimeout(onSent, 1200);
-    } catch {
-      setError("שגיאת רשת");
-    } finally {
-      setLoading(false);
-    }
+    if (!customerPhone) { setError("אין מספר טלפון ללקוח"); return; }
+    const phone = toWhatsAppPhone(customerPhone);
+    const url = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message.trim())}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    onSent();
   }
 
   return (
@@ -821,45 +807,41 @@ function WhatsAppComposeModal({
           </button>
         </div>
 
-        {sent ? (
-          <div className="flex flex-col items-center gap-3 py-6">
-            <CheckCircle2 className="w-10 h-10 text-emerald-500" />
-            <p className="text-sm font-medium text-petra-text">ההודעה נשלחה!</p>
+        <div className="space-y-4">
+          <div>
+            <label className="label">הודעה</label>
+            <textarea
+              className="input resize-none"
+              rows={5}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder={`שלום ${customerName}, ...`}
+              maxLength={1500}
+              dir="rtl"
+              autoFocus
+            />
+            <p className="text-xs text-petra-muted mt-1 text-left">{message.length}/1500</p>
           </div>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <label className="label">הודעה</label>
-              <textarea
-                className="input resize-none"
-                rows={5}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder={`שלום ${customerName}, ...`}
-                maxLength={1500}
-                dir="rtl"
-                autoFocus
-              />
-              <p className="text-xs text-petra-muted mt-1 text-left">{message.length}/1500</p>
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              {error}
             </div>
-            {error && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                {error}
-              </div>
-            )}
-            <div className="flex justify-end gap-3">
-              <button onClick={onClose} className="btn-secondary">ביטול</button>
-              <button
-                onClick={handleSend}
-                disabled={loading || !message.trim()}
-                className="btn-primary flex items-center gap-2"
-              >
-                {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> שולח...</> : <><Send className="w-4 h-4" /> שלח הודעה</>}
-              </button>
-            </div>
+          )}
+          <p className="text-xs text-petra-muted">
+            לחיצה על &quot;שלח&quot; תפתח את WhatsApp עם ההודעה המוכנה לשליחה
+          </p>
+          <div className="flex justify-end gap-3">
+            <button onClick={onClose} className="btn-secondary">ביטול</button>
+            <button
+              onClick={handleSend}
+              disabled={!message.trim()}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Send className="w-4 h-4" /> שלח הודעה
+            </button>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
@@ -2582,7 +2564,7 @@ export default function CustomerProfilePage() {
                 const data = await res.json();
                 if (data.url && customer.phone) {
                   const msg = `שלום ${customer.name}! 📋\nאנא מלא טופס קבלה עבור הכלב שלך:\n${data.url}\nהקישור בתוקף ל-7 ימים. תודה! 🐾`;
-                  window.open(`https://wa.me/${toWhatsAppPhone(customer.phone)}?text=${encodeURIComponent(msg)}`, "_blank");
+                  window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(customer.phone)}&text=${encodeURIComponent(msg)}`, "_blank");
                 }
               } finally {
                 setIntakeSending(false);
@@ -2594,7 +2576,7 @@ export default function CustomerProfilePage() {
           </button>
           {user?.businessSlug && customer.phone && (
             <a
-              href={`https://wa.me/${toWhatsAppPhone(customer.phone)}?text=${encodeURIComponent(
+              href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(customer.phone)}&text=${encodeURIComponent(
                 `שלום ${customer.name}! 📅\nקבע/י תור אונליין בקישור הבא:\n${window?.location?.origin || ""}/book/${user.businessSlug}\nנשמח לראותך! 🐾`
               )}`}
               target="_blank"
@@ -2661,7 +2643,7 @@ export default function CustomerProfilePage() {
             <div className="space-y-3">
               <div className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-petra-muted flex-shrink-0" />
-                <span className="text-sm">{customer.phone}</span>
+                <a href={`tel:${customer.phone}`} className="text-sm hover:underline">{customer.phone}</a>
                 <div className="ms-auto flex items-center gap-1.5">
                   <button
                     onClick={() => setShowWaCompose(true)}
@@ -2672,26 +2654,28 @@ export default function CustomerProfilePage() {
                     שלח
                   </button>
                   <a
-                    href={`https://wa.me/${toWhatsAppPhone(customer.phone)}`}
+                    href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(customer.phone)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 transition-colors"
-                    title="פתח WhatsApp"
+                    title="פתח WhatsApp Web"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
                   </a>
                 </div>
               </div>
               {customer.email && (
-                <button
-                  onClick={() => { window.location.href = `mailto:${customer.email}`; }}
-                  className="flex items-center gap-2.5 group cursor-pointer"
+                <a
+                  href={`https://mail.google.com/mail/?view=cm&to=${customer.email}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 group"
                 >
                   <Mail className="w-4 h-4 text-petra-muted flex-shrink-0 group-hover:text-brand-600 transition-colors" />
                   <span className="text-sm break-all text-brand-600 group-hover:text-brand-700 group-hover:underline transition-colors">
                     {customer.email}
                   </span>
-                </button>
+                </a>
               )}
               {customer.address && (
                 <div className="flex items-center gap-2.5">
@@ -3755,13 +3739,10 @@ export default function CustomerProfilePage() {
       />
       {showWaCompose && (
         <WhatsAppComposeModal
-          customerId={customer.id}
           customerName={customer.name}
+          customerPhone={customer.phone}
           onClose={() => setShowWaCompose(false)}
-          onSent={() => {
-            setShowWaCompose(false);
-            queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
-          }}
+          onSent={() => setShowWaCompose(false)}
         />
       )}
       {selectedPetDocs && (

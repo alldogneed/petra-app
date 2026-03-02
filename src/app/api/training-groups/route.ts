@@ -8,8 +8,10 @@ export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { searchParams } = new URL(request.url);
+    const activeOnly = searchParams.get("active") === "true";
     const groups = await prisma.trainingGroup.findMany({
-      where: { businessId: authResult.businessId },
+      where: { businessId: authResult.businessId, ...(activeOnly && { isActive: true }) },
       include: {
         participants: {
           include: {

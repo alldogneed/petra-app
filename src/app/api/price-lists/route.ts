@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const priceLists = await prisma.priceList.findMany({
       where: { businessId: authResult.businessId },
       orderBy: { createdAt: "desc" },
+      include: { _count: { select: { items: true } } },
     });
     return NextResponse.json(priceLists);
   } catch (error) {

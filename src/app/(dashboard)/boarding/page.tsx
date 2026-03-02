@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback, memo } from "react";
 import Link from "next/link";
 import {
   DndContext,
@@ -220,7 +220,7 @@ function StayProgress({ checkIn, checkOut }: { checkIn: string; checkOut: string
 
 // ─── Room Status Card (Grid View) ───────────────────────────────────────────
 
-function RoomStatusCard({
+const RoomStatusCard = memo(function RoomStatusCard({
   room,
   onCheckin,
   onCheckout,
@@ -382,7 +382,7 @@ function RoomStatusCard({
       </div>
     </div>
   );
-}
+});
 
 // ─── Timeline / Gantt View ──────────────────────────────────────────────────
 
@@ -601,7 +601,7 @@ function TimelineView({
 
 // ─── Draggable Stay wrapper for Grid View ───────────────────────────────────
 
-function DraggableStayInRoom({ stayId, children }: { stayId: string; children: React.ReactNode }) {
+const DraggableStayInRoom = memo(function DraggableStayInRoom({ stayId, children }: { stayId: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: stayId });
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
   return (
@@ -615,11 +615,11 @@ function DraggableStayInRoom({ stayId, children }: { stayId: string; children: R
       {children}
     </div>
   );
-}
+});
 
 // ─── Unassigned Stays Card (droppable, for Grid View) ───────────────────────
 
-function UnassignedGridCard({
+const UnassignedGridCard = memo(function UnassignedGridCard({
   stays,
   onCheckin,
   onCheckout,
@@ -698,7 +698,7 @@ function UnassignedGridCard({
       </div>
     </div>
   );
-}
+});
 
 
 // ─── Stay Row (list view) ────────────────────────────────────────────────────
@@ -1474,8 +1474,23 @@ export default function BoardingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       }).then((r) => r.json()),
-    onSuccess: (_, payload) => {
-      queryClient.invalidateQueries({ queryKey: ["boarding"] });
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: ["boarding"] });
+      const prev = queryClient.getQueryData<BoardingStay[]>(["boarding"]);
+      queryClient.setQueryData<BoardingStay[]>(["boarding"], (old) =>
+        old?.map((s) => s.id === payload.id ? { ...s, status: payload.status } : s) ?? []
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["boarding"], ctx.prev);
+      toast.error("שגיאה בעדכון הסטטוס. נסה שוב.");
+    },
+    onSuccess: (updatedStay: BoardingStay, payload) => {
+      // Merge server response into cache (may include updated notes/times)
+      queryClient.setQueryData<BoardingStay[]>(["boarding"], (old) =>
+        old?.map((s) => s.id === updatedStay.id ? updatedStay : s) ?? []
+      );
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       if (payload.status === "checked_in") {
         const stay = checkinDialogStay;
@@ -1513,7 +1528,6 @@ export default function BoardingPage() {
       setCheckinDialogStay(null);
       setCheckoutDialogStay(null);
     },
-    onError: () => toast.error("שגיאה בעדכון הסטטוס. נסה שוב."),
   });
 
   const roomMutation = useMutation({
@@ -1523,11 +1537,67 @@ export default function BoardingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ roomId }),
       }).then((r) => r.json()),
-    onSuccess: () => {
+    onMutate: async ({ id, roomId }) => {
+      await queryClient.cancelQueries({ queryKey: ["boarding"] });
+      await queryClient.cancelQueries({ queryKey: ["rooms"] });
+
+      const prev = queryClient.getQueryData<BoardingStay[]>(["boarding"]);
+      const prevRooms = queryClient.getQueryData<Room[]>(["rooms"]);
+
+      const targetRoom = roomId ? (prevRooms?.find((r) => r.id === roomId) ?? null) : null;
+
+      // Update boarding cache
+      queryClient.setQueryData<BoardingStay[]>(["boarding"], (old) =>
+        old?.map((s) => s.id === id
+          ? { ...s, room: targetRoom ? { id: targetRoom.id, name: targetRoom.name } : null }
+          : s) ?? []
+      );
+
+      // Update rooms cache so grid cards update instantly
+      const stayToMove = prev?.find((s) => s.id === id);
+      if (stayToMove) {
+        queryClient.setQueryData<Room[]>(["rooms"], (old) =>
+          old?.map((r) => {
+            if (stayToMove.room?.id === r.id) {
+              // Remove from old room
+              return {
+                ...r,
+                boardingStays: r.boardingStays.filter((s) => s.id !== id),
+                _count: { ...r._count, boardingStays: Math.max(0, r._count.boardingStays - 1) },
+              };
+            }
+            if (roomId && r.id === roomId) {
+              // Add to new room
+              const roomStay: RoomStay = {
+                id: stayToMove.id,
+                checkIn: stayToMove.checkIn,
+                checkOut: stayToMove.checkOut,
+                status: stayToMove.status,
+                pet: { id: stayToMove.pet.id, name: stayToMove.pet.name, breed: stayToMove.pet.breed, species: stayToMove.pet.species },
+                customer: stayToMove.customer,
+              };
+              return {
+                ...r,
+                boardingStays: [...r.boardingStays, roomStay],
+                _count: { ...r._count, boardingStays: r._count.boardingStays + 1 },
+              };
+            }
+            return r;
+          }) ?? []
+        );
+      }
+
+      return { prev, prevRooms };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["boarding"], ctx.prev);
+      if (ctx?.prevRooms) queryClient.setQueryData(["rooms"], ctx.prevRooms);
+      toast.error("שגיאה בשיוך החדר. נסה שוב.");
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
     },
-    onError: () => toast.error("שגיאה בשיוך החדר. נסה שוב."),
   });
 
   const markCleanMutation = useMutation({
@@ -1537,27 +1607,52 @@ export default function BoardingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "available" }),
       }).then((r) => r.json()),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      toast.success("החדר סומן כנקי");
+    onMutate: async (roomId) => {
+      await queryClient.cancelQueries({ queryKey: ["rooms"] });
+      const prev = queryClient.getQueryData<Room[]>(["rooms"]);
+      queryClient.setQueryData<Room[]>(["rooms"], (old) =>
+        old?.map((r) => r.id === roomId ? { ...r, status: "available" } : r) ?? []
+      );
+      return { prev };
     },
-    onError: () => toast.error("שגיאה בעדכון החדר. נסה שוב."),
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["rooms"], ctx.prev);
+      toast.error("שגיאה בעדכון החדר. נסה שוב.");
+    },
+    onSuccess: () => toast.success("החדר סומן כנקי"),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["rooms"] }),
   });
 
   const extendMutation = useMutation({
     mutationFn: ({ id, checkOut }: { id: string; checkOut: string }) =>
-      fetchJSON(`/api/boarding/${id}`, {
+      fetchJSON<BoardingStay>(`/api/boarding/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ checkOut }),
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["boarding"] });
-      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+    onMutate: async ({ id, checkOut }) => {
+      await queryClient.cancelQueries({ queryKey: ["boarding"] });
+      const prev = queryClient.getQueryData<BoardingStay[]>(["boarding"]);
+      queryClient.setQueryData<BoardingStay[]>(["boarding"], (old) =>
+        old?.map((s) => s.id === id ? { ...s, checkOut } : s) ?? []
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["boarding"], ctx.prev);
+      toast.error("שגיאה בעדכון תאריך היציאה. נסה שוב.");
+    },
+    onSuccess: (updatedStay: BoardingStay) => {
+      queryClient.setQueryData<BoardingStay[]>(["boarding"], (old) =>
+        old?.map((s) => s.id === updatedStay.id ? updatedStay : s) ?? []
+      );
       setExtendDialogStay(null);
       toast.success("תאריך היציאה עודכן בהצלחה");
     },
-    onError: () => toast.error("שגיאה בעדכון תאריך היציאה. נסה שוב."),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["boarding"] });
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+    },
   });
 
   const createRoomMutation = useMutation({
@@ -1609,15 +1704,19 @@ export default function BoardingPage() {
 
   // ── Check-in/out via dialog ──
 
-  const handleCheckin = (id: string) => {
+  const handleCheckin = useCallback((id: string) => {
     const stay = stays.find((s) => s.id === id);
     if (stay) setCheckinDialogStay(stay);
-  };
+  }, [stays]);
 
-  const handleCheckout = (id: string) => {
+  const handleCheckout = useCallback((id: string) => {
     const stay = stays.find((s) => s.id === id);
     if (stay) setCheckoutDialogStay(stay);
-  };
+  }, [stays]);
+
+  const handleMarkClean = useCallback((id: string) => {
+    markCleanMutation.mutate(id);
+  }, [markCleanMutation]);
 
   const handleExtend = (id: string) => {
     const stay = stays.find((s) => s.id === id);
@@ -1648,11 +1747,11 @@ export default function BoardingPage() {
 
   // ── DnD handlers ──
 
-  function handleDragStart(event: DragStartEvent) {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveStayId(String(event.active.id));
-  }
+  }, []);
 
-  function handleDragEnd(event: DragEndEvent) {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     setActiveStayId(null);
     const { active, over } = event;
     if (!over) return;
@@ -1667,7 +1766,7 @@ export default function BoardingPage() {
     if (newRoomId === currentRoomId) return;
 
     roomMutation.mutate({ id: stayId, roomId: newRoomId });
-  }
+  }, [stays, roomMutation]);
 
   // ── Computed data ──
 
@@ -1915,7 +2014,7 @@ export default function BoardingPage() {
                     room={room}
                     onCheckin={handleCheckin}
                     onCheckout={handleCheckout}
-                    onMarkClean={(id) => markCleanMutation.mutate(id)}
+                    onMarkClean={handleMarkClean}
                   />
                 ))}
                 {/* Unassigned stays drop zone */}
