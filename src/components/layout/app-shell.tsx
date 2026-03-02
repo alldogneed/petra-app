@@ -25,7 +25,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ].join(" ")}
       >
         <Topbar onMenuToggle={() => setMobileOpen((prev) => !prev)} />
-        <main className="p-4 md:p-6">{children}</main>
+        <main className="p-4 md:p-6 overflow-x-hidden">{children}</main>
         <MobileBottomNav />
       </div>
     </div>

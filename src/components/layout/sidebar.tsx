@@ -191,12 +191,15 @@ export function Sidebar({
     return initial;
   });
 
-  // Auto-open groups when navigating to a child route
+  // Accordion: on every navigation, open ONLY the active group and close all others
   useEffect(() => {
-    groups.forEach((g) => {
-      if (isGroupActive(g)) {
-        setOpenGroups((prev) => (prev[g.key] ? prev : { ...prev, [g.key]: true }));
-      }
+    const activeGroup = groups.find((g) => isGroupActive(g));
+    // Always sync — even when no group is active (non-group pages), close all groups
+    setOpenGroups((prev) => {
+      const next: Record<string, boolean> = {};
+      groups.forEach((g) => { next[g.key] = g.key === activeGroup?.key; });
+      const changed = groups.some((g) => (prev[g.key] ?? false) !== next[g.key]);
+      return changed ? next : prev;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
@@ -421,7 +424,7 @@ export function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-2 overflow-y-auto scrollbar-hide">
+        <nav className="flex-1 px-3 py-2 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.15) transparent" }}>
           <div className="space-y-0.5">
             {navEntries
               .filter((entry) => canSee(entry, user?.businessRole ?? null, user?.platformRole))

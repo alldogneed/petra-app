@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   PawPrint,
@@ -190,13 +190,14 @@ export default function FeedingPage() {
     staleTime: 60000,
   });
 
-  // Filter stays active on current date
-  const activePets = (stays ?? []).filter((s) =>
-    isStayActiveOnDate(s, currentDate)
+  // Filter stays active on current date — memoized to prevent identity changes on every render
+  const activePets = useMemo(
+    () => (stays ?? []).filter((s) => isStayActiveOnDate(s, currentDate)),
+    [stays, currentDate]
   );
 
   // Load meal data from localStorage whenever date or activePets change
-  const loadAllMeals = useCallback(() => {
+  useEffect(() => {
     const loaded: Record<string, MealRecord> = {};
     for (const stay of activePets) {
       for (const slot of MEAL_SLOTS) {
@@ -204,11 +205,7 @@ export default function FeedingPage() {
       }
     }
     setMeals(loaded);
-  }, [activePets, dateStr]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    loadAllMeals();
-  }, [loadAllMeals]);
+  }, [activePets, dateStr]);
 
   function toggleMeal(petId: string, slot: MealSlot) {
     const key = `${petId}:${slot}`;
