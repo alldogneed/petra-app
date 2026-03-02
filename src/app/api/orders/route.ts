@@ -22,8 +22,7 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
     if (customerId) where.customerId = customerId;
     if (from || to) {
-      where.startAt = {
-        not: null,
+      where.createdAt = {
         ...(from ? { gte: new Date(from + "T00:00:00") } : {}),
         ...(to ? { lte: new Date(to + "T23:59:59") } : {}),
       };

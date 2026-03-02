@@ -24,8 +24,9 @@ export async function GET(req: NextRequest) {
       ...(to        ? { startAt: { lte: new Date(to + "T23:59:59Z") } } : {}),
     },
     include: {
-      service:  { select: { id: true, name: true, duration: true, price: true, color: true } },
-      customer: { select: { id: true, name: true, phone: true, email: true } },
+      service:       { select: { id: true, name: true, duration: true, price: true, color: true } },
+      priceListItem: { select: { id: true, name: true, durationMinutes: true, basePrice: true } },
+      customer:      { select: { id: true, name: true, phone: true, email: true } },
       dogs: {
         include: {
           pet: { select: { id: true, name: true, breed: true } },
