@@ -2327,6 +2327,9 @@ export default function CustomersPage() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tags: JSON.stringify(newTags) }),
+        }).then((r) => {
+          if (!r.ok) throw new Error(`Failed: ${r.status}`);
+          return r.json();
         });
       });
       return Promise.all(promises);

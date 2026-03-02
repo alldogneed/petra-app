@@ -679,7 +679,8 @@ function PetDocumentsModal({
     for (const file of Array.from(e.target.files)) {
       const fd = new FormData();
       fd.append("file", file);
-      await fetch(`/api/pets/${petId}/documents`, { method: "POST", body: fd });
+      const uploadRes = await fetch(`/api/pets/${petId}/documents`, { method: "POST", body: fd });
+      if (!uploadRes.ok) throw new Error("שגיאה בהעלאת קובץ");
     }
     setIsUploading(false);
     queryClient.invalidateQueries({ queryKey: ["petDocs", petId] });
@@ -893,6 +894,7 @@ function EditCustomerModal({
       queryClient.invalidateQueries({ queryKey: ["customer", customer.id] });
       onClose();
     },
+    onError: () => toast.error("שגיאה בעדכון הלקוח. נסה שוב."),
   });
 
   if (!isOpen) return null;
@@ -1045,6 +1047,7 @@ function EditPetModal({
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       onClose();
     },
+    onError: () => toast.error("שגיאה בעדכון חיית המחמד. נסה שוב."),
   });
 
   return (
@@ -1153,6 +1156,7 @@ function EditPetNoteModal({
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       onClose();
     },
+    onError: () => toast.error("שגיאה בשמירת ההערה. נסה שוב."),
   });
 
   return (
@@ -1216,18 +1220,19 @@ function MedicationModal({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
-        }).then((r) => r.json());
+        }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; });
       }
       return fetch(`/api/pets/${petId}/medications`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
-      }).then((r) => r.json());
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בהוספה"); return d; });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       onClose();
     },
+    onError: () => toast.error("שגיאה בשמירת התרופה. נסה שוב."),
   });
 
   return (
@@ -2121,6 +2126,7 @@ function EditHealthModal({
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       onClose();
     },
+    onError: () => toast.error("שגיאה בעדכון מידע הבריאות. נסה שוב."),
   });
 
   return (
@@ -2296,6 +2302,7 @@ function EditBehaviorModal({
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       onClose();
     },
+    onError: () => toast.error("שגיאה בעדכון מידע ההתנהגות. נסה שוב."),
   });
 
   const toggle = (key: string) =>

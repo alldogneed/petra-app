@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Save, Plus, Trash2, Clock, CalendarOff, ExternalLink } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -49,46 +50,65 @@ export default function AvailabilityPage() {
   // ── Load data ───────────────────────────────────────────────────────────────
   useEffect(() => {
     fetch("/api/admin/availability")
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json() })
       .then((d) => { setRules(d.rules ?? []); setRulesLoading(false) })
+      .catch(() => setRulesLoading(false))
 
     fetch("/api/admin/blocks")
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json() })
       .then((d) => setBlocks(d.blocks ?? []))
+      .catch(() => {})
   }, [])
 
   // ── Save working hours ──────────────────────────────────────────────────────
   const saveRules = async () => {
     setRulesSaving(true)
-    await fetch("/api/admin/availability", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rules }),
-    })
-    setRulesSaving(false)
-    setRulesSaved(true)
-    setTimeout(() => setRulesSaved(false), 2000)
+    try {
+      const res = await fetch("/api/admin/availability", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rules }),
+      })
+      if (!res.ok) throw new Error("Failed")
+      setRulesSaved(true)
+      setTimeout(() => setRulesSaved(false), 2000)
+    } catch {
+      toast.error("שגיאה בשמירת שעות הפעילות")
+    } finally {
+      setRulesSaving(false)
+    }
   }
 
   // ── Add block ───────────────────────────────────────────────────────────────
   const addBlock = async () => {
     if (!newBlock.startAt || !newBlock.endAt) return
     setBlockSaving(true)
-    const res = await fetch("/api/admin/blocks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newBlock),
-    })
-    const data = await res.json()
-    setBlocks((prev) => [...prev, data.block].sort((a, b) => a.startAt.localeCompare(b.startAt)))
-    setNewBlock({ startAt: "", endAt: "", reason: "" })
-    setBlockSaving(false)
+    try {
+      const res = await fetch("/api/admin/blocks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newBlock),
+      })
+      if (!res.ok) throw new Error("Failed")
+      const data = await res.json()
+      setBlocks((prev) => [...prev, data.block].sort((a, b) => a.startAt.localeCompare(b.startAt)))
+      setNewBlock({ startAt: "", endAt: "", reason: "" })
+    } catch {
+      toast.error("שגיאה בהוספת חסימה")
+    } finally {
+      setBlockSaving(false)
+    }
   }
 
   // ── Delete block ─────────────────────────────────────────────────────────────
   const deleteBlock = async (id: string) => {
-    await fetch(`/api/admin/blocks/${id}`, { method: "DELETE" })
-    setBlocks((prev) => prev.filter((b) => b.id !== id))
+    try {
+      const res = await fetch(`/api/admin/blocks/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed")
+      setBlocks((prev) => prev.filter((b) => b.id !== id))
+    } catch {
+      toast.error("שגיאה במחיקת החסימה")
+    }
   }
 
   const updateRule = (dayOfWeek: number, field: keyof AvailabilityRule, value: unknown) => {

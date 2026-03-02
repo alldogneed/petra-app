@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import Link from "next/link";
 import {
   ClipboardList,
@@ -86,7 +87,7 @@ function NewIntakeModal({
     queryKey: ["customerSearch", customerSearch],
     queryFn: () =>
       customerSearch.length >= 2
-        ? fetch(`/api/search?q=${encodeURIComponent(customerSearch)}&type=customers`).then((r) => r.json()).then((d) => d.customers || [])
+        ? fetch(`/api/search?q=${encodeURIComponent(customerSearch)}&type=customers`).then((r) => { if (!r.ok) throw new Error("Search failed"); return r.json(); }).then((d) => d.customers || [])
         : Promise.resolve([]),
     enabled: customerSearch.length >= 2,
   });
@@ -109,6 +110,7 @@ function NewIntakeModal({
       setIntakeUrl(data.url);
       setSent(true);
     },
+    onError: () => toast.error("שגיאה ביצירת טופס הרישום. נסה שוב."),
   });
 
   if (!isOpen) return null;
@@ -414,12 +416,13 @@ export default function IntakeFormsPage() {
                                     phone: form.customer!.phone,
                                   }),
                                 })
-                                  .then((r) => r.json())
+                                  .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
                                   .then((data) => {
                                     queryClient.invalidateQueries({ queryKey: ["intakeForms"] });
                                     const msg = `שלום! אנא מלא/י את טופס הקבלה לפני הביקור: ${data.url}`;
                                     window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(form.customer!.phone)}&text=${encodeURIComponent(msg)}`, "_blank");
-                                  });
+                                  })
+                                  .catch(() => toast.error("שגיאה בשליחת הטופס מחדש"));
                               }}
                             >
                               <RefreshCw className="w-3 h-3" />

@@ -616,6 +616,7 @@ function PriceListPanel({
       }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["price-list-items", priceList.id] }),
+    onError: () => toast.error("שגיאה בעדכון המצב. נסה שוב."),
   });
 
   const duplicateMutation = useMutation({
@@ -640,6 +641,7 @@ function PriceListPanel({
       queryClient.invalidateQueries({ queryKey: ["price-lists"] });
       toast.success("פריט שוכפל");
     },
+    onError: () => toast.error("שגיאה בשכפול הפריט. נסה שוב."),
   });
 
   const deleteMutation = useMutation({

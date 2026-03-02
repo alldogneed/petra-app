@@ -165,7 +165,10 @@ export default function OrdersPage() {
   const { data: orders = [], isLoading } = useQuery<Order[]>({
     queryKey: ["orders", queryParams],
     queryFn: () =>
-      fetch(`/api/orders${queryParams ? `?${queryParams}` : ""}`).then((r) => r.json()),
+      fetch(`/api/orders${queryParams ? `?${queryParams}` : ""}`).then((r) => {
+        if (!r.ok) throw new Error("Failed to fetch orders");
+        return r.json();
+      }),
     staleTime: 30_000,
   });
 

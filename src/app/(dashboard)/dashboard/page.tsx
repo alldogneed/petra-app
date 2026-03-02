@@ -1212,7 +1212,10 @@ function VaccinationAlertWidget() {
 function MedicationsWidget() {
   const { data } = useQuery<{ pets: { petName: string; customerName: string; medications: { medName: string }[] }[]; total: number }>({
     queryKey: ["dashboard-medications"],
-    queryFn: () => fetch("/api/pets/medications?boarded=true").then((r) => r.json()),
+    queryFn: () => fetch("/api/pets/medications?boarded=true").then((r) => {
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    }),
     staleTime: 120000,
   });
 
@@ -1610,13 +1613,19 @@ function NewAppointmentModal({
 
   const { data: customers } = useQuery<{ id: string; name: string; phone: string; pets: { id: string; name: string; species: string }[] }[]>({
     queryKey: ["customers-for-appt"],
-    queryFn: () => fetch("/api/customers?full=1").then((r) => r.json()),
+    queryFn: () => fetch("/api/customers?full=1").then((r) => {
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    }),
     enabled: isOpen,
   });
 
   const { data: services } = useQuery<{ id: string; name: string; duration: number | null; type: string }[]>({
     queryKey: ["services-for-appt"],
-    queryFn: () => fetch("/api/services").then((r) => r.json()),
+    queryFn: () => fetch("/api/services").then((r) => {
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    }),
     enabled: isOpen,
   });
 
@@ -1665,6 +1674,7 @@ function NewAppointmentModal({
       setForm({ customerId: "", petId: "", serviceId: "", date: today, startTime: "09:00", endTime: "10:00", notes: "" });
       onCreated();
     },
+    onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת הפגישה. נסה שוב."),
   });
 
   if (!isOpen) return null;
@@ -1836,6 +1846,7 @@ export default function DashboardPage() {
     setIntakeLoading(true);
     try {
       const res = await fetch("/api/intake/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      if (!res.ok) throw new Error("Failed");
       const data = await res.json();
       if (data.url) {
         await navigator.clipboard.writeText(data.url);
@@ -1843,7 +1854,7 @@ export default function DashboardPage() {
         setTimeout(() => setIntakeCopied(false), 3000);
       }
     } catch {
-      // silently fail
+      toast.error("שגיאה ביצירת קישור טופס הרישום");
     } finally {
       setIntakeLoading(false);
     }
