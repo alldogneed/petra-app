@@ -126,7 +126,7 @@ const navEntries: NavEntry[] = [
     children: [
       { name: "תשלומים", href: "/payments", icon: CreditCard, minRole: "manager" },
       { name: "בקשת תשלום", href: "/payment-request", icon: Send },
-      { name: "חשבוניות", href: "/invoices", icon: Receipt, minRole: "manager" },
+      // { name: "חשבוניות", href: "/invoices", icon: Receipt, minRole: "manager" }, // TODO: future
       { name: "מחירון", href: "/pricing", icon: Tag, minRole: "manager" },
       { name: "הזמנות", href: "/orders", icon: ShoppingCart },
     ],
