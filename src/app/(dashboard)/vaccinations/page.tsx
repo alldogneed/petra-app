@@ -135,7 +135,10 @@ export default function VaccinationsPage() {
   }>({
     queryKey: ["vaccinations-full"],
     queryFn: () =>
-      fetch("/api/pets/vaccinations?all=true").then((r) => r.json()),
+      fetch("/api/pets/vaccinations?all=true").then((r) => {
+        if (!r.ok) throw new Error("Failed to fetch vaccinations");
+        return r.json();
+      }),
     staleTime: 60000,
   });
 

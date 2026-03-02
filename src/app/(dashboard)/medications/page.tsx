@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import Link from "next/link";
 import {
   Pill,
@@ -235,7 +236,7 @@ function AddModal({ onClose }: { onClose: () => void }) {
     queryKey: ["pets-list-for-modal"],
     queryFn: () =>
       fetch("/api/customers?full=1")
-        .then((r) => r.json())
+        .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
         .then(
           (customers: Array<{ id: string; name: string; pets: PetOption[] }>) =>
             customers.flatMap((c) =>
@@ -439,7 +440,10 @@ export default function MedicationsPage() {
     queryFn: () => {
       const params = new URLSearchParams();
       if (activeFilter !== "all") params.set("active", activeFilter);
-      return fetch(`/api/medications?${params}`).then((r) => r.json());
+      return fetch(`/api/medications?${params}`).then((r) => {
+        if (!r.ok) throw new Error("Failed to fetch medications");
+        return r.json();
+      });
     },
     staleTime: 30000,
   });
@@ -452,7 +456,9 @@ export default function MedicationsPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["medications"] });
+      toast.success("התרופה נמחקה");
     },
+    onError: () => toast.error("שגיאה במחיקת התרופה. נסה שוב."),
   });
 
   const allMeds = data?.medications ?? [];

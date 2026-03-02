@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   Receipt,
   Plus,
@@ -327,6 +328,7 @@ export default function InvoicesPage() {
         return r.json();
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["invoicing-documents"] }),
+    onError: (err: Error) => toast.error(err.message || "שגיאה בהנפקת חשבונית"),
   });
 
   const creditNoteMutation = useMutation({
@@ -343,6 +345,7 @@ export default function InvoicesPage() {
         return r.json();
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["invoicing-documents"] }),
+    onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת זיכוי"),
   });
 
   const deleteMutation = useMutation({
@@ -352,6 +355,7 @@ export default function InvoicesPage() {
         return r.json();
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["invoicing-documents"] }),
+    onError: () => toast.error("שגיאה במחיקת המסמך"),
   });
 
   // Status filter tabs

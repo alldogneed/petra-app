@@ -206,7 +206,10 @@ export function Sidebar({
 
   const { data: counters } = useQuery<{ openTasks: number; overdueFollowUps: number; pendingBookings: number }>({
     queryKey: ["sidebar-counters"],
-    queryFn: () => fetch("/api/dashboard/counters").then((r) => r.json()),
+    queryFn: () => fetch("/api/dashboard/counters").then((r) => {
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    }),
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
@@ -238,7 +241,9 @@ export function Sidebar({
         className={cn(
           "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
           isChild && isExpanded && "pr-8",
-          isActive ? "text-white" : "text-slate-400 hover:text-white"
+          isActive
+            ? "text-white"
+            : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
         )}
         style={
           isActive
@@ -248,13 +253,6 @@ export function Sidebar({
               }
             : undefined
         }
-        onMouseEnter={(e) => {
-          if (!isActive)
-            (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
-        }}
-        onMouseLeave={(e) => {
-          if (!isActive) (e.currentTarget as HTMLElement).style.background = "";
-        }}
         title={!isMobile && collapsed ? item.name : undefined}
       >
         <div
@@ -301,7 +299,10 @@ export function Sidebar({
           key={`${group.key}-collapsed`}
           href={group.defaultHref}
           title={group.name}
-          className="flex items-center justify-center px-3 py-2.5 rounded-xl transition-all duration-150 group"
+          className={cn(
+            "flex items-center justify-center px-3 py-2.5 rounded-xl transition-all duration-150 group",
+            !anyChildActive && "hover:bg-white/[0.06]"
+          )}
           style={
             anyChildActive
               ? {
@@ -310,13 +311,6 @@ export function Sidebar({
                 }
               : undefined
           }
-          onMouseEnter={(e) => {
-            if (!anyChildActive)
-              (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
-          }}
-          onMouseLeave={(e) => {
-            if (!anyChildActive) (e.currentTarget as HTMLElement).style.background = "";
-          }}
         >
           <Icon
             className={cn(
@@ -334,7 +328,8 @@ export function Sidebar({
           onClick={() => toggleGroup(group.key)}
           className={cn(
             "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group",
-            anyChildActive ? "text-white" : "text-slate-400 hover:text-white"
+            anyChildActive ? "text-white" : "text-slate-400 hover:text-white",
+            (!anyChildActive || isOpen) && "hover:bg-white/[0.06]"
           )}
           style={
             anyChildActive && !isOpen
@@ -344,14 +339,6 @@ export function Sidebar({
                 }
               : undefined
           }
-          onMouseEnter={(e) => {
-            if (!anyChildActive || isOpen)
-              (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
-          }}
-          onMouseLeave={(e) => {
-            if (!anyChildActive || isOpen)
-              (e.currentTarget as HTMLElement).style.background = "";
-          }}
         >
           <Icon
             className={cn(
@@ -448,13 +435,7 @@ export function Sidebar({
             <button
               onClick={handleHelpClick}
               title={!isMobile && collapsed ? "עזרה" : undefined}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group text-slate-400 hover:text-white"
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "";
-              }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group text-slate-400 hover:text-white hover:bg-white/[0.06]"
             >
               <div className="flex-shrink-0 text-slate-500 group-hover:text-slate-300">
                 <HelpCircle className="w-[18px] h-[18px]" />

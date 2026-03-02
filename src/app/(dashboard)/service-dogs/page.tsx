@@ -54,12 +54,18 @@ interface ComplianceEvent {
 export default function ServiceDogsOverviewPage() {
   const { data: dogs = [] } = useQuery<ServiceDogSummary[]>({
     queryKey: ["service-dogs"],
-    queryFn: () => fetch("/api/service-dogs").then((r) => r.json()),
+    queryFn: () => fetch("/api/service-dogs").then((r) => {
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    }),
   });
 
   const { data: complianceEvents = [] } = useQuery<ComplianceEvent[]>({
     queryKey: ["service-compliance"],
-    queryFn: () => fetch("/api/service-compliance").then((r) => r.json()),
+    queryFn: () => fetch("/api/service-compliance").then((r) => {
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    }),
   });
 
   // Stats
