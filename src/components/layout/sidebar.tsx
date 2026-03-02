@@ -242,7 +242,7 @@ export function Sidebar({
         href={item.href}
         onClick={isMobile ? onMobileClose : undefined}
         className={cn(
-          "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
+          "flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
           isChild && isExpanded && "pr-8",
           isActive
             ? "text-white"
@@ -303,7 +303,7 @@ export function Sidebar({
           href={group.defaultHref}
           title={group.name}
           className={cn(
-            "flex items-center justify-center px-3 py-2.5 rounded-xl transition-all duration-150 group",
+            "flex items-center justify-center px-3 py-1.5 rounded-xl transition-all duration-150 group",
             !anyChildActive && "hover:bg-white/[0.06]"
           )}
           style={
@@ -330,7 +330,7 @@ export function Sidebar({
         <button
           onClick={() => toggleGroup(group.key)}
           className={cn(
-            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group",
+            "w-full flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group",
             anyChildActive ? "text-white" : "text-slate-400 hover:text-white",
             (!anyChildActive || isOpen) && "hover:bg-white/[0.06]"
           )}
@@ -424,7 +424,7 @@ export function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-2 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.15) transparent" }}>
+        <nav className="sidebar-nav flex-1 px-3 py-2 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.3) transparent" }}>
           <div className="space-y-0.5">
             {navEntries
               .filter((entry) => canSee(entry, user?.businessRole ?? null, user?.platformRole))
@@ -438,7 +438,7 @@ export function Sidebar({
             <button
               onClick={handleHelpClick}
               title={!isMobile && collapsed ? "עזרה" : undefined}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group text-slate-400 hover:text-white hover:bg-white/[0.06]"
+              className="w-full flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group text-slate-400 hover:text-white hover:bg-white/[0.06]"
             >
               <div className="flex-shrink-0 text-slate-500 group-hover:text-slate-300">
                 <HelpCircle className="w-[18px] h-[18px]" />
