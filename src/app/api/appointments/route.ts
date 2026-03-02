@@ -20,8 +20,16 @@ export async function GET(request: NextRequest) {
 
     if (from || to) {
       where.date = {};
-      if (from) where.date.gte = new Date(from);
-      if (to) where.date.lte = new Date(to);
+      if (from) {
+        const d = new Date(from);
+        if (isNaN(d.getTime())) return NextResponse.json({ error: "Invalid from date" }, { status: 400 });
+        where.date.gte = d;
+      }
+      if (to) {
+        const d = new Date(to);
+        if (isNaN(d.getTime())) return NextResponse.json({ error: "Invalid to date" }, { status: 400 });
+        where.date.lte = d;
+      }
     }
 
     const appointments = await prisma.appointment.findMany({
@@ -110,6 +118,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(appointment, { status: 201 });
   } catch (error) {
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
+    }
     console.error("Failed to create appointment:", error);
     return NextResponse.json(
       { error: "Failed to create appointment" },

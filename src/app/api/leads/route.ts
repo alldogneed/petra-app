@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
         callLogs: true,
       },
       orderBy: { createdAt: "desc" },
+      take: 500,
     });
 
     return NextResponse.json(leads);
@@ -79,6 +80,9 @@ export async function POST(request: NextRequest) {
     logCurrentUserActivity("CREATE_LEAD");
     return NextResponse.json(lead, { status: 201 });
   } catch (error) {
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
+    }
     console.error("Error creating lead:", error);
     return NextResponse.json(
       { error: "Failed to create lead" },

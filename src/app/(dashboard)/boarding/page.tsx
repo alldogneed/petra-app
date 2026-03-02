@@ -1525,7 +1525,10 @@ export default function BoardingPage() {
           ).then(() => {
             queryClient.invalidateQueries({ queryKey: ["tasks"] });
             toast.success(`צ'ק-אין בוצע ✓ — ${meds.length} משימות תרופות נוצרו`);
-          }).catch(() => toast.success("צ'ק-אין בוצע בהצלחה"));
+          }).catch(() => {
+            toast.success("צ'ק-אין בוצע בהצלחה");
+            toast.error("שגיאה ביצירת משימות תרופות — בדוק ידנית");
+          });
         } else {
           toast.success("צ'ק-אין בוצע בהצלחה");
         }

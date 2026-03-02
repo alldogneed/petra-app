@@ -42,12 +42,16 @@ export async function GET(request: NextRequest) {
       const dateFilter: any = {};
       const atFilter: any = {};
       if (from) {
-        dateFilter.gte = new Date(from + "T00:00:00");
-        atFilter.gte = new Date(from + "T00:00:00");
+        const d = new Date(from + "T00:00:00");
+        if (isNaN(d.getTime())) return NextResponse.json({ error: "Invalid from date" }, { status: 400 });
+        dateFilter.gte = d;
+        atFilter.gte = d;
       }
       if (to) {
-        dateFilter.lte = new Date(to + "T23:59:59");
-        atFilter.lte = new Date(to + "T23:59:59");
+        const d = new Date(to + "T23:59:59");
+        if (isNaN(d.getTime())) return NextResponse.json({ error: "Invalid to date" }, { status: 400 });
+        dateFilter.lte = d;
+        atFilter.lte = d;
       }
       where.OR = [
         { dueDate: dateFilter },
@@ -146,6 +150,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
+    }
     console.error("Error creating task:", error);
     return NextResponse.json(
       { error: "Failed to create task" },

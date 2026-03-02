@@ -158,6 +158,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(stay, { status: 201 });
   } catch (error) {
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
+    }
     console.error("Error creating boarding stay:", error);
     return NextResponse.json(
       { error: "Failed to create boarding stay" },

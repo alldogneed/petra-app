@@ -17,6 +17,7 @@ import {
   Minus,
   Share2,
   PawPrint,
+  AlertCircle,
 } from "lucide-react";
 import { cn, formatCurrency, fetchJSON } from "@/lib/utils";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -109,7 +110,7 @@ export default function AnalyticsPage() {
 function AnalyticsContent() {
   const [period, setPeriod] = useState("month");
 
-  const { data, isLoading } = useQuery<AnalyticsData>({
+  const { data, isLoading, isError } = useQuery<AnalyticsData>({
     queryKey: ["analytics", period],
     queryFn: () => fetchJSON<AnalyticsData>(`/api/analytics?period=${period}`),
   });
@@ -185,6 +186,12 @@ function AnalyticsContent() {
               <div key={i} className="card p-5 animate-pulse h-64" />
             ))}
           </div>
+        </div>
+      ) : isError ? (
+        <div className="card p-8 text-center">
+          <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
+          <p className="text-sm font-medium text-petra-text">שגיאה בטעינת האנליטיקס</p>
+          <p className="text-xs text-petra-muted mt-1">נסה לרענן את הדף</p>
         </div>
       ) : data ? (
         <>
