@@ -245,9 +245,9 @@ model Business {
   intakeForms       IntakeForm[]
   leadStages        LeadStage[]
   invoicingSettings InvoicingSettings?
-  stripeSettings    StripeSettings?
   invoiceJobs       InvoiceJob[]
   invoiceDocuments  InvoiceDocument[]
+  stripeSettings    StripeSettings?
   serviceDogProfiles    ServiceDogProfile[]
   serviceDogRecipients  ServiceDogRecipient[]
   serviceDogPlacements  ServiceDogPlacement[]
@@ -342,6 +342,9 @@ model Pet {
   behavior       DogBehavior?
   medications    DogMedication[]
   serviceDogProfile ServiceDogProfile?
+
+  @@index([customerId])
+  @@index([birthDate])
 }
 
 model Service {
@@ -381,7 +384,7 @@ model Appointment {
   status      String   @default("scheduled")
   notes       String?
   cancellationNote String?
-  serviceId   String
+  serviceId   String?
   customerId  String
   petId       String?
   staffId     String?
@@ -389,7 +392,7 @@ model Appointment {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  service    Service   @relation(fields: [serviceId], references: [id])
+  service    Service?  @relation(fields: [serviceId], references: [id])
   customer   Customer  @relation(fields: [customerId], references: [id])
   pet        Pet?      @relation(fields: [petId], references: [id])
   staff      User?     @relation("AssignedStaff", fields: [staffId], references: [id])
@@ -424,6 +427,12 @@ model BoardingStay {
   business   Business  @relation(fields: [businessId], references: [id])
   booking    Booking?  @relation(fields: [bookingId], references: [id])
   payments   Payment[]
+
+  @@index([businessId])
+  @@index([businessId, checkIn, checkOut])
+  @@index([roomId, status])
+  @@index([petId])
+  @@index([customerId])
 }
 
 model Room {
@@ -474,6 +483,7 @@ model Lead {
 
   @@index([businessId, lastContactedAt])
   @@index([stage, lostReasonCode, createdAt])
+  @@index([businessId, stage])
 }
 
 model LeadStage {
@@ -710,6 +720,7 @@ model PriceListItem {
   business   Business    @relation(fields: [businessId], references: [id])
   priceList  PriceList   @relation(fields: [priceListId], references: [id])
   orderLines OrderLine[]
+  bookings   Booking[]
 
   @@index([businessId, isActive])
   @@index([businessId, category])
@@ -730,7 +741,9 @@ model Order {
   discountAmount  Float    @default(0)
   taxTotal        Float    @default(0)
   total           Float    @default(0)
-  notes           String?
+  notes              String?
+  relatedEntityType  String?   // "Appointment" | "BoardingStay" | "TrainingProgram"
+  relatedEntityId    String?   // ID of the linked entity
   createdByUserId String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -857,10 +870,11 @@ model AvailabilityBlock {
 
 /// Online booking (public-facing, separate from internal Appointment)
 model Booking {
-  id          String   @id @default(uuid())
-  businessId  String
-  serviceId   String
-  customerId  String
+  id              String   @id @default(uuid())
+  businessId      String
+  serviceId       String?  // nullable — legacy bookings only
+  priceListItemId String?  // new — bookings via price list item
+  customerId      String
   startAt     DateTime // UTC
   endAt       DateTime // UTC (startAt + service.duration)
   status      String   @default("pending") // "pending" | "confirmed" | "declined" | "cancelled"
@@ -877,9 +891,10 @@ model Booking {
   gcalLastSyncedAt DateTime?
   gcalSyncError    String?   // last error message if failed
 
-  business     Business      @relation(fields: [businessId], references: [id])
-  service      Service       @relation(fields: [serviceId], references: [id])
-  customer     Customer      @relation(fields: [customerId], references: [id])
+  business      Business       @relation(fields: [businessId], references: [id])
+  service       Service?       @relation(fields: [serviceId], references: [id])
+  priceListItem PriceListItem? @relation(fields: [priceListItemId], references: [id])
+  customer      Customer       @relation(fields: [customerId], references: [id])
   dogs         BookingDog[]
   syncJobs     SyncJob[]
   boardingStay BoardingStay?
@@ -1359,25 +1374,6 @@ model InvoicingSettings {
   @@index([businessId])
 }
 
-model StripeSettings {
-  id                     String    @id @default(uuid())
-  businessId             String    @unique
-  publishableKey         String
-  secretKeyEncrypted     String
-  webhookSecretEncrypted String?
-  accountId              String?
-  currency               String    @default("ILS")
-  status                 String    @default("active")
-  lastError              String?
-  connectedAt            DateTime?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
-
-  business Business @relation(fields: [businessId], references: [id])
-
-  @@index([businessId])
-}
-
 /// Retry queue for invoicing document issuance
 model InvoiceJob {
   id          String   @id @default(uuid())
@@ -1657,4 +1653,28 @@ model ServiceDogIDCard {
   @@index([serviceDogId])
   @@index([qrToken])
   @@index([businessId, isActive])
+}
+
+// ─────────────────────────────────────────────
+// STRIPE PAYMENT GATEWAY
+// ─────────────────────────────────────────────
+
+/// Per-business Stripe credentials for collecting online payments
+model StripeSettings {
+  id                     String    @id @default(uuid())
+  businessId             String    @unique
+  publishableKey         String    // pk_live_... or pk_test_... (safe to expose to frontend)
+  secretKeyEncrypted     String    // sk_live_... encrypted with STRIPE_ENCRYPTION_KEY
+  webhookSecretEncrypted String?   // whsec_... encrypted
+  accountId              String?   // retrieved from Stripe API on connect to verify keys
+  currency               String    @default("ILS")
+  status                 String    @default("active") // "active" | "disabled" | "error"
+  lastError              String?
+  connectedAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
 }
