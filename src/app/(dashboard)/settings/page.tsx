@@ -1000,23 +1000,41 @@ function WhatsAppTestModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── Make Webhook Card ────────────────────────────────────────────────────────
+// ─── Webhook Integration Card ─────────────────────────────────────────────────
 
 function MakeWebhookCard() {
+  const queryClient = useQueryClient();
   const appUrl =
     typeof window !== "undefined"
       ? window.location.origin
-      : process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+      : process.env.NEXT_PUBLIC_APP_URL ?? "https://petra-app.com";
 
   const webhookUrl = `${appUrl}/api/webhooks/lead`;
+
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   const [showKey, setShowKey] = useState(false);
+  const [confirmRegen, setConfirmRegen] = useState(false);
 
-  // API key is served from a dedicated endpoint so the secret never leaks into the client bundle
-  const { data: keyData } = useQuery<{ key: string }>({
-    queryKey: ["make-webhook-key"],
-    queryFn: () => fetchJSON<{ key: string }>("/api/webhooks/lead/key"),
+  const { data: keyData, isLoading: keyLoading } = useQuery<{ key: string | null }>({
+    queryKey: ["webhook-api-key"],
+    queryFn: () => fetchJSON<{ key: string | null }>("/api/webhooks/lead/key"),
+  });
+
+  const regenMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/webhooks/lead/key", { method: "POST" }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["webhook-api-key"] });
+      setConfirmRegen(false);
+      setShowKey(true);
+      toast.success("מפתח API חדש נוצר בהצלחה");
+    },
+    onError: () => toast.error("שגיאה ביצירת מפתח. נסה שוב."),
   });
 
   function copy(value: string, setter: (v: boolean) => void) {
@@ -1026,8 +1044,28 @@ function MakeWebhookCard() {
     });
   }
 
+  const currentKey = keyData?.key;
+  const hasKey = !!currentKey;
+
+  const codeSnippet = `await fetch("${webhookUrl}", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-api-key": "${currentKey ?? "YOUR_API_KEY"}"
+  },
+  body: JSON.stringify({
+    firstName: formData.firstName,
+    lastName: formData.lastName,
+    phone: formData.phone,
+    email: formData.email,
+    city: formData.city,
+    breed: formData.breed,
+    service: formData.service,
+  })
+});`;
+
   return (
-    <div className="card p-5 space-y-4">
+    <div className="card p-5 space-y-5">
       {/* Header */}
       <div className="flex items-start gap-4">
         <div className="w-12 h-12 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0">
@@ -1035,11 +1073,13 @@ function MakeWebhookCard() {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-petra-text">Make.com — לידים מהאתר</h3>
-            <span className="badge badge-success text-xs">פעיל</span>
+            <h3 className="font-semibold text-petra-text">חיבור לידים מהאתר</h3>
+            <span className={cn("badge text-xs", hasKey ? "badge-success" : "badge-neutral")}>
+              {hasKey ? "מחובר" : "לא מוגדר"}
+            </span>
           </div>
           <p className="text-sm text-petra-muted mt-0.5">
-            חבר את all-dog.co.il דרך מייק — כל פנייה בטופס תיצור ליד חדש אוטומטית בפטרה.
+            כל פנייה בטופס האתר תיצור ליד חדש אוטומטית בפטרה.
           </p>
         </div>
       </div>
@@ -1051,6 +1091,7 @@ function MakeWebhookCard() {
           <input
             readOnly
             value={webhookUrl}
+            dir="ltr"
             className="input flex-1 font-mono text-sm bg-slate-50 select-all"
             onFocus={(e) => e.target.select()}
           />
@@ -1058,7 +1099,7 @@ function MakeWebhookCard() {
             className="btn-secondary text-sm flex items-center gap-1.5 flex-shrink-0"
             onClick={() => copy(webhookUrl, setCopiedUrl)}
           >
-            {copiedUrl ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Upload className="w-4 h-4" />}
+            {copiedUrl ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
             {copiedUrl ? "הועתק!" : "העתק"}
           </button>
         </div>
@@ -1066,51 +1107,104 @@ function MakeWebhookCard() {
 
       {/* API Key */}
       <div className="space-y-1.5">
-        <label className="label text-xs">API Key (x-api-key header)</label>
-        <div className="flex gap-2">
-          <input
-            readOnly
-            type={showKey ? "text" : "password"}
-            value={keyData?.key ?? "טוען..."}
-            className="input flex-1 font-mono text-sm bg-slate-50 select-all"
-            onFocus={(e) => e.target.select()}
-          />
-          <button
-            className="btn-ghost text-sm flex-shrink-0"
-            onClick={() => setShowKey((v) => !v)}
-          >
-            {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
-          <button
-            className="btn-secondary text-sm flex items-center gap-1.5 flex-shrink-0"
-            onClick={() => keyData && copy(keyData.key, setCopiedKey)}
-          >
-            {copiedKey ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Upload className="w-4 h-4" />}
-            {copiedKey ? "הועתק!" : "העתק"}
-          </button>
+        <div className="flex items-center justify-between">
+          <label className="label text-xs">מפתח API</label>
+          {!confirmRegen ? (
+            <button
+              className="text-xs text-petra-muted hover:text-petra-text flex items-center gap-1"
+              onClick={() => setConfirmRegen(true)}
+            >
+              <RefreshCw className="w-3 h-3" />
+              {hasKey ? "צור מפתח חדש" : "צור מפתח"}
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-amber-600">בטוח? המפתח הישן יפסיק לעבוד</span>
+              <button
+                className="text-red-500 hover:text-red-600 font-medium"
+                onClick={() => regenMutation.mutate()}
+                disabled={regenMutation.isPending}
+              >
+                {regenMutation.isPending ? "יוצר..." : "אישור"}
+              </button>
+              <button className="text-petra-muted" onClick={() => setConfirmRegen(false)}>ביטול</button>
+            </div>
+          )}
         </div>
+
+        {keyLoading ? (
+          <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+        ) : hasKey ? (
+          <div className="flex gap-2">
+            <input
+              readOnly
+              type={showKey ? "text" : "password"}
+              value={currentKey}
+              dir="ltr"
+              className="input flex-1 font-mono text-sm bg-slate-50 select-all"
+              onFocus={(e) => e.target.select()}
+            />
+            <button className="btn-ghost flex-shrink-0" onClick={() => setShowKey((v) => !v)} title={showKey ? "הסתר" : "הצג"}>
+              {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+            <button
+              className="btn-secondary text-sm flex items-center gap-1.5 flex-shrink-0"
+              onClick={() => copy(currentKey, setCopiedKey)}
+            >
+              {copiedKey ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+              {copiedKey ? "הועתק!" : "העתק"}
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>טרם נוצר מפתח. לחץ על &quot;צור מפתח&quot; מעל.</span>
+          </div>
+        )}
       </div>
 
-      {/* Instructions */}
-      <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm space-y-2 text-petra-muted">
-        <p className="font-medium text-petra-text">איך לחבר במייק:</p>
-        <ol className="list-decimal list-inside space-y-1 text-xs">
-          <li>צור סצנריו חדש במייק עם טריגר <strong>Webhooks → Custom Webhook</strong></li>
-          <li>חבר אותו לטופס הצור קשר באתר all-dog.co.il</li>
-          <li>הוסף מודול <strong>HTTP → Make a request</strong> עם ה-URL וה-Key מלמעלה</li>
-          <li>
-            מפה את שדות הטופס לגוף הבקשה (JSON):
-            <pre className="mt-1.5 p-2 bg-white rounded-lg border border-slate-200 text-xs font-mono whitespace-pre-wrap">{`{
-  "name": "{{שם מלא}}",
-  "phone": "{{טלפון}}",
-  "email": "{{אימייל}}",
-  "notes": "{{הודעה}}",
-  "petName": "{{שם כלב}}",
-  "source": "all-dog"
-}`}</pre>
-          </li>
-          <li>שלח בקשת <strong>POST</strong> עם header: <code className="bg-white px-1 rounded">x-api-key: &lt;API Key&gt;</code></li>
-        </ol>
+      {/* Code snippet */}
+      {hasKey && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="label text-xs">קוד להדבקה באתר (Next.js / JavaScript)</label>
+            <button
+              className="text-xs text-petra-muted hover:text-petra-text flex items-center gap-1"
+              onClick={() => copy(codeSnippet, setCopiedCode)}
+            >
+              {copiedCode ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+              {copiedCode ? "הועתק!" : "העתק קוד"}
+            </button>
+          </div>
+          <pre className="p-3 bg-slate-900 text-slate-100 rounded-xl text-xs font-mono overflow-x-auto whitespace-pre leading-relaxed" dir="ltr">
+            {codeSnippet}
+          </pre>
+        </div>
+      )}
+
+      {/* Fields reference */}
+      <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 text-xs text-petra-muted space-y-2">
+        <p className="font-medium text-petra-text text-sm">שדות נתמכים</p>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+          {[
+            ["firstName", "שם פרטי"],
+            ["lastName", "שם משפחה"],
+            ["fullName", "שם מלא (חלופה)"],
+            ["phone", "טלפון"],
+            ["email", "אימייל"],
+            ["city", "עיר"],
+            ["breed", "גזע הכלב"],
+            ["service", "שירות מבוקש"],
+            ["petName", "שם הכלב"],
+            ["notes", "הערות חופשיות"],
+            ["source", "מקור (ברירת מחדל: website)"],
+          ].map(([field, desc]) => (
+            <div key={field} className="flex gap-2">
+              <code className="text-violet-600 font-mono">{field}</code>
+              <span>{desc}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
