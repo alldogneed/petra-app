@@ -2,17 +2,25 @@ export const dynamic = 'force-dynamic';
 /**
  * POST /api/webhooks/lead
  *
- * Public webhook endpoint for receiving leads from external sources (e.g. Make.com).
+ * Public webhook endpoint for receiving leads from external sources (e.g. Next.js website).
  * Secured via x-api-key header matching MAKE_WEBHOOK_SECRET env var.
  *
- * Body (all optional except name or phone):
- *   name     – full name of the lead
- *   phone    – Israeli phone number
- *   email    – email address
- *   source   – lead source label (e.g. "all-dog", "website")
- *   notes    – free-text message / form content
- *   petName  – pet's name (appended to notes)
- *   petBreed – pet's breed (appended to notes)
+ * Body (at least name/fullName/firstName or phone required):
+ *   name          – full name of the lead (OR use firstName + lastName, OR fullName)
+ *   firstName     – first name (combined with lastName if name/fullName absent)
+ *   lastName      – last name
+ *   fullName      – full name alias for name
+ *   phone         – Israeli phone number
+ *   email         – email address
+ *   source        – lead source label (e.g. "website", "all-dog"). Defaults to "website"
+ *   notes         – free-text message / form content
+ *   petName       – pet's name (appended to notes)
+ *   petBreed      – pet's breed (appended to notes)
+ *   breed         – alias for petBreed
+ *   city          – city (appended to notes)
+ *   service       – requested service (appended to notes)
+ *   businessId    – target business ID (falls back to WEBHOOK_BUSINESS_ID env var)
+ *   timestamp     – ISO timestamp from the source (ignored, for logging only)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -62,39 +70,62 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const name = typeof body.name === "string" ? body.name.trim() : "";
-  const phone = typeof body.phone === "string" ? body.phone.trim() : undefined;
-  const email = typeof body.email === "string" ? body.email.trim() : undefined;
-  const source = typeof body.source === "string" ? body.source.trim() : "all-dog";
+  // Resolve name: prefer explicit name/fullName, fall back to firstName + lastName
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const firstName = str(body.firstName);
+  const lastName = str(body.lastName);
+  const name =
+    str(body.name) ||
+    str(body.fullName) ||
+    [firstName, lastName].filter(Boolean).join(" ");
+
+  const phone = str(body.phone) || undefined;
+  const email = str(body.email) || undefined;
+  const source = str(body.source) || "website";
+
+  // businessId: body first, then env fallback
   const businessId =
-    typeof body.businessId === "string" ? body.businessId.trim() : undefined;
-  const petName = typeof body.petName === "string" ? body.petName.trim() : undefined;
-  const petBreed = typeof body.petBreed === "string" ? body.petBreed.trim() : undefined;
-  const rawNotes = typeof body.notes === "string" ? body.notes.trim() : undefined;
+    str(body.businessId) || process.env.WEBHOOK_BUSINESS_ID || undefined;
+
+  const petName = str(body.petName) || undefined;
+  // Accept both petBreed and breed
+  const petBreed = str(body.petBreed) || str(body.breed) || undefined;
+  const city = str(body.city) || undefined;
+  const service = str(body.service) || undefined;
+  const rawNotes = str(body.notes) || undefined;
 
   if (!name && !phone) {
     return NextResponse.json(
-      { error: "At least one of: name, phone is required" },
+      { error: "At least one of: name, fullName, firstName, phone is required" },
       { status: 400 }
     );
   }
 
   if (!businessId) {
     return NextResponse.json(
-      { error: "businessId is required in the request body" },
+      { error: "businessId is required (body or WEBHOOK_BUSINESS_ID env var)" },
       { status: 400 }
     );
   }
 
-  // Build notes — include pet info if provided
+  // Build notes — include all extra context
   const notesParts: string[] = [];
   if (rawNotes) notesParts.push(rawNotes);
+  if (city) notesParts.push(`עיר: ${city}`);
+  if (service) notesParts.push(`שירות מבוקש: ${service}`);
   if (petName) notesParts.push(`שם כלב: ${petName}`);
   if (petBreed) notesParts.push(`גזע: ${petBreed}`);
   const notes = notesParts.length > 0 ? notesParts.join("\n") : undefined;
 
   // ── Create lead ─────────────────────────────────────────────────────────────
   try {
+    // Find the first stage for this business (sortOrder 0 = "ליד חדש")
+    const firstStage = await prisma.leadStage.findFirst({
+      where: { businessId },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true },
+    });
+
     const lead = await prisma.lead.create({
       data: {
         businessId,
@@ -102,7 +133,7 @@ export async function POST(request: NextRequest) {
         phone: phone || undefined,
         email: email || undefined,
         source,
-        stage: "new",
+        stage: firstStage?.id ?? "new",
         notes: notes || undefined,
       },
       select: { id: true, name: true, stage: true, createdAt: true },
