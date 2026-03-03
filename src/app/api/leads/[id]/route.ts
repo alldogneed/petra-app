@@ -45,7 +45,7 @@ export async function PATCH(
     }
 
     const lead = await prisma.lead.update({
-      where: { id },
+      where: { id, businessId: authResult.businessId },
       data: {
         ...(stage !== undefined && { stage }),
         ...(notes !== undefined && { notes }),

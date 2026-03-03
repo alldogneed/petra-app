@@ -16,6 +16,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
+import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import { SERVICE_DOG_PHASE_COLORS, SERVICE_DOG_PHASE_MAP } from "@/lib/service-dogs";
 import { toast } from "sonner";
 
@@ -81,6 +82,7 @@ export default function IDCardsPage() {
 
   return (
     <div className="animate-fade-in space-y-6">
+      <ServiceDogsTabs />
       {/* Header */}
       <div className="page-header">
         <div>

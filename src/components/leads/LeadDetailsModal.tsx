@@ -239,7 +239,7 @@ export default function LeadDetailsModal({
           title: `טיפול בליד: ${lead.name}`,
           description: data.description,
           dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
-          priority: "high",
+          priority: "HIGH",
         }),
       });
       if (!res.ok) throw new Error();

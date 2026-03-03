@@ -41,8 +41,13 @@ import {
   MessageCircle,
   ChevronDown,
   Share2,
+  UtensilsCrossed,
+  Pill,
+  Syringe,
+  ClipboardList,
 } from "lucide-react";
 import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
+import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { toast } from "sonner";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1228,7 +1233,7 @@ function ExtendStayDialog({
         <div className="flex gap-3 mt-6">
           <button
             className="btn-primary flex-1"
-            disabled={isPending || !newCheckout || newCheckout <= stay.checkIn.slice(0, 10)}
+            disabled={isPending || !newCheckout || newCheckout < minDate || newCheckout === currentCheckout}
             onClick={() => onConfirm(newCheckout + "T12:00:00")}
           >
             <Calendar className="w-4 h-4" />
@@ -1461,7 +1466,7 @@ export default function BoardingPage() {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setShowNewStay(false);
-      setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "", pricePerNight: 0 });
+      setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150 });
       setCustomerSearch("");
       toast.success("ההשמה נוצרה בהצלחה");
     },
@@ -1831,8 +1836,9 @@ export default function BoardingPage() {
 
   return (
     <div>
+      <BoardingTabs />
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
         <h1 className="page-title">פנסיון</h1>
         <p className="text-sm text-petra-muted">
           {activeStays.length} שהיות פעילות · {rooms.length} חדרים
@@ -2445,10 +2451,10 @@ export default function BoardingPage() {
                 </div>
               )}
 
-              {/* Price per night */}
+              {/* Price per night — display only, not saved to stay record */}
               {selectedCustomer && (
                 <div>
-                  <label className="label">מחיר ללילה (₪)</label>
+                  <label className="label">מחיר ללילה (₪) — הערכת עלות בלבד</label>
                   <input
                     type="number"
                     className="input"
@@ -2456,6 +2462,7 @@ export default function BoardingPage() {
                     value={form.pricePerNight}
                     onChange={(e) => setForm({ ...form, pricePerNight: Number(e.target.value) || 0 })}
                   />
+                  <p className="text-[11px] text-petra-muted mt-1">הסכום לא נשמר אוטומטית — יש להוסיף תשלום ידנית בלשונית "פיננסים"</p>
                 </div>
               )}
 

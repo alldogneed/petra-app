@@ -32,7 +32,6 @@ import {
   UserX,
   TrendingDown,
   TrendingUp,
-  Share2,
   Pill,
   Copy,
   ClipboardCheck,
@@ -59,6 +58,7 @@ import { formatCurrency, fetchJSON, cn, toWhatsAppPhone } from "@/lib/utils";
 import { SetupChecklist } from "@/components/onboarding/SetupChecklist";
 import { TeamWelcomeModal } from "@/components/onboarding/TeamWelcomeModal";
 import OnboardingWizardModal from "@/components/onboarding/OnboardingWizardModal";
+import { CreateOrderModal } from "@/components/orders/CreateOrderModal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -92,9 +92,10 @@ interface DashboardStats {
     date: string;
     startTime: string;
     status: string;
-    service: { id: string; name: string; color: string | null; type?: string };
+    service: { id: string; name: string; color: string | null; type?: string } | null;
     customer: { name: string; phone: string };
     pet: { name: string; species: string } | null;
+    notes: string | null;
   }[];
   tomorrowAppointments: {
     id: string;
@@ -347,7 +348,7 @@ function AppointmentRow({
             </span>
           )}
         </div>
-        <div className="text-xs text-petra-muted mt-0.5">{appointment.service.name}</div>
+        <div className="text-xs text-petra-muted mt-0.5">{appointment.service?.name ?? appointment.notes ?? "תור"}</div>
       </div>
 
       <div className="text-right flex-shrink-0">
@@ -1812,6 +1813,7 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [showNewAppointment, setShowNewAppointment] = useState(false);
+  const [showNewOrder, setShowNewOrder] = useState(false);
   const [showOnboardingWizard, setShowOnboardingWizard] = useState(false);
   const [intakeCopied, setIntakeCopied] = useState(false);
   const [intakeLoading, setIntakeLoading] = useState(false);
@@ -1891,7 +1893,7 @@ export default function DashboardPage() {
     serviceFilter === "all"
       ? data.upcomingAppointments
       : data.upcomingAppointments.filter(
-        (a) => a.service.type === serviceFilter
+        (a) => a.service?.type === serviceFilter
       );
 
   return (
@@ -1918,13 +1920,13 @@ export default function DashboardPage() {
               <CalendarClock className="w-4 h-4" />
               תור ידני +
             </button>
-            <Link
-              href="/orders"
+            <button
+              onClick={() => setShowNewOrder(true)}
               className="btn-secondary flex items-center gap-2"
             >
               <ShoppingCart className="w-4 h-4" />
               הזמנה חדשה
-            </Link>
+            </button>
             <button
               onClick={handleCopyIntakeForm}
               disabled={intakeLoading}
@@ -1946,49 +1948,20 @@ export default function DashboardPage() {
                 </>
               )}
             </button>
-            {(() => {
-              const todayAppts = data.upcomingAppointments.filter(
-                (a) => a.date.slice(0, 10) === new Date().toISOString().slice(0, 10)
-              ).sort((a, b) => a.startTime.localeCompare(b.startTime));
-              const lines = [
-                `🌅 *בריפינג בוקר — ${todayStr}*`,
-                "",
-              ];
-              if (todayAppts.length > 0) {
-                lines.push(`📅 *תורים היום (${todayAppts.length}):*`);
-                todayAppts.forEach((a, i) => {
-                  lines.push(`  ${i + 1}. ${a.startTime} — ${a.customer.name}${a.pet ? ` (${a.pet.name})` : ""} · ${a.service.name}`);
-                });
-                lines.push("");
-              }
-              if ((data.todayArrivals?.length ?? 0) > 0) {
-                lines.push(`🐾 *כניסות לפנסיון (${data.todayArrivals.length}):*`);
-                data.todayArrivals.forEach((s) => lines.push(`  • ${s.pet.name} — ${s.customer.name}`));
-                lines.push("");
-              }
-              if ((data.todayDepartures?.length ?? 0) > 0) {
-                lines.push(`🏠 *יציאות מהפנסיון (${data.todayDepartures.length}):*`);
-                data.todayDepartures.forEach((s) => lines.push(`  • ${s.pet.name} — ${s.customer.name}`));
-                lines.push("");
-              }
-              if ((data.overdueTasks?.length ?? 0) > 0) {
-                lines.push(`⚠️ *משימות באיחור: ${data.overdueTasks.length}*`);
-              }
-              lines.push("✅ *יום טוב לכולם!*");
-              const waUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(lines.join("\n"))}`;
-              return (
-                <a
-                  href={waUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-secondary flex items-center gap-2 hidden sm:flex"
-                  title="שתף בריפינג בוקר בוואטסאפ"
-                >
-                  <Share2 className="w-4 h-4" />
-                  בריפינג בוקר
-                </a>
-              );
-            })()}
+            <button
+              onClick={() => {
+                const slug = user?.businessSlug || user?.businessId || "demo-business-001";
+                const url = `${window.location.origin}/book/${slug}`;
+                navigator.clipboard.writeText(url).then(() => {
+                  toast.success("קישור הזמנת תורים הועתק!", { description: url });
+                }).catch(() => toast.error("לא הצלחנו להעתיק"));
+              }}
+              className="btn-secondary flex items-center gap-2"
+              title="העתק קישור הזמנת תורים אונליין"
+            >
+              <Copy className="w-4 h-4" />
+              <span className="hidden sm:inline">העתק קישור הזמנה</span>
+            </button>
           </div>
         </div>
       </div>
@@ -2397,6 +2370,17 @@ export default function DashboardPage() {
         onClose={() => setShowNewAppointment(false)}
         onCreated={() => {
           setShowNewAppointment(false);
+          queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+        }}
+      />
+
+      {/* New Order Modal */}
+      <CreateOrderModal
+        isOpen={showNewOrder}
+        onClose={() => setShowNewOrder(false)}
+        onCreated={() => {
+          setShowNewOrder(false);
+          queryClient.invalidateQueries({ queryKey: ["orders"] });
           queryClient.invalidateQueries({ queryKey: ["dashboard"] });
         }}
       />

@@ -17,6 +17,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import {
   SERVICE_DOG_PHASES,
   SERVICE_DOG_PHASE_MAP,
@@ -99,6 +100,7 @@ export default function ServiceDogsListPage() {
 
   return (
     <div className="animate-fade-in space-y-4">
+      <ServiceDogsTabs />
       {/* Header */}
       <div className="page-header">
         <div>

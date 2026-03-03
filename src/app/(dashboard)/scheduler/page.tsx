@@ -1,5 +1,6 @@
 "use client";
 
+import { BookingsTabs } from "@/components/bookings/BookingsTabs";
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -445,6 +446,7 @@ export default function SchedulerPage() {
   /* ─────────────── Render ─────────────── */
   return (
     <div className="p-4 md:p-6 space-y-5 animate-fade-in">
+      <BookingsTabs />
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">

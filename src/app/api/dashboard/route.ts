@@ -311,12 +311,12 @@ export async function GET(request: NextRequest) {
       const topServiceId = topServiceResult[0].serviceId;
       // Re-use data already fetched: upcomingAppointments includes service details
       const svcFromUpcoming = upcomingAppointments.find(
-        (a) => a.service.id === topServiceId
+        (a) => a.service?.id === topServiceId
       );
-      const svcName = svcFromUpcoming?.service.name;
+      const svcName = svcFromUpcoming?.service?.name;
       if (svcName) {
         topService = { name: svcName, count: topServiceResult[0]._count.id };
-      } else {
+      } else if (topServiceId) {
         // Fallback: service wasn't in upcoming appointments — look it up
         const svc = await prisma.service.findUnique({
           where: { id: topServiceId },
@@ -408,7 +408,7 @@ export async function GET(request: NextRequest) {
         customerId: a.customer.id,
         customerPhone: a.customer.phone,
         petName: a.pet?.name ?? null,
-        serviceName: a.service.name,
+        serviceName: a.service?.name ?? null,
       })),
       pendingBookings,
       atRiskCustomers,

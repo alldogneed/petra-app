@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LOST_REASON_CODES, LEAD_SOURCES } from "@/lib/constants";
 import {
     Phone, Mail, Calendar, User, AlignLeft, X, Clock,
-    CheckCircle2, History, Check, CalendarCheck
+    CheckCircle2, History, Check, CalendarCheck,
+    Trophy, XCircle, MessageSquare, Star, Zap, MessageCircle,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, toWhatsAppPhone } from "@/lib/utils";
+import LostReasonModal from "@/components/leads/LostReasonModal";
 
 interface Lead {
     id: string;
@@ -21,6 +23,10 @@ interface Lead {
     lastContactedAt: string | null;
     nextFollowUpAt?: string | null;
     followUpStatus?: string;
+    wonAt?: string | null;
+    lostAt?: string | null;
+    lostReasonCode?: string | null;
+    lostReasonText?: string | null;
     callLogs?: {
         id: string;
         summary: string;
@@ -45,56 +51,224 @@ interface LeadTreatmentModalProps {
     onWon?: (name: string, customerId: string) => void;
 }
 
+// ─── Timeline ────────────────────────────────────────────────────────────────
+
+type TLType = "created" | "call_log" | "follow_up" | "won" | "lost";
+
+interface TLEvent {
+    id: string;
+    type: TLType;
+    date: string;
+    title: string;
+    description?: string;
+    action?: string;
+    isFuture?: boolean;
+}
+
+const TL_STYLES: Record<TLType, { icon: React.ReactNode; dot: string; line: string; card: string }> = {
+    created: {
+        icon: <Star className="w-3.5 h-3.5" />,
+        dot: "bg-violet-100 text-violet-600 border-violet-300",
+        line: "bg-violet-200",
+        card: "bg-violet-50/60 border-violet-100",
+    },
+    call_log: {
+        icon: <MessageSquare className="w-3.5 h-3.5" />,
+        dot: "bg-blue-100 text-blue-600 border-blue-300",
+        line: "bg-blue-200",
+        card: "bg-blue-50/50 border-blue-100",
+    },
+    follow_up: {
+        icon: <CalendarCheck className="w-3.5 h-3.5" />,
+        dot: "bg-amber-100 text-amber-600 border-amber-300",
+        line: "bg-amber-200",
+        card: "bg-amber-50/50 border-amber-100",
+    },
+    won: {
+        icon: <Trophy className="w-3.5 h-3.5" />,
+        dot: "bg-green-100 text-green-600 border-green-300",
+        line: "bg-green-200",
+        card: "bg-green-50/60 border-green-100",
+    },
+    lost: {
+        icon: <XCircle className="w-3.5 h-3.5" />,
+        dot: "bg-red-100 text-red-600 border-red-300",
+        line: "bg-red-200",
+        card: "bg-red-50/50 border-red-100",
+    },
+};
+
+function TimelineItem({ event, isLast }: { event: TLEvent; isLast: boolean }) {
+    const s = TL_STYLES[event.type];
+    return (
+        <div className="flex gap-3 relative">
+            {/* connector line */}
+            {!isLast && (
+                <div className={cn("absolute top-9 bottom-0 w-0.5 z-0", s.line)}
+                    style={{ right: "17px" }} />
+            )}
+
+            {/* dot */}
+            <div className={cn(
+                "w-9 h-9 rounded-full border-2 flex items-center justify-center flex-shrink-0 z-10 shadow-sm",
+                s.dot,
+                event.isFuture && "ring-2 ring-amber-300 ring-offset-1 opacity-80",
+            )}>
+                {s.icon}
+            </div>
+
+            {/* content */}
+            <div className="flex-1 pb-4 min-w-0">
+                <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-petra-text leading-tight">
+                            {event.title}
+                        </span>
+                        {event.isFuture && (
+                            <span className="text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                                מתוכנן
+                            </span>
+                        )}
+                    </div>
+                    <span className="text-[11px] text-petra-muted whitespace-nowrap flex-shrink-0 bg-white/80 px-1.5 py-0.5 rounded border border-slate-100 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                        {new Date(event.date).toLocaleString("he-IL", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                        })}
+                    </span>
+                </div>
+
+                {(event.description || event.action) && (
+                    <div className={cn("rounded-lg border p-3 space-y-2 text-sm", s.card)}>
+                        {event.description && (
+                            <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                {event.description}
+                            </p>
+                        )}
+                        {event.action && (
+                            <div className="bg-amber-50 border border-amber-100 rounded-md p-2">
+                                <span className="text-[11px] font-bold text-amber-700 block mb-0.5">
+                                    Action Items ←
+                                </span>
+                                <p className="text-amber-900 whitespace-pre-wrap">{event.action}</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ─── Main Modal ──────────────────────────────────────────────────────────────
+
 export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: LeadTreatmentModalProps) {
     const queryClient = useQueryClient();
 
-    // Call log fields
     const [summary, setSummary] = useState("");
     const [treatment, setTreatment] = useState("");
     const [callLogSaved, setCallLogSaved] = useState(false);
 
-    // Stage & status
     const [selectedStage, setSelectedStage] = useState(lead?.stage || "new");
-    const [lostReason, setLostReason] = useState("");
-    const [lostReasonText, setLostReasonText] = useState("");
 
-    // Follow-up fields
     const [nextFollowUpAt, setNextFollowUpAt] = useState("");
     const [followUpStatus, setFollowUpStatus] = useState("pending");
     const [followUpSaved, setFollowUpSaved] = useState(false);
+    const [followUpError, setFollowUpError] = useState(false);
 
-    // Edit mode
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", source: "" });
 
+    const [lostModalOpen, setLostModalOpen] = useState(false);
+
+    const isClosed = lead?.stage === "won" || lead?.stage === "lost";
     const lostStage = stages.find((s) => s.isLost);
     const wonStage = stages.find((s) => s.isWon);
+    const isSelectedWon = wonStage && selectedStage === wonStage.id;
+    const isSelectedLost = lostStage && selectedStage === lostStage.id;
 
     useEffect(() => {
         if (lead) {
             setSelectedStage(lead.stage);
-            setEditForm({
-                name: lead.name,
-                phone: lead.phone || "",
-                email: lead.email || "",
-                source: lead.source,
-            });
+            setEditForm({ name: lead.name, phone: lead.phone || "", email: lead.email || "", source: lead.source });
             setIsEditing(false);
             setSummary("");
             setTreatment("");
-            setLostReason("");
-            setLostReasonText("");
             setCallLogSaved(false);
             setFollowUpSaved(false);
+            setFollowUpError(false);
             setNextFollowUpAt(lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt).toISOString().slice(0, 16) : "");
             setFollowUpStatus(lead.followUpStatus || "pending");
         }
     }, [lead]);
 
-    // ── Mutations ──────────────────────────────────────────────────────────
+    // ── Build CRM Timeline ────────────────────────────────────────────────
+
+    const timeline = useMemo((): TLEvent[] => {
+        if (!lead) return [];
+        const events: TLEvent[] = [];
+
+        events.push({
+            id: "created",
+            type: "created",
+            date: lead.createdAt,
+            title: "ליד נוצר במערכת",
+            description: lead.notes || undefined,
+        });
+
+        if (lead.callLogs) {
+            [...lead.callLogs]
+                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                .forEach((log) => {
+                    events.push({
+                        id: log.id,
+                        type: "call_log",
+                        date: log.createdAt,
+                        title: "שיחה תועדה",
+                        description: log.summary !== "ללא סיכום" ? log.summary : undefined,
+                        action: log.treatment !== "ללא טיפול" ? log.treatment : undefined,
+                    });
+                });
+        }
+
+        if (lead.nextFollowUpAt) {
+            const isFuture = new Date(lead.nextFollowUpAt) > new Date();
+            events.push({
+                id: "follow_up",
+                type: "follow_up",
+                date: lead.nextFollowUpAt,
+                title: lead.followUpStatus === "completed" ? "פולואפ הושלם" : "פולואפ מתוזמן",
+                isFuture,
+            });
+        }
+
+        if (lead.wonAt) {
+            events.push({ id: "won", type: "won", date: lead.wonAt, title: "ליד נסגר — לקוח נוצר" });
+        }
+
+        if (lead.lostAt) {
+            const reasonLabel = lead.lostReasonCode
+                ? LOST_REASON_CODES.find((r) => r.id === lead.lostReasonCode)?.label
+                : undefined;
+            events.push({
+                id: "lost",
+                type: "lost",
+                date: lead.lostAt,
+                title: "ליד אבד",
+                description: reasonLabel || lead.lostReasonText || undefined,
+            });
+        }
+
+        return events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }, [lead]);
+
+    // ── Mutations ─────────────────────────────────────────────────────────
 
     const updateLeadMutation = useMutation({
-        mutationFn: (data: any) =>
+        mutationFn: (data: Record<string, unknown>) =>
             fetch(`/api/leads/${lead!.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
@@ -106,15 +280,35 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
 
     const closeWonMutation = useMutation({
         mutationFn: () =>
-            fetch(`/api/leads/${lead!.id}/close-won`, { method: "POST" }).then((r) => r.json()),
+            fetch(`/api/leads/${lead!.id}/close-won`, { method: "POST" }).then(async (r) => {
+                if (!r.ok) { const e = await r.json(); throw new Error(e.error || "Failed"); }
+                return r.json();
+            }),
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ["leads"] });
             queryClient.invalidateQueries({ queryKey: ["customers"] });
-            if (data.customerId && onWon) {
-                onWon(lead!.name, data.customerId);
-            }
+            if (data.customerId && onWon) onWon(lead!.name, data.customerId);
+            onClose();
         },
         onError: () => alert("שגיאה בסגירת הליד. נסה שוב."),
+    });
+
+    const closeLostMutation = useMutation({
+        mutationFn: ({ reasonCode, reasonText }: { reasonCode: string; reasonText: string | null }) =>
+            fetch(`/api/leads/${lead!.id}/close-lost`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ reasonCode, reasonText }),
+            }).then(async (r) => {
+                if (!r.ok) { const e = await r.json(); throw new Error(e.error || "Failed"); }
+                return r.json();
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["leads"] });
+            setLostModalOpen(false);
+            onClose();
+        },
+        onError: () => alert("שגיאה בסימון הליד כאבוד. נסה שוב."),
     });
 
     const addCallLogMutation = useMutation({
@@ -127,12 +321,10 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
     });
 
-    const isSelectedLost = lostStage && selectedStage === lostStage.id;
-    const isSelectedWon = wonStage && selectedStage === wonStage.id;
+    const isWorking = updateLeadMutation.isPending || closeWonMutation.isPending || closeLostMutation.isPending;
 
-    // ── Handlers ───────────────────────────────────────────────────────────
+    // ── Handlers ──────────────────────────────────────────────────────────
 
-    /** Saves just the call log (summary + treatment) */
     const handleConfirmCallLog = async () => {
         if (!lead || (!summary.trim() && !treatment.trim())) return;
         await addCallLogMutation.mutateAsync({
@@ -145,91 +337,101 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
         setTimeout(() => setCallLogSaved(false), 3000);
     };
 
-    /** Saves just the follow-up date & status */
     const handleConfirmFollowUp = async () => {
-        if (!lead) return;
+        if (!nextFollowUpAt) { setFollowUpError(true); return; }
+        setFollowUpError(false);
         await updateLeadMutation.mutateAsync({
-            nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt).toISOString() : null,
+            nextFollowUpAt: new Date(nextFollowUpAt).toISOString(),
             followUpStatus,
         });
         setFollowUpSaved(true);
         setTimeout(() => setFollowUpSaved(false), 3000);
     };
 
-    /** Full save: stage + optional lost reason + optional edit details, then close */
     const handleSave = async () => {
         if (!lead) return;
 
-        // If moving to won stage — call close-won to create customer
+        // Follow-up is mandatory
+        if (!nextFollowUpAt) {
+            setFollowUpError(true);
+            document.getElementById("followup-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+            return;
+        }
+
         if (isSelectedWon) {
-            // Save edited details first if needed
             if (isEditing) {
                 await updateLeadMutation.mutateAsync({
-                    name: editForm.name,
-                    phone: editForm.phone || null,
-                    email: editForm.email || null,
-                    source: editForm.source,
+                    name: editForm.name, phone: editForm.phone || null,
+                    email: editForm.email || null, source: editForm.source,
                 });
             }
             await closeWonMutation.mutateAsync();
-            onClose();
             return;
         }
 
         await updateLeadMutation.mutateAsync({
             stage: selectedStage,
-            ...(isSelectedLost && {
-                lostReasonCode: lostReason,
-                lostReasonText: lostReasonText,
-                lostAt: new Date().toISOString(),
-            }),
             ...(isEditing && {
-                name: editForm.name,
-                phone: editForm.phone || null,
-                email: editForm.email || null,
-                source: editForm.source,
+                name: editForm.name, phone: editForm.phone || null,
+                email: editForm.email || null, source: editForm.source,
             }),
         });
         onClose();
     };
 
+    const handleCloseWon = () => {
+        if (isWorking) return;
+        if (confirm("לסגור ליד וליצור לקוח חדש?")) closeWonMutation.mutate();
+    };
+
+    const handleCloseLost = () => {
+        if (isWorking) return;
+        setLostModalOpen(true);
+    };
+
     if (!lead || !isOpen) return null;
 
     return (
-        <div className="modal-overlay">
-            <div className="modal-backdrop" onClick={onClose} />
-            <div className="modal-content max-w-2xl mx-4 p-6 flex flex-col max-h-[90vh]">
-                <div className="flex items-center justify-between mb-6 border-b border-petra-border pb-4">
-                    <h2 className="text-xl font-bold text-petra-text flex items-center gap-2">
-                        טיפול בליד: {isEditing ? editForm.name : lead.name}
-                    </h2>
-                    <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
-                        <X className="w-4 h-4" />
-                    </button>
-                </div>
+        <>
+            <div className="modal-overlay">
+                <div className="modal-backdrop" onClick={onClose} />
+                <div className="modal-content max-w-2xl mx-4 p-6 flex flex-col max-h-[90vh]">
 
-                <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+                    {/* ── Header ──────────────────────────────────────────── */}
+                    <div className="flex items-center justify-between mb-5 border-b border-petra-border pb-4">
+                        <h2 className="text-xl font-bold text-petra-text">
+                            טיפול בליד: {isEditing ? editForm.name : lead.name}
+                        </h2>
+                        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
 
-                    {/* ── Lead Info ─────────────────────────────────────────────── */}
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                        {!isEditing ? (
-                            <>
+                    <div className="flex-1 overflow-y-auto space-y-5 pe-1">
+
+                        {/* ── Lead Info ────────────────────────────────────── */}
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            {!isEditing ? (
                                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                                     {lead.phone && (
-                                        <a
-                                            href={`tel:${lead.phone}`}
-                                            className="flex items-center gap-1.5 text-sm text-brand-600 font-medium hover:text-brand-800 hover:underline transition-colors"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <Phone className="w-4 h-4" /> {lead.phone}
-                                        </a>
+                                        <div className="flex items-center gap-1.5">
+                                            <a href={`tel:${lead.phone}`} className="flex items-center gap-1.5 text-sm text-brand-600 font-medium hover:underline transition-colors">
+                                                <Phone className="w-4 h-4" /> {lead.phone}
+                                            </a>
+                                            <a
+                                                href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(lead.phone)}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                title="שלח הודעה בוואטסאפ"
+                                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 hover:border-green-300 transition-colors"
+                                            >
+                                                <MessageCircle className="w-3.5 h-3.5" />
+                                                וואטסאפ
+                                            </a>
+                                        </div>
                                     )}
                                     {lead.email && (
-                                        <a
-                                            href={`mailto:${lead.email}`}
-                                            className="flex items-center gap-1.5 text-sm text-brand-600 font-medium hover:text-brand-800 hover:underline transition-colors"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
+                                        <a href={`mailto:${lead.email}`} className="flex items-center gap-1.5 text-sm text-brand-600 font-medium hover:underline transition-colors">
                                             <Mail className="w-4 h-4" /> {lead.email}
                                         </a>
                                     )}
@@ -237,307 +439,280 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
                                         <Calendar className="w-3.5 h-3.5" />
                                         נוצר: {new Date(lead.createdAt).toLocaleDateString("he-IL")}
                                     </div>
-                                    <button
-                                        onClick={() => setIsEditing(true)}
-                                        className="text-xs font-medium text-brand-600 hover:text-brand-700 underline underline-offset-2"
-                                    >
+                                    <button onClick={() => setIsEditing(true)} className="text-xs font-medium text-brand-600 hover:text-brand-700 underline underline-offset-2">
                                         ערוך פרטים
                                     </button>
                                 </div>
-                            </>
-                        ) : (
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center mb-2">
-                                    <h4 className="font-medium text-sm">עריכת פרטים</h4>
-                                    <button onClick={() => setIsEditing(false)} className="text-xs text-slate-500 hover:text-slate-700">ביטול עריכה</button>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <h4 className="font-medium text-sm">עריכת פרטים</h4>
+                                        <button onClick={() => setIsEditing(false)} className="text-xs text-slate-500 hover:text-slate-700">ביטול עריכה</button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {[
+                                            { key: "name", label: "שם ליד" },
+                                            { key: "phone", label: "טלפון" },
+                                            { key: "email", label: "אימייל" },
+                                        ].map(({ key, label }) => (
+                                            <div key={key}>
+                                                <label className="label text-xs">{label}</label>
+                                                <input className="input text-sm h-8" value={(editForm as Record<string, string>)[key]}
+                                                    onChange={e => setEditForm({ ...editForm, [key]: e.target.value })} />
+                                            </div>
+                                        ))}
+                                        <div>
+                                            <label className="label text-xs">מקור</label>
+                                            <select className="input text-sm h-8" value={editForm.source} onChange={e => setEditForm({ ...editForm, source: e.target.value })}>
+                                                {LEAD_SOURCES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="label text-xs">שם ליד</label>
-                                        <input className="input text-sm h-8" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
-                                    </div>
-                                    <div>
-                                        <label className="label text-xs">טלפון</label>
-                                        <input className="input text-sm h-8" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} />
-                                    </div>
-                                    <div>
-                                        <label className="label text-xs">אימייל</label>
-                                        <input className="input text-sm h-8" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} />
-                                    </div>
-                                    <div>
-                                        <label className="label text-xs">מקור</label>
-                                        <select className="input text-sm h-8" value={editForm.source} onChange={e => setEditForm({ ...editForm, source: e.target.value })}>
-                                            {LEAD_SOURCES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-                                        </select>
-                                    </div>
+                            )}
+                        </div>
+
+                        {/* ── Stage Selector ──────────────────────────────── */}
+                        {!isClosed && (
+                            <div className="space-y-3">
+                                <h3 className="font-semibold text-petra-text text-sm">סטטוס הליד</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {stages.map((stage) => (
+                                        <button
+                                            key={stage.id}
+                                            onClick={() => setSelectedStage(stage.id)}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors flex items-center gap-1.5",
+                                                selectedStage === stage.id
+                                                    ? "border-current"
+                                                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                                            )}
+                                            style={selectedStage === stage.id ? {
+                                                color: stage.color,
+                                                backgroundColor: `${stage.color}15`,
+                                                borderColor: stage.color,
+                                            } : {}}
+                                        >
+                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                                            {stage.name}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                         )}
-                    </div>
 
-                    {/* ── Stage ─────────────────────────────────────────────────── */}
-                    <div className="space-y-3">
-                        <h3 className="font-semibold text-petra-text">סטטוס הליד</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {stages.map((stage) => (
-                                <button
-                                    key={stage.id}
-                                    onClick={() => setSelectedStage(stage.id)}
-                                    className={cn(
-                                        "px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2",
-                                        selectedStage === stage.id
-                                            ? "border-current bg-opacity-10"
-                                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                                    )}
-                                    style={{
-                                        ...(selectedStage === stage.id && {
-                                            color: stage.color,
-                                            backgroundColor: `${stage.color}15`,
-                                            borderColor: stage.color,
-                                        }),
-                                    }}
-                                >
-                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
-                                    {stage.name}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* ── Lost Reason ───────────────────────────────────────────── */}
-                    {isSelectedLost && (
-                        <div className="space-y-4 bg-red-50 p-4 rounded-xl border border-red-100">
-                            <h3 className="font-semibold text-red-800">סיבת אובדן</h3>
-                            <div className="grid grid-cols-2 gap-2">
-                                {LOST_REASON_CODES.map((reason) => (
-                                    <button
-                                        key={reason.id}
-                                        onClick={() => setLostReason(reason.id)}
-                                        className={cn(
-                                            "px-3 py-2 rounded-lg text-sm font-medium border text-right transition-colors",
-                                            lostReason === reason.id
-                                                ? "bg-red-600 text-white border-red-600"
-                                                : "bg-white text-slate-700 border-red-200 hover:bg-red-100"
-                                        )}
-                                    >
-                                        {reason.label}
-                                    </button>
-                                ))}
+                        {/* ── Closed banner ────────────────────────────────── */}
+                        {isClosed && (
+                            <div className={cn(
+                                "rounded-xl px-4 py-3 flex items-center gap-2 text-sm font-semibold border",
+                                lead.stage === "won"
+                                    ? "bg-green-50 text-green-700 border-green-200"
+                                    : "bg-red-50 text-red-700 border-red-200"
+                            )}>
+                                {lead.stage === "won"
+                                    ? <><CheckCircle2 className="w-4 h-4" /> ליד נסגר בהצלחה — לקוח נוצר</>
+                                    : <><XCircle className="w-4 h-4" /> ליד אבוד</>
+                                }
                             </div>
-                            {lostReason === "OTHER" && (
+                        )}
+
+                        {/* ── Call Log Section ─────────────────────────────── */}
+                        <div className="space-y-4 bg-blue-50/40 rounded-xl border border-blue-100 p-4">
+                            <h3 className="font-semibold text-petra-text flex items-center gap-2">
+                                <AlignLeft className="w-4 h-4 text-blue-500" />
+                                סיכום שיחה מול הלקוח
+                            </h3>
+                            <div>
+                                <label className="label text-xs text-slate-500">סיכום השיחה</label>
+                                <textarea className="input" rows={3} value={summary}
+                                    onChange={(e) => setSummary(e.target.value)}
+                                    placeholder="מה נאמר בשיחה? לאיזה סיכום הגעתם?" />
+                            </div>
+                            <div>
+                                <label className="label text-xs text-slate-500 flex items-center gap-1">
+                                    <User className="w-3 h-3" /> להמשך טיפול (Action Items)
+                                </label>
+                                <textarea className="input" rows={2} value={treatment}
+                                    onChange={(e) => setTreatment(e.target.value)}
+                                    placeholder="מה הצעדים הבאים להמשך הטיפול בליד?" />
+                            </div>
+                            <div className="flex items-center justify-end gap-2 pt-1">
+                                {callLogSaved && (
+                                    <span className="flex items-center gap-1 text-sm text-green-600 font-medium animate-in fade-in">
+                                        <Check className="w-4 h-4" /> נשמר!
+                                    </span>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={handleConfirmCallLog}
+                                    disabled={addCallLogMutation.isPending || (!summary.trim() && !treatment.trim())}
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    {addCallLogMutation.isPending
+                                        ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        : <Check className="w-4 h-4" />}
+                                    אשר וסיים שיחה
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* ── Follow-up Section (REQUIRED) ─────────────────── */}
+                        <div id="followup-section" className={cn(
+                            "space-y-4 rounded-xl border p-4 transition-colors",
+                            followUpError && !nextFollowUpAt
+                                ? "bg-red-50/60 border-red-300"
+                                : "bg-amber-50/40 border-amber-100"
+                        )}>
+                            <h3 className="font-semibold text-petra-text flex items-center gap-2">
+                                <CalendarCheck className={cn("w-4 h-4", followUpError && !nextFollowUpAt ? "text-red-500" : "text-amber-500")} />
+                                תזמון פולואפ הבא
+                                <span className={cn(
+                                    "text-[11px] font-bold px-2 py-0.5 rounded-full border",
+                                    followUpError && !nextFollowUpAt
+                                        ? "bg-red-100 text-red-600 border-red-200"
+                                        : "bg-amber-100 text-amber-600 border-amber-200"
+                                )}>
+                                    חובה
+                                </span>
+                                {followUpError && !nextFollowUpAt && (
+                                    <span className="text-xs text-red-600 font-normal">— נדרש לפני שמירה</span>
+                                )}
+                            </h3>
+
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="label text-red-800">פירוט עזיבה</label>
+                                    <label className="label text-xs text-slate-500 flex items-center gap-1">
+                                        <Clock className="w-3 h-3" /> תאריך ושעת פולואפ *
+                                    </label>
                                     <input
-                                        className="input border-red-200 focus:border-red-500 focus:ring-red-500/20"
-                                        value={lostReasonText}
-                                        onChange={(e) => setLostReasonText(e.target.value)}
-                                        placeholder="פרט את סיבת העזיבה..."
+                                        type="datetime-local"
+                                        className={cn(
+                                            "input h-10 w-full",
+                                            followUpError && !nextFollowUpAt && "border-red-400 focus:ring-red-500/20"
+                                        )}
+                                        value={nextFollowUpAt}
+                                        onChange={(e) => { setNextFollowUpAt(e.target.value); setFollowUpError(false); }}
                                     />
                                 </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* ── Call Log Section ──────────────────────────────────────── */}
-                    <div className="space-y-4 bg-blue-50/40 rounded-xl border border-blue-100 p-4">
-                        <h3 className="font-semibold text-petra-text flex items-center gap-2">
-                            <AlignLeft className="w-4 h-4 text-blue-500" />
-                            סיכום שיחה מול הלקוח
-                        </h3>
-                        <div>
-                            <label className="label text-xs text-slate-500">סיכום השיחה</label>
-                            <textarea
-                                className="input"
-                                rows={3}
-                                value={summary}
-                                onChange={(e) => setSummary(e.target.value)}
-                                placeholder="מה נאמר בשיחה? לאיזה סיכום הגעתם?"
-                            />
-                        </div>
-                        <div>
-                            <label className="label text-xs text-slate-500 flex items-center gap-1">
-                                <User className="w-3 h-3" /> להמשך טיפול (Action Items)
-                            </label>
-                            <textarea
-                                className="input"
-                                rows={2}
-                                value={treatment}
-                                onChange={(e) => setTreatment(e.target.value)}
-                                placeholder="מה הצעדים הבאים להמשך הטיפול בליד?"
-                            />
-                        </div>
-
-                        {/* ✅ Confirm call log button */}
-                        <div className="flex items-center justify-end gap-2 pt-1">
-                            {callLogSaved && (
-                                <span className="flex items-center gap-1 text-sm text-green-600 font-medium animate-in fade-in">
-                                    <Check className="w-4 h-4" /> נשמר!
-                                </span>
-                            )}
-                            <button
-                                type="button"
-                                onClick={handleConfirmCallLog}
-                                disabled={addCallLogMutation.isPending || (!summary.trim() && !treatment.trim())}
-                                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                                {addCallLogMutation.isPending ? (
-                                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                ) : (
-                                    <Check className="w-4 h-4" />
-                                )}
-                                אשר וסיים שיחה
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* ── Follow-up Section ─────────────────────────────────────── */}
-                    <div className="space-y-4 bg-amber-50/40 rounded-xl border border-amber-100 p-4">
-                        <h3 className="font-semibold text-petra-text flex items-center gap-2">
-                            <CalendarCheck className="w-4 h-4 text-amber-500" />
-                            תזמון פולואפ הבא
-                        </h3>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="label text-xs text-slate-500 flex items-center gap-1">
-                                    <Clock className="w-3 h-3" /> תאריך ושעת פולואפ
-                                </label>
-                                <input
-                                    type="datetime-local"
-                                    className="input h-10 w-full"
-                                    value={nextFollowUpAt}
-                                    onChange={(e) => setNextFollowUpAt(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="label text-xs text-slate-500 flex items-center gap-1">
-                                    <CheckCircle2 className="w-3 h-3" /> סטטוס פולואפ
-                                </label>
-                                <div className="flex bg-slate-100 p-1 rounded-lg h-10">
-                                    <button
-                                        type="button"
-                                        className={cn(
-                                            "flex-1 text-sm font-medium rounded-md transition-colors",
-                                            followUpStatus === "pending"
-                                                ? "bg-white text-brand-600 shadow-sm"
-                                                : "text-slate-500 hover:text-slate-700"
-                                        )}
-                                        onClick={() => setFollowUpStatus("pending")}
-                                    >
-                                        ממתין
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={cn(
-                                            "flex-1 text-sm font-medium rounded-md transition-colors",
-                                            followUpStatus === "completed"
-                                                ? "bg-green-100 text-green-700 shadow-sm"
-                                                : "text-slate-500 hover:text-slate-700"
-                                        )}
-                                        onClick={() => setFollowUpStatus("completed")}
-                                    >
-                                        הושלם
-                                    </button>
+                                <div>
+                                    <label className="label text-xs text-slate-500 flex items-center gap-1">
+                                        <CheckCircle2 className="w-3 h-3" /> סטטוס פולואפ
+                                    </label>
+                                    <div className="flex bg-slate-100 p-1 rounded-lg h-10">
+                                        <button type="button"
+                                            className={cn("flex-1 text-sm font-medium rounded-md transition-colors",
+                                                followUpStatus === "pending" ? "bg-white text-brand-600 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                                            onClick={() => setFollowUpStatus("pending")}>
+                                            ממתין
+                                        </button>
+                                        <button type="button"
+                                            className={cn("flex-1 text-sm font-medium rounded-md transition-colors",
+                                                followUpStatus === "completed" ? "bg-green-100 text-green-700 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                                            onClick={() => setFollowUpStatus("completed")}>
+                                            הושלם
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+
+                            <div className="flex items-center justify-end gap-2 pt-1">
+                                {followUpSaved && (
+                                    <span className="flex items-center gap-1 text-sm text-green-600 font-medium animate-in fade-in">
+                                        <Check className="w-4 h-4" /> תזמון נשמר!
+                                    </span>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={handleConfirmFollowUp}
+                                    disabled={updateLeadMutation.isPending || !nextFollowUpAt}
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    {updateLeadMutation.isPending
+                                        ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        : <CalendarCheck className="w-4 h-4" />}
+                                    אשר תזמון פולואפ
+                                </button>
+                            </div>
                         </div>
 
-                        {/* ✅ Confirm follow-up button */}
-                        <div className="flex items-center justify-end gap-2 pt-1">
-                            {followUpSaved && (
-                                <span className="flex items-center gap-1 text-sm text-green-600 font-medium animate-in fade-in">
-                                    <Check className="w-4 h-4" /> תזמון נשמר!
+                        {/* ── CRM Timeline ─────────────────────────────────── */}
+                        <div className="space-y-3 border-t border-slate-200 pt-5">
+                            <h3 className="font-semibold text-petra-text flex items-center gap-2">
+                                <History className="w-4 h-4 text-brand-500" />
+                                היסטוריית התקשרות
+                                <span className="text-xs font-normal text-petra-muted bg-slate-100 px-2 py-0.5 rounded-full">
+                                    {timeline.length} {timeline.length === 1 ? "אירוע" : "אירועים"}
                                 </span>
+                            </h3>
+
+                            {timeline.length > 0 ? (
+                                <div className="relative pe-1">
+                                    {timeline.map((event, idx) => (
+                                        <TimelineItem
+                                            key={event.id}
+                                            event={event}
+                                            isLast={idx === timeline.length - 1}
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                    <Zap className="w-8 h-8 text-slate-300 mb-2" />
+                                    <p className="text-sm text-petra-muted">אין עדיין היסטוריה</p>
+                                </div>
                             )}
-                            <button
-                                type="button"
-                                onClick={handleConfirmFollowUp}
-                                disabled={updateLeadMutation.isPending || !nextFollowUpAt}
-                                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                                {updateLeadMutation.isPending ? (
-                                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                ) : (
-                                    <CalendarCheck className="w-4 h-4" />
-                                )}
-                                אשר תזמון פולואפ
-                            </button>
                         </div>
                     </div>
 
-                    {/* ── History ───────────────────────────────────────────────── */}
-                    <div className="space-y-3 border-t border-slate-200 pt-4">
-                        <h3 className="font-semibold text-petra-text flex items-center gap-2">
-                            <History className="w-4 h-4 text-brand-500" />
-                            היסטוריית שיחות והתכתבויות
-                            {lead.callLogs && lead.callLogs.length > 0 && (
-                                <span className="text-xs font-normal text-petra-muted bg-slate-100 px-2 py-0.5 rounded-full">
-                                    {lead.callLogs.length} רשומות
-                                </span>
-                            )}
-                        </h3>
-                        {lead.callLogs && lead.callLogs.length > 0 ? (
-                            <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1 custom-scrollbar">
-                                {lead.callLogs
-                                    .slice()
-                                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                                    .map((log) => (
-                                        <div key={log.id} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm relative">
-                                            <div className="absolute top-3 left-3 text-[10px] font-medium text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded flex items-center gap-1">
-                                                <Clock className="w-3 h-3" />
-                                                {new Date(log.createdAt).toLocaleString("he-IL", {
-                                                    day: "2-digit",
-                                                    month: "2-digit",
-                                                    hour: "2-digit",
-                                                    minute: "2-digit",
-                                                })}
-                                            </div>
-                                            <div className="space-y-2 mt-1">
-                                                <div>
-                                                    <span className="text-xs font-semibold text-petra-muted block mb-0.5">סיכום שיחה:</span>
-                                                    <p className="text-sm text-petra-text whitespace-pre-wrap">{log.summary}</p>
-                                                </div>
-                                                {log.treatment && log.treatment !== "ללא טיפול" && (
-                                                    <div className="bg-amber-50/50 p-2 rounded-lg border border-amber-100/50">
-                                                        <span className="text-[11px] font-semibold text-amber-700 block mb-0.5">צעדים להמשך (Action Items):</span>
-                                                        <p className="text-sm text-amber-900 whitespace-pre-wrap">{log.treatment}</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center py-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                                <History className="w-8 h-8 text-slate-300 mb-2" />
-                                <p className="text-sm text-petra-muted">אין עדיין היסטוריית שיחות</p>
-                                <p className="text-xs text-slate-400 mt-1">הוסף סיכום שיחה ולחץ ״אשר וסיים שיחה״</p>
+                    {/* ── Footer ──────────────────────────────────────────── */}
+                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-petra-border gap-3">
+
+                        {/* Save / Close — RIGHT side (RTL start) */}
+                        <div className="flex gap-2">
+                            <button className="btn-secondary" onClick={onClose} disabled={isWorking}>
+                                סגור
+                            </button>
+                            <button
+                                className="btn-primary"
+                                onClick={handleSave}
+                                disabled={isWorking}
+                            >
+                                {updateLeadMutation.isPending ? "שומר..." : "שמור וסגור"}
+                            </button>
+                        </div>
+
+                        {/* Won / Lost — LEFT side (RTL end) */}
+                        {!isClosed && (
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleCloseWon}
+                                    disabled={isWorking}
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 transition-colors shadow-sm"
+                                >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    {closeWonMutation.isPending ? "סוגר..." : "נסגר"}
+                                </button>
+                                <button
+                                    onClick={handleCloseLost}
+                                    disabled={isWorking}
+                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 transition-colors shadow-sm"
+                                >
+                                    <XCircle className="w-4 h-4" />
+                                    {closeLostMutation.isPending ? "מסמן..." : "אבד"}
+                                </button>
                             </div>
                         )}
                     </div>
                 </div>
-
-                {/* ── Footer: stage save ─────────────────────────────────────── */}
-                <div className="flex gap-3 justify-end mt-6 pt-4 border-t border-petra-border">
-                    <button
-                        className="btn-secondary"
-                        onClick={onClose}
-                        disabled={updateLeadMutation.isPending}
-                    >
-                        סגור
-                    </button>
-                    <button
-                        className="btn-primary"
-                        onClick={handleSave}
-                        disabled={
-                            updateLeadMutation.isPending ||
-                            (isSelectedLost && !lostReason)
-                        }
-                    >
-                        {updateLeadMutation.isPending ? "שומר..." : "שמור סטטוס וסגור"}
-                    </button>
-                </div>
             </div>
-        </div>
+
+            {/* Lost Reason Modal */}
+            <LostReasonModal
+                isOpen={lostModalOpen}
+                onClose={() => setLostModalOpen(false)}
+                onConfirm={(reasonCode, reasonText) => closeLostMutation.mutate({ reasonCode, reasonText })}
+                isPending={closeLostMutation.isPending}
+            />
+        </>
     );
 }

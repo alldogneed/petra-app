@@ -15,6 +15,7 @@ import {
   Clock,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
+import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import { RECIPIENT_STATUSES, RECIPIENT_STATUS_MAP, DISABILITY_TYPES, DISABILITY_TYPE_MAP, PLACEMENT_STATUS_MAP } from "@/lib/service-dogs";
 import { toast } from "sonner";
 
@@ -61,6 +62,7 @@ export default function RecipientsPage() {
 
   return (
     <div className="animate-fade-in space-y-4">
+      <ServiceDogsTabs />
       {/* Header */}
       <div className="page-header">
         <div>

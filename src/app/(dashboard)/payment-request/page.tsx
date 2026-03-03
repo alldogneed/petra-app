@@ -1,5 +1,6 @@
 "use client";
 
+import { FinanceTabs } from "@/components/finance/FinanceTabs";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -284,6 +285,7 @@ export default function PaymentRequestPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in">
+      <FinanceTabs />
       {/* WhatsApp Banner */}
       {canSend && (
         <a
@@ -540,7 +542,7 @@ export default function PaymentRequestPage() {
                           setDiscountPercent(val);
                         }}
                         placeholder="0"
-                        className="w-20 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                        className="w-20 px-3 py-1.5 rounded-xl border border-petra-border text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                       />
                       <span className="text-sm text-slate-500">%</span>
                       {discountAmount > 0 && (

@@ -12,8 +12,8 @@ const PUBLIC_PATHS = [
   "/api/auth/logout",
   "/book",
   "/api/book",
-  "/intake/",      // public intake form pages: /intake/[token] only (NOT /intake-forms)
-  "/api/intake/",  // public intake API: /api/intake/[token] and /api/intake/[token]/submit
+  // NOTE: /intake and /api/intake are handled below with regex
+  // to allow /intake/[token] only — NOT /intake or /intake/ (admin pages)
   "/api/booking/availability",
   "/api/booking/slots",
   "/api/booking/book",
@@ -32,7 +32,12 @@ function isValidTokenFormat(token: string): boolean {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public paths
+  // Allow public intake pages: /intake/[token] only — NOT /intake or /intake/ (admin pages)
+  if (/^\/intake\/[^/]+/.test(pathname)) return NextResponse.next();
+  // Allow public intake API: /api/intake/[token] and /api/intake/[token]/submit
+  if (/^\/api\/intake\/[^/]+/.test(pathname)) return NextResponse.next();
+
+  // Allow other public paths
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }

@@ -215,7 +215,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
               <div>
                 <label className="text-xs font-medium text-slate-600 block mb-1">שם הכלב *</label>
                 <input
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400"
+                  className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                   value={dog.name}
                   onChange={(e) => setDog({ ...dog, name: e.target.value })}
                 />
@@ -224,7 +224,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                 <div>
                   <label className="text-xs font-medium text-slate-600 block mb-1">גזע</label>
                   <input
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400"
+                    className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                     value={dog.breed}
                     onChange={(e) => setDog({ ...dog, breed: e.target.value })}
                   />
@@ -232,7 +232,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                 <div>
                   <label className="text-xs font-medium text-slate-600 block mb-1">מין</label>
                   <select
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400"
+                    className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                     value={dog.gender}
                     onChange={(e) => setDog({ ...dog, gender: e.target.value })}
                   >
@@ -247,7 +247,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                   <label className="text-xs font-medium text-slate-600 block mb-1">משקל (ק&quot;ג)</label>
                   <input
                     type="number"
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400"
+                    className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                     value={dog.weight}
                     onChange={(e) => setDog({ ...dog, weight: e.target.value })}
                   />
@@ -256,7 +256,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                   <label className="text-xs font-medium text-slate-600 block mb-1">תאריך לידה</label>
                   <input
                     type="date"
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400"
+                    className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                     value={dog.birthDate}
                     onChange={(e) => setDog({ ...dog, birthDate: e.target.value })}
                   />
@@ -270,7 +270,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                   <div>
                     <label className="text-xs font-medium text-slate-600 block mb-1">שם הבעלים *</label>
                     <input
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400"
+                      className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                       value={dog.customerName}
                       onChange={(e) => setDog({ ...dog, customerName: e.target.value })}
                     />
@@ -278,7 +278,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                   <div>
                     <label className="text-xs font-medium text-slate-600 block mb-1">טלפון *</label>
                     <input
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400"
+                      className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                       value={dog.customerPhone}
                       onChange={(e) => setDog({ ...dog, customerPhone: e.target.value })}
                       dir="ltr"
@@ -296,7 +296,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
               <div>
                 <label className="text-xs font-medium text-slate-600 block mb-1">אלרגיות</label>
                 <textarea
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400 resize-none"
+                  className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
                   rows={2}
                   value={health.allergies}
                   onChange={(e) => setHealth({ ...health, allergies: e.target.value })}
@@ -306,7 +306,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
               <div>
                 <label className="text-xs font-medium text-slate-600 block mb-1">מצבים רפואיים</label>
                 <textarea
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400 resize-none"
+                  className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
                   rows={2}
                   value={health.medicalConditions}
                   onChange={(e) => setHealth({ ...health, medicalConditions: e.target.value })}
@@ -316,7 +316,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
               <div>
                 <label className="text-xs font-medium text-slate-600 block mb-1">הוראות האכלה / אוכל</label>
                 <textarea
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400 resize-none"
+                  className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
                   rows={2}
                   value={health.foodNotes}
                   onChange={(e) => setHealth({ ...health, foodNotes: e.target.value })}
@@ -327,7 +327,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                 <div>
                   <label className="text-xs font-medium text-slate-600 block mb-1">שם וטרינר</label>
                   <input
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400"
+                    className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                     value={health.vetName}
                     onChange={(e) => setHealth({ ...health, vetName: e.target.value })}
                   />
@@ -335,7 +335,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                 <div>
                   <label className="text-xs font-medium text-slate-600 block mb-1">טלפון וטרינר</label>
                   <input
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400"
+                    className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                     value={health.vetPhone}
                     onChange={(e) => setHealth({ ...health, vetPhone: e.target.value })}
                     dir="ltr"
@@ -367,7 +367,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
               <div>
                 <label className="text-xs font-medium text-slate-600 block mb-1">מאיפה הכלב? (מקור)</label>
                 <input
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400"
+                  className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                   value={health.originInfo}
                   onChange={(e) => setHealth({ ...health, originInfo: e.target.value })}
                   placeholder="מגדל, כלביה, אימוץ..."
@@ -376,7 +376,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
               <div>
                 <label className="text-xs font-medium text-slate-600 block mb-1">כמה זמן הכלב אצלכם?</label>
                 <input
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400"
+                  className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                   value={health.timeWithOwner}
                   onChange={(e) => setHealth({ ...health, timeWithOwner: e.target.value })}
                   placeholder="שנתיים, 3 חודשים..."
@@ -427,7 +427,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                     פרט על היסטוריית נשיכות
                   </label>
                   <textarea
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400 resize-none"
+                    className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
                     rows={2}
                     value={behavior.biteDetails as string}
                     onChange={(e) => setBehavior({ ...behavior, biteDetails: e.target.value })}
@@ -440,7 +440,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                   טריגרים ידועים
                 </label>
                 <textarea
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400 resize-none"
+                  className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
                   rows={2}
                   value={behavior.triggers as string}
                   onChange={(e) => setBehavior({ ...behavior, triggers: e.target.value })}
@@ -475,7 +475,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                 </div>
                 {behavior.priorTraining && (
                   <textarea
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-orange-400 resize-none"
+                    className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
                     rows={2}
                     value={behavior.priorTrainingDetails as string}
                     onChange={(e) =>
@@ -508,7 +508,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                     </button>
                   </div>
                   <input
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
+                    className="w-full px-3 py-2 rounded-xl border border-petra-border text-sm"
                     placeholder="שם התרופה"
                     value={med.medName}
                     onChange={(e) => {
@@ -519,7 +519,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <input
-                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm"
+                      className="px-3 py-2 rounded-xl border border-petra-border text-sm"
                       placeholder="מינון"
                       value={med.dosage}
                       onChange={(e) => {
@@ -529,7 +529,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                       }}
                     />
                     <input
-                      className="px-3 py-2 rounded-lg border border-slate-200 text-sm"
+                      className="px-3 py-2 rounded-xl border border-petra-border text-sm"
                       placeholder="תדירות"
                       value={med.frequency}
                       onChange={(e) => {

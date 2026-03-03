@@ -14,6 +14,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
+import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import {
   PLACEMENT_STATUS_MAP,
   SERVICE_DOG_PLACEMENT_STATUSES,
@@ -111,6 +112,7 @@ export default function PlacementsPage() {
 
   return (
     <div className="animate-fade-in space-y-5">
+      <ServiceDogsTabs />
       {/* Header */}
       <div className="page-header">
         <div>

@@ -14,6 +14,7 @@ import {
   Filter,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
+import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import { COMPLIANCE_EVENT_MAP } from "@/lib/service-dogs";
 import { toast } from "sonner";
 
@@ -97,6 +98,7 @@ export default function CompliancePage() {
 
   return (
     <div className="animate-fade-in space-y-5">
+      <ServiceDogsTabs />
       {/* Header */}
       <div className="page-header">
         <div>

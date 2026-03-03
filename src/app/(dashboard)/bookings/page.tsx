@@ -1,5 +1,6 @@
 "use client";
 
+import { BookingsTabs } from "@/components/bookings/BookingsTabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -147,6 +148,7 @@ export default function BookingsPage() {
 
   return (
     <div>
+      <BookingsTabs />
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <h1 className="page-title">ניהול תורים</h1>
         <p className="text-sm text-petra-muted">

@@ -74,14 +74,14 @@ export function GlobalFilters() {
               type="date"
               value={filters.from}
               onChange={(e) => filters.setCustomRange(e.target.value, filters.to)}
-              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-400"
+              className="text-xs border border-petra-border rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
             />
             <span className="text-xs text-gray-400">עד</span>
             <input
               type="date"
               value={filters.to}
               onChange={(e) => filters.setCustomRange(filters.from, e.target.value)}
-              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-400"
+              className="text-xs border border-petra-border rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
             />
           </div>
         )}

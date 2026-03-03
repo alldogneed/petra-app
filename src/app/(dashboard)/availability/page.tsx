@@ -195,7 +195,7 @@ export default function AvailabilityPage() {
                     <select
                       value={rule.openTime}
                       onChange={(e) => updateRule(rule.dayOfWeek, "openTime", e.target.value)}
-                      className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      className="border border-petra-border rounded-xl px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                     >
                       {TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
@@ -203,7 +203,7 @@ export default function AvailabilityPage() {
                     <select
                       value={rule.closeTime}
                       onChange={(e) => updateRule(rule.dayOfWeek, "closeTime", e.target.value)}
-                      className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      className="border border-petra-border rounded-xl px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                     >
                       {TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
@@ -234,7 +234,7 @@ export default function AvailabilityPage() {
                 type="datetime-local"
                 value={newBlock.startAt}
                 onChange={(e) => setNewBlock((p) => ({ ...p, startAt: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full border border-petra-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
               />
             </div>
             <div>
@@ -243,7 +243,7 @@ export default function AvailabilityPage() {
                 type="datetime-local"
                 value={newBlock.endAt}
                 onChange={(e) => setNewBlock((p) => ({ ...p, endAt: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full border border-petra-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
               />
             </div>
             <div>
@@ -253,7 +253,7 @@ export default function AvailabilityPage() {
                 value={newBlock.reason}
                 onChange={(e) => setNewBlock((p) => ({ ...p, reason: e.target.value }))}
                 placeholder="חופשה, יום סגור..."
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full border border-petra-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
               />
             </div>
           </div>

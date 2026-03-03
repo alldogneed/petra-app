@@ -47,7 +47,7 @@ interface AppointmentEvent {
     color: string | null;
     duration: number;
     price: number;
-  };
+  } | null;
   customer: { id: string; name: string; phone: string };
   pet: { id: string; name: string; species: string } | null;
 }
@@ -151,10 +151,15 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
 };
 
 const ORDER_TYPE_COLORS: Record<string, string> = {
+  // Legacy
   sale: "#F97316",
+  appointment: "#6366F1",
+  // New types
+  products: "#F97316",
   boarding: "#10B981",
   training: "#3B82F6",
   grooming: "#EC4899",
+  service_dog: "#8B5CF6",
 };
 
 
@@ -218,8 +223,8 @@ function appointmentStyle(startTime: string, endTime: string) {
 function getAppointmentColor(service: {
   color: string | null;
   type: string;
-}): string {
-  return service.color || SERVICE_TYPE_COLORS[service.type] || "#78716C";
+} | null): string {
+  return service?.color || SERVICE_TYPE_COLORS[service?.type ?? "other"] || "#78716C";
 }
 
 function getMonthGrid(anchor: Date): Date[] {
@@ -297,10 +302,10 @@ function HoverPreviewCard({
           {appointment.startTime} – {appointment.endTime}
         </span>
         <span className="opacity-50">·</span>
-        <span>{appointment.service.duration} דק׳</span>
+        <span>{appointment.service?.duration ?? 60} דק׳</span>
       </div>
       <div className="text-xs font-medium mt-1.5" style={{ color }}>
-        {appointment.service.name}
+        {appointment.service?.name ?? appointment.notes ?? "תור"}
       </div>
       <div className="flex items-center gap-1.5 mt-2 text-xs text-petra-muted">
         <Phone className="w-3.5 h-3.5" />
@@ -540,7 +545,7 @@ function NewAppointmentModal({
                 <span className="font-semibold">התנגשות בלוח הזמנים! </span>
                 {conflictingApts.map((a) => (
                   <span key={a.id}>
-                    {a.customer.name} ({a.startTime}–{a.endTime} · {a.service.name})
+                    {a.customer.name} ({a.startTime}–{a.endTime} · {a.service?.name ?? "תור"})
                   </span>
                 )).reduce<React.ReactNode[]>((acc, el, i) => i === 0 ? [el] : [...acc, ", ", el], [])}
               </div>
@@ -630,7 +635,7 @@ function QuickPaymentModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [amount, setAmount] = useState(appointment.service.price || 0);
+  const [amount, setAmount] = useState(appointment.service?.price || 0);
   const [method, setMethod] = useState("cash");
 
   const mutation = useMutation({
@@ -662,7 +667,7 @@ function QuickPaymentModal({
           <div>
             <h2 className="text-base font-bold text-petra-text">רישום תשלום</h2>
             <p className="text-xs text-petra-muted mt-0.5">
-              {appointment.customer.name} · {appointment.service.name}
+              {appointment.customer.name} · {appointment.service?.name ?? "תור"}
             </p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
@@ -801,7 +806,7 @@ export default function CalendarPage() {
 
   const filteredAppointments = useMemo(
     () => serviceTypeFilter
-      ? appointments.filter((a) => a.service.type === serviceTypeFilter)
+      ? appointments.filter((a) => a.service?.type === serviceTypeFilter)
       : appointments,
     [appointments, serviceTypeFilter]
   );
@@ -1063,7 +1068,7 @@ export default function CalendarPage() {
         {apt.pet && (
           <div className="opacity-80 truncate">{apt.customer.name}</div>
         )}
-        <div className="opacity-80 truncate">{apt.service.name}</div>
+        <div className="opacity-80 truncate">{apt.service?.name ?? apt.notes ?? "תור"}</div>
         <div className="opacity-80">{apt.startTime}</div>
       </div>
     );
@@ -1175,7 +1180,7 @@ export default function CalendarPage() {
       {/* ── Header ── */}
       <div className="flex flex-col gap-3 mb-4 md:mb-6">
         {/* Top row: title + new appointment */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
           <div>
             <h1 className="page-title">יומן</h1>
             <p className="text-xs text-petra-muted mt-0.5">{headerSubtitle}</p>
@@ -1201,7 +1206,7 @@ export default function CalendarPage() {
                 const dayLabel = `${dayNames[date.getDay()]} ${date.toLocaleDateString("he-IL", { day: "numeric", month: "long" })}`;
                 lines.push(`📌 ${dayLabel}:`);
                 byDay[dateStr].forEach((a, i) => {
-                  lines.push(`  ${i + 1}. ${a.startTime} — ${a.customer.name}${a.pet ? ` (${a.pet.name})` : ""} · ${a.service.name}`);
+                  lines.push(`  ${i + 1}. ${a.startTime} — ${a.customer.name}${a.pet ? ` (${a.pet.name})` : ""} · ${a.service?.name ?? a.notes ?? "תור"}`);
                 });
                 lines.push("");
               }
@@ -1233,7 +1238,7 @@ export default function CalendarPage() {
                 `סה"כ ${summaryAppts.length} פגישות`,
                 "",
                 ...summaryAppts.map((a, i) =>
-                  `${i + 1}. ${a.startTime} — ${a.customer.name}${a.pet ? ` (${a.pet.name})` : ""} · ${a.service.name}`
+                  `${i + 1}. ${a.startTime} — ${a.customer.name}${a.pet ? ` (${a.pet.name})` : ""} · ${a.service?.name ?? a.notes ?? "תור"}`
                 ),
               ];
               const waUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(lines.join("\n"))}`;
@@ -1987,7 +1992,7 @@ export default function CalendarPage() {
                 </div>
               )}
               <div className="text-petra-text font-medium">
-                {selectedAppointment.service.name}
+                {selectedAppointment.service?.name ?? selectedAppointment.notes ?? "תור"}
               </div>
               {/* Notes section with inline edit */}
               <div className="group/notes">
@@ -2058,7 +2063,7 @@ export default function CalendarPage() {
               href={(() => {
                 const appt = selectedAppointment;
                 const date = new Date(appt.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
-                const msg = `שלום ${appt.customer.name}! 😊\nתזכורת לתור שלך:\n📅 ${date} בשעה ${appt.startTime}\n🐾 ${appt.service.name}${appt.pet ? ` עם ${appt.pet.name}` : ""}\n\nנתראה! 🌟`;
+                const msg = `שלום ${appt.customer.name}! 😊\nתזכורת לתור שלך:\n📅 ${date} בשעה ${appt.startTime}\n🐾 ${appt.service?.name ?? appt.notes ?? "תור"}${appt.pet ? ` עם ${appt.pet.name}` : ""}\n\nנתראה! 🌟`;
                 return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(appt.customer.phone)}&text=${encodeURIComponent(msg)}`;
               })()}
               target="_blank"

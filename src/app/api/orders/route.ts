@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
 
     const body = await request.json();
-    const { customerId, orderType, startAt, endAt, lines, discountType, discountValue, notes, status } = body;
+    const { customerId, orderType, startAt, endAt, lines, discountType, discountValue, notes, status, appointmentData } = body;
 
     if (!customerId || !lines || lines.length === 0) {
       return NextResponse.json({ error: "customerId and at least one line are required" }, { status: 400 });
@@ -88,7 +88,15 @@ export async function POST(request: NextRequest) {
       vatRate: business.vatRate,
     });
 
-    // Create order + lines atomically
+    // Order types that create a linked Appointment
+    const APPT_ORDER_TYPES = ["training", "grooming", "service_dog"];
+    const APPT_TYPE_LABELS: Record<string, string> = {
+      training: "אילוף",
+      grooming: "טיפוח",
+      service_dog: "כלב שירות",
+    };
+
+    // Create order + lines + optional appointment atomically
     const order = await prisma.$transaction(async (tx) => {
       const created = await tx.order.create({
         data: {
@@ -126,6 +134,29 @@ export async function POST(request: NextRequest) {
             taxMode: cl.taxMode,
             metadata: l.metadata ? JSON.stringify(l.metadata) : "{}",
           },
+        });
+      }
+
+      // Create linked Appointment for service-based order types
+      if (appointmentData && APPT_ORDER_TYPES.includes(orderType)) {
+        const typeLabel = APPT_TYPE_LABELS[orderType] || orderType;
+        const apptNotes = `[${typeLabel}] ${notes || ""}`.trim();
+        const appt = await tx.appointment.create({
+          data: {
+            date: new Date(appointmentData.date),
+            startTime: appointmentData.startTime,
+            endTime: appointmentData.endTime,
+            status: "scheduled",
+            serviceId: appointmentData.serviceId ?? null,
+            customerId,
+            petId: appointmentData.petId ?? null,
+            businessId: authResult.businessId,
+            notes: apptNotes || null,
+          },
+        });
+        await tx.order.update({
+          where: { id: created.id },
+          data: { relatedEntityType: "Appointment", relatedEntityId: appt.id },
         });
       }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { FinanceTabs } from "@/components/finance/FinanceTabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
@@ -7,9 +8,11 @@ import {
   Loader2, PackageOpen, ToggleLeft, ToggleRight,
   ShoppingBag, AlertTriangle, Clock, Package, Copy,
   CheckCircle2, XCircle, Link2, CalendarCheck, CreditCard,
+  ExternalLink, Settings2, Lock,
 } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
+import { SERVICE_TYPES } from "@/lib/constants";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -548,6 +551,178 @@ function ItemRow({
   );
 }
 
+// ─── Service Row (auto-synced from Services settings) ─────────
+
+function ServiceRow({
+  svc,
+  onEdit,
+}: {
+  svc: Service;
+  onEdit: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 border-b border-petra-border hover:bg-brand-50/30 transition-colors group">
+      <div
+        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+        style={{ background: (svc.color ?? "#3B82F6") + "20" }}
+      >
+        <div className="w-3 h-3 rounded-full" style={{ background: svc.color ?? "#3B82F6" }} />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-semibold text-petra-text">{svc.name}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-brand-50 text-brand-600 font-medium border border-brand-200 flex items-center gap-0.5">
+            <Link2 className="w-2.5 h-2.5" />
+            שירות
+          </span>
+          {svc.isPublicBookable && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium border border-emerald-200 flex items-center gap-0.5">
+              <CalendarCheck className="w-2.5 h-2.5" />
+              מקוון
+            </span>
+          )}
+        </div>
+        <p className="text-[10px] text-petra-muted mt-0.5">{svc.duration} דק׳</p>
+      </div>
+
+      <div className="text-left flex-shrink-0">
+        <p className="text-sm font-bold text-petra-text">{formatCurrency(svc.price)}</p>
+        {svc.includesVat && <p className="text-[10px] text-petra-muted">כולל מע״מ</p>}
+      </div>
+
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          type="button"
+          onClick={onEdit}
+          title="ערוך שירות"
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-all"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+        <span
+          title="פריט זה מקושר לשירות — ניהל בהגדרות שירותים"
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 cursor-default"
+        >
+          <Lock className="w-3.5 h-3.5" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Service Quick Edit Modal ──────────────────────────────────
+
+function ServiceQuickEditModal({
+  svc,
+  onClose,
+  onSave,
+  isSaving,
+}: {
+  svc: Service;
+  onClose: () => void;
+  onSave: (data: { name: string; price: number; duration: number; description: string | null }) => void;
+  isSaving: boolean;
+}) {
+  const [name, setName] = useState(svc.name);
+  const [price, setPrice] = useState(svc.price.toString());
+  const [duration, setDuration] = useState(svc.duration.toString());
+  const [description, setDescription] = useState(svc.description ?? "");
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-petra-text">עריכת שירות</h2>
+          <button type="button" onClick={onClose} className="btn-ghost p-1.5 rounded-lg">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-50 border border-brand-200 mb-4">
+          <Link2 className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
+          <p className="text-xs text-brand-700">שינויים ישמרו ישירות בהגדרות השירות</p>
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSave({
+              name: name.trim(),
+              price: parseFloat(price) || 0,
+              duration: parseInt(duration) || 60,
+              description: description.trim() || null,
+            });
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="label">שם השירות *</label>
+            <input
+              className="input mt-1"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoFocus
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">מחיר (₪)</label>
+              <input
+                className="input mt-1"
+                type="number"
+                min="0"
+                step="0.01"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                dir="ltr"
+                required
+              />
+            </div>
+            <div>
+              <label className="label">משך (דקות)</label>
+              <input
+                className="input mt-1"
+                type="number"
+                min="1"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                dir="ltr"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="label">תיאור</label>
+            <textarea
+              className="input mt-1 resize-none"
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="submit"
+              disabled={isSaving || !name.trim()}
+              className="btn-primary flex-1 gap-2 justify-center"
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              שמור שינויים
+            </button>
+            <button type="button" onClick={onClose} className="btn-secondary">
+              ביטול
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Price List Panel ─────────────────────────────────────────
 
 function PriceListPanel({
@@ -560,11 +735,34 @@ function PriceListPanel({
   const queryClient = useQueryClient();
   const [showAddItem, setShowAddItem] = useState(false);
   const [editItem, setEditItem] = useState<PriceListItem | null>(null);
+  const [editService, setEditService] = useState<Service | null>(null);
 
   const { data: items = [], isLoading } = useQuery<PriceListItem[]>({
     queryKey: ["price-list-items", priceList.id],
     queryFn: () =>
       fetch(`/api/price-lists/${priceList.id}/items?active=false`).then((r) => r.json()),
+  });
+
+  const { data: services = [] } = useQuery<Service[]>({
+    queryKey: ["services"],
+    queryFn: () => fetchJSON<Service[]>("/api/services"),
+  });
+
+  const activeServices = services.filter((s) => s.isActive);
+
+  const serviceEditMutation = useMutation({
+    mutationFn: (data: { name: string; price: number; duration: number; description: string | null }) =>
+      fetch(`/api/services/${editService!.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["services"] });
+      setEditService(null);
+      toast.success("השירות עודכן");
+    },
+    onError: () => toast.error("שגיאה בעדכון השירות"),
   });
 
   const buildItemPayload = (data: ItemFormData) => ({
@@ -686,7 +884,7 @@ function PriceListPanel({
               <div>
                 <h2 className="text-base font-bold text-petra-text">{priceList.name}</h2>
                 <p className="text-xs text-petra-muted">
-                  {priceList.currency} · {items.length} פריטים
+                  {priceList.currency} · {activeServices.length + items.length} פריטים
                 </p>
               </div>
             </div>
@@ -708,7 +906,7 @@ function PriceListPanel({
                   <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />
                 ))}
               </div>
-            ) : items.length === 0 ? (
+            ) : items.length === 0 && activeServices.length === 0 ? (
               <div className="empty-state py-16">
                 <div className="empty-state-icon">
                   <PackageOpen className="w-8 h-8" />
@@ -725,6 +923,21 @@ function PriceListPanel({
               </div>
             ) : (
               <div>
+                {/* ── Services section (auto-synced from Settings > Services) ── */}
+                {activeServices.length > 0 && (
+                  <div>
+                    <div className="px-4 py-2 bg-brand-50/70 border-b border-brand-100 flex items-center gap-1.5">
+                      <Link2 className="w-3 h-3 text-brand-500" />
+                      <span className="text-xs font-semibold text-brand-600 uppercase tracking-wider">שירותים</span>
+                      <span className="text-xs text-brand-400">({activeServices.length})</span>
+                    </div>
+                    {activeServices.map((svc) => (
+                      <ServiceRow key={svc.id} svc={svc} onEdit={() => setEditService(svc)} />
+                    ))}
+                  </div>
+                )}
+
+                {/* ── Custom price list items ── */}
                 {Object.entries(grouped).map(([cat, catItems]) => (
                   <div key={cat}>
                     <div className="px-4 py-2 bg-slate-50/80 border-b border-petra-border">
@@ -798,6 +1011,15 @@ function PriceListPanel({
           onClose={() => setEditItem(null)}
           onSave={(data) => editMutation.mutate(data)}
           isSaving={editMutation.isPending}
+        />
+      )}
+
+      {editService && (
+        <ServiceQuickEditModal
+          svc={editService}
+          onClose={() => setEditService(null)}
+          onSave={(data) => serviceEditMutation.mutate(data)}
+          isSaving={serviceEditMutation.isPending}
         />
       )}
     </>
@@ -948,11 +1170,311 @@ function ConfirmDeleteModal({
   );
 }
 
+// ─── Services Panel ───────────────────────────────────────────
+
+interface Service {
+  id: string;
+  name: string;
+  type: string;
+  duration: number;
+  price: number;
+  color: string | null;
+  isActive: boolean;
+  isPublicBookable: boolean;
+  description: string | null;
+  includesVat: boolean;
+  bookingMode: string;
+  paymentUrl: string | null;
+  depositRequired: boolean;
+  depositAmount: number | null;
+  bufferBefore: number;
+  bufferAfter: number;
+}
+
+const EMPTY_SERVICE: Omit<Service, "id"> = {
+  name: "", type: "training", duration: 60, price: 0, color: "#3B82F6",
+  isActive: true, isPublicBookable: false, description: null,
+  includesVat: false, bookingMode: "automatic", paymentUrl: null,
+  depositRequired: false, depositAmount: null, bufferBefore: 0, bufferAfter: 0,
+};
+
+const SERVICE_COLORS = ["#3B82F6","#8B5CF6","#EC4899","#F97316","#10B981","#14B8A6","#F59E0B","#EF4444"];
+
+function ServicesPanel({ onClose }: { onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [showModal, setShowModal] = useState(false);
+  const [editSvc, setEditSvc] = useState<Service | null>(null);
+  const [form, setForm] = useState<Omit<Service, "id">>(EMPTY_SERVICE);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const { data: services = [], isLoading } = useQuery<Service[]>({
+    queryKey: ["services"],
+    queryFn: () => fetchJSON<Service[]>("/api/services"),
+  });
+
+  function openCreate() {
+    setEditSvc(null); setForm(EMPTY_SERVICE); setFormErrors({}); setShowModal(true);
+  }
+  function openEdit(svc: Service) {
+    setEditSvc(svc);
+    setForm({ name: svc.name, type: svc.type, duration: svc.duration, price: svc.price,
+      color: svc.color ?? "#3B82F6", isActive: svc.isActive, isPublicBookable: svc.isPublicBookable,
+      description: svc.description, includesVat: svc.includesVat, bookingMode: svc.bookingMode,
+      paymentUrl: svc.paymentUrl, depositRequired: svc.depositRequired, depositAmount: svc.depositAmount,
+      bufferBefore: svc.bufferBefore, bufferAfter: svc.bufferAfter });
+    setFormErrors({}); setShowModal(true);
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const errors: Record<string, string> = {};
+      if (!form.name.trim()) errors.name = "שם השירות הוא שדה חובה";
+      if (form.price < 0) errors.price = "מחיר לא יכול להיות שלילי";
+      if (form.duration < 1) errors.duration = "משך חייב להיות לפחות דקה אחת";
+      if (Object.keys(errors).length) { setFormErrors(errors); throw new Error("validation"); }
+      const url = editSvc ? `/api/services/${editSvc.id}` : "/api/services";
+      const res = await fetch(url, {
+        method: editSvc ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, description: form.description?.trim() || null,
+          paymentUrl: form.paymentUrl?.trim() || null,
+          depositAmount: form.depositRequired ? form.depositAmount : null }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || "שגיאה"); }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["services"] });
+      setShowModal(false);
+      toast.success(editSvc ? "השירות עודכן בהצלחה" : "השירות נוצר בהצלחה");
+    },
+    onError: (err: Error) => { if (err.message !== "validation") toast.error(err.message || "שגיאה בשמירה"); },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, field, value }: { id: string; field: string; value: boolean }) =>
+      fetch(`/api/services/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }) })
+        .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["services"] }),
+    onError: () => toast.error("שגיאה בעדכון השירות"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/services/${id}`, { method: "DELETE" })
+        .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["services"] }); toast.success("השירות נמחק"); },
+    onError: () => toast.error("שגיאה במחיקת השירות"),
+  });
+
+  const typeLabel = (t: string) => SERVICE_TYPES.find((s) => s.id === t)?.label ?? t;
+
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="absolute inset-0 bg-black/20" onClick={onClose} />
+      <div className="relative mr-auto w-full max-w-lg bg-white shadow-2xl flex flex-col h-full overflow-hidden animate-slide-in-right">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
+          <div>
+            <h2 className="text-lg font-bold text-petra-text">שירותים</h2>
+            <p className="text-xs text-petra-muted mt-0.5">נהל את השירותים שאתה מציע</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={openCreate} className="btn-primary text-sm gap-1.5">
+              <Plus className="w-3.5 h-3.5" /> שירות חדש
+            </button>
+            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-2">
+          {isLoading ? (
+            <div className="py-16 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin opacity-40" /></div>
+          ) : services.length === 0 ? (
+            <div className="py-16 text-center text-sm text-petra-muted">
+              <p>אין שירותים עדיין</p>
+              <button onClick={openCreate} className="mt-3 text-brand-500 hover:underline text-xs">צור שירות ראשון</button>
+            </div>
+          ) : (
+            services.map((svc) => (
+              <div key={svc.id} className={cn("card p-4 transition-opacity", !svc.isActive && "opacity-60")}>
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: svc.color ?? "#3B82F6" }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-petra-text">{svc.name}</span>
+                      <span className="badge badge-neutral text-[10px]">{typeLabel(svc.type)}</span>
+                      {!svc.isActive && <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">לא פעיל</span>}
+                      {svc.isPublicBookable && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium border border-green-200">הזמנה מקוונת</span>}
+                    </div>
+                    <div className="flex gap-3 text-xs text-petra-muted mt-0.5">
+                      <span>{svc.duration} דק׳</span>
+                      <span>₪{svc.price}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => toggleMutation.mutate({ id: svc.id, field: "isPublicBookable", value: !svc.isPublicBookable })}
+                      className={cn("flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg border transition-colors",
+                        svc.isPublicBookable ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100")}
+                      title={svc.isPublicBookable ? "מוצג בהזמנה מקוונת — לחץ לביטול" : "לחץ להפעלת הזמנה מקוונת"}
+                    >
+                      {svc.isPublicBookable ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                      הזמנה מקוונת
+                    </button>
+                    <button onClick={() => toggleMutation.mutate({ id: svc.id, field: "isActive", value: !svc.isActive })}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors" title={svc.isActive ? "כבה שירות" : "הפעל שירות"}>
+                      {svc.isActive ? <ToggleRight className="w-5 h-5 text-brand-500" /> : <ToggleLeft className="w-5 h-5 text-slate-400" />}
+                    </button>
+                    <button onClick={() => openEdit(svc)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => { if (confirm(`למחוק את השירות "${svc.name}"?`)) deleteMutation.mutate(svc.id); }}
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Service edit modal */}
+        {showModal && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-5 border-b border-slate-100 flex-shrink-0">
+                <h3 className="text-base font-semibold text-petra-text">{editSvc ? "עריכת שירות" : "שירות חדש"}</h3>
+                <button onClick={() => setShowModal(false)} className="p-1 rounded-lg hover:bg-slate-100"><X className="w-4 h-4 text-slate-400" /></button>
+              </div>
+              <div className="overflow-y-auto flex-1 p-5 space-y-4">
+                <div>
+                  <label className="label">שם השירות *</label>
+                  <input className={cn("input w-full", formErrors.name && "border-red-300")} value={form.name}
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder='למשל: "אילוף פרטי"' />
+                  {formErrors.name && <p className="text-xs text-red-500 mt-1">{formErrors.name}</p>}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">סוג שירות</label>
+                    <select className="input w-full" value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
+                      {SERVICE_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">משך (דקות)</label>
+                    <input type="number" min={1} className={cn("input w-full", formErrors.duration && "border-red-300")}
+                      value={form.duration} onChange={(e) => setForm((f) => ({ ...f, duration: Number(e.target.value) }))} />
+                    {formErrors.duration && <p className="text-xs text-red-500 mt-1">{formErrors.duration}</p>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">מחיר (₪)</label>
+                    <input type="number" min={0} className={cn("input w-full", formErrors.price && "border-red-300")}
+                      value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: Number(e.target.value) }))} />
+                    {formErrors.price && <p className="text-xs text-red-500 mt-1">{formErrors.price}</p>}
+                  </div>
+                  <div>
+                    <label className="label">כולל מע״מ</label>
+                    <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                      <input type="checkbox" checked={form.includesVat} onChange={(e) => setForm((f) => ({ ...f, includesVat: e.target.checked }))} />
+                      <span className="text-sm text-petra-text">כולל מע״מ</span>
+                    </label>
+                  </div>
+                </div>
+                <div>
+                  <label className="label">צבע</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {SERVICE_COLORS.map((c) => (
+                      <button key={c} type="button" onClick={() => setForm((f) => ({ ...f, color: c }))}
+                        className={cn("w-7 h-7 rounded-full border-2 transition-transform", form.color === c ? "border-petra-text scale-110" : "border-transparent hover:scale-105")}
+                        style={{ background: c }} />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="label">תיאור (אופציונלי)</label>
+                  <textarea className="input w-full resize-none text-sm" rows={2} value={form.description ?? ""}
+                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value || null }))} placeholder="תיאור קצר של השירות..." />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">זמן מרווח לפני (דקות)</label>
+                    <input type="number" min={0} className="input w-full" value={form.bufferBefore} onChange={(e) => setForm((f) => ({ ...f, bufferBefore: Number(e.target.value) }))} />
+                  </div>
+                  <div>
+                    <label className="label">זמן מרווח אחרי (דקות)</label>
+                    <input type="number" min={0} className="input w-full" value={form.bufferAfter} onChange={(e) => setForm((f) => ({ ...f, bufferAfter: Number(e.target.value) }))} />
+                  </div>
+                </div>
+                <div className="border border-slate-200 rounded-xl p-4 space-y-3 bg-slate-50/50">
+                  <div className="flex items-center gap-2">
+                    <ExternalLink className="w-4 h-4 text-brand-500" />
+                    <h4 className="text-sm font-semibold text-petra-text">הזמנה מקוונת</h4>
+                  </div>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <div onClick={() => setForm((f) => ({ ...f, isPublicBookable: !f.isPublicBookable }))}
+                      className={cn("w-10 h-6 rounded-full flex items-center px-1 cursor-pointer transition-colors", form.isPublicBookable ? "bg-brand-500" : "bg-slate-300")}>
+                      <div className={cn("w-4 h-4 rounded-full bg-white shadow transition-transform", form.isPublicBookable ? "translate-x-4" : "translate-x-0")} />
+                    </div>
+                    <span className="text-sm text-petra-text font-medium">אפשר הזמנה מקוונת</span>
+                  </label>
+                  <p className="text-xs text-petra-muted">כאשר מופעל, השירות יופיע בדף ההזמנה הציבורי</p>
+                  {form.isPublicBookable && (
+                    <>
+                      <div>
+                        <label className="label">מצב אישור</label>
+                        <select className="input w-full" value={form.bookingMode} onChange={(e) => setForm((f) => ({ ...f, bookingMode: e.target.value }))}>
+                          <option value="automatic">אוטומטי — מאושר מיד</option>
+                          <option value="requires_approval">דורש אישור ידני</option>
+                        </select>
+                      </div>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={form.depositRequired} onChange={(e) => setForm((f) => ({ ...f, depositRequired: e.target.checked, depositAmount: e.target.checked ? f.depositAmount : null }))} />
+                        <span className="text-sm text-petra-text">דרוש מקדמה</span>
+                      </label>
+                      {form.depositRequired && (
+                        <div>
+                          <label className="label">סכום מקדמה (₪)</label>
+                          <input type="number" min={0} className="input w-full" value={form.depositAmount ?? ""}
+                            onChange={(e) => setForm((f) => ({ ...f, depositAmount: e.target.value ? Number(e.target.value) : null }))} />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.isActive} onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))} />
+                  <span className="text-sm text-petra-text">שירות פעיל</span>
+                </label>
+              </div>
+              <div className="flex gap-2 p-5 border-t border-slate-100 flex-shrink-0">
+                <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl bg-slate-100 text-sm font-medium hover:bg-slate-200">ביטול</button>
+                <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}
+                  className="flex-1 py-2.5 rounded-xl bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 disabled:opacity-50">
+                  {saveMutation.isPending ? "שומר..." : editSvc ? "שמור שינויים" : "צור שירות"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────
 
 export default function PricingPage() {
   const queryClient = useQueryClient();
   const [showNewList, setShowNewList] = useState(false);
+  const [showServicesPanel, setShowServicesPanel] = useState(false);
   const [selectedList, setSelectedList] = useState<PriceList | null>(null);
   const [deleteList, setDeleteList] = useState<PriceList | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -1004,6 +1526,7 @@ export default function PricingPage() {
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
+      <FinanceTabs />
       {/* Header */}
       <div className="page-header">
         <div>
@@ -1012,14 +1535,24 @@ export default function PricingPage() {
             נהל רשימות מחירים, שירותים ומוצרים
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowNewList(true)}
-          className="btn-primary gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          מחירון חדש
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowServicesPanel(true)}
+            className="btn-secondary gap-2"
+          >
+            <Settings2 className="w-4 h-4" />
+            שירותים
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowNewList(true)}
+            className="btn-primary gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            מחירון חדש
+          </button>
+        </div>
       </div>
 
       {/* Content */}
@@ -1088,6 +1621,8 @@ export default function PricingPage() {
           isDeleting={deleteMutation.isPending}
         />
       )}
+
+      {showServicesPanel && <ServicesPanel onClose={() => setShowServicesPanel(false)} />}
     </div>
   );
 }

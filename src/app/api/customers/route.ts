@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
 
         // Unique service types used by this customer
         const serviceTypes = [
-          ...new Set(c.appointments.map((a) => a.service.type)),
+          ...new Set(c.appointments.map((a) => a.service?.type).filter(Boolean)),
         ];
 
         return {
@@ -143,14 +143,14 @@ export async function GET(request: NextRequest) {
             ? {
                 date: lastAppt.date,
                 startTime: lastAppt.startTime,
-                serviceName: lastAppt.service.name,
+                serviceName: lastAppt.service?.name ?? null,
               }
             : null,
           nextAppointment: nextAppt
             ? {
                 date: nextAppt.date,
                 startTime: nextAppt.startTime,
-                serviceName: nextAppt.service.name,
+                serviceName: nextAppt.service?.name ?? null,
               }
             : null,
           financial: { totalPaid, totalPending, hasDeposits },

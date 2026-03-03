@@ -1,5 +1,6 @@
 "use client";
 
+import { FinanceTabs } from "@/components/finance/FinanceTabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import Link from "next/link";
@@ -90,9 +91,15 @@ const STATUS_INFO: Record<string, { label: string; badgeClass: string; icon: Rea
 };
 
 const ORDER_TYPE_LABELS: Record<string, string> = {
-  sale: "מכירה",
+  // Legacy types (backward compat)
+  sale: "מוצרים",
   appointment: "תור",
+  // New types
+  products: "מוצרים",
+  training: "אילוף",
   boarding: "פנסיון",
+  grooming: "טיפוח",
+  service_dog: "כלבי שירות",
 };
 
 function fmt(n: number) { return `₪${n.toFixed(2)}`; }
@@ -143,13 +150,18 @@ function CancelDialog({ orderId, onClose }: { orderId: string; onClose: () => vo
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
+function getTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export default function OrdersPage() {
   const [activeStatus, setActiveStatus] = useState("ALL");
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
-  const [fromDate, setFromDate] = useState("");
+  const [fromDate, setFromDate] = useState(getTodayStr);
   const [toDate, setToDate] = useState("");
   const queryClient = useQueryClient();
 
@@ -207,13 +219,14 @@ export default function OrdersPage() {
 
   function clearFilters() {
     setCustomerSearch("");
-    setFromDate("");
+    setFromDate(getTodayStr());
     setToDate("");
     setActiveStatus("ALL");
   }
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <FinanceTabs />
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="page-header">
         <div>

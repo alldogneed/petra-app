@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   X, Search, Plus, Minus, Trash2, ShoppingCart, CalendarDays, Clock,
-  Send, MessageCircle, CheckCircle2,
+  Send, MessageCircle, CheckCircle2, Building2, GraduationCap, Package, Scissors,
 } from "lucide-react";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
@@ -137,6 +137,22 @@ function calcBoardingUnits(
   return Math.max(units, min);
 }
 
+// ─── Category definitions ─────────────────────────────────────────────────────
+
+const CATEGORY_DEFS = [
+  { id: "boarding",  label: "פנסיון",      icon: Building2,     color: "from-purple-500 to-purple-600" },
+  { id: "training",  label: "אילוף",        icon: GraduationCap, color: "from-blue-500 to-blue-600" },
+  { id: "products",  label: "מוצרים",      icon: Package,       color: "from-emerald-500 to-emerald-600" },
+  { id: "grooming",  label: "טיפוח",       icon: Scissors,      color: "from-pink-500 to-pink-600" },
+] as const;
+
+// Map order type → Hebrew category label (for price-list auto-filter)
+const CATEGORY_LABELS: Record<string, string> = {
+  boarding: "פנסיון",
+  training: "אילוף",
+  grooming: "טיפוח",
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CreateOrderModal({
@@ -153,8 +169,8 @@ export function CreateOrderModal({
   const qc = useQueryClient();
   const router = useRouter();
 
-  // Step state: "customer" | "items" | "review" | "payment"
-  const [step, setStep] = useState<"customer" | "items" | "review" | "payment">("customer");
+  // Step state: "category" → "customer" → "items" → "review" → "payment"
+  const [step, setStep] = useState<"category" | "customer" | "items" | "review" | "payment">("category");
   const [createdOrder, setCreatedOrder] = useState<{ id: string; status: string } | null>(null);
 
   // Customer
@@ -162,7 +178,7 @@ export function CreateOrderModal({
   const [customerSearch, setCustomerSearch] = useState("");
 
   // Order meta
-  const [orderType, setOrderType] = useState("sale");
+  const [orderType, setOrderType] = useState("products");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
   const [notes, setNotes] = useState("");
@@ -174,6 +190,11 @@ export function CreateOrderModal({
 
   // General pet selection (for non-boarding orders)
   const [selectedPetId, setSelectedPetId] = useState<string>("");
+
+  // Appointment fields (for training, grooming, service_dog)
+  const [apptDate, setApptDate] = useState(todayStr());
+  const [apptStartTime, setApptStartTime] = useState("09:00");
+  const [apptEndTime, setApptEndTime] = useState("10:00");
 
   // Boarding specific date/time state
   const [boardingCheckInDate, setBoardingCheckInDate] = useState(todayStr());
@@ -235,6 +256,19 @@ export function CreateOrderModal({
     );
   };
 
+  // Auto-select the single pet when a customer with exactly 1 pet is loaded
+  useEffect(() => {
+    if (!customerDetail?.pets) return;
+    const pets = customerDetail.pets;
+    if (pets.length !== 1) return;
+    if (isBoardingOrder) {
+      setBoardingPetIds((prev) => (prev.length === 0 ? [pets[0].id] : prev));
+    } else {
+      setSelectedPetId((prev) => (prev === "" ? pets[0].id : prev));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerDetail]);
+
   // When business loads, seed boarding times from settings defaults
   useEffect(() => {
     if (business?.boardingCheckInTime) {
@@ -248,19 +282,28 @@ export function CreateOrderModal({
   const selectedCustomer = customers.find((c) => c.id === customerId) ??
     (prefillCustomerId ? { id: prefillCustomerId, name: "לקוח", phone: "" } : null);
 
-  // Filtered items
-  const filteredItems = useMemo(
-    () => allItems.filter((i) =>
-      !itemSearch ||
-      i.name.toLowerCase().includes(itemSearch.toLowerCase()) ||
-      (i.category ?? "").toLowerCase().includes(itemSearch.toLowerCase())
-    ),
-    [allItems, itemSearch]
-  );
+  // Filtered items — auto-filter by category when no search term entered
+  const filteredItems = useMemo(() => {
+    const catLabel = (CATEGORY_LABELS[orderType] ?? "").toLowerCase();
+    return allItems.filter((i) => {
+      if (itemSearch) {
+        // User typed → match name or category
+        return i.name.toLowerCase().includes(itemSearch.toLowerCase()) ||
+          (i.category ?? "").toLowerCase().includes(itemSearch.toLowerCase());
+      }
+      if (catLabel) {
+        // Strict filter: only show items in the matching category
+        const itemCat = (i.category ?? "").toLowerCase();
+        return itemCat.includes(catLabel);
+      }
+      return true;
+    });
+  }, [allItems, itemSearch, orderType]);
 
-  // ── Boarding unit calculation ─────────────────────────────────────────────
+  // ── Order type helpers ────────────────────────────────────────────────────
 
   const isBoardingOrder = orderType === "boarding";
+  const needsAppointment = ["training", "grooming", "service_dog"].includes(orderType);
 
   // Whether any line is a boarding-type (per_night or per_day)
   const hasBoardingLine = lines.some((l) =>
@@ -297,6 +340,30 @@ export function CreateOrderModal({
     );
   }, [isBoardingOrder, boardingUnits]);
 
+  // Build startAt
+
+  // When advancing from customer step to items step in boarding mode — auto-add the primary boarding item
+  const handleAdvanceToItems = useCallback(() => {
+    if (isBoardingOrder && boardingUnits !== null && lines.length === 0) {
+      const boardingItem = allItems.find(
+        (i) => (i.unit === "per_night" || i.unit === "per_day") &&
+                (i.category?.toLowerCase().includes("פנסיון") ?? true)
+      );
+      if (boardingItem) {
+        setLines([{
+          priceListItemId: boardingItem.id,
+          name: boardingItem.name,
+          unit: boardingItem.unit,
+          quantity: boardingUnits,
+          unitPrice: boardingItem.basePrice,
+          taxMode: boardingItem.taxMode as "inherit" | "taxable" | "exempt",
+          petIds: [...boardingPetIds],
+        }]);
+      }
+    }
+    setStep("items");
+  }, [isBoardingOrder, boardingUnits, lines.length, allItems, boardingPetIds]);
+
   // Build startAt / endAt from boarding fields when in boarding mode
   useEffect(() => {
     if (!isBoardingOrder) return;
@@ -307,6 +374,14 @@ export function CreateOrderModal({
       setEndAt(`${boardingCheckOutDate}T${boardingCheckOutTime}:00`);
     }
   }, [isBoardingOrder, boardingCheckInDate, boardingCheckInTime, boardingCheckOutDate, boardingCheckOutTime]);
+
+  // Build startAt from appointment date/time when in service appointment mode
+  useEffect(() => {
+    if (!needsAppointment) return;
+    if (apptDate && apptStartTime) {
+      setStartAt(`${apptDate}T${apptStartTime}:00`);
+    }
+  }, [needsAppointment, apptDate, apptStartTime]);
 
   // Calc
   const calcInput: CalcLineInput[] = lines.map((l) => ({
@@ -357,7 +432,7 @@ export function CreateOrderModal({
   // Mutation — accepts explicit status to avoid stale-closure race condition
   const mutation = useMutation({
     mutationFn: async (statusOverride: "draft" | "confirmed") => {
-      // 1. Create the order
+      // 1. Create the order (+ linked Appointment for service types, via API transaction)
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -377,6 +452,13 @@ export function CreateOrderModal({
           discountValue: parseFloat(discountValue) || 0,
           notes,
           status: statusOverride,
+          // Send appointment data for service-based order types
+          appointmentData: needsAppointment ? {
+            date: apptDate,
+            startTime: apptStartTime,
+            endTime: apptEndTime,
+            petId: selectedPetId || undefined,
+          } : undefined,
         }),
       });
 
@@ -398,14 +480,19 @@ export function CreateOrderModal({
                 customerId,
                 petId,
                 roomId: null, // starts unassigned
-                checkIn: boardingCheckInDate,
-                checkOut: boardingCheckOutDate || null,
+                checkIn: `${boardingCheckInDate}T${boardingCheckInTime}:00`,
+                checkOut: boardingCheckOutDate ? `${boardingCheckOutDate}T${boardingCheckOutTime}:00` : null,
                 notes: notes || null,
               }),
             })
           )
         );
         qc.invalidateQueries({ queryKey: ["boarding"] });
+      }
+
+      // 3. Invalidate appointments so the calendar updates
+      if (needsAppointment) {
+        qc.invalidateQueries({ queryKey: ["appointments"] });
       }
 
       return order;
@@ -424,13 +511,13 @@ export function CreateOrderModal({
   });
 
   const handleClose = () => {
-    setStep("customer");
+    setStep("category");
     setCustomerId(prefillCustomerId ?? "");
     setLines([]);
     setDiscountType("none");
     setDiscountValue("0");
     setNotes("");
-    setOrderType("sale");
+    setOrderType("products");
     setStartAt(""); setEndAt("");
     setBoardingCheckInDate(todayStr());
     setBoardingCheckInTime(business?.boardingCheckInTime ?? "12:00");
@@ -438,50 +525,95 @@ export function CreateOrderModal({
     setBoardingCheckOutTime(business?.boardingCheckOutTime ?? "12:00");
     setBoardingPetIds([]);
     setSelectedPetId("");
+    setApptDate(todayStr());
+    setApptStartTime("09:00");
+    setApptEndTime("10:00");
     setCreatedOrder(null);
     onClose();
   };
 
   if (!isOpen) return null;
 
+  // ── Step 0: Category ──────────────────────────────────────────────────────
+  const renderCategoryStep = () => (
+    <div>
+      <p className="text-sm text-petra-muted mb-4">בחר את סוג ההזמנה:</p>
+      <div className="grid grid-cols-2 gap-3">
+        {CATEGORY_DEFS.map((cat) => {
+          const Icon = cat.icon;
+          return (
+            <button
+              key={cat.id}
+              onClick={() => { setOrderType(cat.id); setStep("customer"); }}
+              className="group flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-slate-100 hover:border-[#f38d49]/40 hover:shadow-md transition-all bg-white"
+            >
+              <div className={cn(
+                "w-14 h-14 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform",
+                cat.color
+              )}>
+                <Icon className="w-7 h-7 text-white" />
+              </div>
+              <span className="text-sm font-semibold text-petra-text">{cat.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-4">
+        <button onClick={handleClose} className="btn-secondary px-6">ביטול</button>
+      </div>
+    </div>
+  );
+
   // ── Step 1: Customer ──────────────────────────────────────────────────────
   const renderCustomerStep = () => (
     <div className="space-y-4">
-      <div>
-        <label className="label">סוג הזמנה</label>
-        <div className="flex gap-2">
-          {[
-            { id: "sale", label: "🛒 מכירה" },
-            { id: "appointment", label: "📅 תור" },
-            { id: "boarding", label: "🏠 פנסיון" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setOrderType(t.id)}
-              className={cn(
-                "flex-1 py-2 rounded-xl text-sm font-medium border transition-all",
-                orderType === t.id
-                  ? "border-brand-400 bg-brand-50 text-brand-600"
-                  : "border-petra-border text-petra-muted hover:bg-slate-50"
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Service appointment: date + time + pet selector */}
+      {needsAppointment && (
+        <div className="rounded-2xl border border-brand-100 bg-brand-50/40 p-4 space-y-3">
+          <p className="text-xs font-semibold text-brand-600 flex items-center gap-1.5">
+            <CalendarDays className="w-3.5 h-3.5" />
+            פרטי התור ביומן
+          </p>
 
-      {/* Appointment: single datetime-local block */}
-      {orderType === "appointment" && (
-        <div className="grid grid-cols-2 gap-3">
+          {/* Date */}
           <div>
-            <label className="label">מתאריך</label>
-            <input type="datetime-local" className="input text-sm" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
+            <label className="label text-xs text-petra-muted mb-1">תאריך</label>
+            <input
+              type="date"
+              className="input text-sm"
+              value={apptDate}
+              onChange={(e) => setApptDate(e.target.value)}
+            />
           </div>
-          <div>
-            <label className="label">עד תאריך</label>
-            <input type="datetime-local" className="input text-sm" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
+
+          {/* Start / End time */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="label text-xs text-petra-muted mb-1">שעת התחלה</label>
+              <div className="relative">
+                <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
+                <input
+                  type="time"
+                  className="input text-sm pr-9"
+                  value={apptStartTime}
+                  onChange={(e) => setApptStartTime(e.target.value)}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="label text-xs text-petra-muted mb-1">שעת סיום</label>
+              <div className="relative">
+                <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
+                <input
+                  type="time"
+                  className="input text-sm pr-9"
+                  value={apptEndTime}
+                  onChange={(e) => setApptEndTime(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
+
         </div>
       )}
 
@@ -570,61 +702,6 @@ export function CreateOrderModal({
         </div>
       )}
 
-      {/* Boarding: pet selection (shown after customer is chosen) */}
-      {isBoardingOrder && customerId && (
-        <div>
-          <label className="label flex items-center gap-1.5">
-            🐾 כלבים לפנסיון
-            {boardingPetIds.length > 0 && (
-              <span className="text-[11px] bg-brand-100 text-brand-600 px-1.5 py-0.5 rounded-full font-bold">
-                {boardingPetIds.length} נבחרו
-              </span>
-            )}
-          </label>
-          {customerPets.length === 0 ? (
-            <div className="text-sm text-petra-muted border border-dashed border-petra-border rounded-xl p-3 text-center">
-              אין חיות מחמד ללקוח זה
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
-              {customerPets.map((p) => {
-                const selected = boardingPetIds.includes(p.id);
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => toggleBoardingPet(p.id)}
-                    className={cn(
-                      "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-right transition-all",
-                      selected
-                        ? "border-brand-400 bg-brand-50"
-                        : "border-petra-border hover:bg-slate-50"
-                    )}
-                  >
-                    <span className="text-lg leading-none flex-shrink-0">{petEmoji(p.species)}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-petra-text">{p.name}</p>
-                      {p.breed && <p className="text-xs text-petra-muted">{p.breed}</p>}
-                    </div>
-                    <div className={cn(
-                      "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all",
-                      selected ? "border-brand-500 bg-brand-500" : "border-slate-300"
-                    )}>
-                      {selected && <span className="text-white text-[10px] font-bold leading-none">✓</span>}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {boardingPetIds.length > 0 && (
-            <p className="text-[11px] text-brand-500 mt-1.5 flex items-center gap-1">
-              ✓ {boardingPetIds.length === 1 ? "הכלב" : `${boardingPetIds.length} הכלבים`} יופיע{boardingPetIds.length > 1 ? "ו" : ""} אוטומטית בלוח הפנסיון תחת &quot;ממתין לשיבוץ&quot;
-            </p>
-          )}
-        </div>
-      )}
-
       {!prefillCustomerId && (
         <div>
           <label className="label">לקוח *</label>
@@ -679,10 +756,117 @@ export function CreateOrderModal({
         </div>
       )}
 
+      {/* ── Pet selection — shown after customer is chosen ─────────────────── */}
+      {customerId && (
+        <>
+          {/* Boarding: multi-dog checkboxes */}
+          {isBoardingOrder && (
+            <div>
+              <label className="label flex items-center gap-1.5">
+                🐾 כלבים לפנסיון
+                {boardingPetIds.length > 0 && (
+                  <span className="text-[11px] bg-brand-100 text-brand-600 px-1.5 py-0.5 rounded-full font-bold">
+                    {boardingPetIds.length} נבחרו
+                  </span>
+                )}
+              </label>
+              {customerPets.length === 0 ? (
+                <div className="text-sm text-petra-muted border border-dashed border-petra-border rounded-xl p-3 text-center">
+                  אין חיות מחמד ללקוח זה
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
+                  {customerPets.map((p) => {
+                    const selected = boardingPetIds.includes(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => toggleBoardingPet(p.id)}
+                        className={cn(
+                          "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-right transition-all",
+                          selected
+                            ? "border-brand-400 bg-brand-50"
+                            : "border-petra-border hover:bg-slate-50"
+                        )}
+                      >
+                        <span className="text-lg leading-none flex-shrink-0">{petEmoji(p.species)}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-petra-text">{p.name}</p>
+                          {p.breed && <p className="text-xs text-petra-muted">{p.breed}</p>}
+                        </div>
+                        <div className={cn(
+                          "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all",
+                          selected ? "border-brand-500 bg-brand-500" : "border-slate-300"
+                        )}>
+                          {selected && <span className="text-white text-[10px] font-bold leading-none">✓</span>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {boardingPetIds.length > 0 && (
+                <p className="text-[11px] text-brand-500 mt-1.5 flex items-center gap-1">
+                  ✓ {boardingPetIds.length === 1 ? "הכלב" : `${boardingPetIds.length} הכלבים`} יופיע{boardingPetIds.length > 1 ? "ו" : ""} אוטומטית בלוח הפנסיון תחת &quot;ממתין לשיבוץ&quot;
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Non-boarding: chip buttons for pet association */}
+          {!isBoardingOrder && customerPets.length > 0 && (
+            <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3 space-y-2">
+              <p className="text-xs font-semibold text-amber-700 flex items-center gap-1.5">
+                🐾 עבור איזה כלב?
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {customerPets.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPetId("")}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                      selectedPetId === ""
+                        ? "border-amber-400 bg-amber-100 text-amber-800"
+                        : "border-petra-border bg-white text-petra-muted hover:bg-slate-50"
+                    )}
+                  >
+                    כל הכלבים
+                  </button>
+                )}
+                {customerPets.map((pet) => (
+                  <button
+                    key={pet.id}
+                    type="button"
+                    onClick={() => setSelectedPetId(pet.id)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                      selectedPetId === pet.id
+                        ? "border-amber-400 bg-amber-100 text-amber-800"
+                        : "border-petra-border bg-white text-petra-muted hover:bg-slate-50"
+                    )}
+                  >
+                    <span>{petEmoji(pet.species)}</span>
+                    <span>{pet.name}</span>
+                    {pet.breed && <span className="opacity-60">({pet.breed})</span>}
+                  </button>
+                ))}
+              </div>
+              {selectedPetId && (
+                <p className="text-[11px] text-amber-600">
+                  ✓ ההזמנה תשויך ל{customerPets.find(p => p.id === selectedPetId)?.name}
+                </p>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
       <button
         className="btn-primary w-full"
         disabled={!customerId}
-        onClick={() => setStep("items")}
+        onClick={handleAdvanceToItems}
       >
         המשך לפריטים →
       </button>
@@ -692,54 +876,6 @@ export function CreateOrderModal({
   // ── Step 2: Items ─────────────────────────────────────────────────────────
   const renderItemsStep = () => (
     <div className="flex flex-col gap-3 min-h-0">
-
-      {/* ── Pet selector (shown when customer has pets, non-boarding) ──────── */}
-      {!isBoardingOrder && customerPets.length > 0 && (
-        <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3 space-y-2">
-          <p className="text-xs font-semibold text-amber-700 flex items-center gap-1.5">
-            🐾 עבור איזה כלב?
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {/* "כל הכלבים" option when more than 1 pet */}
-            {customerPets.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setSelectedPetId("")}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
-                  selectedPetId === ""
-                    ? "border-amber-400 bg-amber-100 text-amber-800"
-                    : "border-petra-border bg-white text-petra-muted hover:bg-slate-50"
-                )}
-              >
-                כל הכלבים
-              </button>
-            )}
-            {customerPets.map((pet) => (
-              <button
-                key={pet.id}
-                type="button"
-                onClick={() => setSelectedPetId(pet.id)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
-                  selectedPetId === pet.id
-                    ? "border-amber-400 bg-amber-100 text-amber-800"
-                    : "border-petra-border bg-white text-petra-muted hover:bg-slate-50"
-                )}
-              >
-                <span>{petEmoji(pet.species)}</span>
-                <span>{pet.name}</span>
-                {pet.breed && <span className="opacity-60">({pet.breed})</span>}
-              </button>
-            ))}
-          </div>
-          {selectedPetId && (
-            <p className="text-[11px] text-amber-600">
-              ✓ ההזמנה תשויך ל{customerPets.find(p => p.id === selectedPetId)?.name}
-            </p>
-          )}
-        </div>
-      )}
 
       {/* Price list items picker */}
       <div>
@@ -1090,6 +1226,19 @@ export function CreateOrderModal({
         </div>
       </div>
 
+      {/* For training orders: shortcut to open a training program */}
+      {orderType === "training" && (
+        <button
+          className="btn-secondary w-full text-sm"
+          onClick={() => {
+            router.push(`/training?customerId=${customerId}${selectedPetId ? `&petId=${selectedPetId}` : ""}`);
+            handleClose();
+          }}
+        >
+          פתח תוכנית אילוף →
+        </button>
+      )}
+
       {/* Buttons */}
       <div className="flex gap-2">
         <button
@@ -1228,63 +1377,68 @@ export function CreateOrderModal({
     </div>
   );
 
+  // Step phase for the 3-dot indicator (matching the screenshot design)
+  const stepPhase = step === "category" ? 1 : (step === "customer" || step === "items") ? 2 : 3;
+  const stepLabel = step === "category" ? "בחירת קטגוריה"
+    : step === "customer" ? "לקוח"
+    : step === "items" ? "פריטים"
+    : step === "review" ? "סיכום"
+    : "תשלום";
+
   return (
     <div className="modal-overlay">
       <div className="modal-backdrop" onClick={handleClose} />
-      <div className="modal-content max-w-lg mx-4 p-6 max-h-[92vh] overflow-y-auto">
+      <div className="modal-content max-w-lg mx-4 p-0 overflow-hidden max-h-[92vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between mb-5">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5 text-brand-500" />
-              הזמנה חדשה
-            </h2>
-            {/* Stepper */}
-            <div className="flex items-center gap-1.5 mt-1.5">
-              {(["customer", "items", "review", "payment"] as const).map((s, i) => {
-                const labels = ["לקוח", "פריטים", "סיכום", "תשלום"];
-                const stepOrder = { customer: 0, items: 1, review: 2, payment: 3 };
-                const currentIdx = stepOrder[step];
-                const done = i < currentIdx;
-                const active = step === s;
-                return (
-                  <div key={s} className="flex items-center gap-1.5">
-                    <div className={cn(
-                      "w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center transition-all",
-                      active ? "bg-brand-500 text-white" :
-                        done ? "bg-emerald-500 text-white" :
-                          "bg-slate-200 text-slate-400"
-                    )}>
-                      {done ? "✓" : i + 1}
-                    </div>
-                    <span className={cn("text-xs", active ? "text-brand-600 font-semibold" : "text-slate-400")}>
-                      {labels[i]}
-                    </span>
-                    {i < 3 && <div className="w-4 h-px bg-slate-200" />}
-                  </div>
-                );
-              })}
+            <h2 className="text-xl font-bold text-petra-text">הזמנה חדשה</h2>
+            <div className="flex items-center gap-2 mt-1">
+              {[1, 2, 3].map((s) => (
+                <div
+                  key={s}
+                  className={cn(
+                    "h-1.5 rounded-full transition-all",
+                    s === stepPhase
+                      ? "w-8 bg-gradient-to-l from-[#f38d49] to-[#FB923C]"
+                      : s < stepPhase
+                        ? "w-6 bg-[#f38d49]/40"
+                        : "w-6 bg-slate-200"
+                  )}
+                />
+              ))}
+              <span className="text-xs text-petra-muted mr-1">{stepLabel}</span>
             </div>
           </div>
-          <button onClick={handleClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-all">
+          <button onClick={handleClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted transition-all">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Back button */}
-        {step !== "customer" && step !== "payment" && (
-          <button
-            onClick={() => setStep(step === "review" ? "items" : "customer")}
-            className="text-xs text-petra-muted hover:text-petra-text mb-3 flex items-center gap-1"
-          >
-            ← חזרה
-          </button>
+        {/* Back button (not on category or payment) */}
+        {step !== "category" && step !== "payment" && (
+          <div className="px-6 pt-3 flex-shrink-0">
+            <button
+              onClick={() => {
+                if (step === "customer") setStep("category");
+                else if (step === "items") setStep("customer");
+                else if (step === "review") setStep("items");
+              }}
+              className="text-xs text-petra-muted hover:text-petra-text flex items-center gap-1"
+            >
+              ← חזרה
+            </button>
+          </div>
         )}
 
-        {step === "customer" && renderCustomerStep()}
-        {step === "items" && renderItemsStep()}
-        {step === "review" && renderReviewStep()}
-        {step === "payment" && renderPaymentStep()}
+        {/* Content */}
+        <div className="px-6 py-5 overflow-y-auto flex-1">
+          {step === "category" && renderCategoryStep()}
+          {step === "customer" && renderCustomerStep()}
+          {step === "items" && renderItemsStep()}
+          {step === "review" && renderReviewStep()}
+          {step === "payment" && renderPaymentStep()}
+        </div>
       </div>
     </div>
   );

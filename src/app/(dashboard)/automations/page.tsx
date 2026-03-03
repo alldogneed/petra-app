@@ -215,7 +215,6 @@ export default function AutomationsPage() {
             {rules.length} כללים • {activeCount} פעילים
           </p>
         </div>
-        <div className="flex-1" />
         <button onClick={openCreate} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" />
           אוטומציה חדשה

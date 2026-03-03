@@ -77,7 +77,7 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         className={[
           "fixed bottom-0 inset-x-0 z-50 bg-white rounded-t-2xl shadow-2xl",
           "transition-transform duration-300 ease-out",
-          open ? "translate-y-0" : "translate-y-full",
+          open ? "translate-y-0 pointer-events-auto" : "translate-y-full pointer-events-none",
         ].join(" ")}
       >
         {/* Handle bar */}
@@ -164,6 +164,11 @@ export function MobileBottomNav() {
 
   const isHome = pathname === "/dashboard" || pathname === "/";
 
+  // Close the drawer whenever the user navigates to a new page
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [pathname]);
+
   async function handleCopyBookingLink() {
     const slug = user?.businessSlug || user?.businessId || "demo-business-001";
     const url = `${window.location.origin}/book/${slug}`;
@@ -180,7 +185,7 @@ export function MobileBottomNav() {
   }
 
   function handleIntake() {
-    router.push("/intake");
+    router.push("/intake-forms");
   }
 
   // ── Items definition ──────────────────────────────────────────────────────
@@ -214,7 +219,7 @@ export function MobileBottomNav() {
       label: "טופס קליטה",
       onClick: handleIntake,
       isCenter: false,
-      active: pathname.startsWith("/intake"),
+      active: pathname.startsWith("/intake-forms"),
     },
     {
       key: "booking-link",

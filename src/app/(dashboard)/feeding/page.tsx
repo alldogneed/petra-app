@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -226,6 +227,7 @@ export default function FeedingPage() {
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
+      <BoardingTabs />
       {/* Header */}
       <div className="page-header">
         <div>

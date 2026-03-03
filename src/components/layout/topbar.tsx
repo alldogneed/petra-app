@@ -565,7 +565,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                           placeholder="חיפוש לקוח..."
                           value={customerSearch}
                           onChange={(e) => setCustomerSearch(e.target.value)}
-                          className="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg pr-9 pl-3 py-2 text-petra-text placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                          className="w-full text-sm bg-slate-50 border border-petra-border rounded-xl pr-9 pl-3 py-2 text-petra-text placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                         />
                       </div>
                     </div>
@@ -670,7 +670,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                         onChange={(e) => setMessageBody(e.target.value)}
                         placeholder="כתוב הודעה..."
                         rows={4}
-                        className="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-petra-text placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 resize-none"
+                        className="w-full text-sm bg-slate-50 border border-petra-border rounded-xl px-3 py-2 text-petra-text placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
                       />
                     </div>
                     {/* Send Button */}
@@ -1097,7 +1097,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                                       data: { role: e.target.value },
                                     })
                                   }
-                                  className="w-full appearance-none text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 pr-7 text-petra-text cursor-pointer hover:border-slate-300 transition-colors"
+                                  className="w-full appearance-none text-xs bg-slate-50 border border-petra-border rounded-xl px-2.5 py-1.5 pr-7 text-petra-text cursor-pointer hover:border-slate-300 transition-colors"
                                 >
                                   {ROLE_OPTIONS.map((opt) => (
                                     <option key={opt.value} value={opt.value}>
@@ -1165,7 +1165,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                         onChange={(e) =>
                           setInviteData((d) => ({ ...d, name: e.target.value }))
                         }
-                        className="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-petra-text placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                        className="w-full text-sm bg-slate-50 border border-petra-border rounded-xl px-3 py-2 text-petra-text placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                       />
                       <input
                         type="email"
@@ -1175,7 +1175,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                         onChange={(e) =>
                           setInviteData((d) => ({ ...d, email: e.target.value }))
                         }
-                        className="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-petra-text placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                        className="w-full text-sm bg-slate-50 border border-petra-border rounded-xl px-3 py-2 text-petra-text placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                       />
                       <input
                         type="password"
@@ -1188,14 +1188,14 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                             temporaryPassword: e.target.value,
                           }))
                         }
-                        className="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-petra-text placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                        className="w-full text-sm bg-slate-50 border border-petra-border rounded-xl px-3 py-2 text-petra-text placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                       />
                       <select
                         value={inviteData.role}
                         onChange={(e) =>
                           setInviteData((d) => ({ ...d, role: e.target.value }))
                         }
-                        className="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-petra-text cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                        className="w-full text-sm bg-slate-50 border border-petra-border rounded-xl px-3 py-2 text-petra-text cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                       >
                         {ROLE_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>

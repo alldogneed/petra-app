@@ -54,7 +54,7 @@ export async function PATCH(
     if (serviceId !== undefined) data.serviceId = serviceId;
 
     const appointment = await prisma.appointment.update({
-      where: { id },
+      where: { id, businessId: authResult.businessId },
       data,
       include: {
         service: true,
@@ -83,7 +83,7 @@ export async function PATCH(
         customerId: appointment.customerId,
         date: appointment.date,
         startTime: appointment.startTime,
-        service: { name: appointment.service.name },
+        service: { name: appointment.service?.name ?? "תור" },
         customer: { name: appointment.customer.name },
         pet: appointment.pet ? { name: appointment.pet.name } : null,
       }).catch((err) =>

@@ -1,5 +1,6 @@
 "use client";
 
+import { FinanceTabs } from "@/components/finance/FinanceTabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import Link from "next/link";
@@ -286,6 +287,7 @@ export default function PaymentsPage() {
 
   return (
     <div>
+      <FinanceTabs />
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <h1 className="page-title">תשלומים</h1>
         <p className="text-sm text-petra-muted">

@@ -16,6 +16,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
+import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import {
   SERVICE_DOG_PHASE_MAP,
   SERVICE_DOG_PHASE_COLORS,
@@ -101,6 +102,7 @@ export default function ServiceDogsOverviewPage() {
 
   return (
     <div className="animate-fade-in space-y-6">
+      <ServiceDogsTabs />
       {/* Header */}
       <div className="page-header">
         <div>

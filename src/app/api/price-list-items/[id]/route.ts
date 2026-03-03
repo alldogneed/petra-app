@@ -39,7 +39,7 @@ export async function PATCH(
     if (body.depositAmount !== undefined) data.depositAmount = body.depositAmount ? Number(body.depositAmount) : null;
 
     const item = await prisma.priceListItem.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data,
     });
 
@@ -66,7 +66,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Item not found" }, { status: 404 });
     }
 
-    await prisma.priceListItem.delete({ where: { id: params.id } });
+    await prisma.priceListItem.deleteMany({ where: { id: params.id, businessId: authResult.businessId } });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

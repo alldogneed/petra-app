@@ -27,7 +27,7 @@ export async function PATCH(
     }
 
     const template = await prisma.messageTemplate.update({
-      where: { id },
+      where: { id, businessId: authResult.businessId },
       data: {
         ...(name !== undefined && { name }),
         ...(channel !== undefined && { channel }),
@@ -68,7 +68,7 @@ export async function DELETE(
       );
     }
 
-    await prisma.messageTemplate.delete({ where: { id } });
+    await prisma.messageTemplate.deleteMany({ where: { id, businessId: authResult.businessId } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

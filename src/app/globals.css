@@ -105,7 +105,7 @@
 
   /* ─── Layout ─── */
   .page-header {
-    @apply flex flex-wrap items-center justify-between gap-3 mb-6;
+    @apply flex flex-wrap items-center gap-3 mb-6;
   }
 
   .page-title {

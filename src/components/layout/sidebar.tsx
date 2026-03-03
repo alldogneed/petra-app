@@ -20,15 +20,10 @@ import {
   ShoppingCart,
   Crown,
   Dog,
-  Receipt,
   Shield,
   CalendarClock,
   Send,
-  ClipboardList,
-  Syringe,
   PawPrint,
-  Pill,
-  UtensilsCrossed,
   HelpCircle,
   ChevronDown,
   Wallet,
@@ -36,9 +31,7 @@ import {
   UserCheck,
   Activity,
   AlertTriangle,
-  FileText,
   ShieldCheck,
-  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
@@ -83,68 +76,11 @@ const navEntries: NavEntry[] = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
   { name: "לקוחות", href: "/customers", icon: Users },
   { name: "מערכת מכירות", href: "/leads", icon: Target, minRole: "user" },
-  {
-    key: "tasks",
-    name: "ניהול משימות",
-    icon: ListTodo,
-    defaultHref: "/tasks",
-    children: [
-      { name: "משימות", href: "/tasks", icon: ListTodo },
-      { name: "משימות אוטומטיות", href: "/settings?tab=tasks", icon: Zap, minRole: "user" },
-    ],
-  },
-  {
-    key: "bookings-online",
-    name: "ניהול תורים אונליין",
-    icon: CalendarCheck,
-    defaultHref: "/bookings",
-    children: [
-      { name: "ניהול תורים", href: "/bookings", icon: CalendarCheck },
-      { name: "תור שליחה", href: "/scheduled-messages", icon: Send },
-      { name: "תזמון", href: "/scheduler", icon: CalendarClock },
-    ],
-  },
-  {
-    key: "boarding",
-    name: "פנסיון",
-    icon: Hotel,
-    defaultHref: "/boarding",
-    children: [
-      { name: "ניהול חדרים", href: "/boarding", icon: Hotel },
-      { name: "לוח האכלה", href: "/feeding", icon: UtensilsCrossed },
-      { name: "תרופות", href: "/medications", icon: Pill },
-      { name: "חיסונים", href: "/vaccinations", icon: Syringe },
-      { name: "טפסי קליטה", href: "/intake-forms", icon: ClipboardList },
-    ],
-  },
-  {
-    key: "finance",
-    name: "פיננסים",
-    icon: Wallet,
-    defaultHref: "/payments",
-    minRole: "user",
-    children: [
-      { name: "תשלומים", href: "/payments", icon: CreditCard, minRole: "manager" },
-      { name: "בקשת תשלום", href: "/payment-request", icon: Send },
-      // { name: "חשבוניות", href: "/invoices", icon: Receipt, minRole: "manager" }, // TODO: future
-      { name: "מחירון", href: "/pricing", icon: Tag, minRole: "manager" },
-      { name: "הזמנות", href: "/orders", icon: ShoppingCart },
-    ],
-  },
-  {
-    key: "service-dogs",
-    name: "כלבי שירות",
-    icon: Shield,
-    defaultHref: "/service-dogs",
-    children: [
-      { name: "סקירה כללית", href: "/service-dogs", icon: LayoutDashboard },
-      { name: "כלבים", href: "/service-dogs/dogs", icon: Dog },
-      { name: "זכאים", href: "/service-dogs/recipients", icon: UserCheck },
-      { name: "שיבוצים", href: "/service-dogs/placements", icon: Activity },
-      { name: "משמעת ודיווח", href: "/service-dogs/compliance", icon: AlertTriangle },
-      { name: "תעודות זהות", href: "/service-dogs/id-cards", icon: CreditCard },
-    ],
-  },
+  { name: "ניהול משימות", href: "/tasks", icon: ListTodo },
+  { name: "ניהול תורים אונליין", href: "/bookings", icon: CalendarCheck },
+  { name: "פנסיון", href: "/boarding", icon: Hotel },
+  { name: "פיננסים", href: "/payments", icon: Wallet, minRole: "user" },
+  { name: "כלבי שירות", href: "/service-dogs", icon: Shield },
   { name: "תהליכי אילוף", href: "/training", icon: Dog },
   { name: "חיות מחמד", href: "/pets", icon: PawPrint },
   { name: "יומן", href: "/calendar", icon: Calendar },
@@ -210,7 +146,10 @@ export function Sidebar({
     // This prevents the sidebar from appearing "broken" after the boarding group
     // expands and the user has scrolled — which could leave top items (Dashboard,
     // Customers…) above the visible fold and unreachable.
-    if (navRef.current) navRef.current.scrollTop = 0;
+    const raf = requestAnimationFrame(() => {
+      if (navRef.current) navRef.current.scrollTop = 0;
+    });
+    return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
@@ -239,8 +178,16 @@ export function Sidebar({
     const isActive =
       item.href === "/dashboard"
         ? pathname === "/" || pathname === "/dashboard"
-        : item.href === "/boarding" || item.href === "/bookings" || item.href === "/service-dogs"
-        ? pathname === item.href
+        : item.href === "/boarding"
+        ? pathname === "/boarding" || pathname.startsWith("/feeding") || pathname.startsWith("/medications") || pathname.startsWith("/vaccinations") || pathname.startsWith("/intake-forms")
+        : item.href === "/payments"
+        ? ["/payments", "/payment-request", "/pricing", "/orders"].some(
+            (p) => pathname === p || pathname.startsWith(p + "/")
+          )
+        : item.href === "/bookings"
+        ? ["/bookings", "/scheduled-messages", "/scheduler"].some(
+            (p) => pathname === p || pathname.startsWith(p + "/")
+          )
         : pathname.startsWith(item.href);
     const Icon = item.icon;
     const badge = BADGES[item.href] || 0;
@@ -434,7 +381,7 @@ export function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav ref={!isMobile ? navRef : undefined} className="sidebar-nav flex-1 px-3 py-2 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.3) transparent" }}>
+        <nav ref={!isMobile ? navRef : undefined} className="sidebar-nav flex-1 px-3 py-2 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.3) transparent", overflowAnchor: "none" }}>
           <div className="space-y-0.5">
             {navEntries
               .filter((entry) => canSee(entry, user?.businessRole ?? null, user?.platformRole))

@@ -1,5 +1,7 @@
 "use client";
 
+import { BookingsTabs } from "@/components/bookings/BookingsTabs";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import Link from "next/link";
@@ -241,6 +243,7 @@ export default function ScheduledMessagesPage() {
 
   return (
     <div dir="rtl">
+      <BookingsTabs />
       {/* Header */}
       <div className="page-header flex items-center gap-3 mb-6 flex-wrap">
         <div>
@@ -249,7 +252,6 @@ export default function ScheduledMessagesPage() {
             הודעות שנוצרו אוטומטית על ידי המערכת ומתוזמנות לשליחה
           </p>
         </div>
-        <div className="flex-1" />
         <button
           onClick={() => refetch()}
           disabled={isFetching}
