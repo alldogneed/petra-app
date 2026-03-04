@@ -31,9 +31,9 @@ export async function GET(
     return NextResponse.json({ error: "Business not found" }, { status: 404 })
   }
 
-  // Verify item belongs to this business and is bookable online
+  // Verify item belongs to this business and is active
   const item = await prisma.priceListItem.findFirst({
-    where: { id: priceListItemId, businessId: business.id, isBookableOnline: true, isActive: true },
+    where: { id: priceListItemId, businessId: business.id, isActive: true },
   })
 
   if (!item) {

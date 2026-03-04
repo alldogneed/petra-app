@@ -34,7 +34,7 @@ const DogSchema = z.object({
 const isValidDate = (s: string) => !isNaN(new Date(s).getTime())
 
 const BookingSchema = z.object({
-  serviceId: z.string({ required_error: "serviceId is required" }),
+  priceListItemId: z.string({ required_error: "priceListItemId is required" }),
   startAt: z.string({ required_error: "startAt is required" })
     .refine(isValidDate, { message: "Invalid datetime format" }),
   checkoutAt: z.string()
@@ -80,7 +80,7 @@ export async function POST(
   }
 
   const {
-    serviceId,
+    priceListItemId,
     startAt: startAtStr, // ISO string
     checkoutAt: checkoutAtStr, // boarding only
     phone,
@@ -100,11 +100,11 @@ export async function POST(
     return NextResponse.json({ error: "Business not found" }, { status: 404 })
   }
 
-  const service = await prisma.service.findFirst({
-    where: { id: serviceId, businessId: business.id, isPublicBookable: true, isActive: true },
+  const item = await prisma.priceListItem.findFirst({
+    where: { id: priceListItemId, businessId: business.id, isActive: true },
   })
 
-  if (!service) {
+  if (!item) {
     return NextResponse.json({ error: "Service not found" }, { status: 404 })
   }
 
@@ -113,7 +113,8 @@ export async function POST(
     return NextResponse.json({ error: "Invalid startAt" }, { status: 400 })
   }
 
-  const isBoarding = service.type === "boarding"
+  const isBoarding = item.category === "פנסיון"
+  const durationMinutes = item.durationMinutes ?? 60
 
   let endAt: Date
   if (isBoarding && checkoutAtStr) {
@@ -125,13 +126,13 @@ export async function POST(
       return NextResponse.json({ error: "תאריך יציאה חייב להיות אחרי תאריך כניסה" }, { status: 400 })
     }
   } else {
-    endAt = new Date(startAt.getTime() + service.duration * 60_000)
+    endAt = new Date(startAt.getTime() + durationMinutes * 60_000)
   }
 
   // For non-boarding services: re-validate the slot is still available (prevent double-booking)
   if (!isBoarding) {
     const localDate = utcToLocalDateStr(startAt, business.timezone)
-    const availableSlots = await getAvailableSlots(business.id, service.duration, localDate)
+    const availableSlots = await getAvailableSlots(business.id, durationMinutes, localDate)
     const slotStillFree = availableSlots.some(
       (s) => Math.abs(s.startAt.getTime() - startAt.getTime()) < 60_000
     )
@@ -211,12 +212,12 @@ export async function POST(
       }
     }
 
-    const status = service.bookingMode === "automatic" ? "confirmed" : "pending"
+    const status = "confirmed"
 
     const booking = await tx.booking.create({
       data: {
         businessId: business.id,
-        serviceId,
+        priceListItemId,
         customerId: customer.id,
         startAt,
         endAt,
@@ -281,14 +282,14 @@ export async function POST(
       const endTime = `${pad(endAt.getHours())}:${pad(endAt.getMinutes())}`
       const dateOnly = new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate())
       const existing = await prisma.appointment.findFirst({
-        where: { businessId: business.id, customerId: customer.id, serviceId, date: dateOnly, startTime },
+        where: { businessId: business.id, customerId: customer.id, priceListItemId, date: dateOnly, startTime },
       })
       if (!existing) {
         await prisma.appointment.create({
           data: {
             businessId: business.id,
             customerId: customer.id,
-            serviceId,
+            priceListItemId,
             petId: firstPetId,
             date: dateOnly,
             startTime,

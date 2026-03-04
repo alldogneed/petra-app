@@ -22,7 +22,7 @@ export async function GET(
       boardingCheckInTime: true,
       boardingCheckOutTime: true,
       priceListItems: {
-        where: { isBookableOnline: true, isActive: true },
+        where: { isActive: true },
         select: {
           id: true,
           name: true,
@@ -34,7 +34,7 @@ export async function GET(
           depositAmount: true,
           paymentUrl: true,
         },
-        orderBy: { name: "asc" },
+        orderBy: [{ category: "asc" }, { name: "asc" }],
       },
       availabilityRules: {
         orderBy: { dayOfWeek: "asc" },
@@ -50,18 +50,25 @@ export async function GET(
     return NextResponse.json({ error: "Business is not accepting bookings" }, { status: 403 })
   }
 
+  const CATEGORY_TO_TYPE: Record<string, string> = {
+    "פנסיון": "boarding",
+    "אילוף": "training",
+    "טיפוח": "grooming",
+    "מוצרים": "other",
+  };
+
   // Map price list items to the service shape expected by the booking wizard
   const services = business.priceListItems.map((item) => ({
     id: item.id,
     name: item.name,
-    type: "service",
+    type: CATEGORY_TO_TYPE[item.category ?? ""] ?? "service",
     duration: item.durationMinutes ?? 60,
     price: item.basePrice,
     description: item.description ?? null,
     color: null,
     depositRequired: item.depositRequired,
     depositAmount: item.depositAmount ?? null,
-    bookingMode: "direct",
+    bookingMode: "automatic",
     paymentUrl: item.paymentUrl ?? null,
   }))
 
