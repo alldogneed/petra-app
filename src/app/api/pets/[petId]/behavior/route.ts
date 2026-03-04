@@ -39,6 +39,10 @@ export async function PATCH(
     for (const f of stringFields) {
       if (f in body) data[f] = body[f] || null;
     }
+    if ("customIssues" in body) {
+      const arr = Array.isArray(body.customIssues) ? body.customIssues : [];
+      data.customIssues = arr.length > 0 ? JSON.stringify(arr) : null;
+    }
 
     const behavior = await prisma.dogBehavior.upsert({
       where: { petId: params.petId },

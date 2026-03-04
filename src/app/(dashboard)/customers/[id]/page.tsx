@@ -151,6 +151,7 @@ interface Pet {
     triggers: string | null;
     priorTraining: boolean | null;
     priorTrainingDetails: string | null;
+    customIssues: string | null;
   } | null;
   medications: DogMedication[];
 }
@@ -2277,6 +2278,7 @@ function EditBehaviorModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const [customInput, setCustomInput] = useState("");
   const [form, setForm] = useState({
     dogAggression: behavior?.dogAggression ?? false,
     humanAggression: behavior?.humanAggression ?? false,
@@ -2294,6 +2296,10 @@ function EditBehaviorModal({
     biteDetails: behavior?.biteDetails ?? "",
     triggers: behavior?.triggers ?? "",
     priorTrainingDetails: behavior?.priorTrainingDetails ?? "",
+    customIssues: (() => {
+      try { return behavior?.customIssues ? JSON.parse(behavior.customIssues) : []; }
+      catch { return []; }
+    })() as string[],
   });
 
   const mutation = useMutation({
@@ -2375,6 +2381,60 @@ function EditBehaviorModal({
                 />
               </div>
             )}
+          </div>
+          {/* Custom issues */}
+          <div>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">בעיות נוספות (ידני)</p>
+            {form.customIssues.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {form.customIssues.map((issue, idx) => (
+                  <span
+                    key={idx}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200"
+                  >
+                    {issue}
+                    <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, customIssues: f.customIssues.filter((_, i) => i !== idx) }))}
+                      className="hover:text-red-600 transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                className="input flex-1"
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                placeholder="תאר בעיה התנהגותית..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const val = customInput.trim();
+                    if (val && !form.customIssues.includes(val)) {
+                      setForm((f) => ({ ...f, customIssues: [...f.customIssues, val] }));
+                      setCustomInput("");
+                    }
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn-secondary text-xs px-3"
+                onClick={() => {
+                  const val = customInput.trim();
+                  if (val && !form.customIssues.includes(val)) {
+                    setForm((f) => ({ ...f, customIssues: [...f.customIssues, val] }));
+                    setCustomInput("");
+                  }
+                }}
+              >
+                הוסף
+              </button>
+            </div>
           </div>
         </div>
         <div className="flex gap-3 mt-6">
@@ -3236,7 +3296,7 @@ export default function CustomerProfilePage() {
                                 <Pencil className="w-3 h-3 text-amber-600" />
                               </button>
                             </div>
-                            {activeBehaviorFlags.length > 0 && (
+                            {(activeBehaviorFlags.length > 0 || (() => { try { return JSON.parse(pet.behavior?.customIssues || "[]"); } catch { return []; } })().length > 0) && (
                               <div className="bg-white/60 rounded-lg p-2.5 space-y-2">
                                 <div className="flex flex-wrap gap-1.5">
                                   {activeBehaviorFlags.map(([key, info]) => (
@@ -3248,6 +3308,14 @@ export default function CustomerProfilePage() {
                                       )}
                                     >
                                       {info.label}
+                                    </span>
+                                  ))}
+                                  {(() => { try { return JSON.parse(pet.behavior?.customIssues || "[]") as string[]; } catch { return [] as string[]; } })().map((issue: string, idx: number) => (
+                                    <span
+                                      key={`custom-${idx}`}
+                                      className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-purple-50 text-purple-700 border-purple-200"
+                                    >
+                                      {issue}
                                     </span>
                                   ))}
                                 </div>
