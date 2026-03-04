@@ -218,10 +218,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Compute phoneNorm for consistent lookups (same as booking wizard)
+    const _phoneDigits = (body.phone as string).replace(/\D/g, "")
+    const phoneNorm = _phoneDigits.startsWith("0") && _phoneDigits.length >= 9
+      ? "972" + _phoneDigits.slice(1)
+      : _phoneDigits || null
+
     const customer = await prisma.customer.create({
       data: {
         name: body.name,
         phone: body.phone,
+        phoneNorm,
         email: body.email || null,
         address: body.address || null,
         notes: body.notes || null,

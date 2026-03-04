@@ -142,33 +142,33 @@ export async function PATCH(
       }).catch(console.error);
     }
 
-    // Auto-set room to "needs_cleaning" when checking out
-    if (body.status === "checked_out" && existing.roomId) {
-      // Check if there are other active stays in this room
-      const otherActive = await prisma.boardingStay.count({
-        where: {
-          roomId: existing.roomId,
-          id: { not: params.id },
-          status: { in: ["reserved", "checked_in"] },
-        },
-      });
-      // Only set needs_cleaning if no other active stays remain
-      if (otherActive === 0) {
-        await prisma.room.update({
-          where: { id: existing.roomId },
-          data: { status: "needs_cleaning" },
+    // Auto-update room status atomically to avoid race conditions
+    if (existing.roomId) {
+      if (body.status === "checked_out") {
+        // Check + update inside a transaction so concurrent checkouts don't corrupt room status
+        await prisma.$transaction(async (tx) => {
+          const otherActive = await tx.boardingStay.count({
+            where: {
+              roomId: existing.roomId!,
+              id: { not: params.id },
+              status: { in: ["reserved", "checked_in"] },
+            },
+          });
+          if (otherActive === 0) {
+            await tx.room.update({
+              where: { id: existing.roomId! },
+              data: { status: "needs_cleaning" },
+            });
+          }
         });
-      }
-    }
-
-    // Auto-set room to "available" when checking in (clear needs_cleaning)
-    if (body.status === "checked_in" && existing.roomId) {
-      const room = await prisma.room.findUnique({ where: { id: existing.roomId } });
-      if (room && room.status === "needs_cleaning") {
-        await prisma.room.update({
-          where: { id: existing.roomId },
-          data: { status: "available" },
-        });
+      } else if (body.status === "checked_in") {
+        const room = await prisma.room.findUnique({ where: { id: existing.roomId } });
+        if (room && room.status === "needs_cleaning") {
+          await prisma.room.update({
+            where: { id: existing.roomId },
+            data: { status: "available" },
+          });
+        }
       }
     }
 

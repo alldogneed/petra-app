@@ -14,6 +14,7 @@ const PatchAppointmentSchema = z.object({
   startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   endTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   serviceId: z.string().uuid().optional(),
+  priceListItemId: z.string().uuid().optional(),
 });
 
 export async function PATCH(
@@ -30,7 +31,7 @@ export async function PATCH(
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
     }
-    const { status, notes, cancellationNote, date, startTime, endTime, serviceId } = parsed.data;
+    const { status, notes, cancellationNote, date, startTime, endTime, serviceId, priceListItemId } = parsed.data;
 
     const existing = await prisma.appointment.findFirst({
       where: { id, businessId: authResult.businessId },
@@ -52,6 +53,7 @@ export async function PATCH(
     if (startTime !== undefined) data.startTime = startTime;
     if (endTime !== undefined) data.endTime = endTime;
     if (serviceId !== undefined) data.serviceId = serviceId;
+    if (priceListItemId !== undefined) data.priceListItemId = priceListItemId;
 
     const appointment = await prisma.appointment.update({
       where: { id, businessId: authResult.businessId },

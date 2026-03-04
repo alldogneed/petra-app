@@ -141,15 +141,26 @@ export async function POST(
     }
   }
 
-  // Normalize phone (remove spaces/dashes for uniqueness check)
-  const phoneNorm = phone.replace(/[\s\-().+]/g, "")
+  // Normalize phone: strip non-digits, convert Israeli local (05x) → international (972x)
+  // so that "+972501234567" and "0501234567" produce the same norm ("972501234567")
+  const phoneNorm = (() => {
+    const digits = phone.replace(/\D/g, "")
+    if (digits.startsWith("0") && digits.length >= 9) return "972" + digits.slice(1)
+    return digits
+  })()
 
   // Use a transaction to atomically identify/create customer + create booking
   const result = await prisma.$transaction(async (tx) => {
     // Identify or create customer (unique by phone within business)
+    // First try phoneNorm match; fall back to raw phone for manually-created customers (phoneNorm=null)
     let customer = await tx.customer.findFirst({
       where: { businessId: business.id, phoneNorm },
     })
+    if (!customer) {
+      customer = await tx.customer.findFirst({
+        where: { businessId: business.id, phone },
+      })
+    }
 
     if (!customer) {
       if (!customerName) {
