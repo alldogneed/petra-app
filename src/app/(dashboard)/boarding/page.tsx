@@ -239,13 +239,21 @@ const RoomStatusCard = memo(function RoomStatusCard({
   onCheckin: (id: string) => void;
   onCheckout: (id: string) => void;
   onMarkClean: (roomId: string) => void;
-  occPeriodStays?: BoardingStay[];
+  occPeriodStays: BoardingStay[]; // always provided (date-filtered stays for this room)
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: room.id });
   const displayStatus = getRoomDisplayStatus(room);
   const statusConfig = ROOM_STATUS_MAP[displayStatus];
+
+  // Display: always use date-filtered stays for the dog list
+  const displayCheckedIn = occPeriodStays.filter((s) => s.status === "checked_in");
+  const displayReserved = occPeriodStays.filter((s) => s.status === "reserved");
+
+  // Action buttons: based on actual current room stays
   const checkedIn = room.boardingStays.filter((s) => s.status === "checked_in");
   const reserved = room.boardingStays.filter((s) => s.status === "reserved");
+  const hasCurrentStays = checkedIn.length > 0 || reserved.length > 0;
+  const hasPeriodStays = displayCheckedIn.length > 0 || displayReserved.length > 0;
 
   return (
     <div
@@ -280,12 +288,12 @@ const RoomStatusCard = memo(function RoomStatusCard({
         {/* Room meta */}
         <div className="flex items-center gap-2 text-xs text-petra-muted mb-3">
           <Users className="w-3.5 h-3.5" />
-          <span>{room._count.boardingStays}/{room.capacity}</span>
+          <span>{occPeriodStays.length}/{room.capacity}</span>
           <span className="badge-neutral text-[10px] ms-auto">{ROOM_TYPE_LABELS[room.type] || room.type}</span>
         </div>
 
-        {/* Occupied: show dog info — draggable */}
-        {checkedIn.map((stay) => (
+        {/* Checked-in dogs for selected period — draggable */}
+        {displayCheckedIn.map((stay) => (
           <DraggableStayInRoom key={stay.id} stayId={stay.id}>
             <div className="p-3 rounded-lg mb-2" style={{ background: "#FFF7ED", border: "1px solid #FDBA74" }}>
               <div className="flex items-center gap-2">
@@ -306,8 +314,8 @@ const RoomStatusCard = memo(function RoomStatusCard({
           </DraggableStayInRoom>
         ))}
 
-        {/* Reserved: show upcoming — draggable */}
-        {reserved.map((stay) => (
+        {/* Reserved dogs for selected period — draggable */}
+        {displayReserved.map((stay) => (
           <DraggableStayInRoom key={stay.id} stayId={stay.id}>
             <div className="p-3 rounded-lg mb-2" style={{ background: "#F5F3FF", border: "1px solid #C4B5FD" }}>
               <div className="flex items-center gap-2">
@@ -326,14 +334,14 @@ const RoomStatusCard = memo(function RoomStatusCard({
         ))}
 
         {/* Drop hint when hovering empty room */}
-        {isOver && checkedIn.length === 0 && reserved.length === 0 && (
+        {isOver && !hasPeriodStays && (
           <div className="text-center py-4 border-2 border-dashed border-brand-300 rounded-lg bg-brand-50/30">
             <p className="text-xs text-brand-500 font-medium">שחרר כאן</p>
           </div>
         )}
 
-        {/* Available state */}
-        {!isOver && displayStatus === "available" && checkedIn.length === 0 && reserved.length === 0 && (
+        {/* Empty state */}
+        {!isOver && !hasPeriodStays && displayStatus === "available" && (
           <div className="text-center py-6">
             <div className="w-10 h-10 rounded-full bg-green-50 mx-auto mb-2 flex items-center justify-center">
               <Check className="w-5 h-5 text-green-500" />
@@ -342,42 +350,20 @@ const RoomStatusCard = memo(function RoomStatusCard({
           </div>
         )}
 
-        {/* Needs cleaning state */}
-        {!isOver && displayStatus === "needs_cleaning" && checkedIn.length === 0 && reserved.length === 0 && (
+        {!isOver && !hasPeriodStays && displayStatus === "needs_cleaning" && (
           <div className="text-center py-4">
             <div className="w-10 h-10 rounded-full bg-yellow-50 mx-auto mb-2 flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-yellow-500" />
             </div>
             <p className="text-sm text-yellow-600 font-medium mb-2">דרוש ניקיון</p>
-            <button
-              onClick={() => onMarkClean(room.id)}
-              className="btn-ghost text-xs text-yellow-700 hover:bg-yellow-50"
-            >
+            <button onClick={() => onMarkClean(room.id)} className="btn-ghost text-xs text-yellow-700 hover:bg-yellow-50">
               <Check className="w-3.5 h-3.5" />סמן כנקי
             </button>
           </div>
         )}
 
-        {/* Period occupancy from date-filter */}
-        {occPeriodStays && occPeriodStays.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-blue-100 bg-blue-50/50 rounded-lg p-2">
-            <p className="text-[10px] font-semibold text-blue-600 mb-1.5 flex items-center gap-1">
-              <Calendar className="w-3 h-3" />לתקופה שנבחרה:
-            </p>
-            {occPeriodStays.map((s) => (
-              <div key={s.id} className="flex items-center gap-1.5 text-xs text-blue-700 mb-1">
-                <PawPrint className="w-3 h-3 flex-shrink-0" />
-                <span className="font-medium">{s.pet.name}</span>
-                <span className="text-blue-500 text-[10px]">
-                  {formatDate(s.checkIn)}{s.checkOut ? ` → ${formatDate(s.checkOut)}` : ""}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Action buttons — stop pointer propagation to prevent drag */}
-        {(checkedIn.length > 0 || reserved.length > 0) && (
+        {/* Action buttons — based on current actual state, stop pointer propagation to prevent drag */}
+        {hasCurrentStays && (
           <div className="mt-2 pt-2 border-t border-slate-100 space-y-1" onPointerDown={(e) => e.stopPropagation()}>
             {checkedIn.map((stay) => (
               <button
@@ -1809,6 +1795,7 @@ export default function BoardingPage() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      queryClient.invalidateQueries({ queryKey: ["boarding-occupancy"] });
     },
   });
 
