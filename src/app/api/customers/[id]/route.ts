@@ -131,6 +131,13 @@ export async function PATCH(
     for (const [k, v] of Object.entries(parsed.data)) {
       if (v !== undefined) data[k] = v;
     }
+    // Auto-compute phoneNorm when phone is updated
+    if (parsed.data.phone) {
+      const digits = parsed.data.phone.replace(/\D/g, "")
+      data.phoneNorm = digits.startsWith("0") && digits.length >= 9
+        ? "972" + digits.slice(1)
+        : digits || null
+    }
 
     const customer = await prisma.customer.update({
       where: { id: params.id, businessId: authResult.businessId },

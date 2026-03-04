@@ -72,7 +72,7 @@ export async function PATCH(
     }
 
     const updated = await prisma.serviceDogProfile.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: {
         ...(body.serviceType !== undefined && { serviceType: body.serviceType }),
         ...(body.registrationNumber !== undefined && { registrationNumber: body.registrationNumber }),
@@ -109,7 +109,7 @@ export async function DELETE(
       return NextResponse.json({ error: "כלב שירות לא נמצא" }, { status: 404 });
     }
 
-    await prisma.serviceDogProfile.delete({ where: { id: params.id } });
+    await prisma.serviceDogProfile.delete({ where: { id: params.id, businessId: authResult.businessId } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

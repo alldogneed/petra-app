@@ -20,7 +20,7 @@ export async function PATCH(
     }
 
     const template = await prisma.taskTemplate.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: {
         ...(body.name !== undefined && { name: body.name }),
         ...(body.defaultCategory !== undefined && { defaultCategory: body.defaultCategory }),
@@ -55,7 +55,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    await prisma.taskTemplate.delete({ where: { id: params.id } });
+    await prisma.taskTemplate.delete({ where: { id: params.id, businessId: authResult.businessId } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE task-template error:", error);
