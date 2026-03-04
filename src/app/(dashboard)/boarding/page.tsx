@@ -40,6 +40,8 @@ import {
   ShieldAlert,
   MessageCircle,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Share2,
   UtensilsCrossed,
   Pill,
@@ -128,7 +130,7 @@ const ROOM_TYPE_LABELS: Record<string, string> = {
 
 const ACTIVE_STATUSES = ["reserved", "checked_in"];
 type TabKey = "active" | "checkin_today" | "checkout_today" | "history";
-type ViewMode = "grid" | "timeline";
+type ViewMode = "grid" | "timeline" | "calendar";
 
 const HE_DAYS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
 const TIMELINE_DAYS = 14;
@@ -390,18 +392,172 @@ const RoomStatusCard = memo(function RoomStatusCard({
   );
 });
 
+// ─── Occupancy Calendar View ─────────────────────────────────────────────────
+
+function OccupancyCalendar({
+  stays,
+  rooms,
+  onSelectDate,
+  selectedDate,
+  calendarMonth,
+  onChangeMonth,
+}: {
+  stays: BoardingStay[];
+  rooms: Room[];
+  onSelectDate: (date: string | null) => void;
+  selectedDate: string | null;
+  calendarMonth: Date;
+  onChangeMonth: (d: Date) => void;
+}) {
+  const totalCapacity = rooms.reduce((sum, r) => sum + r.capacity, 0);
+  const todayStr = toDateStr(new Date());
+  const year = calendarMonth.getFullYear();
+  const month = calendarMonth.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(year, month, 1).getDay(); // 0=Sun
+
+  const dayData = useMemo(() => {
+    const result: Record<string, { occupied: number; arrivals: number; departures: number }> = {};
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const activeOnDay = stays.filter(
+        (s) =>
+          ACTIVE_STATUSES.includes(s.status) &&
+          toDateStr(s.checkIn) <= dateStr &&
+          (!s.checkOut || toDateStr(s.checkOut) > dateStr)
+      );
+      const arrivals = stays.filter(
+        (s) => ACTIVE_STATUSES.includes(s.status) && toDateStr(s.checkIn) === dateStr
+      ).length;
+      const departures = stays.filter(
+        (s) => s.checkOut && toDateStr(s.checkOut) === dateStr
+      ).length;
+      result[dateStr] = { occupied: activeOnDay.length, arrivals, departures };
+    }
+    return result;
+  }, [stays, year, month, daysInMonth]);
+
+  const monthLabel = calendarMonth.toLocaleDateString("he-IL", { month: "long", year: "numeric" });
+
+  return (
+    <div className="card p-4 mb-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={() => onChangeMonth(new Date(year, month + 1, 1))}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-petra-muted hover:bg-slate-100 hover:text-petra-text transition-colors"
+          aria-label="חודש הבא"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-petra-text">{monthLabel}</h3>
+          {calendarMonth.getMonth() !== new Date().getMonth() || calendarMonth.getFullYear() !== new Date().getFullYear() ? (
+            <button
+              onClick={() => onChangeMonth(new Date())}
+              className="text-[10px] px-2 py-0.5 rounded-full bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors"
+            >
+              היום
+            </button>
+          ) : null}
+        </div>
+        <button
+          onClick={() => onChangeMonth(new Date(year, month - 1, 1))}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-petra-muted hover:bg-slate-100 hover:text-petra-text transition-colors"
+          aria-label="חודש קודם"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Day headers */}
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"].map((d) => (
+          <div key={d} className="text-center text-[10px] font-medium text-petra-muted py-1">
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Days grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+          <div key={`empty-${i}`} />
+        ))}
+        {Array.from({ length: daysInMonth }).map((_, i) => {
+          const d = i + 1;
+          const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+          const data = dayData[dateStr] || { occupied: 0, arrivals: 0, departures: 0 };
+          const isToday = dateStr === todayStr;
+          const isSelected = dateStr === selectedDate;
+          const ratio = totalCapacity > 0 ? data.occupied / totalCapacity : 0;
+
+          let bg = "bg-slate-50 hover:bg-slate-100";
+          let textColor = "text-petra-text";
+          if (data.occupied > 0) {
+            if (ratio >= 1) { bg = "bg-red-100 hover:bg-red-200"; textColor = "text-red-700"; }
+            else if (ratio >= 0.8) { bg = "bg-orange-100 hover:bg-orange-200"; textColor = "text-orange-700"; }
+            else { bg = "bg-amber-50 hover:bg-amber-100"; textColor = "text-amber-700"; }
+          }
+
+          return (
+            <button
+              key={dateStr}
+              onClick={() => onSelectDate(isSelected ? null : dateStr)}
+              className={cn(
+                "relative rounded-lg p-1 min-h-[52px] flex flex-col items-center transition-all",
+                bg,
+                isSelected ? "ring-2 ring-brand-500 ring-offset-1" : "",
+                isToday ? "outline outline-2 outline-brand-400 outline-offset-[-2px]" : ""
+              )}
+            >
+              <span className={cn("text-[11px] font-semibold", isToday ? "text-brand-600" : textColor)}>
+                {d}
+              </span>
+              {data.occupied > 0 && totalCapacity > 0 && (
+                <span className={cn("text-[9px]", textColor)}>
+                  {data.occupied}/{totalCapacity}
+                </span>
+              )}
+              <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center">
+                {data.arrivals > 0 && (
+                  <span className="text-[8px] bg-green-100 text-green-700 rounded px-0.5">+{data.arrivals}</span>
+                )}
+                {data.departures > 0 && (
+                  <span className="text-[8px] bg-slate-200 text-slate-600 rounded px-0.5">-{data.departures}</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Legend */}
+      <div className="flex gap-3 mt-3 pt-3 border-t border-slate-100 flex-wrap text-[10px] text-petra-muted">
+        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-amber-50 border border-amber-200" /> מעט תפוס</div>
+        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-orange-100 border border-orange-300" /> כמעט מלא</div>
+        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-red-100 border border-red-300" /> מלא</div>
+        <div className="flex items-center gap-1"><span className="bg-green-100 text-green-700 rounded px-0.5">+N</span> הגעות</div>
+        <div className="flex items-center gap-1"><span className="bg-slate-200 text-slate-600 rounded px-0.5">-N</span> עזיבות</div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Timeline / Gantt View ──────────────────────────────────────────────────
 
 function TimelineView({
   rooms,
   stays,
+  numDays = TIMELINE_DAYS,
 }: {
   rooms: Room[];
   stays: BoardingStay[];
+  numDays?: number;
 }) {
   const today = startOfDay(new Date());
-  const days = Array.from({ length: TIMELINE_DAYS }, (_, i) => addDays(today, i));
-  const timelineEnd = addDays(today, TIMELINE_DAYS);
+  const days = Array.from({ length: numDays }, (_, i) => addDays(today, i));
+  const timelineEnd = addDays(today, numDays);
 
   // Group stays by room
   const roomStaysMap = useMemo(() => {
@@ -413,7 +569,7 @@ function TimelineView({
       .filter((s) => ACTIVE_STATUSES.includes(s.status))
       .filter((s) => {
         const checkIn = new Date(s.checkIn);
-        const checkOut = s.checkOut ? new Date(s.checkOut) : addDays(today, TIMELINE_DAYS + 30);
+        const checkOut = s.checkOut ? new Date(s.checkOut) : addDays(today, numDays + 30);
         return checkIn < timelineEnd && checkOut > today;
       })
       .forEach((s) => {
@@ -427,7 +583,7 @@ function TimelineView({
 
   function getBarPosition(stay: BoardingStay) {
     const checkIn = startOfDay(new Date(stay.checkIn));
-    const checkOut = stay.checkOut ? startOfDay(new Date(stay.checkOut)) : addDays(today, TIMELINE_DAYS);
+    const checkOut = stay.checkOut ? startOfDay(new Date(stay.checkOut)) : addDays(today, numDays);
 
     const visibleStart = checkIn < today ? today : checkIn;
     const visibleEnd = checkOut > timelineEnd ? timelineEnd : checkOut;
@@ -435,8 +591,8 @@ function TimelineView({
     const startOffset = diffDays(visibleStart, today);
     const endOffset = diffDays(visibleEnd, today);
 
-    const left = (startOffset / TIMELINE_DAYS) * 100;
-    const width = ((endOffset - startOffset) / TIMELINE_DAYS) * 100;
+    const left = (startOffset / numDays) * 100;
+    const width = ((endOffset - startOffset) / numDays) * 100;
 
     return {
       left: `${Math.max(0, left)}%`,
@@ -453,7 +609,7 @@ function TimelineView({
           {/* Header row */}
           <div
             className="grid border-b border-petra-border"
-            style={{ gridTemplateColumns: `140px repeat(${TIMELINE_DAYS}, 1fr)` }}
+            style={{ gridTemplateColumns: `140px repeat(${numDays}, 1fr)` }}
           >
             <div className="p-2 text-sm font-semibold text-petra-text bg-slate-50 border-l border-petra-border text-right" dir="rtl">
               חדר
@@ -490,7 +646,7 @@ function TimelineView({
               <div
                 key={room.id}
                 className="grid border-b border-slate-100"
-                style={{ gridTemplateColumns: `140px repeat(${TIMELINE_DAYS}, 1fr)` }}
+                style={{ gridTemplateColumns: `140px repeat(${numDays}, 1fr)` }}
               >
                 {/* Room label */}
                 <div className="p-2 flex items-center gap-2 bg-slate-50/50 border-l border-petra-border" dir="rtl">
@@ -510,7 +666,7 @@ function TimelineView({
                   {/* Day grid lines */}
                   <div
                     className="absolute inset-0 grid"
-                    style={{ gridTemplateColumns: `repeat(${TIMELINE_DAYS}, 1fr)` }}
+                    style={{ gridTemplateColumns: `repeat(${numDays}, 1fr)` }}
                   >
                     {days.map((day, i) => {
                       const isToday = i === todayIndex;
@@ -565,7 +721,7 @@ function TimelineView({
           {(roomStaysMap["unassigned"] || []).length > 0 && (
             <div
               className="grid border-b border-slate-100"
-              style={{ gridTemplateColumns: `140px repeat(${TIMELINE_DAYS}, 1fr)` }}
+              style={{ gridTemplateColumns: `140px repeat(${numDays}, 1fr)` }}
             >
               <div className="p-2 flex items-center gap-2 bg-slate-100/50 border-l border-petra-border" dir="rtl">
                 <Hotel className="w-3.5 h-3.5 text-slate-400" />
@@ -577,7 +733,7 @@ function TimelineView({
               >
                 <div
                   className="absolute inset-0 grid"
-                  style={{ gridTemplateColumns: `repeat(${TIMELINE_DAYS}, 1fr)` }}
+                  style={{ gridTemplateColumns: `repeat(${numDays}, 1fr)` }}
                 >
                   {days.map((_, i) => (
                     <div key={i} className="border-l border-slate-100 h-full" />
@@ -1381,6 +1537,9 @@ export default function BoardingPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("active");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [activeStayId, setActiveStayId] = useState<string | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
+  const [timelineDays, setTimelineDays] = useState(14);
 
   // Dialog state
   const shouldCreateMedTasksRef = useRef(false);
@@ -1809,7 +1968,15 @@ export default function BoardingPage() {
   const checkoutTodayCount = tabStays.checkout_today.length;
 
   const displayedStays = useMemo(() => {
-    const base = tabStays[activeTab];
+    let base = tabStays[activeTab];
+    // Filter by selected calendar date
+    if (selectedCalendarDate) {
+      base = base.filter(
+        (s) =>
+          toDateStr(s.checkIn) <= selectedCalendarDate &&
+          (!s.checkOut || toDateStr(s.checkOut) >= selectedCalendarDate)
+      );
+    }
     if (!staySearch.trim()) return base;
     const q = staySearch.toLowerCase();
     return base.filter(
@@ -1818,7 +1985,24 @@ export default function BoardingPage() {
         s.customer.name.toLowerCase().includes(q) ||
         (s.room?.name.toLowerCase().includes(q) ?? false)
     );
-  }, [tabStays, activeTab, staySearch]);
+  }, [tabStays, activeTab, staySearch, selectedCalendarDate]);
+
+  // Room availability for selected dates in new stay modal
+  const roomAvailability = useMemo(() => {
+    if (!form.checkIn || !form.checkOut) return {} as Record<string, boolean>;
+    return Object.fromEntries(
+      rooms.map((room) => {
+        const overlapping = stays.filter(
+          (s) =>
+            s.room?.id === room.id &&
+            ACTIVE_STATUSES.includes(s.status) &&
+            toDateStr(s.checkIn) < form.checkOut! &&
+            (!s.checkOut || toDateStr(s.checkOut) > form.checkIn)
+        ).length;
+        return [room.id, overlapping < room.capacity];
+      })
+    );
+  }, [form.checkIn, form.checkOut, rooms, stays]);
 
   const draggedStay = activeStayId ? stays.find((s) => s.id === activeStayId) : null;
 
@@ -1989,27 +2173,54 @@ export default function BoardingPage() {
       )}
 
       {/* View Toggle */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <h2 className="text-sm font-semibold text-petra-text">מפת חדרים</h2>
-        <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
-          <button
-            onClick={() => setViewMode("grid")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-              viewMode === "grid" ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text"
-            )}
-          >
-            <LayoutGrid className="w-3.5 h-3.5" />כרטיסים
-          </button>
-          <button
-            onClick={() => setViewMode("timeline")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-              viewMode === "timeline" ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text"
-            )}
-          >
-            <GanttChart className="w-3.5 h-3.5" />ציר זמן
-          </button>
+        <div className="flex items-center gap-2">
+          {viewMode === "timeline" && (
+            <div className="flex gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs">
+              {[14, 30].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setTimelineDays(n)}
+                  className={cn(
+                    "px-2 py-1 rounded-md font-medium transition-all",
+                    timelineDays === n ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text"
+                  )}
+                >
+                  {n} ימים
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+            <button
+              onClick={() => { setViewMode("grid"); setSelectedCalendarDate(null); }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                viewMode === "grid" ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text"
+              )}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />כרטיסים
+            </button>
+            <button
+              onClick={() => { setViewMode("timeline"); setSelectedCalendarDate(null); }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                viewMode === "timeline" ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text"
+              )}
+            >
+              <GanttChart className="w-3.5 h-3.5" />ציר זמן
+            </button>
+            <button
+              onClick={() => setViewMode("calendar")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                viewMode === "calendar" ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text"
+              )}
+            >
+              <Calendar className="w-3.5 h-3.5" />זמינות
+            </button>
+          </div>
         </div>
       </div>
 
@@ -2073,13 +2284,41 @@ export default function BoardingPage() {
               <p className="text-sm text-petra-muted">אין חדרים מוגדרים</p>
             </div>
           ) : (
-            <TimelineView rooms={rooms} stays={stays} />
+            <TimelineView rooms={rooms} stays={stays} numDays={timelineDays} />
           )}
         </div>
       )}
 
+      {/* ── Calendar / Availability View ── */}
+      {viewMode === "calendar" && (
+        <OccupancyCalendar
+          stays={stays}
+          rooms={rooms}
+          onSelectDate={setSelectedCalendarDate}
+          selectedDate={selectedCalendarDate}
+          calendarMonth={calendarMonth}
+          onChangeMonth={setCalendarMonth}
+        />
+      )}
+
       {/* ── Stays List with Tabs ── */}
       <div>
+        {/* Date filter banner */}
+        {selectedCalendarDate && (
+          <div className="flex items-center gap-2 px-3 py-2 mb-3 bg-brand-50 border border-brand-100 rounded-xl text-sm text-brand-700">
+            <Calendar className="w-3.5 h-3.5 flex-shrink-0 text-brand-500" />
+            <span className="flex-1">
+              מציג שהיות ל-{new Date(selectedCalendarDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}
+            </span>
+            <button
+              onClick={() => setSelectedCalendarDate(null)}
+              className="text-brand-400 hover:text-brand-700 transition-colors"
+              aria-label="נקה סינון"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
           <h2 className="text-sm font-semibold text-petra-text">לוח שהיות</h2>
           <div className="relative flex-1 min-w-[180px] max-w-xs">
@@ -2468,23 +2707,82 @@ export default function BoardingPage() {
 
               {/* Room selector */}
               <div>
-                <label className="label">חדר</label>
-                <select
-                  className="input"
-                  value={form.roomId}
-                  onChange={(e) => setForm({ ...form, roomId: e.target.value })}
-                >
-                  <option value="">ללא חדר</option>
-                  {rooms.map((r) => {
-                    const roomStatus = getRoomDisplayStatus(r);
-                    const isFull = r._count.boardingStays >= r.capacity;
-                    return (
-                      <option key={r.id} value={r.id} disabled={isFull}>
-                        {r.name} ({r._count.boardingStays}/{r.capacity}) {isFull ? "— מלא" : roomStatus === "needs_cleaning" ? "— דרוש ניקיון" : ""}
-                      </option>
-                    );
-                  })}
-                </select>
+                <label className="label">
+                  חדר
+                  {form.checkIn && form.checkOut && (
+                    <span className="text-[10px] font-normal text-brand-500 mr-2">
+                      זמינות לפי תאריכים שנבחרו
+                    </span>
+                  )}
+                </label>
+                {form.checkIn && form.checkOut ? (
+                  // Availability-aware card picker
+                  <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, roomId: "" })}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all text-right",
+                        form.roomId === ""
+                          ? "border-brand-400 bg-brand-50 text-brand-700"
+                          : "border-slate-200 bg-white hover:border-slate-300 text-petra-muted"
+                      )}
+                    >
+                      <span className="flex-1">ללא חדר</span>
+                    </button>
+                    {[...rooms]
+                      .sort((a, b) => {
+                        const aAvail = roomAvailability[a.id] !== false;
+                        const bAvail = roomAvailability[b.id] !== false;
+                        return (bAvail ? 1 : 0) - (aAvail ? 1 : 0);
+                      })
+                      .map((r) => {
+                        const available = roomAvailability[r.id] !== false;
+                        const isSelected = form.roomId === r.id;
+                        return (
+                          <button
+                            key={r.id}
+                            type="button"
+                            disabled={!available}
+                            onClick={() => available && setForm({ ...form, roomId: r.id })}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all text-right",
+                              isSelected
+                                ? "border-brand-400 bg-brand-50 text-brand-700"
+                                : available
+                                ? "border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50/40 text-petra-text cursor-pointer"
+                                : "border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed"
+                            )}
+                          >
+                            <span className="flex-1">{r.name} · {ROOM_TYPE_LABELS[r.type] || r.type}</span>
+                            {available ? (
+                              <span className="text-[10px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">✓ זמין</span>
+                            ) : (
+                              <span className="text-[10px] font-medium text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full">✗ תפוס</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                  </div>
+                ) : (
+                  // Simple dropdown (no dates selected yet)
+                  <select
+                    className="input"
+                    value={form.roomId}
+                    onChange={(e) => setForm({ ...form, roomId: e.target.value })}
+                  >
+                    <option value="">ללא חדר</option>
+                    {rooms.map((r) => {
+                      const roomStatus = getRoomDisplayStatus(r);
+                      const isFull = r._count.boardingStays >= r.capacity;
+                      return (
+                        <option key={r.id} value={r.id} disabled={isFull}>
+                          {r.name} ({r._count.boardingStays}/{r.capacity}) {isFull ? "— מלא" : roomStatus === "needs_cleaning" ? "— דרוש ניקיון" : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                )}
               </div>
 
               {/* Check-in */}
