@@ -12,6 +12,7 @@ import {
   PawPrint,
   ShoppingCart,
   ListTodo,
+  Hotel,
   MessageCircle,
   Pencil,
   Check,
@@ -1436,10 +1437,11 @@ export default function CalendarPage() {
                           ((endIdx - startIdx + 1) / 7) * 100;
 
                         return (
-                          <div
+                          <a
                             key={stay.id}
+                            href="/boarding"
                             className={cn(
-                              "h-6 rounded-md text-[10px] font-medium flex items-center px-2 truncate border",
+                              "h-6 rounded-md text-[10px] font-medium flex items-center gap-1 px-2 truncate border cursor-pointer hover:brightness-95 transition-all",
                               isCheckedIn
                                 ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                                 : "bg-violet-50 border-violet-200 text-violet-700"
@@ -1448,10 +1450,11 @@ export default function CalendarPage() {
                               marginRight: `${leftPct}%`,
                               width: `${widthPct}%`,
                             }}
+                            title={`${isCheckedIn ? "נמצא בפנסיון" : "הזמנה"}: ${stay.pet.name} · ${stay.room?.name || "ללא חדר"}\nכניסה: ${dateTimeToTime(stay.checkIn)}${stay.checkOut ? ` · יציאה: ${dateTimeToTime(stay.checkOut)}` : ""}`}
                           >
-                            {stay.pet.name} ·{" "}
-                            {stay.room?.name || "ללא חדר"}
-                          </div>
+                            <Hotel className="w-3 h-3 flex-shrink-0" />
+                            {stay.pet.name} · {stay.room?.name || "ללא חדר"}
+                          </a>
                         );
                       })}
                       {weekAllDayTasks.map((task) => {
@@ -1610,6 +1613,81 @@ export default function CalendarPage() {
                       true
                     );
                   });
+                })}
+
+                {/* Boarding check-in / check-out timed blocks */}
+                {weekDates.map((date, dayIdx) => {
+                  const dateStr = toLocalDateString(date);
+                  const checkIns = boardingStays.filter(
+                    (s) => dateTimeToDateStr(s.checkIn) === dateStr
+                  );
+                  const checkOuts = boardingStays.filter(
+                    (s) => s.checkOut && dateTimeToDateStr(s.checkOut) === dateStr
+                  );
+                  return [
+                    ...checkIns.map((stay) => {
+                      const startTime = dateTimeToTime(stay.checkIn);
+                      const startMins = timeToMinutes(startTime);
+                      if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
+                      const endTime = addMinutes(startTime, 30);
+                      const { top, height } = appointmentStyle(startTime, endTime);
+                      return (
+                        <a
+                          key={`checkin-${stay.id}`}
+                          href="/boarding"
+                          className="absolute rounded-lg px-1.5 py-0.5 overflow-hidden transition-all hover:brightness-95 border border-emerald-300 flex flex-col justify-center"
+                          style={{
+                            top,
+                            height: Math.max(height, 22),
+                            right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                            width: `calc((100% - 60px) / 7 - 4px)`,
+                            marginRight: 2,
+                            background: "#D1FAE5",
+                            zIndex: 8,
+                          }}
+                          title={`צ׳ק-אין: ${stay.pet.name} — ${stay.customer.name}${stay.room ? ` · ${stay.room.name}` : ""} (${startTime})`}
+                        >
+                          <div className="text-[10px] font-semibold text-emerald-800 truncate flex items-center gap-0.5">
+                            <Hotel className="w-2.5 h-2.5 flex-shrink-0" />↓ {stay.pet.name}
+                          </div>
+                          {Math.max(height, 22) > 32 && (
+                            <div className="text-[9px] text-emerald-700 truncate">{stay.customer.name}</div>
+                          )}
+                        </a>
+                      );
+                    }),
+                    ...checkOuts.map((stay) => {
+                      const startTime = dateTimeToTime(stay.checkOut!);
+                      const startMins = timeToMinutes(startTime);
+                      if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
+                      const endTime = addMinutes(startTime, 30);
+                      const { top, height } = appointmentStyle(startTime, endTime);
+                      return (
+                        <a
+                          key={`checkout-${stay.id}`}
+                          href="/boarding"
+                          className="absolute rounded-lg px-1.5 py-0.5 overflow-hidden transition-all hover:brightness-95 border border-amber-300 flex flex-col justify-center"
+                          style={{
+                            top,
+                            height: Math.max(height, 22),
+                            right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                            width: `calc((100% - 60px) / 7 - 4px)`,
+                            marginRight: 2,
+                            background: "#FEF3C7",
+                            zIndex: 8,
+                          }}
+                          title={`צ׳ק-אאוט: ${stay.pet.name} — ${stay.customer.name}${stay.room ? ` · ${stay.room.name}` : ""} (${startTime})`}
+                        >
+                          <div className="text-[10px] font-semibold text-amber-800 truncate flex items-center gap-0.5">
+                            <Hotel className="w-2.5 h-2.5 flex-shrink-0" />↑ {stay.pet.name}
+                          </div>
+                          {Math.max(height, 22) > 32 && (
+                            <div className="text-[9px] text-amber-700 truncate">{stay.customer.name}</div>
+                          )}
+                        </a>
+                      );
+                    }),
+                  ];
                 })}
 
                 {/* Current time indicator */}
