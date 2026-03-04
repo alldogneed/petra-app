@@ -36,8 +36,13 @@ import {
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { HelpCenter } from "@/components/help/HelpCenter";
+import dynamic from "next/dynamic";
 import { useAuth } from "@/providers/auth-provider";
+
+const HelpCenter = dynamic(
+  () => import("@/components/help/HelpCenter").then((m) => ({ default: m.HelpCenter })),
+  { ssr: false }
+);
 
 interface NavItem {
   name: string;

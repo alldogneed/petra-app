@@ -59,7 +59,11 @@ import { formatCurrency, fetchJSON, cn, toWhatsAppPhone } from "@/lib/utils";
 import { SetupChecklist } from "@/components/onboarding/SetupChecklist";
 import { TeamWelcomeModal } from "@/components/onboarding/TeamWelcomeModal";
 import OnboardingWizardModal from "@/components/onboarding/OnboardingWizardModal";
-import { CreateOrderModal } from "@/components/orders/CreateOrderModal";
+import dynamic from "next/dynamic";
+const CreateOrderModal = dynamic(
+  () => import("@/components/orders/CreateOrderModal").then((m) => ({ default: m.CreateOrderModal })),
+  { ssr: false }
+);
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

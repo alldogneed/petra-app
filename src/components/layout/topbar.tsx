@@ -27,7 +27,12 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
-import { GlobalSearch } from "@/components/search/global-search";
+import dynamic from "next/dynamic";
+
+const GlobalSearch = dynamic(
+  () => import("@/components/search/global-search").then((m) => ({ default: m.GlobalSearch })),
+  { ssr: false, loading: () => <div className="h-9 w-64 bg-slate-100 rounded-xl animate-pulse" /> }
+);
 import { cn, fetchJSON, formatCurrency, toWhatsAppPhone } from "@/lib/utils";
 
 const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {

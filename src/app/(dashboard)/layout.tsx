@@ -41,7 +41,7 @@ export default async function DashboardLayout({
 
   return (
     <AppShell>
-      <Suspense>{children}</Suspense>
+      <Suspense fallback={<div className="p-4 md:p-6 animate-pulse space-y-4"><div className="h-7 w-48 bg-slate-200 rounded-lg"/><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[...Array(4)].map((_,i)=><div key={i} className="h-24 bg-slate-200 rounded-xl"/>)}</div></div>}>{children}</Suspense>
       <Toaster
         position="bottom-left"
         toastOptions={{

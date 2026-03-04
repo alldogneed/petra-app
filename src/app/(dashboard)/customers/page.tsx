@@ -35,7 +35,11 @@ import {
 } from "lucide-react";
 import { toWhatsAppPhone, fetchJSON, formatCurrency } from "@/lib/utils";
 import { SERVICE_TYPES } from "@/lib/constants";
-import { CreateOrderModal } from "@/components/orders/CreateOrderModal";
+import dynamic from "next/dynamic";
+const CreateOrderModal = dynamic(
+  () => import("@/components/orders/CreateOrderModal").then((m) => ({ default: m.CreateOrderModal })),
+  { ssr: false }
+);
 import { toast } from "sonner";
 
 const DEFAULT_CUSTOMER_TAGS = ["VIP", "קבוע", "מזדמן", "פוטנציאל", "לשעבר", "עסקי"];

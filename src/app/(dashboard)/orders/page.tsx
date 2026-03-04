@@ -26,7 +26,11 @@ import {
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
-import { CreateOrderModal } from "@/components/orders/CreateOrderModal";
+import dynamic from "next/dynamic";
+const CreateOrderModal = dynamic(
+  () => import("@/components/orders/CreateOrderModal").then((m) => ({ default: m.CreateOrderModal })),
+  { ssr: false }
+);
 
 interface OrderLine {
   id: string;
