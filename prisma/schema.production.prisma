@@ -1323,6 +1323,7 @@ model DogBehavior {
   triggers           String?
   priorTraining      Boolean  @default(false)
   priorTrainingDetails String?
+  customIssues       String?  // JSON array of custom behavioral issue strings
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
