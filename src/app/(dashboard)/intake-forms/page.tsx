@@ -274,9 +274,9 @@ export default function IntakeFormsPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">טפסי קבלה</h1>
+          <h1 className="page-title">טפסי קליטה</h1>
           <p className="text-sm text-petra-muted mt-1">
-            ניהול טפסי קבלה שנשלחו ללקוחות
+            ניהול טפסי קליטה שנשלחו ללקוחות
           </p>
         </div>
         <button
@@ -324,7 +324,7 @@ export default function IntakeFormsPage() {
               <ClipboardList className="w-8 h-8" />
             </div>
             <p className="text-petra-muted text-sm mt-2">
-              {statusFilter === "ALL" ? "אין טפסי קבלה עדיין" : "אין טפסים בסטטוס זה"}
+              {statusFilter === "ALL" ? "אין טפסי קליטה עדיין" : "אין טפסים בסטטוס זה"}
             </p>
             <button
               className="btn-primary mt-4 text-sm"
