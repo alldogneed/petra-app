@@ -436,9 +436,6 @@ export default function TasksPage() {
               <Plus className="w-4 h-4" />
               משימה חדשה
             </button>
-            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-petra-muted bg-slate-100 px-2 py-0.5 rounded-md font-mono">
-              N
-            </span>
           </>
         )}
       </div>
