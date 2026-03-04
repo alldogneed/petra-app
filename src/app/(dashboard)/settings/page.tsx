@@ -259,6 +259,9 @@ function BusinessTab() {
 }
 
 function ChangePasswordSection() {
+  const { user } = useAuth();
+  const isGoogleOnly = user?.authProvider === "google" && !user?.hasPassword;
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -266,7 +269,7 @@ function ChangePasswordSection() {
   const [showNew, setShowNew] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const mutation = useMutation({
+  const changeMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/account/change-password", {
         method: "POST",
@@ -287,9 +290,35 @@ function ChangePasswordSection() {
     onError: (err: Error) => setError(err.message),
   });
 
+  const setMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/account/set-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שגיאה");
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("הסיסמה הוגדרה בהצלחה — כעת ניתן להתחבר גם עם אימייל וסיסמה");
+      setNewPassword("");
+      setConfirmPassword("");
+      setError(null);
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const mutation = isGoogleOnly ? setMutation : changeMutation;
+
   function handleSubmit() {
     setError(null);
-    if (!currentPassword || !newPassword || !confirmPassword) {
+    if (!isGoogleOnly && !currentPassword) {
+      setError("יש למלא את כל השדות");
+      return;
+    }
+    if (!newPassword || !confirmPassword) {
       setError("יש למלא את כל השדות");
       return;
     }
@@ -298,7 +327,7 @@ function ChangePasswordSection() {
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError("הסיסמאות החדשות אינן תואמות");
+      setError("הסיסמאות אינן תואמות");
       return;
     }
     mutation.mutate();
@@ -308,31 +337,45 @@ function ChangePasswordSection() {
     <div className="border-t border-slate-100 pt-6">
       <div className="flex items-center gap-2 mb-4">
         <Shield className="w-4 h-4 text-brand-500" />
-        <h3 className="text-sm font-semibold text-petra-text">שינוי סיסמה</h3>
+        <h3 className="text-sm font-semibold text-petra-text">
+          {isGoogleOnly ? "הגדרת סיסמה" : "שינוי סיסמה"}
+        </h3>
       </div>
-      <div className="space-y-3">
-        <div>
-          <label className="label">סיסמה נוכחית</label>
-          <div className="relative">
-            <input
-              className="input w-full pl-10"
-              type={showCurrent ? "text" : "password"}
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              dir="ltr"
-              placeholder="••••••••"
-            />
-            <button
-              type="button"
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
-              onClick={() => setShowCurrent((v) => !v)}
-            >
-              {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
+
+      {isGoogleOnly && (
+        <div className="flex items-start gap-2 p-3 bg-brand-50 border border-brand-100 rounded-xl text-sm text-brand-800 mb-4">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-brand-500" />
+          <p>
+            חשבונך מחובר דרך Google. באפשרותך להגדיר סיסמה כדי להתחבר גם עם אימייל וסיסמה בנוסף לכניסה עם Google.
+          </p>
         </div>
+      )}
+
+      <div className="space-y-3">
+        {!isGoogleOnly && (
+          <div>
+            <label className="label">סיסמה נוכחית</label>
+            <div className="relative">
+              <input
+                className="input w-full pl-10"
+                type={showCurrent ? "text" : "password"}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                dir="ltr"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
+                onClick={() => setShowCurrent((v) => !v)}
+              >
+                {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+        )}
         <div>
-          <label className="label">סיסמה חדשה</label>
+          <label className="label">{isGoogleOnly ? "סיסמה חדשה" : "סיסמה חדשה"}</label>
           <div className="relative">
             <input
               className="input w-full pl-10"
@@ -352,14 +395,14 @@ function ChangePasswordSection() {
           </div>
         </div>
         <div>
-          <label className="label">אימות סיסמה חדשה</label>
+          <label className="label">אימות סיסמה</label>
           <input
             className="input w-full"
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             dir="ltr"
-            placeholder="הזן שוב את הסיסמה החדשה"
+            placeholder="הזן שוב את הסיסמה"
           />
         </div>
         {error && (
@@ -374,7 +417,9 @@ function ChangePasswordSection() {
           disabled={mutation.isPending}
         >
           {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
-          {mutation.isPending ? "מחליף..." : "החלף סיסמה"}
+          {mutation.isPending
+            ? isGoogleOnly ? "מגדיר..." : "מחליף..."
+            : isGoogleOnly ? "הגדר סיסמה" : "החלף סיסמה"}
         </button>
       </div>
     </div>

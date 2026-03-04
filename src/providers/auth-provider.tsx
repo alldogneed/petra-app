@@ -15,6 +15,8 @@ interface AuthUser {
   businessName: string | null;
   businessSlug: string | null;
   businessRole: string | null;
+  authProvider: string;
+  hasPassword: boolean;
 }
 
 interface AuthContextType {

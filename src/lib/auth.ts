@@ -160,7 +160,7 @@ export async function getCurrentUser() {
       : Promise.resolve(null),
     prisma.platformUser.findUnique({
       where: { id: session.user.id },
-      select: { avatarUrl: true },
+      select: { avatarUrl: true, authProvider: true, passwordHash: true },
     }),
   ]);
 
@@ -175,5 +175,7 @@ export async function getCurrentUser() {
     businessName: business?.name ?? null,
     businessSlug: business?.slug ?? null,
     businessRole: membership?.role ?? null,
+    authProvider: platformUser?.authProvider ?? "local",
+    hasPassword: !!platformUser?.passwordHash,
   };
 }
