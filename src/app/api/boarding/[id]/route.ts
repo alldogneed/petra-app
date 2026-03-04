@@ -16,6 +16,7 @@ const PatchBoardingSchema = z.object({
   notes: z.string().max(2000).nullable().optional(),
   checkinNotes: z.string().max(500).optional(),
   checkoutNotes: z.string().max(500).optional(),
+  feedingPlan: z.string().max(2000).nullable().optional(),
 });
 
 // GET /api/boarding/[id] – get a single boarding stay
@@ -100,6 +101,7 @@ export async function PATCH(
         ...(body.status !== undefined && { status: body.status }),
         ...(body.roomId !== undefined && { roomId: body.roomId }),
         ...(notesUpdate !== undefined && { notes: notesUpdate }),
+        ...(body.feedingPlan !== undefined && { feedingPlan: body.feedingPlan }),
       },
       select: {
         id: true, checkIn: true, checkOut: true, status: true, notes: true,

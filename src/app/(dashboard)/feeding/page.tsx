@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
@@ -14,9 +14,12 @@ import {
   ChevronLeft,
   Check,
   X,
+  Pencil,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
+import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,6 +30,7 @@ interface BoardingStay {
   status: string;
   checkIn: string;
   checkOut: string | null;
+  feedingPlan: string | null;
   pet: {
     id: string;
     name: string;
@@ -38,6 +42,22 @@ interface BoardingStay {
     name: string;
     phone: string;
   };
+}
+
+interface FeedingPlan {
+  foodType: string;
+  amountGrams: number;
+  timesPerDay: number;
+  notes?: string;
+}
+
+function parseFeedingPlan(raw: string | null): FeedingPlan | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as FeedingPlan;
+  } catch {
+    return null;
+  }
 }
 
 interface MealRecord {
@@ -129,6 +149,140 @@ function formatHebrewDate(d: Date): string {
   });
 }
 
+// ─── Feeding Plan Modal ───────────────────────────────────────────────────────
+
+function FeedingPlanModal({
+  stay,
+  onClose,
+  onSave,
+}: {
+  stay: BoardingStay;
+  onClose: () => void;
+  onSave: (stayId: string, plan: FeedingPlan) => void;
+}) {
+  const existing = parseFeedingPlan(stay.feedingPlan);
+  const [foodType, setFoodType] = useState(existing?.foodType ?? "");
+  const [amountGrams, setAmountGrams] = useState(
+    existing?.amountGrams ? String(existing.amountGrams) : ""
+  );
+  const [timesPerDay, setTimesPerDay] = useState(
+    existing?.timesPerDay ? String(existing.timesPerDay) : "2"
+  );
+  const [notes, setNotes] = useState(existing?.notes ?? "");
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!foodType.trim() || !amountGrams) return;
+    onSave(stay.id, {
+      foodType: foodType.trim(),
+      amountGrams: Number(amountGrams),
+      timesPerDay: Number(timesPerDay),
+      notes: notes.trim() || undefined,
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-petra-text">תוכנית האכלה</h2>
+            <p className="text-sm text-petra-muted">{stay.pet.name}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-slate-100 text-petra-muted transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Food type */}
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-petra-text">
+              סוג האוכל <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={foodType}
+              onChange={(e) => setFoodType(e.target.value)}
+              placeholder="לדוג׳ Royal Canin Medium Adult"
+              className="input w-full"
+              required
+              autoFocus
+            />
+          </div>
+
+          {/* Amount + times per day side by side */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-petra-text">
+                כמות בגרם <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                value={amountGrams}
+                onChange={(e) => setAmountGrams(e.target.value)}
+                placeholder="200"
+                min={1}
+                max={5000}
+                className="input w-full"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-petra-text">
+                כמה פעמים ביום
+              </label>
+              <select
+                value={timesPerDay}
+                onChange={(e) => setTimesPerDay(e.target.value)}
+                className="input w-full"
+              >
+                <option value="1">פעם אחת</option>
+                <option value="2">פעמיים</option>
+                <option value="3">שלוש פעמים</option>
+                <option value="4">ארבע פעמים</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-petra-text">
+              הערות האכלה
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="הוראות מיוחדות, אלרגיות, העדפות..."
+              rows={3}
+              className="input w-full resize-none"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1">
+              ביטול
+            </button>
+            <button
+              type="submit"
+              disabled={!foodType.trim() || !amountGrams}
+              className="btn-primary flex-1"
+            >
+              שמור
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Meal Toggle Button ───────────────────────────────────────────────────────
 
 function MealButton({
@@ -179,6 +333,9 @@ function MealButton({
 export default function FeedingPage() {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const dateStr = dateToISO(currentDate);
+  const [editPlanStay, setEditPlanStay] = useState<BoardingStay | null>(null);
+
+  const queryClient = useQueryClient();
 
   // Local state for all meal records, keyed by "petId:slot"
   const [meals, setMeals] = useState<Record<string, MealRecord>>({});
@@ -189,6 +346,24 @@ export default function FeedingPage() {
     queryKey: ["boarding-stays-feeding"],
     queryFn: () => fetch("/api/boarding").then((r) => r.json()),
     staleTime: 60000,
+  });
+
+  const savePlanMutation = useMutation({
+    mutationFn: async ({ stayId, plan }: { stayId: string; plan: FeedingPlan }) => {
+      const res = await fetch(`/api/boarding/${stayId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedingPlan: JSON.stringify(plan) }),
+      });
+      if (!res.ok) throw new Error("שגיאה בשמירת תוכנית האכלה");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["boarding-stays-feeding"] });
+      toast.success("תוכנית האכלה נשמרה");
+      setEditPlanStay(null);
+    },
+    onError: () => toast.error("שגיאה בשמירת תוכנית האכלה"),
   });
 
   // Filter stays active on current date — memoized to prevent identity changes on every render
@@ -430,21 +605,56 @@ export default function FeedingPage() {
                         </div>
                       </td>
 
-                      {/* Food notes */}
+                      {/* Feeding plan */}
                       <td className="table-cell">
-                        {stay.pet.foodNotes ? (
-                          <div className="bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 max-w-xs">
-                            <p className="text-xs font-medium text-amber-700 flex items-center gap-1 mb-0.5">
-                              <UtensilsCrossed className="w-3 h-3" />
-                              הוראות
-                            </p>
-                            <p className="text-xs text-amber-800 leading-snug">
-                              {stay.pet.foodNotes}
-                            </p>
-                          </div>
-                        ) : (
-                          <span className="text-petra-muted text-xs">אין הוראות</span>
-                        )}
+                        {(() => {
+                          const plan = parseFeedingPlan(stay.feedingPlan);
+                          return (
+                            <div className="flex items-start gap-2 max-w-xs">
+                              <div className="flex-1 min-w-0">
+                                {plan ? (
+                                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                                    <p className="text-xs font-medium text-amber-700 flex items-center gap-1 mb-0.5">
+                                      <UtensilsCrossed className="w-3 h-3" />
+                                      תוכנית האכלה
+                                    </p>
+                                    <p className="text-xs text-amber-900 font-medium">{plan.foodType}</p>
+                                    <p className="text-xs text-amber-700 mt-0.5">
+                                      {plan.amountGrams}ג׳ · {plan.timesPerDay}× ביום
+                                    </p>
+                                    {plan.notes && (
+                                      <p className="text-xs text-amber-600 mt-0.5 leading-snug">{plan.notes}</p>
+                                    )}
+                                    {stay.pet.foodNotes && !plan.notes && (
+                                      <p className="text-xs text-amber-600 mt-0.5 leading-snug">{stay.pet.foodNotes}</p>
+                                    )}
+                                  </div>
+                                ) : stay.pet.foodNotes ? (
+                                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                                    <p className="text-xs font-medium text-amber-700 flex items-center gap-1 mb-0.5">
+                                      <UtensilsCrossed className="w-3 h-3" />
+                                      הוראות
+                                    </p>
+                                    <p className="text-xs text-amber-800 leading-snug">{stay.pet.foodNotes}</p>
+                                  </div>
+                                ) : (
+                                  <span className="text-petra-muted text-xs">אין תוכנית</span>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => setEditPlanStay(stay)}
+                                className="p-1.5 rounded-lg hover:bg-slate-100 text-petra-muted hover:text-brand-600 transition-colors flex-shrink-0 mt-0.5"
+                                title={plan ? "ערוך תוכנית האכלה" : "הוסף תוכנית האכלה"}
+                              >
+                                {plan ? (
+                                  <Pencil className="w-3.5 h-3.5" />
+                                ) : (
+                                  <Plus className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Meal slots */}
@@ -500,6 +710,15 @@ export default function FeedingPage() {
         <p className="text-xs text-petra-muted text-center">
           נתוני ההאכלה נשמרים מקומית בדפדפן (localStorage) לצרכי דמו
         </p>
+      )}
+
+      {/* Feeding plan modal */}
+      {editPlanStay && (
+        <FeedingPlanModal
+          stay={editPlanStay}
+          onClose={() => setEditPlanStay(null)}
+          onSave={(stayId, plan) => savePlanMutation.mutate({ stayId, plan })}
+        />
       )}
     </div>
   );
