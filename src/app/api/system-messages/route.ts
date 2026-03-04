@@ -11,10 +11,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const unreadOnly = searchParams.get("unreadOnly") === "true";
 
+    const showAll = searchParams.get("all") === "true";
     const where = {
       businessId: authResult.businessId,
       ...(unreadOnly ? { isRead: false } : {}),
-      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      ...(showAll ? {} : { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }),
     };
 
     const [messages, unreadCount] = await Promise.all([
