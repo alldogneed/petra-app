@@ -30,13 +30,14 @@ interface VaccinationEntry {
   customerId: string;
   customerName: string;
   customerPhone: string;
-  vaccineType: "rabies" | "dhpp" | "deworming";
+  vaccineType: string;
   vaccineLabel: string;
   lastDate: string | null;
   validUntil: string | null;
   daysUntil: number;
   isExpired: boolean;
   isUnknown: boolean;
+  extra?: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -121,7 +122,7 @@ function buildWhatsApp(
 }
 
 type StatusFilter = "all" | "expired" | "expiring_soon" | "valid" | "unknown";
-type TypeFilter = "all" | "rabies" | "dhpp" | "deworming";
+type TypeFilter = "all" | string;
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -192,7 +193,7 @@ export default function VaccinationsPage() {
         <div>
           <h1 className="page-title">ניהול חיסונים</h1>
           <p className="text-sm text-petra-muted mt-1">
-            מעקב חיסונים לכלבי העסק – כלבת, DHPP וטיפול נגד תולעים
+            מעקב חיסונים וטיפולים לכלבי העסק
           </p>
         </div>
         <button
@@ -278,14 +279,18 @@ export default function VaccinationsPage() {
 
         {/* Vaccine type */}
         <div className="flex items-center gap-1 flex-wrap">
-          {(
-            [
-              { value: "all", label: "הכל" },
-              { value: "rabies", label: "כלבת" },
-              { value: "dhpp", label: "DHPP" },
-              { value: "deworming", label: "תולעים" },
-            ] as const
-          ).map((opt) => (
+          {[
+            { value: "all", label: "הכל" },
+            { value: "rabies", label: "כלבת" },
+            { value: "dhpp", label: "משושה בוגר" },
+            { value: "dhppPuppy1", label: "גורים מנה 1" },
+            { value: "dhppPuppy2", label: "גורים מנה 2" },
+            { value: "dhppPuppy3", label: "גורים מנה 3" },
+            { value: "bordetella", label: "שעלת מכלאות" },
+            { value: "parkWorm", label: "תולעת הפארק" },
+            { value: "deworming", label: "תילוע" },
+            { value: "fleaTick", label: "קרציות/פרעושים" },
+          ].map((opt) => (
             <button
               key={opt.value}
               onClick={() => setTypeFilter(opt.value)}
@@ -438,7 +443,10 @@ export default function VaccinationsPage() {
                     <td className="table-cell">
                       <span className="flex items-center gap-1.5 font-medium text-petra-text">
                         <Syringe className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />
-                        {v.vaccineLabel}
+                        <span>
+                          {v.vaccineLabel}
+                          {v.extra && <span className="block text-xs text-petra-muted font-normal">{v.extra}</span>}
+                        </span>
                       </span>
                     </td>
 

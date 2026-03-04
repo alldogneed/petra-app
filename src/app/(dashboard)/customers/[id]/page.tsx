@@ -2105,20 +2105,30 @@ function EditHealthModal({
 }) {
   const queryClient = useQueryClient();
   const toDateInput = (v: string | null) => (v ? v.split("T")[0] : "");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const h = health as any;
   const [form, setForm] = useState({
-    rabiesLastDate: toDateInput(health?.rabiesLastDate ?? null),
-    rabiesValidUntil: toDateInput(health?.rabiesValidUntil ?? null),
-    dhppLastDate: toDateInput(health?.dhppLastDate ?? null),
-    dewormingLastDate: toDateInput(health?.dewormingLastDate ?? null),
-    allergies: health?.allergies ?? "",
-    medicalConditions: health?.medicalConditions ?? "",
-    surgeriesHistory: health?.surgeriesHistory ?? "",
-    activityLimitations: health?.activityLimitations ?? "",
-    vetName: health?.vetName ?? "",
-    vetPhone: health?.vetPhone ?? "",
-    neuteredSpayed: health?.neuteredSpayed ?? false,
-    originInfo: health?.originInfo ?? "",
-    timeWithOwner: health?.timeWithOwner ?? "",
+    rabiesLastDate: toDateInput(h?.rabiesLastDate ?? null),
+    rabiesValidUntil: toDateInput(h?.rabiesValidUntil ?? null),
+    dhppLastDate: toDateInput(h?.dhppLastDate ?? null),
+    dhppPuppy1Date: toDateInput(h?.dhppPuppy1Date ?? null),
+    dhppPuppy2Date: toDateInput(h?.dhppPuppy2Date ?? null),
+    dhppPuppy3Date: toDateInput(h?.dhppPuppy3Date ?? null),
+    bordatellaDate: toDateInput(h?.bordatellaDate ?? null),
+    parkWormDate: toDateInput(h?.parkWormDate ?? null),
+    dewormingLastDate: toDateInput(h?.dewormingLastDate ?? null),
+    fleaTickType: h?.fleaTickType ?? "",
+    fleaTickDate: toDateInput(h?.fleaTickDate ?? null),
+    fleaTickExpiryDate: toDateInput(h?.fleaTickExpiryDate ?? null),
+    allergies: h?.allergies ?? "",
+    medicalConditions: h?.medicalConditions ?? "",
+    surgeriesHistory: h?.surgeriesHistory ?? "",
+    activityLimitations: h?.activityLimitations ?? "",
+    vetName: h?.vetName ?? "",
+    vetPhone: h?.vetPhone ?? "",
+    neuteredSpayed: h?.neuteredSpayed ?? false,
+    originInfo: h?.originInfo ?? "",
+    timeWithOwner: h?.timeWithOwner ?? "",
   });
 
   const mutation = useMutation({
@@ -2150,24 +2160,105 @@ function EditHealthModal({
         </div>
         <div className="space-y-5">
           {/* Vaccines */}
-          <div>
-            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">חיסונים</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">כלבת — תאריך</label>
-                <input className="input" type="date" value={form.rabiesLastDate} onChange={(e) => setForm({ ...form, rabiesLastDate: e.target.value })} />
+          <div className="space-y-4">
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide">חיסונים וטיפולים</p>
+
+            {/* כלבת */}
+            <div>
+              <p className="text-xs font-medium text-petra-text mb-2">כלבת — אחת לשנה</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">תאריך חיסון</label>
+                  <input className="input" type="date" value={form.rabiesLastDate} onChange={(e) => setForm({ ...form, rabiesLastDate: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">תוקף עד</label>
+                  <input className="input" type="date" value={form.rabiesValidUntil} onChange={(e) => setForm({ ...form, rabiesValidUntil: e.target.value })} />
+                </div>
               </div>
-              <div>
-                <label className="label">כלבת — תוקף עד</label>
-                <input className="input" type="date" value={form.rabiesValidUntil} onChange={(e) => setForm({ ...form, rabiesValidUntil: e.target.value })} />
+            </div>
+
+            {/* משושה גורים */}
+            <div>
+              <p className="text-xs font-medium text-petra-text mb-2">משושה גורים — 3 מנות, שבועיים בין כל מנה</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="label">מנה 1</label>
+                  <input className="input" type="date" value={form.dhppPuppy1Date} onChange={(e) => setForm({ ...form, dhppPuppy1Date: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">מנה 2</label>
+                  <input className="input" type="date" value={form.dhppPuppy2Date} onChange={(e) => setForm({ ...form, dhppPuppy2Date: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">מנה 3</label>
+                  <input className="input" type="date" value={form.dhppPuppy3Date} onChange={(e) => setForm({ ...form, dhppPuppy3Date: e.target.value })} />
+                </div>
               </div>
-              <div>
-                <label className="label">משושה (DHPP)</label>
-                <input className="input" type="date" value={form.dhppLastDate} onChange={(e) => setForm({ ...form, dhppLastDate: e.target.value })} />
+            </div>
+
+            {/* משושה בוגר */}
+            <div>
+              <p className="text-xs font-medium text-petra-text mb-2">משושה בוגר (DHPP) — אחת לשנה</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">תאריך חיסון</label>
+                  <input className="input" type="date" value={form.dhppLastDate} onChange={(e) => setForm({ ...form, dhppLastDate: e.target.value })} />
+                </div>
               </div>
-              <div>
-                <label className="label">תילוע</label>
-                <input className="input" type="date" value={form.dewormingLastDate} onChange={(e) => setForm({ ...form, dewormingLastDate: e.target.value })} />
+            </div>
+
+            {/* שעלת מכלאות */}
+            <div>
+              <p className="text-xs font-medium text-petra-text mb-2">שעלת מכלאות — תיעוד קבלה</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">תאריך קבלה</label>
+                  <input className="input" type="date" value={form.bordatellaDate} onChange={(e) => setForm({ ...form, bordatellaDate: e.target.value })} />
+                </div>
+              </div>
+            </div>
+
+            {/* תולעת הפארק */}
+            <div>
+              <p className="text-xs font-medium text-petra-text mb-2">תולעת הפארק — כל 3 חודשים</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">תאריך טיפול</label>
+                  <input className="input" type="date" value={form.parkWormDate} onChange={(e) => setForm({ ...form, parkWormDate: e.target.value })} />
+                </div>
+              </div>
+            </div>
+
+            {/* תילוע */}
+            <div>
+              <p className="text-xs font-medium text-petra-text mb-2">תילוע — אחת לחצי שנה</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">תאריך תילוע</label>
+                  <input className="input" type="date" value={form.dewormingLastDate} onChange={(e) => setForm({ ...form, dewormingLastDate: e.target.value })} />
+                </div>
+              </div>
+            </div>
+
+            {/* קרציות ופרעושים */}
+            <div>
+              <p className="text-xs font-medium text-petra-text mb-2">קרציות ופרעושים</p>
+              <div className="space-y-2">
+                <div>
+                  <label className="label">סוג טיפול (שם מוצר)</label>
+                  <input className="input" placeholder="Nexgard, Bravecto, Advocate..." value={form.fleaTickType} onChange={(e) => setForm({ ...form, fleaTickType: e.target.value })} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">תאריך טיפול</label>
+                    <input className="input" type="date" value={form.fleaTickDate} onChange={(e) => setForm({ ...form, fleaTickDate: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label">תוקף עד</label>
+                    <input className="input" type="date" value={form.fleaTickExpiryDate} onChange={(e) => setForm({ ...form, fleaTickExpiryDate: e.target.value })} />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

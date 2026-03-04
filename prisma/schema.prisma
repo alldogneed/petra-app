@@ -1282,7 +1282,15 @@ model DogHealth {
   rabiesValidUntil     DateTime?
   rabiesUnknown        Boolean   @default(false)
   dhppLastDate         DateTime?
+  dhppPuppy1Date       DateTime?
+  dhppPuppy2Date       DateTime?
+  dhppPuppy3Date       DateTime?
+  bordatellaDate       DateTime?
+  parkWormDate         DateTime?
   dewormingLastDate    DateTime?
+  fleaTickType         String?
+  fleaTickDate         DateTime?
+  fleaTickExpiryDate   DateTime?
   allergies            String?
   medicalConditions    String?
   surgeriesHistory     String?

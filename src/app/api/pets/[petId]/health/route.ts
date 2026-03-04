@@ -25,8 +25,13 @@ export async function PATCH(
     const body = await request.json();
 
     const data: Record<string, unknown> = {};
-    const dateFields = ["rabiesLastDate", "rabiesValidUntil", "dhppLastDate", "dewormingLastDate"];
-    const stringFields = ["allergies", "medicalConditions", "surgeriesHistory", "activityLimitations", "vetName", "vetPhone", "originInfo", "timeWithOwner"];
+    const dateFields = [
+      "rabiesLastDate", "rabiesValidUntil",
+      "dhppLastDate", "dhppPuppy1Date", "dhppPuppy2Date", "dhppPuppy3Date",
+      "bordatellaDate", "parkWormDate", "dewormingLastDate",
+      "fleaTickDate", "fleaTickExpiryDate",
+    ];
+    const stringFields = ["allergies", "medicalConditions", "surgeriesHistory", "activityLimitations", "vetName", "vetPhone", "originInfo", "timeWithOwner", "fleaTickType"];
     const boolFields = ["neuteredSpayed"];
 
     for (const f of dateFields) {
