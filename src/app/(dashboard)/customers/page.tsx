@@ -31,6 +31,7 @@ import {
   Trash2,
   GripVertical,
   FileDown,
+  RefreshCw,
 } from "lucide-react";
 import { toWhatsAppPhone, fetchJSON, formatCurrency } from "@/lib/utils";
 import { SERVICE_TYPES } from "@/lib/constants";
@@ -1421,7 +1422,7 @@ export default function CustomersPage() {
   });
 
   // ── Data fetching ──
-  const { data: rawCustomers = [], isLoading } = useQuery<EnhancedCustomer[]>({
+  const { data: rawCustomers = [], isLoading, isFetching: isCustomersFetching } = useQuery<EnhancedCustomer[]>({
     queryKey: ["customers", search, serviceTypeFilter],
     queryFn: () => {
       const params = new URLSearchParams({ enhanced: "1" });
@@ -1553,9 +1554,18 @@ export default function CustomersPage() {
     <div>
       {/* ─── Page Header ─── */}
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-        <div>
-          <h1 className="page-title">לקוחות</h1>
-          <p className="text-sm text-petra-muted">{stats.total} לקוחות במערכת</p>
+        <div className="flex items-center gap-2">
+          <div>
+            <h1 className="page-title">לקוחות</h1>
+            <p className="text-sm text-petra-muted">{stats.total} לקוחות במערכת</p>
+          </div>
+          <button
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["customers"] })}
+            title="רענן נתונים"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isCustomersFetching ? "animate-spin" : ""}`} />
+          </button>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button className="btn-primary" onClick={() => setShowNewModal(true)}>

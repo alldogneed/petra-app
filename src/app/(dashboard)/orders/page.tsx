@@ -22,6 +22,7 @@ import {
   Trash2,
   Tag,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
@@ -174,7 +175,7 @@ export default function OrdersPage() {
     return p.toString();
   }, [activeStatus, fromDate, toDate]);
 
-  const { data: orders = [], isLoading } = useQuery<Order[]>({
+  const { data: orders = [], isLoading, isFetching: isOrdersFetching } = useQuery<Order[]>({
     queryKey: ["orders", queryParams],
     queryFn: () =>
       fetch(`/api/orders${queryParams ? `?${queryParams}` : ""}`).then((r) => {
@@ -229,9 +230,15 @@ export default function OrdersPage() {
       <FinanceTabs />
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="page-header">
-        <div>
+        <div className="flex items-center gap-2">
           <h1 className="page-title">הזמנות</h1>
-          <p className="text-sm text-petra-muted mt-0.5">ניהול הזמנות וחשבוניות</p>
+          <button
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["orders"] })}
+            title="רענן נתונים"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isOrdersFetching ? "animate-spin" : ""}`} />
+          </button>
         </div>
         <button className="btn-primary" onClick={() => setShowNewOrder(true)}>
           <Plus className="w-4 h-4" />

@@ -19,6 +19,7 @@ import {
   Hotel,
   Plus,
   X,
+  RefreshCw,
   PawPrint,
   Calendar,
   CheckCircle2,
@@ -1581,7 +1582,7 @@ export default function BoardingPage() {
     queryFn: () => fetchJSON<Room[]>("/api/boarding/rooms"),
   });
 
-  const { data: stays = [], isLoading, isError } = useQuery<BoardingStay[]>({
+  const { data: stays = [], isLoading, isError, isFetching: isBoardingFetching } = useQuery<BoardingStay[]>({
     queryKey: ["boarding"],
     queryFn: () => fetchJSON<BoardingStay[]>("/api/boarding"),
   });
@@ -2088,6 +2089,17 @@ export default function BoardingPage() {
       {/* Header */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <h1 className="page-title">פנסיון</h1>
+        <button
+          onClick={() => {
+            queryClient.invalidateQueries({ queryKey: ["boarding"] });
+            queryClient.invalidateQueries({ queryKey: ["rooms"] });
+            queryClient.invalidateQueries({ queryKey: ["boarding-occupancy"] });
+          }}
+          title="רענן נתונים"
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-colors"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isBoardingFetching ? "animate-spin" : ""}`} />
+        </button>
         <p className="text-sm text-petra-muted">
           {activeStays.length} שהיות פעילות · {rooms.length} חדרים
         </p>

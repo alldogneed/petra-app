@@ -35,6 +35,7 @@ import {
   Pill,
   Copy,
   ClipboardCheck,
+  RefreshCw,
 } from "lucide-react";
 import {
   isToday,
@@ -1821,7 +1822,7 @@ export default function DashboardPage() {
 
   const [completingTaskIds, setCompletingTaskIds] = useState<Set<string>>(new Set());
 
-  const { data, isLoading } = useQuery<DashboardStats>({
+  const { data, isLoading, isFetching: isDashFetching } = useQuery<DashboardStats>({
     queryKey: ["dashboard"],
     queryFn: () => fetchJSON("/api/dashboard"),
   });
@@ -1901,9 +1902,21 @@ export default function DashboardPage() {
       {/* Greeting Header */}
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-2">
-          <h1 className="text-xl font-bold text-petra-text">
-            שלום, {user?.name || "משתמש"} 👋
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-petra-text">
+              שלום, {user?.name || "משתמש"} 👋
+            </h1>
+            <button
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+                queryClient.invalidateQueries({ queryKey: ["dashboard-activity"] });
+              }}
+              title="רענן נתונים"
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isDashFetching ? "animate-spin" : ""}`} />
+            </button>
+          </div>
           <p className="text-sm text-petra-muted">{todayStr}</p>
           <div className="flex flex-wrap gap-2">
             <button
