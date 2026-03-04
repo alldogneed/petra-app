@@ -3069,11 +3069,11 @@ export default function CustomerProfilePage() {
                                         </span>
                                       )}
                                       <button
-                                        className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-blue-100 transition-all"
+                                        className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-brand-50 transition-all"
                                         onClick={(e) => { e.stopPropagation(); setMedModal({ petId: pet.id, petName: pet.name, med }); }}
                                         title="ערוך"
                                       >
-                                        <Pencil className="w-3 h-3 text-blue-500" />
+                                        <Pencil className="w-3 h-3 text-brand-500" />
                                       </button>
                                       <button
                                         className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-red-100 transition-all"
@@ -3277,10 +3277,10 @@ export default function CustomerProfilePage() {
                                 <span className="text-stone-700">{pet.medicalNotes || <span className="italic text-stone-400">לא הוזן</span>}</span>
                               </div>
                               <button
-                                className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-blue-100 transition-all flex-shrink-0"
+                                className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-brand-50 transition-all flex-shrink-0"
                                 onClick={(e) => { e.stopPropagation(); setNoteModal({ petId: pet.id, field: "medicalNotes", label: "הערות רפואיות", value: pet.medicalNotes || "" }); }}
                               >
-                                <Pencil className="w-3 h-3 text-blue-500" />
+                                <Pencil className="w-3 h-3 text-brand-500" />
                               </button>
                             </div>
                             <div className="group flex items-start gap-1.5 bg-white/60 rounded-lg p-2.5">
@@ -3289,10 +3289,10 @@ export default function CustomerProfilePage() {
                                 <span className="text-stone-700">{pet.behaviorNotes || <span className="italic text-stone-400">לא הוזן</span>}</span>
                               </div>
                               <button
-                                className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-blue-100 transition-all flex-shrink-0"
+                                className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-brand-50 transition-all flex-shrink-0"
                                 onClick={(e) => { e.stopPropagation(); setNoteModal({ petId: pet.id, field: "behaviorNotes", label: "הערות התנהגות", value: pet.behaviorNotes || "" }); }}
                               >
-                                <Pencil className="w-3 h-3 text-blue-500" />
+                                <Pencil className="w-3 h-3 text-brand-500" />
                               </button>
                             </div>
                           </div>
@@ -3581,9 +3581,9 @@ export default function CustomerProfilePage() {
 
                           {/* Mock payment link */}
                           {showPayLink && (
-                            <div className="flex items-center gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-xl">
-                              <Link2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                              <span className="text-xs text-blue-700 truncate flex-1 font-mono" dir="ltr">
+                            <div className="flex items-center gap-2 p-2.5 bg-brand-50 border border-brand-100 rounded-xl">
+                              <Link2 className="w-4 h-4 text-brand-500 flex-shrink-0" />
+                              <span className="text-xs text-brand-700 truncate flex-1 font-mono" dir="ltr">
                                 {typeof window !== "undefined" ? window.location.origin : ""}/pay/{order.id}
                               </span>
                               <button
@@ -3592,7 +3592,7 @@ export default function CustomerProfilePage() {
                                   const url = `${window.location.origin}/pay/${order.id}`;
                                   navigator.clipboard.writeText(url);
                                 }}
-                                className="text-xs text-blue-600 hover:text-blue-800 font-medium flex-shrink-0 px-2 py-1 rounded-lg hover:bg-blue-100 transition-colors"
+                                className="text-xs text-brand-600 hover:text-brand-700 font-medium flex-shrink-0 px-2 py-1 rounded-lg hover:bg-brand-50 transition-colors"
                               >
                                 העתק
                               </button>

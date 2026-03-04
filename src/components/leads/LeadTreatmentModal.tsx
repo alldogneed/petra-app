@@ -517,9 +517,9 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
                         )}
 
                         {/* ── Call Log Section ─────────────────────────────── */}
-                        <div className="space-y-4 bg-blue-50/40 rounded-xl border border-blue-100 p-4">
+                        <div className="space-y-4 bg-brand-50/40 rounded-xl border border-brand-100 p-4">
                             <h3 className="font-semibold text-petra-text flex items-center gap-2">
-                                <AlignLeft className="w-4 h-4 text-blue-500" />
+                                <AlignLeft className="w-4 h-4 text-brand-500" />
                                 סיכום שיחה מול הלקוח
                             </h3>
                             <div>
@@ -546,7 +546,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
                                     type="button"
                                     onClick={handleConfirmCallLog}
                                     disabled={addCallLogMutation.isPending || (!summary.trim() && !treatment.trim())}
-                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     {addCallLogMutation.isPending
                                         ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

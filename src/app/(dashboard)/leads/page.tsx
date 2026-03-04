@@ -503,7 +503,7 @@ function DraggableLeadCard({
             {new Date(lead.createdAt).toLocaleDateString("he-IL")}
           </div>
           {lead.lastContactedAt && (
-            <div className="text-[10px] text-blue-500 flex items-center gap-1 mt-0.5">
+            <div className="text-[10px] text-brand-500 flex items-center gap-1 mt-0.5">
               <PhoneCall className="w-2.5 h-2.5" />
               שוחח: {new Date(lead.lastContactedAt).toLocaleDateString("he-IL")}
             </div>
@@ -547,7 +547,7 @@ function DraggableLeadCard({
         <div className="flex items-center gap-2 flex-wrap">
           <span className="badge-neutral text-[10px]">{sourceEmoji} {sourceLabel}</span>
           {callLogCount > 0 && (
-            <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">
+            <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-brand-50 text-brand-600 font-medium">
               <PhoneCall className="w-2.5 h-2.5" />
               {callLogCount}
             </span>
@@ -1174,7 +1174,7 @@ export default function LeadsPage() {
             <p className="text-xs text-petra-muted mt-0.5">סה"כ לידים</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <p className="text-2xl font-bold text-blue-600">{funnelStats.activeCount}</p>
+            <p className="text-2xl font-bold text-brand-600">{funnelStats.activeCount}</p>
             <p className="text-xs text-petra-muted mt-0.5">בתהליך</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4">

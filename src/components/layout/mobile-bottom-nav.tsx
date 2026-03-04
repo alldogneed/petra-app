@@ -25,7 +25,6 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
   const nameRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
-  // Auto-focus when drawer opens
   useEffect(() => {
     if (open) {
       setTimeout(() => nameRef.current?.focus(), 300);
@@ -35,7 +34,6 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
     }
   }, [open]);
 
-  // Close on backdrop click
   function handleBackdrop(e: React.MouseEvent<HTMLDivElement>) {
     if (e.target === e.currentTarget) onClose();
   }
@@ -86,21 +84,21 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-petra-border">
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100"
+            className="w-8 h-8 flex items-center justify-center rounded-xl text-petra-muted hover:bg-slate-100 transition-colors"
           >
             <X size={18} />
           </button>
-          <h2 className="text-base font-bold text-slate-800">לקוח חדש</h2>
+          <h2 className="text-base font-bold text-petra-text">לקוח חדש</h2>
           <div className="w-8" />
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="px-5 pt-5 pb-8 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-600 mb-1.5 text-right">
+            <label className="label">
               שם מלא <span className="text-red-500">*</span>
             </label>
             <input
@@ -110,11 +108,11 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
               onChange={(e) => setName(e.target.value)}
               placeholder="ישראל ישראלי"
               dir="rtl"
-              className="w-full h-11 px-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-right text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="input"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-600 mb-1.5 text-right">
+            <label className="label">
               טלפון <span className="text-red-500">*</span>
             </label>
             <input
@@ -123,20 +121,13 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
               onChange={(e) => setPhone(e.target.value)}
               placeholder="050-0000000"
               dir="ltr"
-              className="w-full h-11 px-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-right text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="input"
             />
           </div>
           <button
             type="submit"
             disabled={loading || !name.trim() || !phone.trim()}
-            className={[
-              "w-full h-12 rounded-xl font-semibold text-white text-sm",
-              "flex items-center justify-center gap-2",
-              "transition-all duration-150",
-              loading || !name.trim() || !phone.trim()
-                ? "bg-blue-300 cursor-not-allowed"
-                : "bg-blue-600 active:scale-[0.98] shadow-md shadow-blue-200",
-            ].join(" ")}
+            className="btn-primary w-full justify-center h-12 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <Loader2 size={18} className="animate-spin" />
@@ -164,7 +155,6 @@ export function MobileBottomNav() {
 
   const isHome = pathname === "/dashboard" || pathname === "/";
 
-  // Close the drawer whenever the user navigates to a new page
   useEffect(() => {
     setDrawerOpen(false);
   }, [pathname]);
@@ -188,7 +178,6 @@ export function MobileBottomNav() {
     router.push("/intake-forms");
   }
 
-  // ── Items definition ──────────────────────────────────────────────────────
   const items = [
     {
       key: "new-customer",
@@ -240,8 +229,8 @@ export function MobileBottomNav() {
         dir="rtl"
         className={[
           "fixed bottom-0 inset-x-0 z-30 md:hidden",
-          "bg-white border-t border-slate-100",
-          "pb-safe", // safe-area for iOS home indicator
+          "bg-white border-t border-petra-border",
+          "pb-safe",
           "shadow-[0_-4px_24px_rgba(0,0,0,0.08)]",
         ].join(" ")}
       >
@@ -258,19 +247,27 @@ export function MobileBottomNav() {
                   className="flex flex-col items-center gap-1 -mt-5 relative"
                   aria-label={item.label}
                 >
-                  {/* Raised circle */}
+                  {/* Raised circle — brand orange */}
                   <div
                     className={[
                       "w-14 h-14 rounded-full flex items-center justify-center",
-                      "shadow-lg shadow-blue-200 transition-transform active:scale-95",
+                      "shadow-lg shadow-brand-200 transition-transform active:scale-95",
                       isHome
-                        ? "bg-blue-700 ring-2 ring-white ring-offset-1"
-                        : "bg-blue-600",
+                        ? "ring-2 ring-white ring-offset-1"
+                        : "",
                     ].join(" ")}
+                    style={{
+                      background: isHome
+                        ? "linear-gradient(135deg, #EA580C, #F97316)"
+                        : "linear-gradient(135deg, #F97316, #FB923C)",
+                    }}
                   >
                     <Icon size={26} className="text-white" strokeWidth={2} />
                   </div>
-                  <span className="text-[10px] font-medium text-slate-500 leading-none">
+                  <span className={[
+                    "text-[10px] font-medium leading-none",
+                    isHome ? "text-brand-600" : "text-petra-muted",
+                  ].join(" ")}>
                     {item.label}
                   </span>
                 </button>
@@ -281,7 +278,7 @@ export function MobileBottomNav() {
               <button
                 key={item.key}
                 onClick={item.onClick}
-                className="flex flex-col items-center gap-1.5 px-2 py-1 rounded-xl transition-colors active:bg-slate-50"
+                className="flex flex-col items-center gap-1.5 px-2 py-1 rounded-xl transition-colors active:bg-brand-50"
                 aria-label={item.label}
               >
                 <Icon
@@ -289,18 +286,18 @@ export function MobileBottomNav() {
                   strokeWidth={active ? 2.5 : 1.8}
                   className={[
                     "transition-colors",
-                    active ? "text-blue-600" : "text-slate-400",
+                    active ? "text-brand-500" : "text-slate-400",
                     item.key === "booking-link" && copied === "booking"
-                      ? "text-green-500"
+                      ? "text-emerald-500"
                       : "",
                   ].join(" ")}
                 />
                 <span
                   className={[
                     "text-[10px] font-medium leading-none",
-                    active ? "text-blue-600" : "text-slate-400",
+                    active ? "text-brand-500" : "text-slate-400",
                     item.key === "booking-link" && copied === "booking"
-                      ? "text-green-500"
+                      ? "text-emerald-500"
                       : "",
                   ].join(" ")}
                 >

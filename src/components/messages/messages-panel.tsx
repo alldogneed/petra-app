@@ -464,7 +464,7 @@ function TemplatesTab() {
                   {(template.channel === "whatsapp" || template.channel === "sms") && (
                     <button
                       onClick={() => setBulkSendingTemplate(template)}
-                      className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600"
+                      className="p-1.5 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600"
                       title="שלח לקבוצת לקוחות"
                     >
                       <Users className="w-3.5 h-3.5" />

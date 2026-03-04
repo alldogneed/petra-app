@@ -162,7 +162,7 @@ export function SystemInbox() {
                             {msg.title}
                           </p>
                           {!msg.isRead && (
-                            <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-1" />
+                            <div className="w-2 h-2 rounded-full bg-brand-500 flex-shrink-0 mt-1" />
                           )}
                         </div>
                         <p className="text-[12px] text-slate-600 mt-1 line-clamp-2">
@@ -187,7 +187,7 @@ export function SystemInbox() {
                               e.stopPropagation();
                               setOpen(false);
                             }}
-                            className="inline-flex items-center gap-1 mt-2 text-[11px] font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                            className="inline-flex items-center gap-1 mt-2 text-[11px] font-medium text-brand-600 hover:text-brand-700 transition-colors"
                           >
                             {msg.actionLabel || "בצע פעולה"}
                             <ExternalLink className="w-3 h-3" />

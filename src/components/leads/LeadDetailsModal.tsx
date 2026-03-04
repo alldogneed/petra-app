@@ -448,7 +448,7 @@ export default function LeadDetailsModal({
                           <div className="flex gap-1 ml-2">
                             <button
                               onClick={() => handleEditLog(log)}
-                              className="w-6 h-6 flex items-center justify-center rounded text-petra-muted hover:text-brand-600 hover:bg-blue-50 transition-colors"
+                              className="w-6 h-6 flex items-center justify-center rounded text-petra-muted hover:text-brand-600 hover:bg-brand-50 transition-colors"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
@@ -485,7 +485,7 @@ export default function LeadDetailsModal({
           {/* Task Tab */}
           {activeTab === "task" && (
             <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-2 text-sm text-blue-800">
+              <div className="bg-brand-50 border border-brand-200 rounded-lg p-3 flex gap-2 text-sm text-brand-800">
                 <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <p>המשימה תופיע בדשבורד בתאריך שנבחר</p>
               </div>
