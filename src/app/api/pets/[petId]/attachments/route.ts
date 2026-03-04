@@ -1,10 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
 import crypto from "crypto";
+import { put } from "@vercel/blob";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 export async function POST(
   request: NextRequest,
@@ -23,20 +24,24 @@ export async function POST(
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `קובץ גדול מדי – גודל מקסימלי 10MB (קובץ זה: ${(file.size / 1024 / 1024).toFixed(1)}MB)` },
+        { status: 400 }
+      );
+    }
+
     const pet = await prisma.pet.findFirst({
       where: { id: params.petId, customer: { businessId: authResult.businessId } },
       select: { attachments: true },
     });
     if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Upload to Vercel Blob
     const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
     const fileId = crypto.randomBytes(16).toString("hex");
-    const filename = `${fileId}.${ext}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "pets", params.petId);
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(path.join(uploadDir, filename), buffer);
+    const blobPath = `pets/${params.petId}/${fileId}.${ext}`;
+    const blob = await put(blobPath, file, { access: "public" });
 
     const newDoc = {
       id: fileId,
@@ -44,7 +49,7 @@ export async function POST(
       originalName: file.name,
       mimeType: file.type || "application/octet-stream",
       size: file.size,
-      url: `/uploads/pets/${params.petId}/${filename}`,
+      url: blob.url,
       type,
       createdAt: new Date().toISOString(),
     };

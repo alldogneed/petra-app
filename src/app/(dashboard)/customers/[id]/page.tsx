@@ -260,10 +260,38 @@ function calcAge(birthDate: string | null): string | null {
   return `${years} שנ׳`;
 }
 
+const MAX_UPLOAD_MB = 10;
+const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Compress images client-side before upload (canvas → JPEG). PDFs/docs returned as-is. */
+async function compressImage(file: File, maxPx = 1600, quality = 0.82): Promise<File> {
+  if (!file.type.startsWith("image/")) return file;
+  return new Promise((resolve) => {
+    const img = document.createElement("img");
+    const blobUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(blobUrl);
+      let { width, height } = img;
+      if (width > maxPx) { height = Math.round((height * maxPx) / width); width = maxPx; }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        if (!blob) { resolve(file); return; }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const out = new (File as any)([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg", lastModified: Date.now() }) as File;
+        resolve(out.size < file.size ? out : file);
+      }, "image/jpeg", quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(file); };
+    img.src = blobUrl;
+  });
 }
 
 // ─── Add Pet Modal ───────────────────────────────────────────────────────────
@@ -577,7 +605,7 @@ function AddPetModal({
               <Upload className="w-5 h-5 text-stone-400 mx-auto mb-1" />
               <p className="text-xs text-petra-muted">לחץ לבחירת קבצים</p>
               <p className="text-[10px] text-slate-400 mt-0.5">
-                PDF, JPG, PNG — עד 10MB לקובץ
+                PDF, JPG, PNG — עד {MAX_UPLOAD_MB}MB לקובץ · תמונות מכווצות אוטומטית
               </p>
             </div>
             <input
@@ -586,8 +614,10 @@ function AddPetModal({
               multiple
               accept=".pdf,.jpg,.jpeg,.png,.heic"
               className="hidden"
-              onChange={(e) => {
-                if (e.target.files) setPendingFiles(Array.from(e.target.files));
+              onChange={async (e) => {
+                if (!e.target.files) return;
+                const compressed = await Promise.all(Array.from(e.target.files).map((f) => compressImage(f)));
+                setPendingFiles(compressed.filter((f) => f.size <= MAX_UPLOAD_BYTES));
               }}
             />
             {pendingFiles.length > 0 && (
@@ -681,12 +711,18 @@ function PetDocumentsModal({
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length) return;
+    const files = Array.from(e.target.files);
     setIsUploading(true);
-    for (const file of Array.from(e.target.files)) {
+    for (const rawFile of files) {
+      const file = await compressImage(rawFile);
+      if (file.size > MAX_UPLOAD_BYTES) {
+        toast.error(`${file.name} גדול מדי (מקסימום ${MAX_UPLOAD_MB}MB)`);
+        continue;
+      }
       const fd = new FormData();
       fd.append("file", file);
       const uploadRes = await fetch(`/api/pets/${petId}/documents`, { method: "POST", body: fd });
-      if (!uploadRes.ok) throw new Error("שגיאה בהעלאת קובץ");
+      if (!uploadRes.ok) toast.error("שגיאה בהעלאת קובץ");
     }
     setIsUploading(false);
     queryClient.invalidateQueries({ queryKey: ["petDocs", petId] });
@@ -762,6 +798,9 @@ function PetDocumentsModal({
           <Upload className="w-5 h-5 text-stone-400 mx-auto mb-1" />
           <p className="text-xs text-petra-muted">
             {isUploading ? "מעלה..." : "הוסף מסמך"}
+          </p>
+          <p className="text-[10px] text-slate-400 mt-0.5">
+            PDF, JPG, PNG — עד {MAX_UPLOAD_MB}MB · תמונות מכווצות אוטומטית
           </p>
         </div>
         <input
@@ -1514,7 +1553,10 @@ function CustomerDocumentsSection({
             <Upload className="w-5 h-5 text-stone-400 mx-auto mb-1" />
             <p className="text-xs text-petra-muted">לחץ לבחירת קבצים</p>
             <p className="text-[10px] text-slate-400 mt-0.5">
-              PDF, JPG, PNG — עד 10MB לקובץ
+              PDF, JPG, PNG, DOC, XLS — עד {MAX_UPLOAD_MB}MB לקובץ
+            </p>
+            <p className="text-[10px] text-emerald-600 mt-0.5">
+              תמונות מכווצות אוטומטית לפני ההעלאה
             </p>
           </div>
           <input
@@ -1523,9 +1565,14 @@ function CustomerDocumentsSection({
             multiple
             accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx,.xls,.xlsx"
             className="hidden"
-            onChange={(e) => {
-              if (e.target.files) {
-                setPendingFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+            onChange={async (e) => {
+              if (!e.target.files) return;
+              const compressed = await Promise.all(Array.from(e.target.files).map((f) => compressImage(f)));
+              const valid = compressed.filter((f) => f.size <= MAX_UPLOAD_BYTES);
+              const oversized = compressed.filter((f) => f.size > MAX_UPLOAD_BYTES);
+              setPendingFiles((prev) => [...prev, ...valid]);
+              if (oversized.length > 0) {
+                alert(`${oversized.length} קובץ/ים חורגים מגודל מקסימלי של ${MAX_UPLOAD_MB}MB ולא נוספו.`);
               }
               e.target.value = "";
             }}

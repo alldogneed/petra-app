@@ -1,10 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir, unlink } from "fs/promises";
-import path from "path";
 import crypto from "crypto";
+import { put, del } from "@vercel/blob";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DOCUMENT_CATEGORIES = [
@@ -67,10 +68,9 @@ export async function POST(
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: "File too large (max 10MB)" },
+        { error: `קובץ גדול מדי – גודל מקסימלי 10MB (קובץ זה: ${(file.size / 1024 / 1024).toFixed(1)}MB)` },
         { status: 400 }
       );
     }
@@ -83,35 +83,23 @@ export async function POST(
       return NextResponse.json({ error: "Customer not found" }, { status: 404 });
     }
 
-    // Save file to disk
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Upload to Vercel Blob
     const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
     const fileId = crypto.randomBytes(16).toString("hex");
-    const filename = `${fileId}.${ext}`;
-    const uploadDir = path.join(
-      process.cwd(),
-      "public",
-      "uploads",
-      "customers",
-      params.id
-    );
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(path.join(uploadDir, filename), buffer);
+    const blobPath = `customers/${params.id}/${fileId}.${ext}`;
+    const blob = await put(blobPath, file, { access: "public" });
 
-    // Build document metadata
     const newDoc = {
       id: fileId,
       name: label || file.name,
       originalName: file.name,
       mimeType: file.type || "application/octet-stream",
       size: file.size,
-      url: `/uploads/customers/${params.id}/${filename}`,
+      url: blob.url,
       category,
       createdAt: new Date().toISOString(),
     };
 
-    // Update customer documents
     let docs = [];
     try {
       docs = JSON.parse(customer.documents || "[]");
@@ -165,14 +153,12 @@ export async function DELETE(
       docs = [];
     }
 
-    // Find the doc to delete its file
     const docToDelete = docs.find((d) => d.id === docId);
-    if (docToDelete?.url) {
+    if (docToDelete?.url?.includes("vercel-storage.com")) {
       try {
-        const filePath = path.join(process.cwd(), "public", docToDelete.url);
-        await unlink(filePath);
+        await del(docToDelete.url);
       } catch {
-        // File may not exist — continue anyway
+        // Blob may not exist — continue anyway
       }
     }
 
