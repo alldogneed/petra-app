@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
       startTime,
       endTime,
       serviceId,
+      priceListItemId,
       customerId,
       petId,
       notes,
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
       occurrences,
     } = body;
 
-    if (!date || !startTime || !endTime || !serviceId || !customerId) {
+    if (!date || !startTime || !endTime || !customerId) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -43,7 +44,8 @@ export async function POST(request: NextRequest) {
         date: d,
         startTime,
         endTime,
-        serviceId,
+        serviceId: serviceId || null,
+        priceListItemId: priceListItemId || null,
         customerId,
         petId: petId || null,
         notes: notes || null,

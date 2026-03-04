@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
         businessId: true, createdAt: true, updatedAt: true,
         serviceId: true, customerId: true, petId: true,
         service: { select: { id: true, name: true, color: true, type: true, duration: true, price: true } },
+        priceListItem: { select: { id: true, name: true, category: true, durationMinutes: true, basePrice: true } },
         customer: { select: { id: true, name: true, phone: true, email: true } },
         pet: { select: { id: true, name: true, species: true, breed: true } },
       },
@@ -69,12 +70,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { date, startTime, endTime, serviceId, customerId, petId, notes } =
+    const { date, startTime, endTime, serviceId, priceListItemId, customerId, petId, notes } =
       body;
 
-    if (!date || !startTime || !endTime || !serviceId || !customerId) {
+    if (!date || !startTime || !endTime || !customerId) {
       return NextResponse.json(
-        { error: "Missing required fields: date, startTime, endTime, serviceId, customerId" },
+        { error: "Missing required fields: date, startTime, endTime, customerId" },
+        { status: 400 }
+      );
+    }
+    if (!serviceId && !priceListItemId) {
+      return NextResponse.json(
+        { error: "Either serviceId or priceListItemId is required" },
         { status: 400 }
       );
     }
@@ -84,7 +91,8 @@ export async function POST(request: NextRequest) {
         date: new Date(date),
         startTime,
         endTime,
-        serviceId,
+        serviceId: serviceId || null,
+        priceListItemId: priceListItemId || null,
         customerId,
         petId: petId || null,
         notes: notes || null,
@@ -95,8 +103,9 @@ export async function POST(request: NextRequest) {
         id: true, date: true, startTime: true, endTime: true,
         status: true, notes: true, cancellationNote: true,
         businessId: true, createdAt: true, updatedAt: true,
-        serviceId: true, customerId: true, petId: true,
+        serviceId: true, priceListItemId: true, customerId: true, petId: true,
         service: { select: { id: true, name: true, color: true, type: true, duration: true, price: true } },
+        priceListItem: { select: { id: true, name: true, category: true, durationMinutes: true, basePrice: true } },
         customer: { select: { id: true, name: true, phone: true, email: true } },
         pet: { select: { id: true, name: true, species: true, breed: true } },
       },
