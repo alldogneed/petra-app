@@ -499,11 +499,13 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                           {svc.description && (
                             <p className="text-xs text-petra-muted mb-1 line-clamp-1">{svc.description}</p>
                           )}
-                          <div className="flex items-center gap-2 text-xs text-petra-muted">
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />{svc.duration} דקות
-                            </span>
-                          </div>
+                          {svc.type !== "boarding" && svc.duration ? (
+                            <div className="flex items-center gap-2 text-xs text-petra-muted">
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />{svc.duration} דקות
+                              </span>
+                            </div>
+                          ) : null}
                         </div>
                         <div className="text-right flex-shrink-0">
                           <span className="font-bold text-petra-text text-base">{formatPrice(svc.price)}</span>

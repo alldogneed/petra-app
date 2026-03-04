@@ -62,7 +62,7 @@ export async function GET(
     id: item.id,
     name: item.name,
     type: CATEGORY_TO_TYPE[item.category ?? ""] ?? "service",
-    duration: item.durationMinutes ?? 60,
+    duration: item.durationMinutes ?? (item.category === "פנסיון" ? null : 60),
     price: item.basePrice,
     description: item.description ?? null,
     color: null,
