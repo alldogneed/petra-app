@@ -1961,7 +1961,7 @@ export default function DashboardPage() {
               ) : (
                 <>
                   <Copy className="w-4 h-4" />
-                  העתק טופס קליטה
+                  טופס קליטה למערכת
                 </>
               )}
             </button>
@@ -1977,7 +1977,7 @@ export default function DashboardPage() {
               title="העתק קישור הזמנת תורים אונליין"
             >
               <Copy className="w-4 h-4" />
-              <span className="hidden sm:inline">העתק קישור הזמנה</span>
+              <span className="hidden sm:inline">תורים אונליין</span>
             </button>
           </div>
         </div>
