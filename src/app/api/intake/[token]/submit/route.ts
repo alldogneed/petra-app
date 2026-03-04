@@ -3,6 +3,57 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import crypto from "crypto";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { z } from "zod";
+
+const str255 = z.string().max(255).optional();
+const str1000 = z.string().max(1000).optional();
+
+const IntakeSubmitSchema = z.object({
+  dog: z.object({
+    customerName: z.string().min(1).max(100).optional(),
+    customerPhone: z.string().max(20).optional(),
+    name: z.string().min(1).max(100),
+    breed: str255,
+    gender: str255,
+    weight: z.union([z.string().max(20), z.number()]).transform(v => String(v)).optional(),
+    birthDate: z.string().max(30).optional(),
+  }).optional(),
+  health: z.object({
+    allergies: str1000,
+    medicalConditions: str1000,
+    vetName: str255,
+    vetPhone: z.string().max(20).optional(),
+    neuteredSpayed: z.boolean().optional().nullable(),
+    originInfo: str255,
+    timeWithOwner: str255,
+    foodNotes: str1000,
+  }).optional(),
+  behavior: z.object({
+    dogAggression: z.boolean().optional(),
+    humanAggression: z.boolean().optional(),
+    leashReactivity: z.boolean().optional(),
+    leashPulling: z.boolean().optional(),
+    jumping: z.boolean().optional(),
+    separationAnxiety: z.boolean().optional(),
+    excessiveBarking: z.boolean().optional(),
+    destruction: z.boolean().optional(),
+    resourceGuarding: z.boolean().optional(),
+    fears: z.boolean().optional(),
+    badWithKids: z.boolean().optional(),
+    houseSoiling: z.boolean().optional(),
+    biteHistory: z.boolean().optional(),
+    biteDetails: str1000,
+    triggers: str1000,
+    priorTraining: z.boolean().optional(),
+    priorTrainingDetails: str1000,
+  }).optional(),
+  medications: z.array(z.object({
+    medName: z.string().min(1).max(200),
+    dosage: str255,
+    frequency: str255,
+    instructions: str255,
+  })).max(20).optional(),
+});
 
 export async function POST(
   request: NextRequest,
@@ -39,8 +90,13 @@ export async function POST(
       return NextResponse.json({ error: "הטופס כבר מולא" }, { status: 409 });
     }
 
-    const body = await request.json();
-    const { dog, health, behavior, medications } = body;
+    const rawBody = await request.json();
+    const parsed = IntakeSubmitSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "נתונים לא תקינים" }, { status: 400 });
+    }
+    const body = rawBody; // keep original for submissionJson
+    const { dog, health, behavior, medications } = parsed.data;
 
     // Create or update pet
     let petId = form.dogId;

@@ -59,9 +59,10 @@ export async function PATCH(
       where: { id, businessId: authResult.businessId },
       data,
       include: {
-        service: true,
-        customer: true,
-        pet: true,
+        service: { select: { id: true, name: true, color: true, type: true, duration: true, price: true } },
+        priceListItem: { select: { id: true, name: true, category: true, durationMinutes: true, basePrice: true } },
+        customer: { select: { id: true, name: true, phone: true } },
+        pet: { select: { id: true, name: true, species: true, breed: true } },
       },
     });
 
@@ -85,7 +86,7 @@ export async function PATCH(
         customerId: appointment.customerId,
         date: appointment.date,
         startTime: appointment.startTime,
-        service: { name: appointment.service?.name ?? "תור" },
+        service: { name: appointment.service?.name ?? appointment.priceListItem?.name ?? "תור" },
         customer: { name: appointment.customer.name },
         pet: appointment.pet ? { name: appointment.pet.name } : null,
       }).catch((err) =>

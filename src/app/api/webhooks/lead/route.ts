@@ -83,7 +83,8 @@ export async function POST(request: NextRequest) {
     if (!authorized) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    businessId = str(body.businessId) || process.env.WEBHOOK_BUSINESS_ID || undefined;
+    // Prefer env var over body to prevent cross-tenant injection
+    businessId = process.env.WEBHOOK_BUSINESS_ID || str(body.businessId) || undefined;
     if (!businessId) {
       return NextResponse.json(
         { error: "businessId is required (body or WEBHOOK_BUSINESS_ID env var)" },

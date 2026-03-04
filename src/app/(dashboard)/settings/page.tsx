@@ -115,7 +115,14 @@ function BusinessTab() {
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
 
-  const editing = form ?? biz;
+  // Apply defaults for nullable boarding fields so they don't get sent as null on save
+  const rawEditing = form ?? biz;
+  const editing = rawEditing ? {
+    ...rawEditing,
+    boardingCheckInTime: rawEditing.boardingCheckInTime ?? "14:00",
+    boardingCheckOutTime: rawEditing.boardingCheckOutTime ?? "11:00",
+    boardingCalcMode: rawEditing.boardingCalcMode ?? "nights",
+  } : rawEditing;
 
   const mutation = useMutation({
     mutationFn: (data: Partial<Business>) =>
