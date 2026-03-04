@@ -33,7 +33,7 @@ export async function PATCH(
     if (body.expiresAt !== undefined) data.expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
 
     const message = await prisma.systemMessage.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data,
     });
 
@@ -63,7 +63,7 @@ export async function DELETE(
     }
 
     await prisma.systemMessage.delete({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
     });
 
     return NextResponse.json({ success: true });

@@ -68,7 +68,7 @@ export async function PATCH(
     const body = await request.json();
 
     const group = await prisma.trainingGroup.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: {
         ...(body.name !== undefined && { name: body.name }),
         ...(body.groupType !== undefined && { groupType: body.groupType }),
@@ -103,7 +103,7 @@ export async function DELETE(
       return NextResponse.json({ error: "קבוצה לא נמצאה" }, { status: 404 });
     }
 
-    await prisma.trainingGroup.delete({ where: { id: params.id } });
+    await prisma.trainingGroup.delete({ where: { id: params.id, businessId: authResult.businessId } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE training group error:", error);

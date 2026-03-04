@@ -21,7 +21,7 @@ export async function PATCH(
 
     const body = await request.json();
     const rule = await prisma.taskRecurrenceRule.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: {
         ...(body.rrule !== undefined && { rrule: body.rrule }),
         ...(body.startAt !== undefined && { startAt: new Date(body.startAt) }),
@@ -59,7 +59,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    await prisma.taskRecurrenceRule.delete({ where: { id: params.id } });
+    await prisma.taskRecurrenceRule.delete({ where: { id: params.id, businessId: authResult.businessId } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE task-recurrence error:", error);

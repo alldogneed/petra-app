@@ -23,7 +23,7 @@ export async function PATCH(
     }
 
     const updated = await prisma.scheduledMessage.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: { status: "CANCELED" },
     });
 

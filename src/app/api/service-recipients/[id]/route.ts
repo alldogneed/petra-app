@@ -52,7 +52,7 @@ export async function PATCH(
     }
 
     const updated = await prisma.serviceDogRecipient.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: {
         ...(body.name !== undefined && { name: body.name }),
         ...(body.phone !== undefined && { phone: body.phone }),
@@ -89,7 +89,7 @@ export async function DELETE(
       return NextResponse.json({ error: "מקבל לא נמצא" }, { status: 404 });
     }
 
-    await prisma.serviceDogRecipient.delete({ where: { id: params.id } });
+    await prisma.serviceDogRecipient.delete({ where: { id: params.id, businessId: authResult.businessId } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

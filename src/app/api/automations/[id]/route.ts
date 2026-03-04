@@ -23,7 +23,7 @@ export async function PATCH(
     const { name, trigger, triggerOffset, templateId, isActive } = body;
 
     const updated = await prisma.automationRule.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: {
         ...(name !== undefined && { name }),
         ...(trigger !== undefined && { trigger }),
@@ -59,7 +59,7 @@ export async function DELETE(
       return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
     }
 
-    await prisma.automationRule.delete({ where: { id: params.id } });
+    await prisma.automationRule.delete({ where: { id: params.id, businessId: authResult.businessId } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE automation error:", error);

@@ -58,7 +58,7 @@ export async function PATCH(
     const body = await request.json();
 
     const program = await prisma.trainingProgram.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: {
         ...(body.name !== undefined && { name: body.name }),
         ...(body.status !== undefined && { status: body.status }),

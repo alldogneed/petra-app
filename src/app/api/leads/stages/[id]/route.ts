@@ -27,7 +27,7 @@ export async function PATCH(
     }
 
     const stage = await prisma.leadStage.update({
-      where: { id },
+      where: { id, businessId: authResult.businessId },
       data: {
         ...(name !== undefined && { name: name.trim() }),
         ...(color !== undefined && { color }),
@@ -84,7 +84,7 @@ export async function DELETE(
       );
     }
 
-    await prisma.leadStage.delete({ where: { id } });
+    await prisma.leadStage.delete({ where: { id, businessId: authResult.businessId } });
 
     // Re-index sortOrder to close gaps
     const remaining = await prisma.leadStage.findMany({

@@ -27,7 +27,7 @@ export async function PATCH(
     }
 
     const updated = await prisma.serviceDogComplianceEvent.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: {
         notificationStatus,
         ...(notificationStatus === "SENT" && { notificationSentAt: new Date() }),

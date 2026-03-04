@@ -58,7 +58,7 @@ export async function PATCH(
     const newStatus = body.status || oldStatus;
 
     const updated = await prisma.serviceDogPlacement.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: {
         ...(body.status !== undefined && { status: body.status }),
         ...(body.trialStartDate !== undefined && { trialStartDate: body.trialStartDate ? new Date(body.trialStartDate) : null }),
