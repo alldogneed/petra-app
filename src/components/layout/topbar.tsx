@@ -24,6 +24,8 @@ import {
   Send,
   ArrowRight,
   Info,
+  Hotel,
+  ListTodo,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
@@ -205,6 +207,27 @@ const NOTIF_TYPE_ICON: Record<string, typeof Info> = {
   error: AlertCircle,
 };
 
+interface BizNotifItem {
+  type: string;
+  id: string;
+  title: string;
+  subtitle: string;
+  critical: boolean;
+  meta?: Record<string, unknown>;
+}
+
+function getBizNotifStyle(type: string): { color: string; Icon: typeof AlertCircle } {
+  switch (type) {
+    case "task_overdue": return { color: "#EF4444", Icon: AlertCircle };
+    case "task_urgent":  return { color: "#F97316", Icon: ListTodo };
+    case "payment":      return { color: "#F59E0B", Icon: CreditCard };
+    case "appointment":  return { color: "#F97316", Icon: Calendar };
+    case "boarding_checkin":
+    case "boarding_checkout": return { color: "#3B82F6", Icon: Hotel };
+    default:             return { color: "#94A3B8", Icon: Info };
+  }
+}
+
 export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -218,13 +241,6 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
     temporaryPassword: "",
   });
   const [inviteError, setInviteError] = useState("");
-  // Messages quick-send state
-  const [msgStep, setMsgStep] = useState<"select-customer" | "compose">("select-customer");
-  const [customerSearch, setCustomerSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerResult | null>(null);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
-  const [messageBody, setMessageBody] = useState("");
 
   const notificationsRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -268,24 +284,6 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
     }
   }, [profileOpen]);
 
-  // Reset messages quick-send when dropdown closes
-  useEffect(() => {
-    if (!messagesOpen) {
-      setMsgStep("select-customer");
-      setCustomerSearch("");
-      setDebouncedSearch("");
-      setSelectedCustomer(null);
-      setSelectedTemplateId(null);
-      setMessageBody("");
-    }
-  }, [messagesOpen]);
-
-  // Debounce customer search
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(customerSearch), 300);
-    return () => clearTimeout(timer);
-  }, [customerSearch]);
-
   // Integrations query — only when panel is open
   const { data: integrations } = useQuery<IntegrationStatus[]>({
     queryKey: ["integrations"],
@@ -302,7 +300,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
     staleTime: 30000,
   });
 
-  // System messages — for bell notifications (always enabled so badge shows)
+  // System messages — for mail/envelope icon (Petra platform announcements)
   const { data: sysMessagesData } = useQuery<{ messages: SystemMessage[]; unreadCount: number }>({
     queryKey: ["systemMessages"],
     queryFn: () => fetchJSON("/api/system-messages"),
@@ -311,6 +309,16 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   });
   const systemMessages = sysMessagesData?.messages ?? [];
   const unreadCount = sysMessagesData?.unreadCount ?? 0;
+
+  // Business notifications — for bell icon (real-time critical business data)
+  const { data: bizNotifsData } = useQuery<{ items: BizNotifItem[]; criticalCount: number }>({
+    queryKey: ["biz-notifications"],
+    queryFn: () => fetchJSON("/api/notifications"),
+    staleTime: 30000,
+    refetchInterval: 60000,
+  });
+  const bizNotifications = bizNotifsData?.items ?? [];
+  const criticalCount = bizNotifsData?.criticalCount ?? 0;
 
   // Mark system message as read
   const markAsRead = useMutation({
@@ -324,70 +332,6 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
       queryClient.invalidateQueries({ queryKey: ["systemMessages"] });
     },
   });
-
-  // Customer search for messages quick-send
-  const { data: customerResults = [] } = useQuery<CustomerResult[]>({
-    queryKey: ["customers-quick", debouncedSearch],
-    queryFn: () => fetchJSON(`/api/customers?search=${encodeURIComponent(debouncedSearch)}&full=1`),
-    enabled: messagesOpen && msgStep === "select-customer",
-    staleTime: 15000,
-  });
-
-  // WhatsApp templates for compose step
-  const { data: whatsappTemplates = [] } = useQuery<MessageTemplate[]>({
-    queryKey: ["whatsapp-templates"],
-    queryFn: () => fetchJSON("/api/messages?channel=whatsapp"),
-    enabled: messagesOpen && msgStep === "compose",
-    staleTime: 60000,
-  });
-
-  // Build unified notifications list
-  const notifications = useMemo<NotificationItem[]>(() => {
-    const items: NotificationItem[] = [];
-
-    // System messages
-    for (const msg of systemMessages) {
-      items.push({
-        id: `sys-${msg.id}`,
-        kind: "system",
-        text: msg.title,
-        subtext: msg.content,
-        time: new Date(msg.createdAt),
-        timeLabel: getRelativeTimeLabel(new Date(msg.createdAt)),
-        isRead: msg.isRead,
-        color: getNotifTypeColor(msg.type),
-        systemMsgId: msg.id,
-      });
-    }
-
-    // Upcoming appointments
-    const upcoming = dashData?.upcomingAppointments ?? [];
-    for (const appt of upcoming) {
-      const apptDate = new Date(appt.date);
-      const [h, m] = appt.startTime.split(":");
-      apptDate.setHours(parseInt(h), parseInt(m), 0, 0);
-      items.push({
-        id: `appt-${appt.id}`,
-        kind: "appointment",
-        text: `תור: ${appt.customer.name}${appt.pet ? ` · ${appt.pet.name}` : ""}`,
-        subtext: appt.service?.name,
-        time: apptDate,
-        timeLabel: getRelativeTimeLabel(apptDate),
-        isRead: true, // appointments don't have read/unread
-        color: appt.service?.color ?? "#F97316",
-      });
-    }
-
-    items.sort((a, b) => {
-      // Unread system messages first, then sort by time
-      if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
-      return b.time.getTime() - a.time.getTime();
-    });
-
-    return items.slice(0, 15);
-  }, [systemMessages, dashData]);
-
-  const unreadNotifications = unreadCount;
 
   // Mark all system messages as read
   const handleMarkAllRead = useCallback(async () => {
@@ -404,41 +348,6 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
     );
     queryClient.invalidateQueries({ queryKey: ["systemMessages"] });
   }, [systemMessages, queryClient]);
-
-  // Interpolate template variables
-  const interpolateTemplate = useCallback((body: string, customer: CustomerResult | null): string => {
-    if (!customer) return body;
-    let result = body;
-    result = result.replace(/\{customerName\}/g, customer.name || "");
-    result = result.replace(/\{petName\}/g, customer.pets?.[0]?.name || "");
-    const now = new Date();
-    result = result.replace(/\{date\}/g, now.toLocaleDateString("he-IL"));
-    result = result.replace(/\{time\}/g, now.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }));
-    return result;
-  }, []);
-
-  // When a template is selected, auto-fill message body
-  const handleSelectTemplate = useCallback((tpl: MessageTemplate | null) => {
-    if (!tpl) {
-      setSelectedTemplateId(null);
-      setMessageBody("");
-      return;
-    }
-    setSelectedTemplateId(tpl.id);
-    setMessageBody(interpolateTemplate(tpl.body, selectedCustomer));
-  }, [selectedCustomer, interpolateTemplate]);
-
-  // Send via WhatsApp
-  const handleSendWhatsApp = useCallback(() => {
-    if (!selectedCustomer?.phone || !messageBody.trim()) return;
-    const phone = toWhatsAppPhone(selectedCustomer.phone);
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(messageBody)}`;
-    window.open(url, "_blank");
-    setMessagesOpen(false);
-  }, [selectedCustomer, messageBody]);
-
-  // Display customers: search results or first 5
-  const displayCustomers = customerResults.slice(0, debouncedSearch ? 10 : 5);
 
   // Members query — only when users tab is active and user is owner
   const { data: members, isLoading: membersLoading } = useQuery<Member[]>({
@@ -542,7 +451,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
         {/* Notifications & Messages */}
         <div className="flex items-center gap-1 ms-auto">
-          {/* Messages — Quick WhatsApp Send */}
+          {/* Mail — Petra Platform Messages */}
           <div ref={messagesRef} className="relative">
             <button
               onClick={() => {
@@ -550,176 +459,22 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                 setNotificationsOpen(false);
               }}
               className="relative flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              aria-label="שלח הודעה"
+              aria-label="הודעות פטרה"
             >
               <Mail className="w-[18px] h-[18px]" />
-            </button>
-
-            {/* Messages Dropdown — Quick WhatsApp Send */}
-            {messagesOpen && (
-              <div className="absolute left-0 top-full mt-2 w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
-                {msgStep === "select-customer" ? (
-                  <>
-                    {/* Header */}
-                    <div className="px-4 py-3 border-b border-slate-100">
-                      <h3 className="text-sm font-bold text-petra-text mb-2">שליחת הודעה מהירה</h3>
-                      <div className="relative">
-                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                        <input
-                          type="text"
-                          placeholder="חיפוש לקוח..."
-                          value={customerSearch}
-                          onChange={(e) => setCustomerSearch(e.target.value)}
-                          className="w-full text-sm bg-slate-50 border border-petra-border rounded-xl pr-9 pl-3 py-2 text-petra-text placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
-                        />
-                      </div>
-                    </div>
-                    {/* Customer List */}
-                    <div className="max-h-64 overflow-y-auto">
-                      {displayCustomers.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-8 text-center">
-                          <Users className="w-7 h-7 text-slate-300 mb-1.5" />
-                          <p className="text-xs text-slate-400">
-                            {debouncedSearch ? "לא נמצאו לקוחות" : "אין לקוחות"}
-                          </p>
-                        </div>
-                      ) : (
-                        displayCustomers.map((cust) => (
-                          <button
-                            key={cust.id}
-                            onClick={() => {
-                              setSelectedCustomer(cust);
-                              setMsgStep("compose");
-                            }}
-                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0 text-right"
-                          >
-                            <div
-                              className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                              style={{ background: "linear-gradient(135deg, #64748B 0%, #94A3B8 100%)" }}
-                            >
-                              {cust.name.charAt(0)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[13px] font-medium text-petra-text truncate">{cust.name}</p>
-                              <p className="text-[11px] text-petra-muted truncate" dir="ltr">{cust.phone}</p>
-                            </div>
-                            <ArrowRight className="w-3.5 h-3.5 text-slate-300 flex-shrink-0 rotate-180" />
-                          </button>
-                        ))
-                      )}
-                    </div>
-                    {/* Footer */}
-                    <Link
-                      href="/messages"
-                      onClick={() => setMessagesOpen(false)}
-                      className="block text-center py-2.5 text-xs font-medium text-brand-600 hover:bg-slate-50 border-t border-slate-100 transition-colors"
-                    >
-                      ניהול תבניות הודעות
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    {/* Compose Header */}
-                    <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-                      <button
-                        onClick={() => {
-                          setMsgStep("select-customer");
-                          setSelectedTemplateId(null);
-                          setMessageBody("");
-                        }}
-                        className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
-                      >
-                        <ArrowRight className="w-3.5 h-3.5" />
-                        חזרה
-                      </button>
-                      <div className="flex-1 min-w-0 text-right">
-                        <span className="text-[11px] text-petra-muted">שליחה ל:</span>
-                        <span className="text-[13px] font-semibold text-petra-text mr-1">{selectedCustomer?.name}</span>
-                      </div>
-                    </div>
-                    {/* Template Chips */}
-                    <div className="px-4 py-2.5 border-b border-slate-100">
-                      <p className="text-[11px] text-petra-muted mb-2">תבנית:</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        <button
-                          onClick={() => handleSelectTemplate(null)}
-                          className={cn(
-                            "text-[11px] px-2.5 py-1 rounded-full border transition-colors",
-                            !selectedTemplateId
-                              ? "bg-brand-50 border-brand-200 text-brand-700 font-medium"
-                              : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
-                          )}
-                        >
-                          הודעה חופשית
-                        </button>
-                        {whatsappTemplates.map((tpl) => (
-                          <button
-                            key={tpl.id}
-                            onClick={() => handleSelectTemplate(tpl)}
-                            className={cn(
-                              "text-[11px] px-2.5 py-1 rounded-full border transition-colors",
-                              selectedTemplateId === tpl.id
-                                ? "bg-brand-50 border-brand-200 text-brand-700 font-medium"
-                                : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
-                            )}
-                          >
-                            {tpl.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {/* Message Body */}
-                    <div className="px-4 py-3">
-                      <textarea
-                        value={messageBody}
-                        onChange={(e) => setMessageBody(e.target.value)}
-                        placeholder="כתוב הודעה..."
-                        rows={4}
-                        className="w-full text-sm bg-slate-50 border border-petra-border rounded-xl px-3 py-2 text-petra-text placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
-                      />
-                    </div>
-                    {/* Send Button */}
-                    <div className="px-4 pb-3">
-                      <button
-                        onClick={handleSendWhatsApp}
-                        disabled={!messageBody.trim()}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        style={{ background: messageBody.trim() ? "#25D366" : "#94A3B8" }}
-                      >
-                        <Send className="w-4 h-4" />
-                        שלח בוואטסאפ
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Notifications Bell */}
-          <div ref={notificationsRef} className="relative">
-            <button
-              onClick={() => {
-                setNotificationsOpen((prev) => !prev);
-                setMessagesOpen(false);
-              }}
-              className="relative flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              aria-label="התראות"
-            >
-              <Bell className="w-[18px] h-[18px]" />
-              {unreadNotifications > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1 ring-2 ring-white">
-                  {unreadNotifications}
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-brand-500 text-white text-[10px] font-bold px-1 ring-2 ring-white">
+                  {unreadCount}
                 </span>
               )}
             </button>
 
-            {/* Notifications Dropdown */}
-            {notificationsOpen && (
+            {/* Petra Messages Dropdown */}
+            {messagesOpen && (
               <div className="absolute left-0 top-full mt-2 w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-                  <h3 className="text-sm font-bold text-petra-text">התראות</h3>
-                  {unreadNotifications > 0 && (
+                  <h3 className="text-sm font-bold text-petra-text">הודעות מפטרה</h3>
+                  {unreadCount > 0 && (
                     <button
                       onClick={handleMarkAllRead}
                       className="text-[11px] text-brand-600 font-medium cursor-pointer hover:underline"
@@ -729,56 +484,38 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                   )}
                 </div>
                 <div className="max-h-80 overflow-y-auto">
-                  {notifications.length === 0 ? (
+                  {systemMessages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-center">
-                      <Bell className="w-7 h-7 text-slate-300 mb-1.5" />
-                      <p className="text-xs text-slate-400">אין התראות חדשות</p>
+                      <Mail className="w-7 h-7 text-slate-300 mb-1.5" />
+                      <p className="text-xs text-slate-400">אין הודעות חדשות מפטרה</p>
                     </div>
                   ) : (
-                    notifications.map((notif) => {
-                      const NotifIcon = notif.kind === "system"
-                        ? (NOTIF_TYPE_ICON[systemMessages.find((m) => m.id === notif.systemMsgId)?.type || "info"] || Info)
-                        : Clock;
+                    systemMessages.map((msg) => {
+                      const MsgIcon = NOTIF_TYPE_ICON[msg.type] ?? Info;
+                      const color = getNotifTypeColor(msg.type);
                       return (
                         <div
-                          key={notif.id}
-                          onClick={() => {
-                            if (notif.kind === "system" && !notif.isRead && notif.systemMsgId) {
-                              markAsRead.mutate(notif.systemMsgId);
-                            }
-                          }}
+                          key={msg.id}
+                          onClick={() => { if (!msg.isRead) markAsRead.mutate(msg.id); }}
                           className={cn(
                             "flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0",
-                            !notif.isRead && "bg-red-50/30 cursor-pointer"
+                            !msg.isRead && "bg-brand-50/30 cursor-pointer"
                           )}
                         >
                           <div
                             className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-                            style={{ background: `${notif.color}15` }}
+                            style={{ background: `${color}18` }}
                           >
-                            {notif.kind === "appointment" ? (
-                              <div
-                                className="w-2.5 h-2.5 rounded-full"
-                                style={{ background: notif.color }}
-                              />
-                            ) : (
-                              <NotifIcon className="w-3.5 h-3.5" style={{ color: notif.color }} />
-                            )}
+                            <MsgIcon className="w-3.5 h-3.5" style={{ color }} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <p className="text-[13px] text-petra-text leading-snug flex-1 truncate">
-                                {notif.text}
-                              </p>
-                              {!notif.isRead && (
-                                <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-                              )}
+                              <p className="text-[13px] text-petra-text leading-snug flex-1 truncate">{msg.title}</p>
+                              {!msg.isRead && <span className="w-2 h-2 rounded-full bg-brand-500 flex-shrink-0" />}
                             </div>
-                            {notif.subtext && (
-                              <p className="text-[11px] text-petra-muted mt-0.5 truncate">{notif.subtext}</p>
-                            )}
+                            <p className="text-[11px] text-petra-muted mt-0.5 line-clamp-2">{msg.content}</p>
                             <span className="text-[10px] text-slate-400 mt-1 block">
-                              {notif.timeLabel}
+                              {getRelativeTimeLabel(new Date(msg.createdAt))}
                             </span>
                           </div>
                         </div>
@@ -786,14 +523,99 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                     })
                   )}
                 </div>
-                {notifications.length > 0 && (
-                  <Link
-                    href="/calendar"
-                    onClick={() => setNotificationsOpen(false)}
-                    className="block text-center py-2.5 text-xs font-medium text-brand-600 hover:bg-slate-50 cursor-pointer border-t border-slate-100 transition-colors"
-                  >
-                    פתח יומן
-                  </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Business Notifications Bell */}
+          <div ref={notificationsRef} className="relative">
+            <button
+              onClick={() => {
+                setNotificationsOpen((prev) => !prev);
+                setMessagesOpen(false);
+              }}
+              className="relative flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              aria-label="התראות עסקיות"
+            >
+              <Bell className="w-[18px] h-[18px]" />
+              {criticalCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1 ring-2 ring-white">
+                  {criticalCount}
+                </span>
+              )}
+            </button>
+
+            {/* Business Notifications Dropdown */}
+            {notificationsOpen && (
+              <div className="absolute left-0 top-full mt-2 w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
+                <div className="px-4 py-3 border-b border-slate-100">
+                  <h3 className="text-sm font-bold text-petra-text">התראות עסקיות</h3>
+                  {criticalCount > 0 && (
+                    <p className="text-[11px] text-red-500 mt-0.5">{criticalCount} פריטים דורשים טיפול</p>
+                  )}
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  {bizNotifications.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                      <CheckCircle className="w-7 h-7 text-green-400 mb-1.5" />
+                      <p className="text-xs text-slate-500 font-medium">הכל תקין!</p>
+                      <p className="text-[11px] text-slate-400">אין התראות פעילות כרגע</p>
+                    </div>
+                  ) : (
+                    bizNotifications.map((item) => {
+                      const { color, Icon } = getBizNotifStyle(item.type);
+                      return (
+                        <div
+                          key={item.id}
+                          className={cn(
+                            "flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0",
+                            item.critical && "bg-red-50/40"
+                          )}
+                        >
+                          <div
+                            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                            style={{ background: `${color}18` }}
+                          >
+                            <Icon className="w-3.5 h-3.5" style={{ color }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start gap-1.5">
+                              <p className="text-[13px] text-petra-text leading-snug flex-1">{item.title}</p>
+                              {item.critical && (
+                                <span className="text-[10px] font-semibold text-red-500 flex-shrink-0 mt-0.5">⚠</span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-petra-muted mt-0.5 truncate">{item.subtitle}</p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                {bizNotifications.length > 0 && (
+                  <div className="flex border-t border-slate-100">
+                    <Link
+                      href="/tasks"
+                      onClick={() => setNotificationsOpen(false)}
+                      className="flex-1 text-center py-2.5 text-xs font-medium text-brand-600 hover:bg-slate-50 transition-colors border-l border-slate-100"
+                    >
+                      משימות
+                    </Link>
+                    <Link
+                      href="/calendar"
+                      onClick={() => setNotificationsOpen(false)}
+                      className="flex-1 text-center py-2.5 text-xs font-medium text-brand-600 hover:bg-slate-50 transition-colors border-l border-slate-100"
+                    >
+                      יומן
+                    </Link>
+                    <Link
+                      href="/payments"
+                      onClick={() => setNotificationsOpen(false)}
+                      className="flex-1 text-center py-2.5 text-xs font-medium text-brand-600 hover:bg-slate-50 transition-colors"
+                    >
+                      תשלומים
+                    </Link>
+                  </div>
                 )}
               </div>
             )}
