@@ -1904,8 +1904,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Greeting Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-petra-text">
               שלום, {user?.name || "משתמש"} 👋
@@ -1922,7 +1922,8 @@ export default function DashboardPage() {
             </button>
           </div>
           <p className="text-sm text-petra-muted">{todayStr}</p>
-          <div className="flex flex-wrap gap-2">
+        </div>
+        <div className="flex flex-wrap gap-2 justify-end">
             <button
               onClick={() => setShowNewCustomer(true)}
               className="btn-primary flex items-center gap-2"
@@ -1980,7 +1981,6 @@ export default function DashboardPage() {
               <span className="hidden sm:inline">תורים אונליין</span>
             </button>
           </div>
-        </div>
       </div>
 
       {/* Setup Checklist — shown to users who haven't completed setup yet */}
