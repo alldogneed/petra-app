@@ -3357,11 +3357,11 @@ export default function CustomerProfilePage() {
                     >
                       <div
                         className="w-1.5 h-8 rounded-full flex-shrink-0"
-                        style={{ background: apt.service.color || "#F97316" }}
+                        style={{ background: apt.service?.color || "#F97316" }}
                       />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-petra-text">
-                          {apt.service.name}
+                          {apt.service?.name || "שירות"}
                         </div>
                         <div className="text-xs text-petra-muted">
                           {new Date(apt.date).toLocaleDateString("he-IL")} ·{" "}
