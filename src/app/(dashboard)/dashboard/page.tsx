@@ -1930,13 +1930,13 @@ export default function DashboardPage() {
               <Plus className="w-4 h-4" />
               לקוח חדש
             </button>
-            <button
-              onClick={() => setShowNewAppointment(true)}
+            <Link
+              href="/scheduler"
               className="btn-secondary flex items-center gap-2"
             >
               <CalendarClock className="w-4 h-4" />
-              תור ידני +
-            </button>
+              קביעת תור ידני
+            </Link>
             <button
               onClick={() => setShowNewOrder(true)}
               className="btn-secondary flex items-center gap-2"

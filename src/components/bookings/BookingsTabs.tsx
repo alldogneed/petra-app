@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { name: "ניהול תורים",  href: "/bookings",           icon: CalendarCheck },
   { name: "תור לשליחה",   href: "/scheduled-messages", icon: Send          },
-  { name: "תזמון",        href: "/scheduler",           icon: CalendarClock },
+  { name: "קביעת תור ידני", href: "/scheduler",           icon: CalendarClock },
 ];
 
 export function BookingsTabs() {
