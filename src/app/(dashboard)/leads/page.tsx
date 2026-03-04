@@ -215,7 +215,7 @@ function SortableColumn({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="min-w-[280px] flex-1 flex flex-col">
+    <div ref={setNodeRef} style={style} className="min-w-[calc(100vw-2rem)] md:min-w-[280px] flex-1 flex flex-col snap-center">
       <KanbanColumn
         stage={stage}
         leads={leads}
@@ -1105,12 +1105,12 @@ export default function LeadsPage() {
           <Pencil className="w-3.5 h-3.5" />
           {editMode ? "סיום עריכה" : "עריכת שלבים"}
         </button>
-        <div className="relative ms-auto">
+        <div className="relative w-full sm:w-auto sm:ms-auto">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
           <input
             type="text"
             placeholder="חפש ליד..."
-            className="input pr-9 pl-3 text-sm w-44 sm:w-56"
+            className="input pr-9 pl-3 text-sm w-full sm:w-56"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -1127,7 +1127,7 @@ export default function LeadsPage() {
 
       {/* Source Filter */}
       {!editMode && (
-        <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+        <div className="flex items-center gap-1.5 mb-4 overflow-x-auto scrollbar-hide pb-1 flex-nowrap">
           <button
             onClick={() => setSourceFilter(null)}
             className={cn(
@@ -1259,7 +1259,7 @@ export default function LeadsPage() {
             onDragEnd={handleColumnDragEnd}
           >
             <SortableContext items={activeStages.map((s) => s.id)} strategy={horizontalListSortingStrategy}>
-              <div className="flex gap-4 overflow-x-auto pb-6 items-stretch mb-8" style={{ minHeight: "500px" }}>
+              <div className="flex gap-4 overflow-x-auto pb-6 items-stretch mb-8 snap-x snap-mandatory scrollbar-hide" style={{ minHeight: "500px" }}>
                 {activeStages.map((stage) => {
                   const stageLeads = filteredLeads.filter((l) => l.stage === stage.id);
                   return (
@@ -1296,11 +1296,11 @@ export default function LeadsPage() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 overflow-x-auto pb-6 items-stretch mb-8" style={{ minHeight: "500px" }}>
+          <div className="flex gap-4 overflow-x-auto pb-6 items-stretch mb-8 snap-x snap-mandatory scrollbar-hide" style={{ minHeight: "500px" }}>
             {activeStages.map((stage) => {
               const stageLeads = leads.filter((l) => l.stage === stage.id);
               return (
-                <div key={stage.id} className="min-w-[280px] flex-1 flex flex-col">
+                <div key={stage.id} className="min-w-[calc(100vw-2rem)] md:min-w-[280px] flex-1 flex flex-col snap-center">
                   <KanbanColumn
                     stage={stage}
                     leads={stageLeads}

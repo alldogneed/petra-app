@@ -518,7 +518,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
         {/* Page title */}
         {pageInfo && (
-          <div className="hidden lg:flex flex-col min-w-0 ms-2">
+          <div className="hidden md:flex flex-col min-w-0 ms-2">
             <span className="text-[15px] font-semibold text-petra-text leading-tight">
               {pageInfo.title}
             </span>

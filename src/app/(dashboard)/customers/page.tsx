@@ -1552,32 +1552,34 @@ export default function CustomersPage() {
   return (
     <div>
       {/* ─── Page Header ─── */}
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
-        <h1 className="page-title">לקוחות</h1>
-        <p className="text-sm text-petra-muted">
-          {stats.total} לקוחות במערכת
-        </p>
-        <button className="btn-primary" onClick={() => setShowNewModal(true)}>
-          <Plus className="w-4 h-4" />
-          לקוח חדש
-        </button>
-        <button
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white text-sm shadow-sm transition-all hover:shadow-md"
-          style={{ background: "linear-gradient(135deg, #f38d49, #FB923C)" }}
-          onClick={() => setShowOrderModal(true)}
-        >
-          <ShoppingCart className="w-4 h-4" />
-          הזמנה חדשה
-        </button>
-        <a
-          href="/api/customers/export"
-          download
-          className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors ms-auto"
-          title="ייצוא לקוחות ל-CSV"
-        >
-          <FileDown className="w-4 h-4" />
-          ייצוא CSV
-        </a>
+      <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+        <div>
+          <h1 className="page-title">לקוחות</h1>
+          <p className="text-sm text-petra-muted">{stats.total} לקוחות במערכת</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button className="btn-primary" onClick={() => setShowNewModal(true)}>
+            <Plus className="w-4 h-4" />
+            לקוח חדש
+          </button>
+          <button
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white text-sm shadow-sm transition-all hover:shadow-md"
+            style={{ background: "linear-gradient(135deg, #f38d49, #FB923C)" }}
+            onClick={() => setShowOrderModal(true)}
+          >
+            <ShoppingCart className="w-4 h-4" />
+            הזמנה חדשה
+          </button>
+          <a
+            href="/api/customers/export"
+            download
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
+            title="ייצוא לקוחות ל-CSV"
+          >
+            <FileDown className="w-4 h-4" />
+            ייצוא CSV
+          </a>
+        </div>
       </div>
 
       {/* ─── Search & Filters Card ─── */}

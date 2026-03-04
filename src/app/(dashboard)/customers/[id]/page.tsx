@@ -40,6 +40,7 @@ import {
   CheckCircle2,
   ListTodo,
   Loader2,
+  MoreVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CreateOrderModal } from "@/components/orders/CreateOrderModal";
@@ -2418,6 +2419,7 @@ export default function CustomerProfilePage() {
   const [noteModal, setNoteModal] = useState<{ petId: string; field: string; label: string; value: string } | null>(null);
   const [editPetModal, setEditPetModal] = useState<{ pet: Pet } | null>(null);
   const [showWaCompose, setShowWaCompose] = useState(false);
+  const [showMobileActions, setShowMobileActions] = useState(false);
   const { user } = useAuth();
 
   const { data: customer, isLoading } = useQuery<CustomerDetail>({
@@ -2521,16 +2523,16 @@ export default function CustomerProfilePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
           <Link
             href="/customers"
-            className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 text-petra-muted transition-colors"
+            className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 text-petra-muted transition-colors flex-shrink-0"
           >
             <ArrowRight className="w-5 h-5" />
           </Link>
-          <div>
-            <h1 className="text-xl font-bold text-petra-text">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-petra-text truncate">
               {customer.name}
             </h1>
             <p className="text-sm text-petra-muted">
@@ -2538,7 +2540,50 @@ export default function CustomerProfilePage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+          {/* Mobile quick-actions dropdown */}
+          <div className="relative sm:hidden">
+            <button
+              onClick={() => setShowMobileActions(!showMobileActions)}
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            {showMobileActions && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowMobileActions(false)} />
+                <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 py-1 animate-fade-in">
+                  <Link href={`/scheduler?customerId=${customer.id}`} onClick={() => setShowMobileActions(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
+                    <CalendarClock className="w-4 h-4 text-slate-400" />קבע תור
+                  </Link>
+                  <button onClick={() => { setShowQuickTaskModal(true); setShowMobileActions(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 text-right">
+                    <ListTodo className="w-4 h-4 text-slate-400" />משימה
+                  </button>
+                  <Link href={`/payment-request?customerId=${customer.id}`} onClick={() => setShowMobileActions(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
+                    <Send className="w-4 h-4 text-slate-400" />בקשת תשלום
+                  </Link>
+                  <button
+                    disabled={intakeSending}
+                    onClick={async () => {
+                      setShowMobileActions(false);
+                      setIntakeSending(true);
+                      try {
+                        const res = await fetch("/api/intake/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: customer.id }) });
+                        const data = await res.json();
+                        if (data.url && customer.phone) {
+                          const msg = `שלום ${customer.name}! 📋\nאנא מלא טופס קבלה:\n${data.url}`;
+                          window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(customer.phone)}&text=${encodeURIComponent(msg)}`, "_blank");
+                        }
+                      } finally { setIntakeSending(false); }
+                    }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 text-right disabled:opacity-50"
+                  >
+                    <FileText className="w-4 h-4 text-slate-400" />{intakeSending ? "שולח..." : "טופס קבלה"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <Link
             href={`/scheduler?customerId=${customer.id}`}
             className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"

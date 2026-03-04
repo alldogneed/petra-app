@@ -538,7 +538,7 @@ export default function TasksPage() {
       </div>
 
       {/* Status Filter Tabs */}
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide pb-1 flex-nowrap">
         {STATUS_FILTERS.map((f) => {
           const Icon = f.icon;
           const count = f.id === "ALL"
@@ -574,8 +574,8 @@ export default function TasksPage() {
 
       {/* Category Filter */}
       <div className="flex items-center gap-2 mb-6">
-        <Filter className="w-3.5 h-3.5 text-petra-muted" />
-        <div className="flex gap-1.5 flex-wrap">
+        <Filter className="w-3.5 h-3.5 text-petra-muted flex-shrink-0" />
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1 flex-nowrap">
           {CATEGORIES.map((c) => (
             <button
               key={c.id}
