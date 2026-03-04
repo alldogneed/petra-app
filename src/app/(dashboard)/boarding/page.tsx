@@ -2275,35 +2275,13 @@ export default function BoardingPage() {
             </button>
             {occLoading && <span className="text-xs text-petra-muted animate-pulse">טוען...</span>}
             {!occLoading && occFrom && occTo && (
-              <div className="flex items-center gap-1 flex-wrap">
+              <div className="flex items-center gap-1">
                 {occTotalDogs === 0 ? (
                   <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">✓ פנוי לגמרי</span>
                 ) : (
-                  <>
-                    <span className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-lg">
-                      {occTotalDogs} כלבים
-                    </span>
-                    {rooms.map(room => {
-                      const booked = occByRoom[room.id] ?? 0;
-                      const isFull = booked >= room.capacity;
-                      const isEmpty = booked === 0;
-                      return (
-                        <span key={room.id} className={cn(
-                          "text-xs font-semibold px-2 py-0.5 rounded-lg border",
-                          isFull ? "bg-red-100 text-red-700 border-red-200" :
-                          isEmpty ? "bg-slate-100 text-slate-500 border-slate-200" :
-                          "bg-amber-100 text-amber-700 border-amber-200"
-                        )}>
-                          {room.name} {booked}/{room.capacity}
-                        </span>
-                      );
-                    })}
-                    {occUnassigned > 0 && (
-                      <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
-                        +{occUnassigned} ללא חדר
-                      </span>
-                    )}
-                  </>
+                  <span className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-lg">
+                    {occTotalDogs} כלבים
+                  </span>
                 )}
               </div>
             )}
