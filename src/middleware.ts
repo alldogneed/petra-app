@@ -22,6 +22,8 @@ const PUBLIC_PATHS = [
   "/api/webhooks/lead",
   "/api/service-dogs/id-card",
   "/api/integrations/google/callback", // Google Calendar OAuth callback
+  "/privacy",
+  "/tos-accept",
 ];
 
 /** Validate token format: must be exactly 64 hex characters */
