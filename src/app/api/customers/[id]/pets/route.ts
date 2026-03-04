@@ -4,6 +4,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const authResult = await requireBusinessAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    const pets = await prisma.pet.findMany({
+      where: {
+        customerId: params.id,
+        customer: { businessId: authResult.businessId },
+      },
+      select: { id: true, name: true, species: true, breed: true },
+      orderBy: { name: "asc" },
+    });
+
+    return NextResponse.json(pets);
+  } catch (error) {
+    console.error("Pets GET error:", error);
+    return NextResponse.json({ error: "Failed to fetch pets" }, { status: 500 });
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }

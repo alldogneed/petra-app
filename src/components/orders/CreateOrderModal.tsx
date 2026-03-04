@@ -4,8 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import {
-  X, Search, Plus, Minus, Trash2, ShoppingCart, CalendarDays, Clock,
-  Send, MessageCircle, CheckCircle2, Building2, GraduationCap, Package, Scissors,
+  X, Search, Plus, Minus, Trash2, CalendarDays, Clock,
+  Send, MessageCircle, Building2, GraduationCap, Package, Scissors,
 } from "lucide-react";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
@@ -149,11 +149,12 @@ const CATEGORY_DEFS = [
   { id: "grooming",  label: "טיפוח",       icon: Scissors,      color: "from-pink-500 to-pink-600" },
 ] as const;
 
-// Map order type → Hebrew category label (for price-list auto-filter)
+// Map order type → Hebrew category label (must match category field in PriceListItem)
 const CATEGORY_LABELS: Record<string, string> = {
   boarding: "פנסיון",
   training: "אילוף",
   grooming: "טיפוח",
+  products: "מוצרים",
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -210,11 +211,15 @@ export function CreateOrderModal({
 
   // Lines
   const [lines, setLines] = useState<OrderLineForm[]>([]);
-  const [itemSearch, setItemSearch] = useState("");
-  const [customLine, setCustomLine] = useState(false);
   const [newLine, setNewLine] = useState<OrderLineForm>({
     priceListItemId: null, name: "", unit: "per_session", quantity: 1, unitPrice: 0, taxMode: "taxable", petIds: [],
   });
+
+  // Items step — "add service" sub-form
+  const [addCat, setAddCat] = useState<string>("");
+  const [addItemId, setAddItemId] = useState<string>("");
+  const [addUnits, setAddUnits] = useState<number>(1);
+  const [addCustomMode, setAddCustomMode] = useState(false);
 
   // Data
   const { data: customers = [] } = useQuery<Customer[]>({
@@ -245,14 +250,13 @@ export function CreateOrderModal({
     staleTime: 300_000,
   });
 
-  // Fetch customer's pets when boarding order and customer selected
-  const { data: customerDetail } = useQuery<CustomerDetail>({
+  // Fetch customer's pets — fast endpoint (only pets, not full customer detail)
+  const { data: customerPets = [], isLoading: petsLoading } = useQuery<Pet[]>({
     queryKey: ["customer-pets", customerId],
-    queryFn: () => fetch(`/api/customers/${customerId}`).then((r) => r.json()),
+    queryFn: () => fetch(`/api/customers/${customerId}/pets`).then((r) => r.json()),
     enabled: !!customerId && isOpen,
     staleTime: 60_000,
   });
-  const customerPets: Pet[] = customerDetail?.pets ?? [];
 
   const toggleBoardingPet = (id: string) => {
     setBoardingPetIds((prev) =>
@@ -262,16 +266,14 @@ export function CreateOrderModal({
 
   // Auto-select the single pet when a customer with exactly 1 pet is loaded
   useEffect(() => {
-    if (!customerDetail?.pets) return;
-    const pets = customerDetail.pets;
-    if (pets.length !== 1) return;
+    if (customerPets.length !== 1) return;
     if (isBoardingOrder) {
-      setBoardingPetIds((prev) => (prev.length === 0 ? [pets[0].id] : prev));
+      setBoardingPetIds((prev) => (prev.length === 0 ? [customerPets[0].id] : prev));
     } else {
-      setSelectedPetId((prev) => (prev === "" ? pets[0].id : prev));
+      setSelectedPetId((prev) => (prev === "" ? customerPets[0].id : prev));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customerDetail]);
+  }, [customerPets]);
 
   // When business loads, seed boarding times from settings defaults
   useEffect(() => {
@@ -285,30 +287,6 @@ export function CreateOrderModal({
 
   const selectedCustomer = customers.find((c) => c.id === customerId) ??
     (prefillCustomerId ? { id: prefillCustomerId, name: "לקוח", phone: "" } : null);
-
-  // Filtered items — auto-filter by category when no search term entered
-  const filteredItems = useMemo(() => {
-    const catLabel = (CATEGORY_LABELS[orderType] ?? "").toLowerCase();
-    // English→Hebrew fallback for items with English categories
-    const englishToHebrew: Record<string, string> = {
-      boarding: "פנסיון", training: "אילוף", grooming: "טיפוח", products: "מוצרים",
-    };
-    const matchingItems = allItems.filter((i) => {
-      if (itemSearch) {
-        return i.name.toLowerCase().includes(itemSearch.toLowerCase()) ||
-          (i.category ?? "").toLowerCase().includes(itemSearch.toLowerCase());
-      }
-      if (catLabel) {
-        const itemCat = (i.category ?? "").toLowerCase();
-        const itemCatHeb = englishToHebrew[itemCat] ?? itemCat;
-        // Show: items matching the category, items with no category, or English-mapped categories
-        return !itemCat || itemCat.includes(catLabel) || itemCatHeb.includes(catLabel);
-      }
-      return true;
-    });
-    // If strict filter yields nothing, fall back to all items (so the user always sees something)
-    return matchingItems.length > 0 ? matchingItems : allItems;
-  }, [allItems, itemSearch, orderType]);
 
   // ── Order type helpers ────────────────────────────────────────────────────
 
@@ -392,6 +370,18 @@ export function CreateOrderModal({
       setStartAt(`${apptDate}T${apptStartTime}:00`);
     }
   }, [needsAppointment, apptDate, apptStartTime]);
+
+  // Pre-select category chip when entering items step
+  useEffect(() => {
+    if (step === "items") {
+      const label = CATEGORY_LABELS[orderType] ?? "";
+      setAddCat(label);
+      setAddItemId("");
+      setAddCustomMode(false);
+      setAddUnits(1);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   // Calc
   const calcInput: CalcLineInput[] = lines.map((l) => ({
@@ -780,7 +770,11 @@ export function CreateOrderModal({
                   </span>
                 )}
               </label>
-              {customerPets.length === 0 ? (
+              {petsLoading ? (
+                <div className="text-sm text-petra-muted border border-dashed border-petra-border rounded-xl p-3 text-center animate-pulse">
+                  טוען כלבים...
+                </div>
+              ) : customerPets.length === 0 ? (
                 <div className="text-sm text-petra-muted border border-dashed border-petra-border rounded-xl p-3 text-center">
                   אין חיות מחמד ללקוח זה
                 </div>
@@ -824,8 +818,18 @@ export function CreateOrderModal({
             </div>
           )}
 
-          {/* Non-boarding: chip buttons for pet association */}
-          {!isBoardingOrder && customerPets.length > 0 && (
+          {/* Non-boarding: pet selection */}
+          {!isBoardingOrder && petsLoading && (
+            <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3 text-xs text-amber-600 text-center animate-pulse">
+              טוען כלבים...
+            </div>
+          )}
+          {!isBoardingOrder && !petsLoading && customerPets.length === 0 && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-petra-muted text-center">
+              אין חיות מחמד ללקוח זה
+            </div>
+          )}
+          {!isBoardingOrder && !petsLoading && customerPets.length > 0 && (
             <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3 space-y-2">
               <p className="text-xs font-semibold text-amber-700 flex items-center gap-1.5">
                 🐾 עבור איזה כלב?
@@ -884,86 +888,42 @@ export function CreateOrderModal({
   );
 
   // ── Step 2: Items ─────────────────────────────────────────────────────────
-  const renderItemsStep = () => (
-    <div className="flex flex-col gap-3 min-h-0">
+  const renderItemsStep = () => {
+    const CHIP_CATS = ["פנסיון", "אילוף", "טיפוח", "מוצרים"];
+    const catItems = allItems.filter(i => (i.category ?? "").toLowerCase() === addCat.toLowerCase());
+    const selectedAddItem = catItems.find(i => i.id === addItemId);
 
-      {/* Price list items picker */}
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <div className="relative flex-1">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              className="input pr-10 text-sm"
-              placeholder="חיפוש פריט..."
-              value={itemSearch}
-              onChange={(e) => setItemSearch(e.target.value)}
-            />
-          </div>
-          <button
-            onClick={() => setCustomLine(!customLine)}
-            className={cn("btn-secondary text-xs px-2.5 py-2", customLine && "bg-brand-50 border-brand-300 text-brand-600")}
-          >
-            <Plus className="w-3.5 h-3.5" /> מותאם
-          </button>
-        </div>
+    const handleAddToCart = () => {
+      if (!selectedAddItem) return;
+      const isBoardingUnit = selectedAddItem.unit === "per_night" || selectedAddItem.unit === "per_day";
+      const qty = (isBoardingOrder && isBoardingUnit && boardingUnits !== null) ? boardingUnits : addUnits;
+      const existing = lines.findIndex(l => l.priceListItemId === selectedAddItem.id);
+      if (existing >= 0) {
+        setLines(ls => ls.map((l, i) => i === existing ? { ...l, quantity: l.quantity + qty } : l));
+      } else {
+        setLines(ls => [...ls, {
+          priceListItemId: selectedAddItem.id,
+          name: selectedAddItem.name,
+          unit: selectedAddItem.unit,
+          quantity: qty,
+          unitPrice: selectedAddItem.basePrice,
+          taxMode: selectedAddItem.taxMode as "inherit" | "taxable" | "exempt",
+          petIds: [],
+        }]);
+      }
+      setAddItemId("");
+      setAddUnits(1);
+    };
 
-        {/* Custom line form */}
-        {customLine && (
-          <div className="p-3 bg-slate-50 rounded-xl border border-petra-border mb-2 space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                className="input text-sm"
-                placeholder="שם פריט *"
-                value={newLine.name}
-                onChange={(e) => setNewLine({ ...newLine, name: e.target.value })}
-              />
-              <select
-                className="input text-sm"
-                value={newLine.unit}
-                onChange={(e) => setNewLine({ ...newLine, unit: e.target.value })}
-              >
-                {UNITS.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="number" min="0" step="0.01"
-                className="input text-sm"
-                placeholder="מחיר ₪"
-                value={newLine.unitPrice || ""}
-                onChange={(e) => setNewLine({ ...newLine, unitPrice: parseFloat(e.target.value) || 0 })}
-                dir="ltr"
-              />
-              <input
-                type="number" min="0.5" step="0.5"
-                className="input text-sm"
-                placeholder="כמות"
-                value={newLine.quantity}
-                onChange={(e) => setNewLine({ ...newLine, quantity: parseFloat(e.target.value) || 1 })}
-                dir="ltr"
-              />
-            </div>
-            <button
-              onClick={() => {
-                if (!newLine.name || newLine.unitPrice < 0) return;
-                setLines([...lines, { ...newLine }]);
-                setNewLine({ priceListItemId: null, name: "", unit: "per_session", quantity: 1, unitPrice: 0, taxMode: "taxable", petIds: [] });
-                setCustomLine(false);
-              }}
-              className="btn-primary w-full text-sm py-1.5"
-              disabled={!newLine.name}
-            >
-              הוסף שורה
-            </button>
-          </div>
-        )}
+    return (
+      <div className="space-y-4">
 
-        {/* Boarding units reminder banner */}
+        {/* Boarding dates reminder */}
         {isBoardingOrder && boardingNights !== null && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-brand-50 border border-brand-100 rounded-xl mb-2 text-xs text-brand-600">
+          <div className="flex items-center gap-2 px-3 py-2 bg-brand-50 border border-brand-100 rounded-xl text-xs text-brand-600">
             <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
             <span>
-              שהייה: {boardingCheckInDate} {boardingCheckInTime} → {boardingCheckOutDate} {boardingCheckOutTime}
+              {boardingCheckInDate} → {boardingCheckOutDate}
               {" · "}
               <strong>
                 {boardingPetIds.length > 1
@@ -975,185 +935,200 @@ export function CreateOrderModal({
           </div>
         )}
 
-        {/* Items grid */}
-        <div className="max-h-48 overflow-y-auto grid grid-cols-1 gap-1">
-          {allItems.length === 0 ? (
-            <div className="py-6 text-center space-y-2">
-              <p className="text-sm text-petra-muted">אין פריטים במחירון</p>
-              <a
-                href="/pricing"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-brand-600 underline hover:text-brand-700"
-              >
-                לחץ כאן להוספת שירותים ומחירים
-              </a>
-            </div>
-          ) : filteredItems.length === 0 ? (
-            <div className="py-6 text-center">
-              <p className="text-sm text-petra-muted">לא נמצאו פריטים</p>
-            </div>
-          ) : filteredItems.map((item) => {
-            const inCart = lines.some((l) => l.priceListItemId === item.id);
-            return (
+        {/* Category chips */}
+        <div>
+          <p className="text-xs font-semibold text-petra-muted mb-2">בחר קטגוריה</p>
+          <div className="flex flex-wrap gap-2">
+            {CHIP_CATS.map(cat => (
               <button
-                key={item.id}
-                onClick={() => addItem(item)}
+                key={cat}
+                type="button"
+                onClick={() => { setAddCat(cat); setAddItemId(""); setAddUnits(1); setAddCustomMode(false); }}
                 className={cn(
-                  "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-right transition-all",
-                  inCart
-                    ? "border-brand-200 bg-brand-50"
-                    : "border-petra-border hover:border-brand-200 hover:bg-brand-50/50"
+                  "px-4 py-2 rounded-xl text-sm font-semibold transition-all border-2",
+                  addCat === cat && !addCustomMode
+                    ? "bg-[#1a3a5c] text-white border-[#1a3a5c]"
+                    : "bg-white text-petra-text border-petra-border hover:border-[#1a3a5c]/40"
                 )}
               >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-petra-text">{item.name}</p>
-                  {item.category && <p className="text-xs text-petra-muted">{item.category}</p>}
-                </div>
-                <span className="text-sm font-bold text-petra-text flex-shrink-0">₪{item.basePrice}</span>
-                <div className={cn(
-                  "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
-                  inCart ? "bg-brand-500" : "bg-slate-100"
-                )}>
-                  <Plus className={cn("w-3 h-3", inCart ? "text-white" : "text-slate-400")} />
-                </div>
+                {cat}
               </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Cart lines */}
-      {lines.length > 0 && (
-        <div className="border border-petra-border rounded-xl overflow-hidden">
-          <div className="px-3 py-2 bg-slate-50 border-b border-petra-border">
-            <span className="text-xs font-semibold text-petra-muted">עגלה ({lines.length} פריטים)</span>
+            ))}
+            <button
+              type="button"
+              onClick={() => { setAddCustomMode(true); setAddCat(""); setAddItemId(""); }}
+              className={cn(
+                "px-4 py-2 rounded-xl text-sm font-semibold transition-all border-2",
+                addCustomMode
+                  ? "bg-[#1a3a5c] text-white border-[#1a3a5c]"
+                  : "bg-white text-petra-text border-petra-border hover:border-[#1a3a5c]/40"
+              )}
+            >
+              שירות ידני
+            </button>
           </div>
-          {lines.map((line, i) => (
-            <div key={i} className="border-b border-petra-border last:border-0 overflow-hidden">
-              <div className="flex items-center gap-2 px-3 py-2.5">
+        </div>
+
+        {/* Service picker — shown when a category chip is active */}
+        {addCat && !addCustomMode && (
+          <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-petra-border">
+            <div>
+              <p className="text-sm font-semibold text-petra-text mb-1.5">שירות נבחר</p>
+              {catItems.length === 0 ? (
+                <div className="text-sm text-petra-muted p-3 bg-white border border-dashed border-petra-border rounded-xl text-center">
+                  אין שירותים בקטגוריה &quot;{addCat}&quot;.{" "}
+                  <a href="/pricing" target="_blank" rel="noopener noreferrer" className="text-brand-600 underline">הוסף במחירון</a>
+                </div>
+              ) : (
+                <select
+                  className="input text-sm bg-white"
+                  value={addItemId}
+                  onChange={(e) => {
+                    setAddItemId(e.target.value);
+                    const item = catItems.find(i => i.id === e.target.value);
+                    if (item) {
+                      const isBoardingUnit = item.unit === "per_night" || item.unit === "per_day";
+                      setAddUnits((isBoardingOrder && isBoardingUnit && boardingUnits !== null) ? boardingUnits : 1);
+                    }
+                  }}
+                >
+                  <option value="">בחר שירות...</option>
+                  {catItems.map(i => (
+                    <option key={i.id} value={i.id}>{i.name} — ₪{i.basePrice}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {addItemId && selectedAddItem && (
+              <>
+                <div>
+                  <p className="text-sm font-semibold text-petra-text mb-1.5">סה&quot;כ יחידות</p>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setAddUnits(u => Math.max(0.5, u - 1))}
+                      className="w-9 h-9 rounded-xl border border-petra-border flex items-center justify-center hover:bg-slate-100 transition-all">
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <input
+                      type="number" min="0.5" step="0.5" dir="ltr"
+                      className="input text-sm text-center flex-1"
+                      value={addUnits}
+                      onChange={(e) => setAddUnits(parseFloat(e.target.value) || 1)}
+                    />
+                    <button type="button" onClick={() => setAddUnits(u => u + 1)}
+                      className="w-9 h-9 rounded-xl border border-petra-border flex items-center justify-center hover:bg-slate-100 transition-all">
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-sm font-bold text-petra-text flex-shrink-0 min-w-[60px] text-left">
+                      = {fmt(addUnits * selectedAddItem.basePrice)}
+                    </span>
+                  </div>
+                </div>
+                <button type="button" onClick={handleAddToCart} className="btn-primary w-full">
+                  <Plus className="w-4 h-4" /> הוסף לעגלה
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Custom / manual service form */}
+        {addCustomMode && (
+          <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-petra-border">
+            <p className="text-sm font-semibold text-petra-text">שירות ידני</p>
+            <div className="grid grid-cols-2 gap-2">
+              <input className="input text-sm" placeholder="שם שירות *" value={newLine.name}
+                onChange={(e) => setNewLine({ ...newLine, name: e.target.value })} />
+              <select className="input text-sm" value={newLine.unit}
+                onChange={(e) => setNewLine({ ...newLine, unit: e.target.value })}>
+                {UNITS.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input type="number" min="0" step="0.01" dir="ltr" className="input text-sm" placeholder="מחיר ₪"
+                value={newLine.unitPrice || ""}
+                onChange={(e) => setNewLine({ ...newLine, unitPrice: parseFloat(e.target.value) || 0 })} />
+              <input type="number" min="0.5" step="0.5" dir="ltr" className="input text-sm" placeholder="כמות"
+                value={newLine.quantity}
+                onChange={(e) => setNewLine({ ...newLine, quantity: parseFloat(e.target.value) || 1 })} />
+            </div>
+            <button
+              onClick={() => {
+                if (!newLine.name) return;
+                setLines([...lines, { ...newLine }]);
+                setNewLine({ priceListItemId: null, name: "", unit: "per_session", quantity: 1, unitPrice: 0, taxMode: "taxable", petIds: [] });
+                setAddCustomMode(false);
+              }}
+              className="btn-primary w-full"
+              disabled={!newLine.name}
+            >
+              הוסף לעגלה
+            </button>
+          </div>
+        )}
+
+        {/* Cart */}
+        {lines.length > 0 && (
+          <div className="border border-petra-border rounded-xl overflow-hidden">
+            <div className="px-3 py-2 bg-slate-50 border-b border-petra-border flex items-center justify-between">
+              <span className="text-xs font-semibold text-petra-muted">שירותים שנוספו ({lines.length})</span>
+              <span className="text-xs font-bold text-petra-text">{fmt(calc.subtotal)}</span>
+            </div>
+            {lines.map((line, i) => (
+              <div key={i} className="flex items-center gap-2 px-3 py-2.5 border-b border-petra-border last:border-0">
                 <div className="flex-1 min-w-0">
                   <span className="text-sm text-petra-text truncate block">{line.name}</span>
-                  {line.petIds.length > 0 && (
-                    <span className="text-[11px] text-brand-600 block mt-0.5" dir="rtl">
-                      {line.petIds.map(id => customerPets.find(p => p.id === id)?.name).filter(Boolean).join(", ")}
-                    </span>
-                  )}
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <button
-                    onClick={() => updateQty(i, -1)}
-                    className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-slate-100 transition-all text-petra-muted"
-                    title="הפחת כמות"
-                  >
+                  <button onClick={() => updateQty(i, -1)}
+                    className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-slate-100 text-petra-muted">
                     <Minus className="w-3 h-3" />
                   </button>
                   <span className="text-sm font-medium w-8 text-center">{line.quantity}</span>
-                  <button
-                    onClick={() => updateQty(i, 1)}
-                    className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-slate-100 transition-all text-petra-muted"
-                    title="הוסף כמות"
-                  >
+                  <button onClick={() => updateQty(i, 1)}
+                    className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-slate-100 text-petra-muted">
                     <Plus className="w-3 h-3" />
                   </button>
                 </div>
                 <span className="text-sm font-bold text-petra-text flex-shrink-0 w-16 text-left">
                   {fmt(line.quantity * line.unitPrice)}
                 </span>
-                <button onClick={() => removeLine(i)} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all text-slate-300">
+                <button onClick={() => removeLine(i)}
+                  className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-red-50 hover:text-red-500 text-slate-300">
                   <Trash2 className="w-3 h-3" />
                 </button>
               </div>
+            ))}
+          </div>
+        )}
 
-              {/* Pet selection for this specific line (only show inline if there are pets) */}
-              {customerPets.length > 0 && (
-                <div className="px-3 pb-2.5 pt-1 bg-slate-50/50">
-                  <p className="text-[11px] font-semibold text-petra-muted mb-1.5 flex items-center gap-1">
-                    🐾 בחירת כלבים רלוונטיים:
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {customerPets.map((pet) => {
-                      const isSelected = line.petIds.includes(pet.id);
-                      return (
-                        <button
-                          key={pet.id}
-                          type="button"
-                          onClick={() => {
-                            setLines(prev => prev.map((l, idx) => {
-                              if (idx !== i) return l;
+        {/* Discount */}
+        {lines.length > 0 && (
+          <div className="grid grid-cols-2 gap-2">
+            <select className="input text-sm" value={discountType}
+              onChange={(e) => setDiscountType(e.target.value as "none" | "percent" | "fixed")}>
+              <option value="none">ללא הנחה</option>
+              <option value="percent">הנחה %</option>
+              <option value="fixed">הנחה ₪</option>
+            </select>
+            {discountType !== "none" && (
+              <input type="number" min="0" step="0.01" dir="ltr" className="input text-sm"
+                placeholder={discountType === "percent" ? "% הנחה" : "₪ הנחה"}
+                value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} />
+            )}
+          </div>
+        )}
 
-                              let newPetIds = [...l.petIds];
-                              if (isSelected) {
-                                newPetIds = newPetIds.filter(id => id !== pet.id);
-                              } else {
-                                newPetIds.push(pet.id);
-                              }
-
-                              // Auto update quantity if multiplier is 1 (heuristic: user probably wants quantity = number of dogs)
-                              let newQuantity = l.quantity;
-                              if (newPetIds.length > 0) {
-                                newQuantity = newPetIds.length;
-                              } else {
-                                newQuantity = 1;
-                              }
-
-                              return { ...l, petIds: newPetIds, quantity: newQuantity };
-                            }));
-                          }}
-                          className={cn(
-                            "text-[11px] px-2 py-1 rounded-md border flex items-center gap-1 transition-colors",
-                            isSelected
-                              ? "bg-brand-50 border-brand-300 text-brand-700"
-                              : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
-                          )}
-                        >
-                          {isSelected && <CheckCircle2 className="w-3 h-3 text-brand-500" />}
-                          {pet.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Discount */}
-      {lines.length > 0 && (
-        <div className="grid grid-cols-2 gap-2">
-          <select
-            className="input text-sm"
-            value={discountType}
-            onChange={(e) => setDiscountType(e.target.value as "none" | "percent" | "fixed")}
-          >
-            <option value="none">ללא הנחה</option>
-            <option value="percent">הנחה באחוזים (%)</option>
-            <option value="fixed">הנחה בסכום קבוע (₪)</option>
-          </select>
-          {discountType !== "none" && (
-            <input
-              type="number" min="0" step="0.01"
-              className="input text-sm"
-              placeholder={discountType === "percent" ? "% הנחה" : "₪ הנחה"}
-              value={discountValue}
-              onChange={(e) => setDiscountValue(e.target.value)}
-              dir="ltr"
-            />
-          )}
-        </div>
-      )}
-
-      <button
-        className="btn-primary w-full"
-        disabled={lines.length === 0}
-        onClick={() => setStep("review")}
-      >
-        המשך לסיכום ({fmt(calc.total)}) →
-      </button>
-    </div>
-  );
+        <button
+          className="btn-primary w-full"
+          disabled={lines.length === 0}
+          onClick={() => setStep("review")}
+        >
+          המשך לסיכום ({fmt(calc.total)}) →
+        </button>
+      </div>
+    );
+  };
 
   // ── WhatsApp message builder ─────────────────────────────────────────────
   const buildWhatsAppMessage = () => {
