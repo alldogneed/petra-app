@@ -76,6 +76,9 @@ const UNITS: { id: string; label: string }[] = [
 ];
 
 function fmt(n: number) { return `₪${n.toFixed(2)}`; }
+function unitLabel(unit: string) {
+  return UNITS.find(u => u.id === unit)?.label ?? unit;
+}
 const PET_EMOJI: Record<string, string> = { dog: "🐕", cat: "🐈" };
 function petEmoji(species: string) { return PET_EMOJI[species] ?? "🐾"; }
 
@@ -228,10 +231,11 @@ export function CreateOrderModal({
   });
   const priceList = priceLists[0];
 
+  // Fetch ALL active items across all price lists for this business
   const { data: allItems = [] } = useQuery<PriceListItem[]>({
-    queryKey: ["price-list-items-active", priceList?.id],
-    queryFn: () => fetch(`/api/price-lists/${priceList!.id}/items?active=true`).then((r) => r.json()),
-    enabled: !!priceList?.id && isOpen,
+    queryKey: ["price-list-items-all-active"],
+    queryFn: () => fetch("/api/price-list-items").then((r) => r.json()),
+    enabled: isOpen,
     staleTime: 60_000,
   });
 
@@ -285,19 +289,25 @@ export function CreateOrderModal({
   // Filtered items — auto-filter by category when no search term entered
   const filteredItems = useMemo(() => {
     const catLabel = (CATEGORY_LABELS[orderType] ?? "").toLowerCase();
-    return allItems.filter((i) => {
+    // English→Hebrew fallback for items with English categories
+    const englishToHebrew: Record<string, string> = {
+      boarding: "פנסיון", training: "אילוף", grooming: "טיפוח", products: "מוצרים",
+    };
+    const matchingItems = allItems.filter((i) => {
       if (itemSearch) {
-        // User typed → match name or category
         return i.name.toLowerCase().includes(itemSearch.toLowerCase()) ||
           (i.category ?? "").toLowerCase().includes(itemSearch.toLowerCase());
       }
       if (catLabel) {
-        // Strict filter: only show items in the matching category
         const itemCat = (i.category ?? "").toLowerCase();
-        return itemCat.includes(catLabel);
+        const itemCatHeb = englishToHebrew[itemCat] ?? itemCat;
+        // Show: items matching the category, items with no category, or English-mapped categories
+        return !itemCat || itemCat.includes(catLabel) || itemCatHeb.includes(catLabel);
       }
       return true;
     });
+    // If strict filter yields nothing, fall back to all items (so the user always sees something)
+    return matchingItems.length > 0 ? matchingItems : allItems;
   }, [allItems, itemSearch, orderType]);
 
   // ── Order type helpers ────────────────────────────────────────────────────
@@ -967,7 +977,23 @@ export function CreateOrderModal({
 
         {/* Items grid */}
         <div className="max-h-48 overflow-y-auto grid grid-cols-1 gap-1">
-          {filteredItems.map((item) => {
+          {allItems.length === 0 ? (
+            <div className="py-6 text-center space-y-2">
+              <p className="text-sm text-petra-muted">אין פריטים במחירון</p>
+              <a
+                href="/pricing"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-brand-600 underline hover:text-brand-700"
+              >
+                לחץ כאן להוספת שירותים ומחירים
+              </a>
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="py-6 text-center">
+              <p className="text-sm text-petra-muted">לא נמצאו פריטים</p>
+            </div>
+          ) : filteredItems.map((item) => {
             const inCart = lines.some((l) => l.priceListItemId === item.id);
             return (
               <button
