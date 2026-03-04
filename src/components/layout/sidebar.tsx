@@ -79,7 +79,7 @@ const navEntries: NavEntry[] = [
   { name: "ניהול משימות", href: "/tasks", icon: ListTodo },
   { name: "ניהול תורים אונליין", href: "/bookings", icon: CalendarCheck },
   { name: "פנסיון", href: "/boarding", icon: Hotel },
-  { name: "פיננסים", href: "/payments", icon: Wallet, minRole: "user" },
+  { name: "פיננסים", href: "/pricing", icon: Wallet, minRole: "user" },
   { name: "כלבי שירות", href: "/service-dogs", icon: Shield },
   { name: "תהליכי אילוף", href: "/training", icon: Dog },
   { name: "חיות מחמד", href: "/pets", icon: PawPrint },
@@ -180,8 +180,8 @@ export function Sidebar({
         ? pathname === "/" || pathname === "/dashboard"
         : item.href === "/boarding"
         ? pathname === "/boarding" || pathname.startsWith("/feeding") || pathname.startsWith("/medications") || pathname.startsWith("/vaccinations") || pathname.startsWith("/intake-forms")
-        : item.href === "/payments"
-        ? ["/payments", "/payment-request", "/pricing", "/orders"].some(
+        : item.href === "/pricing"
+        ? ["/pricing", "/payments", "/payment-request", "/orders"].some(
             (p) => pathname === p || pathname.startsWith(p + "/")
           )
         : item.href === "/bookings"

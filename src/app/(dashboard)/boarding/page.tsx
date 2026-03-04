@@ -233,11 +233,13 @@ const RoomStatusCard = memo(function RoomStatusCard({
   onCheckin,
   onCheckout,
   onMarkClean,
+  occPeriodStays,
 }: {
   room: Room;
   onCheckin: (id: string) => void;
   onCheckout: (id: string) => void;
   onMarkClean: (roomId: string) => void;
+  occPeriodStays?: BoardingStay[];
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: room.id });
   const displayStatus = getRoomDisplayStatus(room);
@@ -353,6 +355,24 @@ const RoomStatusCard = memo(function RoomStatusCard({
             >
               <Check className="w-3.5 h-3.5" />סמן כנקי
             </button>
+          </div>
+        )}
+
+        {/* Period occupancy from date-filter */}
+        {occPeriodStays && occPeriodStays.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-blue-100 bg-blue-50/50 rounded-lg p-2">
+            <p className="text-[10px] font-semibold text-blue-600 mb-1.5 flex items-center gap-1">
+              <Calendar className="w-3 h-3" />לתקופה שנבחרה:
+            </p>
+            {occPeriodStays.map((s) => (
+              <div key={s.id} className="flex items-center gap-1.5 text-xs text-blue-700 mb-1">
+                <PawPrint className="w-3 h-3 flex-shrink-0" />
+                <span className="font-medium">{s.pet.name}</span>
+                <span className="text-blue-500 text-[10px]">
+                  {formatDate(s.checkIn)}{s.checkOut ? ` → ${formatDate(s.checkOut)}` : ""}
+                </span>
+              </div>
+            ))}
           </div>
         )}
 
@@ -1537,12 +1557,21 @@ export default function BoardingPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("active");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [activeStayId, setActiveStayId] = useState<string | null>(null);
+
+  // Occupancy checker — defaults to today
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const [occFrom, setOccFrom] = useState(todayStr);
+  const [occTo, setOccTo] = useState(todayStr);
+  // Draft state for date inputs (apply on button click)
+  const [occDraftFrom, setOccDraftFrom] = useState(todayStr);
+  const [occDraftTo, setOccDraftTo] = useState(todayStr);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [timelineDays, setTimelineDays] = useState(14);
 
   // Dialog state
   const shouldCreateMedTasksRef = useRef(false);
+  const checkinStayRef = useRef<BoardingStay | null>(null);
   const [checkinDialogStay, setCheckinDialogStay] = useState<BoardingStay | null>(null);
   const [checkoutDialogStay, setCheckoutDialogStay] = useState<BoardingStay | null>(null);
   const [extendDialogStay, setExtendDialogStay] = useState<BoardingStay | null>(null);
@@ -1588,6 +1617,13 @@ export default function BoardingPage() {
     queryKey: ["customers-for-select"],
     queryFn: () => fetchJSON<Customer[]>("/api/customers?full=1"),
     enabled: showNewStay,
+  });
+
+  const { data: occStays = [], isFetching: occLoading } = useQuery<BoardingStay[]>({
+    queryKey: ["boarding-occupancy", occFrom, occTo],
+    queryFn: () => fetchJSON<BoardingStay[]>(`/api/boarding?from=${occFrom}&to=${occTo}`),
+    enabled: !!occFrom && !!occTo,
+    staleTime: 30_000,
   });
 
   const selectedCustomer = customers.find((c) => c.id === form.customerId);
@@ -1663,8 +1699,9 @@ export default function BoardingPage() {
         old?.map((s) => s.id === updatedStay.id ? updatedStay : s) ?? []
       );
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      queryClient.invalidateQueries({ queryKey: ["boarding-occupancy"] });
       if (payload.status === "checked_in") {
-        const stay = checkinDialogStay;
+        const stay = checkinStayRef.current;
         const meds = stay?.pet.medications;
         if (shouldCreateMedTasksRef.current && meds && meds.length > 0) {
           Promise.all(
@@ -1699,8 +1736,6 @@ export default function BoardingPage() {
       } else if (payload.status === "checked_out") {
         toast.success("צ'ק-אאוט בוצע בהצלחה");
       }
-      setCheckinDialogStay(null);
-      setCheckoutDialogStay(null);
     },
   });
 
@@ -1904,10 +1939,13 @@ export default function BoardingPage() {
 
   const confirmCheckin = (data: { actualTime: string; notes: string; createMedTasks: boolean }) => {
     if (!checkinDialogStay) return;
+    checkinStayRef.current = checkinDialogStay;
     shouldCreateMedTasksRef.current = data.createMedTasks;
+    const stayId = checkinDialogStay.id;
     const dateStr = toDateStr(checkinDialogStay.checkIn);
+    setCheckinDialogStay(null); // Close immediately for responsive UX
     statusMutation.mutate({
-      id: checkinDialogStay.id,
+      id: stayId,
       status: "checked_in",
       checkinNotes: data.notes || undefined,
       actualCheckinTime: new Date(`${dateStr}T${data.actualTime}:00`).toISOString(),
@@ -1916,8 +1954,10 @@ export default function BoardingPage() {
 
   const confirmCheckout = (data: { notes: string }) => {
     if (!checkoutDialogStay) return;
+    const stayId = checkoutDialogStay.id;
+    setCheckoutDialogStay(null); // Close immediately for responsive UX
     statusMutation.mutate({
-      id: checkoutDialogStay.id,
+      id: stayId,
       status: "checked_out",
       checkoutNotes: data.notes || undefined,
       actualCheckoutTime: new Date().toISOString(),
@@ -2012,6 +2052,43 @@ export default function BoardingPage() {
     { key: "checkout_today", label: "צ׳ק-אאוט היום", count: checkoutTodayCount },
     { key: "history", label: "היסטוריה" },
   ];
+
+  // ── Occupancy checker computation ──
+  const occByRoom = useMemo(() => {
+    if (!occFrom || !occTo || occStays.length === 0) return {} as Record<string, number>;
+    const fromDate = new Date(occFrom);
+    const toDate = new Date(occTo);
+    toDate.setHours(23, 59, 59);
+    // Build day list
+    const days: Date[] = [];
+    const cursor = new Date(fromDate);
+    while (cursor <= toDate) { days.push(new Date(cursor)); cursor.setDate(cursor.getDate() + 1); }
+    // Per room: max concurrent stays across all days
+    const result: Record<string, number> = {};
+    for (const room of rooms) {
+      const roomStays = occStays.filter(s => s.room?.id === room.id);
+      let maxConcurrent = 0;
+      for (const day of days) {
+        const dayEnd = new Date(day); dayEnd.setHours(23, 59, 59);
+        const concurrent = roomStays.filter(s => {
+          const ci = new Date(s.checkIn);
+          const co = s.checkOut ? new Date(s.checkOut) : null;
+          return ci <= dayEnd && (!co || co >= day);
+        }).length;
+        maxConcurrent = Math.max(maxConcurrent, concurrent);
+      }
+      result[room.id] = maxConcurrent;
+    }
+    return result;
+  }, [occStays, rooms, occFrom, occTo]);
+
+  const occUnassigned = useMemo(() =>
+    occStays.filter(s => !s.room).length,
+  [occStays]);
+
+  const occTotalDogs = useMemo(() =>
+    occStays.length,
+  [occStays]);
 
   // ── Room stats for header ──
   const availableRooms = rooms.filter((r) => getRoomDisplayStatus(r) === "available").length;
@@ -2172,9 +2249,66 @@ export default function BoardingPage() {
         </div>
       )}
 
-      {/* View Toggle */}
+      {/* View Toggle + Occupancy strip */}
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-        <h2 className="text-sm font-semibold text-petra-text">מפת חדרים</h2>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className="text-sm font-semibold text-petra-text">מפת חדרים</h2>
+          {/* ── Occupancy checker strip ── */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Calendar className="w-3.5 h-3.5 text-petra-muted flex-shrink-0" />
+            <input
+              type="date" value={occDraftFrom}
+              onChange={e => setOccDraftFrom(e.target.value)}
+              className="text-xs border border-petra-border rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400 h-7 w-32"
+            />
+            <span className="text-xs text-petra-muted">—</span>
+            <input
+              type="date" value={occDraftTo} min={occDraftFrom}
+              onChange={e => setOccDraftTo(e.target.value)}
+              className="text-xs border border-petra-border rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400 h-7 w-32"
+            />
+            <button
+              onClick={() => { setOccFrom(occDraftFrom); setOccTo(occDraftTo); }}
+              className="h-7 px-2.5 rounded-lg bg-brand-600 text-white text-xs font-medium hover:bg-brand-700 transition-colors flex-shrink-0"
+            >
+              הצג
+            </button>
+            {occLoading && <span className="text-xs text-petra-muted animate-pulse">טוען...</span>}
+            {!occLoading && occFrom && occTo && (
+              <div className="flex items-center gap-1 flex-wrap">
+                {occTotalDogs === 0 ? (
+                  <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">✓ פנוי לגמרי</span>
+                ) : (
+                  <>
+                    <span className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-lg">
+                      {occTotalDogs} כלבים
+                    </span>
+                    {rooms.map(room => {
+                      const booked = occByRoom[room.id] ?? 0;
+                      const isFull = booked >= room.capacity;
+                      const isEmpty = booked === 0;
+                      return (
+                        <span key={room.id} className={cn(
+                          "text-xs font-semibold px-2 py-0.5 rounded-lg border",
+                          isFull ? "bg-red-100 text-red-700 border-red-200" :
+                          isEmpty ? "bg-slate-100 text-slate-500 border-slate-200" :
+                          "bg-amber-100 text-amber-700 border-amber-200"
+                        )}>
+                          {room.name} {booked}/{room.capacity}
+                        </span>
+                      );
+                    })}
+                    {occUnassigned > 0 && (
+                      <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
+                        +{occUnassigned} ללא חדר
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
         <div className="flex items-center gap-2">
           {viewMode === "timeline" && (
             <div className="flex gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs">
@@ -2247,6 +2381,7 @@ export default function BoardingPage() {
                     onCheckin={handleCheckin}
                     onCheckout={handleCheckout}
                     onMarkClean={handleMarkClean}
+                    occPeriodStays={occStays.filter(s => s.room?.id === room.id)}
                   />
                 ))}
                 {/* Unassigned stays drop zone */}
