@@ -65,7 +65,7 @@ export async function PATCH(
     // Minimal ownership check — only fetch fields needed below
     const existing = await prisma.task.findFirst({
       where: { id, businessId: authResult.businessId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, relatedEntityType: true, relatedEntityId: true },
     });
     if (!existing) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
@@ -95,6 +95,21 @@ export async function PATCH(
         ...(isReopening && { completedAt: null }),
       },
     });
+
+    // Sync back to lead if this is a follow-up task
+    if (existing.relatedEntityType === "LEAD" && existing.relatedEntityId) {
+      if (isCompleting) {
+        await prisma.lead.updateMany({
+          where: { id: existing.relatedEntityId, followUpTaskId: id, businessId: authResult.businessId },
+          data: { followUpStatus: "completed" },
+        });
+      } else if (isReopening) {
+        await prisma.lead.updateMany({
+          where: { id: existing.relatedEntityId, followUpTaskId: id, businessId: authResult.businessId },
+          data: { followUpStatus: "pending" },
+        });
+      }
+    }
 
     const { session } = authResult;
     const action =
@@ -137,10 +152,19 @@ export async function DELETE(
 
     const existing = await prisma.task.findFirst({
       where: { id, businessId: authResult.businessId },
+      select: { id: true, title: true, relatedEntityType: true, relatedEntityId: true },
     });
 
     if (!existing) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    // If this is a lead follow-up task, clear the lead's follow-up date
+    if (existing.relatedEntityType === "LEAD" && existing.relatedEntityId) {
+      await prisma.lead.updateMany({
+        where: { id: existing.relatedEntityId, followUpTaskId: id, businessId: authResult.businessId },
+        data: { nextFollowUpAt: null, followUpTaskId: null, followUpStatus: "pending" },
+      });
     }
 
     // Audit before delete (so taskId still valid)

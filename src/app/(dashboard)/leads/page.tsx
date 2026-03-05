@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
   Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText,
-  CalendarClock, Clock,
+  CalendarClock, Clock, CheckCircle,
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -52,6 +52,7 @@ interface Lead {
   customerId: string | null;
   customer: { id: string; name: string } | null;
   nextFollowUpAt: string | null;
+  followUpStatus: string;
   callLogs?: {
     id: string;
     summary: string;
@@ -600,16 +601,23 @@ function DraggableLeadCard({
           )}
           {/* Follow-up badge */}
           {followUpLabel && (
-            <span className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${
-              isFollowUpOverdue
-                ? "bg-red-50 text-red-700 border-red-200"
-                : isFollowUpToday
-                  ? "bg-blue-50 text-blue-700 border-blue-200"
-                  : "bg-slate-50 text-slate-600 border-slate-200"
-            }`}>
-              <CalendarClock className="w-2.5 h-2.5" />
-              {isFollowUpOverdue ? "עבר מועד" : isFollowUpToday ? "היום!" : followUpLabel}
-            </span>
+            lead.followUpStatus === "completed" ? (
+              <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium border bg-green-50 text-green-700 border-green-200">
+                <CheckCircle className="w-2.5 h-2.5" />
+                הושלם
+              </span>
+            ) : (
+              <span className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${
+                isFollowUpOverdue
+                  ? "bg-red-50 text-red-700 border-red-200"
+                  : isFollowUpToday
+                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                    : "bg-slate-50 text-slate-600 border-slate-200"
+              }`}>
+                <CalendarClock className="w-2.5 h-2.5" />
+                {isFollowUpOverdue ? "עבר מועד" : isFollowUpToday ? "היום!" : followUpLabel}
+              </span>
+            )
           )}
           {/* Aging indicator */}
           {showStaleness && (
