@@ -12,8 +12,12 @@ import {
   Loader2,
   Ban,
   AlertCircle,
+  Settings2,
+  Coffee,
+  CalendarDays,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
+import { toast } from "sonner";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -32,7 +36,33 @@ interface AvailabilityBlock {
   createdAt: string;
 }
 
+interface BookingSettings {
+  bookingBuffer: number;
+  bookingMinNotice: number;
+  bookingMaxAdvance: number;
+  gcalBlockExternal: boolean;
+}
+
+interface AvailabilityBreak {
+  id: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  label: string | null;
+}
+
 const DAYS_HE = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+
+const DAY_OPTIONS = [
+  { value: -1, label: "כל יום" },
+  ...DAYS_HE.map((name, i) => ({ value: i, label: name })),
+];
+
+const TIMES: string[] = [];
+for (let h = 6; h <= 22; h++) {
+  TIMES.push(`${String(h).padStart(2, "0")}:00`);
+  TIMES.push(`${String(h).padStart(2, "0")}:30`);
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -137,9 +167,97 @@ export default function AvailabilityTab() {
     });
   }
 
+  // ── Booking settings ──────────────────────────────────────────────────────
+
+  const { data: bookingSettings, isLoading: settingsLoading } = useQuery<BookingSettings>({
+    queryKey: ["booking-settings"],
+    queryFn: () => fetchJSON<BookingSettings>("/api/availability/settings"),
+  });
+
+  const [editedSettings, setEditedSettings] = useState<BookingSettings | null>(null);
+  const displaySettings = editedSettings ?? bookingSettings ?? {
+    bookingBuffer: 0,
+    bookingMinNotice: 0,
+    bookingMaxAdvance: 60,
+    gcalBlockExternal: false,
+  };
+
+  const saveSettingsMutation = useMutation({
+    mutationFn: (data: BookingSettings) =>
+      fetch("/api/availability/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Save failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["booking-settings"] });
+      setEditedSettings(null);
+      toast.success("הגדרות תיאום נשמרו");
+    },
+    onError: () => toast.error("שגיאה בשמירת ההגדרות"),
+  });
+
+  // ── Breaks ────────────────────────────────────────────────────────────────
+
+  const { data: breaksData = [], isLoading: breaksLoading } = useQuery<AvailabilityBreak[]>({
+    queryKey: ["availability-breaks"],
+    queryFn: () =>
+      fetchJSON<{ breaks: AvailabilityBreak[] }>("/api/availability/breaks").then((d) => d.breaks),
+  });
+
+  const [newBreak, setNewBreak] = useState({ dayOfWeek: -1, startTime: "13:00", endTime: "14:00", label: "" });
+
+  const addBreakMutation = useMutation({
+    mutationFn: (data: typeof newBreak) =>
+      fetch("/api/availability/breaks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, label: data.label || null }),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["availability-breaks"] });
+      setNewBreak({ dayOfWeek: -1, startTime: "13:00", endTime: "14:00", label: "" });
+      toast.success("הפסקה נוספה");
+    },
+    onError: () => toast.error("שגיאה בהוספת הפסקה"),
+  });
+
+  const deleteBreakMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/availability/breaks/${id}`, { method: "DELETE" }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["availability-breaks"] });
+    },
+    onError: () => toast.error("שגיאה במחיקת ההפסקה"),
+  });
+
+  // ── Import holidays ───────────────────────────────────────────────────────
+
+  const importHolidaysMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/availability/import-holidays", { method: "POST" }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["availability-blocks"] });
+      toast.success(`נוצרו ${data.created} חסימות חגים`);
+    },
+    onError: () => toast.error("שגיאה בייבוא חגים"),
+  });
+
   // ── Render ────────────────────────────────────────────────────────────────
 
-  if (rulesLoading) {
+  if (rulesLoading || settingsLoading) {
     return (
       <div className="animate-pulse space-y-3 max-w-2xl">
         {[1, 2, 3].map((i) => <div key={i} className="h-16 bg-slate-100 rounded-xl" />)}
@@ -151,8 +269,187 @@ export default function AvailabilityTab() {
 
   return (
     <div className="space-y-8 max-w-2xl">
-      {/* ── Weekly Schedule ── */}
+
+      {/* ── Booking Settings ── */}
       <div>
+        <div className="flex items-center gap-2 mb-4">
+          <Settings2 className="w-5 h-5 text-brand-500" />
+          <h3 className="text-base font-semibold text-petra-text">הגדרות תיאום</h3>
+        </div>
+
+        <div className="card p-4 space-y-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="label">מרווח בין פגישות</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  value={displaySettings.bookingBuffer}
+                  onChange={(e) => setEditedSettings({ ...displaySettings, bookingBuffer: Number(e.target.value) })}
+                  className="input"
+                />
+                <span className="text-xs text-petra-muted whitespace-nowrap">דקות</span>
+              </div>
+            </div>
+            <div>
+              <label className="label">הודעה מראש (מינ׳)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  value={displaySettings.bookingMinNotice}
+                  onChange={(e) => setEditedSettings({ ...displaySettings, bookingMinNotice: Number(e.target.value) })}
+                  className="input"
+                />
+                <span className="text-xs text-petra-muted whitespace-nowrap">שעות</span>
+              </div>
+            </div>
+            <div>
+              <label className="label">קביעה עד כמה ימים קדימה</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  value={displaySettings.bookingMaxAdvance}
+                  onChange={(e) => setEditedSettings({ ...displaySettings, bookingMaxAdvance: Number(e.target.value) })}
+                  className="input"
+                />
+                <span className="text-xs text-petra-muted whitespace-nowrap">ימים</span>
+              </div>
+            </div>
+          </div>
+
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <button
+              role="switch"
+              aria-checked={displaySettings.gcalBlockExternal}
+              onClick={() => setEditedSettings({ ...displaySettings, gcalBlockExternal: !displaySettings.gcalBlockExternal })}
+              className={cn(
+                "w-10 h-6 rounded-full relative transition-colors flex-shrink-0",
+                displaySettings.gcalBlockExternal ? "bg-emerald-500" : "bg-slate-300"
+              )}
+            >
+              <div
+                className={cn(
+                  "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all",
+                  displaySettings.gcalBlockExternal ? "right-0.5" : "left-0.5"
+                )}
+              />
+            </button>
+            <span className="text-sm text-petra-text">חסום פגישות גוגל קלנדר (כולל אישיות)</span>
+          </label>
+
+          <button
+            className="btn-primary flex items-center gap-2 text-sm"
+            disabled={editedSettings === null || saveSettingsMutation.isPending}
+            onClick={() => { if (editedSettings) saveSettingsMutation.mutate(editedSettings); }}
+          >
+            {saveSettingsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            שמור הגדרות
+          </button>
+        </div>
+      </div>
+
+      {/* ── Daily Breaks ── */}
+      <div className="border-t border-slate-100 pt-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Coffee className="w-5 h-5 text-brand-500" />
+          <h3 className="text-base font-semibold text-petra-text">הפסקות יומיות</h3>
+          <span className="text-sm text-petra-muted">צהריים, תפילה וכד׳</span>
+        </div>
+
+        <div className="card p-4 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+            <div>
+              <label className="label">יום</label>
+              <select
+                value={newBreak.dayOfWeek}
+                onChange={(e) => setNewBreak((p) => ({ ...p, dayOfWeek: Number(e.target.value) }))}
+                className="input"
+              >
+                {DAY_OPTIONS.map((d) => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">משעה</label>
+              <select
+                value={newBreak.startTime}
+                onChange={(e) => setNewBreak((p) => ({ ...p, startTime: e.target.value }))}
+                className="input"
+              >
+                {TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">עד שעה</label>
+              <select
+                value={newBreak.endTime}
+                onChange={(e) => setNewBreak((p) => ({ ...p, endTime: e.target.value }))}
+                className="input"
+              >
+                {TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">תווית (אופציונלי)</label>
+              <input
+                type="text"
+                value={newBreak.label}
+                onChange={(e) => setNewBreak((p) => ({ ...p, label: e.target.value }))}
+                placeholder="הפסקת צהריים"
+                className="input"
+              />
+            </div>
+          </div>
+          <button
+            className="btn-primary flex items-center gap-2 text-sm"
+            disabled={addBreakMutation.isPending}
+            onClick={() => addBreakMutation.mutate(newBreak)}
+          >
+            {addBreakMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            הוסף הפסקה
+          </button>
+        </div>
+
+        {breaksLoading ? (
+          <div className="animate-pulse space-y-2">
+            {[1, 2].map((i) => <div key={i} className="h-12 bg-slate-100 rounded-xl" />)}
+          </div>
+        ) : breaksData.length === 0 ? (
+          <div className="text-center py-4 text-sm text-petra-muted">אין הפסקות מוגדרות</div>
+        ) : (
+          <div className="space-y-2">
+            {breaksData.map((br) => (
+              <div key={br.id} className="card p-3 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
+                  <Coffee className="w-4 h-4 text-orange-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-petra-text">
+                    {DAY_OPTIONS.find((d) => d.value === br.dayOfWeek)?.label ?? "כל יום"}
+                    {" — "}
+                    {br.startTime} עד {br.endTime}
+                    {br.label && <span className="mr-2 text-xs text-petra-muted">({br.label})</span>}
+                  </p>
+                </div>
+                <button
+                  onClick={() => deleteBreakMutation.mutate(br.id)}
+                  disabled={deleteBreakMutation.isPending}
+                  className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Weekly Schedule ── */}
+      <div className="border-t border-slate-100 pt-6">
         <div className="flex items-center gap-2 mb-4">
           <Clock className="w-5 h-5 text-brand-500" />
           <h3 className="text-base font-semibold text-petra-text">לוח זמנים שבועי</h3>
@@ -237,10 +534,24 @@ export default function AvailabilityTab() {
 
       {/* ── Availability Blocks ── */}
       <div className="border-t border-slate-100 pt-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Ban className="w-5 h-5 text-brand-500" />
-          <h3 className="text-base font-semibold text-petra-text">חסימות זמינות</h3>
-          <span className="text-sm text-petra-muted">חופשות, ימי סגירה מיוחדים</span>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Ban className="w-5 h-5 text-brand-500" />
+            <h3 className="text-base font-semibold text-petra-text">חסימות זמינות</h3>
+            <span className="text-sm text-petra-muted">חופשות, ימי סגירה מיוחדים</span>
+          </div>
+          <button
+            onClick={() => importHolidaysMutation.mutate()}
+            disabled={importHolidaysMutation.isPending}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm border border-slate-200 text-petra-muted hover:text-petra-text hover:bg-slate-50 rounded-lg disabled:opacity-50"
+          >
+            {importHolidaysMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <CalendarDays className="w-4 h-4" />
+            )}
+            ייבא חגי ישראל 5786-5787
+          </button>
         </div>
 
         {/* Add block form */}
