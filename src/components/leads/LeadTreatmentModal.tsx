@@ -10,6 +10,7 @@ import {
     Pencil, Trash2,
 } from "lucide-react";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
+import { toast } from "sonner";
 import LostReasonModal from "@/components/leads/LostReasonModal";
 
 interface Lead {
@@ -361,7 +362,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                 body: JSON.stringify(data),
             }).then((r) => r.json()),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
-        onError: () => alert("שגיאה בעדכון הליד. נסה שוב."),
+        onError: () => toast.error("שגיאה בעדכון הליד. נסה שוב."),
     });
 
     const closeWonMutation = useMutation({
@@ -376,7 +377,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             if (data.customerId && onWon) onWon(lead!.name, data.customerId);
             onClose();
         },
-        onError: () => alert("שגיאה בסגירת הליד. נסה שוב."),
+        onError: () => toast.error("שגיאה בסגירת הליד. נסה שוב."),
     });
 
     const closeLostMutation = useMutation({
@@ -394,7 +395,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             setLostModalOpen(false);
             onClose();
         },
-        onError: () => alert("שגיאה בסימון הליד כאבוד. נסה שוב."),
+        onError: () => toast.error("שגיאה בסימון הליד כאבוד. נסה שוב."),
     });
 
     const addCallLogMutation = useMutation({
@@ -418,14 +419,14 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             queryClient.invalidateQueries({ queryKey: ["leads"] });
             setEditingLogId(null);
         },
-        onError: () => alert("שגיאה בעדכון יומן השיחה. נסה שוב."),
+        onError: () => toast.error("שגיאה בעדכון יומן השיחה. נסה שוב."),
     });
 
     const deleteCallLogMutation = useMutation({
         mutationFn: (logId: string) =>
             fetch(`/api/leads/${lead!.id}/call-logs/${logId}`, { method: "DELETE" }).then((r) => r.json()),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
-        onError: () => alert("שגיאה במחיקת יומן השיחה. נסה שוב."),
+        onError: () => toast.error("שגיאה במחיקת יומן השיחה. נסה שוב."),
     });
 
     const deleteLeadMutation = useMutation({
@@ -437,7 +438,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             onClose();
             if (onDeleted) onDeleted();
         },
-        onError: () => alert("שגיאה במחיקת הליד. נסה שוב."),
+        onError: () => toast.error("שגיאה במחיקת הליד. נסה שוב."),
     });
 
     const isWorking = updateLeadMutation.isPending || closeWonMutation.isPending || closeLostMutation.isPending;

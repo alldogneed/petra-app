@@ -52,7 +52,7 @@ interface Lead {
   customerId: string | null;
   customer: { id: string; name: string } | null;
   nextFollowUpAt: string | null;
-  followUpStatus: string;
+  followUpStatus: string | null;
   callLogs?: {
     id: string;
     summary: string;

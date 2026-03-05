@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Petra - ניהול עסקי חיות מחמד",
@@ -34,6 +35,18 @@ export default function RootLayout({
       <body className="antialiased">
         <QueryProvider>
           <AuthProvider>{children}</AuthProvider>
+          <Toaster
+            position="bottom-left"
+            toastOptions={{
+              style: { fontFamily: "Heebo, sans-serif", direction: "rtl" },
+              classNames: {
+                success: "!bg-green-50 !border-green-200 !text-green-800",
+                error: "!bg-red-50 !border-red-200 !text-red-700",
+                info: "!bg-blue-50 !border-blue-200 !text-blue-800",
+              },
+            }}
+            richColors
+          />
         </QueryProvider>
       </body>
     </html>

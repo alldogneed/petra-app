@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
         payments: { select: { id: true, amount: true, status: true } },
       },
       orderBy: { createdAt: "desc" },
+      take: 500,
     });
 
     return NextResponse.json(orders);
