@@ -431,7 +431,12 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
                                         </div>
                                     )}
                                     {lead.email && (
-                                        <a href={`mailto:${lead.email}`} className="flex items-center gap-1.5 text-sm text-brand-600 font-medium hover:underline transition-colors">
+                                        <a
+                                            href={`https://mail.google.com/mail/?view=cm&to=${lead.email}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-1.5 text-sm text-brand-600 font-medium hover:underline transition-colors"
+                                        >
                                             <Mail className="w-4 h-4" /> {lead.email}
                                         </a>
                                     )}

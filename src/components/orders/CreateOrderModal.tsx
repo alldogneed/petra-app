@@ -778,8 +778,13 @@ export function CreateOrderModal({
                   טוען כלבים...
                 </div>
               ) : customerPets.length === 0 ? (
-                <div className="text-sm text-petra-muted border border-dashed border-petra-border rounded-xl p-3 text-center">
-                  אין חיות מחמד ללקוח זה
+                <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
+                  <span className="text-xl leading-none mt-0.5">🐾</span>
+                  <div>
+                    <p className="text-sm font-semibold text-red-700">לא ניתן ליצור הזמנה</p>
+                    <p className="text-xs text-red-600 mt-0.5">חובה להוסיף חיית מחמד ללקוח לפני יצירת הזמנה.</p>
+                    <a href={`/customers/${customerId}`} className="text-xs text-brand-600 underline mt-1 inline-block">הוסף חיית מחמד ← דף הלקוח</a>
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
@@ -828,8 +833,13 @@ export function CreateOrderModal({
             </div>
           )}
           {!isBoardingOrder && !petsLoading && customerPets.length === 0 && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-petra-muted text-center">
-              אין חיות מחמד ללקוח זה
+            <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
+              <span className="text-xl leading-none mt-0.5">🐾</span>
+              <div>
+                <p className="text-sm font-semibold text-red-700">לא ניתן ליצור הזמנה</p>
+                <p className="text-xs text-red-600 mt-0.5">חובה להוסיף חיית מחמד ללקוח לפני יצירת הזמנה.</p>
+                <a href={`/customers/${customerId}`} className="text-xs text-brand-600 underline mt-1 inline-block">הוסף חיית מחמד ← דף הלקוח</a>
+              </div>
             </div>
           )}
           {!isBoardingOrder && !petsLoading && customerPets.length > 0 && (
@@ -881,8 +891,9 @@ export function CreateOrderModal({
       )}
 
       <button
+        type="button"
         className="btn-primary w-full"
-        disabled={!customerId}
+        disabled={!customerId || (!petsLoading && customerPets.length === 0)}
         onClick={handleAdvanceToItems}
       >
         המשך לפריטים →

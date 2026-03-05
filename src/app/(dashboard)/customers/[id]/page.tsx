@@ -2757,6 +2757,13 @@ export default function CustomerProfilePage() {
   };
   const isSectionOpen = (petId: string, section: string) => !!expandedSections[petId]?.[section];
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const openOrderModal = () => {
+    if (!customer?.pets || customer.pets.length === 0) {
+      toast.error("חובה להוסיף חיית מחמד ללקוח לפני יצירת הזמנה", { description: "לחץ על 'הוסף חיית מחמד' בקטע חיות המחמד למטה" });
+      return;
+    }
+    setShowOrderModal(true);
+  };
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [showNewAppointmentModal, setShowNewAppointmentModal] = useState(false);
   const [showQuickTaskModal, setShowQuickTaskModal] = useState(false);
@@ -3025,7 +3032,7 @@ export default function CustomerProfilePage() {
             </button>
           )}
           <button
-            onClick={() => setShowOrderModal(true)}
+            onClick={() => openOrderModal()}
             className="btn-primary flex items-center gap-2"
           >
             <ShoppingCart className="w-4 h-4" />
@@ -4032,7 +4039,7 @@ export default function CustomerProfilePage() {
                 הזמנות ({(customer.orders || []).length})
               </h2>
               <button
-                onClick={() => setShowOrderModal(true)}
+                onClick={() => openOrderModal()}
                 className="btn-ghost text-xs"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -4047,7 +4054,7 @@ export default function CustomerProfilePage() {
                 </div>
                 <p className="text-sm text-petra-muted mb-3">אין הזמנות עדיין</p>
                 <button
-                  onClick={() => setShowOrderModal(true)}
+                  onClick={() => openOrderModal()}
                   className="btn-primary text-sm"
                 >
                   <ShoppingCart className="w-4 h-4" />
