@@ -65,7 +65,39 @@ export async function GET(request: NextRequest) {
       take: 500,
     });
 
-    return NextResponse.json(tasks);
+    // Resolve related entity names in a single batch round-trip
+    const customerIds = [...new Set(
+      tasks.filter(t => t.relatedEntityType === "CUSTOMER" && t.relatedEntityId).map(t => t.relatedEntityId!)
+    )];
+    const petIds = [...new Set(
+      tasks.filter(t => t.relatedEntityType === "DOG" && t.relatedEntityId).map(t => t.relatedEntityId!)
+    )];
+
+    const [relCustomers, relPets] = await Promise.all([
+      customerIds.length > 0
+        ? prisma.customer.findMany({ where: { id: { in: customerIds }, businessId: authResult.businessId }, select: { id: true, name: true } })
+        : [],
+      petIds.length > 0
+        ? prisma.pet.findMany({ where: { id: { in: petIds }, customer: { businessId: authResult.businessId } }, select: { id: true, name: true, customerId: true } })
+        : [],
+    ]);
+
+    const customerNameMap = new Map(relCustomers.map(c => [c.id, c.name]));
+    const petMap = new Map(relPets.map(p => [p.id, { name: p.name, customerId: p.customerId }]));
+
+    const enrichedTasks = tasks.map(t => ({
+      ...t,
+      relatedEntityName:
+        t.relatedEntityType === "CUSTOMER" ? (customerNameMap.get(t.relatedEntityId!) ?? null)
+        : t.relatedEntityType === "DOG"      ? (petMap.get(t.relatedEntityId!)?.name ?? null)
+        : null,
+      relatedEntityCustomerId:
+        t.relatedEntityType === "CUSTOMER" ? t.relatedEntityId
+        : t.relatedEntityType === "DOG"    ? (petMap.get(t.relatedEntityId!)?.customerId ?? null)
+        : null,
+    }));
+
+    return NextResponse.json(enrichedTasks);
   } catch (error) {
     console.error("Error fetching tasks:", error);
     return NextResponse.json(

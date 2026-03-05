@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -37,6 +37,8 @@ import {
   RefreshCw,
   ToggleLeft,
   ToggleRight,
+  Users,
+  PawPrint,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -54,6 +56,10 @@ interface Task {
   dueDate: string | null;
   completedAt: string | null;
   createdAt: string;
+  relatedEntityType: string | null;
+  relatedEntityId: string | null;
+  relatedEntityName: string | null;        // resolved by API
+  relatedEntityCustomerId: string | null;  // resolved by API — for navigation
 }
 
 type ComputedStatus = "active" | "overdue" | "scheduled" | "completed";
@@ -246,20 +252,19 @@ export default function TasksPage() {
   ), [allTasks, taskStatuses]);
 
   const createMutation = useMutation({
-    mutationFn: (data: { title: string; description: string; category: string; priority: string; dueDate: string; dueAt: string }) => {
+    mutationFn: (data: { title: string; description: string; category: string; priority: string; dueDate: string; dueAt: string; relatedEntityType: string | null; relatedEntityId: string | null }) => {
       const payload: Record<string, unknown> = {
         title: data.title,
         description: data.description || undefined,
         category: data.category,
         priority: data.priority,
       };
-      if (data.dueDate) {
-        payload.dueDate = data.dueDate;
-      }
-      // Combine date + time into dueAt ISO string
+      if (data.dueDate) payload.dueDate = data.dueDate;
       if (data.dueDate && data.dueAt) {
         payload.dueAt = new Date(`${data.dueDate}T${data.dueAt}:00`).toISOString();
       }
+      if (data.relatedEntityType) payload.relatedEntityType = data.relatedEntityType;
+      if (data.relatedEntityId) payload.relatedEntityId = data.relatedEntityId;
       return fetchJSON<Task>("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -393,12 +398,14 @@ export default function TasksPage() {
   });
 
   const editMutation = useMutation({
-    mutationFn: ({ id, ...data }: { id: string; title: string; description: string; category: string; priority: string; dueDate: string; dueAt: string }) => {
+    mutationFn: ({ id, ...data }: { id: string; title: string; description: string; category: string; priority: string; dueDate: string; dueAt: string; relatedEntityType: string | null; relatedEntityId: string | null }) => {
       const payload: Record<string, unknown> = {
         title: data.title,
         description: data.description || undefined,
         category: data.category,
         priority: data.priority,
+        relatedEntityType: data.relatedEntityType ?? null,
+        relatedEntityId: data.relatedEntityId ?? null,
       };
       if (data.dueDate) payload.dueDate = data.dueDate;
       if (data.dueDate && data.dueAt) {
@@ -1213,6 +1220,23 @@ function TaskCard({
             </p>
           )}
 
+          {/* Related entity chip */}
+          {task.relatedEntityName && task.relatedEntityCustomerId && (
+            <div className="mb-1.5 mr-4.5">
+              <Link
+                href={`/customers/${task.relatedEntityCustomerId}`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 border border-brand-100 px-2 py-0.5 rounded-full transition-colors"
+              >
+                {task.relatedEntityType === "CUSTOMER"
+                  ? <Users className="w-3 h-3 flex-shrink-0" />
+                  : <PawPrint className="w-3 h-3 flex-shrink-0" />
+                }
+                {task.relatedEntityName}
+              </Link>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 mr-4.5 flex-wrap">
             {/* Due info */}
             {shortDate && (
@@ -1283,6 +1307,135 @@ function TaskCard({
   );
 }
 
+// ─── Entity Picker ────────────────────────────────────────────────────────────
+
+interface SearchResult { id: string; name: string; subtitle?: string; customerId?: string }
+
+function EntityPicker({
+  entityType,
+  entityId,
+  entityName,
+  onChange,
+}: {
+  entityType: string | null;
+  entityId: string | null;
+  entityName: string | null;
+  onChange: (type: string | null, id: string | null, name: string | null) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const { data: searchData } = useQuery<{ customers: {id:string;name:string;phone:string|null}[]; pets: {id:string;name:string;customer:{id:string;name:string}|null}[] }>({
+    queryKey: ["entity-search", entityType, search],
+    queryFn: () => fetchJSON(`/api/search?q=${encodeURIComponent(search)}`),
+    enabled: !!entityType && !entityId && search.length >= 1,
+    staleTime: 10_000,
+  });
+
+  const results: SearchResult[] = (() => {
+    if (!searchData || !entityType) return [];
+    if (entityType === "CUSTOMER") return (searchData.customers ?? []).map(c => ({ id: c.id, name: c.name, subtitle: c.phone ?? undefined }));
+    if (entityType === "DOG") return (searchData.pets ?? []).map(p => ({ id: p.id, name: p.name, subtitle: p.customer?.name, customerId: p.customer?.id }));
+    return [];
+  })();
+
+  useEffect(() => {
+    function onOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setShowDropdown(false);
+    }
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, []);
+
+  const TYPE_OPTIONS = [
+    { value: null,       label: "ללא",           icon: null },
+    { value: "CUSTOMER", label: "לקוח",          icon: Users },
+    { value: "DOG",      label: "חיית מחמד",    icon: PawPrint },
+  ];
+
+  return (
+    <div>
+      <label className="label">שיוך ל</label>
+      {/* Type selector chips */}
+      <div className="flex gap-1.5 mb-2">
+        {TYPE_OPTIONS.map((opt) => {
+          const Icon = opt.icon;
+          const isActive = (opt.value === null && !entityType) || entityType === opt.value;
+          return (
+            <button
+              key={opt.value ?? "none"}
+              type="button"
+              onClick={() => { onChange(opt.value, null, null); setSearch(""); }}
+              className={cn(
+                "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border",
+                isActive ? "bg-brand-500 text-white border-brand-500" : "bg-white text-petra-muted border-slate-200 hover:border-brand-300 hover:text-petra-text"
+              )}
+            >
+              {Icon && <Icon className="w-3 h-3" />}
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Search input */}
+      {entityType && !entityId && (
+        <div className="relative" ref={dropdownRef}>
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
+          <input
+            className="input pr-9 text-sm w-full"
+            placeholder={entityType === "CUSTOMER" ? "הקלד שם לקוח..." : "הקלד שם חיית מחמד..."}
+            value={search}
+            autoFocus
+            onChange={(e) => { setSearch(e.target.value); setShowDropdown(true); }}
+            onFocus={() => setShowDropdown(true)}
+          />
+          {showDropdown && search.length >= 1 && (
+            <div className="absolute top-full right-0 left-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden max-h-52 overflow-y-auto">
+              {results.length > 0 ? results.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  className="w-full text-right px-3 py-2.5 hover:bg-slate-50 transition-colors flex items-center gap-2.5 border-b border-slate-50 last:border-0"
+                  onClick={() => { onChange(entityType, r.id, r.name); setSearch(""); setShowDropdown(false); }}
+                >
+                  {entityType === "CUSTOMER"
+                    ? <Users className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
+                    : <PawPrint className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
+                  }
+                  <span className="text-sm font-medium text-petra-text flex-1 truncate">{r.name}</span>
+                  {r.subtitle && <span className="text-xs text-petra-muted flex-shrink-0">{r.subtitle}</span>}
+                </button>
+              )) : (
+                <div className="px-3 py-4 text-center text-xs text-petra-muted">לא נמצאו תוצאות</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Selected entity chip */}
+      {entityId && entityName && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-50 border border-brand-100">
+          {entityType === "CUSTOMER"
+            ? <Users className="w-3.5 h-3.5 text-brand-600 flex-shrink-0" />
+            : <PawPrint className="w-3.5 h-3.5 text-brand-600 flex-shrink-0" />
+          }
+          <span className="text-sm font-semibold text-brand-700 flex-1 truncate">{entityName}</span>
+          <button
+            type="button"
+            className="text-brand-400 hover:text-brand-600 transition-colors flex-shrink-0"
+            onClick={() => { onChange(entityType, null, null); setSearch(""); }}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── New Task Modal ───────────────────────────────────────────────────────────
 
 function NewTaskModal({
@@ -1291,7 +1444,7 @@ function NewTaskModal({
   isPending,
 }: {
   onClose: () => void;
-  onSubmit: (data: { title: string; description: string; category: string; priority: string; dueDate: string; dueAt: string }) => void;
+  onSubmit: (data: { title: string; description: string; category: string; priority: string; dueDate: string; dueAt: string; relatedEntityType: string | null; relatedEntityId: string | null }) => void;
   isPending: boolean;
 }) {
   const [form, setForm] = useState({
@@ -1302,6 +1455,9 @@ function NewTaskModal({
     dueDate: format(new Date(), "yyyy-MM-dd"),
     dueAt: "",
   });
+  const [entityType, setEntityType] = useState<string | null>(null);
+  const [entityId, setEntityId] = useState<string | null>(null);
+  const [entityName, setEntityName] = useState<string | null>(null);
 
   return (
     <div className="modal-overlay">
@@ -1414,13 +1570,19 @@ function NewTaskModal({
               </span>
             </div>
           )}
+          <EntityPicker
+            entityType={entityType}
+            entityId={entityId}
+            entityName={entityName}
+            onChange={(type, id, name) => { setEntityType(type); setEntityId(id); setEntityName(name); }}
+          />
         </div>
 
         <div className="flex gap-3 mt-6">
           <button
             className="btn-primary flex-1"
             disabled={!form.title.trim() || !form.dueDate || isPending}
-            onClick={() => onSubmit(form)}
+            onClick={() => onSubmit({ ...form, relatedEntityType: entityType, relatedEntityId: entityId })}
           >
             <Plus className="w-4 h-4" />
             {isPending ? "שומר..." : "צור משימה"}
@@ -1444,7 +1606,7 @@ function EditTaskModal({
 }: {
   task: Task;
   onClose: () => void;
-  onSubmit: (data: { id: string; title: string; description: string; category: string; priority: string; dueDate: string; dueAt: string }) => void;
+  onSubmit: (data: { id: string; title: string; description: string; category: string; priority: string; dueDate: string; dueAt: string; relatedEntityType: string | null; relatedEntityId: string | null }) => void;
   isPending: boolean;
 }) {
   const initialDate = task.dueAt
@@ -1463,6 +1625,9 @@ function EditTaskModal({
     dueDate: initialDate,
     dueAt: initialTime,
   });
+  const [entityType, setEntityType] = useState<string | null>(task.relatedEntityType ?? null);
+  const [entityId, setEntityId] = useState<string | null>(task.relatedEntityId ?? null);
+  const [entityName, setEntityName] = useState<string | null>(task.relatedEntityName ?? null);
 
   return (
     <div className="modal-overlay">
@@ -1553,13 +1718,19 @@ function EditTaskModal({
               </span>
             </div>
           )}
+          <EntityPicker
+            entityType={entityType}
+            entityId={entityId}
+            entityName={entityName}
+            onChange={(type, id, name) => { setEntityType(type); setEntityId(id); setEntityName(name); }}
+          />
         </div>
 
         <div className="flex gap-3 mt-6">
           <button
             className="btn-primary flex-1"
             disabled={!form.title.trim() || isPending}
-            onClick={() => onSubmit({ id: task.id, ...form })}
+            onClick={() => onSubmit({ id: task.id, ...form, relatedEntityType: entityType, relatedEntityId: entityId })}
           >
             <Pencil className="w-4 h-4" />
             {isPending ? "שומר..." : "שמור שינויים"}
