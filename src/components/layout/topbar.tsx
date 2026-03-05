@@ -26,6 +26,7 @@ import {
   Info,
   Hotel,
   ListTodo,
+  RefreshCw,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
@@ -241,6 +242,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
     temporaryPassword: "",
   });
   const [inviteError, setInviteError] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const notificationsRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -451,6 +453,21 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
         {/* Notifications & Messages */}
         <div className="flex items-center gap-1 ms-auto">
+          {/* Refresh Button */}
+          <button
+            onClick={async () => {
+              setIsRefreshing(true);
+              await queryClient.invalidateQueries();
+              setTimeout(() => setIsRefreshing(false), 600);
+            }}
+            disabled={isRefreshing}
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            title="רענן נתונים"
+            aria-label="רענן נתונים"
+          >
+            <RefreshCw className={`w-[18px] h-[18px] transition-transform ${isRefreshing ? "animate-spin" : ""}`} />
+          </button>
+
           {/* Mail — Petra Platform Messages */}
           <div ref={messagesRef} className="relative">
             <button
