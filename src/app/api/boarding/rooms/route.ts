@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
 
     const body = await request.json();
-    const { name, capacity, type } = body;
+    const { name, capacity, type, pricePerNight } = body;
 
     const room = await prisma.room.create({
       data: {
@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
         name,
         capacity: capacity || 1,
         type: type || "standard",
+        pricePerNight: pricePerNight != null ? Number(pricePerNight) : null,
       },
       include: {
         _count: {

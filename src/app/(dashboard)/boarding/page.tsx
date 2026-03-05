@@ -71,6 +71,7 @@ interface Room {
   type: string;
   status: string;
   isActive: boolean;
+  pricePerNight: number | null;
   _count: { boardingStays: number };
   boardingStays: RoomStay[];
 }
@@ -290,7 +291,10 @@ const RoomStatusCard = memo(function RoomStatusCard({
         <div className="flex items-center gap-2 text-xs text-petra-muted mb-3">
           <Users className="w-3.5 h-3.5" />
           <span>{occPeriodStays.length}/{room.capacity}</span>
-          <span className="badge-neutral text-[10px] ms-auto">{ROOM_TYPE_LABELS[room.type] || room.type}</span>
+          <span className="badge-neutral text-[10px]">{ROOM_TYPE_LABELS[room.type] || room.type}</span>
+          {room.pricePerNight != null && (
+            <span className="ms-auto text-[10px] font-semibold text-brand-600">₪{room.pricePerNight}/לילה</span>
+          )}
         </div>
 
         {/* Checked-in dogs for selected period — draggable */}
@@ -1566,8 +1570,8 @@ export default function BoardingPage() {
   // Rooms manager
   const [showRoomsManager, setShowRoomsManager] = useState(false);
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
-  const [editRoomForm, setEditRoomForm] = useState({ name: "", capacity: 1, type: "standard" });
-  const [newRoomForm, setNewRoomForm] = useState({ name: "", capacity: 1, type: "standard" });
+  const [editRoomForm, setEditRoomForm] = useState({ name: "", capacity: 1, type: "standard", pricePerNight: "" as string | number });
+  const [newRoomForm, setNewRoomForm] = useState({ name: "", capacity: 1, type: "standard", pricePerNight: "" as string | number });
 
   const queryClient = useQueryClient();
 
@@ -1859,26 +1863,26 @@ export default function BoardingPage() {
   });
 
   const createRoomMutation = useMutation({
-    mutationFn: (data: { name: string; capacity: number; type: string }) =>
+    mutationFn: (data: { name: string; capacity: number; type: string; pricePerNight: string | number }) =>
       fetch("/api/boarding/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, pricePerNight: data.pricePerNight !== "" ? Number(data.pricePerNight) : null }),
       }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      setNewRoomForm({ name: "", capacity: 1, type: "standard" });
+      setNewRoomForm({ name: "", capacity: 1, type: "standard", pricePerNight: "" });
       toast.success("החדר נוצר בהצלחה");
     },
     onError: () => toast.error("שגיאה ביצירת החדר. נסה שוב."),
   });
 
   const updateRoomMutation = useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name: string; capacity: number; type: string }) =>
+    mutationFn: ({ id, ...data }: { id: string; name: string; capacity: number; type: string; pricePerNight: string | number }) =>
       fetch(`/api/boarding/rooms/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, pricePerNight: data.pricePerNight !== "" ? Number(data.pricePerNight) : null }),
       }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
@@ -1901,7 +1905,7 @@ export default function BoardingPage() {
 
   function startEditRoom(room: Room) {
     setEditingRoomId(room.id);
-    setEditRoomForm({ name: room.name, capacity: room.capacity, type: room.type });
+    setEditRoomForm({ name: room.name, capacity: room.capacity, type: room.type, pricePerNight: room.pricePerNight ?? "" });
   }
 
   // ── Check-in/out via dialog ──
@@ -2581,6 +2585,17 @@ export default function BoardingPage() {
                               <option value="suite">סוויט</option>
                             </select>
                           </div>
+                          <div className="flex-1">
+                            <label className="label text-[11px]">מחיר/לילה (₪)</label>
+                            <input
+                              type="number"
+                              min={0}
+                              className="input"
+                              placeholder="אופציונלי"
+                              value={editRoomForm.pricePerNight}
+                              onChange={(e) => setEditRoomForm({ ...editRoomForm, pricePerNight: e.target.value })}
+                            />
+                          </div>
                         </div>
                         <div className="flex gap-2 pt-1">
                           <button
@@ -2606,6 +2621,9 @@ export default function BoardingPage() {
                           <span className="text-sm font-semibold text-petra-text">{room.name}</span>
                           <span className="text-xs text-petra-muted mr-2">· קיבולת {room.capacity}</span>
                           <span className="text-xs text-petra-muted">· {room._count.boardingStays} פעילות</span>
+                          {room.pricePerNight != null && (
+                            <span className="text-xs text-brand-600 mr-2">· ₪{room.pricePerNight}/לילה</span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <button
@@ -2665,6 +2683,17 @@ export default function BoardingPage() {
                       <option value="premium">פרמיום</option>
                       <option value="suite">סוויט</option>
                     </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="label">מחיר/לילה (₪)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="input"
+                      placeholder="אופציונלי"
+                      value={newRoomForm.pricePerNight}
+                      onChange={(e) => setNewRoomForm({ ...newRoomForm, pricePerNight: e.target.value })}
+                    />
                   </div>
                 </div>
                 <button
@@ -2856,7 +2885,7 @@ export default function BoardingPage() {
                             key={r.id}
                             type="button"
                             disabled={!available}
-                            onClick={() => available && setForm({ ...form, roomId: r.id })}
+                            onClick={() => available && setForm({ ...form, roomId: r.id, pricePerNight: r.pricePerNight ?? form.pricePerNight })}
                             className={cn(
                               "flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all text-right",
                               isSelected
@@ -2867,6 +2896,9 @@ export default function BoardingPage() {
                             )}
                           >
                             <span className="flex-1">{r.name} · {ROOM_TYPE_LABELS[r.type] || r.type}</span>
+                            {r.pricePerNight != null && (
+                              <span className="text-[10px] text-petra-muted ms-1">₪{r.pricePerNight}</span>
+                            )}
                             {available ? (
                               <span className="text-[10px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">✓ זמין</span>
                             ) : (

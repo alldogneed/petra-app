@@ -13,7 +13,7 @@ export async function PATCH(
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
-    const { name, capacity, type, status } = body;
+    const { name, capacity, type, status, pricePerNight } = body;
 
     const room = await prisma.room.update({
       where: { id: params.id, businessId: authResult.businessId },
@@ -22,6 +22,7 @@ export async function PATCH(
         ...(capacity !== undefined && { capacity: Number(capacity) }),
         ...(type !== undefined && { type }),
         ...(status !== undefined && { status }),
+        ...("pricePerNight" in body && { pricePerNight: pricePerNight != null ? Number(pricePerNight) : null }),
       },
       include: {
         _count: {

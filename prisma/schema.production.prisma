@@ -256,6 +256,7 @@ model Business {
   serviceDogTrainingLogs ServiceDogTrainingLog[]
   serviceDogCompliance   ServiceDogComplianceEvent[]
   serviceDogIDCards      ServiceDogIDCard[]
+  careLogs               BoardingCareLog[]
 
   @@index([slug])
 }
@@ -345,6 +346,7 @@ model Pet {
   health         DogHealth?
   behavior       DogBehavior?
   medications    DogMedication[]
+  careLogs       BoardingCareLog[]
   serviceDogProfile ServiceDogProfile?
 
   @@index([customerId])
@@ -433,6 +435,7 @@ model BoardingStay {
   business   Business  @relation(fields: [businessId], references: [id])
   booking    Booking?  @relation(fields: [bookingId], references: [id])
   payments   Payment[]
+  careLogs   BoardingCareLog[]
 
   @@index([businessId])
   @@index([businessId, checkIn, checkOut])
@@ -442,20 +445,41 @@ model BoardingStay {
 }
 
 model Room {
-  id         String   @id @default(uuid())
-  name       String
-  capacity   Int      @default(1)
-  type       String   @default("standard")
-  status     String   @default("available")  // available | needs_cleaning
-  notes      String?
-  businessId String
-  isActive   Boolean  @default(true)
-  sortOrder  Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String   @id @default(uuid())
+  name          String
+  capacity      Int      @default(1)
+  type          String   @default("standard")
+  status        String   @default("available")  // available | needs_cleaning
+  notes         String?
+  pricePerNight Float?
+  businessId    String
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   business      Business       @relation(fields: [businessId], references: [id])
   boardingStays BoardingStay[]
+}
+
+model BoardingCareLog {
+  id             String   @id @default(uuid())
+  boardingStayId String
+  petId          String
+  businessId     String
+  type           String   // "FEEDING" | "MEDICATION" | "WALK" | "NOTE"
+  title          String
+  notes          String?
+  doneAt         DateTime @default(now())
+  doneByUserId   String?
+
+  boardingStay BoardingStay @relation(fields: [boardingStayId], references: [id], onDelete: Cascade)
+  pet          Pet          @relation(fields: [petId], references: [id])
+  business     Business     @relation(fields: [businessId], references: [id])
+
+  @@index([boardingStayId])
+  @@index([businessId, doneAt])
+  @@index([petId])
 }
 
 model Lead {
