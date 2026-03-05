@@ -24,7 +24,7 @@ interface Lead {
     createdAt: string;
     lastContactedAt: string | null;
     nextFollowUpAt?: string | null;
-    followUpStatus?: string;
+    followUpStatus?: string | null;
     wonAt?: string | null;
     lostAt?: string | null;
     lostReasonCode?: string | null;
