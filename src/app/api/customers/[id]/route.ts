@@ -78,7 +78,9 @@ export async function GET(
         },
         trainingPrograms: {
           select: {
-            id: true, status: true, startDate: true, createdAt: true,
+            id: true, dogId: true, name: true, programType: true,
+            status: true, startDate: true, totalSessions: true,
+            frequency: true, notes: true, createdAt: true,
             dog: { select: { name: true } },
             goals: {
               select: { id: true, title: true, status: true, progressPercent: true, sortOrder: true },
@@ -88,7 +90,7 @@ export async function GET(
             sessions: { where: { status: "COMPLETED" }, select: { id: true } },
           },
           orderBy: { createdAt: "desc" },
-          take: 10,
+          take: 20,
         },
         timelineEvents: {
           select: { id: true, type: true, description: true, metadata: true, createdAt: true },

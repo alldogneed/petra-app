@@ -187,10 +187,14 @@ interface TrainingGoal {
 
 interface TrainingProgramInfo {
   id: string;
+  dogId: string;
   name: string;
   programType: string;
   status: string;
-  totalSessions: number;
+  startDate: string | null;
+  totalSessions: number | null;
+  frequency: string | null;
+  notes: string | null;
   dog: { name: string } | null;
   goals: TrainingGoal[];
   sessions: { id: string }[];
@@ -3253,6 +3257,11 @@ export default function CustomerProfilePage() {
                       )
                     : [];
 
+                  // Training programs for this pet
+                  const petPrograms = (customer.trainingPrograms || []).filter(
+                    (p) => p.dogId === pet.id
+                  );
+
                   return (
                     <div
                       key={pet.id}
@@ -3711,6 +3720,105 @@ export default function CustomerProfilePage() {
                               </div>
                             )}
                           </div>
+
+                          {/* Training Programs */}
+                          {petPrograms.length > 0 && (
+                            <div>
+                              <div
+                                className="flex items-center justify-between mb-1.5 cursor-pointer select-none"
+                                onClick={(e) => { e.stopPropagation(); toggleSection(pet.id, "training"); }}
+                              >
+                                <div className="flex items-center gap-1.5">
+                                  <GraduationCap className="w-3.5 h-3.5 text-indigo-500" />
+                                  <span className="text-xs font-bold text-petra-text">
+                                    אילוף ({petPrograms.length})
+                                  </span>
+                                  {isSectionOpen(pet.id, "training") ? <ChevronUp className="w-3 h-3 text-stone-400" /> : <ChevronDown className="w-3 h-3 text-stone-400" />}
+                                </div>
+                                <a
+                                  href={`/training?pet=${pet.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-[10px] text-indigo-500 hover:underline"
+                                >
+                                  פתח אילוף ←
+                                </a>
+                              </div>
+                              {isSectionOpen(pet.id, "training") && (
+                                <div className="space-y-2">
+                                  {petPrograms.map((prog) => {
+                                    const completedSessions = prog.sessions.length;
+                                    const totalSessions = prog.totalSessions;
+                                    const statusColors: Record<string, string> = {
+                                      ACTIVE: "bg-green-100 text-green-700 border-green-200",
+                                      PAUSED: "bg-yellow-100 text-yellow-700 border-yellow-200",
+                                      COMPLETED: "bg-blue-100 text-blue-700 border-blue-200",
+                                      CANCELED: "bg-red-100 text-red-700 border-red-200",
+                                    };
+                                    const statusLabels: Record<string, string> = {
+                                      ACTIVE: "פעיל", PAUSED: "מושהה",
+                                      COMPLETED: "הושלם", CANCELED: "בוטל",
+                                    };
+                                    const achievedGoals = prog.goals.filter(g => g.status === "ACHIEVED").length;
+                                    return (
+                                      <div key={prog.id} className="bg-white/60 rounded-lg p-2.5 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-xs font-medium text-petra-text">{prog.name}</span>
+                                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${statusColors[prog.status] ?? "bg-slate-100 text-slate-600"}`}>
+                                            {statusLabels[prog.status] ?? prog.status}
+                                          </span>
+                                        </div>
+                                        {/* Sessions progress */}
+                                        {(totalSessions || completedSessions > 0) && (
+                                          <div className="space-y-1">
+                                            <div className="flex justify-between text-[10px] text-stone-500">
+                                              <span>מפגשים</span>
+                                              <span>{completedSessions}{totalSessions ? `/${totalSessions}` : ""}</span>
+                                            </div>
+                                            {totalSessions && (
+                                              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                <div
+                                                  className="h-full bg-indigo-400 rounded-full transition-all"
+                                                  style={{ width: `${Math.min(100, (completedSessions / totalSessions) * 100)}%` }}
+                                                />
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                        {/* Goals */}
+                                        {prog.goals.length > 0 && (
+                                          <div className="space-y-1">
+                                            <p className="text-[10px] text-stone-500 font-medium">
+                                              יעדים: {achievedGoals}/{prog.goals.length} הושגו
+                                            </p>
+                                            {prog.goals.slice(0, 4).map(goal => (
+                                              <div key={goal.id} className="flex items-center gap-1.5">
+                                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                                  goal.status === "ACHIEVED" ? "bg-green-500" :
+                                                  goal.status === "IN_PROGRESS" ? "bg-indigo-400" : "bg-slate-300"
+                                                }`} />
+                                                <span className={`text-[10px] flex-1 truncate ${goal.status === "ACHIEVED" ? "line-through text-stone-400" : "text-stone-600"}`}>
+                                                  {goal.title}
+                                                </span>
+                                                {goal.progressPercent > 0 && goal.status !== "ACHIEVED" && (
+                                                  <span className="text-[10px] text-indigo-500 font-medium">{goal.progressPercent}%</span>
+                                                )}
+                                              </div>
+                                            ))}
+                                            {prog.goals.length > 4 && (
+                                              <p className="text-[10px] text-stone-400">+{prog.goals.length - 4} יעדים נוספים</p>
+                                            )}
+                                          </div>
+                                        )}
+                                        {prog.notes && (
+                                          <p className="text-[10px] text-stone-500 leading-snug">{prog.notes}</p>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* Notes */}
                           <div className="space-y-1.5">
