@@ -835,7 +835,7 @@ export default function CalendarPage() {
   const today = toLocalDateString(new Date());
 
   // ── Data queries ──
-  const { data: appointments = [] } = useQuery<AppointmentEvent[]>({
+  const { data: appointments = [], isError: appointmentsError } = useQuery<AppointmentEvent[]>({
     queryKey: ["appointments", from, to],
     queryFn: () =>
       fetchJSON(`/api/appointments?from=${from}&to=${to}`),
@@ -1222,6 +1222,12 @@ export default function CalendarPage() {
 
   return (
     <div>
+      {appointmentsError && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          שגיאה בטעינת התורים. נסה לרענן את הדף.
+        </div>
+      )}
       {/* ── Header ── */}
       <div className="flex flex-col gap-3 mb-4 md:mb-6">
         {/* Top row: title + new appointment */}

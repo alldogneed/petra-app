@@ -100,6 +100,9 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
     onError: () => toast.error("שגיאה ביצירת הליד. נסה שוב."),
   });
 
+  const phoneDigits = form.phone.replace(/\D/g, "");
+  const phoneInvalid = form.phone.length > 0 && phoneDigits.length < 9;
+
   if (!isOpen) return null;
 
   return (
@@ -118,7 +121,14 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">טלפון</label>
-              <input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <input
+                className={`input ${phoneInvalid ? "border-red-400 focus:ring-red-300" : ""}`}
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="050-0000000"
+                inputMode="tel"
+              />
+              {phoneInvalid && <p className="text-xs text-red-600 mt-1">מספר טלפון לא תקין</p>}
             </div>
             <div>
               <label className="label">אימייל</label>
@@ -147,7 +157,7 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
           </div>
         </div>
         <div className="flex gap-3 mt-6">
-          <button className="btn-primary flex-1" disabled={!form.name || mutation.isPending} onClick={() => mutation.mutate(form)}>
+          <button className="btn-primary flex-1" disabled={!form.name || phoneInvalid || mutation.isPending} onClick={() => mutation.mutate(form)}>
             <Plus className="w-4 h-4" />{mutation.isPending ? "שומר..." : "הוסף ליד"}
           </button>
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
