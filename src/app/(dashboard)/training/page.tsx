@@ -23,6 +23,7 @@ import {
   Settings,
   BookOpen,
   Circle,
+  Shield,
 } from "lucide-react";
 import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -67,6 +68,18 @@ interface GroupSession {
   attendance: { id: string; attendanceStatus: string; participantId: string; participant?: { dog: { name: string }; customer: { name: string } } }[];
 }
 
+interface TrainingPackage {
+  id: string;
+  name: string;
+  description: string | null;
+  type: string; // HOME | BOARDING | GROUP | WORKSHOP
+  sessions: number;
+  durationDays: number | null;
+  price: number;
+  isActive: boolean;
+  _count: { programs: number };
+}
+
 interface TrainingProgram {
   id: string;
   name: string;
@@ -79,6 +92,12 @@ interface TrainingProgram {
   frequency: string | null;
   price: number | null;
   notes: string | null;
+  trainingType: string;
+  packageId: string | null;
+  workPlan: string | null;
+  behaviorBaseline: string | null;
+  customerExpectations: string | null;
+  boardingStayId: string | null;
   dog: { id: string; name: string; breed: string | null };
   customer: { id: string; name: string; phone: string };
   goals: { id: string; title: string; status: string; progressPercent: number }[];
@@ -95,6 +114,9 @@ interface ProgramSession {
   status: string;
   summary: string | null;
   rating: number | null;
+  practiceItems: string | null;
+  nextSessionGoals: string | null;
+  homeworkForCustomer: string | null;
 }
 
 interface BoardingStay {
@@ -135,7 +157,7 @@ interface UnifiedDog {
 
 const DAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
-type TabId = "overview" | "individual" | "boarding" | "groups" | "workshops";
+type TabId = "overview" | "individual" | "boarding" | "groups" | "workshops" | "service-dogs" | "packages";
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "overview", label: "סקירה", icon: <GraduationCap className="w-4 h-4" /> },
@@ -143,6 +165,8 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "boarding", label: "פנסיון", icon: <Hotel className="w-4 h-4" /> },
   { id: "groups", label: "קבוצות", icon: <Users className="w-4 h-4" /> },
   { id: "workshops", label: "סדנאות", icon: <Calendar className="w-4 h-4" /> },
+  { id: "service-dogs", label: "כלבי שירות", icon: <Shield className="w-4 h-4" /> },
+  { id: "packages", label: "חבילות", icon: <Package className="w-4 h-4" /> },
 ];
 
 const TYPE_BADGE: Record<TrainingType, { label: string; bg: string; text: string }> = {
@@ -191,13 +215,16 @@ function SessionLogModal({
   sessionNumber: number;
   isPending: boolean;
   onClose: () => void;
-  onSubmit: (summary: string, sessionDate: string, rating: number | null) => void;
+  onSubmit: (summary: string, sessionDate: string, rating: number | null, practiceItems: string, nextSessionGoals: string, homeworkForCustomer: string) => void;
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const [summary, setSummary] = useState("");
   const [sessionDate, setSessionDate] = useState(today);
   const [rating, setRating] = useState<number | null>(null);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
+  const [practiceItems, setPracticeItems] = useState("");
+  const [nextSessionGoals, setNextSessionGoals] = useState("");
+  const [homeworkForCustomer, setHomeworkForCustomer] = useState("");
 
   const STAR_LABELS = ["חלש", "סביר", "טוב", "מצוין", "מושלם"];
 
@@ -255,6 +282,20 @@ function SessionLogModal({
               )}
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">תרגילים שבוצעו</label>
+              <textarea className="input" rows={3} placeholder="אילו תרגילים עשיתם היום..." value={practiceItems} onChange={(e) => setPracticeItems(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">יעדים לפגישה הבאה</label>
+              <textarea className="input" rows={3} placeholder="מה תעבדו בפגישה הבאה..." value={nextSessionGoals} onChange={(e) => setNextSessionGoals(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <label className="label">שיעורי בית ללקוח</label>
+            <textarea className="input" rows={2} placeholder="תרגול לבית..." value={homeworkForCustomer} onChange={(e) => setHomeworkForCustomer(e.target.value)} />
+          </div>
           <div>
             <label className="label">סיכום המפגש (אופציונלי)</label>
             <textarea
@@ -270,7 +311,7 @@ function SessionLogModal({
           <button
             className="btn-primary flex-1"
             disabled={isPending || !sessionDate}
-            onClick={() => onSubmit(summary, sessionDate, rating)}
+            onClick={() => onSubmit(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer)}
           >
             <CheckCircle2 className="w-4 h-4" />
             {isPending ? "שומר..." : "שמור מפגש"}
@@ -296,6 +337,9 @@ export default function TrainingPage() {
   const [editingProgram, setEditingProgram] = useState<TrainingProgram | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [sessionLogTarget, setSessionLogTarget] = useState<{ programId: string; sessionNumber: number; dogName: string } | null>(null);
+  const [showCreatePackage, setShowCreatePackage] = useState(false);
+  const [editingPackage, setEditingPackage] = useState<TrainingPackage | null>(null);
+  const [showBoardingTraining, setShowBoardingTraining] = useState<{ stay: BoardingStay } | null>(null);
   const queryClient = useQueryClient();
 
   // ─── Data fetching ───
@@ -313,6 +357,22 @@ export default function TrainingPage() {
   const { data: stays = [], isLoading: staysLoading } = useQuery<BoardingStay[]>({
     queryKey: ["boarding-stays"],
     queryFn: () => fetchJSON<BoardingStay[]>("/api/boarding"),
+  });
+
+  const { data: packagesData, refetch: refetchPackages } = useQuery<{ packages: TrainingPackage[] }>({
+    queryKey: ["training-packages"],
+    queryFn: () => fetchJSON<{ packages: TrainingPackage[] }>("/api/training-packages?includeInactive=true"),
+  });
+  const packages = packagesData?.packages ?? [];
+
+  const { data: boardingPrograms = [] } = useQuery<TrainingProgram[]>({
+    queryKey: ["training-programs-boarding"],
+    queryFn: () => fetchJSON<TrainingProgram[]>("/api/training-programs?trainingType=BOARDING"),
+  });
+
+  const { data: serviceDogPrograms = [] } = useQuery<TrainingProgram[]>({
+    queryKey: ["training-programs-service"],
+    queryFn: () => fetchJSON<TrainingProgram[]>("/api/training-programs?trainingType=SERVICE_DOG"),
   });
 
   const isLoading = programsLoading || groupsLoading || staysLoading;
@@ -415,7 +475,7 @@ export default function TrainingPage() {
   // ─── Mutations ───
 
   const markAttendanceMutation = useMutation({
-    mutationFn: async ({ programId, sessionNumber, summary, sessionDate, rating }: { programId: string; sessionNumber: number; summary?: string; sessionDate?: string; rating?: number | null }) => {
+    mutationFn: async ({ programId, sessionNumber, summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer }: { programId: string; sessionNumber: number; summary?: string; sessionDate?: string; rating?: number | null; practiceItems?: string; nextSessionGoals?: string; homeworkForCustomer?: string }) => {
       const res = await fetch(`/api/training-programs/${programId}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -426,6 +486,9 @@ export default function TrainingPage() {
           durationMinutes: 60,
           ...(summary ? { summary } : {}),
           ...(rating != null ? { rating } : {}),
+          ...(practiceItems ? { practiceItems } : {}),
+          ...(nextSessionGoals ? { nextSessionGoals } : {}),
+          ...(homeworkForCustomer ? { homeworkForCustomer } : {}),
         }),
       });
       if (!res.ok) throw new Error("Failed");
@@ -433,6 +496,7 @@ export default function TrainingPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
+      queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
       setSessionLogTarget(null);
     },
     onError: () => { setSessionLogTarget(null); toast.error("שגיאה בשמירת המפגש. נסה שוב."); },
@@ -505,6 +569,75 @@ export default function TrainingPage() {
       setShowSellPackage(false);
     },
     onError: () => toast.error("שגיאה ביצירת תוכנית אימון. נסה שוב."),
+  });
+
+  const createPackageMutation = useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      const res = await fetch("/api/training-packages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-packages"] });
+      setShowCreatePackage(false);
+      toast.success("חבילה נוצרה בהצלחה");
+    },
+    onError: () => toast.error("שגיאה ביצירת חבילה"),
+  });
+
+  const updatePackageMutation = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string } & Record<string, unknown>) => {
+      const res = await fetch(`/api/training-packages/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-packages"] });
+      setEditingPackage(null);
+      toast.success("חבילה עודכנה");
+    },
+    onError: () => toast.error("שגיאה בעדכון חבילה"),
+  });
+
+  const deletePackageMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/training-packages/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-packages"] });
+      toast.success("חבילה נמחקה");
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת חבילה"),
+  });
+
+  const createBoardingTrainingMutation = useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      const res = await fetch("/api/training-programs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-programs"] });
+      queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
+      setShowBoardingTraining(null);
+      toast.success("תוכנית אילוף נוצרה בהצלחה");
+    },
+    onError: () => toast.error("שגיאה ביצירת תוכנית אילוף"),
   });
 
   const updateProgramSettingsMutation = useMutation({
@@ -655,7 +788,15 @@ export default function TrainingPage() {
 
           {/* ═══ BOARDING TAB ═══ */}
           {activeTab === "boarding" && (
-            <BoardingTab stays={activeStays} searchQuery={searchQuery} />
+            <BoardingTrainingTab
+              stays={activeStays}
+              boardingPrograms={boardingPrograms}
+              searchQuery={searchQuery}
+              onAddTraining={(stay) => setShowBoardingTraining({ stay })}
+              onLogSession={(programId, sessionNumber, dogName) =>
+                setSessionLogTarget({ programId, sessionNumber, dogName })
+              }
+            />
           )}
 
           {/* ═══ GROUPS TAB ═══ */}
@@ -687,6 +828,27 @@ export default function TrainingPage() {
               }
             />
           )}
+
+          {/* ═══ SERVICE DOGS TAB ═══ */}
+          {activeTab === "service-dogs" && (
+            <ServiceDogsTrainingTab
+              programs={serviceDogPrograms}
+              searchQuery={searchQuery}
+              onNewProgram={() => setShowSellPackage(true)}
+            />
+          )}
+
+          {/* ═══ PACKAGES TAB ═══ */}
+          {activeTab === "packages" && (
+            <PackagesTab
+              packages={packages}
+              onCreatePackage={() => setShowCreatePackage(true)}
+              onEditPackage={setEditingPackage}
+              onDeletePackage={(id) => deletePackageMutation.mutate(id)}
+              onToggleActive={(pkg) => updatePackageMutation.mutate({ id: pkg.id, isActive: !pkg.isActive })}
+              isDeleting={deletePackageMutation.isPending}
+            />
+          )}
         </>
       )}
 
@@ -697,6 +859,7 @@ export default function TrainingPage() {
           onClose={() => setShowSellPackage(false)}
           onSubmit={(data) => createProgramMutation.mutate(data)}
           isPending={createProgramMutation.isPending}
+          packages={packages.filter((p) => p.type === "HOME" && p.isActive)}
         />
       )}
 
@@ -750,15 +913,45 @@ export default function TrainingPage() {
           sessionNumber={sessionLogTarget.sessionNumber}
           isPending={markAttendanceMutation.isPending}
           onClose={() => setSessionLogTarget(null)}
-          onSubmit={(summary, sessionDate, rating) =>
+          onSubmit={(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer) =>
             markAttendanceMutation.mutate({
               programId: sessionLogTarget.programId,
               sessionNumber: sessionLogTarget.sessionNumber,
               summary,
               sessionDate,
               rating,
+              practiceItems,
+              nextSessionGoals,
+              homeworkForCustomer,
             })
           }
+        />
+      )}
+
+      {showCreatePackage && (
+        <CreatePackageModal
+          onClose={() => setShowCreatePackage(false)}
+          onSubmit={(data) => createPackageMutation.mutate(data)}
+          isPending={createPackageMutation.isPending}
+        />
+      )}
+
+      {editingPackage && (
+        <EditPackageModal
+          package={editingPackage}
+          onClose={() => setEditingPackage(null)}
+          onSubmit={(data) => updatePackageMutation.mutate({ id: editingPackage.id, ...data })}
+          isPending={updatePackageMutation.isPending}
+        />
+      )}
+
+      {showBoardingTraining && (
+        <BoardingTrainingModal
+          stay={showBoardingTraining.stay}
+          boardingPackages={packages.filter((p) => p.type === "BOARDING" && p.isActive)}
+          onClose={() => setShowBoardingTraining(null)}
+          onSubmit={(data) => createBoardingTrainingMutation.mutate(data)}
+          isPending={createBoardingTrainingMutation.isPending}
         />
       )}
     </div>
@@ -1321,10 +1514,22 @@ function IndividualTab({
 }
 
 // ═══════════════════════════════════════════════════════
-// BOARDING TAB
+// BOARDING TRAINING TAB
 // ═══════════════════════════════════════════════════════
 
-function BoardingTab({ stays, searchQuery }: { stays: BoardingStay[]; searchQuery: string }) {
+function BoardingTrainingTab({
+  stays,
+  boardingPrograms,
+  searchQuery,
+  onAddTraining,
+  onLogSession,
+}: {
+  stays: BoardingStay[];
+  boardingPrograms: TrainingProgram[];
+  searchQuery: string;
+  onAddTraining: (stay: BoardingStay) => void;
+  onLogSession: (programId: string, sessionNumber: number, dogName: string) => void;
+}) {
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return stays;
     const q = searchQuery.toLowerCase();
@@ -1339,61 +1544,108 @@ function BoardingTab({ stays, searchQuery }: { stays: BoardingStay[]; searchQuer
     return (
       <div className="empty-state">
         <div className="empty-state-icon"><Hotel className="w-6 h-6 text-slate-400" /></div>
-        <h3 className="text-base font-semibold text-petra-text mb-1">אין כלבים בפנסיון</h3>
-        <p className="text-sm text-petra-muted">כרגע אין כלבים עם סטטוס checked-in</p>
+        <h3 className="text-base font-semibold text-petra-text mb-1">אין לינות פעילות</h3>
+        <p className="text-sm text-petra-muted">לינות פעילות עם תוכניות אילוף יופיעו כאן</p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <div className="space-y-3">
       {filtered.map((stay) => {
-        const daysLeft = stay.checkOut
+        const linkedProgram = boardingPrograms.find((p) => p.boardingStayId === stay.id);
+        const daysRemaining = stay.checkOut
           ? Math.ceil((new Date(stay.checkOut).getTime() - Date.now()) / 86400000)
           : null;
-        const urgency =
-          daysLeft === null ? "neutral" :
-            daysLeft <= 0 ? "danger" :
-              daysLeft <= 3 ? "warning" : "success";
-        const urgencyColor = {
-          success: "bg-green-100 text-green-700",
-          warning: "bg-yellow-100 text-yellow-700",
-          danger: "bg-red-100 text-red-700",
-          neutral: "bg-slate-100 text-slate-600",
-        }[urgency];
+        const usedSessions = linkedProgram?.sessions?.filter((s) => s.status === "COMPLETED").length ?? 0;
+        const nextSessionNum = usedSessions + 1;
 
         return (
           <div key={stay.id} className="card p-4">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center text-sm font-bold text-green-600">
-                {stay.pet.name.charAt(0)}
+              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+                <Hotel className="w-5 h-5 text-amber-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-petra-text truncate">{stay.pet.name}</h3>
-                <p className="text-xs text-petra-muted truncate">{stay.customer.name}</p>
-              </div>
-              <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", urgencyColor)}>
-                {daysLeft !== null ? (daysLeft <= 0 ? "עבר מועד" : `${daysLeft} ימים`) : "פתוח"}
-              </span>
-            </div>
-            <div className="space-y-1 text-xs text-petra-muted">
-              {stay.room && (
-                <div className="flex items-center gap-1.5">
-                  <Hotel className="w-3 h-3" />
-                  <span>חדר: {stay.room.name}</span>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-petra-text">{stay.pet.name}</h3>
+                  {linkedProgram ? (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">כולל אילוף</span>
+                  ) : (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">ללא תוכנית אילוף</span>
+                  )}
                 </div>
-              )}
-              <div className="flex items-center gap-1.5">
-                <Calendar className="w-3 h-3" />
-                <span>כניסה: {formatDate(stay.checkIn)}</span>
+                <p className="text-xs text-petra-muted">{stay.customer.name} • {stay.room?.name ?? "ללא חדר"}</p>
               </div>
-              {stay.checkOut && (
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="w-3 h-3" />
-                  <span>יציאה: {formatDate(stay.checkOut)}</span>
-                </div>
+              {daysRemaining !== null && (
+                <span className={cn(
+                  "text-xs font-medium px-2 py-1 rounded-lg",
+                  daysRemaining <= 1 ? "bg-red-100 text-red-700" :
+                  daysRemaining <= 3 ? "bg-amber-100 text-amber-700" :
+                  "bg-slate-100 text-slate-600"
+                )}>
+                  {Math.max(0, daysRemaining)} ימים
+                </span>
               )}
             </div>
+
+            <div className="flex items-center gap-2 text-xs text-petra-muted mb-3">
+              <Calendar className="w-3.5 h-3.5" />
+              <span>כניסה: {formatDate(stay.checkIn)}</span>
+              {stay.checkOut && <><span>•</span><span>יציאה: {formatDate(stay.checkOut)}</span></>}
+            </div>
+
+            {linkedProgram ? (
+              <div className="border-t pt-3 space-y-3">
+                {linkedProgram.behaviorBaseline && (
+                  <div className="p-2 rounded-lg bg-blue-50">
+                    <p className="text-[10px] font-semibold text-blue-600 mb-1">בסיס התנהגותי</p>
+                    <p className="text-xs text-petra-text">{linkedProgram.behaviorBaseline}</p>
+                  </div>
+                )}
+                {linkedProgram.customerExpectations && (
+                  <div className="p-2 rounded-lg bg-purple-50">
+                    <p className="text-[10px] font-semibold text-purple-600 mb-1">ציפיות הלקוח</p>
+                    <p className="text-xs text-petra-text">{linkedProgram.customerExpectations}</p>
+                  </div>
+                )}
+                {linkedProgram.workPlan && (
+                  <div className="p-2 rounded-lg bg-amber-50">
+                    <p className="text-[10px] font-semibold text-amber-600 mb-1">תוכנית עבודה שבועית — גלוי לצוות</p>
+                    <p className="text-xs text-petra-text whitespace-pre-line">{linkedProgram.workPlan}</p>
+                  </div>
+                )}
+                {linkedProgram.sessions && linkedProgram.sessions.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-petra-muted mb-1.5">עדכוני התקדמות ({usedSessions} מפגשים)</p>
+                    <div className="space-y-1.5">
+                      {linkedProgram.sessions.slice(0, 3).map((s) => (
+                        <div key={s.id} className="p-2 rounded-lg bg-slate-50 text-xs">
+                          <span className="font-medium text-petra-text">{formatDate(s.sessionDate)}</span>
+                          {s.summary && <p className="text-petra-muted mt-0.5">{s.summary}</p>}
+                          {s.practiceItems && <p className="text-blue-600 mt-0.5">תרגילים: {s.practiceItems}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <button
+                  className="btn-secondary text-xs w-full"
+                  onClick={() => onLogSession(linkedProgram.id, nextSessionNum, stay.pet.name)}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  הוסף עדכון אילוף
+                </button>
+              </div>
+            ) : (
+              <button
+                className="btn-primary text-xs w-full"
+                onClick={() => onAddTraining(stay)}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                הוסף תוכנית אילוף
+              </button>
+            )}
           </div>
         );
       })}
@@ -1889,11 +2141,15 @@ function SellPackageModal({
   onClose,
   onSubmit,
   isPending,
+  packages = [],
 }: {
   onClose: () => void;
   onSubmit: (data: Record<string, unknown>) => void;
   isPending: boolean;
+  packages?: TrainingPackage[];
 }) {
+  const [step, setStep] = useState(packages.length > 0 ? 1 : 2);
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [customerId, setCustomerId] = useState("");
   const [dogId, setDogId] = useState("");
   const [programType, setProgramType] = useState("BASIC_OBEDIENCE");
@@ -1913,9 +2169,23 @@ function SellPackageModal({
 
   const selectedCustomer = customers.find((c) => c.id === customerId);
   const selectedDog = selectedCustomer?.pets.find((p) => p.id === dogId);
+  const selectedPkg = packages.find((p) => p.id === selectedPackageId);
   const autoName = selectedDog
-    ? `אילוף ${PROGRAM_TYPES_MAP[programType] || programType} - ${selectedDog.name}`
+    ? selectedPkg
+      ? `${selectedPkg.name} - ${selectedDog.name}`
+      : `אילוף ${PROGRAM_TYPES_MAP[programType] || programType} - ${selectedDog.name}`
     : "";
+
+  const handleSelectPackage = (pkg: TrainingPackage | null) => {
+    if (pkg) {
+      setSelectedPackageId(pkg.id);
+      setTotalSessions(String(pkg.sessions));
+      setPrice(String(pkg.price));
+    } else {
+      setSelectedPackageId(null);
+    }
+    setStep(2);
+  };
 
   const handleSubmit = () => {
     if (!customerId || !dogId || !totalSessions) return;
@@ -1927,6 +2197,7 @@ function SellPackageModal({
       totalSessions: parseInt(totalSessions),
       price: price ? parseFloat(price) : null,
       notes: notes || null,
+      packageId: selectedPackageId || null,
     });
   };
 
@@ -1944,99 +2215,153 @@ function SellPackageModal({
           </button>
         </div>
 
-        <div className="space-y-4">
-          {/* Customer */}
+        {step === 1 && packages.length > 0 && (
           <div>
-            <label className="label">לקוח *</label>
-            {customersLoading ? (
-              <div className="input bg-slate-50 text-petra-muted text-sm">טוען לקוחות...</div>
-            ) : (
-              <select
-                className="input"
-                value={customerId}
-                onChange={(e) => { setCustomerId(e.target.value); setDogId(""); }}
-              >
-                <option value="">בחר לקוח...</option>
-                {customersWithPets.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} — {c.phone} ({c.pets.length} כלבים)
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          {/* Dog */}
-          {customerId && selectedCustomer && (
-            <div>
-              <label className="label">כלב *</label>
-              <select className="input" value={dogId} onChange={(e) => setDogId(e.target.value)}>
-                <option value="">בחר כלב...</option>
-                {selectedCustomer.pets.map((pet) => (
-                  <option key={pet.id} value={pet.id}>{pet.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Program Type */}
-          <div>
-            <label className="label">סוג תוכנית</label>
-            <select className="input" value={programType} onChange={(e) => setProgramType(e.target.value)}>
-              {Object.entries(PROGRAM_TYPES_MAP).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
+            <p className="text-sm text-petra-muted mb-4">בחר חבילת אילוף:</p>
+            <div className="space-y-2 mb-4">
+              {packages.map((pkg) => (
+                <button
+                  key={pkg.id}
+                  className={cn(
+                    "w-full text-right p-3 rounded-xl border-2 transition-all",
+                    selectedPackageId === pkg.id
+                      ? "border-brand-500 bg-brand-50"
+                      : "border-petra-border bg-white hover:border-brand-200"
+                  )}
+                  onClick={() => setSelectedPackageId(pkg.id)}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-petra-text">{pkg.name}</span>
+                    <span className="text-sm font-bold text-brand-600">{formatCurrency(pkg.price)}</span>
+                  </div>
+                  <p className="text-xs text-petra-muted mt-0.5">{pkg.sessions} מפגשים</p>
+                  {pkg.description && <p className="text-xs text-petra-muted mt-0.5 line-clamp-1">{pkg.description}</p>}
+                </button>
               ))}
-            </select>
-          </div>
-
-          {/* Auto Name */}
-          {autoName && (
-            <div>
-              <label className="label">שם תוכנית</label>
-              <input className="input bg-slate-50" value={autoName} readOnly />
             </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">מספר מפגשים *</label>
-              <input
-                type="number"
-                className="input"
-                value={totalSessions}
-                onChange={(e) => setTotalSessions(e.target.value)}
-                min="1"
-              />
-            </div>
-            <div>
-              <label className="label">מחיר (₪)</label>
-              <input
-                type="number"
-                className="input"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="0"
-              />
+            <div className="flex gap-3">
+              <button
+                className="btn-primary flex-1"
+                disabled={!selectedPackageId}
+                onClick={() => handleSelectPackage(packages.find((p) => p.id === selectedPackageId) ?? null)}
+              >
+                המשך
+              </button>
+              <button className="btn-secondary" onClick={() => handleSelectPackage(null)}>
+                ללא חבילה
+              </button>
             </div>
           </div>
+        )}
 
-          <div>
-            <label className="label">הערות</label>
-            <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
-        </div>
+        {step === 2 && (
+          <>
+            {selectedPkg && (
+              <div className="p-3 mb-4 rounded-xl bg-brand-50 border border-brand-100 text-sm text-brand-700 flex items-center justify-between">
+                <span>{selectedPkg.name} — {selectedPkg.sessions} מפגשים</span>
+                {packages.length > 0 && (
+                  <button className="text-xs text-brand-500 hover:underline" onClick={() => setStep(1)}>שנה</button>
+                )}
+              </div>
+            )}
 
-        <div className="flex gap-3 mt-6">
-          <button
-            className="btn-primary flex-1"
-            disabled={!customerId || !dogId || !totalSessions || isPending}
-            onClick={handleSubmit}
-          >
-            <Package className="w-4 h-4" />
-            {isPending ? "שומר..." : "צור חבילה"}
-          </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
-        </div>
+            <div className="space-y-4">
+              {/* Customer */}
+              <div>
+                <label className="label">לקוח *</label>
+                {customersLoading ? (
+                  <div className="input bg-slate-50 text-petra-muted text-sm">טוען לקוחות...</div>
+                ) : (
+                  <select
+                    className="input"
+                    value={customerId}
+                    onChange={(e) => { setCustomerId(e.target.value); setDogId(""); }}
+                  >
+                    <option value="">בחר לקוח...</option>
+                    {customersWithPets.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} — {c.phone} ({c.pets.length} כלבים)
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Dog */}
+              {customerId && selectedCustomer && (
+                <div>
+                  <label className="label">כלב *</label>
+                  <select className="input" value={dogId} onChange={(e) => setDogId(e.target.value)}>
+                    <option value="">בחר כלב...</option>
+                    {selectedCustomer.pets.map((pet) => (
+                      <option key={pet.id} value={pet.id}>{pet.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Program Type */}
+              {!selectedPkg && (
+                <div>
+                  <label className="label">סוג תוכנית</label>
+                  <select className="input" value={programType} onChange={(e) => setProgramType(e.target.value)}>
+                    {Object.entries(PROGRAM_TYPES_MAP).map(([k, v]) => (
+                      <option key={k} value={k}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Auto Name */}
+              {autoName && (
+                <div>
+                  <label className="label">שם תוכנית</label>
+                  <input className="input bg-slate-50" value={autoName} readOnly />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">מספר מפגשים *</label>
+                  <input
+                    type="number"
+                    className="input"
+                    value={totalSessions}
+                    onChange={(e) => setTotalSessions(e.target.value)}
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <label className="label">מחיר (₪)</label>
+                  <input
+                    type="number"
+                    className="input"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="label">הערות</label>
+                <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                className="btn-primary flex-1"
+                disabled={!customerId || !dogId || !totalSessions || isPending}
+                onClick={handleSubmit}
+              >
+                <Package className="w-4 h-4" />
+                {isPending ? "שומר..." : "צור חבילה"}
+              </button>
+              <button className="btn-secondary" onClick={onClose}>ביטול</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -2288,6 +2613,483 @@ function AssignDogModal({
           >
             <Plus className="w-4 h-4" />
             {isPending ? "שומר..." : "שייך כלב"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// PROGRAM SETTINGS MODAL
+// ═══════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════
+// SERVICE DOGS TRAINING TAB
+// ═══════════════════════════════════════════════════════
+
+function ServiceDogsTrainingTab({
+  programs,
+  searchQuery,
+  onNewProgram,
+}: {
+  programs: TrainingProgram[];
+  searchQuery: string;
+  onNewProgram: () => void;
+}) {
+  const filtered = useMemo(() => {
+    if (!searchQuery.trim()) return programs;
+    const q = searchQuery.toLowerCase();
+    return programs.filter(
+      (p) => p.dog.name.toLowerCase().includes(q) || p.customer.name.toLowerCase().includes(q)
+    );
+  }, [programs, searchQuery]);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-petra-muted">{filtered.length} תוכניות כלבי שירות</p>
+        <button className="btn-primary text-sm" onClick={onNewProgram}>
+          <Plus className="w-4 h-4" />
+          תוכנית חדשה
+        </button>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon"><Shield className="w-6 h-6 text-slate-400" /></div>
+          <h3 className="text-base font-semibold text-petra-text mb-1">אין תוכניות אילוף לכלבי שירות</h3>
+          <p className="text-sm text-petra-muted">
+            <a href="/service-dogs" className="text-brand-600 hover:underline">עבור לניהול כלבי שירות</a>
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {filtered.map((p) => {
+            const usedSessions = p.sessions.filter((s) => s.status === "COMPLETED").length;
+            const statusInfo = PROGRAM_STATUS_MAP[p.status] || PROGRAM_STATUS_MAP.ACTIVE;
+            return (
+              <div key={p.id} className="card p-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center">
+                    <Shield className="w-4 h-4 text-brand-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-petra-text truncate">{p.dog.name}</h3>
+                    <p className="text-xs text-petra-muted truncate">{p.customer.name}</p>
+                  </div>
+                  <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", statusInfo.color)}>
+                    {statusInfo.label}
+                  </span>
+                </div>
+                {p.totalSessions && (
+                  <div className="mb-2">
+                    <div className="flex justify-between text-[10px] text-petra-muted mb-1">
+                      <span>מפגשים</span>
+                      <span>{usedSessions}/{p.totalSessions}</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-slate-100">
+                      <div className="h-full rounded-full bg-brand-500" style={{ width: `${Math.min(100, (usedSessions / p.totalSessions) * 100)}%` }} />
+                    </div>
+                  </div>
+                )}
+                <a
+                  href={`/service-dogs/${p.dog.id}`}
+                  className="text-xs text-brand-600 hover:underline mt-1 block"
+                >
+                  צפה בפרופיל כלב שירות ←
+                </a>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// PACKAGES TAB
+// ═══════════════════════════════════════════════════════
+
+const PACKAGE_TYPE_LABELS: Record<string, string> = {
+  HOME: "אילוף בבית",
+  BOARDING: "אילוף בפנסיון",
+  GROUP: "קבוצה",
+  WORKSHOP: "סדנה",
+};
+
+const PACKAGE_TYPE_COLORS: Record<string, string> = {
+  HOME: "bg-blue-100 text-blue-700",
+  BOARDING: "bg-orange-100 text-orange-700",
+  GROUP: "bg-green-100 text-green-700",
+  WORKSHOP: "bg-purple-100 text-purple-700",
+};
+
+function PackagesTab({
+  packages,
+  onCreatePackage,
+  onEditPackage,
+  onDeletePackage,
+  onToggleActive,
+  isDeleting,
+}: {
+  packages: TrainingPackage[];
+  onCreatePackage: () => void;
+  onEditPackage: (pkg: TrainingPackage) => void;
+  onDeletePackage: (id: string) => void;
+  onToggleActive: (pkg: TrainingPackage) => void;
+  isDeleting: boolean;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-petra-muted">{packages.length} חבילות</p>
+        <button className="btn-primary text-sm" onClick={onCreatePackage}>
+          <Plus className="w-4 h-4" />
+          חבילה חדשה
+        </button>
+      </div>
+
+      {packages.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon"><Package className="w-6 h-6 text-slate-400" /></div>
+          <h3 className="text-base font-semibold text-petra-text mb-1">אין חבילות אילוף</h3>
+          <p className="text-sm text-petra-muted">הגדר חבילות אילוף כדי למכור ללקוחות בקלות</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {packages.map((pkg) => (
+            <div key={pkg.id} className={cn("card p-4", !pkg.isActive && "opacity-60")}>
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-semibold text-petra-text mb-1">{pkg.name}</h3>
+                  <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", PACKAGE_TYPE_COLORS[pkg.type] || "bg-slate-100 text-slate-600")}>
+                    {PACKAGE_TYPE_LABELS[pkg.type] || pkg.type}
+                  </span>
+                </div>
+                <div className="flex gap-1 mr-2 flex-shrink-0">
+                  <button
+                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
+                    onClick={() => onEditPackage(pkg)}
+                    title="עריכה"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                  </button>
+                  {pkg._count.programs === 0 ? (
+                    <button
+                      className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-500"
+                      onClick={() => onDeletePackage(pkg.id)}
+                      disabled={isDeleting}
+                      title="מחק"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span className="font-bold text-petra-text">{formatCurrency(pkg.price)}</span>
+                <span className="text-xs text-petra-muted">{pkg.sessions} מפגשים</span>
+              </div>
+
+              {pkg.durationDays && (
+                <p className="text-xs text-petra-muted mb-2">{pkg.durationDays} ימי פנסיון</p>
+              )}
+
+              {pkg.description && (
+                <p className="text-xs text-petra-muted mb-3 line-clamp-2">{pkg.description}</p>
+              )}
+
+              <div className="flex items-center justify-between border-t pt-2 mt-2">
+                <span className="text-[10px] text-petra-muted">{pkg._count.programs} תוכניות פעילות</span>
+                <button
+                  onClick={() => onToggleActive(pkg)}
+                  className={cn(
+                    "text-[10px] px-2 py-0.5 rounded font-medium transition-colors",
+                    pkg.isActive
+                      ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                      : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  )}
+                >
+                  {pkg.isActive ? "פעיל" : "לא פעיל"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// CREATE PACKAGE MODAL
+// ═══════════════════════════════════════════════════════
+
+function CreatePackageModal({
+  onClose,
+  onSubmit,
+  isPending,
+}: {
+  onClose: () => void;
+  onSubmit: (data: Record<string, unknown>) => void;
+  isPending: boolean;
+}) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState("HOME");
+  const [sessions, setSessions] = useState("");
+  const [durationDays, setDurationDays] = useState("");
+  const [price, setPrice] = useState("");
+  const [description, setDescription] = useState("");
+
+  const handleSubmit = () => {
+    if (!name.trim() || !sessions || !price) return;
+    onSubmit({ name: name.trim(), type, sessions, durationDays: durationDays || undefined, price, description: description || undefined });
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text">חבילת אילוף חדשה</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="label">שם החבילה *</label>
+            <input className="input" placeholder='דוג׳ "5 מפגשי אילוף בסיסי"' value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">סוג</label>
+            <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
+              <option value="HOME">אילוף בבית</option>
+              <option value="BOARDING">אילוף בפנסיון</option>
+              <option value="GROUP">קבוצה</option>
+              <option value="WORKSHOP">סדנה</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">מספר מפגשים *</label>
+              <input type="number" min={1} className="input" placeholder="5" value={sessions} onChange={(e) => setSessions(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">מחיר (₪) *</label>
+              <input type="number" min={0} className="input" placeholder="1500" value={price} onChange={(e) => setPrice(e.target.value)} />
+            </div>
+          </div>
+          {type === "BOARDING" && (
+            <div>
+              <label className="label">ימי פנסיון</label>
+              <input type="number" min={1} className="input" placeholder="14" value={durationDays} onChange={(e) => setDurationDays(e.target.value)} />
+            </div>
+          )}
+          <div>
+            <label className="label">תיאור (אופציונלי)</label>
+            <textarea className="input" rows={2} placeholder="תיאור קצר..." value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button className="btn-primary flex-1" disabled={isPending || !name.trim() || !sessions || !price} onClick={handleSubmit}>
+            {isPending ? "יוצר..." : "צור חבילה"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// EDIT PACKAGE MODAL
+// ═══════════════════════════════════════════════════════
+
+function EditPackageModal({
+  package: pkg,
+  onClose,
+  onSubmit,
+  isPending,
+}: {
+  package: TrainingPackage;
+  onClose: () => void;
+  onSubmit: (data: Record<string, unknown>) => void;
+  isPending: boolean;
+}) {
+  const [name, setName] = useState(pkg.name);
+  const [type, setType] = useState(pkg.type);
+  const [sessions, setSessions] = useState(String(pkg.sessions));
+  const [durationDays, setDurationDays] = useState(pkg.durationDays ? String(pkg.durationDays) : "");
+  const [price, setPrice] = useState(String(pkg.price));
+  const [description, setDescription] = useState(pkg.description ?? "");
+
+  const handleSubmit = () => {
+    if (!name.trim() || !sessions || !price) return;
+    onSubmit({ name: name.trim(), type, sessions, durationDays: durationDays || null, price, description: description || null });
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text">עריכת חבילה</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="label">שם החבילה *</label>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">סוג</label>
+            <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
+              <option value="HOME">אילוף בבית</option>
+              <option value="BOARDING">אילוף בפנסיון</option>
+              <option value="GROUP">קבוצה</option>
+              <option value="WORKSHOP">סדנה</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">מספר מפגשים *</label>
+              <input type="number" min={1} className="input" value={sessions} onChange={(e) => setSessions(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">מחיר (₪) *</label>
+              <input type="number" min={0} className="input" value={price} onChange={(e) => setPrice(e.target.value)} />
+            </div>
+          </div>
+          {type === "BOARDING" && (
+            <div>
+              <label className="label">ימי פנסיון</label>
+              <input type="number" min={1} className="input" value={durationDays} onChange={(e) => setDurationDays(e.target.value)} />
+            </div>
+          )}
+          <div>
+            <label className="label">תיאור</label>
+            <textarea className="input" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button className="btn-primary flex-1" disabled={isPending || !name.trim() || !sessions || !price} onClick={handleSubmit}>
+            {isPending ? "שומר..." : "שמור שינויים"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// BOARDING TRAINING MODAL
+// ═══════════════════════════════════════════════════════
+
+function BoardingTrainingModal({
+  stay,
+  boardingPackages,
+  onClose,
+  onSubmit,
+  isPending,
+}: {
+  stay: BoardingStay;
+  boardingPackages: TrainingPackage[];
+  onClose: () => void;
+  onSubmit: (data: Record<string, unknown>) => void;
+  isPending: boolean;
+}) {
+  const [packageId, setPackageId] = useState("");
+  const [behaviorBaseline, setBehaviorBaseline] = useState("");
+  const [customerExpectations, setCustomerExpectations] = useState("");
+  const [workPlan, setWorkPlan] = useState("");
+
+  const selectedPkg = boardingPackages.find((p) => p.id === packageId);
+
+  const handleSubmit = () => {
+    onSubmit({
+      dogId: stay.pet.id,
+      customerId: stay.customer.id,
+      boardingStayId: stay.id,
+      trainingType: "BOARDING",
+      name: `אילוף פנסיון — ${stay.pet.name}`,
+      programType: "CUSTOM",
+      packageId: packageId || null,
+      totalSessions: selectedPkg?.sessions ?? null,
+      price: selectedPkg?.price ?? null,
+      behaviorBaseline: behaviorBaseline || null,
+      customerExpectations: customerExpectations || null,
+      workPlan: workPlan || null,
+    });
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text">תוכנית אילוף לפנסיון — {stay.pet.name}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 text-sm text-amber-700 mb-4">
+          {stay.pet.name} • {stay.customer.name} • {stay.room?.name ?? "ללא חדר"}
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="label">חבילת אילוף (אופציונלי)</label>
+            <select className="input" value={packageId} onChange={(e) => setPackageId(e.target.value)}>
+              <option value="">ללא חבילה</option>
+              {boardingPackages.map((p) => (
+                <option key={p.id} value={p.id}>{p.name} — {p.sessions} מפגשים, ₪{p.price}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">בסיס התנהגותי ראשוני</label>
+            <textarea
+              className="input"
+              rows={3}
+              placeholder="תאר את ההתנהגות הנוכחית של הכלב: רמת עצמאות, תגובות לגירויים, כישורים קיימים..."
+              value={behaviorBaseline}
+              onChange={(e) => setBehaviorBaseline(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label">ציפיות הלקוח</label>
+            <textarea
+              className="input"
+              rows={2}
+              placeholder="מה הלקוח מצפה להשיג במהלך הפנסיון..."
+              value={customerExpectations}
+              onChange={(e) => setCustomerExpectations(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label">תוכנית עבודה שבועית <span className="text-[10px] text-amber-600 font-normal">— גלוי לצוות</span></label>
+            <textarea
+              className="input"
+              rows={4}
+              placeholder="תאר את תוכנית האילוף היומית/שבועית לצוות הפנסיון..."
+              value={workPlan}
+              onChange={(e) => setWorkPlan(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button className="btn-primary flex-1" disabled={isPending} onClick={handleSubmit}>
+            {isPending ? "יוצר..." : "צור תוכנית אילוף"}
           </button>
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>
