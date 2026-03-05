@@ -251,6 +251,7 @@ model Business {
   trainingGroups    TrainingGroup[]
   scheduledMessages ScheduledMessage[]
   trainingPrograms  TrainingProgram[]
+  trainingPackages  TrainingPackage[]
   intakeForms       IntakeForm[]
   leadStages        LeadStage[]
   invoicingSettings InvoicingSettings?
@@ -1043,39 +1044,72 @@ model OnboardingProgress {
 }
 
 // ─────────────────────────────────────────────
+// TRAINING PACKAGES (sellable packages)
+// ─────────────────────────────────────────────
+
+/// A training package that can be sold to customers (defines sessions, price, type)
+model TrainingPackage {
+  id           String   @id @default(uuid())
+  businessId   String
+  name         String                        // "חבילת בסיס 5 מפגשים"
+  description  String?
+  type         String   @default("HOME")     // HOME | BOARDING | GROUP | WORKSHOP
+  sessions     Int                           // number of sessions
+  durationDays Int?                          // for BOARDING: number of days
+  price        Float
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  business Business          @relation(fields: [businessId], references: [id])
+  programs TrainingProgram[]
+
+  @@index([businessId])
+}
+
+// ─────────────────────────────────────────────
 // INDIVIDUAL TRAINING PROGRAMS (per dog)
 // ─────────────────────────────────────────────
 
 /// A training program for a single dog (e.g. basic obedience, reactivity work)
 model TrainingProgram {
-  id          String   @id @default(uuid())
-  businessId  String
-  dogId       String
-  customerId  String
-  name        String   // e.g. "אילוף בסיסי", "תגובתיות"
-  programType String   @default("BASIC_OBEDIENCE") // BASIC_OBEDIENCE | REACTIVITY | PUPPY | BEHAVIOR | ADVANCED | CUSTOM
-  status      String   @default("ACTIVE") // ACTIVE | PAUSED | COMPLETED | CANCELED
-  startDate   DateTime @default(now())
-  endDate     DateTime?
-  totalSessions Int?   // planned number of sessions
-  location    String?  // added for home training location
-  frequency   String?  // e.g. "WEEKLY", "BIWEEKLY", "CUSTOM"
-  price       Float?   // package price in ILS
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                   String   @id @default(uuid())
+  businessId           String
+  dogId                String
+  customerId           String
+  packageId            String?  // FK → TrainingPackage (optional)
+  name                 String   // e.g. "אילוף בסיסי", "תגובתיות"
+  programType          String   @default("BASIC_OBEDIENCE") // BASIC_OBEDIENCE | REACTIVITY | PUPPY | BEHAVIOR | ADVANCED | CUSTOM
+  trainingType         String   @default("HOME")            // HOME | BOARDING | SERVICE_DOG
+  status               String   @default("ACTIVE") // ACTIVE | PAUSED | COMPLETED | CANCELED
+  startDate            DateTime @default(now())
+  endDate              DateTime?
+  totalSessions        Int?     // planned number of sessions
+  location             String?  // added for home training location
+  frequency            String?  // e.g. "WEEKLY", "BIWEEKLY", "CUSTOM"
+  price                Float?   // package price in ILS
+  notes                String?
+  workPlan             String?  // weekly work plan (boarding — team-visible)
+  behaviorBaseline     String?  // initial behavior assessment (boarding)
+  customerExpectations String?  // what customer expects (all types)
+  boardingStayId       String?  // optional link to a BoardingStay
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
-  business Business          @relation(fields: [businessId], references: [id])
-  dog      Pet               @relation(fields: [dogId], references: [id], onDelete: Cascade)
-  customer Customer          @relation(fields: [customerId], references: [id])
-  goals    TrainingGoal[]
-  sessions TrainingProgramSession[]
-  homework TrainingHomework[]
+  business      Business          @relation(fields: [businessId], references: [id])
+  dog           Pet               @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  customer      Customer          @relation(fields: [customerId], references: [id])
+  package       TrainingPackage?  @relation(fields: [packageId], references: [id])
+  goals         TrainingGoal[]
+  sessions      TrainingProgramSession[]
+  homework      TrainingHomework[]
 
   @@index([businessId])
   @@index([businessId, status])
+  @@index([businessId, trainingType])
   @@index([dogId])
   @@index([customerId])
+  @@index([packageId])
 }
 
 /// A training goal within a program (e.g. "שב", "הליכה ברצועה")
@@ -1098,16 +1132,19 @@ model TrainingGoal {
 
 /// A single training session/lesson for the dog
 model TrainingProgramSession {
-  id                String   @id @default(uuid())
-  trainingProgramId String
-  sessionNumber     Int?
-  sessionDate       DateTime
-  durationMinutes   Int      @default(60)
-  status            String   @default("SCHEDULED") // SCHEDULED | COMPLETED | CANCELED | NO_SHOW
-  summary           String?  // trainer notes about the session
-  rating            Int?     // 1-5 how well the dog performed
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  trainingProgramId   String
+  sessionNumber       Int?
+  sessionDate         DateTime
+  durationMinutes     Int      @default(60)
+  status              String   @default("SCHEDULED") // SCHEDULED | COMPLETED | CANCELED | NO_SHOW
+  summary             String?  // trainer notes about the session
+  rating              Int?     // 1-5 how well the dog performed
+  practiceItems       String?  // exercises done in session
+  nextSessionGoals    String?  // focus for next session
+  homeworkForCustomer String?  // homework assigned to customer
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   program TrainingProgram @relation(fields: [trainingProgramId], references: [id], onDelete: Cascade)
 
