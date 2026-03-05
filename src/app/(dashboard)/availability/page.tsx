@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Save, Plus, Trash2, Clock, CalendarOff, ExternalLink } from "lucide-react"
+import { Save, Plus, Trash2, Clock, CalendarOff, ExternalLink, Settings2, Coffee, CalendarDays } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 
@@ -22,9 +22,28 @@ interface Block {
   reason: string | null
 }
 
+interface BookingSettings {
+  bookingBuffer: number
+  bookingMinNotice: number
+  bookingMaxAdvance: number
+  gcalBlockExternal: boolean
+}
+
+interface AvailabilityBreak {
+  id: string
+  dayOfWeek: number
+  startTime: string
+  endTime: string
+  label: string | null
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const DAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"]
+const DAY_OPTIONS = [
+  { value: -1, label: "כל יום" },
+  ...DAY_NAMES.map((name, i) => ({ value: i, label: name })),
+]
 
 const TIMES: string[] = []
 for (let h = 6; h <= 22; h++) {
@@ -45,6 +64,23 @@ export default function AvailabilityPage() {
   const [newBlock, setNewBlock] = useState({ startAt: "", endAt: "", reason: "" })
   const [blockSaving, setBlockSaving] = useState(false)
 
+  // Booking settings
+  const [bookingSettings, setBookingSettings] = useState<BookingSettings>({
+    bookingBuffer: 0,
+    bookingMinNotice: 0,
+    bookingMaxAdvance: 60,
+    gcalBlockExternal: false,
+  })
+  const [settingsSaving, setSettingsSaving] = useState(false)
+
+  // Breaks
+  const [breaks, setBreaks] = useState<AvailabilityBreak[]>([])
+  const [newBreak, setNewBreak] = useState({ dayOfWeek: -1, startTime: "13:00", endTime: "14:00", label: "" })
+  const [breakSaving, setBreakSaving] = useState(false)
+
+  // Import holidays
+  const [holidaysImporting, setHolidaysImporting] = useState(false)
+
   const DEMO_SLUG = "demo"
 
   // ── Load data ───────────────────────────────────────────────────────────────
@@ -57,6 +93,16 @@ export default function AvailabilityPage() {
     fetch("/api/admin/blocks")
       .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json() })
       .then((d) => setBlocks(d.blocks ?? []))
+      .catch(() => {})
+
+    fetch("/api/availability/settings")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json() })
+      .then((d) => setBookingSettings(d))
+      .catch(() => {})
+
+    fetch("/api/availability/breaks")
+      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json() })
+      .then((d) => setBreaks(d.breaks ?? []))
       .catch(() => {})
   }, [])
 
@@ -76,6 +122,24 @@ export default function AvailabilityPage() {
       toast.error("שגיאה בשמירת שעות הפעילות")
     } finally {
       setRulesSaving(false)
+    }
+  }
+
+  // ── Save booking settings ───────────────────────────────────────────────────
+  const saveBookingSettings = async () => {
+    setSettingsSaving(true)
+    try {
+      const res = await fetch("/api/availability/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bookingSettings),
+      })
+      if (!res.ok) throw new Error("Failed")
+      toast.success("הגדרות תיאום נשמרו")
+    } catch {
+      toast.error("שגיאה בשמירת ההגדרות")
+    } finally {
+      setSettingsSaving(false)
     }
   }
 
@@ -111,6 +175,65 @@ export default function AvailabilityPage() {
     }
   }
 
+  // ── Add break ──────────────────────────────────────────────────────────────
+  const addBreak = async () => {
+    if (!newBreak.startTime || !newBreak.endTime) return
+    setBreakSaving(true)
+    try {
+      const res = await fetch("/api/availability/breaks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dayOfWeek: newBreak.dayOfWeek,
+          startTime: newBreak.startTime,
+          endTime: newBreak.endTime,
+          label: newBreak.label || null,
+        }),
+      })
+      if (!res.ok) throw new Error("Failed")
+      const data = await res.json()
+      setBreaks((prev) => [...prev, data.break])
+      setNewBreak({ dayOfWeek: -1, startTime: "13:00", endTime: "14:00", label: "" })
+      toast.success("הפסקה נוספה")
+    } catch {
+      toast.error("שגיאה בהוספת הפסקה")
+    } finally {
+      setBreakSaving(false)
+    }
+  }
+
+  // ── Delete break ────────────────────────────────────────────────────────────
+  const deleteBreak = async (id: string) => {
+    try {
+      const res = await fetch(`/api/availability/breaks/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed")
+      setBreaks((prev) => prev.filter((b) => b.id !== id))
+    } catch {
+      toast.error("שגיאה במחיקת ההפסקה")
+    }
+  }
+
+  // ── Import holidays ─────────────────────────────────────────────────────────
+  const importHolidays = async () => {
+    setHolidaysImporting(true)
+    try {
+      const res = await fetch("/api/availability/import-holidays", { method: "POST" })
+      if (!res.ok) throw new Error("Failed")
+      const data = await res.json()
+      toast.success(`נוצרו ${data.created} חסימות חגים`)
+      // Reload blocks
+      const blocksRes = await fetch("/api/admin/blocks")
+      if (blocksRes.ok) {
+        const d = await blocksRes.json()
+        setBlocks(d.blocks ?? [])
+      }
+    } catch {
+      toast.error("שגיאה בייבוא חגים")
+    } finally {
+      setHolidaysImporting(false)
+    }
+  }
+
   const updateRule = (dayOfWeek: number, field: keyof AvailabilityRule, value: unknown) => {
     setRules((prev) =>
       prev.map((r) => (r.dayOfWeek === dayOfWeek ? { ...r, [field]: value } : r))
@@ -119,6 +242,10 @@ export default function AvailabilityPage() {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
+
+  const selectClass = "border border-petra-border rounded-xl px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
+  const inputClass  = "w-full border border-petra-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
+  const labelClass  = "block text-xs font-medium text-gray-600 mb-1"
 
   return (
     <div className="p-6 max-w-3xl mx-auto" dir="rtl">
@@ -134,6 +261,173 @@ export default function AvailabilityPage() {
           <ExternalLink className="w-4 h-4" />
           דף ההזמנה
         </Link>
+      </div>
+
+      {/* ── Section A: Booking Settings ──────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+          <Settings2 className="w-5 h-5 text-blue-500" />
+          <h2 className="font-semibold text-gray-800">הגדרות תיאום</h2>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className={labelClass}>מרווח בין פגישות</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  value={bookingSettings.bookingBuffer}
+                  onChange={(e) => setBookingSettings((p) => ({ ...p, bookingBuffer: Number(e.target.value) }))}
+                  className={inputClass}
+                />
+                <span className="text-sm text-gray-500 whitespace-nowrap">דקות</span>
+              </div>
+            </div>
+            <div>
+              <label className={labelClass}>מינימום הודעה מראש</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  value={bookingSettings.bookingMinNotice}
+                  onChange={(e) => setBookingSettings((p) => ({ ...p, bookingMinNotice: Number(e.target.value) }))}
+                  className={inputClass}
+                />
+                <span className="text-sm text-gray-500 whitespace-nowrap">שעות</span>
+              </div>
+            </div>
+            <div>
+              <label className={labelClass}>כמה ימים קדימה ניתן לקבוע</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  value={bookingSettings.bookingMaxAdvance}
+                  onChange={(e) => setBookingSettings((p) => ({ ...p, bookingMaxAdvance: Number(e.target.value) }))}
+                  className={inputClass}
+                />
+                <span className="text-sm text-gray-500 whitespace-nowrap">ימים</span>
+              </div>
+            </div>
+          </div>
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <button
+              role="switch"
+              aria-checked={bookingSettings.gcalBlockExternal}
+              onClick={() => setBookingSettings((p) => ({ ...p, gcalBlockExternal: !p.gcalBlockExternal }))}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+                bookingSettings.gcalBlockExternal ? "bg-amber-500" : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  bookingSettings.gcalBlockExternal ? "translate-x-0" : "translate-x-5"
+                }`}
+              />
+            </button>
+            <span className="text-sm text-gray-700">חסום פגישות גוגל קלנדר (כולל אישיות)</span>
+          </label>
+          <button
+            onClick={saveBookingSettings}
+            disabled={settingsSaving}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-60 text-white font-semibold rounded-lg text-sm"
+          >
+            <Save className="w-4 h-4" />
+            {settingsSaving ? "שומר..." : "שמור הגדרות"}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Section B: Daily Breaks ───────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+          <Coffee className="w-5 h-5 text-orange-400" />
+          <h2 className="font-semibold text-gray-800">הפסקות יומיות</h2>
+        </div>
+
+        {/* Add break form */}
+        <div className="px-6 py-4 bg-gray-50 border-b border-gray-100">
+          <p className="text-xs text-gray-500 mb-3">הוסף הפסקה חוזרת (צהריים, תפילה וכד׳)</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className={labelClass}>יום בשבוע</label>
+              <select
+                value={newBreak.dayOfWeek}
+                onChange={(e) => setNewBreak((p) => ({ ...p, dayOfWeek: Number(e.target.value) }))}
+                className={`w-full ${selectClass}`}
+              >
+                {DAY_OPTIONS.map((d) => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>משעה</label>
+              <select
+                value={newBreak.startTime}
+                onChange={(e) => setNewBreak((p) => ({ ...p, startTime: e.target.value }))}
+                className={`w-full ${selectClass}`}
+              >
+                {TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>עד שעה</label>
+              <select
+                value={newBreak.endTime}
+                onChange={(e) => setNewBreak((p) => ({ ...p, endTime: e.target.value }))}
+                className={`w-full ${selectClass}`}
+              >
+                {TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>תווית (אופציונלי)</label>
+              <input
+                type="text"
+                value={newBreak.label}
+                onChange={(e) => setNewBreak((p) => ({ ...p, label: e.target.value }))}
+                placeholder="הפסקת צהריים"
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <button
+            onClick={addBreak}
+            disabled={breakSaving}
+            className="mt-3 flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold rounded-lg text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            {breakSaving ? "שומר..." : "הוסף הפסקה"}
+          </button>
+        </div>
+
+        {/* Breaks list */}
+        <div className="divide-y divide-gray-100">
+          {breaks.length === 0 ? (
+            <div className="text-center py-6 text-gray-400 text-sm">אין הפסקות מוגדרות</div>
+          ) : (
+            breaks.map((br) => (
+              <div key={br.id} className="px-6 py-3 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800">
+                    {DAY_OPTIONS.find((d) => d.value === br.dayOfWeek)?.label ?? "כל יום"}
+                    {" — "}
+                    {br.startTime} עד {br.endTime}
+                    {br.label && <span className="mr-2 text-gray-500 text-xs">({br.label})</span>}
+                  </p>
+                </div>
+                <button
+                  onClick={() => deleteBreak(br.id)}
+                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* ── Working Hours Card ────────────────────────────────────────────────── */}
@@ -219,9 +513,20 @@ export default function AvailabilityPage() {
 
       {/* ── Blocks Card ──────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-          <CalendarOff className="w-5 h-5 text-red-400" />
-          <h2 className="font-semibold text-gray-800">חסימות וחופשות</h2>
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CalendarOff className="w-5 h-5 text-red-400" />
+            <h2 className="font-semibold text-gray-800">חסימות וחופשות</h2>
+          </div>
+          {/* Section C: Import Israeli holidays */}
+          <button
+            onClick={importHolidays}
+            disabled={holidaysImporting}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg disabled:opacity-50"
+          >
+            <CalendarDays className="w-4 h-4" />
+            {holidaysImporting ? "מייבא..." : "ייבא חגי ישראל 5786-5787"}
+          </button>
         </div>
 
         {/* Add block form */}

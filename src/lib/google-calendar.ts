@@ -593,6 +593,53 @@ export async function findConnectedOwnerForBusiness(
 }
 
 /**
+ * Fetch busy intervals from Google Calendar FreeBusy API for all connected
+ * users of the business. Returns merged intervals (non-Petra events included).
+ */
+export async function getGcalBusyIntervals(
+  businessId: string,
+  startAt: Date,
+  endAt: Date,
+): Promise<Array<{ start: Date; end: Date }>> {
+  const connectedUsers = await findConnectedUsersForBusiness(businessId)
+  if (connectedUsers.length === 0) return []
+
+  const allIntervals: Array<{ start: Date; end: Date }> = []
+
+  for (const user of connectedUsers) {
+    try {
+      const accessToken = await getValidAccessToken(user.id)
+      const res = await fetch(`${GOOGLE_CALENDAR_BASE}/freeBusy`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          timeMin: startAt.toISOString(),
+          timeMax: endAt.toISOString(),
+          items: [{ id: "primary" }],
+        }),
+      })
+
+      if (!res.ok) continue
+
+      const data = await res.json()
+      const busy: Array<{ start: string; end: string }> =
+        data?.calendars?.primary?.busy ?? []
+
+      for (const b of busy) {
+        allIntervals.push({ start: new Date(b.start), end: new Date(b.end) })
+      }
+    } catch {
+      // Best-effort — skip user on error
+    }
+  }
+
+  return allIntervals
+}
+
+/**
  * Build the Google OAuth URL for Calendar scope (separate from auth login).
  */
 export function buildCalendarAuthUrl(state: string): string {
