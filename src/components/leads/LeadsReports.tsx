@@ -5,7 +5,7 @@ import {
     BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
     LineChart, Line, PieChart, Pie, Cell, CartesianGrid,
 } from "recharts";
-import { TrendingUp, TrendingDown, Trophy, XCircle, Clock, Target, Users } from "lucide-react";
+import { TrendingUp, TrendingDown, Trophy, XCircle, Clock, Target, Users, CalendarRange, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LOST_REASON_CODES, LEAD_SOURCES } from "@/lib/constants";
 
@@ -39,18 +39,20 @@ interface LeadsReportsProps {
 
 const CHART_COLORS = ["#6366F1", "#3B82F6", "#22C55E", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4", "#EC4899"];
 
-type DateRange = "30d" | "90d" | "180d" | "365d" | "all";
+type DateRange = "7d" | "30d" | "90d" | "180d" | "365d" | "all" | "custom";
 
 const DATE_RANGES: { id: DateRange; label: string }[] = [
+    { id: "7d", label: "7 ימים" },
     { id: "30d", label: "30 יום" },
-    { id: "90d", label: "90 יום" },
+    { id: "90d", label: "רבעון" },
     { id: "180d", label: "חצי שנה" },
     { id: "365d", label: "שנה" },
     { id: "all", label: "הכל" },
+    { id: "custom", label: "מותאם" },
 ];
 
 function getStartDate(range: DateRange): Date | null {
-    if (range === "all") return null;
+    if (range === "all" || range === "custom") return null;
     const days = parseInt(range);
     const d = new Date();
     d.setDate(d.getDate() - days);
@@ -74,19 +76,30 @@ function kpiCard(label: string, value: string | number, sub: string, icon: React
 
 export function LeadsReports({ leads, stages }: LeadsReportsProps) {
     const [range, setRange] = useState<DateRange>("all");
+    const [customFrom, setCustomFrom] = useState("");
+    const [customTo, setCustomTo] = useState("");
 
     const wonStage = stages.find(s => s.isWon);
     const lostStage = stages.find(s => s.isLost);
     const activeStages = stages.filter(s => !s.isWon && !s.isLost).sort((a, b) => a.sortOrder - b.sortOrder);
 
-    const startDate = getStartDate(range);
+    const presetStartDate = getStartDate(range);
 
-    const filteredLeads = useMemo(() =>
-        startDate
-            ? leads.filter(l => new Date(l.createdAt) >= startDate)
-            : leads,
-        [leads, startDate]
-    );
+    const filteredLeads = useMemo(() => {
+        if (range === "custom") {
+            const from = customFrom ? new Date(customFrom) : null;
+            const to = customTo ? new Date(customTo + "T23:59:59") : null;
+            return leads.filter(l => {
+                const d = new Date(l.createdAt);
+                if (from && d < from) return false;
+                if (to && d > to) return false;
+                return true;
+            });
+        }
+        return presetStartDate
+            ? leads.filter(l => new Date(l.createdAt) >= presetStartDate)
+            : leads;
+    }, [leads, range, presetStartDate, customFrom, customTo]);
 
     // ── KPI calculations ────────────────────────────────────────────────
     const kpis = useMemo(() => {
@@ -230,25 +243,83 @@ export function LeadsReports({ leads, stages }: LeadsReportsProps) {
         );
     };
 
+    // Format custom range label for display
+    const customRangeLabel = useMemo(() => {
+        if (range !== "custom") return null;
+        if (!customFrom && !customTo) return "כל הזמנים";
+        const fmtDate = (d: string) => new Date(d).toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "2-digit" });
+        if (customFrom && customTo) return `${fmtDate(customFrom)} – ${fmtDate(customTo)}`;
+        if (customFrom) return `מ-${fmtDate(customFrom)}`;
+        return `עד ${fmtDate(customTo!)}`;
+    }, [range, customFrom, customTo]);
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-5">
             {/* Date range filter */}
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-                {DATE_RANGES.map(r => (
-                    <button
-                        key={r.id}
-                        onClick={() => setRange(r.id)}
-                        className={cn(
-                            "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap",
-                            range === r.id ? "bg-brand-500 text-white" : "bg-slate-100 text-petra-muted hover:bg-slate-200"
+            <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                    <CalendarRange className="w-4 h-4 text-brand-500" />
+                    <span className="text-sm font-semibold text-petra-text">טווח תאריכים</span>
+                    <span className="text-xs text-petra-muted bg-slate-100 px-2 py-0.5 rounded-full mr-auto">
+                        {filteredLeads.length} לידים בטווח
+                    </span>
+                </div>
+
+                {/* Preset buttons */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    {DATE_RANGES.map(r => (
+                        <button
+                            key={r.id}
+                            onClick={() => setRange(r.id)}
+                            className={cn(
+                                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-1",
+                                range === r.id ? "bg-brand-500 text-white shadow-sm" : "bg-slate-100 text-petra-muted hover:bg-slate-200"
+                            )}
+                        >
+                            {r.id === "custom" && <CalendarRange className="w-3 h-3" />}
+                            {r.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Custom date pickers */}
+                {range === "custom" && (
+                    <div className="flex items-end gap-3 flex-wrap pt-1 border-t border-slate-100">
+                        <div>
+                            <label className="text-[11px] font-medium text-petra-muted block mb-1">מתאריך</label>
+                            <input
+                                type="date"
+                                className="input h-9 text-sm w-36"
+                                value={customFrom}
+                                max={customTo || undefined}
+                                onChange={e => setCustomFrom(e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[11px] font-medium text-petra-muted block mb-1">עד תאריך</label>
+                            <input
+                                type="date"
+                                className="input h-9 text-sm w-36"
+                                value={customTo}
+                                min={customFrom || undefined}
+                                onChange={e => setCustomTo(e.target.value)}
+                            />
+                        </div>
+                        {(customFrom || customTo) && (
+                            <button
+                                onClick={() => { setCustomFrom(""); setCustomTo(""); }}
+                                className="flex items-center gap-1 text-xs text-slate-500 hover:text-red-500 transition-colors h-9"
+                            >
+                                <X className="w-3.5 h-3.5" /> נקה
+                            </button>
                         )}
-                    >
-                        {r.label}
-                    </button>
-                ))}
-                <span className="text-xs text-petra-muted mr-2">
-                    ({filteredLeads.length} לידים)
-                </span>
+                        {customRangeLabel && (
+                            <span className="text-xs text-petra-muted bg-brand-50 border border-brand-100 px-2 py-1 rounded-lg h-9 flex items-center">
+                                {customRangeLabel}
+                            </span>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* KPI Cards */}

@@ -87,6 +87,7 @@ export async function PATCH(
         const newTask = await prisma.task.create({
           data: {
             businessId: authResult.businessId,
+            title: `מעקב עם ${existing.name}`,
             description: `מעקב עם ${existing.name}${existing.phone ? ` — ${existing.phone}` : ""}`,
             category: "LEADS",
             priority: "MEDIUM",
