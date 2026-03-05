@@ -72,6 +72,9 @@ export async function PATCH(request: NextRequest) {
       boardingCheckOutTime,
       boardingPricePerNight,
       customerTags,
+      cancellationPolicy,
+      bookingWelcomeText,
+      depositInstructions,
     } = body;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -91,6 +94,9 @@ export async function PATCH(request: NextRequest) {
     if (boardingCheckOutTime !== undefined) data.boardingCheckOutTime = boardingCheckOutTime;
     if (boardingPricePerNight !== undefined) data.boardingPricePerNight = boardingPricePerNight;
     if (customerTags !== undefined) data.customerTags = customerTags;
+    if (cancellationPolicy !== undefined) data.cancellationPolicy = cancellationPolicy;
+    if (bookingWelcomeText !== undefined) data.bookingWelcomeText = bookingWelcomeText;
+    if (depositInstructions !== undefined) data.depositInstructions = depositInstructions;
 
     const business = await prisma.business.update({
       where: { id: authResult.businessId },

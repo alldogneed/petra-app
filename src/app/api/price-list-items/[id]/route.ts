@@ -37,6 +37,7 @@ export async function PATCH(
     if (body.isBookableOnline !== undefined) data.isBookableOnline = Boolean(body.isBookableOnline);
     if (body.depositRequired !== undefined) data.depositRequired = Boolean(body.depositRequired);
     if (body.depositAmount !== undefined) data.depositAmount = body.depositAmount ? Number(body.depositAmount) : null;
+    if (body.maxBookingsPerDay !== undefined) data.maxBookingsPerDay = body.maxBookingsPerDay ? Number(body.maxBookingsPerDay) : null;
 
     const item = await prisma.priceListItem.update({
       where: { id: params.id, businessId: authResult.businessId },

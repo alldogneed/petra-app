@@ -21,6 +21,9 @@ export async function GET(
       status: true,
       boardingCheckInTime: true,
       boardingCheckOutTime: true,
+      cancellationPolicy: true,
+      bookingWelcomeText: true,
+      depositInstructions: true,
       priceListItems: {
         where: { isActive: true },
         select: {

@@ -4,18 +4,49 @@ import prisma from "@/lib/prisma"
 import { getAvailableSlots, utcToLocalDateStr } from "@/lib/slots"
 import { z } from "zod"
 import { rateLimit } from "@/lib/rate-limit"
+import { sendWhatsAppMessage } from "@/lib/whatsapp"
+import { toWhatsAppPhone } from "@/lib/utils"
 
-// Stub notification functions – replace with real integrations in production
-function notifyCustomerConfirmed(booking: { id: string }, customer: { phone: string; name: string }) {
-  console.log(`[NOTIFY] Booking ${booking.id} confirmed for ${customer.name} (${customer.phone})`)
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://petra-app.vercel.app"
+
+function notifyCustomerConfirmed(
+  booking: { id: string; customerToken?: string | null },
+  customer: { phone: string; name: string },
+  service: { name: string },
+  dateLabel: string,
+  timeLabel: string,
+) {
+  if (!customer.phone) return
+  const phone = toWhatsAppPhone(customer.phone)
+  const myBookingUrl = booking.customerToken ? `${APP_URL}/my-booking/${booking.customerToken}` : ""
+  const body = `שלום ${customer.name}! ✅ הזמנתך אושרה!\n\nשירות: ${service.name}\nתאריך: ${dateLabel}\nשעה: ${timeLabel}${myBookingUrl ? `\n\nלצפייה/ביטול ההזמנה:\n${myBookingUrl}` : ""}`
+  sendWhatsAppMessage({ to: phone, body }).catch(console.error)
 }
 
-function notifyCustomerPending(booking: { id: string }, customer: { phone: string; name: string }) {
-  console.log(`[NOTIFY] Booking ${booking.id} pending approval for ${customer.name} (${customer.phone})`)
+function notifyCustomerPending(
+  booking: { id: string; customerToken?: string | null },
+  customer: { phone: string; name: string },
+  service: { name: string },
+  dateLabel: string,
+  timeLabel: string,
+) {
+  if (!customer.phone) return
+  const phone = toWhatsAppPhone(customer.phone)
+  const myBookingUrl = booking.customerToken ? `${APP_URL}/my-booking/${booking.customerToken}` : ""
+  const body = `שלום ${customer.name}! ⏳ בקשת ההזמנה שלך התקבלה.\n\nשירות: ${service.name}\nתאריך: ${dateLabel}\nשעה: ${timeLabel}\n\nנחזור אליך עם אישור בהקדם.${myBookingUrl ? `\n\nלצפייה בהזמנה:\n${myBookingUrl}` : ""}`
+  sendWhatsAppMessage({ to: phone, body }).catch(console.error)
 }
 
-function notifyOwnerNewPending(booking: { id: string }, businessId: string) {
-  console.log(`[NOTIFY] New pending booking ${booking.id} for business ${businessId}`)
+function notifyOwnerNewPending(
+  businessPhone: string | null | undefined,
+  customerName: string,
+  service: { name: string },
+  dateLabel: string,
+) {
+  if (!businessPhone) return
+  const phone = toWhatsAppPhone(businessPhone)
+  const body = `🔔 הזמנה חדשה ממתינה לאישור!\n\nלקוח: ${customerName}\nשירות: ${service.name}\nתאריך: ${dateLabel}\n\nנא לאשר/לדחות בפנל הניהול.`
+  sendWhatsAppMessage({ to: phone, body }).catch(console.error)
 }
 
 // Zod Schema for input validation
@@ -93,7 +124,7 @@ export async function POST(
 
   const business = await prisma.business.findUnique({
     where: { slug: params.slug },
-    select: { id: true, status: true, timezone: true },
+    select: { id: true, status: true, timezone: true, phone: true },
   })
 
   if (!business || business.status !== "active") {
@@ -238,6 +269,7 @@ export async function POST(
         },
         depositPaid: false,
       },
+      select: { id: true, customerToken: true },
     })
 
     return { booking, customer, status }
@@ -259,10 +291,16 @@ export async function POST(
   }
 
   const { booking, customer, status } = result as {
-    booking: { id: string },
+    booking: { id: string; customerToken?: string | null },
     customer: { id: string, phone: string, name: string },
     status: string,
   }
+
+  // Build human-readable date/time labels for notifications
+  const pad2 = (n: number) => n.toString().padStart(2, "0")
+  const dateLabel = startAt.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+  const timeLabel = `${pad2(startAt.getHours())}:${pad2(startAt.getMinutes())}`
+  const serviceName = item.name
 
   // Auto-create linked record for automatically-confirmed bookings
   if (status === "confirmed") {
@@ -310,15 +348,16 @@ export async function POST(
         })
       }
     }
-    notifyCustomerConfirmed(booking, customer)
+    notifyCustomerConfirmed(booking, customer, { name: serviceName }, dateLabel, timeLabel)
   } else {
-    notifyCustomerPending(booking, customer)
-    notifyOwnerNewPending(booking, business.id)
+    notifyCustomerPending(booking, customer, { name: serviceName }, dateLabel, timeLabel)
+    notifyOwnerNewPending(business.phone, customer.name, { name: serviceName }, dateLabel)
   }
 
   return NextResponse.json(
     {
       bookingId: booking.id,
+      customerToken: booking.customerToken ?? null,
       status,
       message:
         status === "confirmed"

@@ -12,6 +12,8 @@ const PUBLIC_PATHS = [
   "/api/auth/logout",
   "/book",
   "/api/book",
+  "/my-booking",
+  "/api/my-booking",
   // NOTE: /intake and /api/intake are handled below with regex
   // to allow /intake/[token] only — NOT /intake or /intake/ (admin pages)
   "/api/booking/availability",

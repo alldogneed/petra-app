@@ -67,6 +67,7 @@ export async function POST(
         isBookableOnline: body.isBookableOnline ?? false,
         depositRequired: body.depositRequired ?? false,
         depositAmount: body.depositAmount || null,
+        maxBookingsPerDay: body.maxBookingsPerDay || null,
       },
     });
 

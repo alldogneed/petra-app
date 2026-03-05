@@ -71,6 +71,9 @@ interface Business {
   boardingCheckOutTime: string | null;
   boardingCalcMode: string | null;
   boardingMinNights: number | null;
+  cancellationPolicy: string | null;
+  bookingWelcomeText: string | null;
+  depositInstructions: string | null;
   _count: { customers: number; appointments: number };
 }
 
@@ -258,6 +261,58 @@ function BusinessTab() {
       >
         {saved ? <><CheckCircle2 className="w-4 h-4" /> נשמר!</> : <><Save className="w-4 h-4" /> שמור שינויים</>}
       </button>
+
+      {/* Online Booking Settings */}
+      <div className="border-t border-slate-100 pt-6">
+        <div className="flex items-center gap-2 mb-4">
+          <CalendarRange className="w-4 h-4 text-brand-500" />
+          <h3 className="text-sm font-semibold text-petra-text">הגדרות הזמנה אונליין</h3>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="label flex items-center gap-1.5">
+              <Info className="w-3.5 h-3.5" />
+              טקסט פתיחה לדף ההזמנה
+            </label>
+            <textarea
+              className="input resize-none"
+              rows={2}
+              placeholder="ברוכים הבאים! אנו שמחים לקבל הזמנות אונליין..."
+              value={editing.bookingWelcomeText ?? ""}
+              onChange={(e) => setForm({ ...editing, bookingWelcomeText: e.target.value })}
+            />
+            <p className="text-xs text-petra-muted mt-1">יוצג ללקוחות בראש דף ההזמנה</p>
+          </div>
+          <div>
+            <label className="label flex items-center gap-1.5">
+              <Info className="w-3.5 h-3.5" />
+              מדיניות ביטול
+            </label>
+            <textarea
+              className="input resize-none"
+              rows={3}
+              placeholder="ביטול עד 24 שעות לפני התור – ללא עלות. ביטול מאוחר יותר – יגבה דמי ביטול..."
+              value={editing.cancellationPolicy ?? ""}
+              onChange={(e) => setForm({ ...editing, cancellationPolicy: e.target.value })}
+            />
+            <p className="text-xs text-petra-muted mt-1">יוצג ללקוחות לפני אישור ההזמנה</p>
+          </div>
+          <div>
+            <label className="label flex items-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5" />
+              הוראות תשלום מקדמה
+            </label>
+            <textarea
+              className="input resize-none"
+              rows={2}
+              placeholder="יש לשלם את המקדמה דרך Bit / Paybox למספר 050-0000000..."
+              value={editing.depositInstructions ?? ""}
+              onChange={(e) => setForm({ ...editing, depositInstructions: e.target.value })}
+            />
+            <p className="text-xs text-petra-muted mt-1">מוצג כשלשירות יש מקדמה אך אין קישור תשלום</p>
+          </div>
+        </div>
+      </div>
 
       {/* Password Change Section */}
       <ChangePasswordSection />

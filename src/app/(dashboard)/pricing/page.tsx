@@ -31,6 +31,7 @@ interface PriceListItem {
   isBookableOnline: boolean;
   depositRequired: boolean;
   depositAmount: number | null;
+  maxBookingsPerDay: number | null;
 }
 
 interface PriceList {
@@ -83,6 +84,7 @@ interface ItemFormData {
   isBookableOnline: boolean;
   depositRequired: boolean;
   depositAmount: string;
+  maxBookingsPerDay: string;
 }
 
 function ItemModal({
@@ -110,6 +112,7 @@ function ItemModal({
     isBookableOnline: item?.isBookableOnline ?? false,
     depositRequired: item?.depositRequired ?? false,
     depositAmount: item?.depositAmount?.toString() ?? "",
+    maxBookingsPerDay: item?.maxBookingsPerDay?.toString() ?? "",
   });
 
   return (
@@ -329,6 +332,20 @@ function ItemModal({
                     />
                   </div>
                 )}
+                <div>
+                  <label className="label">מקסימום הזמנות ביום</label>
+                  <input
+                    className="input mt-1 bg-white"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="ללא הגבלה"
+                    value={form.maxBookingsPerDay}
+                    onChange={(e) => setForm({ ...form, maxBookingsPerDay: e.target.value })}
+                    dir="ltr"
+                  />
+                  <p className="text-[11px] text-petra-muted mt-1">הגבל כמה הזמנות אפשר לקבוע לשירות זה ביום אחד</p>
+                </div>
               </>
             )}
           </div>
@@ -517,6 +534,7 @@ export default function PricingPage() {
     paymentUrl: data.paymentUrl || null,
     category: data.category || null,
     depositAmount: data.depositRequired && data.depositAmount ? parseFloat(data.depositAmount) : null,
+    maxBookingsPerDay: data.maxBookingsPerDay ? parseInt(data.maxBookingsPerDay) : null,
   });
 
   const addMutation = useMutation({

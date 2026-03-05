@@ -213,6 +213,9 @@ model Business {
   customerTags String  @default("[\"VIP\",\"קבוע\",\"מזדמן\",\"פוטנציאל\",\"לשעבר\",\"עסקי\"]") // JSON array of preset customer tag labels
   timezone    String   @default("Asia/Jerusalem")
   webhookApiKey String? @unique // per-business webhook API key (pk_...)
+  cancellationPolicy   String?  // shown in booking wizard confirm step
+  bookingWelcomeText   String?  // shown as greeting on booking page
+  depositInstructions  String?  // payment instructions when no paymentUrl
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -745,6 +748,7 @@ model PriceListItem {
   isBookableOnline  Boolean  @default(false)
   depositRequired   Boolean  @default(false)
   depositAmount     Float?
+  maxBookingsPerDay Int?     // capacity limit: max confirmed bookings per day
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -915,6 +919,8 @@ model Booking {
   source      String   @default("online") // "online" | "manual"
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  customerToken    String?  @unique @default(cuid()) // for "My Booking" self-service access
 
   // Google Calendar sync fields
   gcalEventId      String?   // Google Calendar event ID once synced

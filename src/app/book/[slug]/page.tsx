@@ -36,6 +36,9 @@ interface BusinessInfo {
   timezone: string
   boardingCheckInTime: string
   boardingCheckOutTime: string
+  cancellationPolicy: string | null
+  bookingWelcomeText: string | null
+  depositInstructions: string | null
   services: BusinessService[]
   availabilityRules: AvailabilityRule[]
 }
@@ -200,6 +203,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
   const [slots, setSlots] = useState<TimeSlot[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
+  const [capacityReached, setCapacityReached] = useState(false)
   const [calMonth, setCalMonth] = useState(() => {
     const n = new Date(); return { year: n.getFullYear(), month: n.getMonth() }
   })
@@ -246,10 +250,12 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
     async (date: string, serviceId: string) => {
       setSlotsLoading(true)
       setSlots([])
+      setCapacityReached(false)
       try {
         const res = await fetch(`/api/book/${slug}/slots?priceListItemId=${serviceId}&date=${date}`)
         const data = await res.json()
         setSlots(data.slots ?? [])
+        setCapacityReached(data.capacityReached ?? false)
       } finally {
         setSlotsLoading(false)
       }
@@ -449,6 +455,11 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
           {/* ── Step: Service ────────────────────────────────────────────── */}
           {step === "service" && (
             <div className="p-6 animate-fade-in">
+              {business.bookingWelcomeText && (
+                <div className="mb-4 p-3 bg-brand-50 border border-brand-100 rounded-xl text-sm text-brand-800">
+                  {business.bookingWelcomeText}
+                </div>
+              )}
               <h2 className="text-lg font-bold text-petra-text mb-1">בחר שירות</h2>
               <p className="text-sm text-petra-muted mb-4">מה תרצה לקבוע?</p>
               {business.services.length === 0 ? (
@@ -660,8 +671,17 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
                     <Clock className="w-6 h-6 text-slate-400" />
                   </div>
-                  <p className="text-petra-muted font-medium mb-1">אין זמינות ביום זה</p>
-                  <p className="text-xs text-petra-muted mb-3">נסה לבחור תאריך אחר</p>
+                  {capacityReached ? (
+                    <>
+                      <p className="text-petra-muted font-medium mb-1">היום מלא</p>
+                      <p className="text-xs text-petra-muted mb-3">הגענו לקיבולת המקסימלית ביום זה. נסה לבחור תאריך אחר</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-petra-muted font-medium mb-1">אין זמינות ביום זה</p>
+                      <p className="text-xs text-petra-muted mb-3">נסה לבחור תאריך אחר</p>
+                    </>
+                  )}
                   <button onClick={() => setStep("date")} className="btn-secondary text-sm">בחר תאריך אחר</button>
                 </div>
               ) : (
@@ -1151,6 +1171,13 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   </div>
                 )}
 
+                {business.cancellationPolicy && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                    <p className="font-semibold mb-1">📋 מדיניות ביטול</p>
+                    <p className="whitespace-pre-wrap">{business.cancellationPolicy}</p>
+                  </div>
+                )}
+
                 {submitError && (
                   <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{submitError}</div>
                 )}
@@ -1205,22 +1232,30 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 <p>מספר הזמנה: <span className="font-mono font-bold text-petra-text text-sm">{bookingResult.bookingId.slice(0, 8).toUpperCase()}</span></p>
               </div>
 
-              {/* Payment link */}
+              {/* Payment link or instructions */}
               {selectedService.paymentUrl ? (
-                <a
-                  href={selectedService.paymentUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-primary w-full py-4 justify-center text-lg mb-3"
-                >
-                  <ExternalLink className="w-5 h-5" />
-                  לתשלום מקדמה
-                </a>
+                <>
+                  <a
+                    href={selectedService.paymentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-primary w-full py-4 justify-center text-lg mb-2"
+                  >
+                    <ExternalLink className="w-5 h-5" />
+                    לתשלום מקדמה
+                  </a>
+                  <p className="text-center text-xs text-petra-muted mb-3">לחץ על הכפתור לדף התשלום, ואחר כך לחץ ״סיימתי לשלם״</p>
+                </>
+              ) : business?.depositInstructions ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-3 text-sm text-blue-800">
+                  <p className="font-semibold mb-2">הוראות תשלום מקדמה:</p>
+                  <p className="whitespace-pre-wrap text-xs">{business.depositInstructions}</p>
+                </div>
               ) : (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-3 text-sm text-blue-800 text-center">
                   <p className="font-semibold mb-1">ליצירת קשר לתשלום:</p>
                   {business?.phone && (
-                    <a href={`https://wa.me/972${business.phone.replace(/^0/, "")}?text=${encodeURIComponent(`שלום, קבעתי תור ל${selectedService.name} (מס' ${bookingResult.bookingId.slice(0, 8).toUpperCase()}). אשמח לשלם מקדמה.`)}`} className="text-green-600 hover:underline block flex items-center justify-center gap-1">
+                    <a href={`https://wa.me/972${business.phone.replace(/^0/, "")}?text=${encodeURIComponent(`שלום, קבעתי תור ל${selectedService.name} (מס' ${bookingResult.bookingId.slice(0, 8).toUpperCase()}). אשמח לשלם מקדמה.`)}`} className="text-green-600 hover:underline flex items-center justify-center gap-1 mt-1">
                       <MessageCircle className="w-4 h-4" /> שלח WhatsApp לתשלום
                     </a>
                   )}

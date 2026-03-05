@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { enqueueSyncJob } from "@/lib/sync-jobs";
+import { scheduleAppointmentReminder, scheduleBoardingCheckoutReminder } from "@/lib/reminder-service";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function PATCH(
@@ -59,7 +60,7 @@ export async function PATCH(
           where: { bookingId: booking.id },
         });
         if (!existingStay && firstPetId) {
-          await prisma.boardingStay.create({
+          const newStay = await prisma.boardingStay.create({
             data: {
               businessId: booking.businessId,
               customerId: booking.customerId,
@@ -69,7 +70,20 @@ export async function PATCH(
               status: "reserved",
               bookingId: booking.id,
             },
+            include: {
+              customer: { select: { name: true } },
+              pet: { select: { name: true } },
+            },
           });
+          // Schedule boarding checkout reminder
+          scheduleBoardingCheckoutReminder({
+            id: newStay.id,
+            businessId: booking.businessId,
+            customerId: booking.customerId,
+            checkOut: endAt,
+            pet: { name: newStay.pet.name },
+            customer: { name: newStay.customer.name },
+          }).catch(console.error);
         }
       } else if (booking.serviceId) {
         // For service-based bookings: create an Appointment
@@ -78,7 +92,7 @@ export async function PATCH(
         const endTime = `${pad(endAt.getHours())}:${pad(endAt.getMinutes())}`;
         const dateOnly = new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate());
 
-        const existing = await prisma.appointment.findFirst({
+        const existingAppt = await prisma.appointment.findFirst({
           where: {
             businessId: booking.businessId,
             customerId: booking.customerId,
@@ -88,8 +102,8 @@ export async function PATCH(
           },
         });
 
-        if (!existing) {
-          await prisma.appointment.create({
+        if (!existingAppt) {
+          const newAppt = await prisma.appointment.create({
             data: {
               businessId: booking.businessId,
               customerId: booking.customerId,
@@ -101,7 +115,25 @@ export async function PATCH(
               status: "scheduled",
               notes: booking.notes,
             },
+            include: {
+              service: { select: { name: true } },
+              customer: { select: { name: true } },
+              pet: { select: { name: true } },
+            },
           });
+          // Schedule appointment reminder (48h before)
+          if (newAppt.service) {
+            scheduleAppointmentReminder({
+              id: newAppt.id,
+              businessId: booking.businessId,
+              customerId: booking.customerId,
+              date: newAppt.date,
+              startTime: newAppt.startTime,
+              service: { name: newAppt.service.name },
+              customer: { name: newAppt.customer.name },
+              pet: newAppt.pet ? { name: newAppt.pet.name } : null,
+            }).catch(console.error);
+          }
         }
       }
       // priceListItem-based bookings: appointment creation skipped (serviceId required on Appointment)

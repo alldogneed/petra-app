@@ -42,9 +42,28 @@ export async function GET(
 
   const slots = await getAvailableSlots(business.id, item.durationMinutes ?? 60, date)
 
+  // Capacity check: if maxBookingsPerDay is set, count confirmed bookings for this item on this date
+  let capacityReached = false
+  if (item.maxBookingsPerDay) {
+    const dayStart = new Date(`${date}T00:00:00.000Z`)
+    const dayEnd = new Date(`${date}T23:59:59.999Z`)
+    const confirmedCount = await prisma.booking.count({
+      where: {
+        businessId: business.id,
+        priceListItemId,
+        status: { in: ["confirmed", "pending"] },
+        startAt: { gte: dayStart, lte: dayEnd },
+      },
+    })
+    if (confirmedCount >= item.maxBookingsPerDay) {
+      capacityReached = true
+    }
+  }
+
   return NextResponse.json({
     date,
-    slots: slots.map((s) => ({
+    capacityReached,
+    slots: capacityReached ? [] : slots.map((s) => ({
       time: s.time,
       startAt: s.startAt.toISOString(),
       endAt: s.endAt.toISOString(),
