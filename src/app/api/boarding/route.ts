@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         room: true,
         pet: {
           select: {
-            id: true, name: true, species: true, breed: true, foodNotes: true, medicalNotes: true,
+            id: true, name: true, species: true, breed: true, foodNotes: true, foodBrand: true, foodGramsPerDay: true, foodFrequency: true, medicalNotes: true,
             health: { select: { allergies: true, medicalConditions: true, activityLimitations: true } },
             behavior: { select: { dogAggression: true, humanAggression: true, biteHistory: true, biteDetails: true, separationAnxiety: true, leashReactivity: true, resourceGuarding: true } },
             medications: { select: { medName: true, dosage: true, frequency: true, times: true } },
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
         room: true,
         pet: {
           select: {
-            id: true, name: true, species: true, breed: true, foodNotes: true, medicalNotes: true,
+            id: true, name: true, species: true, breed: true, foodNotes: true, foodBrand: true, foodGramsPerDay: true, foodFrequency: true, medicalNotes: true,
             health: { select: { allergies: true, medicalConditions: true, activityLimitations: true } },
             behavior: { select: { dogAggression: true, humanAggression: true, biteHistory: true, biteDetails: true, separationAnxiety: true, leashReactivity: true, resourceGuarding: true } },
             medications: { select: { medName: true, dosage: true, frequency: true, times: true } },

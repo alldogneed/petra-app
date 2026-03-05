@@ -81,6 +81,9 @@ export async function PATCH(
         ...(petData.attachments !== undefined && { attachments: petData.attachments }),
         ...(petData.medicalNotes !== undefined && { medicalNotes: petData.medicalNotes || null }),
         ...(petData.foodNotes !== undefined && { foodNotes: petData.foodNotes || null }),
+        ...(petData.foodBrand !== undefined && { foodBrand: petData.foodBrand || null }),
+        ...(petData.foodGramsPerDay !== undefined && { foodGramsPerDay: petData.foodGramsPerDay != null ? parseFloat(petData.foodGramsPerDay) : null }),
+        ...(petData.foodFrequency !== undefined && { foodFrequency: petData.foodFrequency || null }),
         ...(petData.behaviorNotes !== undefined && { behaviorNotes: petData.behaviorNotes || null }),
       },
       include: {

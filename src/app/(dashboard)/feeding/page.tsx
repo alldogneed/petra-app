@@ -36,6 +36,9 @@ interface BoardingStay {
     name: string;
     breed: string | null;
     foodNotes: string | null;
+    foodBrand: string | null;
+    foodGramsPerDay: number | null;
+    foodFrequency: string | null;
   };
   customer: {
     id: string;
@@ -151,6 +154,12 @@ function formatHebrewDate(d: Date): string {
 
 // ─── Feeding Plan Modal ───────────────────────────────────────────────────────
 
+function parsePetFrequency(freq: string | null): string {
+  if (!freq) return "2";
+  const match = freq.match(/^(\d)/);
+  return match ? match[1] : "2";
+}
+
 function FeedingPlanModal({
   stay,
   onClose,
@@ -161,14 +170,17 @@ function FeedingPlanModal({
   onSave: (stayId: string, plan: FeedingPlan) => void;
 }) {
   const existing = parseFeedingPlan(stay.feedingPlan);
-  const [foodType, setFoodType] = useState(existing?.foodType ?? "");
+  // Pre-populate from pet profile if no boarding-level plan exists
+  const [foodType, setFoodType] = useState(existing?.foodType ?? stay.pet.foodBrand ?? "");
   const [amountGrams, setAmountGrams] = useState(
-    existing?.amountGrams ? String(existing.amountGrams) : ""
+    existing?.amountGrams ? String(existing.amountGrams) :
+    stay.pet.foodGramsPerDay ? String(stay.pet.foodGramsPerDay) : ""
   );
   const [timesPerDay, setTimesPerDay] = useState(
-    existing?.timesPerDay ? String(existing.timesPerDay) : "2"
+    existing?.timesPerDay ? String(existing.timesPerDay) :
+    parsePetFrequency(stay.pet.foodFrequency)
   );
-  const [notes, setNotes] = useState(existing?.notes ?? "");
+  const [notes, setNotes] = useState(existing?.notes ?? stay.pet.foodNotes ?? "");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -613,29 +625,35 @@ export default function FeedingPage() {
                             <div className="flex items-start gap-2 max-w-xs">
                               <div className="flex-1 min-w-0">
                                 {plan ? (
-                                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 space-y-0.5">
                                     <p className="text-xs font-medium text-amber-700 flex items-center gap-1 mb-0.5">
                                       <UtensilsCrossed className="w-3 h-3" />
-                                      תוכנית האכלה
+                                      תוכנית פנסיון
                                     </p>
                                     <p className="text-xs text-amber-900 font-medium">{plan.foodType}</p>
-                                    <p className="text-xs text-amber-700 mt-0.5">
+                                    <p className="text-xs text-amber-700">
                                       {plan.amountGrams}ג׳ · {plan.timesPerDay}× ביום
                                     </p>
                                     {plan.notes && (
-                                      <p className="text-xs text-amber-600 mt-0.5 leading-snug">{plan.notes}</p>
-                                    )}
-                                    {stay.pet.foodNotes && !plan.notes && (
-                                      <p className="text-xs text-amber-600 mt-0.5 leading-snug">{stay.pet.foodNotes}</p>
+                                      <p className="text-xs text-amber-600 leading-snug">{plan.notes}</p>
                                     )}
                                   </div>
-                                ) : stay.pet.foodNotes ? (
-                                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                                ) : (stay.pet.foodBrand || stay.pet.foodGramsPerDay || stay.pet.foodFrequency || stay.pet.foodNotes) ? (
+                                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 space-y-0.5">
                                     <p className="text-xs font-medium text-amber-700 flex items-center gap-1 mb-0.5">
                                       <UtensilsCrossed className="w-3 h-3" />
-                                      הוראות
+                                      מפרופיל הכלב
                                     </p>
-                                    <p className="text-xs text-amber-800 leading-snug">{stay.pet.foodNotes}</p>
+                                    {stay.pet.foodBrand && (
+                                      <p className="text-xs text-amber-900 font-medium">{stay.pet.foodBrand}</p>
+                                    )}
+                                    <div className="flex gap-2 text-xs text-amber-700">
+                                      {stay.pet.foodGramsPerDay && <span>{stay.pet.foodGramsPerDay}ג׳/יום</span>}
+                                      {stay.pet.foodFrequency && <span>{stay.pet.foodFrequency}</span>}
+                                    </div>
+                                    {stay.pet.foodNotes && (
+                                      <p className="text-xs text-amber-600 leading-snug">{stay.pet.foodNotes}</p>
+                                    )}
                                   </div>
                                 ) : (
                                   <span className="text-petra-muted text-xs">אין תוכנית</span>

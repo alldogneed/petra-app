@@ -117,6 +117,9 @@ interface Pet {
   attachments: string;
   medicalNotes: string | null;
   foodNotes: string | null;
+  foodBrand: string | null;
+  foodGramsPerDay: number | null;
+  foodFrequency: string | null;
   behaviorNotes: string | null;
   health: {
     neuteredSpayed: boolean | null;
@@ -129,7 +132,15 @@ interface Pet {
     rabiesLastDate: string | null;
     rabiesValidUntil: string | null;
     dhppLastDate: string | null;
+    dhppPuppy1Date: string | null;
+    dhppPuppy2Date: string | null;
+    dhppPuppy3Date: string | null;
+    bordatellaDate: string | null;
+    parkWormDate: string | null;
     dewormingLastDate: string | null;
+    fleaTickType: string | null;
+    fleaTickDate: string | null;
+    fleaTickExpiryDate: string | null;
     originInfo: string | null;
     timeWithOwner: string | null;
   } | null;
@@ -2135,6 +2146,128 @@ function NewAppointmentModal({
   );
 }
 
+// ─── Edit Feeding Modal ───────────────────────────────────────────────────────
+const FOOD_FREQUENCIES = [
+  "פעם ביום",
+  "2 פעמים ביום",
+  "3 פעמים ביום",
+  "4 פעמים ביום",
+  "לפי דרישה",
+];
+
+function EditFeedingModal({
+  petId,
+  petName,
+  pet,
+  customerId,
+  onClose,
+}: {
+  petId: string;
+  petName: string;
+  pet: Pet;
+  customerId: string;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    foodBrand: pet.foodBrand ?? "",
+    foodGramsPerDay: pet.foodGramsPerDay?.toString() ?? "",
+    foodFrequency: pet.foodFrequency ?? "",
+    foodNotes: pet.foodNotes ?? "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/pets/${petId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          foodBrand: form.foodBrand || null,
+          foodGramsPerDay: form.foodGramsPerDay ? parseFloat(form.foodGramsPerDay) : null,
+          foodFrequency: form.foodFrequency || null,
+          foodNotes: form.foodNotes || null,
+        }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+      toast.success("פרטי האכלה עודכנו");
+      onClose();
+    },
+    onError: () => toast.error("שגיאה בעדכון פרטי האכלה. נסה שוב."),
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text">האכלה — {petName}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="label">מותג / חברת אוכל</label>
+            <input
+              className="input"
+              placeholder="לדוג׳ Royal Canin, Hill's, Acana..."
+              value={form.foodBrand}
+              onChange={(e) => setForm({ ...form, foodBrand: e.target.value })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">כמות יומית (גרם)</label>
+              <input
+                className="input"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="לדוג׳ 250"
+                value={form.foodGramsPerDay}
+                onChange={(e) => setForm({ ...form, foodGramsPerDay: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label">תדירות האכלה</label>
+              <select
+                className="input"
+                value={form.foodFrequency}
+                onChange={(e) => setForm({ ...form, foodFrequency: e.target.value })}
+              >
+                <option value="">בחר...</option>
+                {FOOD_FREQUENCIES.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="label">הערות נוספות (אלרגיות לאוכל, העדפות...)</label>
+            <textarea
+              className="input min-h-[80px] resize-none"
+              placeholder="לדוג׳ ללא גלוטן, מעדיף אוכל רטוב..."
+              value={form.foodNotes}
+              onChange={(e) => setForm({ ...form, foodNotes: e.target.value })}
+            />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
+            <button
+              onClick={() => mutation.mutate()}
+              disabled={mutation.isPending}
+              className="btn-primary flex-1"
+            >
+              {mutation.isPending ? "שומר..." : "שמור"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Edit Health Modal ────────────────────────────────────────────────────────
 
 function EditHealthModal({
@@ -2609,6 +2742,14 @@ export default function CustomerProfilePage() {
   const [showLogNote, setShowLogNote] = useState(false);
   const [showAllAppointments, setShowAllAppointments] = useState(false);
   const [expandedPetId, setExpandedPetId] = useState<string | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Record<string, Record<string, boolean>>>({});
+  const toggleSection = (petId: string, section: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [petId]: { ...prev[petId], [section]: !prev[petId]?.[section] },
+    }));
+  };
+  const isSectionOpen = (petId: string, section: string) => !!expandedSections[petId]?.[section];
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [showNewAppointmentModal, setShowNewAppointmentModal] = useState(false);
@@ -2618,6 +2759,7 @@ export default function CustomerProfilePage() {
   const [deletingMed, setDeletingMed] = useState<{ id: string; petId: string } | null>(null);
   const [healthModal, setHealthModal] = useState<{ pet: Pet } | null>(null);
   const [behaviorModal, setBehaviorModal] = useState<{ pet: Pet } | null>(null);
+  const [feedingModal, setFeedingModal] = useState<{ pet: Pet } | null>(null);
   const [noteModal, setNoteModal] = useState<{ petId: string; field: string; label: string; value: string } | null>(null);
   const [editPetModal, setEditPetModal] = useState<{ pet: Pet } | null>(null);
   const [showWaCompose, setShowWaCompose] = useState(false);
@@ -2628,6 +2770,7 @@ export default function CustomerProfilePage() {
     queryKey: ["customer", customerId],
     queryFn: () =>
       fetch(`/api/customers/${customerId}`).then((r) => r.json()),
+    refetchInterval: 60000,
   });
 
   const logMutation = useMutation({
@@ -3213,41 +3356,71 @@ export default function CustomerProfilePage() {
                         <div className="pt-3 border-t border-amber-200/50 space-y-4 animate-fade-in">
                           {/* Feeding info */}
                           <div>
-                            <div className="flex items-center justify-between mb-1.5">
+                            <div
+                              className="flex items-center justify-between mb-1.5 cursor-pointer select-none"
+                              onClick={(e) => { e.stopPropagation(); toggleSection(pet.id, "feeding"); }}
+                            >
                               <div className="flex items-center gap-1.5">
                                 <UtensilsCrossed className="w-3.5 h-3.5 text-amber-600" />
                                 <span className="text-xs font-bold text-petra-text">האכלה</span>
+                                {isSectionOpen(pet.id, "feeding") ? <ChevronUp className="w-3 h-3 text-stone-400" /> : <ChevronDown className="w-3 h-3 text-stone-400" />}
                               </div>
                               <button
                                 className="w-5 h-5 rounded flex items-center justify-center hover:bg-amber-100 transition-colors"
-                                onClick={(e) => { e.stopPropagation(); setNoteModal({ petId: pet.id, field: "foodNotes", label: "הערות האכלה", value: pet.foodNotes || "" }); }}
-                                title="ערוך"
+                                onClick={(e) => { e.stopPropagation(); setFeedingModal({ pet }); }}
+                                title="ערוך האכלה"
                               >
                                 <Pencil className="w-3 h-3 text-amber-600" />
                               </button>
                             </div>
-                            {pet.foodNotes ? (
-                              <p className="text-xs text-stone-600 bg-white/60 rounded-lg p-2.5 whitespace-pre-line">
-                                {pet.foodNotes}
-                              </p>
+                            {isSectionOpen(pet.id, "feeding") && ((pet.foodBrand || pet.foodGramsPerDay || pet.foodFrequency || pet.foodNotes) ? (
+                              <div className="bg-white/60 rounded-lg p-2.5 space-y-1.5">
+                                {pet.foodBrand && (
+                                  <div className="text-[11px]">
+                                    <span className="text-stone-500">מותג: </span>
+                                    <span className="text-stone-700 font-medium">{pet.foodBrand}</span>
+                                  </div>
+                                )}
+                                <div className="flex gap-4 text-[11px]">
+                                  {pet.foodGramsPerDay && (
+                                    <div>
+                                      <span className="text-stone-500">כמות: </span>
+                                      <span className="text-stone-700 font-medium">{pet.foodGramsPerDay} גרם/יום</span>
+                                    </div>
+                                  )}
+                                  {pet.foodFrequency && (
+                                    <div>
+                                      <span className="text-stone-500">תדירות: </span>
+                                      <span className="text-stone-700">{pet.foodFrequency}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                {pet.foodNotes && (
+                                  <p className="text-[11px] text-stone-500 whitespace-pre-line">{pet.foodNotes}</p>
+                                )}
+                              </div>
                             ) : (
                               <button
                                 className="w-full text-xs text-amber-400 hover:text-amber-600 py-1.5 border border-dashed border-amber-200 hover:border-amber-300 rounded-lg transition-colors"
-                                onClick={(e) => { e.stopPropagation(); setNoteModal({ petId: pet.id, field: "foodNotes", label: "הערות האכלה", value: "" }); }}
+                                onClick={(e) => { e.stopPropagation(); setFeedingModal({ pet }); }}
                               >
-                                + הוסף הערות האכלה
+                                + הוסף פרטי האכלה
                               </button>
-                            )}
+                            ))}
                           </div>
 
                           {/* Medications */}
                           <div>
-                            <div className="flex items-center justify-between mb-1.5">
+                            <div
+                              className="flex items-center justify-between mb-1.5 cursor-pointer select-none"
+                              onClick={(e) => { e.stopPropagation(); toggleSection(pet.id, "medications"); }}
+                            >
                               <div className="flex items-center gap-1.5">
                                 <Pill className="w-3.5 h-3.5 text-red-500" />
                                 <span className="text-xs font-bold text-petra-text">
                                   תרופות ({pet.medications.length})
                                 </span>
+                                {isSectionOpen(pet.id, "medications") ? <ChevronUp className="w-3 h-3 text-stone-400" /> : <ChevronDown className="w-3 h-3 text-stone-400" />}
                               </div>
                               <button
                                 className="w-5 h-5 rounded-full bg-red-100 hover:bg-red-200 flex items-center justify-center transition-colors"
@@ -3257,7 +3430,7 @@ export default function CustomerProfilePage() {
                                 <Plus className="w-3 h-3 text-red-600" />
                               </button>
                             </div>
-                            <div className="space-y-1.5">
+                            {isSectionOpen(pet.id, "medications") && <div className="space-y-1.5">
                               {pet.medications.map((med) => (
                                 <div key={med.id} className="bg-white/60 rounded-lg p-2.5 group">
                                   <div className="flex items-center justify-between">
@@ -3313,15 +3486,19 @@ export default function CustomerProfilePage() {
                                   + הוסף תרופה ראשונה
                                 </button>
                               )}
-                            </div>
+                            </div>}
                           </div>
 
                           {/* Health */}
                           <div>
-                            <div className="flex items-center justify-between mb-1.5">
+                            <div
+                              className="flex items-center justify-between mb-1.5 cursor-pointer select-none"
+                              onClick={(e) => { e.stopPropagation(); toggleSection(pet.id, "health"); }}
+                            >
                               <div className="flex items-center gap-1.5">
                                 <Heart className="w-3.5 h-3.5 text-rose-500" />
                                 <span className="text-xs font-bold text-petra-text">בריאות</span>
+                                {isSectionOpen(pet.id, "health") ? <ChevronUp className="w-3 h-3 text-stone-400" /> : <ChevronDown className="w-3 h-3 text-stone-400" />}
                               </div>
                               <button
                                 className="w-5 h-5 rounded flex items-center justify-center hover:bg-rose-100 transition-colors"
@@ -3331,10 +3508,13 @@ export default function CustomerProfilePage() {
                                 <Pencil className="w-3 h-3 text-rose-500" />
                               </button>
                             </div>
-                            {pet.health && (
+                            {isSectionOpen(pet.id, "health") && pet.health && (
                               <div className="bg-white/60 rounded-lg p-2.5 space-y-1.5">
                                 {/* Vaccines */}
-                                {(pet.health.rabiesLastDate || pet.health.dhppLastDate || pet.health.dewormingLastDate) && (
+                                {(pet.health.rabiesLastDate || pet.health.rabiesValidUntil ||
+                                  pet.health.dhppLastDate || pet.health.dhppPuppy1Date || pet.health.dhppPuppy2Date || pet.health.dhppPuppy3Date ||
+                                  pet.health.bordatellaDate || pet.health.parkWormDate ||
+                                  pet.health.dewormingLastDate || pet.health.fleaTickDate) && (
                                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
                                     {pet.health.rabiesLastDate && (
                                       <div>
@@ -3352,11 +3532,51 @@ export default function CustomerProfilePage() {
                                         </span>
                                       </div>
                                     )}
+                                    {pet.health.dhppPuppy1Date && (
+                                      <div>
+                                        <span className="text-stone-500">משושה גורים מ1: </span>
+                                        <span className="text-stone-700">
+                                          {new Date(pet.health.dhppPuppy1Date).toLocaleDateString("he-IL")}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {pet.health.dhppPuppy2Date && (
+                                      <div>
+                                        <span className="text-stone-500">משושה גורים מ2: </span>
+                                        <span className="text-stone-700">
+                                          {new Date(pet.health.dhppPuppy2Date).toLocaleDateString("he-IL")}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {pet.health.dhppPuppy3Date && (
+                                      <div>
+                                        <span className="text-stone-500">משושה גורים מ3: </span>
+                                        <span className="text-stone-700">
+                                          {new Date(pet.health.dhppPuppy3Date).toLocaleDateString("he-IL")}
+                                        </span>
+                                      </div>
+                                    )}
                                     {pet.health.dhppLastDate && (
                                       <div>
-                                        <span className="text-stone-500">משושה: </span>
+                                        <span className="text-stone-500">משושה בוגר: </span>
                                         <span className="text-stone-700">
                                           {new Date(pet.health.dhppLastDate).toLocaleDateString("he-IL")}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {pet.health.bordatellaDate && (
+                                      <div>
+                                        <span className="text-stone-500">שעלת מכלאות: </span>
+                                        <span className="text-stone-700">
+                                          {new Date(pet.health.bordatellaDate).toLocaleDateString("he-IL")}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {pet.health.parkWormDate && (
+                                      <div>
+                                        <span className="text-stone-500">תולעת פארק: </span>
+                                        <span className="text-stone-700">
+                                          {new Date(pet.health.parkWormDate).toLocaleDateString("he-IL")}
                                         </span>
                                       </div>
                                     )}
@@ -3365,6 +3585,15 @@ export default function CustomerProfilePage() {
                                         <span className="text-stone-500">תילוע: </span>
                                         <span className="text-stone-700">
                                           {new Date(pet.health.dewormingLastDate).toLocaleDateString("he-IL")}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {pet.health.fleaTickDate && (
+                                      <div>
+                                        <span className="text-stone-500">קרציות/פרעושים: </span>
+                                        <span className="text-stone-700">
+                                          {pet.health.fleaTickType ? `${pet.health.fleaTickType} · ` : ""}
+                                          {new Date(pet.health.fleaTickDate).toLocaleDateString("he-IL")}
                                         </span>
                                       </div>
                                     )}
@@ -3421,10 +3650,14 @@ export default function CustomerProfilePage() {
 
                           {/* Behavior details */}
                           <div>
-                            <div className="flex items-center justify-between mb-1.5">
+                            <div
+                              className="flex items-center justify-between mb-1.5 cursor-pointer select-none"
+                              onClick={(e) => { e.stopPropagation(); toggleSection(pet.id, "behavior"); }}
+                            >
                               <div className="flex items-center gap-1.5">
                                 <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
                                 <span className="text-xs font-bold text-petra-text">התנהגות</span>
+                                {isSectionOpen(pet.id, "behavior") ? <ChevronUp className="w-3 h-3 text-stone-400" /> : <ChevronDown className="w-3 h-3 text-stone-400" />}
                               </div>
                               <button
                                 className="w-5 h-5 rounded flex items-center justify-center hover:bg-amber-100 transition-colors"
@@ -3434,7 +3667,7 @@ export default function CustomerProfilePage() {
                                 <Pencil className="w-3 h-3 text-amber-600" />
                               </button>
                             </div>
-                            {(activeBehaviorFlags.length > 0 || (() => { try { return JSON.parse(pet.behavior?.customIssues || "[]"); } catch { return []; } })().length > 0) && (
+                            {isSectionOpen(pet.id, "behavior") && (activeBehaviorFlags.length > 0 || (() => { try { return JSON.parse(pet.behavior?.customIssues || "[]"); } catch { return []; } })().length > 0 || pet.behavior?.triggers || pet.behavior?.biteDetails || pet.behavior?.priorTrainingDetails) && (
                               <div className="bg-white/60 rounded-lg p-2.5 space-y-2">
                                 <div className="flex flex-wrap gap-1.5">
                                   {activeBehaviorFlags.map(([key, info]) => (
@@ -4091,6 +4324,15 @@ export default function CustomerProfilePage() {
           pet={editPetModal.pet}
           customerId={customerId}
           onClose={() => setEditPetModal(null)}
+        />
+      )}
+      {feedingModal && (
+        <EditFeedingModal
+          petId={feedingModal.pet.id}
+          petName={feedingModal.pet.name}
+          pet={feedingModal.pet}
+          customerId={customerId}
+          onClose={() => setFeedingModal(null)}
         />
       )}
       {deletingMed && (
