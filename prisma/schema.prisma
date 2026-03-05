@@ -480,6 +480,7 @@ model Lead {
   // Follow-up fields
   nextFollowUpAt   DateTime?
   followUpStatus   String   @default("pending") // "pending" | "completed"
+  followUpTaskId   String?   // ID of the auto-created follow-up Task
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

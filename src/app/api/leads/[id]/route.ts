@@ -69,6 +69,47 @@ export async function PATCH(
       },
     });
 
+    // ── Auto-task sync for follow-up date ──────────────────────────────────────
+    if (nextFollowUpAt !== undefined) {
+      // Delete previous follow-up task if it exists and not yet completed
+      if (existing.followUpTaskId) {
+        await prisma.task.deleteMany({
+          where: {
+            id: existing.followUpTaskId,
+            businessId: authResult.businessId,
+            status: { not: "COMPLETED" },
+          },
+        });
+      }
+
+      if (nextFollowUpAt) {
+        // Create a new linked follow-up task
+        const newTask = await prisma.task.create({
+          data: {
+            businessId: authResult.businessId,
+            description: `מעקב עם ${existing.name}${existing.phone ? ` — ${existing.phone}` : ""}`,
+            category: "LEADS",
+            priority: "MEDIUM",
+            status: "OPEN",
+            dueDate: new Date(nextFollowUpAt),
+            relatedEntityType: "LEAD",
+            relatedEntityId: existing.id,
+          },
+        });
+        await prisma.lead.update({
+          where: { id, businessId: authResult.businessId },
+          data: { followUpTaskId: newTask.id },
+        });
+      } else {
+        // Follow-up cleared — remove reference
+        await prisma.lead.update({
+          where: { id, businessId: authResult.businessId },
+          data: { followUpTaskId: null },
+        });
+      }
+    }
+    // ──────────────────────────────────────────────────────────────────────────
+
     const { session } = authResult;
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.UPDATE_LEAD);
 

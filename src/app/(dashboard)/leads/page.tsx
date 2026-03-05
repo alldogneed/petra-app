@@ -5,7 +5,8 @@ import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
-  Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText
+  Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText,
+  CalendarClock, Clock,
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -50,6 +51,7 @@ interface Lead {
   lostReasonText: string | null;
   customerId: string | null;
   customer: { id: string; name: string } | null;
+  nextFollowUpAt: string | null;
   callLogs?: {
     id: string;
     summary: string;
@@ -442,6 +444,27 @@ function DraggableLeadCard({
   stages: LeadStage[];
 }) {
   const [converting, setConverting] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerDate, setPickerDate] = useState(
+    lead.nextFollowUpAt ? lead.nextFollowUpAt.slice(0, 10) : ""
+  );
+  const queryClient = useQueryClient();
+
+  const followUpMutation = useMutation({
+    mutationFn: (date: string | null) =>
+      fetch(`/api/leads/${lead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nextFollowUpAt: date }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      toast.success(pickerDate ? "מועד מעקב נשמר ומשימה נוצרה" : "מועד מעקב נוקה");
+    },
+    onError: () => toast.error("שגיאה בעדכון מועד המעקב"),
+  });
+
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: lead.id,
     data: { lead },
@@ -456,6 +479,7 @@ function DraggableLeadCard({
   const wonStage = stages.find((s) => s.isWon);
   const lostStage = stages.find((s) => s.isLost);
 
+  // Lead aging
   const daysSinceCreation = Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / (1000 * 60 * 60 * 24));
   const showStaleness = !isWon && !isLost && daysSinceCreation > 7;
   const stalenessColor = daysSinceCreation > 30
@@ -463,6 +487,19 @@ function DraggableLeadCard({
     : daysSinceCreation > 14
       ? "bg-orange-50 text-orange-600 border border-orange-100"
       : "bg-amber-50 text-amber-600 border border-amber-100";
+
+  // Follow-up date logic
+  const followUpDate = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
+  const now = new Date();
+  const isFollowUpToday = followUpDate
+    ? followUpDate.getFullYear() === now.getFullYear() &&
+      followUpDate.getMonth() === now.getMonth() &&
+      followUpDate.getDate() === now.getDate()
+    : false;
+  const isFollowUpOverdue = followUpDate ? followUpDate < now && !isFollowUpToday : false;
+  const followUpLabel = followUpDate
+    ? followUpDate.toLocaleDateString("he-IL", { day: "numeric", month: "long" })
+    : null;
 
   const lostReasonLabel = lead.lostReasonCode
     ? LOST_REASON_CODES.find((r) => r.id === lead.lostReasonCode)?.label
@@ -472,11 +509,15 @@ function DraggableLeadCard({
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
   } : undefined;
 
-  const borderAccent = isWon
-    ? "border-r-[3px] border-r-green-400"
-    : isLost
-      ? "border-r-[3px] border-r-red-400"
-      : "";
+  const borderAccent = isFollowUpOverdue
+    ? "border-r-[3px] border-r-red-400"
+    : isFollowUpToday
+      ? "border-r-[3px] border-r-blue-400"
+      : isWon
+        ? "border-r-[3px] border-r-green-400"
+        : isLost
+          ? "border-r-[3px] border-r-red-400"
+          : "";
 
   return (
     <div
@@ -546,7 +587,7 @@ function DraggableLeadCard({
       )}
 
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span className="badge-neutral text-[10px]">{sourceEmoji} {sourceLabel}</span>
           {callLogCount > 0 && (
             <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-brand-50 text-brand-600 font-medium">
@@ -554,13 +595,80 @@ function DraggableLeadCard({
               {callLogCount}
             </span>
           )}
+          {/* Follow-up badge */}
+          {followUpLabel && (
+            <span className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${
+              isFollowUpOverdue
+                ? "bg-red-50 text-red-700 border-red-200"
+                : isFollowUpToday
+                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                  : "bg-slate-50 text-slate-600 border-slate-200"
+            }`}>
+              <CalendarClock className="w-2.5 h-2.5" />
+              {isFollowUpOverdue ? "עבר מועד" : isFollowUpToday ? "היום!" : followUpLabel}
+            </span>
+          )}
+          {/* Aging indicator */}
           {showStaleness && (
             <span className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${stalenessColor}`}>
+              <Clock className="w-2.5 h-2.5" />
               {daysSinceCreation}י׳
             </span>
           )}
         </div>
-        <div className="flex gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+        <div className="flex gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 relative">
+          {/* Follow-up date picker button */}
+          {!isWon && !isLost && (
+            <div className="relative" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowDatePicker(!showDatePicker); }}
+                className={`w-7 h-7 flex items-center justify-center rounded-full transition-colors ${
+                  followUpDate ? "text-blue-600 hover:bg-blue-100" : "text-petra-muted hover:bg-slate-100"
+                }`}
+                title="קבע מועד פולואפ"
+              >
+                <CalendarClock className="w-4 h-4" />
+              </button>
+              {showDatePicker && (
+                <div className="absolute left-0 top-8 z-50 bg-white shadow-xl rounded-xl border border-slate-200 p-3 w-52">
+                  <p className="text-xs font-semibold text-petra-text mb-2">מועד פולואפ</p>
+                  <input
+                    type="date"
+                    className="input text-xs w-full"
+                    value={pickerDate}
+                    min={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => setPickerDate(e.target.value)}
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      className="btn-primary text-xs flex-1 py-1.5"
+                      disabled={followUpMutation.isPending}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        followUpMutation.mutate(pickerDate ? new Date(pickerDate).toISOString() : null);
+                        setShowDatePicker(false);
+                      }}
+                    >
+                      {followUpMutation.isPending ? "..." : "שמור"}
+                    </button>
+                    {followUpDate && (
+                      <button
+                        className="btn-secondary text-xs py-1.5"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPickerDate("");
+                          followUpMutation.mutate(null);
+                          setShowDatePicker(false);
+                        }}
+                      >
+                        נקה
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           <button
             onClick={(e) => { e.stopPropagation(); onDetails(); }}
             className="w-7 h-7 flex items-center justify-center rounded-full text-brand-600 hover:bg-brand-100 transition-colors"

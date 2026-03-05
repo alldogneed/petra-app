@@ -159,14 +159,13 @@ export async function GET(request: NextRequest) {
         where: {
           businessId,
           followUpStatus: "pending",
-          nextFollowUpAt: { lte: now },
-          stage: { notIn: ["lost", "won"] }
+          nextFollowUpAt: { lte: todayEnd },
         },
         include: {
           customer: { select: { name: true } },
         },
         orderBy: { nextFollowUpAt: "asc" },
-        take: 10,
+        take: 15,
       }),
       // Pending online bookings count
       prisma.booking.count({
