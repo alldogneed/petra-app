@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, Search, Plus, Loader2, X } from "lucide-react";
+import { Building2, Search, Plus, Loader2, X, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { fetchJSON, cn } from "@/lib/utils";
 
@@ -30,10 +30,19 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const TIER_LABEL: Record<string, string> = {
-  basic: "בסיסי",
-  pro: "מקצועי",
+  free: "חינמי",
+  basic: "בייסיק",
+  pro: "פרו",
+  groomer: "גרומר",
   enterprise: "ארגוני",
 };
+
+const TIERS = [
+  { value: "free", label: "חינמי", price: "₪0" },
+  { value: "basic", label: "בייסיק", price: "₪99" },
+  { value: "pro", label: "פרו", price: "₪199" },
+  { value: "groomer", label: "גרומר", price: "₪169" },
+];
 
 export default function TenantsPage() {
   const queryClient = useQueryClient();
@@ -220,9 +229,12 @@ export default function TenantsPage() {
       {showCreate && (
         <CreateTenantModal
           onClose={() => setShowCreate(false)}
-          onCreated={() => {
+          onCreated={(ownerEmail) => {
             setShowCreate(false);
             queryClient.invalidateQueries({ queryKey: ["owner", "tenants"] });
+            if (ownerEmail) {
+              alert(`העסק נוצר בהצלחה!\nמנהל עסק נוצר: ${ownerEmail}`);
+            }
           }}
         />
       )}
@@ -230,11 +242,15 @@ export default function TenantsPage() {
   );
 }
 
-function CreateTenantModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function CreateTenantModal({ onClose, onCreated }: { onClose: () => void; onCreated: (ownerEmail?: string) => void }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [tier, setTier] = useState("basic");
+  const [showOwner, setShowOwner] = useState(false);
+  const [ownerName, setOwnerName] = useState("");
+  const [ownerEmail, setOwnerEmail] = useState("");
+  const [ownerPassword, setOwnerPassword] = useState("");
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -246,9 +262,15 @@ function CreateTenantModal({ onClose, onCreated }: { onClose: () => void; onCrea
           email: email || undefined,
           phone: phone || undefined,
           tier,
+          ownerName: showOwner && ownerName ? ownerName : undefined,
+          ownerEmail: showOwner && ownerEmail ? ownerEmail : undefined,
+          ownerPassword: showOwner && ownerPassword ? ownerPassword : undefined,
         }),
       }),
-    onSuccess: () => onCreated(),
+    onSuccess: (data: unknown) => {
+      const result = data as { business: unknown; owner: { email: string } | null };
+      onCreated(result.owner?.email);
+    },
   });
 
   return (
@@ -298,10 +320,61 @@ function CreateTenantModal({ onClose, onCreated }: { onClose: () => void; onCrea
           <div>
             <label className="label">חבילה</label>
             <select value={tier} onChange={(e) => setTier(e.target.value)} className="input w-full">
-              <option value="basic">בסיסי</option>
-              <option value="pro">מקצועי</option>
-              <option value="enterprise">ארגוני</option>
+              {TIERS.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label} — {t.price}/חודש
+                </option>
+              ))}
             </select>
+          </div>
+
+          {/* Owner section */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowOwner((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors"
+            >
+              <span>הוספת מנהל עסק</span>
+              <ChevronDown className={cn("w-4 h-4 transition-transform", showOwner && "rotate-180")} />
+            </button>
+            {showOwner && (
+              <div className="p-4 space-y-3">
+                <p className="text-xs text-slate-400">אם לא תמלא, תוכל להוסיף מנהל מאוחר יותר</p>
+                <div>
+                  <label className="label">שם מלא</label>
+                  <input
+                    type="text"
+                    value={ownerName}
+                    onChange={(e) => setOwnerName(e.target.value)}
+                    className="input w-full"
+                    placeholder="ישראל ישראלי"
+                  />
+                </div>
+                <div>
+                  <label className="label">אימייל</label>
+                  <input
+                    type="email"
+                    value={ownerEmail}
+                    onChange={(e) => setOwnerEmail(e.target.value)}
+                    className="input w-full"
+                    dir="ltr"
+                    placeholder="owner@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="label">סיסמה (לפחות 8 תווים)</label>
+                  <input
+                    type="password"
+                    value={ownerPassword}
+                    onChange={(e) => setOwnerPassword(e.target.value)}
+                    className="input w-full"
+                    dir="ltr"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

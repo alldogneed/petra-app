@@ -1,4 +1,9 @@
 export const TIERS = {
+  free: {
+    name: "חינמי",
+    price: 0,
+    features: ["ניהול לקוחות בסיסי", "יומן תורים", "עד 50 לקוחות"],
+  },
   basic: {
     name: "בייסיק",
     price: 99,
