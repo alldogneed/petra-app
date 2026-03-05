@@ -32,6 +32,7 @@ import {
   Activity,
   AlertTriangle,
   ShieldCheck,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
@@ -89,6 +90,8 @@ const navEntries: NavEntry[] = [
   { name: "תהליכי אילוף", href: "/training", icon: Dog },
   { name: "חיות מחמד", href: "/pets", icon: PawPrint },
   { name: "יומן", href: "/calendar", icon: Calendar },
+  { name: "הודעות", href: "/messages", icon: MessageSquare },
+  { name: "אוטומציות", href: "/automations", icon: Zap },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner" },
   { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner" },
   { name: "הגדרות", href: "/settings", icon: Settings, minRole: "user" },
