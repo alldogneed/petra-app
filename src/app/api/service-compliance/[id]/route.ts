@@ -23,7 +23,7 @@ export async function PATCH(
     });
 
     if (!event) {
-      return NextResponse.json({ error: "אירוע ציות לא נמצא" }, { status: 404 });
+      return NextResponse.json({ error: "אירוע משמעת לא נמצא" }, { status: 404 });
     }
 
     const updated = await prisma.serviceDogComplianceEvent.update({
@@ -53,6 +53,6 @@ export async function PATCH(
     return NextResponse.json(updated);
   } catch (error) {
     console.error("PATCH /api/service-compliance/[id] error:", error);
-    return NextResponse.json({ error: "שגיאה בעדכון אירוע ציות" }, { status: 500 });
+    return NextResponse.json({ error: "שגיאה בעדכון אירוע משמעת" }, { status: 500 });
   }
 }

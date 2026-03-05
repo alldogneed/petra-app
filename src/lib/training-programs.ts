@@ -1,5 +1,33 @@
 // ─── Individual Training Programs: constants, types, and helpers ───
 
+export const TRAINING_TYPES = [
+  { id: "HOME", label: "אילוף בבית הלקוח" },
+  { id: "BOARDING", label: "אילוף בתנאי פנסיון" },
+  { id: "SERVICE_DOG", label: "כלב שירות" },
+] as const;
+
+export const TRAINING_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  TRAINING_TYPES.map((t) => [t.id, t.label])
+);
+
+export const PACKAGE_TYPES = [
+  { id: "HOME", label: "אילוף בבית" },
+  { id: "BOARDING", label: "אילוף בפנסיון" },
+  { id: "GROUP", label: "קבוצה" },
+  { id: "WORKSHOP", label: "סדנה" },
+] as const;
+
+export const PACKAGE_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  PACKAGE_TYPES.map((t) => [t.id, t.label])
+);
+
+export const PACKAGE_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  HOME:     { bg: "#EFF6FF", text: "#2563EB", border: "#93C5FD" },
+  BOARDING: { bg: "#FFF7ED", text: "#EA580C", border: "#FDBA74" },
+  GROUP:    { bg: "#F0FDF4", text: "#16A34A", border: "#86EFAC" },
+  WORKSHOP: { bg: "#FDF4FF", text: "#A21CAF", border: "#E879F9" },
+};
+
 export const PROGRAM_TYPES = [
   { id: "BASIC_OBEDIENCE", label: "משמעת בסיסית" },
   { id: "REACTIVITY", label: "תגובתיות" },
@@ -52,15 +80,34 @@ export const SESSION_RATINGS = [
 
 // ─── TypeScript interfaces ───
 
+export interface TrainingPackageSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  type: string;
+  sessions: number;
+  durationDays: number | null;
+  price: number;
+  isActive: boolean;
+  createdAt: string;
+  _count: { programs: number };
+}
+
 export interface TrainingProgramSummary {
   id: string;
   name: string;
   programType: string;
+  trainingType: string;
   status: string;
   startDate: string;
   endDate: string | null;
   totalSessions: number | null;
   notes: string | null;
+  packageId: string | null;
+  workPlan: string | null;
+  behaviorBaseline: string | null;
+  customerExpectations: string | null;
+  boardingStayId: string | null;
   createdAt: string;
   dog: { id: string; name: string; breed: string | null; species: string };
   customer: { id: string; name: string; phone: string };
@@ -93,6 +140,9 @@ export interface TrainingSessionItem {
   status: string;
   summary: string | null;
   rating: number | null;
+  practiceItems: string | null;
+  nextSessionGoals: string | null;
+  homeworkForCustomer: string | null;
 }
 
 export interface TrainingHomeworkItem {

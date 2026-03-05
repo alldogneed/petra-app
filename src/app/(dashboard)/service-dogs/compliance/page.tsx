@@ -112,7 +112,7 @@ export default function CompliancePage() {
             משמעת ודיווח ממשלתי
           </h1>
           <p className="text-sm text-petra-muted mt-1">
-            ניהול אירועי ציות ודיווחים נדרשים לרשויות
+            ניהול אירועי משמעת ודיווחים נדרשים לרשויות
           </p>
         </div>
       </div>

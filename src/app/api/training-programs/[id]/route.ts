@@ -70,6 +70,11 @@ export async function PATCH(
         ...(body.price !== undefined && { price: body.price }),
         ...(body.location !== undefined && { location: body.location }),
         ...(body.frequency !== undefined && { frequency: body.frequency }),
+        ...(body.workPlan !== undefined && { workPlan: body.workPlan || null }),
+        ...(body.behaviorBaseline !== undefined && { behaviorBaseline: body.behaviorBaseline || null }),
+        ...(body.customerExpectations !== undefined && { customerExpectations: body.customerExpectations || null }),
+        ...(body.boardingStayId !== undefined && { boardingStayId: body.boardingStayId || null }),
+        ...(body.trainingType !== undefined && { trainingType: body.trainingType }),
       },
       include: {
         dog: true,

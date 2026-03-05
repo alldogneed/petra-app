@@ -28,6 +28,6 @@ export async function GET(
     return NextResponse.json(events);
   } catch (error) {
     console.error("GET /api/service-dogs/[id]/compliance error:", error);
-    return NextResponse.json({ error: "שגיאה בטעינת אירועי ציות" }, { status: 500 });
+    return NextResponse.json({ error: "שגיאה בטעינת אירועי משמעת" }, { status: 500 });
   }
 }

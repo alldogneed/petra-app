@@ -13,7 +13,8 @@ export async function POST(
     if (isGuardError(authResult)) return authResult;
 
     const body = await req.json();
-    const { sessionDate, durationMinutes, sessionNumber, summary, rating, status } = body;
+    const { sessionDate, durationMinutes, sessionNumber, summary, rating, status,
+            practiceItems, nextSessionGoals, homeworkForCustomer } = body;
 
     if (!sessionDate) {
       return NextResponse.json({ error: "sessionDate is required" }, { status: 400 });
@@ -36,6 +37,9 @@ export async function POST(
         summary: summary || null,
         rating: rating ? parseInt(rating) : null,
         status: status || "SCHEDULED",
+        practiceItems: practiceItems || null,
+        nextSessionGoals: nextSessionGoals || null,
+        homeworkForCustomer: homeworkForCustomer || null,
       },
     });
 

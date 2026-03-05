@@ -209,7 +209,7 @@ export default function ServiceDogProfilePage() {
   const tabs = [
     { id: "training" as const, label: "יומן אימונים", icon: Clock },
     { id: "medical" as const, label: "פרוטוקולים רפואיים", icon: Heart },
-    { id: "compliance" as const, label: "ציות ודיווח", icon: AlertTriangle, badge: dog.isGovReportPending ? 1 : 0 },
+    { id: "compliance" as const, label: "משמעת ודיווח", icon: AlertTriangle, badge: dog.isGovReportPending ? 1 : 0 },
     { id: "placements" as const, label: "שיבוצים", icon: Activity },
     { id: "idcard" as const, label: "תעודת זהות", icon: CreditCard },
   ];
@@ -1029,7 +1029,7 @@ function ComplianceTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string })
       {dog.complianceEvents.length === 0 && (
         <div className="empty-state py-10">
           <AlertTriangle className="empty-state-icon" />
-          <p className="text-petra-muted">אין אירועי ציות</p>
+          <p className="text-petra-muted">אין אירועי משמעת</p>
         </div>
       )}
     </div>

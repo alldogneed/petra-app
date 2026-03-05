@@ -35,6 +35,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(events);
   } catch (error) {
     console.error("GET /api/service-compliance error:", error);
-    return NextResponse.json({ error: "שגיאה בטעינת אירועי ציות" }, { status: 500 });
+    return NextResponse.json({ error: "שגיאה בטעינת אירועי משמעת" }, { status: 500 });
   }
 }

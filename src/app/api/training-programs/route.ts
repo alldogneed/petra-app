@@ -11,11 +11,13 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
+    const trainingType = searchParams.get("trainingType");
 
     const programs = await prisma.trainingProgram.findMany({
       where: {
         businessId: authResult.businessId,
         ...(status && { status }),
+        ...(trainingType && { trainingType }),
       },
       include: {
         dog: true,
@@ -55,17 +57,36 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    // If packageId provided, auto-fill sessions and price from package
+    let totalSessions = body.totalSessions ?? null;
+    let price = body.price ?? null;
+    if (body.packageId) {
+      const pkg = await prisma.trainingPackage.findFirst({
+        where: { id: body.packageId, businessId: authResult.businessId },
+      });
+      if (pkg) {
+        if (totalSessions == null) totalSessions = pkg.sessions;
+        if (price == null) price = pkg.price;
+      }
+    }
+
     const program = await prisma.trainingProgram.create({
       data: {
         businessId: authResult.businessId,
         dogId: body.dogId,
         customerId: body.customerId,
+        packageId: body.packageId || null,
         name: body.name,
         programType: body.programType || "BASIC_OBEDIENCE",
+        trainingType: body.trainingType || "HOME",
         startDate: body.startDate ? new Date(body.startDate) : new Date(),
-        totalSessions: body.totalSessions ?? null,
-        price: body.price ?? null,
+        totalSessions,
+        price,
         notes: body.notes || null,
+        workPlan: body.workPlan || null,
+        behaviorBaseline: body.behaviorBaseline || null,
+        customerExpectations: body.customerExpectations || null,
+        boardingStayId: body.boardingStayId || null,
       },
       include: {
         dog: true,
