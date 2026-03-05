@@ -347,6 +347,9 @@ export function CreateOrderModal({
           taxMode: boardingItem.taxMode as "inherit" | "taxable" | "exempt",
           petIds: [...boardingPetIds],
         }]);
+        // Skip items step for boarding when item is auto-added — go straight to review
+        setStep("review");
+        return;
       }
     }
     setStep("items");
@@ -1086,6 +1089,7 @@ export function CreateOrderModal({
         )}
 
         <button
+          type="button"
           className="btn-primary w-full"
           disabled={lines.length === 0}
           onClick={() => setStep("review")}
