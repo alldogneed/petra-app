@@ -45,29 +45,20 @@ interface Customer {
 export default function PaymentRequestPage() {
   const searchParams = useSearchParams();
   const prefilledCustomerId = searchParams.get("customerId");
+  const prefilledName = searchParams.get("name");
+  const prefilledPhone = searchParams.get("phone");
 
   // Customer search
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(() => {
+    // Instant prefill from URL params — no async fetch needed
+    if (prefilledCustomerId && prefilledName && prefilledPhone) {
+      return { id: prefilledCustomerId, name: prefilledName, phone: prefilledPhone };
+    }
+    return null;
+  });
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-
-  // Auto-select customer when arriving via deep-link
-  const { data: prefilledCustomer } = useQuery<Customer>({
-    queryKey: ["customer-prefill", prefilledCustomerId],
-    queryFn: async () => {
-      const data = await fetchJSON(`/api/customers/${prefilledCustomerId}`) as { id: string; name: string; phone: string; email?: string };
-      return { id: data.id, name: data.name, phone: data.phone, email: data.email };
-    },
-    enabled: !!prefilledCustomerId,
-    staleTime: Infinity,
-  });
-
-  useEffect(() => {
-    if (prefilledCustomer && !selectedCustomer) {
-      setSelectedCustomer(prefilledCustomer);
-    }
-  }, [prefilledCustomer, selectedCustomer]);
 
   // Products from DB
   const { data: products = [], isLoading: productsLoading } = useQuery<Product[]>({

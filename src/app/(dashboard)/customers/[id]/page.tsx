@@ -1896,6 +1896,7 @@ function QuickTaskModal({
         }),
       }),
     onSuccess: () => {
+      toast.success(`משימה נוצרה עבור ${customerName}`);
       onSuccess();
       onClose();
     },
@@ -2032,6 +2033,7 @@ function NewAppointmentModal({
         }),
       }),
     onSuccess: () => {
+      toast.success(`תור נקבע עבור ${customer.name}`);
       onSuccess();
       onClose();
     },
@@ -2902,13 +2904,13 @@ export default function CustomerProfilePage() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowMobileActions(false)} />
                 <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 py-1 animate-fade-in">
-                  <Link href={`/scheduler?customerId=${customer.id}`} onClick={() => setShowMobileActions(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
+                  <button onClick={() => { setShowNewAppointmentModal(true); setShowMobileActions(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 text-right">
                     <CalendarClock className="w-4 h-4 text-slate-400" />קבע תור
-                  </Link>
+                  </button>
                   <button onClick={() => { setShowQuickTaskModal(true); setShowMobileActions(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 text-right">
                     <ListTodo className="w-4 h-4 text-slate-400" />משימה
                   </button>
-                  <Link href={`/payment-request?customerId=${customer.id}`} onClick={() => setShowMobileActions(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
+                  <Link href={`/payment-request?customerId=${customer.id}&name=${encodeURIComponent(customer.name)}&phone=${encodeURIComponent(customer.phone)}`} onClick={() => setShowMobileActions(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
                     <Send className="w-4 h-4 text-slate-400" />בקשת תשלום
                   </Link>
                   <button
@@ -2933,14 +2935,14 @@ export default function CustomerProfilePage() {
               </>
             )}
           </div>
-          <Link
-            href={`/scheduler?customerId=${customer.id}`}
+          <button
+            onClick={() => setShowNewAppointmentModal(true)}
             className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
             title="קבע תור ללקוח זה"
           >
             <CalendarClock className="w-4 h-4" />
             קבע תור
-          </Link>
+          </button>
           <button
             onClick={() => setShowQuickTaskModal(true)}
             className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
@@ -2950,7 +2952,7 @@ export default function CustomerProfilePage() {
             משימה
           </button>
           <Link
-            href={`/payment-request?customerId=${customer.id}`}
+            href={`/payment-request?customerId=${customer.id}&name=${encodeURIComponent(customer.name)}&phone=${encodeURIComponent(customer.phone)}`}
             className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
             title="שלח בקשת תשלום ללקוח זה"
           >
