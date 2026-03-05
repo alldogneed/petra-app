@@ -583,6 +583,9 @@ function DraggableLeadCard({
               {lostReasonLabel}
             </span>
           )}
+          {lead.lostReasonText && (
+            <p className="text-[10px] text-red-600 italic line-clamp-2">{lead.lostReasonText}</p>
+          )}
         </div>
       )}
 

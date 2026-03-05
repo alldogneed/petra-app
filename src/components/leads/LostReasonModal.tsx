@@ -28,7 +28,7 @@ export default function LostReasonModal({
 
   const handleConfirm = () => {
     if (!isValid || isPending) return;
-    onConfirm(reasonCode, reasonCode === "OTHER" ? reasonText.trim() : null);
+    onConfirm(reasonCode, reasonText.trim() || null);
   };
 
   const handleClose = () => {
@@ -76,13 +76,15 @@ export default function LostReasonModal({
             </select>
           </div>
 
-          {reasonCode === "OTHER" && (
+          {reasonCode !== "" && (
             <div className="animate-fade-in">
-              <label className="label">פרט בקצרה... *</label>
+              <label className="label">
+                {reasonCode === "OTHER" ? "פרט בקצרה... *" : "הערה (אופציונלי)"}
+              </label>
               <textarea
                 className="input resize-none"
                 rows={3}
-                placeholder="סיבת האובדן..."
+                placeholder={reasonCode === "OTHER" ? "סיבת האובדן..." : "הוסף הערה ידנית..."}
                 value={reasonText}
                 onChange={(e) => setReasonText(e.target.value)}
               />
