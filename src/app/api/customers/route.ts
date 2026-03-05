@@ -69,6 +69,16 @@ export async function GET(request: NextRequest) {
             orderBy: { createdAt: "desc" },
             take: 50,
           },
+          boardingStays: {
+            where: { status: { in: ["reserved", "checked_in"] } },
+            select: { id: true, status: true },
+            take: 1,
+          },
+          trainingPrograms: {
+            where: { status: "ACTIVE" },
+            select: { id: true },
+            take: 1,
+          },
           _count: { select: { pets: true, appointments: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -102,8 +112,11 @@ export async function GET(request: NextRequest) {
           (a) => new Date(a.date) >= thirtyDaysAgo
         );
 
-        // Compute status
-        const isActive = recentAppts.length > 0 || futureAppts.length > 0;
+        // Compute status: active = in boarding / active training / future appointment
+        const isInBoarding = c.boardingStays.length > 0;
+        const hasActiveTraining = c.trainingPrograms.length > 0;
+        const hasFutureAppointment = futureAppts.length > 0;
+        const isActive = isInBoarding || hasActiveTraining || hasFutureAppointment;
         const status = isVip ? "vip" : isActive ? "active" : "dormant";
 
         // Last & next appointments
