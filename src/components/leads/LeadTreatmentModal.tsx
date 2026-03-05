@@ -7,6 +7,7 @@ import {
     Phone, Mail, Calendar, User, AlignLeft, X, Clock,
     CheckCircle2, History, Check, CalendarCheck,
     Trophy, XCircle, MessageSquare, Star, Zap, MessageCircle,
+    Pencil, Trash2,
 } from "lucide-react";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import LostReasonModal from "@/components/leads/LostReasonModal";
@@ -49,6 +50,7 @@ interface LeadTreatmentModalProps {
     onClose: () => void;
     stages: LeadStage[];
     onWon?: (name: string, customerId: string) => void;
+    onDeleted?: () => void;
 }
 
 // ─── Timeline ────────────────────────────────────────────────────────────────
@@ -98,8 +100,27 @@ const TL_STYLES: Record<TLType, { icon: React.ReactNode; dot: string; line: stri
     },
 };
 
-function TimelineItem({ event, isLast }: { event: TLEvent; isLast: boolean }) {
+interface TimelineItemProps {
+    event: TLEvent;
+    isLast: boolean;
+    editingLogId: string | null;
+    editLogSummary: string;
+    editLogTreatment: string;
+    onEditChange: (field: "summary" | "treatment", value: string) => void;
+    onEditSave: () => void;
+    onEditCancel: () => void;
+    onEdit: (event: TLEvent) => void;
+    onDelete: (event: TLEvent) => void;
+    isSaving: boolean;
+}
+
+function TimelineItem({
+    event, isLast, editingLogId, editLogSummary, editLogTreatment,
+    onEditChange, onEditSave, onEditCancel, onEdit, onDelete, isSaving,
+}: TimelineItemProps) {
     const s = TL_STYLES[event.type];
+    const isEditing = event.type === "call_log" && editingLogId === event.id;
+
     return (
         <div className="flex gap-3 relative">
             {/* connector line */}
@@ -130,33 +151,91 @@ function TimelineItem({ event, isLast }: { event: TLEvent; isLast: boolean }) {
                             </span>
                         )}
                     </div>
-                    <span className="text-[11px] text-petra-muted whitespace-nowrap flex-shrink-0 bg-white/80 px-1.5 py-0.5 rounded border border-slate-100 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-                        {new Date(event.date).toLocaleString("he-IL", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                        })}
-                    </span>
-                </div>
-
-                {(event.description || event.action) && (
-                    <div className={cn("rounded-lg border p-3 space-y-2 text-sm", s.card)}>
-                        {event.description && (
-                            <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
-                                {event.description}
-                            </p>
-                        )}
-                        {event.action && (
-                            <div className="bg-amber-50 border border-amber-100 rounded-md p-2">
-                                <span className="text-[11px] font-bold text-amber-700 block mb-0.5">
-                                    Action Items ←
-                                </span>
-                                <p className="text-amber-900 whitespace-pre-wrap">{event.action}</p>
-                            </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                        <span className="text-[11px] text-petra-muted whitespace-nowrap bg-white/80 px-1.5 py-0.5 rounded border border-slate-100 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                            {new Date(event.date).toLocaleString("he-IL", {
+                                day: "2-digit", month: "2-digit", year: "2-digit",
+                                hour: "2-digit", minute: "2-digit",
+                            })}
+                        </span>
+                        {event.type === "call_log" && !isEditing && (
+                            <>
+                                <button
+                                    onClick={() => onEdit(event)}
+                                    className="w-6 h-6 flex items-center justify-center rounded hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
+                                    title="ערוך"
+                                >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                    onClick={() => onDelete(event)}
+                                    className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
+                                    title="מחק"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                            </>
                         )}
                     </div>
+                </div>
+
+                {isEditing ? (
+                    <div className={cn("rounded-lg border p-3 space-y-2 text-sm", s.card)}>
+                        <div>
+                            <label className="text-xs text-slate-500 block mb-1">סיכום השיחה</label>
+                            <textarea
+                                className="input text-sm"
+                                rows={2}
+                                value={editLogSummary}
+                                onChange={e => onEditChange("summary", e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-slate-500 block mb-1">המשך טיפול</label>
+                            <textarea
+                                className="input text-sm"
+                                rows={2}
+                                value={editLogTreatment}
+                                onChange={e => onEditChange("treatment", e.target.value)}
+                            />
+                        </div>
+                        <div className="flex justify-end gap-2 pt-1">
+                            <button
+                                onClick={onEditCancel}
+                                className="text-xs px-3 py-1.5 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                            >
+                                ביטול
+                            </button>
+                            <button
+                                onClick={onEditSave}
+                                disabled={isSaving}
+                                className="text-xs px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-1"
+                            >
+                                {isSaving
+                                    ? <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                                    : <Check className="w-3 h-3" />}
+                                שמור
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    (event.description || event.action) && (
+                        <div className={cn("rounded-lg border p-3 space-y-2 text-sm", s.card)}>
+                            {event.description && (
+                                <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                                    {event.description}
+                                </p>
+                            )}
+                            {event.action && (
+                                <div className="bg-amber-50 border border-amber-100 rounded-md p-2">
+                                    <span className="text-[11px] font-bold text-amber-700 block mb-0.5">
+                                        Action Items ←
+                                    </span>
+                                    <p className="text-amber-900 whitespace-pre-wrap">{event.action}</p>
+                                </div>
+                            )}
+                        </div>
+                    )
                 )}
             </div>
         </div>
@@ -165,7 +244,7 @@ function TimelineItem({ event, isLast }: { event: TLEvent; isLast: boolean }) {
 
 // ─── Main Modal ──────────────────────────────────────────────────────────────
 
-export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: LeadTreatmentModalProps) {
+export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDeleted }: LeadTreatmentModalProps) {
     const queryClient = useQueryClient();
 
     const [summary, setSummary] = useState("");
@@ -176,7 +255,6 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
 
     const [nextFollowUpAt, setNextFollowUpAt] = useState("");
     const [followUpStatus, setFollowUpStatus] = useState("pending");
-    const [followUpSaved, setFollowUpSaved] = useState(false);
     const [followUpError, setFollowUpError] = useState(false);
 
     const [isEditing, setIsEditing] = useState(false);
@@ -184,11 +262,18 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
 
     const [lostModalOpen, setLostModalOpen] = useState(false);
 
+    // Call log editing
+    const [editingLogId, setEditingLogId] = useState<string | null>(null);
+    const [editLogSummary, setEditLogSummary] = useState("");
+    const [editLogTreatment, setEditLogTreatment] = useState("");
+
+    // Delete lead confirmation
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
     const isClosed = lead?.stage === "won" || lead?.stage === "lost";
     const lostStage = stages.find((s) => s.isLost);
     const wonStage = stages.find((s) => s.isWon);
     const isSelectedWon = wonStage && selectedStage === wonStage.id;
-    const isSelectedLost = lostStage && selectedStage === lostStage.id;
 
     useEffect(() => {
         if (lead) {
@@ -198,8 +283,9 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
             setSummary("");
             setTreatment("");
             setCallLogSaved(false);
-            setFollowUpSaved(false);
             setFollowUpError(false);
+            setEditingLogId(null);
+            setShowDeleteConfirm(false);
             setNextFollowUpAt(lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt).toISOString().slice(0, 16) : "");
             setFollowUpStatus(lead.followUpStatus || "pending");
         }
@@ -321,40 +407,71 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
     });
 
+    const editCallLogMutation = useMutation({
+        mutationFn: ({ logId, summary, treatment }: { logId: string; summary: string; treatment: string }) =>
+            fetch(`/api/leads/${lead!.id}/call-logs/${logId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ summary, treatment }),
+            }).then((r) => r.json()),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["leads"] });
+            setEditingLogId(null);
+        },
+        onError: () => alert("שגיאה בעדכון יומן השיחה. נסה שוב."),
+    });
+
+    const deleteCallLogMutation = useMutation({
+        mutationFn: (logId: string) =>
+            fetch(`/api/leads/${lead!.id}/call-logs/${logId}`, { method: "DELETE" }).then((r) => r.json()),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
+        onError: () => alert("שגיאה במחיקת יומן השיחה. נסה שוב."),
+    });
+
+    const deleteLeadMutation = useMutation({
+        mutationFn: () =>
+            fetch(`/api/leads/${lead!.id}`, { method: "DELETE" }).then((r) => r.json()),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["leads"] });
+            setShowDeleteConfirm(false);
+            onClose();
+            if (onDeleted) onDeleted();
+        },
+        onError: () => alert("שגיאה במחיקת הליד. נסה שוב."),
+    });
+
     const isWorking = updateLeadMutation.isPending || closeWonMutation.isPending || closeLostMutation.isPending;
 
     // ── Handlers ──────────────────────────────────────────────────────────
 
     const handleConfirmCallLog = async () => {
-        if (!lead || (!summary.trim() && !treatment.trim())) return;
+        if (!nextFollowUpAt) { setFollowUpError(true); return; }
+        if (!summary.trim() && !treatment.trim()) return;
+        setFollowUpError(false);
+
         await addCallLogMutation.mutateAsync({
             summary: summary.trim() || "ללא סיכום",
             treatment: treatment.trim() || "ללא טיפול",
         });
+
+        // Save follow-up together with the call log
+        await updateLeadMutation.mutateAsync({
+            nextFollowUpAt: new Date(nextFollowUpAt).toISOString(),
+            followUpStatus,
+        });
+
         setSummary("");
         setTreatment("");
         setCallLogSaved(true);
         setTimeout(() => setCallLogSaved(false), 3000);
     };
 
-    const handleConfirmFollowUp = async () => {
-        if (!nextFollowUpAt) { setFollowUpError(true); return; }
-        setFollowUpError(false);
-        await updateLeadMutation.mutateAsync({
-            nextFollowUpAt: new Date(nextFollowUpAt).toISOString(),
-            followUpStatus,
-        });
-        setFollowUpSaved(true);
-        setTimeout(() => setFollowUpSaved(false), 3000);
-    };
-
     const handleSave = async () => {
         if (!lead) return;
 
-        // Follow-up is mandatory
         if (!nextFollowUpAt) {
             setFollowUpError(true);
-            document.getElementById("followup-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+            document.getElementById("followup-date-input")?.scrollIntoView({ behavior: "smooth", block: "center" });
             return;
         }
 
@@ -371,6 +488,8 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
 
         await updateLeadMutation.mutateAsync({
             stage: selectedStage,
+            nextFollowUpAt: new Date(nextFollowUpAt).toISOString(),
+            followUpStatus,
             ...(isEditing && {
                 name: editForm.name, phone: editForm.phone || null,
                 email: editForm.email || null, source: editForm.source,
@@ -389,6 +508,28 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
         setLostModalOpen(true);
     };
 
+    const handleEditLog = (event: TLEvent) => {
+        const log = lead?.callLogs?.find(l => l.id === event.id);
+        if (!log) return;
+        setEditingLogId(event.id);
+        setEditLogSummary(log.summary === "ללא סיכום" ? "" : log.summary);
+        setEditLogTreatment(log.treatment === "ללא טיפול" ? "" : log.treatment);
+    };
+
+    const handleDeleteLog = (event: TLEvent) => {
+        if (!confirm("למחוק את יומן השיחה הזה?")) return;
+        deleteCallLogMutation.mutate(event.id);
+    };
+
+    const handleEditLogSave = () => {
+        if (!editingLogId) return;
+        editCallLogMutation.mutate({
+            logId: editingLogId,
+            summary: editLogSummary.trim() || "ללא סיכום",
+            treatment: editLogTreatment.trim() || "ללא טיפול",
+        });
+    };
+
     if (!lead || !isOpen) return null;
 
     return (
@@ -402,9 +543,37 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
                         <h2 className="text-xl font-bold text-petra-text">
                             טיפול בליד: {isEditing ? editForm.name : lead.name}
                         </h2>
-                        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
-                            <X className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                            {!showDeleteConfirm ? (
+                                <button
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                                    title="מחק ליד"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            ) : (
+                                <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
+                                    <span className="text-xs text-red-700 font-medium">למחוק?</span>
+                                    <button
+                                        onClick={() => deleteLeadMutation.mutate()}
+                                        disabled={deleteLeadMutation.isPending}
+                                        className="text-xs px-2 py-0.5 rounded-md bg-red-600 text-white hover:bg-red-700 font-medium transition-colors disabled:opacity-50"
+                                    >
+                                        {deleteLeadMutation.isPending ? "מוחק..." : "כן, מחק"}
+                                    </button>
+                                    <button
+                                        onClick={() => setShowDeleteConfirm(false)}
+                                        className="text-xs px-2 py-0.5 rounded-md bg-slate-200 text-slate-600 hover:bg-slate-300 font-medium transition-colors"
+                                    >
+                                        ביטול
+                                    </button>
+                                </div>
+                            )}
+                            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto space-y-5 pe-1">
@@ -521,7 +690,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
                             </div>
                         )}
 
-                        {/* ── Call Log Section ─────────────────────────────── */}
+                        {/* ── Call Log + Follow-up Section ─────────────────── */}
                         <div className="space-y-4 bg-brand-50/40 rounded-xl border border-brand-100 p-4">
                             <h3 className="font-semibold text-petra-text flex items-center gap-2">
                                 <AlignLeft className="w-4 h-4 text-brand-500" />
@@ -541,6 +710,67 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
                                     onChange={(e) => setTreatment(e.target.value)}
                                     placeholder="מה הצעדים הבאים להמשך הטיפול בליד?" />
                             </div>
+
+                            {/* Follow-up scheduling — required before confirming */}
+                            <div id="followup-section" className={cn(
+                                "rounded-xl border p-3 space-y-3 transition-colors",
+                                followUpError && !nextFollowUpAt
+                                    ? "bg-red-50/60 border-red-300"
+                                    : "bg-amber-50/40 border-amber-200"
+                            )}>
+                                <div className="flex items-center gap-2">
+                                    <CalendarCheck className={cn("w-4 h-4", followUpError && !nextFollowUpAt ? "text-red-500" : "text-amber-500")} />
+                                    <span className="text-sm font-semibold text-petra-text">תזמון פולואפ הבא</span>
+                                    <span className={cn(
+                                        "text-[11px] font-bold px-2 py-0.5 rounded-full border",
+                                        followUpError && !nextFollowUpAt
+                                            ? "bg-red-100 text-red-600 border-red-200"
+                                            : "bg-amber-100 text-amber-600 border-amber-200"
+                                    )}>
+                                        חובה לפני אישור שיחה
+                                    </span>
+                                    {followUpError && !nextFollowUpAt && (
+                                        <span className="text-xs text-red-600">— נדרש</span>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="label text-xs text-slate-500 flex items-center gap-1">
+                                            <Clock className="w-3 h-3" /> תאריך ושעה *
+                                        </label>
+                                        <input
+                                            id="followup-date-input"
+                                            type="datetime-local"
+                                            className={cn(
+                                                "input h-9 w-full",
+                                                followUpError && !nextFollowUpAt && "border-red-400 focus:ring-red-500/20"
+                                            )}
+                                            value={nextFollowUpAt}
+                                            onChange={(e) => { setNextFollowUpAt(e.target.value); setFollowUpError(false); }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="label text-xs text-slate-500 flex items-center gap-1">
+                                            <CheckCircle2 className="w-3 h-3" /> סטטוס פולואפ
+                                        </label>
+                                        <div className="flex bg-slate-100 p-1 rounded-lg h-9">
+                                            <button type="button"
+                                                className={cn("flex-1 text-xs font-medium rounded-md transition-colors",
+                                                    followUpStatus === "pending" ? "bg-white text-brand-600 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                                                onClick={() => setFollowUpStatus("pending")}>
+                                                ממתין
+                                            </button>
+                                            <button type="button"
+                                                className={cn("flex-1 text-xs font-medium rounded-md transition-colors",
+                                                    followUpStatus === "completed" ? "bg-green-100 text-green-700 shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                                                onClick={() => setFollowUpStatus("completed")}>
+                                                הושלם
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="flex items-center justify-end gap-2 pt-1">
                                 {callLogSaved && (
                                     <span className="flex items-center gap-1 text-sm text-green-600 font-medium animate-in fade-in">
@@ -550,92 +780,19 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
                                 <button
                                     type="button"
                                     onClick={handleConfirmCallLog}
-                                    disabled={addCallLogMutation.isPending || (!summary.trim() && !treatment.trim())}
+                                    disabled={
+                                        addCallLogMutation.isPending ||
+                                        updateLeadMutation.isPending ||
+                                        (!summary.trim() && !treatment.trim()) ||
+                                        !nextFollowUpAt
+                                    }
                                     className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                                    title={!nextFollowUpAt ? "יש לקבוע תאריך פולואפ תחילה" : ""}
                                 >
-                                    {addCallLogMutation.isPending
+                                    {(addCallLogMutation.isPending || updateLeadMutation.isPending)
                                         ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                         : <Check className="w-4 h-4" />}
                                     אשר וסיים שיחה
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* ── Follow-up Section (REQUIRED) ─────────────────── */}
-                        <div id="followup-section" className={cn(
-                            "space-y-4 rounded-xl border p-4 transition-colors",
-                            followUpError && !nextFollowUpAt
-                                ? "bg-red-50/60 border-red-300"
-                                : "bg-amber-50/40 border-amber-100"
-                        )}>
-                            <h3 className="font-semibold text-petra-text flex items-center gap-2">
-                                <CalendarCheck className={cn("w-4 h-4", followUpError && !nextFollowUpAt ? "text-red-500" : "text-amber-500")} />
-                                תזמון פולואפ הבא
-                                <span className={cn(
-                                    "text-[11px] font-bold px-2 py-0.5 rounded-full border",
-                                    followUpError && !nextFollowUpAt
-                                        ? "bg-red-100 text-red-600 border-red-200"
-                                        : "bg-amber-100 text-amber-600 border-amber-200"
-                                )}>
-                                    חובה
-                                </span>
-                                {followUpError && !nextFollowUpAt && (
-                                    <span className="text-xs text-red-600 font-normal">— נדרש לפני שמירה</span>
-                                )}
-                            </h3>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="label text-xs text-slate-500 flex items-center gap-1">
-                                        <Clock className="w-3 h-3" /> תאריך ושעת פולואפ *
-                                    </label>
-                                    <input
-                                        type="datetime-local"
-                                        className={cn(
-                                            "input h-10 w-full",
-                                            followUpError && !nextFollowUpAt && "border-red-400 focus:ring-red-500/20"
-                                        )}
-                                        value={nextFollowUpAt}
-                                        onChange={(e) => { setNextFollowUpAt(e.target.value); setFollowUpError(false); }}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="label text-xs text-slate-500 flex items-center gap-1">
-                                        <CheckCircle2 className="w-3 h-3" /> סטטוס פולואפ
-                                    </label>
-                                    <div className="flex bg-slate-100 p-1 rounded-lg h-10">
-                                        <button type="button"
-                                            className={cn("flex-1 text-sm font-medium rounded-md transition-colors",
-                                                followUpStatus === "pending" ? "bg-white text-brand-600 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                                            onClick={() => setFollowUpStatus("pending")}>
-                                            ממתין
-                                        </button>
-                                        <button type="button"
-                                            className={cn("flex-1 text-sm font-medium rounded-md transition-colors",
-                                                followUpStatus === "completed" ? "bg-green-100 text-green-700 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                                            onClick={() => setFollowUpStatus("completed")}>
-                                            הושלם
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-end gap-2 pt-1">
-                                {followUpSaved && (
-                                    <span className="flex items-center gap-1 text-sm text-green-600 font-medium animate-in fade-in">
-                                        <Check className="w-4 h-4" /> תזמון נשמר!
-                                    </span>
-                                )}
-                                <button
-                                    type="button"
-                                    onClick={handleConfirmFollowUp}
-                                    disabled={updateLeadMutation.isPending || !nextFollowUpAt}
-                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                    {updateLeadMutation.isPending
-                                        ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        : <CalendarCheck className="w-4 h-4" />}
-                                    אשר תזמון פולואפ
                                 </button>
                             </div>
                         </div>
@@ -657,6 +814,18 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon }: Lea
                                             key={event.id}
                                             event={event}
                                             isLast={idx === timeline.length - 1}
+                                            editingLogId={editingLogId}
+                                            editLogSummary={editLogSummary}
+                                            editLogTreatment={editLogTreatment}
+                                            onEditChange={(field, value) => {
+                                                if (field === "summary") setEditLogSummary(value);
+                                                else setEditLogTreatment(value);
+                                            }}
+                                            onEditSave={handleEditLogSave}
+                                            onEditCancel={() => setEditingLogId(null)}
+                                            onEdit={handleEditLog}
+                                            onDelete={handleDeleteLog}
+                                            isSaving={editCallLogMutation.isPending}
                                         />
                                     ))}
                                 </div>
