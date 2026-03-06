@@ -70,11 +70,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "נדרש לבחור חיית מחמד" }, { status: 400 });
     }
 
-    // Verify pet belongs to business
+    // Verify pet belongs to business (via customer or directly)
     const pet = await prisma.pet.findFirst({
       where: {
         id: petId,
-        customer: { businessId: authResult.businessId },
+        OR: [
+          { customer: { businessId: authResult.businessId } },
+          { businessId: authResult.businessId },
+        ],
       },
     });
 

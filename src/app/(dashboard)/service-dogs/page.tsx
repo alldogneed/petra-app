@@ -1,7 +1,8 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useState } from "react";
 import {
   Shield,
   Dog,
@@ -14,6 +15,8 @@ import {
   UserCheck,
   CreditCard,
   ArrowLeft,
+  Plus,
+  X,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
@@ -21,7 +24,9 @@ import {
   SERVICE_DOG_PHASE_MAP,
   SERVICE_DOG_PHASE_COLORS,
   COMPLIANCE_EVENT_MAP,
+  DISABILITY_TYPES,
 } from "@/lib/service-dogs";
+import { toast } from "sonner";
 
 interface ServiceDogSummary {
   id: string;
@@ -53,6 +58,9 @@ interface ComplianceEvent {
 }
 
 export default function ServiceDogsOverviewPage() {
+  const [showAddRecipient, setShowAddRecipient] = useState(false);
+  const [showAddDog, setShowAddDog] = useState(false);
+
   const { data: dogs = [] } = useQuery<ServiceDogSummary[]>({
     queryKey: ["service-dogs"],
     queryFn: () => fetch("/api/service-dogs").then((r) => {
@@ -114,6 +122,16 @@ export default function ServiceDogsOverviewPage() {
           <p className="text-sm text-petra-muted mt-1">
             מרכז הכשרת כלבי שירות · ניהול מקצועי
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowAddRecipient(true)} className="btn-secondary flex items-center gap-2 text-sm">
+            <UserCheck className="w-4 h-4" />
+            הוסף זכאי
+          </button>
+          <button onClick={() => setShowAddDog(true)} className="btn-primary flex items-center gap-2 text-sm">
+            <Plus className="w-4 h-4" />
+            הוסף כלב שירות
+          </button>
         </div>
       </div>
 
@@ -286,6 +304,9 @@ export default function ServiceDogsOverviewPage() {
         </div>
       </div>
 
+      {showAddRecipient && <AddRecipientModal onClose={() => setShowAddRecipient(false)} />}
+      {showAddDog && <AddServiceDogModal onClose={() => setShowAddDog(false)} />}
+
       {/* Phase Distribution */}
       {dogs.length > 0 && (
         <div className="card p-5">
@@ -359,6 +380,215 @@ function StatCard({
         {label}
       </div>
       <div className={cn("text-2xl font-bold", c.val)}>{value}</div>
+    </div>
+  );
+}
+
+// ─── Add Recipient Modal ────────────────────────────────────────────────────
+function AddRecipientModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [idNumber, setIdNumber] = useState("");
+  const [address, setAddress] = useState("");
+  const [disabilityType, setDisabilityType] = useState("");
+  const [disabilityNotes, setDisabilityNotes] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      fetch("/api/service-recipients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["service-recipients"] });
+      toast.success("זכאי נוסף בהצלחה");
+      onClose();
+    },
+    onError: () => toast.error("שגיאה בהוספת זכאי"),
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
+            <UserCheck className="w-5 h-5 text-brand-500" />
+            הוסף זכאי חדש
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="label">שם מלא *</label>
+            <input type="text" className="input" placeholder="שם ומשפחה" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">טלפון</label>
+              <input type="tel" className="input" placeholder="05x-xxxxxxx" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">אימייל</label>
+              <input type="email" className="input" placeholder="mail@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">תעודת זהות</label>
+              <input type="text" className="input" placeholder="9 ספרות" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">סוג לקות</label>
+              <select className="input" value={disabilityType} onChange={(e) => setDisabilityType(e.target.value)}>
+                <option value="">לא נבחר</option>
+                {DISABILITY_TYPES.map((d) => (
+                  <option key={d.id} value={d.id}>{d.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="label">כתובת</label>
+            <input type="text" className="input" placeholder="רחוב, עיר" value={address} onChange={(e) => setAddress(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">פירוט הלקות</label>
+            <textarea className="input" rows={2} placeholder="מידע נוסף על הלקות..." value={disabilityNotes} onChange={(e) => setDisabilityNotes(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">הערות</label>
+            <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-5">
+          <button
+            className="btn-primary flex-1"
+            disabled={!name.trim() || mutation.isPending}
+            onClick={() => mutation.mutate({ name, phone, email, idNumber, address, disabilityType, disabilityNotes, notes })}
+          >
+            {mutation.isPending ? "שומר..." : "הוסף זכאי"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Add Service Dog Modal ──────────────────────────────────────────────────
+function AddServiceDogModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+  const [breed, setBreed] = useState("");
+  const [gender, setGender] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [weight, setWeight] = useState("");
+  const [microchip, setMicrochip] = useState("");
+  const [medicalNotes, setMedicalNotes] = useState("");
+  const [behaviorNotes, setBehaviorNotes] = useState("");
+  const [serviceType, setServiceType] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      fetch("/api/service-dogs/standalone-pet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["service-dogs"] });
+      qc.invalidateQueries({ queryKey: ["training-programs-service"] });
+      toast.success("כלב שירות נוסף בהצלחה");
+      onClose();
+    },
+    onError: () => toast.error("שגיאה בהוספת כלב"),
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
+            <Dog className="w-5 h-5 text-brand-500" />
+            הוסף כלב שירות
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-3 rounded-xl bg-brand-50 border border-brand-100 text-xs text-brand-700 mb-4">
+          כלב זה יופיע בתהליכי אילוף — כלבי שירות ובניהול כלבי שירות. לא ישויך ללקוח.
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="label">שם הכלב *</label>
+            <input type="text" className="input" placeholder="שם הכלב" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">גזע</label>
+              <input type="text" className="input" placeholder="גזע..." value={breed} onChange={(e) => setBreed(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">מין</label>
+              <select className="input" value={gender} onChange={(e) => setGender(e.target.value)}>
+                <option value="">לא ידוע</option>
+                <option value="male">זכר</option>
+                <option value="female">נקבה</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">תאריך לידה</label>
+              <input type="date" className="input" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">משקל (ק״ג)</label>
+              <input type="number" className="input" placeholder="0.0" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <label className="label">מיקרוצ׳יפ</label>
+            <input type="text" className="input" placeholder="מספר שבב..." value={microchip} onChange={(e) => setMicrochip(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">סוג שירות</label>
+            <input type="text" className="input" placeholder="כלב ניידות / פרכוסים / רגשי..." value={serviceType} onChange={(e) => setServiceType(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">הערות רפואיות</label>
+            <textarea className="input" rows={2} value={medicalNotes} onChange={(e) => setMedicalNotes(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">הערות התנהגותיות</label>
+            <textarea className="input" rows={2} value={behaviorNotes} onChange={(e) => setBehaviorNotes(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">הערות כלליות</label>
+            <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-5">
+          <button
+            className="btn-primary flex-1"
+            disabled={!name.trim() || mutation.isPending}
+            onClick={() => mutation.mutate({ name, breed, gender, birthDate, weight, microchip, medicalNotes, behaviorNotes, serviceType, notes })}
+          >
+            {mutation.isPending ? "שומר..." : "הוסף כלב שירות"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
     </div>
   );
 }

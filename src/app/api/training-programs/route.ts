@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       data: {
         businessId: authResult.businessId,
         dogId: body.dogId,
-        customerId: body.customerId,
+        customerId: body.customerId || null,
         packageId: body.packageId || null,
         name: body.name,
         programType: body.programType || "BASIC_OBEDIENCE",

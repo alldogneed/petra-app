@@ -266,6 +266,7 @@ model Business {
   serviceDogCompliance   ServiceDogComplianceEvent[]
   serviceDogIDCards      ServiceDogIDCard[]
   careLogs               BoardingCareLog[]
+  standalonePets         Pet[]            @relation("StandalonePets")
 
   @@index([slug])
 }
@@ -342,11 +343,13 @@ model Pet {
   behaviorNotes  String?
   tags           String   @default("[]")
   attachments    String   @default("[]")
-  customerId     String
+  customerId     String?
+  businessId     String?  // set for standalone service dogs (no customer)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  customer       Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer       Customer?      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  business       Business?      @relation("StandalonePets", fields: [businessId], references: [id])
   appointments   Appointment[]
   boardingStays  BoardingStay[]
   bookingDogs    BookingDog[]
@@ -359,6 +362,7 @@ model Pet {
   serviceDogProfile ServiceDogProfile?
 
   @@index([customerId])
+  @@index([businessId])
   @@index([birthDate])
 }
 
@@ -1079,7 +1083,7 @@ model TrainingProgram {
   id                   String   @id @default(uuid())
   businessId           String
   dogId                String
-  customerId           String
+  customerId           String?
   packageId            String?  // FK → TrainingPackage (optional)
   name                 String   // e.g. "אילוף בסיסי", "תגובתיות"
   programType          String   @default("BASIC_OBEDIENCE") // BASIC_OBEDIENCE | REACTIVITY | PUPPY | BEHAVIOR | ADVANCED | CUSTOM
@@ -1104,7 +1108,7 @@ model TrainingProgram {
 
   business      Business          @relation(fields: [businessId], references: [id])
   dog           Pet               @relation(fields: [dogId], references: [id], onDelete: Cascade)
-  customer      Customer          @relation(fields: [customerId], references: [id])
+  customer      Customer?         @relation(fields: [customerId], references: [id])
   package       TrainingPackage?  @relation(fields: [packageId], references: [id])
   order         Order?            @relation("OrderTrainingPrograms", fields: [orderId], references: [id], onDelete: SetNull)
   priceListItem PriceListItem?    @relation("PLITrainingPrograms", fields: [priceListItemId], references: [id], onDelete: SetNull)

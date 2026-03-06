@@ -29,6 +29,7 @@ import {
   Download,
   XCircle,
   ShoppingCart,
+  Home,
 } from "lucide-react";
 import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -107,7 +108,7 @@ interface TrainingProgram {
   customerExpectations: string | null;
   boardingStayId: string | null;
   dog: { id: string; name: string; breed: string | null };
-  customer: { id: string; name: string; phone: string };
+  customer: { id: string; name: string; phone: string } | null;
   goals: { id: string; title: string; status: string; progressPercent: number }[];
   sessions: ProgramSession[];
   homework: { id: string; title: string; isCompleted: boolean }[];
@@ -377,23 +378,36 @@ function SessionLogModal({
               onChange={(e) => setSummary(e.target.value)}
             />
           </div>
-          {isWeekly && programId && goals && goals.length > 0 && isSameWeek(sessionDate) && (
-            <div className="border-t pt-4">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 accent-brand-500 rounded"
-                  checked={homeSession}
-                  onChange={(e) => setHomeSession(e.target.checked)}
-                />
-                <span className="text-sm font-semibold text-petra-text">מפגשים בבית השבוע</span>
-              </label>
+          {isWeekly && programId && (
+            <div className="rounded-xl border border-green-200 overflow-hidden">
+              <button
+                type="button"
+                className="w-full flex items-center justify-between px-4 py-3 bg-green-50 hover:bg-green-100 transition-colors text-right"
+                onClick={() => setHomeSession(!homeSession)}
+              >
+                <ChevronDown className={cn("w-4 h-4 text-green-600 transition-transform flex-shrink-0", homeSession && "rotate-180")} />
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-green-800">מפגשים בבית השבוע</span>
+                  <Home className="w-4 h-4 text-green-600" />
+                </div>
+              </button>
               {homeSession && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-[11px] text-petra-muted">עדכן התקדמות יעדים שהושגו גם בבית השבוע</p>
-                  {goals.map((goal) => (
-                    <GoalProgressRow key={goal.id} goal={goal} programId={programId} />
-                  ))}
+                <div className="px-4 py-3 space-y-2 bg-white">
+                  {!isSameWeek(sessionDate) && (
+                    <p className="text-xs text-amber-700 bg-amber-50 px-3 py-2 rounded-lg">
+                      שים לב — התאריך שבחרת אינו בשבוע הנוכחי
+                    </p>
+                  )}
+                  {goals && goals.length > 0 ? (
+                    <>
+                      <p className="text-[11px] text-petra-muted pb-1">עדכן התקדמות יעדים שהושגו גם בבית</p>
+                      {goals.map((goal) => (
+                        <GoalProgressRow key={goal.id} goal={goal} programId={programId} />
+                      ))}
+                    </>
+                  ) : (
+                    <p className="text-xs text-petra-muted text-center py-4">אין יעדים מוגדרים לתוכנית זו — הגדר יעדים כדי לעדכן כאן</p>
+                  )}
                 </div>
               )}
             </div>
@@ -435,6 +449,7 @@ export default function TrainingPage() {
   const [showCreatePackage, setShowCreatePackage] = useState(false);
   const [editingPackage, setEditingPackage] = useState<TrainingPackage | null>(null);
   const [showBoardingTraining, setShowBoardingTraining] = useState<{ stay: BoardingStay } | null>(null);
+  const [showAddServiceDog, setShowAddServiceDog] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [dropoutTarget, setDropoutTarget] = useState<{ programId: string; dogName: string } | null>(null);
   const queryClient = useQueryClient();
@@ -1151,6 +1166,9 @@ export default function TrainingPage() {
                   <button className="btn-primary text-xs" onClick={() => setShowSellPackage(true)}>
                     <Plus className="w-3.5 h-3.5" /> תוכנית חדשה
                   </button>
+                  <button className="btn-secondary text-xs flex items-center gap-1" onClick={() => setShowAddServiceDog(true)}>
+                    <Dog className="w-3.5 h-3.5" /> הוסף כלב שירות
+                  </button>
                   <a href="/service-dogs" className="btn-secondary text-xs flex items-center gap-1">
                     <Shield className="w-3.5 h-3.5" /> ניהול כלבי שירות ←
                   </a>
@@ -1356,6 +1374,16 @@ export default function TrainingPage() {
               notes: reason || undefined,
             })
           }
+        />
+      )}
+
+      {showAddServiceDog && (
+        <AddStandaloneServiceDogModal
+          onClose={() => setShowAddServiceDog(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
+            queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
+          }}
         />
       )}
     </div>
@@ -2451,108 +2479,115 @@ function BoardingTrainingTab({
         const nextSessionNum = usedSessions + 1;
 
         return (
-          <div key={stay.id} className="card p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
-                <Hotel className="w-5 h-5 text-amber-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-sm font-semibold text-petra-text">{stay.pet.name}</h3>
-                  {linkedProgram ? (
-                    linkedProgram.startDate && linkedProgram.endDate ? (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> לקוח פעיל
-                      </span>
-                    ) : (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">בהגדרה — חסרים תאריכים</span>
-                    )
+          <div key={stay.id} className="card p-0 overflow-hidden">
+            {/* ── Card header ── */}
+            <div className="flex items-center justify-between px-4 pt-4 pb-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                {linkedProgram ? (
+                  linkedProgram.startDate && linkedProgram.endDate ? (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> פעיל
+                    </span>
                   ) : (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">ללא תוכנית אילוף</span>
-                  )}
-                </div>
-                <p className="text-xs text-petra-muted">{stay.customer.name} • {stay.room?.name ?? "ללא חדר"}</p>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">חסרים תאריכים</span>
+                  )
+                ) : (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">ללא תוכנית</span>
+                )}
+                {daysRemaining !== null && (
+                  <span className={cn(
+                    "text-[10px] font-medium px-2 py-0.5 rounded-full",
+                    daysRemaining <= 1 ? "bg-red-100 text-red-700" :
+                    daysRemaining <= 3 ? "bg-amber-100 text-amber-700" :
+                    "bg-slate-100 text-slate-600"
+                  )}>
+                    נותרו {Math.max(0, daysRemaining)} ימים
+                  </span>
+                )}
               </div>
-              {daysRemaining !== null && (
-                <span className={cn(
-                  "text-xs font-medium px-2 py-1 rounded-lg",
-                  daysRemaining <= 1 ? "bg-red-100 text-red-700" :
-                  daysRemaining <= 3 ? "bg-amber-100 text-amber-700" :
-                  "bg-slate-100 text-slate-600"
-                )}>
-                  {Math.max(0, daysRemaining)} ימים
-                </span>
-              )}
+              <div className="flex items-center gap-2.5">
+                <div>
+                  <p className="text-sm font-bold text-petra-text text-right">{stay.pet.name}</p>
+                  <p className="text-xs text-petra-muted text-right">{stay.customer.name}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+                  <Hotel className="w-5 h-5 text-amber-600" />
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-petra-muted mb-3">
-              <Calendar className="w-3.5 h-3.5" />
+            {/* ── Stay dates row ── */}
+            <div className="flex items-center justify-end gap-3 text-xs text-petra-muted bg-slate-50 px-4 py-2 border-t border-b">
+              {stay.checkOut && <span>יציאה: {formatDate(stay.checkOut)}</span>}
+              {stay.checkOut && <span>•</span>}
               <span>כניסה: {formatDate(stay.checkIn)}</span>
-              {stay.checkOut && <><span>•</span><span>יציאה: {formatDate(stay.checkOut)}</span></>}
+              <span>•</span>
+              <span>{stay.room?.name ?? "ללא חדר"}</span>
+              <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
             </div>
 
-            {linkedProgram ? (
-              <div className="border-t pt-3 space-y-3">
-                {/* Program dates */}
-                {(linkedProgram.startDate || linkedProgram.endDate) && (
-                  <div className="flex items-center gap-3 text-xs text-petra-muted bg-slate-50 px-3 py-2 rounded-xl">
-                    <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
-                    {linkedProgram.startDate && <span>התחלה: {formatDate(linkedProgram.startDate)}</span>}
-                    {linkedProgram.startDate && linkedProgram.endDate && <span>•</span>}
-                    {linkedProgram.endDate && <span>סיום: {formatDate(linkedProgram.endDate)}</span>}
+            {/* ── Program section ── */}
+            <div className="px-4 pb-4 pt-3">
+              {linkedProgram ? (
+                <div className="space-y-3">
+                  {(linkedProgram.startDate || linkedProgram.endDate) && (
+                    <div className="flex items-center justify-end gap-2 text-xs text-petra-muted">
+                      {linkedProgram.endDate && <span>סיום: {formatDate(linkedProgram.endDate)}</span>}
+                      {linkedProgram.startDate && linkedProgram.endDate && <span>•</span>}
+                      {linkedProgram.startDate && <span>התחלה: {formatDate(linkedProgram.startDate)}</span>}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    {linkedProgram.behaviorBaseline && (
+                      <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
+                        <p className="text-[10px] font-bold text-blue-600 mb-1">בסיס התנהגותי</p>
+                        <p className="text-xs text-petra-text">{linkedProgram.behaviorBaseline}</p>
+                      </div>
+                    )}
+                    {linkedProgram.customerExpectations && (
+                      <div className="p-3 rounded-xl bg-purple-50 border border-purple-100">
+                        <p className="text-[10px] font-bold text-purple-600 mb-1">ציפיות הלקוח</p>
+                        <p className="text-xs text-petra-text">{linkedProgram.customerExpectations}</p>
+                      </div>
+                    )}
+                    {linkedProgram.workPlan && (
+                      <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
+                        <p className="text-[10px] font-bold text-amber-600 mb-1">תוכנית עבודה — גלוי לצוות</p>
+                        <p className="text-xs text-petra-text whitespace-pre-line">{linkedProgram.workPlan}</p>
+                      </div>
+                    )}
                   </div>
-                )}
-                {linkedProgram.behaviorBaseline && (
-                  <div className="p-2 rounded-lg bg-blue-50">
-                    <p className="text-[10px] font-semibold text-blue-600 mb-1">בסיס התנהגותי</p>
-                    <p className="text-xs text-petra-text">{linkedProgram.behaviorBaseline}</p>
-                  </div>
-                )}
-                {linkedProgram.customerExpectations && (
-                  <div className="p-2 rounded-lg bg-purple-50">
-                    <p className="text-[10px] font-semibold text-purple-600 mb-1">ציפיות הלקוח</p>
-                    <p className="text-xs text-petra-text">{linkedProgram.customerExpectations}</p>
-                  </div>
-                )}
-                {linkedProgram.workPlan && (
-                  <div className="p-2 rounded-lg bg-amber-50">
-                    <p className="text-[10px] font-semibold text-amber-600 mb-1">תוכנית עבודה שבועית — גלוי לצוות</p>
-                    <p className="text-xs text-petra-text whitespace-pre-line">{linkedProgram.workPlan}</p>
-                  </div>
-                )}
-                {/* Weekly goals before discharge */}
-                <GoalSection program={linkedProgram} label="יעדי שבוע — לפני יציאה לבית" />
-                {linkedProgram.sessions && linkedProgram.sessions.length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-semibold text-petra-muted mb-1.5">עדכוני שבועיים ({usedSessions} עדכונים)</p>
+                  <GoalSection program={linkedProgram} label="יעדי אילוף — לפני יציאה לבית" />
+                  {linkedProgram.sessions && linkedProgram.sessions.length > 0 && (
                     <div className="space-y-1.5">
+                      <p className="text-[10px] font-bold text-petra-muted">עדכונים שבועיים ({usedSessions})</p>
                       {linkedProgram.sessions.slice(0, 3).map((s) => (
-                        <div key={s.id} className="p-2 rounded-lg bg-slate-50 text-xs">
-                          <span className="font-medium text-petra-text">{formatDate(s.sessionDate)}</span>
-                          {s.summary && <p className="text-petra-muted mt-0.5">{s.summary}</p>}
-                          {s.practiceItems && <p className="text-blue-600 mt-0.5">תרגילים: {s.practiceItems}</p>}
+                        <div key={s.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-0.5">
+                          <p className="font-semibold text-petra-text">{formatDate(s.sessionDate)}</p>
+                          {s.practiceItems && <p className="text-brand-700">✓ {s.practiceItems}</p>}
+                          {s.summary && <p className="text-petra-muted">{s.summary}</p>}
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                  <button
+                    className="btn-primary text-sm w-full mt-1"
+                    onClick={() => onLogSession(linkedProgram.id, nextSessionNum, stay.pet.name, linkedProgram.goals)}
+                  >
+                    <Plus className="w-4 h-4" />
+                    עדכון שבועי {nextSessionNum > 1 ? `(שבוע ${nextSessionNum})` : "(שבוע 1)"}
+                  </button>
+                </div>
+              ) : (
                 <button
-                  className="btn-secondary text-xs w-full"
-                  onClick={() => onLogSession(linkedProgram.id, nextSessionNum, stay.pet.name, linkedProgram.goals)}
+                  className="btn-secondary text-sm w-full"
+                  onClick={() => onAddTraining(stay)}
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  הוסף עדכון שבועי
+                  <Plus className="w-4 h-4" />
+                  צור תוכנית אילוף לפנסיון
                 </button>
-              </div>
-            ) : (
-              <button
-                className="btn-primary text-xs w-full"
-                onClick={() => onAddTraining(stay)}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                הוסף תוכנית אילוף
-              </button>
-            )}
+              )}
+            </div>
           </div>
         );
       })}
@@ -4413,6 +4448,124 @@ function ArchiveTab({ programs, isLoading }: { programs: TrainingProgram[]; isLo
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// ADD STANDALONE SERVICE DOG MODAL
+// ═══════════════════════════════════════════════════════
+
+function AddStandaloneServiceDogModal({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [breed, setBreed] = useState("");
+  const [gender, setGender] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [weight, setWeight] = useState("");
+  const [microchip, setMicrochip] = useState("");
+  const [medicalNotes, setMedicalNotes] = useState("");
+  const [behaviorNotes, setBehaviorNotes] = useState("");
+  const [serviceType, setServiceType] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      fetch("/api/service-dogs/standalone-pet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => {
+      toast.success("כלב שירות נוסף בהצלחה");
+      onSuccess();
+      onClose();
+    },
+    onError: () => toast.error("שגיאה בהוספת כלב"),
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
+            <Dog className="w-5 h-5 text-brand-500" />
+            הוסף כלב שירות
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-3 rounded-xl bg-brand-50 border border-brand-100 text-xs text-brand-700 mb-4">
+          כלב זה יופיע בתהליכי אילוף — כלבי שירות ובניהול כלבי שירות. לא ישויך ללקוח.
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="label">שם הכלב *</label>
+            <input type="text" className="input" placeholder="שם הכלב" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">גזע</label>
+              <input type="text" className="input" placeholder="גזע..." value={breed} onChange={(e) => setBreed(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">מין</label>
+              <select className="input" value={gender} onChange={(e) => setGender(e.target.value)}>
+                <option value="">לא ידוע</option>
+                <option value="male">זכר</option>
+                <option value="female">נקבה</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">תאריך לידה</label>
+              <input type="date" className="input" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">משקל (ק״ג)</label>
+              <input type="number" className="input" placeholder="0.0" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <label className="label">מיקרוצ׳יפ</label>
+            <input type="text" className="input" placeholder="מספר שבב..." value={microchip} onChange={(e) => setMicrochip(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">סוג שירות</label>
+            <input type="text" className="input" placeholder="כלב ניידות / פרכוסים / רגשי..." value={serviceType} onChange={(e) => setServiceType(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">הערות רפואיות</label>
+            <textarea className="input" rows={2} value={medicalNotes} onChange={(e) => setMedicalNotes(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">הערות התנהגותיות</label>
+            <textarea className="input" rows={2} value={behaviorNotes} onChange={(e) => setBehaviorNotes(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">הערות כלליות</label>
+            <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-5">
+          <button
+            className="btn-primary flex-1"
+            disabled={!name.trim() || mutation.isPending}
+            onClick={() => mutation.mutate({ name, breed, gender, birthDate, weight, microchip, medicalNotes, behaviorNotes, serviceType, notes })}
+          >
+            {mutation.isPending ? "שומר..." : "הוסף כלב שירות"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
     </div>
   );
 }
