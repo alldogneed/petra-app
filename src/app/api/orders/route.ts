@@ -162,13 +162,14 @@ export async function POST(request: NextRequest) {
       }
 
       // Auto-create TrainingProgram for training orders when a pet is selected
-      if (orderType === "training" && appointmentData?.petId) {
-        const isPackage = trainingSubType === "package" && trainingPackageId;
+      const trainingPetId = appointmentData?.petId || body.petId;
+      if (orderType === "training" && trainingPetId) {
+        const isPkg = trainingSubType === "package" && !!trainingPackageId;
 
         let totalSessions: number | null = null;
         let programName = lines[0]?.name || "תוכנית אילוף";
 
-        if (isPackage) {
+        if (isPkg) {
           // Fetch price list item to get sessions count
           const item = await tx.priceListItem.findFirst({
             where: { id: trainingPackageId, businessId: authResult.businessId },
@@ -187,7 +188,7 @@ export async function POST(request: NextRequest) {
         await tx.trainingProgram.create({
           data: {
             businessId: authResult.businessId,
-            dogId: appointmentData.petId,
+            dogId: trainingPetId,
             customerId,
             name: programName,
             programType: "BASIC_OBEDIENCE",
@@ -196,7 +197,7 @@ export async function POST(request: NextRequest) {
             totalSessions,
             price: calc.total || null,
             notes: notes || null,
-            isPackage: isPackage,
+            isPackage: isPkg,
           },
         });
       }

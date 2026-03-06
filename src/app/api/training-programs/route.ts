@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
         behaviorBaseline: body.behaviorBaseline || null,
         customerExpectations: body.customerExpectations || null,
         boardingStayId: body.boardingStayId || null,
+        isPackage: !!(body.isPackage || body.packageId),
       },
       include: {
         dog: true,
