@@ -909,10 +909,20 @@ export function CreateOrderModal({
         </>
       )}
 
+      {/* Training order: warn if no pet selected */}
+      {orderType === "training" && !petsLoading && customerPets.length > 0 && !selectedPetId && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-center">
+          יש לבחור כלב ספציפי לפני המשך — ההזמנה תקשר לתוכנית אילוף
+        </p>
+      )}
       <button
         type="button"
         className="btn-primary w-full"
-        disabled={!customerId || (!petsLoading && customerPets.length === 0)}
+        disabled={
+          !customerId ||
+          (!petsLoading && customerPets.length === 0) ||
+          (orderType === "training" && !petsLoading && customerPets.length > 0 && !selectedPetId)
+        }
         onClick={handleAdvanceToItems}
       >
         המשך לפריטים →
