@@ -21,8 +21,10 @@ interface PriceListItem {
   basePrice: number;
   taxMode: string;
   durationMinutes: number | null;
+  description: string | null;
   isActive: boolean;
   paymentUrl?: string | null;
+  sessions?: number | null;
 }
 
 interface PriceList {
@@ -255,7 +257,7 @@ export function CreateOrderModal({
   });
 
   // Training package items — price list items in "אילוף" category with sessions > 0
-  const trainingPackages = (allItems as (PriceListItem & { sessions?: number | null })[]).filter(
+  const trainingPackages = allItems.filter(
     (i) => i.category === "אילוף" && i.sessions && i.sessions > 0 && i.isActive
   );
 
@@ -987,7 +989,7 @@ export function CreateOrderModal({
                   <div className="space-y-1.5">
                     {trainingPackages.map((pkg) => {
                       const selected = selectedPackageId === pkg.id;
-                      const pkgSessions = (pkg as PriceListItem & { sessions: number }).sessions;
+                      const pkgSessions = pkg.sessions ?? 0;
                       return (
                         <button
                           key={pkg.id}
