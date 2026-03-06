@@ -215,6 +215,10 @@ export function CreateOrderModal({
     priceListItemId: null, name: "", unit: "per_session", quantity: 1, unitPrice: 0, taxMode: "taxable", petIds: [],
   });
 
+  // Training sub-type
+  const [trainingSubType, setTrainingSubType] = useState<"private" | "package">("private");
+  const [selectedPackageId, setSelectedPackageId] = useState<string>("");
+
   // Items step — "add service" sub-form
   const [addCat, setAddCat] = useState<string>("");
   const [addItemId, setAddItemId] = useState<string>("");
@@ -249,6 +253,15 @@ export function CreateOrderModal({
     queryFn: () => fetch("/api/settings").then((r) => r.json()),
     staleTime: 300_000,
   });
+
+  // Training packages (fetched when training order type selected)
+  const { data: trainingPackagesData } = useQuery<{ packages: { id: string; name: string; sessions: number; price: number; description: string | null }[] }>({
+    queryKey: ["training-packages-active-home"],
+    queryFn: () => fetch("/api/training-packages?isActive=true").then((r) => r.json()),
+    enabled: isOpen && orderType === "training",
+    staleTime: 60_000,
+  });
+  const trainingPackages = trainingPackagesData?.packages ?? [];
 
   // Fetch customer's pets — fast endpoint (only pets, not full customer detail)
   const { data: customerPets = [], isLoading: petsLoading } = useQuery<Pet[]>({
@@ -455,6 +468,9 @@ export function CreateOrderModal({
           discountValue: parseFloat(discountValue) || 0,
           notes,
           status: statusOverride,
+          // Training: pass sub-type and package id for auto-program creation
+          trainingSubType: orderType === "training" ? trainingSubType : undefined,
+          trainingPackageId: orderType === "training" && trainingSubType === "package" && selectedPackageId ? selectedPackageId : undefined,
           // Send appointment data for service-based order types
           appointmentData: needsAppointment ? {
             date: apptDate,
@@ -936,6 +952,84 @@ export function CreateOrderModal({
 
     return (
       <div className="space-y-4">
+
+        {/* Training sub-type selector */}
+        {orderType === "training" && (
+          <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-3">
+            <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
+              <GraduationCap className="w-3.5 h-3.5" />
+              סוג האילוף
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { id: "private" as const, label: "מפגש בודד", sub: "ללא חבילה" },
+                { id: "package" as const, label: "חבילת אילוף", sub: "עם כמות מוגדרת" },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => { setTrainingSubType(opt.id); setSelectedPackageId(""); }}
+                  className={cn(
+                    "p-3 rounded-xl border text-right transition-all",
+                    trainingSubType === opt.id
+                      ? "border-blue-400 bg-blue-100"
+                      : "border-petra-border bg-white hover:bg-slate-50"
+                  )}
+                >
+                  <p className={cn("text-sm font-semibold", trainingSubType === opt.id ? "text-blue-700" : "text-petra-text")}>{opt.label}</p>
+                  <p className="text-[11px] text-petra-muted">{opt.sub}</p>
+                </button>
+              ))}
+            </div>
+
+            {trainingSubType === "package" && (
+              <div className="space-y-2 pt-1">
+                <p className="text-xs font-semibold text-petra-muted">בחר חבילה</p>
+                {trainingPackages.length === 0 ? (
+                  <p className="text-xs text-petra-muted">אין חבילות פעילות. הגדר חבילות תחת אילוף → חבילת אילוף.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {trainingPackages.map((pkg) => {
+                      const selected = selectedPackageId === pkg.id;
+                      return (
+                        <button
+                          key={pkg.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedPackageId(pkg.id);
+                            // Auto-populate cart with package as a flat line
+                            setLines([{
+                              priceListItemId: null,
+                              name: pkg.name,
+                              unit: "flat",
+                              quantity: 1,
+                              unitPrice: pkg.price,
+                              taxMode: "taxable",
+                              petIds: [],
+                            }]);
+                          }}
+                          className={cn(
+                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-right transition-all",
+                            selected ? "border-blue-400 bg-blue-50" : "border-petra-border bg-white hover:bg-slate-50"
+                          )}
+                        >
+                          <Package className={cn("w-4 h-4 flex-shrink-0", selected ? "text-blue-600" : "text-petra-muted")} />
+                          <div className="flex-1 min-w-0">
+                            <p className={cn("text-sm font-semibold", selected ? "text-blue-700" : "text-petra-text")}>{pkg.name}</p>
+                            <p className="text-xs text-petra-muted">{pkg.sessions} מפגשים{pkg.description ? ` · ${pkg.description}` : ""}</p>
+                          </div>
+                          <span className={cn("text-sm font-bold flex-shrink-0", selected ? "text-blue-600" : "text-petra-text")}>
+                            ₪{pkg.price.toLocaleString()}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Boarding dates reminder */}
         {isBoardingOrder && boardingNights !== null && (

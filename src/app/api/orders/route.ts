@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
 
     const body = await request.json();
-    const { customerId, orderType, startAt, endAt, lines, discountType, discountValue, notes, status, appointmentData } = body;
+    const { customerId, orderType, startAt, endAt, lines, discountType, discountValue, notes, status, appointmentData, trainingSubType, trainingPackageId } = body;
 
     if (!customerId || !lines || lines.length === 0) {
       return NextResponse.json({ error: "customerId and at least one line are required" }, { status: 400 });
@@ -163,11 +163,25 @@ export async function POST(request: NextRequest) {
 
       // Auto-create TrainingProgram for training orders when a pet is selected
       if (orderType === "training" && appointmentData?.petId) {
-        const sessionLines = lines.filter((l: { unit: string }) => l.unit === "per_session");
-        const totalSessions = sessionLines.length > 0
-          ? sessionLines.reduce((sum: number, l: { quantity: number }) => sum + l.quantity, 0)
-          : null;
-        const programName = lines[0]?.name || "תוכנית אילוף";
+        const isPackage = trainingSubType === "package" && trainingPackageId;
+
+        let totalSessions: number | null = null;
+        let programName = lines[0]?.name || "תוכנית אילוף";
+
+        if (isPackage) {
+          // Fetch package to get sessions count
+          const pkg = await tx.trainingPackage.findUnique({ where: { id: trainingPackageId } });
+          if (pkg) {
+            totalSessions = pkg.sessions;
+            programName = pkg.name;
+          }
+        } else {
+          const sessionLines = lines.filter((l: { unit: string }) => l.unit === "per_session");
+          totalSessions = sessionLines.length > 0
+            ? Math.round(sessionLines.reduce((sum: number, l: { quantity: number }) => sum + l.quantity, 0))
+            : null;
+        }
+
         await tx.trainingProgram.create({
           data: {
             businessId: authResult.businessId,
@@ -177,9 +191,10 @@ export async function POST(request: NextRequest) {
             programType: "BASIC_OBEDIENCE",
             trainingType: "HOME",
             startDate: appointmentData?.date ? new Date(appointmentData.date) : new Date(),
-            totalSessions: totalSessions ? Math.round(totalSessions) : null,
+            totalSessions,
             price: calc.total || null,
             notes: notes || null,
+            ...(isPackage && trainingPackageId ? { packageId: trainingPackageId } : {}),
           },
         });
       }
