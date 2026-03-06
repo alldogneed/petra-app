@@ -1348,8 +1348,8 @@ function IndividualTab({
                             onMarkAttendance(program.id, usedSessions + 1, program.dog.name);
                           }}
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          סמן נוכחות
+                          <Plus className="w-3.5 h-3.5" />
+                          מפגש בבית הלקוח +
                         </button>
                       )}
                       <button
