@@ -534,8 +534,8 @@ export default function TrainingPage() {
       dogs.push({
         key: `program-${p.id}`,
         dogName: p.dog.name,
-        customerName: p.customer.name,
-        customerPhone: p.customer.phone,
+        customerName: p.customer?.name ?? "",
+        customerPhone: p.customer?.phone ?? "",
         type: "individual",
         status: p.status,
         detail: PROGRAM_TYPES_MAP[p.programType] || p.programType,
@@ -570,8 +570,8 @@ export default function TrainingPage() {
         dogs.push({
           key: `group-${g.id}-${p.id}`,
           dogName: p.dog.name,
-          customerName: p.customer.name,
-          customerPhone: p.customer.phone,
+          customerName: p.customer?.name ?? "",
+          customerPhone: p.customer?.phone ?? "",
           type: "group",
           status: p.status,
           detail: g.name,
@@ -586,8 +586,8 @@ export default function TrainingPage() {
         dogs.push({
           key: `workshop-${g.id}-${p.id}`,
           dogName: p.dog.name,
-          customerName: p.customer.name,
-          customerPhone: p.customer.phone,
+          customerName: p.customer?.name ?? "",
+          customerPhone: p.customer?.phone ?? "",
           type: "workshop",
           status: p.status,
           detail: g.name,
@@ -1705,7 +1705,7 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
         <h4 className="text-xs font-semibold text-petra-muted flex-1">
           שיעורי בית ({completed}/{program.homework.length})
         </h4>
-        {program.customer.phone && program.homework.filter((h) => !h.isCompleted).length > 0 && (() => {
+        {program.customer?.phone && program.homework.filter((h) => !h.isCompleted).length > 0 && (() => {
           const pending = program.homework.filter((h) => !h.isCompleted);
           const lines = [
             `📝 שיעורי בית לאימון — ${program.dog.name}`,
@@ -1716,7 +1716,7 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
           ];
           return (
             <a
-              href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer.phone)}&text=${encodeURIComponent(lines.join("\n"))}`}
+              href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer?.phone ?? "")}&text=${encodeURIComponent(lines.join("\n"))}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[10px] text-green-700 hover:text-green-800 font-medium flex items-center gap-0.5 bg-green-50 px-1.5 py-0.5 rounded"
@@ -2172,7 +2172,7 @@ function IndividualTab({
     return programs.filter(
       (p) =>
         p.dog.name.toLowerCase().includes(q) ||
-        p.customer.name.toLowerCase().includes(q)
+        p.customer?.name?.toLowerCase().includes(q)
     );
   }, [programs, searchQuery]);
 
@@ -2224,7 +2224,7 @@ function IndividualTab({
                       )}
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-xs text-petra-muted">
-                      <span>{program.customer.name}</span>
+                      <span>{program.customer?.name ?? ""}</span>
                       <span
                         className="text-[10px] px-1.5 py-0.5 rounded font-medium"
                         style={{
@@ -2292,7 +2292,7 @@ function IndividualTab({
                           נשר מתהליך
                         </button>
                       )}
-                      {program.customer.phone && (
+                      {program.customer?.phone && (
                         <a
                           href={(() => {
                             const completedGoals = program.goals?.filter((g: { status: string }) => g.status === "ACHIEVED").length ?? 0;
@@ -2303,7 +2303,7 @@ function IndividualTab({
                               (a, b) => ((b.sessionNumber ?? 0) - (a.sessionNumber ?? 0))
                             )[0];
                             const lines = [
-                              `שלום ${program.customer.name}! 🐾`,
+                              `שלום ${program.customer?.name ?? ""}! 🐾`,
                               `דוח התקדמות אילוף — ${program.dog.name}`,
                               "",
                               `📊 מפגשים: ${usedSessions}${program.totalSessions ? `/${program.totalSessions}` : ""}`,
@@ -2313,7 +2313,7 @@ function IndividualTab({
                             if (lastSession?.summary) {
                               lines.push("", `💬 סיכום מפגש אחרון:`, lastSession.summary);
                             }
-                            return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer.phone)}&text=${encodeURIComponent(lines.join("\n"))}`;
+                            return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer?.phone ?? "")}&text=${encodeURIComponent(lines.join("\n"))}`;
                           })()}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -2324,7 +2324,7 @@ function IndividualTab({
                           שלח דוח
                         </a>
                       )}
-                      {program.customer.phone && program.status === "COMPLETED" && (
+                      {program.customer?.phone && program.status === "COMPLETED" && (
                         <a
                           href={(() => {
                             const completedGoals = program.goals?.filter((g: { status: string }) => g.status === "ACHIEVED").length ?? 0;
@@ -2333,7 +2333,7 @@ function IndividualTab({
                               `🎓 *תעודת סיום אילוף*`,
                               "",
                               `כלב: ${program.dog.name}${program.dog.breed ? ` (${program.dog.breed})` : ""}`,
-                              `בעלים: ${program.customer.name}`,
+                              `בעלים: ${program.customer?.name ?? ""}`,
                               `תוכנית: ${program.name}`,
                               `מפגשים שהושלמו: ${usedSessions}`,
                               totalGoals > 0 ? `יעדים שהושגו: ${completedGoals}/${totalGoals}` : "",
@@ -2341,7 +2341,7 @@ function IndividualTab({
                               `🏆 ${program.dog.name} סיים/ה בהצלחה את תוכנית האילוף!`,
                               `מברכים אתכם ומאחלים המשך הנאה עם הכלב! 🐾`,
                             ].filter(Boolean);
-                            return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer.phone)}&text=${encodeURIComponent(lines.join("\n"))}`;
+                            return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer?.phone ?? "")}&text=${encodeURIComponent(lines.join("\n"))}`;
                           })()}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -2412,7 +2412,7 @@ function IndividualTab({
                     <SessionChecklist
                       program={program}
                       usedSessions={usedSessions}
-                      onAddSession={() => onMarkAttendance(program.id, usedSessions + 1, program.dog.name, program.customer.phone, program.customer.name)}
+                      onAddSession={() => onMarkAttendance(program.id, usedSessions + 1, program.dog.name, program.customer?.phone ?? "", program.customer?.name ?? "")}
                       isAdding={isMarkingAttendance}
                     />
 
@@ -2623,7 +2623,7 @@ function GroupsTab({
       (g) =>
         g.name.toLowerCase().includes(q) ||
         g.participants.some(
-          (p) => p.dog.name.toLowerCase().includes(q) || p.customer.name.toLowerCase().includes(q)
+          (p) => p.dog.name.toLowerCase().includes(q) || (p.customer?.name ?? "").toLowerCase().includes(q)
         )
     );
   }, [groups, searchQuery]);
@@ -2690,7 +2690,7 @@ function WorkshopsTab({
       (g) =>
         g.name.toLowerCase().includes(q) ||
         g.participants.some(
-          (p) => p.dog.name.toLowerCase().includes(q) || p.customer.name.toLowerCase().includes(q)
+          (p) => p.dog.name.toLowerCase().includes(q) || (p.customer?.name ?? "").toLowerCase().includes(q)
         )
     );
   }, [workshops, searchQuery]);
@@ -2875,8 +2875,8 @@ function GroupCard({
                   e.stopPropagation();
                   // Open WhatsApp for each participant
                   group.participants.forEach((p) => {
-                    if (p.customer.phone) {
-                      const phone = toWhatsAppPhone(p.customer.phone);
+                    if (p.customer?.phone ?? "") {
+                      const phone = toWhatsAppPhone(p.customer?.phone ?? "");
                       const msg = encodeURIComponent(
                         `היי! תזכורת לסדנת "${group.name}"${group.location ? ` ב${group.location}` : ""}${group.defaultTime ? ` בשעה ${group.defaultTime}` : ""}. נתראה!`
                       );
@@ -2955,7 +2955,7 @@ function GroupCard({
                         {p.dog.name}
                         {p.dog.breed && <span className="text-petra-muted font-normal"> ({p.dog.breed})</span>}
                       </p>
-                      <p className="text-[10px] text-petra-muted truncate">{p.customer.name}</p>
+                      <p className="text-[10px] text-petra-muted truncate">{p.customer?.name ?? ""}</p>
                     </div>
                     <button
                       className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity"
@@ -3584,7 +3584,7 @@ function ServiceDogsTrainingTab({
     if (!searchQuery.trim()) return programs;
     const q = searchQuery.toLowerCase();
     return programs.filter(
-      (p) => p.dog.name.toLowerCase().includes(q) || p.customer.name.toLowerCase().includes(q)
+      (p) => p.dog.name.toLowerCase().includes(q) || (p.customer?.name ?? "").toLowerCase().includes(q)
     );
   }, [programs, searchQuery]);
 
@@ -3619,7 +3619,7 @@ function ServiceDogsTrainingTab({
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-semibold text-petra-text truncate">{p.dog.name}</h3>
-                    <p className="text-xs text-petra-muted truncate">{p.customer.name}</p>
+                    <p className="text-xs text-petra-muted truncate">{p.customer?.name ?? ""}</p>
                   </div>
                   <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", statusInfo.color)}>
                     {statusInfo.label}
@@ -4281,8 +4281,8 @@ function exportArchiveCSV(programs: TrainingProgram[]) {
     return [
       p.dog.name,
       (p.dog as { breed?: string | null }).breed || "",
-      p.customer.name,
-      p.customer.phone,
+      p.customer?.name ?? "",
+      p.customer?.phone ?? "",
       PROGRAM_TYPES_MAP[p.programType] || p.programType,
       usedSessions.toString(),
       p.startDate ? formatDate(p.startDate) : "",
@@ -4326,8 +4326,8 @@ function ArchiveTab({ programs, isLoading }: { programs: TrainingProgram[]; isLo
       list = list.filter(
         (p) =>
           p.dog.name.toLowerCase().includes(q) ||
-          p.customer.name.toLowerCase().includes(q) ||
-          p.customer.phone.includes(q)
+          (p.customer?.name ?? "").toLowerCase().includes(q) ||
+          (p.customer?.phone ?? "").includes(q)
       );
     }
     return list;
@@ -4431,8 +4431,8 @@ function ArchiveTab({ programs, isLoading }: { programs: TrainingProgram[]; isLo
                     </span>
                   </div>
                   <div className="flex items-center gap-3 text-xs text-petra-muted flex-wrap">
-                    <span>{p.customer.name}</span>
-                    <span>{p.customer.phone}</span>
+                    <span>{p.customer?.name ?? ""}</span>
+                    <span>{p.customer?.phone ?? ""}</span>
                     <span>{usedSessions} מפגשים</span>
                     {p.startDate && <span>התחלה: {formatDate(p.startDate)}</span>}
                     {p.endDate && <span>סיום: {formatDate(p.endDate)}</span>}
