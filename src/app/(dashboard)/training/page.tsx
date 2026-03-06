@@ -1834,6 +1834,7 @@ function GoalSection({ program, label = "יעדי אילוף" }: { program: Trai
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
+      queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
       setNewTitle("");
       setShowAdd(false);
       toast.success("יעד נוסף ✓");

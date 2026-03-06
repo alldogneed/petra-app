@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { enqueueSyncJob } from "@/lib/sync-jobs";
 import { rateLimit } from "@/lib/rate-limit";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { toWhatsAppPhone } from "@/lib/utils";
 
 // Public endpoint - no auth required
 export async function POST(request: NextRequest) {
@@ -105,6 +107,44 @@ export async function POST(request: NextRequest) {
     enqueueSyncJob(booking.id, businessId, "create").catch((err) =>
       console.error("Failed to enqueue sync job:", err)
     );
+
+    // Send WhatsApp confirmations (fire-and-forget)
+    Promise.resolve().then(async () => {
+      try {
+        const business = await prisma.business.findUnique({
+          where: { id: businessId },
+          select: { name: true, phone: true },
+        });
+
+        const fmt = new Intl.DateTimeFormat("he-IL", {
+          timeZone: "Asia/Jerusalem",
+          day: "2-digit", month: "2-digit", year: "numeric",
+        });
+        const fmtTime = new Intl.DateTimeFormat("he-IL", {
+          timeZone: "Asia/Jerusalem",
+          hour: "2-digit", minute: "2-digit", hour12: false,
+        });
+        const dateStr = fmt.format(booking.startAt);
+        const timeStr = fmtTime.format(booking.startAt);
+        const serviceName = booking.priceListItem?.name ?? "";
+
+        if (booking.customer.phone) {
+          await sendWhatsAppMessage({
+            to: toWhatsAppPhone(booking.customer.phone),
+            body: `שלום ${booking.customer.name}! ✅\nההזמנה שלך אושרה.\n📋 שירות: ${serviceName}\n📅 תאריך: ${dateStr}\n⏰ שעה: ${timeStr}\nנשמח לראותך! – ${business?.name ?? ""}`,
+          });
+        }
+
+        if (business?.phone) {
+          await sendWhatsAppMessage({
+            to: toWhatsAppPhone(business.phone),
+            body: `🔔 הזמנה חדשה!\n👤 ${booking.customer.name}\n📞 ${booking.customer.phone}\n📋 ${serviceName}\n📅 ${dateStr} בשעה ${timeStr}`,
+          });
+        }
+      } catch (err) {
+        console.error("WhatsApp booking confirmation error:", err);
+      }
+    });
 
     return NextResponse.json(booking, { status: 201 });
   } catch (error) {
