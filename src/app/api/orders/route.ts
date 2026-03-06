@@ -161,6 +161,29 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // Auto-create TrainingProgram for training orders when a pet is selected
+      if (orderType === "training" && appointmentData?.petId) {
+        const sessionLines = lines.filter((l: { unit: string }) => l.unit === "per_session");
+        const totalSessions = sessionLines.length > 0
+          ? sessionLines.reduce((sum: number, l: { quantity: number }) => sum + l.quantity, 0)
+          : null;
+        const programName = lines[0]?.name || "תוכנית אילוף";
+        await tx.trainingProgram.create({
+          data: {
+            businessId: authResult.businessId,
+            dogId: appointmentData.petId,
+            customerId,
+            name: programName,
+            programType: "BASIC_OBEDIENCE",
+            trainingType: "HOME",
+            startDate: appointmentData?.date ? new Date(appointmentData.date) : new Date(),
+            totalSessions: totalSessions ? Math.round(totalSessions) : null,
+            price: calc.total || null,
+            notes: notes || null,
+          },
+        });
+      }
+
       return created;
     });
 

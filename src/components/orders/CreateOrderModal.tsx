@@ -498,6 +498,11 @@ export function CreateOrderModal({
         qc.invalidateQueries({ queryKey: ["appointments"] });
       }
 
+      // 4. Invalidate training programs when training order created
+      if (orderType === "training") {
+        qc.invalidateQueries({ queryKey: ["training-programs"] });
+      }
+
       return order;
     },
     onSuccess: (data, statusOverride) => {
