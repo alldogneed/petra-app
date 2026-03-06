@@ -1289,6 +1289,175 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
 }
 
 // ═══════════════════════════════════════════════════════
+// SESSION CHECKLIST COMPONENT
+// ═══════════════════════════════════════════════════════
+
+function SessionChecklist({
+  program,
+  usedSessions,
+  onAddSession,
+  isAdding,
+}: {
+  program: TrainingProgram;
+  usedSessions: number;
+  onAddSession: () => void;
+  isAdding: boolean;
+}) {
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  const total = program.totalSessions;
+  const sessionsByNumber = new Map(program.sessions.map((s) => [s.sessionNumber ?? 0, s]));
+
+  return (
+    <div className="mt-2">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-xs font-semibold text-petra-muted flex items-center gap-1.5">
+          <Calendar className="w-3.5 h-3.5" />
+          {total ? `מפגשים (${usedSessions}/${total})` : `מפגשים (${usedSessions})`}
+        </h4>
+        {total && (
+          <span className="text-[11px] text-petra-muted">
+            {total - usedSessions > 0 ? `נותרו ${total - usedSessions}` : "הכל הושלם ✓"}
+          </span>
+        )}
+      </div>
+
+      {/* Progress bar */}
+      {total && total > 0 && (
+        <div className="w-full h-1.5 rounded-full bg-slate-100 mb-3">
+          <div
+            className="h-full rounded-full bg-emerald-500 transition-all"
+            style={{ width: `${Math.min(100, (usedSessions / total) * 100)}%` }}
+          />
+        </div>
+      )}
+
+      {/* Session rows */}
+      <div className="space-y-1.5">
+        {/* Render planned slots */}
+        {total ? Array.from({ length: total }, (_, i) => {
+          const num = i + 1;
+          const session = sessionsByNumber.get(num);
+          const isCompleted = session?.status === "COMPLETED";
+          const isNext = num === usedSessions + 1 && program.status === "ACTIVE";
+          const expanded = expandedSessionId === session?.id;
+
+          return (
+            <div key={num}>
+              <div
+                className={cn(
+                  "flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all",
+                  isCompleted
+                    ? "bg-emerald-50 border-emerald-100 cursor-pointer hover:bg-emerald-100"
+                    : isNext
+                      ? "bg-brand-50 border-brand-200"
+                      : "bg-slate-50 border-transparent opacity-50"
+                )}
+                onClick={() => isCompleted && session && setExpandedSessionId(expanded ? null : session.id)}
+              >
+                {/* Checkmark / number */}
+                <div className={cn(
+                  "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold",
+                  isCompleted ? "bg-emerald-500 text-white" : isNext ? "bg-brand-100 text-brand-600" : "bg-slate-200 text-slate-400"
+                )}>
+                  {isCompleted ? <CheckCircle2 className="w-3.5 h-3.5" /> : num}
+                </div>
+
+                <span className="text-xs font-medium text-petra-text flex-1">מפגש {num}</span>
+
+                {isCompleted && session && (
+                  <>
+                    <span className="text-[10px] text-petra-muted">{formatDate(session.sessionDate)}</span>
+                    {session.rating && (
+                      <span className="text-[10px] text-amber-500">{"★".repeat(session.rating)}</span>
+                    )}
+                    <ChevronDown className={cn("w-3 h-3 text-slate-400 transition-transform", expanded && "rotate-180")} />
+                  </>
+                )}
+
+                {isNext && (
+                  <button
+                    type="button"
+                    disabled={isAdding}
+                    onClick={(e) => { e.stopPropagation(); onAddSession(); }}
+                    className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    הוסף
+                  </button>
+                )}
+              </div>
+
+              {/* Expanded session details */}
+              {expanded && session && (
+                <div className="mx-3 mt-0.5 mb-1 p-3 bg-white border border-emerald-100 rounded-xl text-xs space-y-1.5">
+                  {session.practiceItems && (
+                    <div><span className="font-semibold text-petra-muted">תרגילים: </span>{session.practiceItems}</div>
+                  )}
+                  {session.nextSessionGoals && (
+                    <div><span className="font-semibold text-petra-muted">יעדים הבאים: </span>{session.nextSessionGoals}</div>
+                  )}
+                  {session.homeworkForCustomer && (
+                    <div><span className="font-semibold text-petra-muted">שיעורי בית: </span>{session.homeworkForCustomer}</div>
+                  )}
+                  {session.summary && (
+                    <div><span className="font-semibold text-petra-muted">סיכום: </span>{session.summary}</div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        }) : (
+          /* No totalSessions - just show completed + add button */
+          <>
+            {program.sessions.map((session) => {
+              const expanded = expandedSessionId === session.id;
+              return (
+                <div key={session.id}>
+                  <div
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100 cursor-pointer hover:bg-emerald-100 transition-all"
+                    onClick={() => setExpandedSessionId(expanded ? null : session.id)}
+                  >
+                    <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <span className="text-xs font-medium text-petra-text flex-1">מפגש {session.sessionNumber || ""}</span>
+                    <span className="text-[10px] text-petra-muted">{formatDate(session.sessionDate)}</span>
+                    {session.rating && <span className="text-[10px] text-amber-500">{"★".repeat(session.rating)}</span>}
+                    <ChevronDown className={cn("w-3 h-3 text-slate-400 transition-transform", expanded && "rotate-180")} />
+                  </div>
+                  {expanded && (
+                    <div className="mx-3 mt-0.5 mb-1 p-3 bg-white border border-emerald-100 rounded-xl text-xs space-y-1.5">
+                      {session.practiceItems && <div><span className="font-semibold text-petra-muted">תרגילים: </span>{session.practiceItems}</div>}
+                      {session.nextSessionGoals && <div><span className="font-semibold text-petra-muted">יעדים הבאים: </span>{session.nextSessionGoals}</div>}
+                      {session.homeworkForCustomer && <div><span className="font-semibold text-petra-muted">שיעורי בית: </span>{session.homeworkForCustomer}</div>}
+                      {session.summary && <div><span className="font-semibold text-petra-muted">סיכום: </span>{session.summary}</div>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </>
+        )}
+      </div>
+
+      {/* Bottom "add session" button */}
+      {program.status === "ACTIVE" && (
+        <button
+          type="button"
+          disabled={isAdding}
+          onClick={onAddSession}
+          className="mt-3 w-full py-2 rounded-xl border-2 border-dashed border-brand-200 text-xs font-semibold text-brand-500 hover:bg-brand-50 hover:border-brand-400 transition-all flex items-center justify-center gap-1.5"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          מפגש בבית הלקוח +
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
 
 function IndividualTab({
   programs,
@@ -1403,19 +1572,6 @@ function IndividualTab({
                   <div className="border-t border-petra-border p-4">
                     {/* Actions */}
                     <div className="flex gap-2 mb-4 flex-wrap">
-                      {program.status === "ACTIVE" && (
-                        <button
-                          className="btn-primary text-xs"
-                          disabled={isMarkingAttendance}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onMarkAttendance(program.id, usedSessions + 1, program.dog.name);
-                          }}
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          מפגש בבית הלקוח +
-                        </button>
-                      )}
                       <button
                         className="btn-secondary text-xs"
                         onClick={(e) => {
@@ -1533,34 +1689,13 @@ function IndividualTab({
                     {/* Homework */}
                     <HomeworkSection program={program} />
 
-                    {/* Sessions list */}
-                    <h4 className="text-xs font-semibold text-petra-muted mb-2 flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5" />
-                      מפגשים ({program.sessions.length})
-                    </h4>
-                    {program.sessions.length === 0 ? (
-                      <p className="text-xs text-petra-muted">אין מפגשים עדיין</p>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {program.sessions.slice(0, 10).map((session) => (
-                          <div key={session.id} className="flex items-center gap-3 p-2 rounded-lg bg-slate-50">
-                            <div className={cn(
-                              "w-2 h-2 rounded-full",
-                              session.status === "COMPLETED" ? "bg-emerald-500" :
-                                session.status === "CANCELED" ? "bg-red-400" : "bg-blue-400"
-                            )} />
-                            <span className="text-xs text-petra-text">מפגש {session.sessionNumber || ""}</span>
-                            <span className="text-[10px] text-petra-muted">{formatDate(session.sessionDate)}</span>
-                            {session.rating && (
-                              <span className="text-[11px] text-amber-500 ms-auto">{"★".repeat(session.rating)}{"☆".repeat(5 - session.rating)}</span>
-                            )}
-                            {!session.rating && session.summary && (
-                              <span className="text-[10px] text-petra-muted truncate max-w-[200px] ms-auto">{session.summary}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    {/* Session checklist */}
+                    <SessionChecklist
+                      program={program}
+                      usedSessions={usedSessions}
+                      onAddSession={() => onMarkAttendance(program.id, usedSessions + 1, program.dog.name)}
+                      isAdding={isMarkingAttendance}
+                    />
 
                     {/* Notes */}
                     {program.notes && (

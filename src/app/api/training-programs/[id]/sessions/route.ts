@@ -43,6 +43,19 @@ export async function POST(
       },
     });
 
+    // Auto-complete program when all planned sessions are done
+    if (program.totalSessions && (status || "SCHEDULED") === "COMPLETED") {
+      const completedCount = await prisma.trainingProgramSession.count({
+        where: { trainingProgramId: params.id, status: "COMPLETED" },
+      });
+      if (completedCount >= program.totalSessions && program.status === "ACTIVE") {
+        await prisma.trainingProgram.update({
+          where: { id: params.id },
+          data: { status: "COMPLETED" },
+        });
+      }
+    }
+
     return NextResponse.json(session, { status: 201 });
   } catch (error) {
     console.error("POST /api/training-programs/[id]/sessions error:", error);
