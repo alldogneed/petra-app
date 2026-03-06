@@ -4029,10 +4029,21 @@ function exportArchiveCSV(programs: TrainingProgram[]) {
 function ArchiveTab({ programs, isLoading }: { programs: TrainingProgram[]; isLoading: boolean }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "COMPLETED" | "CANCELED">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const filtered = useMemo(() => {
     let list = programs;
     if (statusFilter !== "all") list = list.filter((p) => p.status === statusFilter);
+    if (dateFrom) {
+      const from = new Date(dateFrom);
+      list = list.filter((p) => p.startDate && new Date(p.startDate) >= from);
+    }
+    if (dateTo) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59);
+      list = list.filter((p) => p.startDate && new Date(p.startDate) <= to);
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -4043,7 +4054,7 @@ function ArchiveTab({ programs, isLoading }: { programs: TrainingProgram[]; isLo
       );
     }
     return list;
-  }, [programs, search, statusFilter]);
+  }, [programs, search, statusFilter, dateFrom, dateTo]);
 
   if (isLoading) {
     return (
@@ -4071,7 +4082,17 @@ function ArchiveTab({ programs, isLoading }: { programs: TrainingProgram[]; isLo
             </button>
           ))}
         </div>
-        <div className="relative flex-1 min-w-[180px]">
+        {/* Date range */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-petra-muted whitespace-nowrap">מ-</span>
+          <input type="date" className="input text-xs h-8 px-2 w-32" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          <span className="text-xs text-petra-muted whitespace-nowrap">עד-</span>
+          <input type="date" className="input text-xs h-8 px-2 w-32" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          {(dateFrom || dateTo) && (
+            <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-[10px] text-petra-muted hover:text-red-500 px-1">✕</button>
+          )}
+        </div>
+        <div className="relative flex-1 min-w-[160px]">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted" />
           <input
             className="input pr-9 text-sm w-full"
