@@ -368,7 +368,7 @@ export default function TrainingPage() {
 
   const { data: programs = [], isLoading: programsLoading, isFetching: programsFetching, refetch: refetchPrograms } = useQuery<TrainingProgram[]>({
     queryKey: ["training-programs"],
-    queryFn: () => fetchJSON<TrainingProgram[]>("/api/training-programs"),
+    queryFn: () => fetchJSON<TrainingProgram[]>("/api/training-programs?status=ACTIVE,PAUSED"),
   });
 
   const { data: groups = [], isLoading: groupsLoading } = useQuery<TrainingGroup[]>({
@@ -389,12 +389,12 @@ export default function TrainingPage() {
 
   const { data: boardingPrograms = [] } = useQuery<TrainingProgram[]>({
     queryKey: ["training-programs-boarding"],
-    queryFn: () => fetchJSON<TrainingProgram[]>("/api/training-programs?trainingType=BOARDING"),
+    queryFn: () => fetchJSON<TrainingProgram[]>("/api/training-programs?trainingType=BOARDING&status=ACTIVE,PAUSED"),
   });
 
   const { data: serviceDogPrograms = [] } = useQuery<TrainingProgram[]>({
     queryKey: ["training-programs-service"],
-    queryFn: () => fetchJSON<TrainingProgram[]>("/api/training-programs?trainingType=SERVICE_DOG"),
+    queryFn: () => fetchJSON<TrainingProgram[]>("/api/training-programs?trainingType=SERVICE_DOG&status=ACTIVE,PAUSED"),
   });
 
   const { data: archivedPrograms = [], isLoading: archiveLoading } = useQuery<TrainingProgram[]>({
