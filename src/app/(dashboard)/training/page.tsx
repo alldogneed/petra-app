@@ -228,12 +228,14 @@ const PROGRAM_STATUS_MAP: Record<string, { label: string; color: string }> = {
 function SessionLogModal({
   dogName,
   sessionNumber,
+  isWeekly,
   isPending,
   onClose,
   onSubmit,
 }: {
   dogName: string;
   sessionNumber: number;
+  isWeekly?: boolean;
   isPending: boolean;
   onClose: () => void;
   onSubmit: (summary: string, sessionDate: string, rating: number | null, practiceItems: string, nextSessionGoals: string, homeworkForCustomer: string) => void;
@@ -249,13 +251,43 @@ function SessionLogModal({
 
   const STAR_LABELS = ["חלש", "סביר", "טוב", "מצוין", "מושלם"];
 
+  const L = isWeekly ? {
+    title: "עדכון שבועי",
+    badge: `שבוע ${sessionNumber}`,
+    dateLabel: "תאריך עדכון שבועי",
+    ratingLabel: "דירוג התקדמות השבוע (אופציונלי)",
+    practiceLabel: "יעדים שהושגו השבוע",
+    practicePlaceholder: "אילו יעדים הושגו השבוע...",
+    goalsLabel: "יעדים לשבוע הבא",
+    goalsPlaceholder: "מה תעבדו בשבוע הבא...",
+    homeworkLabel: "הנחיות לבעלים לשבוע הבא",
+    homeworkPlaceholder: "תרגול לבית לשבוע הבא...",
+    summaryLabel: "סיכום שבועי (אופציונלי)",
+    summaryPlaceholder: "תאר את ההתקדמות השבועית, נקודות לשיפור, הצלחות...",
+    saveBtn: "שמור עדכון שבועי",
+  } : {
+    title: "רישום מפגש",
+    badge: `מפגש מספר ${sessionNumber}`,
+    dateLabel: "תאריך המפגש",
+    ratingLabel: "דירוג הכלב במפגש (אופציונלי)",
+    practiceLabel: "תרגילים שבוצעו",
+    practicePlaceholder: "אילו תרגילים עשיתם היום...",
+    goalsLabel: "יעדים לפגישה הבאה",
+    goalsPlaceholder: "מה תעבדו בפגישה הבאה...",
+    homeworkLabel: "שיעורי בית ללקוח",
+    homeworkPlaceholder: "תרגול לבית...",
+    summaryLabel: "סיכום המפגש (אופציונלי)",
+    summaryPlaceholder: "תאר מה עבדתם היום, התקדמות, הוראות לתרגול בבית...",
+    saveBtn: "שמור מפגש",
+  };
+
   return (
     <div className="modal-overlay">
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-petra-text">
-            רישום מפגש — {dogName}
+            {L.title} — {dogName}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -263,10 +295,10 @@ function SessionLogModal({
         </div>
         <div className="space-y-4">
           <div className="p-3 rounded-xl bg-brand-50 border border-brand-100 text-sm text-brand-700 font-medium">
-            מפגש מספר {sessionNumber}
+            {L.badge}
           </div>
           <div>
-            <label className="label">תאריך המפגש</label>
+            <label className="label">{L.dateLabel}</label>
             <input
               type="date"
               className="input"
@@ -276,7 +308,7 @@ function SessionLogModal({
             />
           </div>
           <div>
-            <label className="label">דירוג הכלב במפגש (אופציונלי)</label>
+            <label className="label">{L.ratingLabel}</label>
             <div className="flex items-center gap-1.5 mt-1">
               {[1, 2, 3, 4, 5].map((star) => {
                 const active = (hoverRating ?? rating ?? 0) >= star;
@@ -305,24 +337,24 @@ function SessionLogModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תרגילים שבוצעו</label>
-              <textarea className="input" rows={3} placeholder="אילו תרגילים עשיתם היום..." value={practiceItems} onChange={(e) => setPracticeItems(e.target.value)} />
+              <label className="label">{L.practiceLabel}</label>
+              <textarea className="input" rows={3} placeholder={L.practicePlaceholder} value={practiceItems} onChange={(e) => setPracticeItems(e.target.value)} />
             </div>
             <div>
-              <label className="label">יעדים לפגישה הבאה</label>
-              <textarea className="input" rows={3} placeholder="מה תעבדו בפגישה הבאה..." value={nextSessionGoals} onChange={(e) => setNextSessionGoals(e.target.value)} />
+              <label className="label">{L.goalsLabel}</label>
+              <textarea className="input" rows={3} placeholder={L.goalsPlaceholder} value={nextSessionGoals} onChange={(e) => setNextSessionGoals(e.target.value)} />
             </div>
           </div>
           <div>
-            <label className="label">שיעורי בית ללקוח</label>
-            <textarea className="input" rows={2} placeholder="תרגול לבית..." value={homeworkForCustomer} onChange={(e) => setHomeworkForCustomer(e.target.value)} />
+            <label className="label">{L.homeworkLabel}</label>
+            <textarea className="input" rows={2} placeholder={L.homeworkPlaceholder} value={homeworkForCustomer} onChange={(e) => setHomeworkForCustomer(e.target.value)} />
           </div>
           <div>
-            <label className="label">סיכום המפגש (אופציונלי)</label>
+            <label className="label">{L.summaryLabel}</label>
             <textarea
               className="input"
               rows={4}
-              placeholder="תאר מה עבדתם היום, התקדמות, הוראות לתרגול בבית..."
+              placeholder={L.summaryPlaceholder}
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
             />
@@ -335,7 +367,7 @@ function SessionLogModal({
             onClick={() => onSubmit(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer)}
           >
             <CheckCircle2 className="w-4 h-4" />
-            {isPending ? "שומר..." : "שמור מפגש"}
+            {isPending ? "שומר..." : L.saveBtn}
           </button>
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>
@@ -359,7 +391,7 @@ export default function TrainingPage() {
   const [showAssignDog, setShowAssignDog] = useState<{ groupId: string; groupName: string } | null>(null);
   const [editingProgram, setEditingProgram] = useState<TrainingProgram | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  const [sessionLogTarget, setSessionLogTarget] = useState<{ programId: string; sessionNumber: number; dogName: string; customerPhone?: string; customerName?: string } | null>(null);
+  const [sessionLogTarget, setSessionLogTarget] = useState<{ programId: string; sessionNumber: number; dogName: string; customerPhone?: string; customerName?: string; isWeekly?: boolean } | null>(null);
   const [sessionSummarySend, setSessionSummarySend] = useState<{ customerPhone: string; customerName: string; dogName: string; sessionNumber: number; practiceItems?: string; homeworkForCustomer?: string; nextSessionGoals?: string; rating?: number | null } | null>(null);
   const [showCreatePackage, setShowCreatePackage] = useState(false);
   const [editingPackage, setEditingPackage] = useState<TrainingPackage | null>(null);
@@ -1006,7 +1038,7 @@ export default function TrainingPage() {
               searchQuery={searchQuery}
               onAddTraining={(stay) => setShowBoardingTraining({ stay })}
               onLogSession={(programId, sessionNumber, dogName) =>
-                setSessionLogTarget({ programId, sessionNumber, dogName })
+                setSessionLogTarget({ programId, sessionNumber, dogName, isWeekly: true })
               }
             />
           )}
@@ -1222,6 +1254,7 @@ export default function TrainingPage() {
         <SessionLogModal
           dogName={sessionLogTarget.dogName}
           sessionNumber={sessionLogTarget.sessionNumber}
+          isWeekly={sessionLogTarget.isWeekly}
           isPending={markAttendanceMutation.isPending}
           onClose={() => setSessionLogTarget(null)}
           onSubmit={(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer) =>
