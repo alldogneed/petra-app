@@ -30,6 +30,7 @@ import {
   XCircle,
   ShoppingCart,
   Home,
+  UserCheck,
 } from "lucide-react";
 import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -40,6 +41,7 @@ import {
 import {
   PROGRAM_TYPE_COLORS,
 } from "@/lib/training-programs";
+import { DISABILITY_TYPES } from "@/lib/service-dogs";
 
 // ─── Types ───────────────────────────────────────────
 
@@ -450,6 +452,7 @@ export default function TrainingPage() {
   const [editingPackage, setEditingPackage] = useState<TrainingPackage | null>(null);
   const [showBoardingTraining, setShowBoardingTraining] = useState<{ stay: BoardingStay } | null>(null);
   const [showAddServiceDog, setShowAddServiceDog] = useState(false);
+  const [showAddRecipient, setShowAddRecipient] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [dropoutTarget, setDropoutTarget] = useState<{ programId: string; dogName: string } | null>(null);
   const queryClient = useQueryClient();
@@ -1162,12 +1165,15 @@ export default function TrainingPage() {
                   <Shield className="w-4 h-4 text-brand-500" />
                   <span className="text-sm font-medium text-brand-700">תוכניות אילוף לכלבי שירות</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button className="btn-primary text-xs" onClick={() => setShowSellPackage(true)}>
                     <Plus className="w-3.5 h-3.5" /> תוכנית חדשה
                   </button>
                   <button className="btn-secondary text-xs flex items-center gap-1" onClick={() => setShowAddServiceDog(true)}>
                     <Dog className="w-3.5 h-3.5" /> הוסף כלב שירות
+                  </button>
+                  <button className="btn-secondary text-xs flex items-center gap-1" onClick={() => setShowAddRecipient(true)}>
+                    <Users className="w-3.5 h-3.5" /> הוסף זכאי
                   </button>
                   <a href="/service-dogs" className="btn-secondary text-xs flex items-center gap-1">
                     <Shield className="w-3.5 h-3.5" /> ניהול כלבי שירות ←
@@ -1385,6 +1391,10 @@ export default function TrainingPage() {
             queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
           }}
         />
+      )}
+
+      {showAddRecipient && (
+        <AddRecipientInlineModal onClose={() => setShowAddRecipient(false)} />
       )}
     </div>
   );
@@ -4562,6 +4572,107 @@ function AddStandaloneServiceDogModal({
             onClick={() => mutation.mutate({ name, breed, gender, birthDate, weight, microchip, medicalNotes, behaviorNotes, serviceType, notes })}
           >
             {mutation.isPending ? "שומר..." : "הוסף כלב שירות"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// ADD RECIPIENT INLINE MODAL (from training page)
+// ═══════════════════════════════════════════════════════
+
+function AddRecipientInlineModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [idNumber, setIdNumber] = useState("");
+  const [address, setAddress] = useState("");
+  const [disabilityType, setDisabilityType] = useState("");
+  const [disabilityNotes, setDisabilityNotes] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      fetch("/api/service-recipients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["service-recipients"] });
+      toast.success("זכאי נוסף בהצלחה");
+      onClose();
+    },
+    onError: () => toast.error("שגיאה בהוספת זכאי"),
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
+            <UserCheck className="w-5 h-5 text-brand-500" />
+            הוסף זכאי חדש
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="label">שם מלא *</label>
+            <input type="text" className="input" placeholder="שם ומשפחה" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">טלפון</label>
+              <input type="tel" className="input" placeholder="05x-xxxxxxx" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">אימייל</label>
+              <input type="email" className="input" placeholder="mail@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">תעודת זהות</label>
+              <input type="text" className="input" placeholder="9 ספרות" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">סוג לקות</label>
+              <select className="input" value={disabilityType} onChange={(e) => setDisabilityType(e.target.value)}>
+                <option value="">לא נבחר</option>
+                {DISABILITY_TYPES.map((d) => (
+                  <option key={d.id} value={d.id}>{d.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="label">כתובת</label>
+            <input type="text" className="input" placeholder="רחוב, עיר" value={address} onChange={(e) => setAddress(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">פירוט הלקות</label>
+            <textarea className="input" rows={2} placeholder="מידע נוסף על הלקות..." value={disabilityNotes} onChange={(e) => setDisabilityNotes(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">הערות</label>
+            <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-5">
+          <button
+            className="btn-primary flex-1"
+            disabled={!name.trim() || mutation.isPending}
+            onClick={() => mutation.mutate({ name, phone, email, idNumber, address, disabilityType, disabilityNotes, notes })}
+          >
+            {mutation.isPending ? "שומר..." : "הוסף זכאי"}
           </button>
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>

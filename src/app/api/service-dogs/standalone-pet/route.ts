@@ -53,6 +53,20 @@ export async function POST(request: NextRequest) {
         include: { pet: true },
       });
 
+      // Auto-create a TrainingProgram so the dog appears in the training tab
+      await tx.trainingProgram.create({
+        data: {
+          businessId: authResult.businessId,
+          dogId: pet.id,
+          customerId: null,
+          name: `הכשרת כלב שירות — ${name.trim()}`,
+          programType: "SD_FOUNDATION",
+          trainingType: "SERVICE_DOG",
+          status: "ACTIVE",
+          startDate: new Date(),
+        },
+      });
+
       return profile;
     });
 
