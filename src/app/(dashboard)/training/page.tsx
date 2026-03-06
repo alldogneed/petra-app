@@ -157,14 +157,13 @@ interface UnifiedDog {
 
 const DAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
-type TabId = "overview" | "individual" | "boarding" | "groups" | "workshops" | "service-dogs";
+type TabId = "overview" | "individual" | "boarding" | "groups" | "service-dogs";
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "overview", label: "סקירה", icon: <GraduationCap className="w-4 h-4" /> },
   { id: "individual", label: "אילוף בבית הלקוח", icon: <Dog className="w-4 h-4" /> },
   { id: "boarding", label: "אילוף בתנאי פנסיון", icon: <Hotel className="w-4 h-4" /> },
-  { id: "groups", label: "קבוצות", icon: <Users className="w-4 h-4" /> },
-  { id: "workshops", label: "סדנאות", icon: <Calendar className="w-4 h-4" /> },
+  { id: "groups", label: "אילוף קבוצתי", icon: <Users className="w-4 h-4" /> },
   { id: "service-dogs", label: "כלבי שירות", icon: <Shield className="w-4 h-4" /> },
 ];
 
@@ -329,6 +328,7 @@ function SessionLogModal({
 export default function TrainingPage() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [individualSubTab, setIndividualSubTab] = useState<"private" | "package" | "boarding-alt">("private");
+  const [groupSubTab, setGroupSubTab] = useState<"groups" | "workshops">("groups");
   const [searchQuery, setSearchQuery] = useState("");
   const [showSellPackage, setShowSellPackage] = useState(false);
   const [showNewGroup, setShowNewGroup] = useState(false);
@@ -814,33 +814,32 @@ export default function TrainingPage() {
               {/* חבילת אילוף */}
               {individualSubTab === "package" && (
                 <div className="space-y-6">
-                  <PackagesTab
-                    packages={packages}
-                    onCreatePackage={() => setShowCreatePackage(true)}
-                    onEditPackage={setEditingPackage}
-                    onDeletePackage={(id) => deletePackageMutation.mutate(id)}
-                    onToggleActive={(pkg) => updatePackageMutation.mutate({ id: pkg.id, isActive: !pkg.isActive })}
-                    isDeleting={deletePackageMutation.isPending}
+                  <IndividualTab
+                    programs={programs.filter((p) => p.packageId !== null)}
+                    searchQuery={searchQuery}
+                    expandedCards={expandedCards}
+                    toggleExpand={toggleExpand}
+                    onMarkAttendance={(programId, sessionNumber, dogName) =>
+                      setSessionLogTarget({ programId, sessionNumber, dogName })
+                    }
+                    onEditSettings={(program) => setEditingProgram(program)}
+                    isMarkingAttendance={markAttendanceMutation.isPending}
                   />
-                  {programs.filter((p) => p.packageId).length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-petra-muted mb-3 flex items-center gap-1.5">
-                        <Dog className="w-3.5 h-3.5" />
-                        תוכניות פעילות מחבילה
-                      </h3>
-                      <IndividualTab
-                        programs={programs.filter((p) => p.packageId !== null)}
-                        searchQuery={searchQuery}
-                        expandedCards={expandedCards}
-                        toggleExpand={toggleExpand}
-                        onMarkAttendance={(programId, sessionNumber, dogName) =>
-                          setSessionLogTarget({ programId, sessionNumber, dogName })
-                        }
-                        onEditSettings={(program) => setEditingProgram(program)}
-                        isMarkingAttendance={markAttendanceMutation.isPending}
-                      />
-                    </div>
-                  )}
+                  {/* Package catalog — manage packages */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-petra-muted mb-3 flex items-center gap-1.5">
+                      <Package className="w-3.5 h-3.5" />
+                      ניהול חבילות אילוף
+                    </h3>
+                    <PackagesTab
+                      packages={packages}
+                      onCreatePackage={() => setShowCreatePackage(true)}
+                      onEditPackage={setEditingPackage}
+                      onDeletePackage={(id) => deletePackageMutation.mutate(id)}
+                      onToggleActive={(pkg) => updatePackageMutation.mutate({ id: pkg.id, isActive: !pkg.isActive })}
+                      isDeleting={deletePackageMutation.isPending}
+                    />
+                  </div>
                 </div>
               )}
 
@@ -874,34 +873,58 @@ export default function TrainingPage() {
             />
           )}
 
-          {/* ═══ GROUPS TAB ═══ */}
+          {/* ═══ GROUPS TAB (אילוף קבוצתי) ═══ */}
           {activeTab === "groups" && (
-            <GroupsTab
-              groups={regularGroups}
-              searchQuery={searchQuery}
-              expandedCards={expandedCards}
-              toggleExpand={toggleExpand}
-              onNewGroup={() => setShowNewGroup(true)}
-              onAssignDog={(groupId, groupName) => setShowAssignDog({ groupId, groupName })}
-              onRemoveParticipant={(groupId, participantId) =>
-                removeParticipantMutation.mutate({ groupId, participantId })
-              }
-            />
-          )}
+            <div>
+              {/* Sub-tabs */}
+              <div className="flex gap-1 p-1 bg-slate-100 rounded-xl mb-5 overflow-x-auto scrollbar-hide">
+                {[
+                  { id: "groups" as const, label: "קבוצות אימון" },
+                  { id: "workshops" as const, label: "סדנאות מיוחדות" },
+                ].map((sub) => (
+                  <button
+                    key={sub.id}
+                    onClick={() => setGroupSubTab(sub.id)}
+                    className={cn(
+                      "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                      groupSubTab === sub.id
+                        ? "bg-white shadow-sm text-petra-text"
+                        : "text-petra-muted hover:bg-white/60"
+                    )}
+                  >
+                    {sub.label}
+                  </button>
+                ))}
+              </div>
 
-          {/* ═══ WORKSHOPS TAB ═══ */}
-          {activeTab === "workshops" && (
-            <WorkshopsTab
-              workshops={workshops}
-              searchQuery={searchQuery}
-              expandedCards={expandedCards}
-              toggleExpand={toggleExpand}
-              onNewWorkshop={() => setShowNewWorkshop(true)}
-              onAssignDog={(groupId, groupName) => setShowAssignDog({ groupId, groupName })}
-              onRemoveParticipant={(groupId, participantId) =>
-                removeParticipantMutation.mutate({ groupId, participantId })
-              }
-            />
+              {groupSubTab === "groups" && (
+                <GroupsTab
+                  groups={regularGroups}
+                  searchQuery={searchQuery}
+                  expandedCards={expandedCards}
+                  toggleExpand={toggleExpand}
+                  onNewGroup={() => setShowNewGroup(true)}
+                  onAssignDog={(groupId, groupName) => setShowAssignDog({ groupId, groupName })}
+                  onRemoveParticipant={(groupId, participantId) =>
+                    removeParticipantMutation.mutate({ groupId, participantId })
+                  }
+                />
+              )}
+
+              {groupSubTab === "workshops" && (
+                <WorkshopsTab
+                  workshops={workshops}
+                  searchQuery={searchQuery}
+                  expandedCards={expandedCards}
+                  toggleExpand={toggleExpand}
+                  onNewWorkshop={() => setShowNewWorkshop(true)}
+                  onAssignDog={(groupId, groupName) => setShowAssignDog({ groupId, groupName })}
+                  onRemoveParticipant={(groupId, participantId) =>
+                    removeParticipantMutation.mutate({ groupId, participantId })
+                  }
+                />
+              )}
+            </div>
           )}
 
           {/* ═══ SERVICE DOGS TAB ═══ */}
