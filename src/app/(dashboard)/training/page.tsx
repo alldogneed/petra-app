@@ -341,7 +341,8 @@ export default function TrainingPage() {
   const [showAssignDog, setShowAssignDog] = useState<{ groupId: string; groupName: string } | null>(null);
   const [editingProgram, setEditingProgram] = useState<TrainingProgram | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  const [sessionLogTarget, setSessionLogTarget] = useState<{ programId: string; sessionNumber: number; dogName: string } | null>(null);
+  const [sessionLogTarget, setSessionLogTarget] = useState<{ programId: string; sessionNumber: number; dogName: string; customerPhone?: string; customerName?: string } | null>(null);
+  const [sessionSummarySend, setSessionSummarySend] = useState<{ customerPhone: string; customerName: string; dogName: string; sessionNumber: number; practiceItems?: string; homeworkForCustomer?: string; nextSessionGoals?: string; rating?: number | null } | null>(null);
   const [showCreatePackage, setShowCreatePackage] = useState(false);
   const [editingPackage, setEditingPackage] = useState<TrainingPackage | null>(null);
   const [showBoardingTraining, setShowBoardingTraining] = useState<{ stay: BoardingStay } | null>(null);
@@ -500,7 +501,7 @@ export default function TrainingPage() {
   // ─── Mutations ───
 
   const markAttendanceMutation = useMutation({
-    mutationFn: async ({ programId, sessionNumber, summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer }: { programId: string; sessionNumber: number; summary?: string; sessionDate?: string; rating?: number | null; practiceItems?: string; nextSessionGoals?: string; homeworkForCustomer?: string }) => {
+    mutationFn: async ({ programId, sessionNumber, summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer, customerPhone: _cp, customerName: _cn, dogName: _dn }: { programId: string; sessionNumber: number; summary?: string; sessionDate?: string; rating?: number | null; practiceItems?: string; nextSessionGoals?: string; homeworkForCustomer?: string; customerPhone?: string; customerName?: string; dogName?: string }) => {
       const res = await fetch(`/api/training-programs/${programId}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -519,9 +520,21 @@ export default function TrainingPage() {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
+      if (variables.customerPhone) {
+        setSessionSummarySend({
+          customerPhone: variables.customerPhone,
+          customerName: variables.customerName || "",
+          dogName: variables.dogName || "",
+          sessionNumber: variables.sessionNumber,
+          practiceItems: variables.practiceItems,
+          homeworkForCustomer: variables.homeworkForCustomer,
+          nextSessionGoals: variables.nextSessionGoals,
+          rating: variables.rating,
+        });
+      }
       setSessionLogTarget(null);
     },
     onError: () => { setSessionLogTarget(null); toast.error("שגיאה בשמירת המפגש. נסה שוב."); },
@@ -853,8 +866,8 @@ export default function TrainingPage() {
                   searchQuery={searchQuery}
                   expandedCards={expandedCards}
                   toggleExpand={toggleExpand}
-                  onMarkAttendance={(programId, sessionNumber, dogName) =>
-                    setSessionLogTarget({ programId, sessionNumber, dogName })
+                  onMarkAttendance={(programId, sessionNumber, dogName, customerPhone, customerName) =>
+                    setSessionLogTarget({ programId, sessionNumber, dogName, customerPhone, customerName })
                   }
                   onEditSettings={(program) => setEditingProgram(program)}
                   isMarkingAttendance={markAttendanceMutation.isPending}
@@ -900,8 +913,8 @@ export default function TrainingPage() {
                   searchQuery={searchQuery}
                   expandedCards={expandedCards}
                   toggleExpand={toggleExpand}
-                  onMarkAttendance={(programId, sessionNumber, dogName) =>
-                    setSessionLogTarget({ programId, sessionNumber, dogName })
+                  onMarkAttendance={(programId, sessionNumber, dogName, customerPhone, customerName) =>
+                    setSessionLogTarget({ programId, sessionNumber, dogName, customerPhone, customerName })
                   }
                   onEditSettings={(program) => setEditingProgram(program)}
                   isMarkingAttendance={markAttendanceMutation.isPending}
@@ -1067,6 +1080,61 @@ export default function TrainingPage() {
         />
       )}
 
+      {sessionSummarySend && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="modal-backdrop" onClick={() => setSessionSummarySend(null)} />
+          <div className="relative z-10 bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full border border-green-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 className="w-5 h-5 text-green-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-petra-text text-sm">מפגש נרשם בהצלחה! ✓</h3>
+                <p className="text-xs text-petra-muted">{sessionSummarySend.dogName} — מפגש {sessionSummarySend.sessionNumber}</p>
+              </div>
+              <button className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted flex-shrink-0" onClick={() => setSessionSummarySend(null)}>
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <p className="text-xs text-petra-muted mb-4">שלח סיכום מפגש ישירות ללקוח בוואטסאפ</p>
+            {(() => {
+              const lines: string[] = [
+                `שלום ${sessionSummarySend.customerName}! 🐾`,
+                `סיכום מפגש ${sessionSummarySend.sessionNumber} — ${sessionSummarySend.dogName}`,
+                "",
+              ];
+              if (sessionSummarySend.practiceItems) lines.push(`📝 תרגילים שעשינו:\n${sessionSummarySend.practiceItems}`, "");
+              if (sessionSummarySend.homeworkForCustomer) lines.push(`🏠 שיעורי בית לתרגול:\n${sessionSummarySend.homeworkForCustomer}`, "");
+              if (sessionSummarySend.nextSessionGoals) lines.push(`🎯 יעדים לפגישה הבאה:\n${sessionSummarySend.nextSessionGoals}`, "");
+              if (sessionSummarySend.rating) lines.push(`⭐ דירוג המפגש: ${"★".repeat(sessionSummarySend.rating)}`);
+              lines.push("", "נתראה בפגישה הבאה! 🐾");
+              const msg = lines.join("\n");
+              const url = `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(sessionSummarySend.customerPhone)}&text=${encodeURIComponent(msg)}`;
+              return (
+                <div className="space-y-2">
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white text-sm font-semibold transition-colors"
+                    onClick={() => setTimeout(() => setSessionSummarySend(null), 800)}
+                  >
+                    <Send className="w-4 h-4" />
+                    שלח סיכום בוואטסאפ
+                  </a>
+                  <button
+                    className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-petra-muted text-xs font-medium transition-colors"
+                    onClick={() => setSessionSummarySend(null)}
+                  >
+                    דלג — לא עכשיו
+                  </button>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {sessionLogTarget && (
         <SessionLogModal
           dogName={sessionLogTarget.dogName}
@@ -1083,6 +1151,9 @@ export default function TrainingPage() {
               practiceItems,
               nextSessionGoals,
               homeworkForCustomer,
+              customerPhone: sessionLogTarget.customerPhone,
+              customerName: sessionLogTarget.customerName,
+              dogName: sessionLogTarget.dogName,
             })
           }
         />
@@ -1498,6 +1569,87 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
 }
 
 // ═══════════════════════════════════════════════════════
+// GOAL SECTION (inline add-goal)
+// ═══════════════════════════════════════════════════════
+
+function GoalSection({ program }: { program: TrainingProgram }) {
+  const queryClient = useQueryClient();
+  const [newTitle, setNewTitle] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+
+  const addMutation = useMutation({
+    mutationFn: (title: string) =>
+      fetchJSON(`/api/training-programs/${program.id}/goals`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-programs"] });
+      setNewTitle("");
+      setShowAdd(false);
+      toast.success("יעד נוסף ✓");
+    },
+    onError: () => toast.error("שגיאה בהוספת יעד"),
+  });
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center gap-2 mb-2">
+        <CheckCircle2 className="w-3.5 h-3.5 text-petra-muted" />
+        <h4 className="text-xs font-semibold text-petra-muted flex-1">
+          יעדי אילוף ({program.goals.length})
+        </h4>
+        <button
+          className="text-[10px] text-brand-600 hover:text-brand-700 font-medium flex items-center gap-0.5"
+          onClick={() => setShowAdd((v) => !v)}
+        >
+          <Plus className="w-3 h-3" />
+          הוסף יעד
+        </button>
+      </div>
+
+      {program.goals.length === 0 && !showAdd && (
+        <p className="text-xs text-petra-muted">אין יעדים עדיין — לחץ &ldquo;הוסף יעד&rdquo; כדי לעקוב אחר ההתקדמות</p>
+      )}
+
+      <div className="space-y-2">
+        {program.goals.map((goal) => (
+          <GoalProgressRow key={goal.id} goal={goal} programId={program.id} />
+        ))}
+      </div>
+
+      {showAdd && (
+        <div className="mt-2 flex gap-2">
+          <input
+            autoFocus
+            type="text"
+            className="input text-xs flex-1 py-1"
+            placeholder="תאר את היעד..."
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newTitle.trim()) addMutation.mutate(newTitle.trim());
+              if (e.key === "Escape") { setShowAdd(false); setNewTitle(""); }
+            }}
+          />
+          <button
+            className="btn-primary text-xs px-2 py-1"
+            disabled={!newTitle.trim() || addMutation.isPending}
+            onClick={() => { if (newTitle.trim()) addMutation.mutate(newTitle.trim()); }}
+          >
+            {addMutation.isPending ? "..." : "הוסף"}
+          </button>
+          <button className="btn-secondary text-xs px-2 py-1" onClick={() => { setShowAdd(false); setNewTitle(""); }}>
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
 // SESSION CHECKLIST COMPONENT
 // ═══════════════════════════════════════════════════════
 
@@ -1533,11 +1685,34 @@ function SessionChecklist({
 
       {/* Progress bar */}
       {total && total > 0 && (
-        <div className="w-full h-1.5 rounded-full bg-slate-100 mb-3">
+        <div className="w-full h-1.5 rounded-full bg-slate-100 mb-2">
           <div
             className="h-full rounded-full bg-emerald-500 transition-all"
             style={{ width: `${Math.min(100, (usedSessions / total) * 100)}%` }}
           />
+        </div>
+      )}
+
+      {/* Rating trend dots */}
+      {total && total > 0 && program.sessions.some((s) => s.rating) && (
+        <div className="flex items-center gap-1 mb-3 flex-wrap">
+          {Array.from({ length: total }, (_, i) => {
+            const num = i + 1;
+            const session = sessionsByNumber.get(num);
+            if (!session || session.status !== "COMPLETED") {
+              return <span key={num} className="w-2.5 h-2.5 rounded-full bg-slate-100 border border-slate-200" title={`מפגש ${num}`} />;
+            }
+            const r = session.rating;
+            const color = !r ? "bg-slate-300" : r >= 4 ? "bg-emerald-500" : r === 3 ? "bg-amber-400" : "bg-red-400";
+            return (
+              <span
+                key={num}
+                className={cn("w-2.5 h-2.5 rounded-full", color)}
+                title={`מפגש ${num}${r ? ` — ${r}★` : " — בוצע"}`}
+              />
+            );
+          })}
+          <span className="text-[10px] text-petra-muted mr-0.5">דירוגי מפגשים</span>
         </div>
       )}
 
@@ -1681,7 +1856,7 @@ function IndividualTab({
   searchQuery: string;
   expandedCards: Set<string>;
   toggleExpand: (id: string) => void;
-  onMarkAttendance: (programId: string, sessionNumber: number, dogName: string) => void;
+  onMarkAttendance: (programId: string, sessionNumber: number, dogName: string, customerPhone?: string, customerName?: string) => void;
   onEditSettings: (program: TrainingProgram) => void;
   isMarkingAttendance: boolean;
 }) {
@@ -1876,24 +2051,16 @@ function IndividualTab({
                       </div>
                     </div>
 
-                    {/* Goals */}
-                    {program.goals && program.goals.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="text-xs font-semibold text-petra-muted mb-2 flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          יעדי אילוף ({program.goals.length})
-                        </h4>
-                        <div className="space-y-2">
-                          {program.goals.map((goal) => (
-                            <GoalProgressRow
-                              key={goal.id}
-                              goal={goal}
-                              programId={program.id}
-                            />
-                          ))}
-                        </div>
+                    {/* Behavior Baseline */}
+                    {program.behaviorBaseline && (
+                      <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                        <span className="font-semibold block mb-0.5">📋 קו בסיס התנהגותי</span>
+                        {program.behaviorBaseline}
                       </div>
                     )}
+
+                    {/* Goals */}
+                    <GoalSection program={program} />
 
                     {/* Homework */}
                     <HomeworkSection program={program} />
@@ -1902,7 +2069,7 @@ function IndividualTab({
                     <SessionChecklist
                       program={program}
                       usedSessions={usedSessions}
-                      onAddSession={() => onMarkAttendance(program.id, usedSessions + 1, program.dog.name)}
+                      onAddSession={() => onMarkAttendance(program.id, usedSessions + 1, program.dog.name, program.customer.phone, program.customer.name)}
                       isAdding={isMarkingAttendance}
                     />
 

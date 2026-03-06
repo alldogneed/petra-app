@@ -348,6 +348,29 @@ export async function POST(
         })
       }
     }
+    // Auto-create TrainingProgram for training services (category contains "אילוף")
+    const isTraining = item.category?.includes("אילוף")
+    if (isTraining && firstPetId) {
+      const existing = await prisma.trainingProgram.findFirst({
+        where: { businessId: business.id, customerId: customer.id, dogId: firstPetId, status: { in: ["ACTIVE", "PAUSED"] } },
+      })
+      if (!existing) {
+        await prisma.trainingProgram.create({
+          data: {
+            businessId: business.id,
+            customerId: customer.id,
+            dogId: firstPetId,
+            name: item.name,
+            programType: "CUSTOM",
+            trainingType: "HOME",
+            status: "ACTIVE",
+            startDate: startAt,
+            price: item.basePrice,
+          },
+        }).catch(console.error)
+      }
+    }
+
     notifyCustomerConfirmed(booking, customer, { name: serviceName }, dateLabel, timeLabel)
   } else {
     notifyCustomerPending(booking, customer, { name: serviceName }, dateLabel, timeLabel)
