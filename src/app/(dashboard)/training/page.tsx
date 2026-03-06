@@ -882,8 +882,8 @@ export default function TrainingPage() {
                     searchQuery={searchQuery}
                     expandedCards={expandedCards}
                     toggleExpand={toggleExpand}
-                    onMarkAttendance={(programId, sessionNumber, dogName) =>
-                      setSessionLogTarget({ programId, sessionNumber, dogName })
+                    onMarkAttendance={(programId, sessionNumber, dogName, customerPhone, customerName) =>
+                      setSessionLogTarget({ programId, sessionNumber, dogName, customerPhone, customerName })
                     }
                     onEditSettings={(program) => setEditingProgram(program)}
                     isMarkingAttendance={markAttendanceMutation.isPending}
@@ -1013,8 +1013,8 @@ export default function TrainingPage() {
                 searchQuery={searchQuery}
                 expandedCards={expandedCards}
                 toggleExpand={toggleExpand}
-                onMarkAttendance={(programId, sessionNumber, dogName) =>
-                  setSessionLogTarget({ programId, sessionNumber, dogName })
+                onMarkAttendance={(programId, sessionNumber, dogName, customerPhone, customerName) =>
+                  setSessionLogTarget({ programId, sessionNumber, dogName, customerPhone, customerName })
                 }
                 onEditSettings={(program) => setEditingProgram(program)}
                 isMarkingAttendance={markAttendanceMutation.isPending}
@@ -1378,7 +1378,10 @@ function GoalProgressRow({ goal, programId }: { goal: { id: string; title: strin
           status: progress >= 100 ? "ACHIEVED" : progress > 0 ? "IN_PROGRESS" : "PENDING",
         }),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["training-programs"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-programs"] });
+      queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
+    },
     onError: () => toast.error("שגיאה בעדכון יעד"),
   });
 
@@ -1572,7 +1575,7 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
 // GOAL SECTION (inline add-goal)
 // ═══════════════════════════════════════════════════════
 
-function GoalSection({ program }: { program: TrainingProgram }) {
+function GoalSection({ program, label = "יעדי אילוף" }: { program: TrainingProgram; label?: string }) {
   const queryClient = useQueryClient();
   const [newTitle, setNewTitle] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -1586,6 +1589,7 @@ function GoalSection({ program }: { program: TrainingProgram }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
+      queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
       setNewTitle("");
       setShowAdd(false);
       toast.success("יעד נוסף ✓");
@@ -1598,7 +1602,7 @@ function GoalSection({ program }: { program: TrainingProgram }) {
       <div className="flex items-center gap-2 mb-2">
         <CheckCircle2 className="w-3.5 h-3.5 text-petra-muted" />
         <h4 className="text-xs font-semibold text-petra-muted flex-1">
-          יעדי אילוף ({program.goals.length})
+          {label} ({program.goals.length})
         </h4>
         <button
           className="text-[10px] text-brand-600 hover:text-brand-700 font-medium flex items-center gap-0.5"
@@ -2205,6 +2209,8 @@ function BoardingTrainingTab({
                     <p className="text-xs text-petra-text whitespace-pre-line">{linkedProgram.workPlan}</p>
                   </div>
                 )}
+                {/* Weekly goals before discharge */}
+                <GoalSection program={linkedProgram} label="יעדי שבוע — לפני יציאה לבית" />
                 {linkedProgram.sessions && linkedProgram.sessions.length > 0 && (
                   <div>
                     <p className="text-[10px] font-semibold text-petra-muted mb-1.5">עדכוני התקדמות ({usedSessions} מפגשים)</p>
