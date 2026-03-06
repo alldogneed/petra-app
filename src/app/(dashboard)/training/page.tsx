@@ -791,7 +791,7 @@ export default function TrainingPage() {
                 {[
                   { id: "private" as const, label: "אילוף פרטני" },
                   { id: "package" as const, label: "חבילת אילוף" },
-                  { id: "boarding-alt" as const, label: "חלופות פנסיון בבית הלקוח" },
+                  // { id: "boarding-alt" as const, label: "חלופות פנסיון בבית הלקוח" }, // hidden — future feature
                 ].map((sub) => (
                   <button
                     key={sub.id}
@@ -855,7 +855,7 @@ export default function TrainingPage() {
                 </div>
               )}
 
-              {/* חלופות פנסיון בבית הלקוח */}
+              {/* חלופות פנסיון בבית הלקוח — hidden, infrastructure kept for future use */}
               {individualSubTab === "boarding-alt" && (
                 <IndividualTab
                   programs={programs.filter((p) => p.boardingStayId !== null)}
