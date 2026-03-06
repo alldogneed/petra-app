@@ -162,7 +162,7 @@ type TabId = "overview" | "individual" | "boarding" | "groups" | "workshops" | "
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "overview", label: "סקירה", icon: <GraduationCap className="w-4 h-4" /> },
   { id: "individual", label: "אילוף בבית הלקוח", icon: <Dog className="w-4 h-4" /> },
-  { id: "boarding", label: "פנסיון", icon: <Hotel className="w-4 h-4" /> },
+  { id: "boarding", label: "אילוף בתנאי פנסיון", icon: <Hotel className="w-4 h-4" /> },
   { id: "groups", label: "קבוצות", icon: <Users className="w-4 h-4" /> },
   { id: "workshops", label: "סדנאות", icon: <Calendar className="w-4 h-4" /> },
   { id: "service-dogs", label: "כלבי שירות", icon: <Shield className="w-4 h-4" /> },
@@ -1766,10 +1766,16 @@ function BoardingTrainingTab({
                 <Hotel className="w-5 h-5 text-amber-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-sm font-semibold text-petra-text">{stay.pet.name}</h3>
                   {linkedProgram ? (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">כולל אילוף</span>
+                    linkedProgram.startDate && linkedProgram.endDate ? (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> לקוח פעיל
+                      </span>
+                    ) : (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">בהגדרה — חסרים תאריכים</span>
+                    )
                   ) : (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">ללא תוכנית אילוף</span>
                   )}
@@ -1796,6 +1802,15 @@ function BoardingTrainingTab({
 
             {linkedProgram ? (
               <div className="border-t pt-3 space-y-3">
+                {/* Program dates */}
+                {(linkedProgram.startDate || linkedProgram.endDate) && (
+                  <div className="flex items-center gap-3 text-xs text-petra-muted bg-slate-50 px-3 py-2 rounded-xl">
+                    <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
+                    {linkedProgram.startDate && <span>התחלה: {formatDate(linkedProgram.startDate)}</span>}
+                    {linkedProgram.startDate && linkedProgram.endDate && <span>•</span>}
+                    {linkedProgram.endDate && <span>סיום: {formatDate(linkedProgram.endDate)}</span>}
+                  </div>
+                )}
                 {linkedProgram.behaviorBaseline && (
                   <div className="p-2 rounded-lg bg-blue-50">
                     <p className="text-[10px] font-semibold text-blue-600 mb-1">בסיס התנהגותי</p>
@@ -3205,7 +3220,12 @@ function BoardingTrainingModal({
   onSubmit: (data: Record<string, unknown>) => void;
   isPending: boolean;
 }) {
+  const stayCheckIn = stay.checkIn ? new Date(stay.checkIn).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+  const stayCheckOut = stay.checkOut ? new Date(stay.checkOut).toISOString().slice(0, 10) : "";
+
   const [packageId, setPackageId] = useState("");
+  const [startDate, setStartDate] = useState(stayCheckIn);
+  const [endDate, setEndDate] = useState(stayCheckOut);
   const [behaviorBaseline, setBehaviorBaseline] = useState("");
   const [customerExpectations, setCustomerExpectations] = useState("");
   const [workPlan, setWorkPlan] = useState("");
@@ -3218,11 +3238,13 @@ function BoardingTrainingModal({
       customerId: stay.customer.id,
       boardingStayId: stay.id,
       trainingType: "BOARDING",
-      name: `אילוף פנסיון — ${stay.pet.name}`,
+      name: `תוכנית אילוף — ${stay.pet.name}`,
       programType: "CUSTOM",
       packageId: packageId || null,
       totalSessions: selectedPkg?.sessions ?? null,
       price: selectedPkg?.price ?? null,
+      startDate: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),
+      endDate: endDate ? new Date(endDate).toISOString() : null,
       behaviorBaseline: behaviorBaseline || null,
       customerExpectations: customerExpectations || null,
       workPlan: workPlan || null,
@@ -3254,6 +3276,32 @@ function BoardingTrainingModal({
               ))}
             </select>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">התחלת תוכנית *</label>
+              <input
+                type="date"
+                className="input"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label">סיום תוכנית *</label>
+              <input
+                type="date"
+                className="input"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+          </div>
+          {(!startDate || !endDate) && (
+            <p className="text-xs text-amber-600 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              נדרשים תאריך התחלה וסיום כדי שהלקוח יסומן כ"לקוח פעיל"
+            </p>
+          )}
           <div>
             <label className="label">בסיס התנהגותי ראשוני</label>
             <textarea
@@ -3287,7 +3335,7 @@ function BoardingTrainingModal({
         </div>
 
         <div className="flex gap-3 mt-6">
-          <button className="btn-primary flex-1" disabled={isPending} onClick={handleSubmit}>
+          <button className="btn-primary flex-1" disabled={isPending || !startDate || !endDate} onClick={handleSubmit}>
             {isPending ? "יוצר..." : "צור תוכנית אילוף"}
           </button>
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
