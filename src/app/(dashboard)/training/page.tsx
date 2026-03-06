@@ -94,6 +94,7 @@ interface TrainingProgram {
   notes: string | null;
   trainingType: string;
   packageId: string | null;
+  isPackage: boolean;
   workPlan: string | null;
   behaviorBaseline: string | null;
   customerExpectations: string | null;
@@ -811,7 +812,7 @@ export default function TrainingPage() {
               {/* אילוף פרטני */}
               {individualSubTab === "private" && (
                 <IndividualTab
-                  programs={programs.filter((p) => !p.packageId && !p.boardingStayId)}
+                  programs={programs.filter((p) => !p.isPackage && !p.boardingStayId)}
                   searchQuery={searchQuery}
                   expandedCards={expandedCards}
                   toggleExpand={toggleExpand}
@@ -827,7 +828,7 @@ export default function TrainingPage() {
               {individualSubTab === "package" && (
                 <div className="space-y-6">
                   <IndividualTab
-                    programs={programs.filter((p) => p.packageId !== null)}
+                    programs={programs.filter((p) => p.isPackage)}
                     searchQuery={searchQuery}
                     expandedCards={expandedCards}
                     toggleExpand={toggleExpand}

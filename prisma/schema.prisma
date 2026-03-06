@@ -755,6 +755,7 @@ model PriceListItem {
   depositRequired   Boolean  @default(false)
   depositAmount     Float?
   maxBookingsPerDay Int?     // capacity limit: max confirmed bookings per day
+  sessions          Int?     // training packages: number of sessions included
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -1093,6 +1094,7 @@ model TrainingProgram {
   behaviorBaseline     String?  // initial behavior assessment (boarding)
   customerExpectations String?  // what customer expects (all types)
   boardingStayId       String?  // optional link to a BoardingStay
+  isPackage            Boolean  @default(false) // true when created from a price list package item
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

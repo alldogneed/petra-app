@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
 
     const body = await request.json();
-    const { name, category, unit, basePrice, description, type, taxMode, durationMinutes, defaultQuantity, paymentUrl } = body;
+    const { name, category, unit, basePrice, description, type, taxMode, durationMinutes, defaultQuantity, paymentUrl, sessions } = body;
 
     if (!name || basePrice === undefined) {
       return NextResponse.json({ error: "name and basePrice are required" }, { status: 400 });
@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
         durationMinutes: durationMinutes ? Number(durationMinutes) : null,
         defaultQuantity: defaultQuantity ? Number(defaultQuantity) : 1,
         paymentUrl: paymentUrl || null,
+        sessions: sessions ? Number(sessions) : null,
       },
     });
 

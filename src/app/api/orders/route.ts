@@ -169,11 +169,13 @@ export async function POST(request: NextRequest) {
         let programName = lines[0]?.name || "תוכנית אילוף";
 
         if (isPackage) {
-          // Fetch package to get sessions count
-          const pkg = await tx.trainingPackage.findUnique({ where: { id: trainingPackageId } });
-          if (pkg) {
-            totalSessions = pkg.sessions;
-            programName = pkg.name;
+          // Fetch price list item to get sessions count
+          const item = await tx.priceListItem.findFirst({
+            where: { id: trainingPackageId, businessId: authResult.businessId },
+          });
+          if (item) {
+            totalSessions = (item as { sessions?: number | null }).sessions ?? null;
+            programName = item.name;
           }
         } else {
           const sessionLines = lines.filter((l: { unit: string }) => l.unit === "per_session");
@@ -194,7 +196,7 @@ export async function POST(request: NextRequest) {
             totalSessions,
             price: calc.total || null,
             notes: notes || null,
-            ...(isPackage && trainingPackageId ? { packageId: trainingPackageId } : {}),
+            isPackage: isPackage,
           },
         });
       }

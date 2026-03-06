@@ -254,14 +254,10 @@ export function CreateOrderModal({
     staleTime: 300_000,
   });
 
-  // Training packages (fetched when training order type selected)
-  const { data: trainingPackagesData } = useQuery<{ packages: { id: string; name: string; sessions: number; price: number; description: string | null }[] }>({
-    queryKey: ["training-packages-active-home"],
-    queryFn: () => fetch("/api/training-packages?isActive=true").then((r) => r.json()),
-    enabled: isOpen && orderType === "training",
-    staleTime: 60_000,
-  });
-  const trainingPackages = trainingPackagesData?.packages ?? [];
+  // Training package items — price list items in "אילוף" category with sessions > 0
+  const trainingPackages = (allItems as (PriceListItem & { sessions?: number | null })[]).filter(
+    (i) => i.category === "אילוף" && i.sessions && i.sessions > 0 && i.isActive
+  );
 
   // Fetch customer's pets — fast endpoint (only pets, not full customer detail)
   const { data: customerPets = [], isLoading: petsLoading } = useQuery<Pet[]>({
@@ -991,20 +987,21 @@ export function CreateOrderModal({
                   <div className="space-y-1.5">
                     {trainingPackages.map((pkg) => {
                       const selected = selectedPackageId === pkg.id;
+                      const pkgSessions = (pkg as PriceListItem & { sessions: number }).sessions;
                       return (
                         <button
                           key={pkg.id}
                           type="button"
                           onClick={() => {
                             setSelectedPackageId(pkg.id);
-                            // Auto-populate cart with package as a flat line
+                            // Auto-populate cart with package item
                             setLines([{
-                              priceListItemId: null,
+                              priceListItemId: pkg.id,
                               name: pkg.name,
-                              unit: "flat",
+                              unit: pkg.unit,
                               quantity: 1,
-                              unitPrice: pkg.price,
-                              taxMode: "taxable",
+                              unitPrice: pkg.basePrice,
+                              taxMode: pkg.taxMode as "inherit" | "taxable" | "exempt",
                               petIds: [],
                             }]);
                           }}
@@ -1016,10 +1013,10 @@ export function CreateOrderModal({
                           <Package className={cn("w-4 h-4 flex-shrink-0", selected ? "text-blue-600" : "text-petra-muted")} />
                           <div className="flex-1 min-w-0">
                             <p className={cn("text-sm font-semibold", selected ? "text-blue-700" : "text-petra-text")}>{pkg.name}</p>
-                            <p className="text-xs text-petra-muted">{pkg.sessions} מפגשים{pkg.description ? ` · ${pkg.description}` : ""}</p>
+                            <p className="text-xs text-petra-muted">{pkgSessions} מפגשים{pkg.description ? ` · ${pkg.description}` : ""}</p>
                           </div>
                           <span className={cn("text-sm font-bold flex-shrink-0", selected ? "text-blue-600" : "text-petra-text")}>
-                            ₪{pkg.price.toLocaleString()}
+                            ₪{pkg.basePrice.toLocaleString()}
                           </span>
                         </button>
                       );

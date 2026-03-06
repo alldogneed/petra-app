@@ -32,6 +32,7 @@ interface PriceListItem {
   depositRequired: boolean;
   depositAmount: number | null;
   maxBookingsPerDay: number | null;
+  sessions: number | null;
 }
 
 interface PriceList {
@@ -85,6 +86,7 @@ interface ItemFormData {
   depositRequired: boolean;
   depositAmount: string;
   maxBookingsPerDay: string;
+  sessions: string;
 }
 
 function ItemModal({
@@ -113,6 +115,7 @@ function ItemModal({
     depositRequired: item?.depositRequired ?? false,
     depositAmount: item?.depositAmount?.toString() ?? "",
     maxBookingsPerDay: item?.maxBookingsPerDay?.toString() ?? "",
+    sessions: item?.sessions?.toString() ?? "",
   });
 
   return (
@@ -241,6 +244,32 @@ function ItemModal({
                 onChange={(e) => setForm({ ...form, durationMinutes: e.target.value })}
                 dir="ltr"
               />
+            </div>
+          )}
+
+          {/* Sessions field — shown for training category items */}
+          {form.category === "אילוף" && (
+            <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-2">
+              <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
+                <Package className="w-3.5 h-3.5" />
+                חבילת אילוף (אופציונלי)
+              </p>
+              <div>
+                <label className="label text-[11px]">כמות מפגשים בחבילה</label>
+                <input
+                  className="input mt-1"
+                  type="number"
+                  min="1"
+                  max="100"
+                  placeholder="לדוגמה: 8 מפגשים"
+                  value={form.sessions}
+                  onChange={(e) => setForm({ ...form, sessions: e.target.value })}
+                  dir="ltr"
+                />
+              </div>
+              <p className="text-[11px] text-blue-600">
+                אם מוגדרת כמות מפגשים, הפריט יוצג כ&quot;חבילת אילוף&quot; בהזמנה ויפתח מעקב מפגשים אוטומטי.
+              </p>
             </div>
           )}
 
@@ -407,6 +436,11 @@ function ItemRow({
               <Clock className="w-2.5 h-2.5" />{item.durationMinutes}ד׳
             </span>
           ) : null}
+          {item.sessions ? (
+            <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5">
+              <Package className="w-2.5 h-2.5" />{item.sessions} מפגשים
+            </span>
+          ) : null}
         </div>
         {item.description && (
           <p className="text-xs text-petra-muted truncate mt-0.5">{item.description}</p>
@@ -535,6 +569,7 @@ export default function PricingPage() {
     category: data.category || null,
     depositAmount: data.depositRequired && data.depositAmount ? parseFloat(data.depositAmount) : null,
     maxBookingsPerDay: data.maxBookingsPerDay ? parseInt(data.maxBookingsPerDay) : null,
+    sessions: data.sessions ? parseInt(data.sessions) : null,
   });
 
   const addMutation = useMutation({
