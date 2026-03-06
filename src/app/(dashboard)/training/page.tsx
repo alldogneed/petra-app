@@ -686,13 +686,32 @@ export default function TrainingPage() {
 
   const createBoardingTrainingMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
+      const homeFollowupSessions = (data.homeFollowupSessions as number) || 0;
+      const { homeFollowupSessions: _hfs, ...boardingData } = data;
       const res = await fetch("/api/training-programs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(boardingData),
       });
       if (!res.ok) throw new Error("Failed");
-      return res.json();
+      const boardingProgram = await res.json();
+      if (homeFollowupSessions > 0) {
+        await fetch("/api/training-programs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            dogId: boardingData.dogId,
+            customerId: boardingData.customerId,
+            trainingType: "HOME",
+            name: `מפגשי המשך — ${boardingProgram.dog?.name || ""}`,
+            programType: "CUSTOM",
+            startDate: boardingData.endDate || new Date().toISOString(),
+            totalSessions: homeFollowupSessions,
+            notes: "מפגשי המשך לאחר אילוף פנסיון",
+          }),
+        }).catch(console.error);
+      }
+      return boardingProgram;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
@@ -1243,7 +1262,6 @@ export default function TrainingPage() {
       {showBoardingTraining && (
         <BoardingTrainingModal
           stay={showBoardingTraining.stay}
-          boardingPackages={packages.filter((p) => p.type === "BOARDING" && p.isActive)}
           onClose={() => setShowBoardingTraining(null)}
           onSubmit={(data) => createBoardingTrainingMutation.mutate(data)}
           isPending={createBoardingTrainingMutation.isPending}
@@ -2385,7 +2403,7 @@ function BoardingTrainingTab({
                 <GoalSection program={linkedProgram} label="יעדי שבוע — לפני יציאה לבית" />
                 {linkedProgram.sessions && linkedProgram.sessions.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-semibold text-petra-muted mb-1.5">עדכוני התקדמות ({usedSessions} מפגשים)</p>
+                    <p className="text-[10px] font-semibold text-petra-muted mb-1.5">עדכוני שבועיים ({usedSessions} עדכונים)</p>
                     <div className="space-y-1.5">
                       {linkedProgram.sessions.slice(0, 3).map((s) => (
                         <div key={s.id} className="p-2 rounded-lg bg-slate-50 text-xs">
@@ -2402,7 +2420,7 @@ function BoardingTrainingTab({
                   onClick={() => onLogSession(linkedProgram.id, nextSessionNum, stay.pet.name)}
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  הוסף עדכון אילוף
+                  הוסף עדכון שבועי
                 </button>
               </div>
             ) : (
@@ -3763,13 +3781,11 @@ function EditPackageModal({
 
 function BoardingTrainingModal({
   stay,
-  boardingPackages,
   onClose,
   onSubmit,
   isPending,
 }: {
   stay: BoardingStay;
-  boardingPackages: TrainingPackage[];
   onClose: () => void;
   onSubmit: (data: Record<string, unknown>) => void;
   isPending: boolean;
@@ -3777,14 +3793,12 @@ function BoardingTrainingModal({
   const stayCheckIn = stay.checkIn ? new Date(stay.checkIn).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
   const stayCheckOut = stay.checkOut ? new Date(stay.checkOut).toISOString().slice(0, 10) : "";
 
-  const [packageId, setPackageId] = useState("");
   const [startDate, setStartDate] = useState(stayCheckIn);
   const [endDate, setEndDate] = useState(stayCheckOut);
   const [behaviorBaseline, setBehaviorBaseline] = useState("");
   const [customerExpectations, setCustomerExpectations] = useState("");
   const [workPlan, setWorkPlan] = useState("");
-
-  const selectedPkg = boardingPackages.find((p) => p.id === packageId);
+  const [homeFollowupSessions, setHomeFollowupSessions] = useState(0);
 
   const handleSubmit = () => {
     onSubmit({
@@ -3792,16 +3806,14 @@ function BoardingTrainingModal({
       customerId: stay.customer.id,
       boardingStayId: stay.id,
       trainingType: "BOARDING",
-      name: `תוכנית אילוף — ${stay.pet.name}`,
+      name: `תוכנית אילוף פנסיון — ${stay.pet.name}`,
       programType: "CUSTOM",
-      packageId: packageId || null,
-      totalSessions: selectedPkg?.sessions ?? null,
-      price: selectedPkg?.price ?? null,
       startDate: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),
       endDate: endDate ? new Date(endDate).toISOString() : null,
       behaviorBaseline: behaviorBaseline || null,
       customerExpectations: customerExpectations || null,
       workPlan: workPlan || null,
+      homeFollowupSessions: homeFollowupSessions > 0 ? homeFollowupSessions : 0,
     });
   };
 
@@ -3821,39 +3833,20 @@ function BoardingTrainingModal({
         </div>
 
         <div className="space-y-4">
-          <div>
-            <label className="label">חבילת אילוף (אופציונלי)</label>
-            <select className="input" value={packageId} onChange={(e) => setPackageId(e.target.value)}>
-              <option value="">ללא חבילה</option>
-              {boardingPackages.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} — {p.sessions} מפגשים, ₪{p.price}</option>
-              ))}
-            </select>
-          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">התחלת תוכנית *</label>
-              <input
-                type="date"
-                className="input"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
+              <input type="date" className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
             <div>
               <label className="label">סיום תוכנית *</label>
-              <input
-                type="date"
-                className="input"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
+              <input type="date" className="input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
           </div>
           {(!startDate || !endDate) && (
             <p className="text-xs text-amber-600 flex items-center gap-1">
               <AlertTriangle className="w-3 h-3" />
-              נדרשים תאריך התחלה וסיום כדי שהלקוח יסומן כ"לקוח פעיל"
+              נדרשים תאריך התחלה וסיום כדי שהלקוח יסומן כ&quot;לקוח פעיל&quot;
             </p>
           )}
           <div>
@@ -3885,6 +3878,34 @@ function BoardingTrainingModal({
               value={workPlan}
               onChange={(e) => setWorkPlan(e.target.value)}
             />
+          </div>
+
+          {/* Home follow-up sessions */}
+          <div className="p-3 rounded-xl border border-brand-100 bg-brand-50/50 space-y-2">
+            <label className="text-xs font-semibold text-brand-700 flex items-center gap-1.5">
+              <Dog className="w-3.5 h-3.5" />
+              העברת שרביט — מפגשי המשך בבית הלקוח
+            </label>
+            <p className="text-[11px] text-brand-600">
+              מפגשים בבית הלקוח לאחר סיום הפנסיון — להבטיח רצף ולהעביר את הכלי לידיים של הבעלים
+            </p>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min={0}
+                max={20}
+                className="input w-20 text-center"
+                value={homeFollowupSessions || ""}
+                placeholder="0"
+                onChange={(e) => setHomeFollowupSessions(Math.max(0, parseInt(e.target.value) || 0))}
+              />
+              <span className="text-xs text-petra-muted">מפגשים (0 = ללא מפגשי המשך)</span>
+            </div>
+            {homeFollowupSessions > 0 && (
+              <p className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg">
+                ✓ תוכנית המשך של {homeFollowupSessions} מפגשים תיווצר אוטומטית תחת &quot;אילוף בבית הלקוח&quot;
+              </p>
+            )}
           </div>
         </div>
 
