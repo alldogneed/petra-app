@@ -235,6 +235,8 @@ function SessionLogModal({
   isPending,
   onClose,
   onSubmit,
+  programId,
+  goals,
 }: {
   dogName: string;
   sessionNumber: number;
@@ -242,6 +244,8 @@ function SessionLogModal({
   isPending: boolean;
   onClose: () => void;
   onSubmit: (summary: string, sessionDate: string, rating: number | null, practiceItems: string, nextSessionGoals: string, homeworkForCustomer: string) => void;
+  programId?: string;
+  goals?: { id: string; title: string; status: string; progressPercent: number }[];
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const [summary, setSummary] = useState("");
@@ -251,6 +255,18 @@ function SessionLogModal({
   const [practiceItems, setPracticeItems] = useState("");
   const [nextSessionGoals, setNextSessionGoals] = useState("");
   const [homeworkForCustomer, setHomeworkForCustomer] = useState("");
+  const [homeSession, setHomeSession] = useState(false);
+
+  const isSameWeek = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 7);
+    return d >= startOfWeek && d < endOfWeek;
+  };
 
   const STAR_LABELS = ["חלש", "סביר", "טוב", "מצוין", "מושלם"];
 
@@ -306,7 +322,6 @@ function SessionLogModal({
               type="date"
               className="input"
               value={sessionDate}
-              max={today}
               onChange={(e) => setSessionDate(e.target.value)}
             />
           </div>
@@ -362,6 +377,27 @@ function SessionLogModal({
               onChange={(e) => setSummary(e.target.value)}
             />
           </div>
+          {isWeekly && programId && goals && goals.length > 0 && isSameWeek(sessionDate) && (
+            <div className="border-t pt-4">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 accent-brand-500 rounded"
+                  checked={homeSession}
+                  onChange={(e) => setHomeSession(e.target.checked)}
+                />
+                <span className="text-sm font-semibold text-petra-text">מפגשים בבית השבוע</span>
+              </label>
+              {homeSession && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-[11px] text-petra-muted">עדכן התקדמות יעדים שהושגו גם בבית השבוע</p>
+                  {goals.map((goal) => (
+                    <GoalProgressRow key={goal.id} goal={goal} programId={programId} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex gap-3 mt-6">
           <button
@@ -394,7 +430,7 @@ export default function TrainingPage() {
   const [showAssignDog, setShowAssignDog] = useState<{ groupId: string; groupName: string } | null>(null);
   const [editingProgram, setEditingProgram] = useState<TrainingProgram | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  const [sessionLogTarget, setSessionLogTarget] = useState<{ programId: string; sessionNumber: number; dogName: string; customerPhone?: string; customerName?: string; isWeekly?: boolean } | null>(null);
+  const [sessionLogTarget, setSessionLogTarget] = useState<{ programId: string; sessionNumber: number; dogName: string; customerPhone?: string; customerName?: string; isWeekly?: boolean; goals?: { id: string; title: string; status: string; progressPercent: number }[] } | null>(null);
   const [sessionSummarySend, setSessionSummarySend] = useState<{ customerPhone: string; customerName: string; dogName: string; sessionNumber: number; practiceItems?: string; homeworkForCustomer?: string; nextSessionGoals?: string; rating?: number | null } | null>(null);
   const [showCreatePackage, setShowCreatePackage] = useState(false);
   const [editingPackage, setEditingPackage] = useState<TrainingPackage | null>(null);
@@ -1042,8 +1078,8 @@ export default function TrainingPage() {
               boardingPrograms={boardingPrograms}
               searchQuery={searchQuery}
               onAddTraining={(stay) => setShowBoardingTraining({ stay })}
-              onLogSession={(programId, sessionNumber, dogName) =>
-                setSessionLogTarget({ programId, sessionNumber, dogName, isWeekly: true })
+              onLogSession={(programId, sessionNumber, dogName, goals) =>
+                setSessionLogTarget({ programId, sessionNumber, dogName, isWeekly: true, goals })
               }
             />
           )}
@@ -1261,6 +1297,8 @@ export default function TrainingPage() {
           sessionNumber={sessionLogTarget.sessionNumber}
           isWeekly={sessionLogTarget.isWeekly}
           isPending={markAttendanceMutation.isPending}
+          programId={sessionLogTarget.programId}
+          goals={sessionLogTarget.goals}
           onClose={() => setSessionLogTarget(null)}
           onSubmit={(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer) =>
             markAttendanceMutation.mutate({
@@ -2380,7 +2418,7 @@ function BoardingTrainingTab({
   boardingPrograms: TrainingProgram[];
   searchQuery: string;
   onAddTraining: (stay: BoardingStay) => void;
-  onLogSession: (programId: string, sessionNumber: number, dogName: string) => void;
+  onLogSession: (programId: string, sessionNumber: number, dogName: string, goals?: { id: string; title: string; status: string; progressPercent: number }[]) => void;
 }) {
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return stays;
@@ -2500,7 +2538,7 @@ function BoardingTrainingTab({
                 )}
                 <button
                   className="btn-secondary text-xs w-full"
-                  onClick={() => onLogSession(linkedProgram.id, nextSessionNum, stay.pet.name)}
+                  onClick={() => onLogSession(linkedProgram.id, nextSessionNum, stay.pet.name, linkedProgram.goals)}
                 >
                   <Plus className="w-3.5 h-3.5" />
                   הוסף עדכון שבועי
