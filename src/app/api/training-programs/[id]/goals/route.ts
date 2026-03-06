@@ -53,6 +53,33 @@ export async function POST(
   }
 }
 
+// DELETE /api/training-programs/[id]/goals?goalId=xxx
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const authResult = await requireBusinessAuth(req);
+    if (isGuardError(authResult)) return authResult;
+
+    const { searchParams } = new URL(req.url);
+    const goalId = searchParams.get("goalId");
+    if (!goalId) return NextResponse.json({ error: "goalId is required" }, { status: 400 });
+
+    // Verify ownership via program
+    const goal = await prisma.trainingGoal.findFirst({
+      where: { id: goalId, program: { businessId: authResult.businessId } },
+    });
+    if (!goal) return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+
+    await prisma.trainingGoal.delete({ where: { id: goalId } });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("DELETE /api/training-programs/[id]/goals error:", error);
+    return NextResponse.json({ error: "Failed to delete goal" }, { status: 500 });
+  }
+}
+
 // PATCH /api/training-programs/[id]/goals – update a goal (pass goalId in body)
 export async function PATCH(req: NextRequest) {
   try {

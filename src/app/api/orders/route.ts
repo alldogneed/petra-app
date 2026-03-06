@@ -209,13 +209,15 @@ export async function POST(request: NextRequest) {
             dogId: trainingPetId,
             customerId,
             name: programName,
-            programType: "BASIC_OBEDIENCE",
+            programType: (body.programType as string) || "BASIC_OBEDIENCE",
             trainingType: "HOME",
             startDate: appointmentData?.date ? new Date(appointmentData.date) : new Date(),
             totalSessions,
             price: calc.total || null,
             notes: notes || null,
             isPackage: isPkg,
+            orderId: created.id,
+            priceListItemId: resolvedPackageItemId || null,
           },
         });
       }

@@ -28,6 +28,7 @@ import {
   Archive,
   Download,
   XCircle,
+  ShoppingCart,
 } from "lucide-react";
 import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -99,6 +100,8 @@ interface TrainingProgram {
   trainingType: string;
   packageId: string | null;
   isPackage: boolean;
+  orderId: string | null;
+  priceListItemId: string | null;
   workPlan: string | null;
   behaviorBaseline: string | null;
   customerExpectations: string | null;
@@ -782,12 +785,14 @@ export default function TrainingPage() {
   const updateProgramSettingsMutation = useMutation({
     mutationFn: async ({
       id,
+      programType,
       startDate,
       endDate,
       location,
       frequency,
     }: {
       id: string;
+      programType: string;
       startDate: string;
       endDate: string | null;
       location: string | null;
@@ -796,7 +801,7 @@ export default function TrainingPage() {
       const res = await fetch(`/api/training-programs/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ startDate, endDate, location, frequency }),
+        body: JSON.stringify({ programType, startDate, endDate, location, frequency }),
       });
       if (!res.ok) throw new Error("Failed to update program settings");
       return res.json();
@@ -1497,34 +1502,63 @@ function GoalProgressRow({ goal, programId }: { goal: { id: string; title: strin
   const queryClient = useQueryClient();
   const [localProgress, setLocalProgress] = useState(goal.progressPercent);
 
-  const mutation = useMutation({
-    mutationFn: (progress: number) =>
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["training-programs"] });
+    queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
+  };
+
+  const updateMutation = useMutation({
+    mutationFn: ({ progress, status }: { progress: number; status: string }) =>
       fetchJSON(`/api/training-programs/${programId}/goals`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          goalId: goal.id,
-          progressPercent: progress,
-          status: progress >= 100 ? "ACHIEVED" : progress > 0 ? "IN_PROGRESS" : "PENDING",
-        }),
+        body: JSON.stringify({ goalId: goal.id, progressPercent: progress, status }),
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["training-programs"] });
-      queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
-    },
+    onSuccess: invalidate,
     onError: () => toast.error("שגיאה בעדכון יעד"),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: () =>
+      fetchJSON(`/api/training-programs/${programId}/goals?goalId=${goal.id}`, { method: "DELETE" }),
+    onSuccess: () => { invalidate(); toast.success("יעד הוסר"); },
+    onError: () => toast.error("שגיאה במחיקת יעד"),
+  });
+
+  const cycleStatus = () => {
+    const next = goal.status === "NOT_STARTED" ? "IN_PROGRESS"
+      : goal.status === "IN_PROGRESS" ? "ACHIEVED"
+      : "NOT_STARTED";
+    const nextProgress = next === "ACHIEVED" ? 100 : next === "IN_PROGRESS" ? Math.max(localProgress, 10) : 0;
+    setLocalProgress(nextProgress);
+    updateMutation.mutate({ progress: nextProgress, status: next });
+  };
+
   const statusColor = goal.status === "ACHIEVED" ? "text-emerald-600" : goal.status === "IN_PROGRESS" ? "text-brand-600" : "text-petra-muted";
+  const statusIcon = goal.status === "ACHIEVED" ? "✓" : goal.status === "IN_PROGRESS" ? "●" : "○";
 
   return (
     <div className="p-2 rounded-lg bg-slate-50 space-y-1.5">
       <div className="flex items-center gap-2">
-        <span className={cn("text-[10px] font-semibold flex-shrink-0", statusColor)}>
-          {goal.status === "ACHIEVED" ? "✓" : goal.status === "IN_PROGRESS" ? "●" : "○"}
-        </span>
+        <button
+          title="שנה סטטוס"
+          onClick={cycleStatus}
+          disabled={updateMutation.isPending}
+          className={cn("text-[11px] font-bold flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full border transition-all hover:scale-110", statusColor,
+            goal.status === "ACHIEVED" ? "border-emerald-300 bg-emerald-50" : goal.status === "IN_PROGRESS" ? "border-brand-300 bg-brand-50" : "border-slate-300 bg-white")}
+        >
+          {statusIcon}
+        </button>
         <span className="text-xs text-petra-text flex-1 truncate">{goal.title}</span>
         <span className="text-[10px] text-petra-muted font-medium">{localProgress}%</span>
+        <button
+          onClick={() => deleteMutation.mutate()}
+          disabled={deleteMutation.isPending}
+          className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors flex-shrink-0"
+          title="מחק יעד"
+        >
+          <Trash2 className="w-3 h-3" />
+        </button>
       </div>
       <div className="flex items-center gap-2">
         <input
@@ -1534,14 +1568,18 @@ function GoalProgressRow({ goal, programId }: { goal: { id: string; title: strin
           step={10}
           value={localProgress}
           onChange={(e) => setLocalProgress(parseInt(e.target.value))}
-          onMouseUp={() => { if (localProgress !== goal.progressPercent) mutation.mutate(localProgress); }}
-          onTouchEnd={() => { if (localProgress !== goal.progressPercent) mutation.mutate(localProgress); }}
+          onMouseUp={() => {
+            const next = localProgress >= 100 ? "ACHIEVED" : localProgress > 0 ? "IN_PROGRESS" : "NOT_STARTED";
+            if (localProgress !== goal.progressPercent) updateMutation.mutate({ progress: localProgress, status: next });
+          }}
+          onTouchEnd={() => {
+            const next = localProgress >= 100 ? "ACHIEVED" : localProgress > 0 ? "IN_PROGRESS" : "NOT_STARTED";
+            if (localProgress !== goal.progressPercent) updateMutation.mutate({ progress: localProgress, status: next });
+          }}
           className="flex-1 accent-brand-500 h-1.5"
         />
       </div>
-      <div
-        className="h-1.5 rounded-full bg-slate-200 overflow-hidden"
-      >
+      <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
         <div
           className={cn("h-full rounded-full transition-all", localProgress >= 100 ? "bg-emerald-500" : "bg-brand-500")}
           style={{ width: `${localProgress}%` }}
@@ -2272,6 +2310,18 @@ function IndividualTab({
                             program.frequency || "-"}
                       </div>
                     </div>
+
+                    {/* Order link */}
+                    {program.orderId && (
+                      <a
+                        href={`/orders/${program.orderId}`}
+                        className="mb-4 flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-700 hover:bg-blue-100 transition-colors w-fit"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <ShoppingCart className="w-3.5 h-3.5 flex-shrink-0" />
+                        צפה בהזמנה המקורית
+                      </a>
+                    )}
 
                     {/* Service dog phase selector */}
                     {program.trainingType === "SERVICE_DOG" && (
@@ -3966,6 +4016,7 @@ function ProgramSettingsModal({
   program: TrainingProgram;
   onClose: () => void;
   onSubmit: (data: {
+    programType: string;
     startDate: string;
     endDate: string | null;
     location: string | null;
@@ -3974,6 +4025,7 @@ function ProgramSettingsModal({
   isPending: boolean;
 }) {
   const [form, setForm] = useState({
+    programType: program.programType || "BASIC_OBEDIENCE",
     startDate: program.startDate ? new Date(program.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     endDate: program.endDate ? new Date(program.endDate).toISOString().split('T')[0] : "",
     location: program.location || "",
@@ -3982,6 +4034,7 @@ function ProgramSettingsModal({
 
   const handleSubmit = () => {
     onSubmit({
+      programType: form.programType,
       startDate: new Date(form.startDate).toISOString(),
       endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
       location: form.location || null,
@@ -4004,6 +4057,22 @@ function ProgramSettingsModal({
         </div>
 
         <div className="space-y-4">
+          <div>
+            <label className="label">סוג אילוף</label>
+            <select
+              className="input"
+              value={form.programType}
+              onChange={(e) => setForm({ ...form, programType: e.target.value })}
+            >
+              <option value="BASIC_OBEDIENCE">משמעת בסיסית</option>
+              <option value="REACTIVITY">תגובתיות</option>
+              <option value="PUPPY">גורים</option>
+              <option value="BEHAVIOR">בעיות התנהגות</option>
+              <option value="ADVANCED">מתקדם</option>
+              <option value="CUSTOM">מותאם אישית</option>
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">תאריך התחלה *</label>

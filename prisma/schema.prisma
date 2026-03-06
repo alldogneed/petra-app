@@ -759,11 +759,12 @@ model PriceListItem {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  business      Business      @relation(fields: [businessId], references: [id])
-  priceList     PriceList     @relation(fields: [priceListId], references: [id])
-  orderLines    OrderLine[]
-  bookings      Booking[]
-  appointments  Appointment[]
+  business         Business          @relation(fields: [businessId], references: [id])
+  priceList        PriceList         @relation(fields: [priceListId], references: [id])
+  orderLines       OrderLine[]
+  bookings         Booking[]
+  appointments     Appointment[]
+  trainingPrograms TrainingProgram[] @relation("PLITrainingPrograms")
 
   @@index([businessId, isActive])
   @@index([businessId, category])
@@ -797,6 +798,7 @@ model Order {
   lines            OrderLine[]
   payments         Payment[]
   invoiceDocuments InvoiceDocument[]
+  trainingPrograms TrainingProgram[] @relation("OrderTrainingPrograms")
 
   @@index([businessId, status])
   @@index([businessId, customerId])
@@ -1095,6 +1097,8 @@ model TrainingProgram {
   customerExpectations String?  // what customer expects (all types)
   boardingStayId       String?  // optional link to a BoardingStay
   isPackage            Boolean  @default(false) // true when created from a price list package item
+  orderId              String?  // FK → Order that created this program
+  priceListItemId      String?  // FK → PriceListItem (package used)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -1102,6 +1106,8 @@ model TrainingProgram {
   dog           Pet               @relation(fields: [dogId], references: [id], onDelete: Cascade)
   customer      Customer          @relation(fields: [customerId], references: [id])
   package       TrainingPackage?  @relation(fields: [packageId], references: [id])
+  order         Order?            @relation("OrderTrainingPrograms", fields: [orderId], references: [id], onDelete: SetNull)
+  priceListItem PriceListItem?    @relation("PLITrainingPrograms", fields: [priceListItemId], references: [id], onDelete: SetNull)
   goals         TrainingGoal[]
   sessions      TrainingProgramSession[]
   homework      TrainingHomework[]
@@ -1112,6 +1118,7 @@ model TrainingProgram {
   @@index([dogId])
   @@index([customerId])
   @@index([packageId])
+  @@index([orderId])
 }
 
 /// A training goal within a program (e.g. "שב", "הליכה ברצועה")

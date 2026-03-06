@@ -230,6 +230,7 @@ export function CreateOrderModal({
   // Training sub-type
   const [trainingSubType, setTrainingSubType] = useState<"private" | "package" | "boarding" | "group">("private");
   const [selectedPackageId, setSelectedPackageId] = useState<string>("");
+  const [trainingProgramType, setTrainingProgramType] = useState<string>("BASIC_OBEDIENCE");
   // Boarding training extra fields
   const [trainingBoardingStart, setTrainingBoardingStart] = useState(todayStr());
   const [trainingBoardingEnd, setTrainingBoardingEnd] = useState("");
@@ -489,8 +490,9 @@ export function CreateOrderModal({
           discountValue: parseFloat(discountValue) || 0,
           notes,
           status: statusOverride,
-          // Training: pass sub-type and package id for auto-program creation
+          // Training: pass sub-type, package id, and program type for auto-program creation
           trainingSubType: orderType === "training" ? trainingSubType : undefined,
+          programType: orderType === "training" ? trainingProgramType : undefined,
           trainingPackageId: orderType === "training" && trainingSubType === "package" && selectedPackageId ? selectedPackageId : undefined,
           trainingBoardingStart: orderType === "training" && trainingSubType === "boarding" ? trainingBoardingStart : undefined,
           trainingBoardingEnd: orderType === "training" && trainingSubType === "boarding" ? trainingBoardingEnd : undefined,
@@ -579,6 +581,7 @@ export function CreateOrderModal({
     setApptEndTime("10:00");
     setTrainingSubType("private");
     setSelectedPackageId("");
+    setTrainingProgramType("BASIC_OBEDIENCE");
     setTrainingBoardingStart(todayStr());
     setTrainingBoardingEnd("");
     setTrainingHomeFollowup(0);
@@ -1146,6 +1149,25 @@ export function CreateOrderModal({
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Training program type selector */}
+        {orderType === "training" && (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 flex items-center gap-3">
+            <span className="text-xs font-semibold text-petra-muted flex-shrink-0">סוג תוכנית:</span>
+            <select
+              className="input text-xs flex-1 py-1"
+              value={trainingProgramType}
+              onChange={(e) => setTrainingProgramType(e.target.value)}
+            >
+              <option value="BASIC_OBEDIENCE">משמעת בסיסית</option>
+              <option value="REACTIVITY">תגובתיות</option>
+              <option value="PUPPY">גורים</option>
+              <option value="BEHAVIOR">בעיות התנהגות</option>
+              <option value="ADVANCED">מתקדם</option>
+              <option value="CUSTOM">מותאם אישית</option>
+            </select>
           </div>
         )}
 
