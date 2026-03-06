@@ -1082,6 +1082,27 @@ export function CreateOrderModal({
         )}
 
 
+        {/* Cart items summary */}
+        {lines.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold text-petra-muted">פריטים בעגלה ({lines.length})</p>
+            {lines.map((line, i) => (
+              <div key={i} className="flex items-center gap-2 px-3 py-2 bg-white border border-petra-border rounded-xl text-sm">
+                <button
+                  type="button"
+                  onClick={() => setLines(ls => ls.filter((_, idx) => idx !== i))}
+                  className="text-red-400 hover:text-red-600 transition-colors flex-shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+                <span className="font-medium text-petra-text flex-1">{line.name}</span>
+                <span className="text-petra-muted text-xs">×{line.quantity}</span>
+                <span className="font-semibold text-petra-text flex-shrink-0">{fmt(line.quantity * line.unitPrice)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Discount */}
         {lines.length > 0 && (
           <div className="grid grid-cols-2 gap-2">
@@ -1374,7 +1395,11 @@ export function CreateOrderModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
           <div>
-            <h2 className="text-xl font-bold text-petra-text">הזמנה חדשה</h2>
+            <h2 className="text-xl font-bold text-petra-text">
+              {step === "category"
+                ? "הזמנה חדשה"
+                : `הזמנת ${CATEGORY_LABELS[orderType] ?? "שירות"}`}
+            </h2>
             <div className="flex items-center gap-2 mt-1">
               {[1, 2, 3].map((s) => (
                 <div
