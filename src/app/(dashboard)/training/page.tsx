@@ -25,6 +25,9 @@ import {
   Circle,
   Shield,
   RefreshCw,
+  Archive,
+  Download,
+  XCircle,
 } from "lucide-react";
 import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -162,7 +165,7 @@ interface UnifiedDog {
 
 const DAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
-type TabId = "overview" | "individual" | "boarding" | "groups" | "service-dogs";
+type TabId = "overview" | "individual" | "boarding" | "groups" | "service-dogs" | "archive";
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "overview", label: "סקירה", icon: <GraduationCap className="w-4 h-4" /> },
@@ -170,6 +173,7 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "boarding", label: "אילוף בתנאי פנסיון", icon: <Hotel className="w-4 h-4" /> },
   { id: "groups", label: "אילוף קבוצתי", icon: <Users className="w-4 h-4" /> },
   { id: "service-dogs", label: "כלבי שירות", icon: <Shield className="w-4 h-4" /> },
+  { id: "archive", label: "ארכיון", icon: <Archive className="w-4 h-4" /> },
 ];
 
 const TYPE_BADGE: Record<TrainingType, { label: string; bg: string; text: string }> = {
@@ -347,6 +351,7 @@ export default function TrainingPage() {
   const [editingPackage, setEditingPackage] = useState<TrainingPackage | null>(null);
   const [showBoardingTraining, setShowBoardingTraining] = useState<{ stay: BoardingStay } | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [dropoutTarget, setDropoutTarget] = useState<{ programId: string; dogName: string } | null>(null);
   const queryClient = useQueryClient();
 
   // Auto-refresh every 30 seconds when enabled
@@ -390,6 +395,12 @@ export default function TrainingPage() {
   const { data: serviceDogPrograms = [] } = useQuery<TrainingProgram[]>({
     queryKey: ["training-programs-service"],
     queryFn: () => fetchJSON<TrainingProgram[]>("/api/training-programs?trainingType=SERVICE_DOG"),
+  });
+
+  const { data: archivedPrograms = [], isLoading: archiveLoading } = useQuery<TrainingProgram[]>({
+    queryKey: ["training-programs-archive"],
+    queryFn: () => fetchJSON<TrainingProgram[]>("/api/training-programs?status=COMPLETED,CANCELED"),
+    enabled: activeTab === "archive",
   });
 
   const isLoading = programsLoading || groupsLoading || staysLoading;
@@ -678,6 +689,31 @@ export default function TrainingPage() {
     onError: () => toast.error("שגיאה ביצירת תוכנית אילוף"),
   });
 
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status, notes, endDate }: { id: string; status: string; notes?: string; endDate?: string }) => {
+      const res = await fetch(`/api/training-programs/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status,
+          ...(notes !== undefined && { notes }),
+          endDate: endDate ?? new Date().toISOString(),
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["training-programs"] });
+      queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
+      queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
+      queryClient.invalidateQueries({ queryKey: ["training-programs-archive"] });
+      setDropoutTarget(null);
+      toast.success(variables.status === "COMPLETED" ? "אילוף הסתיים ✓" : "כלב עבר לארכיון");
+    },
+    onError: () => toast.error("שגיאה בעדכון סטטוס"),
+  });
+
   const updateProgramSettingsMutation = useMutation({
     mutationFn: async ({
       id,
@@ -871,6 +907,9 @@ export default function TrainingPage() {
                   }
                   onEditSettings={(program) => setEditingProgram(program)}
                   isMarkingAttendance={markAttendanceMutation.isPending}
+                  onFinishProgram={(id) => updateStatusMutation.mutate({ id, status: "COMPLETED" })}
+                  onDropoutProgram={(id, dogName) => setDropoutTarget({ programId: id, dogName })}
+                  isUpdatingStatus={updateStatusMutation.isPending}
                 />
               )}
 
@@ -887,6 +926,9 @@ export default function TrainingPage() {
                     }
                     onEditSettings={(program) => setEditingProgram(program)}
                     isMarkingAttendance={markAttendanceMutation.isPending}
+                    onFinishProgram={(id) => updateStatusMutation.mutate({ id, status: "COMPLETED" })}
+                    onDropoutProgram={(id, dogName) => setDropoutTarget({ programId: id, dogName })}
+                    isUpdatingStatus={updateStatusMutation.isPending}
                   />
                   {/* Package catalog — manage packages */}
                   <div>
@@ -1018,8 +1060,16 @@ export default function TrainingPage() {
                 }
                 onEditSettings={(program) => setEditingProgram(program)}
                 isMarkingAttendance={markAttendanceMutation.isPending}
+                onFinishProgram={(id) => updateStatusMutation.mutate({ id, status: "COMPLETED" })}
+                onDropoutProgram={(id, dogName) => setDropoutTarget({ programId: id, dogName })}
+                isUpdatingStatus={updateStatusMutation.isPending}
               />
             </div>
+          )}
+
+          {/* ═══ ARCHIVE TAB ═══ */}
+          {activeTab === "archive" && (
+            <ArchiveTab programs={archivedPrograms} isLoading={archiveLoading} />
           )}
 
         </>
@@ -1183,6 +1233,21 @@ export default function TrainingPage() {
           onClose={() => setShowBoardingTraining(null)}
           onSubmit={(data) => createBoardingTrainingMutation.mutate(data)}
           isPending={createBoardingTrainingMutation.isPending}
+        />
+      )}
+
+      {dropoutTarget && (
+        <DropoutModal
+          dogName={dropoutTarget.dogName}
+          isPending={updateStatusMutation.isPending}
+          onClose={() => setDropoutTarget(null)}
+          onSubmit={(reason) =>
+            updateStatusMutation.mutate({
+              id: dropoutTarget.programId,
+              status: "CANCELED",
+              notes: reason || undefined,
+            })
+          }
         />
       )}
     </div>
@@ -1855,6 +1920,9 @@ function IndividualTab({
   onMarkAttendance,
   isMarkingAttendance,
   onEditSettings,
+  onFinishProgram,
+  onDropoutProgram,
+  isUpdatingStatus,
 }: {
   programs: TrainingProgram[];
   searchQuery: string;
@@ -1863,6 +1931,9 @@ function IndividualTab({
   onMarkAttendance: (programId: string, sessionNumber: number, dogName: string, customerPhone?: string, customerName?: string) => void;
   onEditSettings: (program: TrainingProgram) => void;
   isMarkingAttendance: boolean;
+  onFinishProgram?: (programId: string) => void;
+  onDropoutProgram?: (programId: string, dogName: string) => void;
+  isUpdatingStatus?: boolean;
 }) {
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return programs;
@@ -1970,6 +2041,26 @@ function IndividualTab({
                         <Settings className="w-3.5 h-3.5" />
                         הגדרות
                       </button>
+                      {program.status === "ACTIVE" && onFinishProgram && (
+                        <button
+                          className="btn-secondary text-xs text-emerald-600 hover:text-emerald-700 border-emerald-200 hover:border-emerald-300"
+                          disabled={isUpdatingStatus}
+                          onClick={(e) => { e.stopPropagation(); onFinishProgram(program.id); }}
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          סיים אילוף
+                        </button>
+                      )}
+                      {program.status === "ACTIVE" && onDropoutProgram && (
+                        <button
+                          className="btn-secondary text-xs text-red-500 hover:text-red-600 border-red-200 hover:border-red-300"
+                          disabled={isUpdatingStatus}
+                          onClick={(e) => { e.stopPropagation(); onDropoutProgram(program.id, program.dog.name); }}
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                          נשר מתהליך
+                        </button>
+                      )}
                       {program.customer.phone && (
                         <a
                           href={(() => {
@@ -3837,6 +3928,228 @@ function ProgramSettingsModal({
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// DROPOUT MODAL
+// ═══════════════════════════════════════════════════════
+
+function DropoutModal({
+  dogName,
+  isPending,
+  onClose,
+  onSubmit,
+}: {
+  dogName: string;
+  isPending: boolean;
+  onClose: () => void;
+  onSubmit: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState("");
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
+            <XCircle className="w-5 h-5 text-red-500" />
+            נשירה מתהליך — {dogName}
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-sm text-petra-muted mb-4">
+          הכלב יועבר לארכיון עם סטטוס &ldquo;נשר&rdquo;. ניתן לציין את סיבת הנשירה לצורכי מעקב.
+        </p>
+        <div>
+          <label className="label">סיבת הנשירה (אופציונלי)</label>
+          <textarea
+            className="input"
+            rows={3}
+            placeholder="לדוגמה: לקוח ביטל, לא הגיע לפגישות, עבר לאימון אחר..."
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-3 mt-5">
+          <button
+            className="flex-1 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            disabled={isPending}
+            onClick={() => onSubmit(reason)}
+          >
+            <XCircle className="w-4 h-4" />
+            {isPending ? "מעבד..." : "אשר נשירה"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// ARCHIVE TAB
+// ═══════════════════════════════════════════════════════
+
+function exportArchiveCSV(programs: TrainingProgram[]) {
+  const BOM = "\uFEFF";
+  const headers = ["שם הכלב", "גזע", "שם הלקוח", "טלפון", "סוג תוכנית", "מפגשים שהושלמו", "תאריך התחלה", "תאריך סיום", "סטטוס", "סיבת נשירה / הערות"];
+  const rows = programs.map((p) => {
+    const usedSessions = p.sessions.filter((s) => s.status === "COMPLETED").length;
+    const statusLabel = p.status === "COMPLETED" ? "הושלם" : "נשר";
+    return [
+      p.dog.name,
+      (p.dog as { breed?: string | null }).breed || "",
+      p.customer.name,
+      p.customer.phone,
+      PROGRAM_TYPES_MAP[p.programType] || p.programType,
+      usedSessions.toString(),
+      p.startDate ? formatDate(p.startDate) : "",
+      p.endDate ? formatDate(p.endDate) : "",
+      statusLabel,
+      p.notes || "",
+    ];
+  });
+  const csv = BOM + [headers, ...rows]
+    .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `training_archive_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function ArchiveTab({ programs, isLoading }: { programs: TrainingProgram[]; isLoading: boolean }) {
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "COMPLETED" | "CANCELED">("all");
+
+  const filtered = useMemo(() => {
+    let list = programs;
+    if (statusFilter !== "all") list = list.filter((p) => p.status === statusFilter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.dog.name.toLowerCase().includes(q) ||
+          p.customer.name.toLowerCase().includes(q) ||
+          p.customer.phone.includes(q)
+      );
+    }
+    return list;
+  }, [programs, search, statusFilter]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => <div key={i} className="card p-6 animate-pulse h-20" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <div className="flex gap-1 p-1 bg-slate-100 rounded-xl">
+          {(["all", "COMPLETED", "CANCELED"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                statusFilter === s ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:bg-white/60"
+              )}
+            >
+              {s === "all" ? "הכל" : s === "COMPLETED" ? "הושלמו" : "נשרו"}
+            </button>
+          ))}
+        </div>
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted" />
+          <input
+            className="input pr-9 text-sm w-full"
+            placeholder="חיפוש לפי כלב / לקוח..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        {programs.length > 0 && (
+          <button
+            className="btn-secondary text-xs flex items-center gap-1.5"
+            onClick={() => exportArchiveCSV(filtered.length > 0 ? filtered : programs)}
+          >
+            <Download className="w-3.5 h-3.5" />
+            יצא CSV ({filtered.length})
+          </button>
+        )}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon"><Archive className="w-6 h-6 text-slate-400" /></div>
+          <h3 className="text-base font-semibold text-petra-text mb-1">
+            {programs.length === 0 ? "הארכיון ריק" : "אין תוצאות לחיפוש"}
+          </h3>
+          <p className="text-sm text-petra-muted">
+            {programs.length === 0
+              ? 'תהליכי אילוף שהסתיימו או שבהם הכלב נשר יופיעו כאן. לחץ "סיים אילוף" או "נשר מתהליך" בכרטיסיית הכלב.'
+              : "נסה לשנות את החיפוש או הסינון"}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((p) => {
+            const usedSessions = p.sessions.filter((s) => s.status === "COMPLETED").length;
+            const isCompleted = p.status === "COMPLETED";
+            return (
+              <div key={p.id} className={cn("card p-4 flex items-start gap-4", !isCompleted && "border-red-100 bg-red-50/20")}>
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0",
+                  isCompleted ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"
+                )}>
+                  {p.dog.name.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="font-semibold text-petra-text text-sm">{p.dog.name}</span>
+                    {(p.dog as { breed?: string | null }).breed && (
+                      <span className="text-[10px] text-petra-muted">({(p.dog as { breed?: string | null }).breed})</span>
+                    )}
+                    <span className={cn(
+                      "text-[10px] px-2 py-0.5 rounded-full font-medium",
+                      isCompleted ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                    )}>
+                      {isCompleted ? "הושלם ✓" : "נשר"}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                      {PROGRAM_TYPES_MAP[p.programType] || p.programType}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-petra-muted flex-wrap">
+                    <span>{p.customer.name}</span>
+                    <span>{p.customer.phone}</span>
+                    <span>{usedSessions} מפגשים</span>
+                    {p.startDate && <span>התחלה: {formatDate(p.startDate)}</span>}
+                    {p.endDate && <span>סיום: {formatDate(p.endDate)}</span>}
+                  </div>
+                  {!isCompleted && p.notes && (
+                    <p className="mt-1.5 text-xs text-red-700 bg-red-50 px-2 py-1 rounded-lg">
+                      <span className="font-semibold">סיבת נשירה: </span>{p.notes}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

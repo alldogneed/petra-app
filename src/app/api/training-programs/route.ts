@@ -13,10 +13,16 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const trainingType = searchParams.get("trainingType");
 
+    const statusFilter = status
+      ? status.includes(",")
+        ? { status: { in: status.split(",") } }
+        : { status }
+      : {};
+
     const programs = await prisma.trainingProgram.findMany({
       where: {
         businessId: authResult.businessId,
-        ...(status && { status }),
+        ...statusFilter,
         ...(trainingType && { trainingType }),
       },
       include: {
