@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
     });
 
     for (const h of healths) {
-      const businessId = h.pet.customer.businessId;
+      const businessId = h.pet.customer?.businessId ?? "";
 
       for (const def of VAX_DEFS) {
         const expiry = def.getExpiry(h as HealthRow);
@@ -151,8 +151,8 @@ export async function GET(request: NextRequest) {
         const expiryKey = `${expiry.getFullYear()}-${String(expiry.getMonth() + 1).padStart(2, "0")}`;
         const petId = h.pet.id;
         const petName = h.pet.name;
-        const customerName = h.pet.customer.name;
-        const customerId = h.pet.customer.id;
+        const customerName = h.pet.customer?.name ?? "";
+        const customerId = h.pet.customer?.id ?? "";
         const formattedExpiry = expiry.toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" });
 
         // ── WhatsApp reminder (30d + 7d windows) ─────────────────────────────

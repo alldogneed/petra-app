@@ -129,8 +129,8 @@ export async function GET(request: NextRequest) {
           p.breed || "",
           p.gender || "",
           p.weight ? String(p.weight) : "",
-          p.customer.name,
-          p.customer.phone,
+          p.customer?.name ?? "",
+          p.customer?.phone ?? "",
         ]),
       ];
 

@@ -74,7 +74,7 @@ function daysFromNow(expiry: Date, now: Date) {
 }
 
 function buildEntry(
-  h: { id: string; pet: { id: string; name: string; species: string; breed: string | null; customer: { id: string; name: string; phone: string } } },
+  h: { id: string; pet: { id: string; name: string; species: string; breed: string | null; customer: { id: string; name: string; phone: string } | null } },
   type: VaccineType,
   label: string,
   lastDate: Date | null,
@@ -87,9 +87,9 @@ function buildEntry(
     petName: h.pet.name,
     species: h.pet.species,
     breed: h.pet.breed,
-    customerId: h.pet.customer.id,
-    customerName: h.pet.customer.name,
-    customerPhone: h.pet.customer.phone,
+    customerId: h.pet.customer?.id ?? "",
+    customerName: h.pet.customer?.name ?? "",
+    customerPhone: h.pet.customer?.phone ?? "",
   };
 
   const idSuffix = type === "rabies" ? "" : `_${type}`;

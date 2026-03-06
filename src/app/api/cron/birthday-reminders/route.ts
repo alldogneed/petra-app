@@ -94,8 +94,8 @@ export async function GET(request: NextRequest) {
 
       await prisma.scheduledMessage.create({
         data: {
-          businessId: pet.customer.businessId,
-          customerId: pet.customer.id,
+          businessId: pet.customer?.businessId ?? "",
+          customerId: pet.customer?.id ?? "",
           channel: "whatsapp",
           templateKey: "pet_birthday",
           payloadJson: JSON.stringify({ body, petName: pet.name, age }),

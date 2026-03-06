@@ -87,9 +87,9 @@ export async function GET(request: NextRequest) {
       petName: pet.name,
       species: pet.species,
       breed: pet.breed,
-      customerId: pet.customer.id,
-      customerName: pet.customer.name,
-      customerPhone: pet.customer.phone,
+      customerId: pet.customer?.id ?? "",
+      customerName: pet.customer?.name ?? "",
+      customerPhone: pet.customer?.phone ?? "",
       medications: meds.map((m) => ({
         id: m.id,
         medName: m.medName,
