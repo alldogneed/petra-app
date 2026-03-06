@@ -157,7 +157,7 @@ interface UnifiedDog {
 
 const DAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
-type TabId = "overview" | "individual" | "boarding" | "groups" | "workshops" | "service-dogs" | "packages";
+type TabId = "overview" | "individual" | "boarding" | "groups" | "workshops" | "service-dogs";
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "overview", label: "סקירה", icon: <GraduationCap className="w-4 h-4" /> },
@@ -166,7 +166,6 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "groups", label: "קבוצות", icon: <Users className="w-4 h-4" /> },
   { id: "workshops", label: "סדנאות", icon: <Calendar className="w-4 h-4" /> },
   { id: "service-dogs", label: "כלבי שירות", icon: <Shield className="w-4 h-4" /> },
-  { id: "packages", label: "חבילות", icon: <Package className="w-4 h-4" /> },
 ];
 
 const TYPE_BADGE: Record<TrainingType, { label: string; bg: string; text: string }> = {
@@ -329,6 +328,7 @@ function SessionLogModal({
 
 export default function TrainingPage() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
+  const [individualSubTab, setIndividualSubTab] = useState<"private" | "package" | "boarding-alt">("private");
   const [searchQuery, setSearchQuery] = useState("");
   const [showSellPackage, setShowSellPackage] = useState(false);
   const [showNewGroup, setShowNewGroup] = useState(false);
@@ -773,17 +773,92 @@ export default function TrainingPage() {
 
           {/* ═══ INDIVIDUAL TAB ═══ */}
           {activeTab === "individual" && (
-            <IndividualTab
-              programs={programs}
-              searchQuery={searchQuery}
-              expandedCards={expandedCards}
-              toggleExpand={toggleExpand}
-              onMarkAttendance={(programId, sessionNumber, dogName) =>
-                setSessionLogTarget({ programId, sessionNumber, dogName })
-              }
-              onEditSettings={(program) => setEditingProgram(program)}
-              isMarkingAttendance={markAttendanceMutation.isPending}
-            />
+            <div>
+              {/* Sub-tabs */}
+              <div className="flex gap-1 p-1 bg-slate-100 rounded-xl mb-5 overflow-x-auto scrollbar-hide">
+                {[
+                  { id: "private" as const, label: "אילוף פרטני" },
+                  { id: "package" as const, label: "חבילת אילוף" },
+                  { id: "boarding-alt" as const, label: "חלופות פנסיון בבית הלקוח" },
+                ].map((sub) => (
+                  <button
+                    key={sub.id}
+                    onClick={() => setIndividualSubTab(sub.id)}
+                    className={cn(
+                      "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                      individualSubTab === sub.id
+                        ? "bg-white shadow-sm text-petra-text"
+                        : "text-petra-muted hover:bg-white/60"
+                    )}
+                  >
+                    {sub.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* אילוף פרטני */}
+              {individualSubTab === "private" && (
+                <IndividualTab
+                  programs={programs.filter((p) => !p.packageId && !p.boardingStayId)}
+                  searchQuery={searchQuery}
+                  expandedCards={expandedCards}
+                  toggleExpand={toggleExpand}
+                  onMarkAttendance={(programId, sessionNumber, dogName) =>
+                    setSessionLogTarget({ programId, sessionNumber, dogName })
+                  }
+                  onEditSettings={(program) => setEditingProgram(program)}
+                  isMarkingAttendance={markAttendanceMutation.isPending}
+                />
+              )}
+
+              {/* חבילת אילוף */}
+              {individualSubTab === "package" && (
+                <div className="space-y-6">
+                  <PackagesTab
+                    packages={packages}
+                    onCreatePackage={() => setShowCreatePackage(true)}
+                    onEditPackage={setEditingPackage}
+                    onDeletePackage={(id) => deletePackageMutation.mutate(id)}
+                    onToggleActive={(pkg) => updatePackageMutation.mutate({ id: pkg.id, isActive: !pkg.isActive })}
+                    isDeleting={deletePackageMutation.isPending}
+                  />
+                  {programs.filter((p) => p.packageId).length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-petra-muted mb-3 flex items-center gap-1.5">
+                        <Dog className="w-3.5 h-3.5" />
+                        תוכניות פעילות מחבילה
+                      </h3>
+                      <IndividualTab
+                        programs={programs.filter((p) => p.packageId !== null)}
+                        searchQuery={searchQuery}
+                        expandedCards={expandedCards}
+                        toggleExpand={toggleExpand}
+                        onMarkAttendance={(programId, sessionNumber, dogName) =>
+                          setSessionLogTarget({ programId, sessionNumber, dogName })
+                        }
+                        onEditSettings={(program) => setEditingProgram(program)}
+                        isMarkingAttendance={markAttendanceMutation.isPending}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* חלופות פנסיון בבית הלקוח */}
+              {individualSubTab === "boarding-alt" && (
+                <IndividualTab
+                  programs={programs.filter((p) => p.boardingStayId !== null)}
+                  searchQuery={searchQuery}
+                  expandedCards={expandedCards}
+                  toggleExpand={toggleExpand}
+                  onMarkAttendance={(programId, sessionNumber, dogName) =>
+                    setSessionLogTarget({ programId, sessionNumber, dogName })
+                  }
+                  onEditSettings={(program) => setEditingProgram(program)}
+                  isMarkingAttendance={markAttendanceMutation.isPending}
+                />
+              )}
+            </div>
           )}
 
           {/* ═══ BOARDING TAB ═══ */}
@@ -838,17 +913,6 @@ export default function TrainingPage() {
             />
           )}
 
-          {/* ═══ PACKAGES TAB ═══ */}
-          {activeTab === "packages" && (
-            <PackagesTab
-              packages={packages}
-              onCreatePackage={() => setShowCreatePackage(true)}
-              onEditPackage={setEditingPackage}
-              onDeletePackage={(id) => deletePackageMutation.mutate(id)}
-              onToggleActive={(pkg) => updatePackageMutation.mutate({ id: pkg.id, isActive: !pkg.isActive })}
-              isDeleting={deletePackageMutation.isPending}
-            />
-          )}
         </>
       )}
 
