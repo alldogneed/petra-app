@@ -190,7 +190,21 @@ const PROGRAM_TYPES_MAP: Record<string, string> = {
   BEHAVIOR: "בעיות התנהגות",
   ADVANCED: "משמעת מתקדמת",
   CUSTOM: "מותאם אישית",
+  // Service dog phases
+  SD_FOUNDATION: "שלב הסתגלות",
+  SD_BASIC: "שלב בסיסי",
+  SD_ADVANCED: "שלב מתקדם",
+  SD_FIELD: "שלב שטח",
+  SD_PLACEMENT: "שלב שיבוץ",
 };
+
+const SERVICE_DOG_PHASES = [
+  { value: "SD_FOUNDATION", label: "הסתגלות" },
+  { value: "SD_BASIC", label: "בסיסי" },
+  { value: "SD_ADVANCED", label: "מתקדם" },
+  { value: "SD_FIELD", label: "שטח" },
+  { value: "SD_PLACEMENT", label: "שיבוץ" },
+] as const;
 
 const GROUP_TYPES_MAP: Record<string, string> = {
   PUPPY_CLASS: "כיתת גורים",
@@ -1911,6 +1925,68 @@ function SessionChecklist({
 }
 
 // ═══════════════════════════════════════════════════════
+// SERVICE DOG PHASE ROW
+// ═══════════════════════════════════════════════════════
+
+function ServiceDogPhaseRow({ program }: { program: TrainingProgram }) {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (programType: string) =>
+      fetchJSON(`/api/training-programs/${program.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ programType }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
+      toast.success("שלב עודכן ✓");
+    },
+    onError: () => toast.error("שגיאה בעדכון שלב"),
+  });
+
+  const currentIdx = SERVICE_DOG_PHASES.findIndex((p) => p.value === program.programType);
+
+  return (
+    <div className="mb-4 p-3 rounded-xl bg-brand-50 border border-brand-100 space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Shield className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
+          <span className="text-xs font-semibold text-brand-700">שלב הכשרה</span>
+        </div>
+        <a href="/service-dogs/dogs" className="text-[10px] text-brand-600 hover:text-brand-700 font-medium flex items-center gap-0.5">
+          פרופיל מלא ←
+        </a>
+      </div>
+      {/* Phase dots */}
+      <div className="flex items-center gap-1.5">
+        {SERVICE_DOG_PHASES.map((phase, idx) => (
+          <button
+            key={phase.value}
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate(phase.value)}
+            className="flex flex-col items-center gap-1 group"
+            title={phase.label}
+          >
+            <span className={cn(
+              "w-4 h-4 rounded-full border-2 transition-all",
+              idx < currentIdx ? "bg-brand-500 border-brand-500" :
+              idx === currentIdx ? "bg-brand-500 border-brand-500 ring-2 ring-brand-200" :
+              "bg-white border-slate-300 group-hover:border-brand-400"
+            )} />
+            <span className={cn(
+              "text-[9px] font-medium whitespace-nowrap",
+              idx === currentIdx ? "text-brand-600" : "text-petra-muted"
+            )}>
+              {phase.label}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
 
 function IndividualTab({
   programs,
@@ -2145,6 +2221,11 @@ function IndividualTab({
                             program.frequency || "-"}
                       </div>
                     </div>
+
+                    {/* Service dog phase selector */}
+                    {program.trainingType === "SERVICE_DOG" && (
+                      <ServiceDogPhaseRow program={program} />
+                    )}
 
                     {/* Behavior Baseline */}
                     {program.behaviorBaseline && (
