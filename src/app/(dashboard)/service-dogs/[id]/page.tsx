@@ -26,6 +26,7 @@ import {
   Printer,
   FileText,
   TrendingUp,
+  GraduationCap,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import {
@@ -468,6 +469,19 @@ function TrainingTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Link to training programs */}
+      <a
+        href="/training"
+        className="flex items-center justify-between p-3 bg-brand-50 border border-brand-200 rounded-xl hover:bg-brand-100 transition-colors group"
+      >
+        <div className="flex items-center gap-2">
+          <GraduationCap className="w-4 h-4 text-brand-600" />
+          <span className="text-sm font-medium text-brand-700">לניהול תוכניות אילוף מובנות</span>
+          <span className="text-xs text-brand-500">מפגשים, יעדים, שיעורי בית</span>
+        </div>
+        <span className="text-brand-600 text-sm group-hover:translate-x-[-2px] transition-transform">← מעבר לאימונים</span>
+      </a>
+
       {/* ADI Progress */}
       <div className="card p-5">
         <div className="flex items-center justify-between mb-4">
