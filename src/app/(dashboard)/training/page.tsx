@@ -151,6 +151,9 @@ interface UnifiedDog {
   detail: string;
   progress?: { used: number; total: number };
   entityId: string;
+  lastSessionDate?: string;
+  daysSinceLastSession?: number;
+  sessionsRemaining?: number;
 }
 
 // ─── Constants ───────────────────────────────────────
@@ -397,6 +400,12 @@ export default function TrainingPage() {
     // Individual programs
     programs.forEach((p) => {
       const usedSessions = p.sessions.filter((s) => s.status === "COMPLETED").length;
+      const sortedSessions = [...p.sessions].sort((a, b) => new Date(b.sessionDate).getTime() - new Date(a.sessionDate).getTime());
+      const lastSession = sortedSessions[0];
+      const daysSince = lastSession
+        ? Math.floor((Date.now() - new Date(lastSession.sessionDate).getTime()) / 86400000)
+        : undefined;
+      const remaining = p.totalSessions ? p.totalSessions - usedSessions : undefined;
       dogs.push({
         key: `program-${p.id}`,
         dogName: p.dog.name,
@@ -407,6 +416,9 @@ export default function TrainingPage() {
         detail: PROGRAM_TYPES_MAP[p.programType] || p.programType,
         progress: p.totalSessions ? { used: usedSessions, total: p.totalSessions } : undefined,
         entityId: p.id,
+        lastSessionDate: lastSession?.sessionDate,
+        daysSinceLastSession: daysSince,
+        sessionsRemaining: remaining,
       });
     });
 
@@ -1072,6 +1084,111 @@ export default function TrainingPage() {
 // OVERVIEW TAB
 // ═══════════════════════════════════════════════════════
 
+function DogStatusDot({ dog }: { dog: UnifiedDog }) {
+  const isAlert = (dog.sessionsRemaining !== undefined && dog.sessionsRemaining <= 2 && dog.status === "ACTIVE")
+    || (dog.daysSinceLastSession !== undefined && dog.daysSinceLastSession >= 14 && dog.status === "ACTIVE");
+  const isCompleted = dog.status === "COMPLETED";
+  if (isAlert) return <span className="w-2.5 h-2.5 rounded-full bg-red-500 flex-shrink-0" />;
+  if (isCompleted) return <span className="w-2.5 h-2.5 rounded-full bg-slate-400 flex-shrink-0" />;
+  return <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />;
+}
+
+function OverviewDogCard({ dog }: { dog: UnifiedDog }) {
+  const badge = TYPE_BADGE[dog.type];
+  const isLowSessions = dog.sessionsRemaining !== undefined && dog.sessionsRemaining <= 2 && dog.status === "ACTIVE";
+  const isOverdue = dog.daysSinceLastSession !== undefined && dog.daysSinceLastSession >= 14 && dog.status === "ACTIVE";
+  const isCompleted = dog.status === "COMPLETED";
+
+  const whatsappUrl = dog.customerPhone
+    ? `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
+    : null;
+
+  return (
+    <div className={cn(
+      "card p-4 transition-all",
+      isLowSessions || isOverdue ? "border-red-200 bg-red-50/30" : isCompleted ? "opacity-70" : ""
+    )}>
+      {/* Top row */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className={cn(
+          "w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0",
+          isCompleted ? "bg-slate-100 text-slate-500" : "bg-brand-50 text-brand-600"
+        )}>
+          {dog.dogName.charAt(0)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <DogStatusDot dog={dog} />
+            <h3 className="text-sm font-semibold text-petra-text truncate">{dog.dogName}</h3>
+          </div>
+          <p className="text-xs text-petra-muted truncate">{dog.customerName}</p>
+        </div>
+        <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0", badge.bg, badge.text)}>
+          {badge.label}
+        </span>
+      </div>
+
+      {/* Detail */}
+      <p className="text-xs text-petra-muted mb-3">{dog.detail}</p>
+
+      {/* Progress bar */}
+      {dog.progress && (
+        <div className="mb-3">
+          <div className="flex justify-between text-[10px] text-petra-muted mb-1">
+            <span>מפגשים</span>
+            <span className="font-semibold">{dog.progress.used}/{dog.progress.total}</span>
+          </div>
+          <div className="w-full h-2 rounded-full bg-slate-100">
+            <div
+              className={cn("h-full rounded-full transition-all", isLowSessions ? "bg-red-400" : "bg-emerald-500")}
+              style={{ width: `${Math.min(100, (dog.progress.used / dog.progress.total) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Alert tags */}
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {isLowSessions && (
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" />
+            {dog.sessionsRemaining} מפגשים נותרו
+          </span>
+        )}
+        {isOverdue && (
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
+            {dog.daysSinceLastSession} ימים ללא מפגש
+          </span>
+        )}
+        {isCompleted && (
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> הושלם
+          </span>
+        )}
+        {dog.lastSessionDate && !isCompleted && !isOverdue && (
+          <span className="text-[10px] text-petra-muted">
+            מפגש אחרון: {formatDate(dog.lastSessionDate)}
+          </span>
+        )}
+      </div>
+
+      {/* WhatsApp */}
+      {whatsappUrl && (
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-[11px] text-green-700 hover:text-green-800 font-medium bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors w-full justify-center border border-green-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Send className="w-3 h-3" />
+          שלח עדכון לבעלים
+        </a>
+      )}
+    </div>
+  );
+}
+
 function OverviewTab({ dogs }: { dogs: UnifiedDog[] }) {
   if (dogs.length === 0) {
     return (
@@ -1083,42 +1200,50 @@ function OverviewTab({ dogs }: { dogs: UnifiedDog[] }) {
     );
   }
 
+  const attention = dogs.filter((d) =>
+    (d.sessionsRemaining !== undefined && d.sessionsRemaining <= 2 && d.status === "ACTIVE") ||
+    (d.daysSinceLastSession !== undefined && d.daysSinceLastSession >= 14 && d.status === "ACTIVE")
+  );
+  const active = dogs.filter((d) => d.status === "ACTIVE" && !attention.some((a) => a.key === d.key));
+  const completed = dogs.filter((d) => d.status === "COMPLETED");
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      {dogs.map((dog) => {
-        const badge = TYPE_BADGE[dog.type];
-        return (
-          <div key={dog.key} className="card p-4 card-hover">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center text-sm font-bold text-brand-600">
-                {dog.dogName.charAt(0)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-petra-text truncate">{dog.dogName}</h3>
-                <p className="text-xs text-petra-muted truncate">{dog.customerName}</p>
-              </div>
-              <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", badge.bg, badge.text)}>
-                {badge.label}
-              </span>
-            </div>
-            <p className="text-xs text-petra-muted mb-2">{dog.detail}</p>
-            {dog.progress && (
-              <div>
-                <div className="flex justify-between text-[10px] text-petra-muted mb-1">
-                  <span>מפגשים</span>
-                  <span>{dog.progress.used}/{dog.progress.total}</span>
-                </div>
-                <div className="w-full h-1.5 rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full bg-blue-500 transition-all"
-                    style={{ width: `${Math.min(100, (dog.progress.used / dog.progress.total) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
+    <div className="space-y-6">
+      {attention.length > 0 && (
+        <section>
+          <h2 className="text-sm font-semibold text-red-600 mb-3 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" />
+            דורשים תשומת לב ({attention.length})
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {attention.map((dog) => <OverviewDogCard key={dog.key} dog={dog} />)}
           </div>
-        );
-      })}
+        </section>
+      )}
+
+      {active.length > 0 && (
+        <section>
+          <h2 className="text-sm font-semibold text-emerald-700 mb-3 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4" />
+            באימון פעיל ({active.length})
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {active.map((dog) => <OverviewDogCard key={dog.key} dog={dog} />)}
+          </div>
+        </section>
+      )}
+
+      {completed.length > 0 && (
+        <section>
+          <h2 className="text-sm font-semibold text-slate-500 mb-3 flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            הושלמו ({completed.length})
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {completed.map((dog) => <OverviewDogCard key={dog.key} dog={dog} />)}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
