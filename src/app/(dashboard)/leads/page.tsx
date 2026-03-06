@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
   Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText,
-  CalendarClock, Clock, CheckCircle,
+  CalendarClock, Clock, CheckCircle, RefreshCw,
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -983,6 +983,7 @@ export default function LeadsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"kanban" | "reports">("kanban");
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   // Edit mode state
   const [editMode, setEditMode] = useState(false);
@@ -993,10 +994,19 @@ export default function LeadsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { data: leads = [] } = useQuery<Lead[]>({
+  const { data: leads = [], isFetching: leadsLoading, refetch: refetchLeads } = useQuery<Lead[]>({
     queryKey: ["leads"],
     queryFn: () => fetchJSON<Lead[]>("/api/leads"),
   });
+
+  // Auto-refresh every 30 seconds when enabled
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [autoRefresh, queryClient]);
 
   const { data: stages = [] } = useQuery<LeadStage[]>({
     queryKey: ["lead-stages"],
@@ -1251,6 +1261,31 @@ export default function LeadsPage() {
         {activeTab === "kanban" && <button className="btn-primary" onClick={() => setShowModal(true)}>
           <Plus className="w-4 h-4" />ליד חדש
         </button>}
+
+        {/* Refresh controls */}
+        <div className="flex items-center gap-2 mr-auto">
+          <button
+            onClick={() => refetchLeads()}
+            disabled={leadsLoading}
+            title="רענן עכשיו"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-petra-muted hover:text-petra-text transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={cn("w-4 h-4", leadsLoading && "animate-spin")} />
+          </button>
+          <button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            title={autoRefresh ? "כבה אוטו-רענון" : "הפעל אוטו-רענון (30 שנ׳)"}
+            className={cn(
+              "flex items-center gap-1.5 px-3 h-8 rounded-lg border text-xs font-medium transition-all",
+              autoRefresh
+                ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                : "bg-white border-slate-200 text-petra-muted hover:text-petra-text"
+            )}
+          >
+            <span className={cn("w-1.5 h-1.5 rounded-full", autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
+            {autoRefresh ? "רענון אוטו פעיל" : "אוטו-רענון"}
+          </button>
+        </div>
         {activeTab === "kanban" && (
           <button
             className={`btn-secondary flex items-center gap-1.5 ${editMode ? "!bg-brand-50 !text-brand-700 !border-brand-300" : ""}`}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   GraduationCap,
   Plus,
@@ -24,6 +24,7 @@ import {
   BookOpen,
   Circle,
   Shield,
+  RefreshCw,
 } from "lucide-react";
 import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -344,11 +345,22 @@ export default function TrainingPage() {
   const [showCreatePackage, setShowCreatePackage] = useState(false);
   const [editingPackage, setEditingPackage] = useState<TrainingPackage | null>(null);
   const [showBoardingTraining, setShowBoardingTraining] = useState<{ stay: BoardingStay } | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
   const queryClient = useQueryClient();
+
+  // Auto-refresh every 30 seconds when enabled
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["training-programs"] });
+      queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [autoRefresh, queryClient]);
 
   // ─── Data fetching ───
 
-  const { data: programs = [], isLoading: programsLoading } = useQuery<TrainingProgram[]>({
+  const { data: programs = [], isLoading: programsLoading, isFetching: programsFetching, refetch: refetchPrograms } = useQuery<TrainingProgram[]>({
     queryKey: ["training-programs"],
     queryFn: () => fetchJSON<TrainingProgram[]>("/api/training-programs"),
   });
@@ -723,6 +735,31 @@ export default function TrainingPage() {
           <GraduationCap className="w-5 h-5 text-brand-500" />
         </div>
         <h1 className="page-title">אימונים וניהול כלבים</h1>
+
+        {/* Refresh controls */}
+        <div className="flex items-center gap-2 mr-auto">
+          <button
+            onClick={() => refetchPrograms()}
+            disabled={programsFetching}
+            title="רענן עכשיו"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-petra-muted hover:text-petra-text transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={cn("w-4 h-4", programsFetching && "animate-spin")} />
+          </button>
+          <button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            title={autoRefresh ? "כבה אוטו-רענון" : "הפעל אוטו-רענון (30 שנ׳)"}
+            className={cn(
+              "flex items-center gap-1.5 px-3 h-8 rounded-lg border text-xs font-medium transition-all",
+              autoRefresh
+                ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                : "bg-white border-slate-200 text-petra-muted hover:text-petra-text"
+            )}
+          >
+            <span className={cn("w-1.5 h-1.5 rounded-full", autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
+            {autoRefresh ? "רענון אוטו פעיל" : "אוטו-רענון"}
+          </button>
+        </div>
       </div>
 
       {/* Stats Bar */}

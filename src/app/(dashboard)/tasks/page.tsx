@@ -174,13 +174,18 @@ export default function TasksPage() {
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [tick, setTick] = useState(0);
+  const [autoRefresh, setAutoRefresh] = useState(false);
   const queryClient = useQueryClient();
 
-  // Auto-refresh every 30 seconds for live status updates
+  // Auto-refresh every 30 seconds when enabled
   useEffect(() => {
-    const timer = setInterval(() => setTick((t) => t + 1), 30_000);
+    if (!autoRefresh) return;
+    const timer = setInterval(() => {
+      setTick((t) => t + 1);
+      queryClient.invalidateQueries({ queryKey: ["tasks", activeCategory] });
+    }, 30_000);
     return () => clearInterval(timer);
-  }, []);
+  }, [autoRefresh, queryClient, activeCategory]);
 
   // Keyboard shortcut: 'N' to create new task (when no input is focused)
   useEffect(() => {
@@ -197,7 +202,7 @@ export default function TasksPage() {
   }, []);
 
   // Fetch ALL open tasks (we filter on client side for computed statuses)
-  const { data: allTasks = [], isLoading, isError } = useQuery<Task[]>({
+  const { data: allTasks = [], isLoading, isError, isFetching: tasksFetching, refetch: refetchTasks } = useQuery<Task[]>({
     queryKey: ["tasks", activeCategory],
     queryFn: () => {
       const params = new URLSearchParams();
@@ -447,6 +452,31 @@ export default function TasksPage() {
             </button>
           </>
         )}
+
+        {/* Refresh controls */}
+        <div className="flex items-center gap-2 mr-auto">
+          <button
+            onClick={() => { refetchTasks(); setTick((t) => t + 1); }}
+            disabled={tasksFetching}
+            title="רענן עכשיו"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-petra-muted hover:text-petra-text transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={cn("w-4 h-4", tasksFetching && "animate-spin")} />
+          </button>
+          <button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            title={autoRefresh ? "כבה אוטו-רענון" : "הפעל אוטו-רענון (30 שנ׳)"}
+            className={cn(
+              "flex items-center gap-1.5 px-3 h-8 rounded-lg border text-xs font-medium transition-all",
+              autoRefresh
+                ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                : "bg-white border-slate-200 text-petra-muted hover:text-petra-text"
+            )}
+          >
+            <span className={cn("w-1.5 h-1.5 rounded-full", autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
+            {autoRefresh ? "רענון אוטו פעיל" : "אוטו-רענון"}
+          </button>
+        </div>
       </div>
 
       {/* Tab switcher */}
