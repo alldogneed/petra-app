@@ -67,6 +67,8 @@ interface Business {
   address: string | null;
   tier: string;
   vatNumber: string | null;
+  slug: string | null;
+  logo: string | null;
   boardingCheckInTime: string | null;
   boardingCheckOutTime: string | null;
   boardingCalcMode: string | null;
@@ -117,6 +119,7 @@ function BusinessTab() {
   const [form, setForm] = useState<Partial<Business> | null>(null);
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Apply defaults for nullable boarding fields so they don't get sent as null on save
   const rawEditing = form ?? biz;
@@ -205,6 +208,15 @@ function BusinessTab() {
           <input className="input" value={editing.address ?? ""} onChange={(e) => setForm({ ...editing, address: e.target.value })} />
         </div>
         <div>
+          <label className="label">לוגו העסק (כתובת URL לתמונה)</label>
+          <div className="flex items-center gap-3">
+            {editing.logo && (
+              <img src={editing.logo} alt="לוגו" className="w-8 h-8 rounded object-contain border border-slate-200 flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            )}
+            <input type="url" className="input flex-1" placeholder="https://example.com/logo.png" value={editing.logo ?? ""} onChange={(e) => setForm({ ...editing, logo: e.target.value })} />
+          </div>
+        </div>
+        <div>
           <label className="label">מספר עוסק מורשה</label>
           <input className={cn("input", errors.vatNumber && "border-red-300 focus:ring-red-200")} placeholder="000000000" value={editing.vatNumber ?? ""} onChange={(e) => { setForm({ ...editing, vatNumber: e.target.value }); if (errors.vatNumber) setErrors({ ...errors, vatNumber: undefined }); }} />
           {errors.vatNumber && <p className="text-xs text-red-500 mt-1">{errors.vatNumber}</p>}
@@ -269,6 +281,46 @@ function BusinessTab() {
           <h3 className="text-sm font-semibold text-petra-text">הגדרות הזמנה אונליין</h3>
         </div>
         <div className="space-y-4">
+          {/* Booking page URL */}
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <label className="label flex items-center gap-1.5 mb-2">
+              <ExternalLink className="w-3.5 h-3.5" />
+              קישור להזמנה אונליין
+            </label>
+            {biz?.slug ? (
+              <div className="flex items-center gap-2">
+                <span className="flex-1 text-sm text-petra-text font-mono bg-white border border-slate-200 rounded-lg px-3 py-2 truncate select-all">
+                  {`${process.env.NEXT_PUBLIC_APP_URL || "https://petra-app.com"}/book/${biz.slug}`}
+                </span>
+                <button
+                  type="button"
+                  className="flex-shrink-0 p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_APP_URL || "https://petra-app.com"}/book/${biz.slug}`);
+                    setCopiedLink(true);
+                    setTimeout(() => setCopiedLink(false), 2000);
+                  }}
+                  title="העתק קישור"
+                >
+                  {copiedLink ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-petra-muted" />}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-amber-600">הגדר כתובת הזמנה (slug) כדי לשתף את הקישור:</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-petra-muted font-mono">petra-app.com/book/</span>
+                  <input
+                    type="text"
+                    className="input flex-1"
+                    placeholder="my-business"
+                    value={editing.slug ?? ""}
+                    onChange={(e) => setForm({ ...editing, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") })}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
           <div>
             <label className="label flex items-center gap-1.5">
               <Info className="w-3.5 h-3.5" />
