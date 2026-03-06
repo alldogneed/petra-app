@@ -164,15 +164,33 @@ export async function POST(request: NextRequest) {
       // Auto-create TrainingProgram for training orders when a pet is selected
       const trainingPetId = appointmentData?.petId || body.petId;
       if (orderType === "training" && trainingPetId) {
-        const isPkg = trainingSubType === "package" && !!trainingPackageId;
+        // Determine if this is a package order:
+        // 1. Explicit trainingSubType="package" + trainingPackageId
+        // 2. OR: any line item references a PriceListItem with sessions > 0 (package item)
+        let isPkg = trainingSubType === "package" && !!trainingPackageId;
+        let resolvedPackageItemId: string | null = trainingPackageId || null;
+
+        if (!isPkg) {
+          const lineItemIds = lines
+            .map((l: { priceListItemId?: string | null }) => l.priceListItemId)
+            .filter(Boolean) as string[];
+          if (lineItemIds.length > 0) {
+            const pkgItem = await tx.priceListItem.findFirst({
+              where: { id: { in: lineItemIds }, businessId: authResult.businessId, sessions: { gt: 0 } },
+            });
+            if (pkgItem) {
+              isPkg = true;
+              resolvedPackageItemId = pkgItem.id;
+            }
+          }
+        }
 
         let totalSessions: number | null = null;
         let programName = lines[0]?.name || "תוכנית אילוף";
 
-        if (isPkg) {
-          // Fetch price list item to get sessions count
+        if (isPkg && resolvedPackageItemId) {
           const item = await tx.priceListItem.findFirst({
-            where: { id: trainingPackageId, businessId: authResult.businessId },
+            where: { id: resolvedPackageItemId, businessId: authResult.businessId },
           });
           if (item) {
             totalSessions = (item as { sessions?: number | null }).sessions ?? null;
