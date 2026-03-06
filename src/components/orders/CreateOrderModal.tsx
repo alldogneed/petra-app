@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   X, Search, Plus, Minus, Trash2, CalendarDays, Clock,
-  Send, MessageCircle, Building2, GraduationCap, Package, Scissors,
+  Send, MessageCircle, Building2, GraduationCap, Package, Scissors, Users,
 } from "lucide-react";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
@@ -55,6 +55,16 @@ interface Business {
   boardingMinNights: number;
   boardingCheckInTime: string;   // "HH:MM"
   boardingCheckOutTime: string;  // "HH:MM"
+}
+
+interface TrainingGroup {
+  id: string;
+  name: string;
+  groupType: string;
+  location: string | null;
+  defaultDayOfWeek: number | null;
+  defaultTime: string | null;
+  isActive: boolean;
 }
 
 interface Pet {
@@ -218,8 +228,14 @@ export function CreateOrderModal({
   });
 
   // Training sub-type
-  const [trainingSubType, setTrainingSubType] = useState<"private" | "package">("private");
+  const [trainingSubType, setTrainingSubType] = useState<"private" | "package" | "boarding" | "group">("private");
   const [selectedPackageId, setSelectedPackageId] = useState<string>("");
+  // Boarding training extra fields
+  const [trainingBoardingStart, setTrainingBoardingStart] = useState(todayStr());
+  const [trainingBoardingEnd, setTrainingBoardingEnd] = useState("");
+  const [trainingHomeFollowup, setTrainingHomeFollowup] = useState(0);
+  // Group training
+  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
 
   // Items step — "add service" sub-form
   const [addCat, setAddCat] = useState<string>("");
@@ -260,6 +276,13 @@ export function CreateOrderModal({
   const trainingPackages = allItems.filter(
     (i) => i.category === "אילוף" && i.sessions && i.sessions > 0 && i.isActive
   );
+
+  const { data: trainingGroups = [] } = useQuery<TrainingGroup[]>({
+    queryKey: ["training-groups-active"],
+    queryFn: () => fetch("/api/training-groups").then((r) => r.json()),
+    enabled: isOpen && orderType === "training",
+    staleTime: 60_000,
+  });
 
   // Fetch customer's pets — fast endpoint (only pets, not full customer detail)
   const { data: customerPets = [], isLoading: petsLoading } = useQuery<Pet[]>({
@@ -469,6 +492,10 @@ export function CreateOrderModal({
           // Training: pass sub-type and package id for auto-program creation
           trainingSubType: orderType === "training" ? trainingSubType : undefined,
           trainingPackageId: orderType === "training" && trainingSubType === "package" && selectedPackageId ? selectedPackageId : undefined,
+          trainingBoardingStart: orderType === "training" && trainingSubType === "boarding" ? trainingBoardingStart : undefined,
+          trainingBoardingEnd: orderType === "training" && trainingSubType === "boarding" ? trainingBoardingEnd : undefined,
+          trainingHomeFollowup: orderType === "training" && trainingSubType === "boarding" && trainingHomeFollowup > 0 ? trainingHomeFollowup : undefined,
+          trainingGroupId: orderType === "training" && trainingSubType === "group" ? selectedGroupId : undefined,
           // Send appointment data for service-based order types
           appointmentData: needsAppointment ? {
             date: apptDate,
@@ -550,6 +577,12 @@ export function CreateOrderModal({
     setApptDate(todayStr());
     setApptStartTime("09:00");
     setApptEndTime("10:00");
+    setTrainingSubType("private");
+    setSelectedPackageId("");
+    setTrainingBoardingStart(todayStr());
+    setTrainingBoardingEnd("");
+    setTrainingHomeFollowup(0);
+    setSelectedGroupId("");
     setCreatedOrder(null);
     onClose();
   };
@@ -972,11 +1005,13 @@ export function CreateOrderModal({
               {([
                 { id: "private" as const, label: "מפגש בודד", sub: "ללא חבילה" },
                 { id: "package" as const, label: "חבילת אילוף", sub: "עם כמות מוגדרת" },
+                { id: "boarding" as const, label: "אילוף פנסיון", sub: "שהייה בכלבייה" },
+                { id: "group" as const, label: "אילוף קבוצתי", sub: "בחר קבוצה" },
               ] as const).map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
-                  onClick={() => { setTrainingSubType(opt.id); setSelectedPackageId(""); }}
+                  onClick={() => { setTrainingSubType(opt.id); setSelectedPackageId(""); setSelectedGroupId(""); }}
                   className={cn(
                     "p-3 rounded-xl border text-right transition-all",
                     trainingSubType === opt.id
@@ -990,6 +1025,7 @@ export function CreateOrderModal({
               ))}
             </div>
 
+            {/* Package sub-form */}
             {trainingSubType === "package" && (
               <div className="space-y-2 pt-1">
                 <p className="text-xs font-semibold text-petra-muted">בחר חבילה</p>
@@ -1006,7 +1042,6 @@ export function CreateOrderModal({
                           type="button"
                           onClick={() => {
                             setSelectedPackageId(pkg.id);
-                            // Auto-populate cart with package item
                             setLines([{
                               priceListItemId: pkg.id,
                               name: pkg.name,
@@ -1030,6 +1065,80 @@ export function CreateOrderModal({
                           <span className={cn("text-sm font-bold flex-shrink-0", selected ? "text-blue-600" : "text-petra-text")}>
                             ₪{pkg.basePrice.toLocaleString()}
                           </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Boarding training sub-form */}
+            {trainingSubType === "boarding" && (
+              <div className="space-y-3 pt-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] font-semibold text-petra-muted block mb-1">כניסה לפנסיון</label>
+                    <input type="date" className="input text-sm" value={trainingBoardingStart} onChange={(e) => setTrainingBoardingStart(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-petra-muted block mb-1">יציאה מהפנסיון</label>
+                    <input type="date" className="input text-sm" value={trainingBoardingEnd} onChange={(e) => setTrainingBoardingEnd(e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-petra-muted block mb-1">מפגשי המשך בבית הלקוח (לאחר הפנסיון)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={20}
+                      className="input w-20 text-center text-sm"
+                      value={trainingHomeFollowup || ""}
+                      placeholder="0"
+                      onChange={(e) => setTrainingHomeFollowup(Math.max(0, parseInt(e.target.value) || 0))}
+                    />
+                    <span className="text-xs text-petra-muted">מפגשים (0 = ללא)</span>
+                  </div>
+                  {trainingHomeFollowup > 0 && (
+                    <p className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg mt-1">
+                      ✓ תוכנית המשך של {trainingHomeFollowup} מפגשים תיווצר אוטומטית
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Group training sub-form */}
+            {trainingSubType === "group" && (
+              <div className="space-y-2 pt-1">
+                <p className="text-xs font-semibold text-petra-muted">בחר קבוצת אילוף</p>
+                {trainingGroups.filter(g => g.isActive).length === 0 ? (
+                  <p className="text-xs text-petra-muted">אין קבוצות פעילות. הגדר קבוצות תחת לשונית אילוף.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {trainingGroups.filter(g => g.isActive).map((grp) => {
+                      const selected = selectedGroupId === grp.id;
+                      const DAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+                      const dayLabel = grp.defaultDayOfWeek != null ? `יום ${DAY_NAMES[grp.defaultDayOfWeek]}` : "";
+                      const timeLabel = grp.defaultTime ?? "";
+                      return (
+                        <button
+                          key={grp.id}
+                          type="button"
+                          onClick={() => setSelectedGroupId(selected ? "" : grp.id)}
+                          className={cn(
+                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-right transition-all",
+                            selected ? "border-blue-400 bg-blue-50" : "border-petra-border bg-white hover:bg-slate-50"
+                          )}
+                        >
+                          <Users className={cn("w-4 h-4 flex-shrink-0", selected ? "text-blue-600" : "text-petra-muted")} />
+                          <div className="flex-1 min-w-0">
+                            <p className={cn("text-sm font-semibold", selected ? "text-blue-700" : "text-petra-text")}>{grp.name}</p>
+                            <p className="text-xs text-petra-muted">
+                              {[dayLabel, timeLabel, grp.location].filter(Boolean).join(" · ")}
+                            </p>
+                          </div>
                         </button>
                       );
                     })}
