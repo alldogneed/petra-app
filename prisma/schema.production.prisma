@@ -1598,6 +1598,8 @@ model ServiceDogProfile {
   idCardIsActive        Boolean   @default(false)
   idCardQrToken         String?   @unique
   notes                 String?
+  documents             Json      @default("[]")
+  trainingTests         Json      @default("[]")
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -1629,6 +1631,8 @@ model ServiceDogRecipient {
   waitlistDate    DateTime?
   notes           String?
   status          String    @default("WAITLIST")
+  attachments     Json      @default("[]")
+  meetings        Json      @default("[]")
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

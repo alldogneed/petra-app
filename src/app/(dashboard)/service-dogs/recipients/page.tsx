@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   Dog,
   Clock,
+  ChevronRight,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
@@ -159,7 +160,7 @@ export default function RecipientsPage() {
                   ["ACTIVE", "TRIAL"].includes(p.status)
                 );
                 return (
-                  <tr key={recipient.id} className="border-b hover:bg-slate-50/40 transition-colors">
+                  <tr key={recipient.id} className="border-b hover:bg-slate-50/40 transition-colors cursor-pointer" onClick={() => window.location.href = `/service-dogs/recipients/${recipient.id}`}>
                     <td className="table-cell">
                       <div className="font-medium">{recipient.name}</div>
                       {recipient.idNumber && (
@@ -208,12 +209,14 @@ export default function RecipientsPage() {
                       ) : "—"}
                     </td>
                     <td className="table-cell">
-                      <button
-                        onClick={() => setSelectedRecipient(recipient)}
-                        className="text-sm text-brand-500 hover:text-brand-600 font-medium"
+                      <Link
+                        href={`/service-dogs/recipients/${recipient.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1 text-sm text-brand-500 hover:text-brand-600 font-medium"
                       >
-                        פרטים
-                      </button>
+                        פרופיל
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </Link>
                     </td>
                   </tr>
                 );

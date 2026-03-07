@@ -1173,12 +1173,6 @@ export default function TrainingPage() {
                   <button className="btn-primary text-xs" onClick={() => setShowSellPackage(true)}>
                     <Plus className="w-3.5 h-3.5" /> תוכנית חדשה
                   </button>
-                  <button className="btn-secondary text-xs flex items-center gap-1" onClick={() => setShowAddServiceDog(true)}>
-                    <Dog className="w-3.5 h-3.5" /> הוסף כלב שירות
-                  </button>
-                  <button className="btn-secondary text-xs flex items-center gap-1" onClick={() => setShowAddRecipient(true)}>
-                    <Users className="w-3.5 h-3.5" /> הוסף זכאי
-                  </button>
                   <a href="/service-dogs" className="btn-secondary text-xs flex items-center gap-1">
                     <Shield className="w-3.5 h-3.5" /> ניהול כלבי שירות ←
                   </a>

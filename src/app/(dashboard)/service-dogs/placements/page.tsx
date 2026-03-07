@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import Link from "next/link";
@@ -12,6 +13,8 @@ import {
   UserCheck,
   Calendar,
   ArrowLeft,
+  Search,
+  CheckCircle2,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
@@ -328,6 +331,91 @@ export default function PlacementsPage() {
   );
 }
 
+// ─── Searchable Select Component ───
+
+function SearchableSelect({
+  label,
+  placeholder,
+  items,
+  selectedId,
+  onSelect,
+  renderItem,
+  renderSelected,
+}: {
+  label: string;
+  placeholder: string;
+  items: { id: string; [key: string]: unknown }[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+  renderItem: (item: { id: string; [key: string]: unknown }) => React.ReactNode;
+  renderSelected: (item: { id: string; [key: string]: unknown }) => string;
+}) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const filtered = items.filter((item) => {
+    const text = renderSelected(item).toLowerCase();
+    return text.includes(search.toLowerCase());
+  });
+
+  const selected = items.find((i) => i.id === selectedId);
+
+  return (
+    <div className="relative">
+      <label className="label">{label}</label>
+      {selected && !open ? (
+        <div
+          className="input w-full flex items-center justify-between cursor-pointer"
+          onClick={() => { setOpen(true); setSearch(""); }}
+        >
+          <span className="text-sm">{renderSelected(selected)}</span>
+          <div className="flex items-center gap-1">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            <button
+              onClick={(e) => { e.stopPropagation(); onSelect(""); }}
+              className="text-petra-muted hover:text-red-500 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="relative">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
+          <input
+            autoFocus
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            className="input w-full pr-10"
+            placeholder={placeholder}
+          />
+        </div>
+      )}
+      {open && (
+        <div className="absolute z-50 w-full mt-1 bg-white border rounded-xl shadow-lg max-h-52 overflow-y-auto">
+          {filtered.length === 0 ? (
+            <div className="p-3 text-sm text-petra-muted text-center">אין תוצאות</div>
+          ) : (
+            filtered.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="w-full text-right px-3 py-2.5 text-sm hover:bg-slate-50 transition-colors border-b last:border-0"
+                onMouseDown={() => { onSelect(item.id); setOpen(false); setSearch(""); }}
+              >
+                {renderItem(item)}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Add Placement Modal ───
 
 function AddPlacementModal({
@@ -345,8 +433,6 @@ function AddPlacementModal({
   const [placementDate, setPlacementDate] = useState(new Date().toISOString().split("T")[0]);
   const [trialEndDate, setTrialEndDate] = useState("");
   const [notes, setNotes] = useState("");
-
-  const certifiedDogs = dogs.filter((d) => d.phase === "CERTIFIED");
 
   const createMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -378,48 +464,55 @@ function AddPlacementModal({
         </div>
 
         <div className="space-y-4">
-          <div>
-            <label className="label">כלב שירות *</label>
-            <select value={serviceDogId} onChange={(e) => setServiceDogId(e.target.value)} className="input w-full">
-              <option value="">בחר כלב...</option>
-              {certifiedDogs.length === 0 && (
-                <option disabled>אין כלבים מוסמכים</option>
-              )}
-              {certifiedDogs.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.pet.name} — {SERVICE_DOG_PHASE_MAP[d.phase]?.label}
-                </option>
-              ))}
-              {dogs.filter((d) => d.phase !== "CERTIFIED").length > 0 && (
-                <>
-                  <option disabled>── שאר הכלבים ──</option>
-                  {dogs.filter((d) => d.phase !== "CERTIFIED").map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.pet.name} — {SERVICE_DOG_PHASE_MAP[d.phase]?.label}
-                    </option>
-                  ))}
-                </>
-              )}
-            </select>
-            {certifiedDogs.length === 0 && (
-              <p className="text-xs text-amber-600 mt-1">
-                מומלץ לשבץ רק כלבים מוסמכים
-              </p>
-            )}
-          </div>
+          <SearchableSelect
+            label="כלב שירות *"
+            placeholder="חפש לפי שם כלב..."
+            items={dogs as unknown as { id: string; [key: string]: unknown }[]}
+            selectedId={serviceDogId}
+            onSelect={setServiceDogId}
+            renderSelected={(item) => {
+              const d = item as unknown as ServiceDogOption;
+              return `${d.pet.name} — ${SERVICE_DOG_PHASE_MAP[d.phase]?.label || d.phase}`;
+            }}
+            renderItem={(item) => {
+              const d = item as unknown as ServiceDogOption;
+              return (
+                <div>
+                  <span className="font-medium">{d.pet.name}</span>
+                  <span className="text-petra-muted mr-2 text-xs">
+                    {SERVICE_DOG_PHASE_MAP[d.phase]?.label}
+                    {d.pet.breed ? ` · ${d.pet.breed}` : ""}
+                    {d.phase !== "CERTIFIED" ? " ⚠️" : ""}
+                  </span>
+                </div>
+              );
+            }}
+          />
 
-          <div>
-            <label className="label">זכאי *</label>
-            <select value={recipientId} onChange={(e) => setRecipientId(e.target.value)} className="input w-full">
-              <option value="">בחר זכאי...</option>
-              {recipients.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                  {r.disabilityType ? ` — ${DISABILITY_TYPE_MAP[r.disabilityType]}` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
+          <SearchableSelect
+            label="זכאי *"
+            placeholder="חפש לפי שם זכאי..."
+            items={recipients as unknown as { id: string; [key: string]: unknown }[]}
+            selectedId={recipientId}
+            onSelect={setRecipientId}
+            renderSelected={(item) => {
+              const r = item as unknown as RecipientOption;
+              return r.disabilityType
+                ? `${r.name} — ${DISABILITY_TYPE_MAP[r.disabilityType]}`
+                : r.name;
+            }}
+            renderItem={(item) => {
+              const r = item as unknown as RecipientOption;
+              return (
+                <div>
+                  <span className="font-medium">{r.name}</span>
+                  {r.disabilityType && (
+                    <span className="text-petra-muted mr-2 text-xs">{DISABILITY_TYPE_MAP[r.disabilityType]}</span>
+                  )}
+                </div>
+              );
+            }}
+          />
 
           <div className="grid grid-cols-2 gap-3">
             <div>

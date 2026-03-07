@@ -14,22 +14,26 @@ export async function GET(
     const recipient = await prisma.serviceDogRecipient.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
       include: {
-        customer: true,
+        customer: { select: { id: true, name: true, phone: true, email: true } },
         placements: {
-          include: { serviceDog: { include: { pet: true } } },
+          include: {
+            serviceDog: {
+              include: { pet: { select: { name: true, breed: true } } },
+            },
+          },
           orderBy: { createdAt: "desc" },
         },
       },
     });
 
     if (!recipient) {
-      return NextResponse.json({ error: "מקבל לא נמצא" }, { status: 404 });
+      return NextResponse.json({ error: "זכאי לא נמצא" }, { status: 404 });
     }
 
     return NextResponse.json(recipient);
   } catch (error) {
     console.error("GET /api/service-recipients/[id] error:", error);
-    return NextResponse.json({ error: "שגיאה בטעינת מקבל" }, { status: 500 });
+    return NextResponse.json({ error: "שגיאה בטעינת זכאי" }, { status: 500 });
   }
 }
 
@@ -41,35 +45,38 @@ export async function PATCH(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const body = await request.json();
-
     const existing = await prisma.serviceDogRecipient.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
     });
 
     if (!existing) {
-      return NextResponse.json({ error: "מקבל לא נמצא" }, { status: 404 });
+      return NextResponse.json({ error: "זכאי לא נמצא" }, { status: 404 });
     }
 
+    const body = await request.json();
+
     const updated = await prisma.serviceDogRecipient.update({
-      where: { id: params.id, businessId: authResult.businessId },
+      where: { id: params.id },
       data: {
         ...(body.name !== undefined && { name: body.name }),
-        ...(body.phone !== undefined && { phone: body.phone }),
-        ...(body.email !== undefined && { email: body.email }),
-        ...(body.idNumber !== undefined && { idNumber: body.idNumber }),
-        ...(body.address !== undefined && { address: body.address }),
-        ...(body.disabilityType !== undefined && { disabilityType: body.disabilityType }),
-        ...(body.disabilityNotes !== undefined && { disabilityNotes: body.disabilityNotes }),
+        ...(body.phone !== undefined && { phone: body.phone || null }),
+        ...(body.email !== undefined && { email: body.email || null }),
+        ...(body.idNumber !== undefined && { idNumber: body.idNumber || null }),
+        ...(body.address !== undefined && { address: body.address || null }),
+        ...(body.disabilityType !== undefined && { disabilityType: body.disabilityType || null }),
+        ...(body.disabilityNotes !== undefined && { disabilityNotes: body.disabilityNotes || null }),
+        ...(body.notes !== undefined && { notes: body.notes || null }),
         ...(body.status !== undefined && { status: body.status }),
-        ...(body.notes !== undefined && { notes: body.notes }),
+        ...(body.waitlistDate !== undefined && { waitlistDate: body.waitlistDate ? new Date(body.waitlistDate) : null }),
+        ...(body.attachments !== undefined && { attachments: body.attachments }),
+        ...(body.meetings !== undefined && { meetings: body.meetings }),
       },
     });
 
     return NextResponse.json(updated);
   } catch (error) {
     console.error("PATCH /api/service-recipients/[id] error:", error);
-    return NextResponse.json({ error: "שגיאה בעדכון מקבל" }, { status: 500 });
+    return NextResponse.json({ error: "שגיאה בעדכון זכאי" }, { status: 500 });
   }
 }
 
@@ -86,14 +93,14 @@ export async function DELETE(
     });
 
     if (!existing) {
-      return NextResponse.json({ error: "מקבל לא נמצא" }, { status: 404 });
+      return NextResponse.json({ error: "זכאי לא נמצא" }, { status: 404 });
     }
 
-    await prisma.serviceDogRecipient.delete({ where: { id: params.id, businessId: authResult.businessId } });
+    await prisma.serviceDogRecipient.delete({ where: { id: params.id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE /api/service-recipients/[id] error:", error);
-    return NextResponse.json({ error: "שגיאה במחיקת מקבל" }, { status: 500 });
+    return NextResponse.json({ error: "שגיאה במחיקת זכאי" }, { status: 500 });
   }
 }

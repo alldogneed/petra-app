@@ -15,6 +15,7 @@ import {
   Clock,
   Shield,
   ChevronLeft,
+  Archive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
@@ -57,6 +58,7 @@ export default function ServiceDogsListPage() {
   const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [phaseFilter, setPhaseFilter] = useState(searchParams.get("phase") || "");
+  const [showArchive, setShowArchive] = useState(searchParams.get("archive") === "1");
   const [showAddModal, setShowAddModal] = useState(false);
   const [phaseDropdownId, setPhaseDropdownId] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -84,17 +86,25 @@ export default function ServiceDogsListPage() {
     onError: () => toast.error("שגיאה בעדכון השלב"),
   });
 
+  const ARCHIVE_PHASES = ["RETIRED", "DECERTIFIED"];
+
   const filteredDogs = dogs.filter((d) => {
     const matchSearch =
       !search ||
       d.pet.name.includes(search) ||
       (d.pet.breed || "").includes(search);
     const matchPhase = !phaseFilter || d.phase === phaseFilter;
-    return matchSearch && matchPhase;
+    const matchArchive = showArchive
+      ? ARCHIVE_PHASES.includes(d.phase)
+      : !ARCHIVE_PHASES.includes(d.phase);
+    return matchSearch && matchPhase && matchArchive;
   });
 
+  const activeDogs = dogs.filter((d) => !ARCHIVE_PHASES.includes(d.phase));
+  const archivedDogs = dogs.filter((d) => ARCHIVE_PHASES.includes(d.phase));
+
   const phaseCounts = SERVICE_DOG_PHASES.reduce(
-    (acc, p) => ({ ...acc, [p.id]: dogs.filter((d) => d.phase === p.id).length }),
+    (acc, p) => ({ ...acc, [p.id]: (showArchive ? archivedDogs : activeDogs).filter((d) => d.phase === p.id).length }),
     {} as Record<string, number>
   );
 
@@ -113,16 +123,37 @@ export default function ServiceDogsListPage() {
           </div>
           <h1 className="page-title flex items-center gap-2">
             <Dog className="w-6 h-6 text-brand-500" />
-            ניהול כלבים
+            {showArchive ? "ארכיון כלבים" : "ניהול כלבים"}
           </h1>
+          <p className="text-sm text-petra-muted mt-1">
+            {showArchive
+              ? `${archivedDogs.length} כלבים שסיימו תהליך הכשרה ושיבוץ`
+              : `${activeDogs.length} כלבים בתהליך פעיל`}
+          </p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          הוסף כלב שירות
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setShowArchive(!showArchive); setPhaseFilter(""); }}
+            className={cn(
+              "flex items-center gap-2 text-sm px-3 py-2 rounded-lg border transition-colors",
+              showArchive
+                ? "bg-slate-800 text-white border-slate-800"
+                : "bg-white text-petra-muted border-slate-200 hover:bg-slate-50"
+            )}
+          >
+            <Archive className="w-4 h-4" />
+            {showArchive ? "חזרה לפעילים" : `ארכיון (${archivedDogs.length})`}
+          </button>
+          {!showArchive && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              הוסף כלב שירות
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Phase Filter */}

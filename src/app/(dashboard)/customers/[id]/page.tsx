@@ -3441,11 +3441,11 @@ export default function CustomerProfilePage() {
                                 {isSectionOpen(pet.id, "medications") ? <ChevronUp className="w-3 h-3 text-stone-400" /> : <ChevronDown className="w-3 h-3 text-stone-400" />}
                               </div>
                               <button
-                                className="w-5 h-5 rounded-full bg-red-100 hover:bg-red-200 flex items-center justify-center transition-colors"
+                                className="w-5 h-5 rounded flex items-center justify-center hover:bg-red-100 transition-colors"
                                 onClick={(e) => { e.stopPropagation(); setMedModal({ petId: pet.id, petName: pet.name, med: null }); }}
-                                title="הוסף תרופה"
+                                title="ערוך תרופות"
                               >
-                                <Plus className="w-3 h-3 text-red-600" />
+                                <Pencil className="w-3 h-3 text-red-500" />
                               </button>
                             </div>
                             {isSectionOpen(pet.id, "medications") && <div className="space-y-1.5">
@@ -3496,7 +3496,14 @@ export default function CustomerProfilePage() {
                                   </div>
                                 </div>
                               ))}
-                              {pet.medications.length === 0 && (
+                              {pet.medications.length > 0 ? (
+                                <button
+                                  className="w-full text-xs text-red-400 hover:text-red-600 py-1.5 border border-dashed border-red-200 hover:border-red-300 rounded-lg transition-colors"
+                                  onClick={(e) => { e.stopPropagation(); setMedModal({ petId: pet.id, petName: pet.name, med: null }); }}
+                                >
+                                  + הוסף תרופה נוספת
+                                </button>
+                              ) : (
                                 <button
                                   className="w-full text-xs text-red-400 hover:text-red-600 py-1.5 border border-dashed border-red-200 hover:border-red-300 rounded-lg transition-colors"
                                   onClick={(e) => { e.stopPropagation(); setMedModal({ petId: pet.id, petName: pet.name, med: null }); }}

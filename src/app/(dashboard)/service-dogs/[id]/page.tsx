@@ -146,6 +146,8 @@ interface ServiceDogDetail {
   complianceEvents: ComplianceEvent[];
   placements: PlacementItem[];
   idCards: IDCard[];
+  documents: unknown[];
+  trainingTests: unknown[];
   medicalCompliance: {
     totalProtocols: number;
     completedCount: number;
@@ -229,7 +231,7 @@ export default function ServiceDogProfilePage() {
   const params = useParams();
   const router = useRouter();
   const dogId = params.id as string;
-  const [activeTab, setActiveTab] = useState<"training" | "medical" | "compliance" | "placements" | "idcard" | "dogfile">("dogfile");
+  const [activeTab, setActiveTab] = useState<"training" | "medical" | "compliance" | "placements" | "idcard" | "dogfile" | "documents" | "tests">("dogfile");
   const [showPhaseDropdown, setShowPhaseDropdown] = useState(false);
   const queryClient = useQueryClient();
 
@@ -290,8 +292,10 @@ export default function ServiceDogProfilePage() {
     { id: "dogfile" as const, label: "תיק כלב", icon: Stethoscope },
     { id: "medical" as const, label: "פרוטוקולים רפואיים", icon: Heart },
     { id: "training" as const, label: "יומן אימונים", icon: Clock },
+    { id: "tests" as const, label: "מבחני הכשרה", icon: GraduationCap, badge: Array.isArray(dog.trainingTests) ? (dog.trainingTests as unknown[]).length : 0 },
     { id: "compliance" as const, label: "משמעת ודיווח", icon: AlertTriangle, badge: dog.isGovReportPending ? 1 : 0 },
     { id: "placements" as const, label: "שיבוצים", icon: Activity },
+    { id: "documents" as const, label: "מסמכים", icon: FileText, badge: Array.isArray(dog.documents) ? (dog.documents as unknown[]).length : 0 },
     { id: "idcard" as const, label: "תעודת זהות", icon: CreditCard },
   ];
 
@@ -521,6 +525,8 @@ export default function ServiceDogProfilePage() {
         {activeTab === "medical" && <MedicalTab dog={dog} dogId={dogId} />}
         {activeTab === "compliance" && <ComplianceTab dog={dog} dogId={dogId} />}
         {activeTab === "placements" && <PlacementsTab dog={dog} />}
+        {activeTab === "tests" && <TrainingTestsTab dog={dog} dogId={dogId} />}
+        {activeTab === "documents" && <DocumentsTab dog={dog} dogId={dogId} />}
         {activeTab === "idcard" && <IDCardTab dog={dog} dogId={dogId} />}
         {activeTab === "dogfile" && <DogFileTab dog={dog} dogId={dogId} />}
       </div>
@@ -1206,7 +1212,25 @@ function ComplianceEventGroup({
 // ─── Placements Tab ───
 
 function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const activePlacement = dog.placements.find((p) => ["ACTIVE", "TRIAL"].includes(p.status));
+
+  const completeProcessMutation = useMutation({
+    mutationFn: (placementId: string) =>
+      fetch(`/api/service-placements/${placementId}/complete`, { method: "POST" }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
+      queryClient.invalidateQueries({ queryKey: ["service-recipients"] });
+      toast.success("תהליך הסתיים — הכלב והזכאי הועברו לארכיון");
+      router.push("/service-dogs/dogs");
+    },
+    onError: () => toast.error("שגיאה בסיום התהליך"),
+  });
 
   return (
     <div className="space-y-4">
@@ -1253,6 +1277,20 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
               </div>
             )}
           </div>
+
+          {/* Complete Process Button */}
+          <div className="mt-3 pt-3 border-t border-emerald-200">
+            <button
+              onClick={() => {
+                if (confirm(`לסיים את תהליך ההכשרה והשיבוץ?\n\nהכלב ${dog.pet.name} והזכאי ${activePlacement.recipient.name} יועברו לארכיון ולא יופיעו עוד ברשימות הפעילות.`))
+                  completeProcessMutation.mutate(activePlacement.id);
+              }}
+              disabled={completeProcessMutation.isPending}
+              className="w-full text-sm text-red-600 hover:text-red-700 py-2 border border-dashed border-red-300 hover:border-red-400 rounded-xl transition-colors"
+            >
+              {completeProcessMutation.isPending ? "מעביר לארכיון..." : "✓ סיום תהליך הכשרה ושיבוץ → ארכיון"}
+            </button>
+          </div>
         </div>
       )}
 
@@ -1290,6 +1328,506 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Training Tests Tab (ADI standards) ───
+
+interface TrainingTest {
+  id: string;
+  date: string;
+  examinerName: string;
+  testType: string;
+  categories: TestCategory[];
+  overallResult: "PASS" | "FAIL" | "CONDITIONAL_PASS";
+  notes: string;
+}
+
+interface TestCategory {
+  id: string;
+  categoryKey: string;
+  result: "PASS" | "FAIL" | "NOT_TESTED";
+  score: number | null;
+  improvementPoints: string;
+}
+
+const ADI_TEST_CATEGORIES = [
+  { key: "HEEL_ON_LEASH", label: "הליכה ברצועה" },
+  { key: "HEEL_OFF_LEASH", label: "הליכה ללא רצועה" },
+  { key: "SIT_STAY", label: "שב ושמור" },
+  { key: "DOWN_STAY", label: "שכב ושמור" },
+  { key: "COME_RECALL", label: "בוא — חזרה לקריאה" },
+  { key: "STAND_FOR_EXAM", label: "עמד לבדיקה" },
+  { key: "PUBLIC_ACCESS_1", label: "גישה לציבור: כניסה לבניין" },
+  { key: "PUBLIC_ACCESS_2", label: "גישה לציבור: נסיעה בתחבורה" },
+  { key: "PUBLIC_ACCESS_3", label: "גישה לציבור: מסעדה / קניון" },
+  { key: "DISTRACTION_1", label: "הסחות: קולניות" },
+  { key: "DISTRACTION_2", label: "הסחות: חזותיות" },
+  { key: "TASK_SPECIFIC", label: "משימות ייחודיות לסוג הכלב" },
+  { key: "HANDLER_CONTROL", label: "שליטת המטפל" },
+  { key: "GREETING_STRANGERS", label: "ברכת זרים" },
+  { key: "LEAVE_IT", label: "עזוב" },
+  { key: "AGGRESSION_TEST", label: "בדיקת אגרסיביות" },
+  { key: "SEPARATION", label: "בדיקת הפרדה מזמנית" },
+  { key: "GROOMING_TOLERANCE", label: "סובלנות לטיפוח" },
+];
+const ADI_TEST_CATEGORY_MAP = Object.fromEntries(ADI_TEST_CATEGORIES.map((c) => [c.key, c.label]));
+
+const TEST_TYPES = [
+  { id: "INITIAL_EVAL", label: "הערכה ראשונית" },
+  { id: "PROGRESS_TEST", label: "בחינת התקדמות" },
+  { id: "PRE_CERT", label: "טרום הסמכה" },
+  { id: "ADI_CERT", label: "בחינת הסמכה ADI" },
+  { id: "ANNUAL_RETEST", label: "בחינה שנתית מחזורית" },
+  { id: "OTHER", label: "אחר" },
+];
+const TEST_TYPE_MAP = Object.fromEntries(TEST_TYPES.map((t) => [t.id, t.label]));
+
+const OVERALL_RESULT_MAP: Record<string, { label: string; color: string }> = {
+  PASS: { label: "עבר ✓", color: "bg-emerald-100 text-emerald-700" },
+  FAIL: { label: "נכשל ✗", color: "bg-red-100 text-red-600" },
+  CONDITIONAL_PASS: { label: "עבר עם הערות", color: "bg-amber-100 text-amber-700" },
+};
+
+function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
+  const queryClient = useQueryClient();
+  const [showAddTest, setShowAddTest] = useState(false);
+  const [expandedTestId, setExpandedTestId] = useState<string | null>(null);
+
+  const tests: TrainingTest[] = Array.isArray(dog.trainingTests) ? (dog.trainingTests as TrainingTest[]) : [];
+
+  const saveMutation = useMutation({
+    mutationFn: (t: TrainingTest[]) =>
+      fetch(`/api/service-dogs/${dogId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trainingTests: t }),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+      toast.success("מבחן נשמר");
+      setShowAddTest(false);
+    },
+    onError: () => toast.error("שגיאה בשמירת מבחן"),
+  });
+
+  const deleteTest = (testId: string) => {
+    if (!confirm("למחוק את המבחן?")) return;
+    saveMutation.mutate(tests.filter((t) => t.id !== testId));
+  };
+
+  const passCount = tests.filter((t) => t.overallResult === "PASS" || t.overallResult === "CONDITIONAL_PASS").length;
+  const failCount = tests.filter((t) => t.overallResult === "FAIL").length;
+
+  return (
+    <div className="space-y-4">
+      {tests.length > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="card p-3 text-center">
+            <p className="text-2xl font-bold">{tests.length}</p>
+            <p className="text-xs text-petra-muted">מבחנים</p>
+          </div>
+          <div className="card p-3 text-center border-emerald-200 bg-emerald-50">
+            <p className="text-2xl font-bold text-emerald-700">{passCount}</p>
+            <p className="text-xs text-emerald-600">עברו</p>
+          </div>
+          <div className="card p-3 text-center border-red-200 bg-red-50">
+            <p className="text-2xl font-bold text-red-700">{failCount}</p>
+            <p className="text-xs text-red-600">נכשלו</p>
+          </div>
+        </div>
+      )}
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold flex items-center gap-2">
+            <GraduationCap className="w-4 h-4 text-brand-500" />
+            מבחני הכשרה ADI ({tests.length})
+          </h3>
+        </div>
+        <div className="space-y-3">
+          {tests.map((test) => {
+            const res = OVERALL_RESULT_MAP[test.overallResult];
+            const isExpanded = expandedTestId === test.id;
+            return (
+              <div key={test.id} className="rounded-xl border overflow-hidden">
+                <div
+                  className="p-4 flex items-start justify-between cursor-pointer hover:bg-slate-50/40"
+                  onClick={() => setExpandedTestId(isExpanded ? null : test.id)}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm">{TEST_TYPE_MAP[test.testType] || test.testType}</span>
+                      <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", res?.color)}>
+                        {res?.label || test.overallResult}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-petra-muted">
+                      {test.date && (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {formatDate(test.date)}
+                        </span>
+                      )}
+                      {test.examinerName && (
+                        <span className="flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          {test.examinerName}
+                        </span>
+                      )}
+                      <span>{test.categories?.length || 0} קטגוריות</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteTest(test.id); }}
+                      className="w-7 h-7 rounded flex items-center justify-center hover:bg-red-100 transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                    </button>
+                    {isExpanded ? <ChevronUp className="w-4 h-4 text-stone-400" /> : <ChevronDown className="w-4 h-4 text-stone-400" />}
+                  </div>
+                </div>
+                {isExpanded && (
+                  <div className="px-4 pb-4 border-t bg-slate-50/30 pt-3 space-y-3">
+                    <div className="divide-y">
+                      {(test.categories || []).map((cat) => (
+                        <div key={cat.id} className="flex items-start justify-between py-1.5 gap-2">
+                          <div className="flex items-start gap-2 flex-1">
+                            <span className={cn("text-xs font-bold mt-0.5 shrink-0",
+                              cat.result === "PASS" ? "text-emerald-600" :
+                              cat.result === "FAIL" ? "text-red-600" : "text-stone-400")}>
+                              {cat.result === "PASS" ? "✓" : cat.result === "FAIL" ? "✗" : "—"}
+                            </span>
+                            <div>
+                              <p className="text-sm">{ADI_TEST_CATEGORY_MAP[cat.categoryKey] || cat.categoryKey}</p>
+                              {cat.improvementPoints && (
+                                <p className="text-xs text-amber-600 mt-0.5">{cat.improvementPoints}</p>
+                              )}
+                            </div>
+                          </div>
+                          {cat.score != null && (
+                            <span className="text-xs font-mono bg-white border rounded px-1.5 py-0.5 shrink-0">{cat.score}/10</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {test.notes && (
+                      <div className="bg-white rounded-lg p-3 border">
+                        <p className="text-xs text-petra-muted mb-1">הערות כלליות</p>
+                        <p className="text-sm">{test.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <button
+            onClick={() => setShowAddTest(true)}
+            className="w-full text-sm text-brand-500 hover:text-brand-600 py-2.5 border border-dashed border-brand-200 hover:border-brand-300 rounded-xl transition-colors"
+          >
+            + הוסף מבחן הכשרה
+          </button>
+        </div>
+      </div>
+
+      {showAddTest && (
+        <AddTrainingTestModal
+          onSave={(test) => saveMutation.mutate([test, ...tests])}
+          onClose={() => setShowAddTest(false)}
+          isSaving={saveMutation.isPending}
+        />
+      )}
+    </div>
+  );
+}
+
+function AddTrainingTestModal({
+  onSave, onClose, isSaving,
+}: {
+  onSave: (test: TrainingTest) => void;
+  onClose: () => void;
+  isSaving: boolean;
+}) {
+  const [testType, setTestType] = useState("PROGRESS_TEST");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [examinerName, setExaminerName] = useState("");
+  const [overallResult, setOverallResult] = useState<"PASS" | "FAIL" | "CONDITIONAL_PASS">("PASS");
+  const [notes, setNotes] = useState("");
+  const [categories, setCategories] = useState<TestCategory[]>(
+    ADI_TEST_CATEGORIES.map((c) => ({
+      id: crypto.randomUUID(),
+      categoryKey: c.key,
+      result: "NOT_TESTED" as const,
+      score: null,
+      improvementPoints: "",
+    }))
+  );
+
+  const updateCategory = (categoryKey: string, field: string, value: string | number | null) => {
+    setCategories((prev) =>
+      prev.map((c) => (c.categoryKey === categoryKey ? { ...c, [field]: value } : c))
+    );
+  };
+
+  const handleSave = () => {
+    onSave({
+      id: crypto.randomUUID(),
+      date,
+      examinerName,
+      testType,
+      categories: categories.filter((c) => c.result !== "NOT_TESTED"),
+      overallResult,
+      notes,
+    });
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-backdrop" />
+      <div className="modal-content max-w-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold">הוספת מבחן הכשרה</h2>
+          <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="space-y-4 max-h-[75vh] overflow-y-auto">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">סוג מבחן</label>
+              <select value={testType} onChange={(e) => setTestType(e.target.value)} className="input w-full">
+                {TEST_TYPES.map((t) => (<option key={t.id} value={t.id}>{t.label}</option>))}
+              </select>
+            </div>
+            <div>
+              <label className="label">תאריך</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input w-full" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">שם הבוחן</label>
+              <input value={examinerName} onChange={(e) => setExaminerName(e.target.value)} className="input w-full" placeholder="שם הבוחן / מעריך" />
+            </div>
+            <div>
+              <label className="label">תוצאה כללית</label>
+              <select value={overallResult} onChange={(e) => setOverallResult(e.target.value as "PASS" | "FAIL" | "CONDITIONAL_PASS")} className="input w-full">
+                <option value="PASS">עבר ✓</option>
+                <option value="CONDITIONAL_PASS">עבר עם הערות</option>
+                <option value="FAIL">נכשל ✗</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="label mb-2">קטגוריות מבחן ADI</label>
+            <div className="border rounded-xl overflow-hidden">
+              <div className="grid grid-cols-[2fr_80px_60px_1fr] gap-0 bg-slate-50 px-3 py-2 text-xs font-semibold text-petra-muted border-b">
+                <span>קטגוריה</span>
+                <span className="text-center">תוצאה</span>
+                <span className="text-center">ניקוד</span>
+                <span>נקודות לשיפור</span>
+              </div>
+              <div className="divide-y max-h-64 overflow-y-auto">
+                {categories.map((cat) => (
+                  <div key={cat.categoryKey} className="grid grid-cols-[2fr_80px_60px_1fr] gap-2 px-3 py-2 items-center">
+                    <span className="text-sm">{ADI_TEST_CATEGORY_MAP[cat.categoryKey]}</span>
+                    <select
+                      value={cat.result}
+                      onChange={(e) => updateCategory(cat.categoryKey, "result", e.target.value)}
+                      className="text-xs border rounded px-1 py-1 bg-white"
+                    >
+                      <option value="NOT_TESTED">—</option>
+                      <option value="PASS">עבר</option>
+                      <option value="FAIL">נכשל</option>
+                    </select>
+                    <input
+                      type="number" min="0" max="10"
+                      value={cat.score ?? ""}
+                      onChange={(e) => updateCategory(cat.categoryKey, "score", e.target.value ? Number(e.target.value) : null)}
+                      className="text-xs border rounded px-1 py-1 w-full text-center"
+                      placeholder="—"
+                    />
+                    <input
+                      type="text"
+                      value={cat.improvementPoints}
+                      onChange={(e) => updateCategory(cat.categoryKey, "improvementPoints", e.target.value)}
+                      className="text-xs border rounded px-1.5 py-1 w-full"
+                      placeholder="הערות..."
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div>
+            <label className="label">הערות כלליות</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input w-full" rows={3} placeholder="סיכום המבחן, המלצות להמשך..." />
+          </div>
+        </div>
+        <div className="flex gap-2 mt-4 pt-4 border-t">
+          <button onClick={handleSave} disabled={isSaving} className="btn-primary flex-1">
+            {isSaving ? "שומר..." : "שמור מבחן"}
+          </button>
+          <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Documents Tab ───
+
+interface DogDocument {
+  id: string;
+  name: string;
+  url: string;
+  docType: string;
+  uploadedAt: string;
+}
+
+const DOG_DOC_TYPES = [
+  { id: "HEALTH_CERT", label: "תעודת בריאות" },
+  { id: "VACCINATION", label: "תעודת חיסונים" },
+  { id: "TRAINING_CERT", label: "תעודת אימון" },
+  { id: "VET_REPORT", label: "דוח וטרינרי" },
+  { id: "PEDIGREE", label: "פנקס" },
+  { id: "ADI_CERT", label: "אישור ADI" },
+  { id: "GOV_REPORT", label: "דיווח ממשלתי" },
+  { id: "OTHER", label: "אחר" },
+];
+const DOG_DOC_TYPE_MAP = Object.fromEntries(DOG_DOC_TYPES.map((d) => [d.id, d.label]));
+
+function DocumentsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
+  const queryClient = useQueryClient();
+  const [showAddDoc, setShowAddDoc] = useState(false);
+  const [docName, setDocName] = useState("");
+  const [docUrl, setDocUrl] = useState("");
+  const [docType, setDocType] = useState("OTHER");
+
+  const documents: DogDocument[] = Array.isArray(dog.documents) ? (dog.documents as DogDocument[]) : [];
+
+  const saveMutation = useMutation({
+    mutationFn: (docs: DogDocument[]) =>
+      fetch(`/api/service-dogs/${dogId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documents: docs }),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+      toast.success("מסמכים עודכנו");
+      setShowAddDoc(false);
+      setDocName("");
+      setDocUrl("");
+      setDocType("OTHER");
+    },
+    onError: () => toast.error("שגיאה בשמירת מסמך"),
+  });
+
+  const addDoc = () => {
+    if (!docName.trim()) return;
+    const newDoc: DogDocument = {
+      id: crypto.randomUUID(),
+      name: docName.trim(),
+      url: docUrl.trim(),
+      docType,
+      uploadedAt: new Date().toISOString(),
+    };
+    saveMutation.mutate([newDoc, ...documents]);
+  };
+
+  const deleteDoc = (docId: string) => {
+    if (!confirm("למחוק את המסמך?")) return;
+    saveMutation.mutate(documents.filter((d) => d.id !== docId));
+  };
+
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-semibold flex items-center gap-2">
+          <FileText className="w-4 h-4 text-brand-500" />
+          מסמכים ({documents.length})
+        </h3>
+      </div>
+      <div className="space-y-3">
+        {documents.map((doc) => (
+          <div key={doc.id} className="flex items-center justify-between p-3 rounded-xl border bg-slate-50/50 group">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4 text-brand-500" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">{doc.name}</p>
+                <p className="text-xs text-petra-muted">
+                  {DOG_DOC_TYPE_MAP[doc.docType] || doc.docType}
+                  {doc.uploadedAt && ` · ${formatDate(doc.uploadedAt)}`}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {doc.url && (
+                <a
+                  href={doc.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-8 h-8 rounded flex items-center justify-center hover:bg-brand-50 transition-colors"
+                  title="פתח מסמך"
+                >
+                  <Eye className="w-4 h-4 text-brand-500" />
+                </a>
+              )}
+              <button
+                onClick={() => deleteDoc(doc.id)}
+                className="opacity-0 group-hover:opacity-100 w-8 h-8 rounded flex items-center justify-center hover:bg-red-100 transition-all"
+                title="מחק"
+              >
+                <Trash2 className="w-4 h-4 text-red-500" />
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {showAddDoc ? (
+          <div className="p-4 rounded-xl border bg-slate-50/50 space-y-3">
+            <div>
+              <label className="label">שם המסמך *</label>
+              <input value={docName} onChange={(e) => setDocName(e.target.value)} className="input w-full" placeholder="לדוג׳ תעודת בריאות 2025" />
+            </div>
+            <div>
+              <label className="label">סוג מסמך</label>
+              <select value={docType} onChange={(e) => setDocType(e.target.value)} className="input w-full">
+                {DOG_DOC_TYPES.map((d) => (
+                  <option key={d.id} value={d.id}>{d.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">קישור למסמך (URL)</label>
+              <input value={docUrl} onChange={(e) => setDocUrl(e.target.value)} className="input w-full" placeholder="https://..." type="url" dir="ltr" />
+              <p className="text-xs text-petra-muted mt-1">הדבק קישור ל-Google Drive, Dropbox, או כל קישור אחר</p>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={addDoc} disabled={!docName.trim() || saveMutation.isPending} className="btn-primary flex-1 text-sm">
+                {saveMutation.isPending ? "שומר..." : "הוסף מסמך"}
+              </button>
+              <button onClick={() => { setShowAddDoc(false); setDocName(""); setDocUrl(""); }} className="btn-secondary flex-1 text-sm">ביטול</button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowAddDoc(true)}
+            className="w-full text-sm text-brand-500 hover:text-brand-600 py-2.5 border border-dashed border-brand-200 hover:border-brand-300 rounded-xl transition-colors"
+          >
+            + הוסף מסמך
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -1610,19 +2148,10 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
 
       {/* Medications */}
       <div className="card p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold flex items-center gap-2">
-            <Pill className="w-4 h-4 text-red-500" />
-            תרופות ({pet.medications.length})
-          </h3>
-          <button
-            className="btn-ghost flex items-center gap-1.5 text-sm"
-            onClick={() => setMedModal({ med: null })}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            הוסף תרופה
-          </button>
-        </div>
+        <h3 className="font-semibold flex items-center gap-2 mb-3">
+          <Pill className="w-4 h-4 text-red-500" />
+          תרופות ({pet.medications.length})
+        </h3>
         {pet.medications.length > 0 ? (
           <div className="space-y-2">
             {pet.medications.map((med) => (
@@ -1654,9 +2183,20 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
                 </div>
               </div>
             ))}
+            <button
+              className="w-full text-sm text-red-400 hover:text-red-600 py-2 border border-dashed border-red-200 hover:border-red-300 rounded-xl transition-colors"
+              onClick={() => setMedModal({ med: null })}
+            >
+              + הוסף תרופה נוספת
+            </button>
           </div>
         ) : (
-          <p className="text-sm text-petra-muted text-center py-3">אין תרופות רשומות</p>
+          <button
+            className="w-full text-sm text-red-400 hover:text-red-600 py-2 border border-dashed border-red-200 hover:border-red-300 rounded-xl transition-colors"
+            onClick={() => setMedModal({ med: null })}
+          >
+            + הוסף תרופה
+          </button>
         )}
       </div>
 

@@ -88,6 +88,8 @@ export async function PATCH(
         ...(body.trainingTargetHours !== undefined && { trainingTargetHours: body.trainingTargetHours }),
         ...(body.trainingTargetMonths !== undefined && { trainingTargetMonths: body.trainingTargetMonths }),
         ...(body.notes !== undefined && { notes: body.notes }),
+        ...(body.documents !== undefined && { documents: body.documents }),
+        ...(body.trainingTests !== undefined && { trainingTests: body.trainingTests }),
       },
       include: { pet: true },
     });
