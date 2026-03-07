@@ -25,6 +25,7 @@ import {
   ChevronDown,
   ChevronUp,
   Bell,
+  Check,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
@@ -146,6 +147,12 @@ export default function ServiceDogsOverviewPage() {
     .filter((e) => e.notificationStatus === "PENDING")
     .slice(0, 8);
 
+  // Dismissed IDs for inline cards (local session state)
+  const [dismissedDogIds, setDismissedDogIds] = useState<Set<string>>(new Set());
+  const [dismissedEventIds, setDismissedEventIds] = useState<Set<string>>(new Set());
+
+  const visibleDogs = dogsNeedingAttention.filter((d) => !dismissedDogIds.has(d.id));
+  const visibleEvents = pendingEvents.filter((e) => !dismissedEventIds.has(e.id));
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -187,9 +194,9 @@ export default function ServiceDogsOverviewPage() {
             <h2 className="font-semibold flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-500" />
               דורשים תשומת לב
-              {dogsNeedingAttention.length > 0 && (
+              {visibleDogs.length > 0 && (
                 <span className="bg-amber-100 text-amber-700 text-xs font-bold rounded-full px-2 py-0.5">
-                  {dogsNeedingAttention.length}
+                  {visibleDogs.length}
                 </span>
               )}
             </h2>
@@ -198,56 +205,63 @@ export default function ServiceDogsOverviewPage() {
             </Link>
           </div>
 
-          {dogsNeedingAttention.length === 0 ? (
+          {visibleDogs.length === 0 ? (
             <div className="px-5 py-8 text-center">
               <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-400 mb-2" />
               <p className="text-sm text-petra-muted">כל הכלבים תקינים</p>
             </div>
           ) : (
             <div className="divide-y">
-              {dogsNeedingAttention.map((dog) => {
+              {visibleDogs.map((dog) => {
                 const phaseInfo = SERVICE_DOG_PHASE_MAP[dog.phase];
                 const phaseColors = SERVICE_DOG_PHASE_COLORS[dog.phase];
                 return (
-                  <Link
-                    key={dog.id}
-                    href={`/service-dogs/${dog.id}`}
-                    className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50 transition-colors group"
-                  >
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: phaseColors?.bg || "#F1F5F9" }}
+                  <div key={dog.id} className="flex items-center gap-2 px-4 py-3.5 hover:bg-slate-50 transition-colors group">
+                    <button
+                      type="button"
+                      onClick={() => setDismissedDogIds((prev) => new Set([...prev, dog.id]))}
+                      className="w-5 h-5 rounded-full border-2 border-slate-300 flex-shrink-0 flex items-center justify-center hover:border-emerald-400 hover:bg-emerald-50 transition-all"
+                      title="סמן כטופל"
+                    />
+                    <Link
+                      href={`/service-dogs/${dog.id}`}
+                      className="flex items-center gap-3 flex-1 min-w-0"
                     >
-                      <Dog className="w-4 h-4" style={{ color: phaseColors?.text || "#475569" }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{dog.pet.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span
-                          className="text-xs px-1.5 py-0.5 rounded-full border"
-                          style={{
-                            backgroundColor: phaseColors?.bg,
-                            color: phaseColors?.text,
-                            borderColor: phaseColors?.border,
-                          }}
-                        >
-                          {phaseInfo?.label || dog.phase}
-                        </span>
-                        {dog.isGovReportPending && (
-                          <span className="text-xs text-red-600 font-medium">⚠ דיווח ממשלתי</span>
-                        )}
-                        {dog.medicalCompliance.status === "red" && (
-                          <span className="text-xs text-red-600">
-                            {dog.medicalCompliance.overdueCount} פרוטוקולים באיחור
-                          </span>
-                        )}
-                        {dog.trainingStatus === "PENDING_CERT" && (
-                          <span className="text-xs text-blue-600 font-medium">מוכן להסמכה</span>
-                        )}
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: phaseColors?.bg || "#F1F5F9" }}
+                      >
+                        <Dog className="w-4 h-4" style={{ color: phaseColors?.text || "#475569" }} />
                       </div>
-                    </div>
-                    <ChevronLeft className="w-4 h-4 text-petra-muted group-hover:text-brand-500 transition-colors" />
-                  </Link>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{dog.pet.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span
+                            className="text-xs px-1.5 py-0.5 rounded-full border"
+                            style={{
+                              backgroundColor: phaseColors?.bg,
+                              color: phaseColors?.text,
+                              borderColor: phaseColors?.border,
+                            }}
+                          >
+                            {phaseInfo?.label || dog.phase}
+                          </span>
+                          {dog.isGovReportPending && (
+                            <span className="text-xs text-red-600 font-medium">⚠ דיווח ממשלתי</span>
+                          )}
+                          {dog.medicalCompliance.status === "red" && (
+                            <span className="text-xs text-red-600">
+                              {dog.medicalCompliance.overdueCount} פרוטוקולים באיחור
+                            </span>
+                          )}
+                          {dog.trainingStatus === "PENDING_CERT" && (
+                            <span className="text-xs text-blue-600 font-medium">מוכן להסמכה</span>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronLeft className="w-4 h-4 text-petra-muted group-hover:text-brand-500 transition-colors flex-shrink-0" />
+                    </Link>
+                  </div>
                 );
               })}
             </div>
@@ -260,9 +274,9 @@ export default function ServiceDogsOverviewPage() {
             <h2 className="font-semibold flex items-center gap-2">
               <Heart className="w-4 h-4 text-red-500" />
               דיווחים ממתינים
-              {pendingEvents.length > 0 && (
+              {visibleEvents.length > 0 && (
                 <span className="bg-red-100 text-red-700 text-xs font-bold rounded-full px-2 py-0.5">
-                  {pendingEvents.length}
+                  {visibleEvents.length}
                 </span>
               )}
             </h2>
@@ -271,40 +285,48 @@ export default function ServiceDogsOverviewPage() {
             </Link>
           </div>
 
-          {pendingEvents.length === 0 ? (
+          {visibleEvents.length === 0 ? (
             <div className="px-5 py-8 text-center">
               <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-400 mb-2" />
               <p className="text-sm text-petra-muted">אין דיווחים ממתינים</p>
             </div>
           ) : (
             <div className="divide-y">
-              {pendingEvents.map((event) => {
+              {visibleEvents.map((event) => {
                 const isOverdue =
                   event.notificationDue && new Date(event.notificationDue) < new Date();
                 return (
-                  <div key={event.id} className="px-5 py-3.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">
-                          {COMPLIANCE_EVENT_MAP[event.eventType]?.label || event.eventType}
-                        </p>
-                        <p className="text-xs text-petra-muted mt-0.5 truncate">
-                          {event.eventDescription}
-                        </p>
-                        <p className="text-xs text-petra-muted mt-0.5">
-                          {formatDate(event.eventAt)}
-                          {event.notificationDue && (
-                            <span className={cn("mr-2", isOverdue ? "text-red-600 font-medium" : "text-amber-600")}>
-                              · דד-ליין: {formatDate(event.notificationDue)}
-                            </span>
-                          )}
-                        </p>
+                  <div key={event.id} className="px-4 py-3.5 flex items-start gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDismissedEventIds((prev) => new Set([...prev, event.id]))}
+                      className="w-5 h-5 rounded-full border-2 border-slate-300 flex-shrink-0 flex items-center justify-center hover:border-emerald-400 hover:bg-emerald-50 transition-all mt-0.5"
+                      title="סמן כטופל"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">
+                            {COMPLIANCE_EVENT_MAP[event.eventType]?.label || event.eventType}
+                          </p>
+                          <p className="text-xs text-petra-muted mt-0.5 truncate">
+                            {event.eventDescription}
+                          </p>
+                          <p className="text-xs text-petra-muted mt-0.5">
+                            {formatDate(event.eventAt)}
+                            {event.notificationDue && (
+                              <span className={cn("mr-2", isOverdue ? "text-red-600 font-medium" : "text-amber-600")}>
+                                · דד-ליין: {formatDate(event.notificationDue)}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        {isOverdue && (
+                          <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
+                            באיחור
+                          </span>
+                        )}
                       </div>
-                      {isOverdue && (
-                        <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
-                          באיחור
-                        </span>
-                      )}
                     </div>
                   </div>
                 );
@@ -666,12 +688,20 @@ function AlertsWidget({ alerts }: { alerts: AlertsData }) {
     training: true,
     compliance: true,
   });
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   const toggle = (key: string) => setOpen((p) => ({ ...p, [key]: !p[key] }));
+  const dismiss = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDismissed((prev) => new Set([...prev, id]));
+  };
 
   const overdueCount =
-    alerts.medical.items.filter((i) => i.isOverdue).length +
-    alerts.compliance.items.filter((i) => i.isOverdue).length;
+    alerts.medical.items.filter((i) => i.isOverdue && !dismissed.has(i.id)).length +
+    alerts.compliance.items.filter((i) => i.isOverdue && !dismissed.has(i.id)).length;
+
+  const activeTotal = alerts.total - dismissed.size;
 
   const sections = [
     {
@@ -733,7 +763,8 @@ function AlertsWidget({ alerts }: { alerts: AlertsData }) {
           : "אין אימון מתועד",
       })),
     },
-  ].filter((s) => s.count > 0);
+  ].map((s) => ({ ...s, items: s.items.filter((i) => !dismissed.has(i.id)) }))
+   .filter((s) => s.items.length > 0);
 
   return (
     <div className="card p-0 overflow-hidden border border-amber-200">
@@ -746,7 +777,7 @@ function AlertsWidget({ alerts }: { alerts: AlertsData }) {
           <div>
             <h2 className="font-bold text-petra-text">מרכז התראות — כלבי שירות</h2>
             <p className="text-xs text-petra-muted mt-0.5">
-              {alerts.total} התראות פעילות
+              {activeTotal} התראות פעילות
               {overdueCount > 0 && (
                 <span className="text-red-600 font-semibold mr-1">· {overdueCount} דחופות</span>
               )}
@@ -760,7 +791,7 @@ function AlertsWidget({ alerts }: { alerts: AlertsData }) {
             </span>
           )}
           <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
-            {alerts.total} סה״כ
+            {activeTotal} סה״כ
           </span>
         </div>
       </div>
@@ -786,7 +817,7 @@ function AlertsWidget({ alerts }: { alerts: AlertsData }) {
                   </div>
                   <span className="text-sm font-semibold">{section.label}</span>
                   <span className={cn("text-xs font-bold px-1.5 py-0.5 rounded-full", section.bg)}>
-                    {section.count}
+                    {section.items.length}
                   </span>
                 </div>
                 {isOpen ? (
@@ -799,34 +830,40 @@ function AlertsWidget({ alerts }: { alerts: AlertsData }) {
               {isOpen && (
                 <div className="px-5 pb-3 space-y-2">
                   {section.items.map((item) => (
-                    <Link
+                    <div
                       key={item.id}
-                      href={`/service-dogs/${item.dogId}`}
                       className={cn(
-                        "flex items-start gap-3 p-3 rounded-xl border transition-all hover:shadow-sm",
+                        "flex items-start gap-2 p-3 rounded-xl border transition-all",
                         item.isOverdue
-                          ? "bg-red-50 border-red-200 hover:bg-red-100"
-                          : "bg-white border-petra-border hover:bg-slate-50"
+                          ? "bg-red-50 border-red-200"
+                          : "bg-white border-petra-border"
                       )}
                     >
-                      <div className={cn(
-                        "w-2 h-2 rounded-full flex-shrink-0 mt-1.5",
-                        item.isOverdue ? "bg-red-500" : "bg-amber-400"
-                      )} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold text-petra-text">{item.dogName}</span>
-                          {item.isOverdue && (
-                            <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">דחוף</span>
-                          )}
+                      <button
+                        type="button"
+                        onClick={(e) => dismiss(item.id, e)}
+                        className="w-5 h-5 rounded-full border-2 border-slate-300 flex-shrink-0 flex items-center justify-center hover:border-emerald-400 hover:bg-emerald-50 transition-all mt-0.5"
+                        title="סמן כטופל"
+                      />
+                      <Link
+                        href={`/service-dogs/${item.dogId}`}
+                        className="flex items-start gap-2 flex-1 min-w-0 hover:opacity-80 transition-opacity"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-semibold text-petra-text">{item.dogName}</span>
+                            {item.isOverdue && (
+                              <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">דחוף</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-petra-muted mt-0.5">{item.line1}</p>
+                          <p className={cn("text-xs mt-0.5", item.isOverdue ? "text-red-600 font-medium" : "text-petra-muted")}>
+                            {item.line2}
+                          </p>
                         </div>
-                        <p className="text-xs text-petra-muted mt-0.5">{item.line1}</p>
-                        <p className={cn("text-xs mt-0.5", item.isOverdue ? "text-red-600 font-medium" : "text-petra-muted")}>
-                          {item.line2}
-                        </p>
-                      </div>
-                      <ChevronLeft className="w-4 h-4 text-petra-muted flex-shrink-0 mt-0.5" />
-                    </Link>
+                        <ChevronLeft className="w-4 h-4 text-petra-muted flex-shrink-0 mt-0.5" />
+                      </Link>
+                    </div>
                   ))}
                 </div>
               )}
