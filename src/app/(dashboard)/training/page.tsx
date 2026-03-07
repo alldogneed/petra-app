@@ -1094,10 +1094,14 @@ export default function TrainingPage() {
             <BoardingTrainingTab
               stays={activeStays}
               boardingPrograms={boardingPrograms}
+              homePrograms={programs.filter((p) => p.trainingType === "HOME")}
               searchQuery={searchQuery}
               onAddTraining={(stay) => setShowBoardingTraining({ stay })}
               onLogSession={(programId, sessionNumber, dogName, goals) =>
                 setSessionLogTarget({ programId, sessionNumber, dogName, isWeekly: true, goals })
+              }
+              onLogHomeSession={(programId, sessionNumber, dogName) =>
+                setSessionLogTarget({ programId, sessionNumber, dogName, isWeekly: false })
               }
             />
           )}
@@ -2449,15 +2453,19 @@ function IndividualTab({
 function BoardingTrainingTab({
   stays,
   boardingPrograms,
+  homePrograms,
   searchQuery,
   onAddTraining,
   onLogSession,
+  onLogHomeSession,
 }: {
   stays: BoardingStay[];
   boardingPrograms: TrainingProgram[];
+  homePrograms: TrainingProgram[];
   searchQuery: string;
   onAddTraining: (stay: BoardingStay) => void;
   onLogSession: (programId: string, sessionNumber: number, dogName: string, goals?: { id: string; title: string; status: string; progressPercent: number }[]) => void;
+  onLogHomeSession: (programId: string, sessionNumber: number, dogName: string) => void;
 }) {
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return stays;
@@ -2483,11 +2491,16 @@ function BoardingTrainingTab({
     <div className="space-y-3">
       {filtered.map((stay) => {
         const linkedProgram = boardingPrograms.find((p) => p.boardingStayId === stay.id);
+        const homeProgram = linkedProgram
+          ? homePrograms.find((p) => p.dog.id === linkedProgram.dog.id && ["ACTIVE", "PAUSED"].includes(p.status))
+          : null;
         const daysRemaining = stay.checkOut
           ? Math.ceil((new Date(stay.checkOut).getTime() - Date.now()) / 86400000)
           : null;
         const usedSessions = linkedProgram?.sessions?.filter((s) => s.status === "COMPLETED").length ?? 0;
         const nextSessionNum = usedSessions + 1;
+        const homeUsedSessions = homeProgram?.sessions?.filter((s) => s.status === "COMPLETED").length ?? 0;
+        const homeNextSession = homeUsedSessions + 1;
 
         return (
           <div key={stay.id} className="card p-0 overflow-hidden">
@@ -2588,6 +2601,20 @@ function BoardingTrainingTab({
                     <Plus className="w-4 h-4" />
                     עדכון שבועי {nextSessionNum > 1 ? `(שבוע ${nextSessionNum})` : "(שבוע 1)"}
                   </button>
+                  {homeProgram && (
+                    <button
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all mt-1 border border-green-200 bg-green-50 text-green-800 hover:bg-green-100"
+                      onClick={() => onLogHomeSession(homeProgram.id, homeNextSession, stay.pet.name)}
+                    >
+                      <span className="text-[11px] text-green-600">
+                        {homeProgram.totalSessions ? `${homeUsedSessions}/${homeProgram.totalSessions} מפגשים` : `${homeUsedSessions} מפגשים`}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        מפגש בית הלקוח {homeNextSession > 1 ? `(${homeNextSession})` : ""}
+                        <Home className="w-4 h-4" />
+                      </div>
+                    </button>
+                  )}
                 </div>
               ) : (
                 <button
