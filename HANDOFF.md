@@ -1,100 +1,96 @@
-# Petra App — Session Handoff (2026-03-07)
+# Petra App — Session Handoff (2026-03-07, Session 2)
 
 ---
 
 ## 1. What We Did Today
 
-### Training Module — Boarding Training
-- **Weekly updates flow**: "הוסף עדכון שבועי" button replaces old "הוסף עדכון אילוף"; modal is now `SessionLogModal` with `isWeekly: true`
-- **`isWeekly` prop on `SessionLogModal`**: switches all Hebrew labels to weekly context (שבוע X, יעדים שהושגו השבוע, תוכנית לשבוע הבא, משימה לבית לשבוע)
-- **`BoardingTrainingModal`**: removed package dropdown, added `homeFollowupSessions` numeric input; on submit auto-creates a second `TrainingProgram` with `trainingType: "HOME"` linked to the same dog
-- Renamed "עדכוני התקדמות" → "עדכוני שבועיים"
+### Full Performance Audit + Implementation
 
-### Training Module — CreateOrderModal
-- Added 4 training sub-types in a 2×2 grid: מפגש בודד / חבילת אילוף / אילוף בתנאי פנסיון / אילוף קבוצתי
-- **Boarding sub-type**: shows date range (כניסה / יציאה) + home follow-up sessions input
-- **Group sub-type**: shows live list of active training groups (fetched from `/api/training-groups`) with day/time/location; user picks one
-- Data passed to order submission: `trainingBoardingStart`, `trainingBoardingEnd`, `trainingHomeFollowup`, `trainingGroupId`
+#### Lazy Loading (`next/dynamic`)
+- Dashboard: extracted `RevenueChart` to `src/components/dashboard/RevenueChart.tsx` so that `recharts` (~130 kB) is deferred until the chart renders. Added `loading:` skeleton prop.
+- Dashboard: converted `SetupChecklist`, `TeamWelcomeModal`, `OnboardingWizardModal`, `CreateOrderModal` to `dynamic()` with `ssr: false`.
+- `owner-shell.tsx`, `tenant-admin-shell.tsx`: `<img>` → `<Image>` (optimization, not lazy-load per se).
 
-### Service Dogs — Standalone Pets (no customer)
-- **Schema changes** (`prisma/schema.prisma` + `prisma/schema.production.prisma`):
-  - `Pet.customerId String?` (was `String`) — standalone service dogs have no customer
-  - `Pet.businessId String?` — direct ownership for standalone pets
-  - `TrainingProgram.customerId String?` (was `String`)
-  - `Business.standalonePets` relation via `@relation("StandalonePets")`
-- **New API**: `POST /api/service-dogs/standalone-pet` — creates `Pet` (no customer) + `ServiceDogProfile` + `TrainingProgram(trainingType=SERVICE_DOG)` in one transaction
-- **New API**: `GET /api/service-dogs/standalone-pet` — lists standalone pets for this business
-- **UI — service-dogs overview page**: added "הוסף כלב שירות" + "הוסף זכאי" buttons + modals
-- **UI — training page "כלבי שירות" tab**: added same two buttons + inline modals (`AddStandaloneServiceDogModal`, `AddRecipientInlineModal`)
-- Fixed: `api/service-dogs/route.ts` security check now handles both customer-owned and standalone pets
-- Fixed: 8 API routes updated with `pet.customer?.xxx ?? ""` after making `customerId` optional
+#### Cursor-Based Pagination
+- `GET /api/customers` — full cursor pagination: `cursor` + `take` params (clamped 1–100, default 50), returns `{ customers, nextCursor, hasMore }`.
+- Customers page switched from `useQuery` to `useInfiniteQuery` with a "טען עוד לקוחות" Load More button.
+- All other list routes hard-capped: `appointments`, `leads`, `payments`, `pets`, `tasks` at 200; `training-packages`, `task-recurrence`, `booking/availability` at 100; `booking/blocks` at 200.
 
-### QA Fixes
-- **GoalSection** (`training/page.tsx`): added `training-programs-service` to `invalidateQueries` so service dog training programs refresh after a goal is added
-- **Rate limiting**: added to 4 previously unprotected write routes:
-  - `POST /api/service-recipients`
-  - `POST /api/training-packages`
-  - `DELETE /api/messages/[id]`
-  - `POST /api/system-messages`
-- **IDOR review**: `PATCH /api/boarding/[id]` already has pre-check for business ownership before the update — confirmed secure
+#### Image Optimization
+- `next.config.mjs`: added `images.remotePatterns` (any HTTPS host), `dangerouslyAllowSVG: true`, CSP for SVGs.
+- Converted `<img>` → `<Image>` in: `sidebar.tsx`, `login/page.tsx`, `WelcomeScreen.tsx`, `WhatNextScreen.tsx`, `book/[slug]/page.tsx`, `owner-shell.tsx`, `tenant-admin-shell.tsx`.
+- Exceptions kept as `<img>`: QR code data URIs, logo preview with `onError` in settings.
 
-### WhatsApp Booking Confirmation
-- `POST /api/booking/book`: after booking creation, fire-and-forget WhatsApp to:
-  - **Customer**: confirmation with service name, date, time, business name
-  - **Business phone**: new booking notification with customer name, phone, service, date/time
-- Uses `Asia/Jerusalem` timezone for date/time formatting
-- Wrapped in try/catch — booking creation is never blocked by WhatsApp failures
+#### Caching
+- Verified React Query already configured: `staleTime: 5min`, `gcTime: 10min`, `refetchOnWindowFocus: false`. No changes needed.
 
-### Settings Page (already existed, confirmed complete)
-- Logo URL input with live 32×32 preview in BusinessTab
-- Booking page URL card with copy-to-clipboard button: `{NEXT_PUBLIC_APP_URL}/book/{slug}`
-- If no slug set: shows instructions + editable slug field
+#### Database Indexes
+- Verified: 82 `@@index` directives already in schema. All critical composite indexes present. No gaps.
+
+#### Bundle Analysis (from `next build`)
+- Shared first-load JS: **87.8 kB** ✅ (target < 100 kB)
+- Largest pages: `/leads` 284 kB (dnd-kit kanban, acceptable), `/settings` + `/tasks` + `/training` ~145–146 kB
+- Recharts successfully deferred out of the dashboard bundle.
+
+#### Documentation
+- Created `docs/PERFORMANCE.md` — comprehensive guide covering all 7 audit areas.
+- Updated `CLAUDE.md` — added Performance Conventions section, fixed staleTime note.
 
 ---
 
 ## 2. What's Working
 
-- **Training module** — all 7 tabs functional: סקירה, אילוף פרטני, אילוף בפנסיון, קבוצות, סדנאות, כלבי שירות, חבילות
-- **Boarding training**: create plan linked to active stay, log weekly updates, auto-create HOME follow-up program
-- **Standalone service dogs**: create dog without customer → appears immediately in "כלבי שירות" training tab and service dogs sidebar
-- **Service dog recipients**: create recipient from both /service-dogs and /training pages
-- **WhatsApp booking confirmations**: fire-and-forget, non-blocking
-- **TypeScript**: clean (`tsc --noEmit` passes with 0 errors)
-- **Production deployment**: deployed to `petra-app.com` at commit `eaa85db`
+- **TypeScript**: ✅ `tsc --noEmit` passes with 0 errors
+- **Production build**: ✅ `next build` succeeds, no warnings
+- **Cursor pagination**: customers API + UI fully working
+- **Lazy loading**: RevenueChart, modals deferred; recharts out of initial bundle
+- **Image optimization**: Next.js `<Image>` throughout; next.config.mjs configured for external URLs
+- **WhatsApp booking confirmations**: fire-and-forget, non-blocking (from previous session)
+- **All QA fixes from previous session**: rate limiting, goal invalidation, IDOR review
+- **Production**: deployed to `petra-app.com` at commit `9c8d4f8`
 
 ---
 
 ## 3. What's Broken or Incomplete
 
-- **RESEND_API_KEY not set**: emails (forgot password, reminders) won't send. Needs to be set in Vercel env vars.
-- **`/intake` middleware bug**: `/intake` is listed in `PUBLIC_PATHS` in `middleware.ts` so the dashboard intake page is accessible without auth.
-- **WhatsApp booking confirmations**: only work if `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WHATSAPP_FROM` are set. In dev/stub mode, silently no-ops (logged to console).
-- **Standalone pets in `/pets` page**: filtered out correctly (the API uses `customer.businessId` filter), so they'll never show in the pets table — by design. No UI exists to browse standalone pets outside of the service dogs module.
-- **GoalSection toggle** (mark goal complete): only invalidates `training-programs` and `training-programs-boarding` + `training-programs-service` — but the toggle mutation itself may not exist yet (only the "add goal" mutation was fixed). To verify.
+- **RESEND_API_KEY not set**: emails (forgot password, reminders) won't send. Needs to be added as a Vercel env var.
+- **`/intake` middleware bug**: `/intake` is listed in `PUBLIC_PATHS` in `middleware.ts` — the dashboard intake management page is accessible without auth.
+- **WhatsApp booking confirmations**: requires `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WHATSAPP_FROM` env vars. Silently no-ops without them.
+- **Pagination not applied to all pages**: only customers has useInfiniteQuery + Load More. Payments, leads, tasks, boarding are still single-page with hard caps (200 records). Sufficient for now but worth revisiting if a tenant hits the limit.
+- **GoalSection toggle** (mark goal complete/incomplete): the fix added `training-programs-service` invalidation to the "add goal" mutation — but whether the toggle/complete mutation also invalidates this query wasn't verified. May be missing.
+- **Standalone pets in `/service-dogs/dogs` page**: the card grid may only query pets via `Pet.customer`, not via `Pet.businessId`. Standalone dogs created without a customer might not appear. Needs verification.
 
 ---
 
 ## 4. Exact Stopping Point
 
-Last action: updated `MEMORY.md` with session summary and completed the QA task. All changes committed (`eaa85db`) and deployed to production.
+Last action this session: committed `docs/PERFORMANCE.md` + CLAUDE.md updates (`9c8d4f8`), deployed to production (`petra-app.com`), pushed to `origin/main`. All 5 performance commits are live.
 
 ---
 
-## 5. Next Steps (First Things to Do in Next Session)
+## 5. Next Step — First Thing to Do Next Session
 
-1. **Set `RESEND_API_KEY`** — go to resend.com → create API key → `vercel env add RESEND_API_KEY production` → redeploy. This unblocks forgot-password and email reminders.
-2. **Test WhatsApp booking confirmation end-to-end** — make a test booking via `/book/{slug}` and verify both messages arrive (customer + business).
-3. **Fix `/intake` middleware bug** — remove `/intake` from `PUBLIC_PATHS` in `src/middleware.ts` (or change the path to `/intake/[token]` only).
-4. **Verify standalone dog appears in service-dogs list** — create a standalone dog via the training page button, confirm it shows up in `/service-dogs/dogs` page (card grid with phase filter).
+**Verify standalone service dogs appear correctly in `/service-dogs/dogs`.**
+
+Specifically:
+1. Open the app → Training → כלבי שירות tab → click "הוסף כלב שירות" → create a standalone dog (no customer linked).
+2. Navigate to `/service-dogs/dogs` — confirm the dog appears in the card grid.
+3. If it doesn't appear: check `GET /api/service-dogs` (or whichever API the dogs page calls) — it likely has `where: { customer: { businessId } }` and needs to add `OR: [{ customer: { businessId } }, { businessId, customerId: null }]`.
+
+After that, the remaining items:
+- Fix `/intake` middleware bug (remove `/intake` from `PUBLIC_PATHS`).
+- Set `RESEND_API_KEY` on Vercel to enable emails.
+- Verify GoalSection toggle mutation also invalidates `training-programs-service`.
 
 ---
 
 ## 6. Open Questions
 
-- **Goal toggle (complete/uncomplete)**: does the existing `GoalSection` component have a toggle mutation? It has an "add goal" mutation but we didn't verify if the checkmark/toggle also invalidates `training-programs-service`. Should be checked.
-- **Standalone pets — `/service-dogs/dogs` page**: the dogs grid likely queries `GET /api/service-dogs` which joins through `Pet.customer`. Does it include standalone pets? May need to update the query to also return pets via `Pet.businessId` (standalone).
-- **Production DB migration**: `Pet.customerId` is now nullable and `Pet.businessId` was added. These schema changes were in `schema.production.prisma` — Vercel runs `prisma db push` on deploy, so the migration should have applied. Worth verifying in production (run a test standalone dog creation).
-- **CreateOrderModal boarding/group submission**: the new fields (`trainingBoardingStart`, `trainingBoardingEnd`, `trainingGroupId`) are passed to the orders API. Does `POST /api/orders` actually use these to enrich the auto-created TrainingProgram? Check `src/app/api/orders/route.ts` to confirm.
+- **Standalone dogs in dogs grid**: does `/api/service-dogs` query include `Pet.businessId` (standalone) or only pets via customer? (See Next Step above.)
+- **GoalSection toggle**: does clicking the checkmark on a goal also call `invalidateQueries` for `training-programs-service`? Only the "add goal" mutation was confirmed fixed.
+- **Load More UX on customers page**: currently shows all filtered customers (flattened from all pages). If a user searches, does the cursor reset correctly? React Query should reset `pageParam` when `queryKey` changes — worth a quick smoke test.
+- **`/intake` in middleware**: is `/intake` (dashboard page) intentionally public, or is this an oversight from when the only intake route was the public `/intake/[token]`? Almost certainly an oversight — the public one is the token page, not the dashboard listing.
+- **CreateOrderModal boarding fields** (`trainingBoardingStart`, `trainingBoardingEnd`, `trainingGroupId`): these are passed to `POST /api/orders`. Does the orders API actually use them to enrich the auto-created TrainingProgram? Check `src/app/api/orders/route.ts`.
 
 ---
 
@@ -103,36 +99,39 @@ Last action: updated `MEMORY.md` with session summary and completed the QA task.
 ### New Files
 | File | What |
 |------|------|
-| `src/app/api/service-dogs/standalone-pet/route.ts` | POST + GET for standalone service dog pets |
+| `src/components/dashboard/RevenueChart.tsx` | Extracted from dashboard/page.tsx for lazy loading recharts |
+| `docs/PERFORMANCE.md` | Full performance audit reference document |
 
 ### Modified Files
 | File | Change Summary |
 |------|----------------|
-| `prisma/schema.prisma` | `Pet.customerId?`, `Pet.businessId?`, `TrainingProgram.customerId?`, `Business.standalonePets` relation |
-| `prisma/schema.production.prisma` | Synced with schema.prisma |
-| `src/app/(dashboard)/training/page.tsx` | isWeekly prop, BoardingTrainingModal overhaul, standalone dog + recipient modals, GoalSection fix, many other training improvements |
-| `src/app/(dashboard)/service-dogs/page.tsx` | "הוסף כלב שירות" + "הוסף זכאי" buttons + modals |
-| `src/app/(dashboard)/settings/page.tsx` | Logo URL input + booking page URL card (already done by end of session) |
-| `src/components/orders/CreateOrderModal.tsx` | 4 training sub-types grid, boarding date range, group picker |
-| `src/app/api/booking/book/route.ts` | WhatsApp confirmation after booking creation |
-| `src/app/api/service-dogs/route.ts` | Security fix: handle standalone pets in businessId check |
-| `src/app/api/training-programs/route.ts` | `customerId: null` support |
-| `src/app/api/messages/[id]/route.ts` | Rate limiting on DELETE |
-| `src/app/api/service-recipients/route.ts` | Rate limiting on POST |
-| `src/app/api/training-packages/route.ts` | Rate limiting on POST |
-| `src/app/api/system-messages/route.ts` | Rate limiting on POST |
-| `src/app/api/cron/birthday-reminders/route.ts` | Null-safe `pet.customer?.` access |
-| `src/app/api/cron/vaccination-reminders/route.ts` | Null-safe `pet.customer?.` access |
-| `src/app/api/exports/download/route.ts` | Null-safe `pet.customer?.` access |
-| `src/app/api/feeding/route.ts` | Null-safe `pet.customer?.` access |
-| `src/app/api/health-alerts/route.ts` | Null-safe `pet.customer?.` access |
-| `src/app/api/pets/birthdays/route.ts` | Null-safe `pet.customer?.` access |
-| `src/app/api/pets/medications/route.ts` | Null-safe `pet.customer?.` access |
-| `src/app/api/pets/vaccinations/route.ts` | Null-safe `pet.customer?.` access |
+| `src/app/(dashboard)/dashboard/page.tsx` | Remove recharts import; dynamic() for RevenueChart + 4 heavy modals |
+| `src/app/(dashboard)/customers/page.tsx` | useInfiniteQuery cursor pagination + Load More button |
+| `src/app/api/customers/route.ts` | Cursor pagination: `cursor`/`take`/`nextCursor`/`hasMore` response shape |
+| `src/app/api/appointments/route.ts` | take: 500 → 200 |
+| `src/app/api/leads/route.ts` | take: 500 → 200 |
+| `src/app/api/payments/route.ts` | take: 500 → 200 |
+| `src/app/api/pets/route.ts` | take: 500 → 200 |
+| `src/app/api/tasks/route.ts` | take: 500 → 200 |
+| `src/app/api/training-packages/route.ts` | Added take: 100 guard |
+| `src/app/api/task-recurrence/route.ts` | Added take: 100 guard |
+| `src/app/api/booking/availability/route.ts` | Added take: 100 guard |
+| `src/app/api/booking/blocks/route.ts` | Added take: 200 guard |
+| `src/components/layout/sidebar.tsx` | `<img>` → `<Image>` (logo) |
+| `src/components/owner/owner-shell.tsx` | `<img>` → `<Image>` (logo) |
+| `src/components/tenant-admin/tenant-admin-shell.tsx` | `<img>` → `<Image>` (logo) |
+| `src/app/login/page.tsx` | `<img>` → `<Image>` (logo) |
+| `src/components/onboarding/WelcomeScreen.tsx` | `<img>` → `<Image>` (logo) |
+| `src/components/onboarding/WhatNextScreen.tsx` | `<img>` → `<Image>` (logo) |
+| `src/app/book/[slug]/page.tsx` | `<img>` → `<Image>` (business logo + fallback) |
+| `next.config.mjs` | images config: remotePatterns, dangerouslyAllowSVG, CSP |
+| `CLAUDE.md` | Performance Conventions section added; staleTime note fixed |
 
 ---
 
 ## Production Status
-- **Last deploy**: `eaa85db` — deployed successfully to `petra-app.com`
+- **Last deploy**: `9c8d4f8` — deployed successfully to `petra-app.com`
 - **TypeScript**: ✅ clean
-- **Git**: ahead by 0 (all pushed)
+- **Build**: ✅ no errors
+- **Git**: all 5 performance commits pushed to `origin/main`
+- **Schema**: `prisma/schema.production.prisma` in sync with `schema.prisma`
