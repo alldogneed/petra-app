@@ -1,114 +1,141 @@
-# Petra App — Session Handoff (2026-03-07, Session 3)
+# Petra App — Session Handoff (2026-03-07, Session 4)
 
 ---
 
 ## 1. What We Did Today
 
-### Performance Audit (carried over from session 2 — completed this session)
-- **`docs/PERFORMANCE.md`** created: comprehensive performance guide
-- **`CLAUDE.md`** updated: Performance Conventions section added
-- **`RevenueChart`** extracted to `src/components/dashboard/RevenueChart.tsx` and lazy-loaded via `dynamic()` — defers ~130 kB recharts from initial bundle
-- Completed push of all performance commits to `origin/main` (3 commits had not been pushed)
+### Training Orders — 4 Bugs Fixed (`adff103`)
+All fixed in `src/app/api/orders/route.ts` within a single Prisma transaction:
 
-### CreateOrderModal — Group Training Fixes (`eab699c`, `9b94268`)
-Two bugs fixed in the group training order flow:
-- **No active groups warning**: if no active training groups exist, shows a red warning badge and disables the continue button — "אין קבוצות אימון פעילות. יש ליצור קבוצה תחילה"
-- **Group not selected warning**: if user reaches review step without selecting a group, shows red warning and blocks submission
-- **Validation step fixed**: the group sub-type selector is on step 2 (items), so validation was moved from "המשך לפריטים" button to "המשך לסיכום" button — previously validated at the wrong step
+**Bug 1 — Boarding training not in "אילוף בתנאי פנסיון" tab:**
+- API always set `trainingType: "HOME"` regardless of subtype
+- Fix: `trainingType: trainingSubType === "boarding" ? "BOARDING" : "HOME"`
 
-### Boarding Training → Home Session Button (`f9dd072`)
-New feature on the boarding training card:
-- When a boarding training program has a HOME follow-up program for the same dog, a green **"מפגש בית הלקוח"** button appears below the weekly update button
-- Shows session counter: `0/5 מפגשים` (based on `totalSessions` set when creating the boarding plan)
-- Clicking opens the standard **"רישום מפגש"** modal (`isWeekly: false`) — same format as personal training: date, exercises done, goals for next session, homework
-- No duplication: uses the existing `SessionLogModal` with a different label set (not the weekly boarding labels)
-- **Prerequisite**: when creating a boarding training plan, set "מפגשי המשך בבית הלקוח" > 0 — this auto-creates the HOME program
+**Bug 2 — Boarding dog not in boarding occupancy:**
+- No `BoardingStay` was ever created for boarding training orders
+- Fix: create `BoardingStay` in the transaction before `TrainingProgram`, link via `boardingStayId`
 
-### Sync fix
-- 3 commits (`eab699c`, `9b94268`, `f9dd072`) were on local main but not on `origin/main`
-- Confirmed Vercel had already deployed them via `vercel --prod` (deployed directly from local)
-- Pushed to GitHub manually to keep repo in sync
+**Bug 3 — Package training program not appearing in "חבילת אילוף" sub-tab:**
+- `isPkg` was `false` when no explicit `trainingPackageId` was sent
+- API queried `PriceListItem` using a `TrainingPackage.id` (wrong model) → null result
+- `TrainingPackage.id` stored in `priceListItemId` (wrong FK) → potential DB error
+- Fix: `isPkg = trainingSubType === "package"` always; look up `TrainingPackage`; store in `packageId`
+
+**Bug 4 — Group training not enrolling dog in group:**
+- `trainingGroupId` sent from modal but silently ignored by API
+- API created a lone `TrainingProgram` appearing in "אילוף פרטני", not "קבוצות"
+- Fix: upsert `TrainingGroupParticipant` (compound key `trainingGroupId_dogId`); dog now in "קבוצות" tab
+
+Cache fix: `CreateOrderModal` now invalidates `training-programs-boarding`, `training-groups`, `training-groups-active` on success.
+
+### Group Training Validation (`eab699c`, `9b94268`)
+Red warnings + disabled "המשך לסיכום" button when:
+- `trainingSubType === "group"` and no active groups exist → "אין קבוצות אילוף פעילות"
+- `trainingSubType === "group"` and no group selected → "חובה לבחור קבוצת אילוף לפני המשך"
+
+Fix iteration: first put validation on step 1 button (wrong — sub-type selector is on step 2). Moved to "המשך לסיכום" (step 2 → review button).
+
+**Unresolved**: user reported validation not visible in production. See Section 5.
+
+### Service Dog Profile — "תיק כלב" Tab (`338cb86`)
+New tab in `/service-dogs/[id]`:
+- Basic info (age, weight, microchip, vet, origin), feeding, medications CRUD, health & vaccinations, behavior flags — all with edit modals
+- Fixed pet APIs (health/behavior/medications) to accept standalone pets (businessId set, no customerId)
+- Training programs API: exclude SERVICE_DOG from default queries
+
+### Service Dogs — Recipients, Archive, Tests, Documents (`6a24b3e`)
+- **Recipient profile**: `/service-dogs/recipients/[id]` with 3 tabs; clickable rows in list
+- **Placements**: searchable combo boxes for dog & recipient
+- **Dog archive**: toggle RETIRED/DECERTIFIED in management page
+- **"סיום תהליך"**: atomic dog+recipient archive via `POST /api/service-placements/[id]/complete`
+- **"מבחני הכשרה" tab**: ADI test categories on dog profile
+- **"מסמכים" tab**: document links on dog profile
+- **Schema**: `ServiceDogProfile.documents/trainingTests`; `ServiceDogRecipient.attachments/meetings`
+- **API**: full `GET/PATCH/DELETE /api/service-recipients/[id]`
+
+### Boarding Training — Home Session Button (`f9dd072`)
+Boarding card shows green "מפגש בית הלקוח" button when HOME follow-up program exists for the dog.
 
 ---
 
 ## 2. What's Working
 
-- **TypeScript**: ✅ clean (`tsc --noEmit` passes)
-- **Production**: ✅ `petra-app.com` at commit `f9dd072`
-- **GitHub**: ✅ `origin/main` fully synced
-- **Boarding → home transfer**: green button appears on boarding card when HOME program exists
-- **Group order validation**: blocks submission if no group selected or none exist
-- **Performance**: recharts lazy-loaded, cursor pagination on customers, all list APIs capped
+- Production at `petra-app.com` — latest commit `6a24b3e` ✅
+- Boarding training orders: BoardingStay + TrainingProgram(BOARDING) created ✅
+- Package training: isPackage=true, packageId correct, appears in "חבילת אילוף" ✅
+- Group training: TrainingGroupParticipant upserted, dog in "קבוצות" tab ✅
+- Service dog "תיק כלב" tab ✅
+- Service dog recipients profile page ✅
+- TypeScript: clean ✅
 
 ---
 
 ## 3. What's Broken or Incomplete
 
-**"מפגש בית הלקוח" button only appears if HOME program was created at boarding plan creation time**
-If an existing boarding program was created *without* setting "מפגשי המשך" > 0, no HOME program exists and the button won't appear. There's no UI to add a HOME follow-up program after the fact. Would need a "הוסף מפגשי המשך" button in the boarding card for this edge case.
+**Group training validation not confirmed in production**
+Possible causes:
+1. Browser cache — try Cmd+Shift+R
+2. `trainingGroups` query loads async; while loading, `trainingGroups = []` (default), so "no groups exist" warning appears even when groups do exist. Need to guard with `!groupsLoading`.
 
-**HOME program lookup is by `dog.id` only — no direct link to the boarding program**
-If a dog has two separate boarding training sessions, both would find the same HOME program. Low risk for now (unlikely scenario) but worth noting.
+**RESEND_API_KEY not set** — email delivery silently fails.
 
-**RESEND_API_KEY not set**
-Email delivery (forgot password, reminders) silently fails in production.
+**`/intake` middleware bug** — `/intake` dashboard page accessible without auth.
 
-**`/intake` middleware bug**
-`/intake` dashboard page is accessible without auth — middleware prefix-matches the public `/intake/[token]` path.
+**Cron jobs unverified** — `CRON_SECRET` may not be set in Vercel.
 
-**Cron jobs unverified**
-`vercel.json` defines 4 cron jobs. Not confirmed they fire. Requires `CRON_SECRET` env var in Vercel.
-
-**Customers search after pagination**
-Search is client-side against loaded pages only. Businesses with 200+ customers will miss results. Needs `?search=` param on the API + server-side filtering.
-
-**Staging URL not permanent**
-Vercel gives a new random URL every push. No fixed staging domain.
-
-**`dev` branch unused**
-All work goes directly to `main`. The deployment workflow (dev → staging → main) is set up but not being followed.
+**Staging URL not permanent.**
 
 ---
 
 ## 4. Exact Stopping Point
 
-Last action: pushed all pending commits to `origin/main` (`f9dd072` is HEAD), confirmed Vercel production is live.
+User reported group training validation not visible, then requested HANDOFF + CLAUDE.md updates. Session ended without resolving the validation.
 
-- **Branch**: `main`
-- **Working tree**: clean
-- **Local = origin/main**: ✅ fully synced
-- **Latest commit**: `f9dd072` — "feat: add home session button on boarding training card"
+- Branch: `main` = `origin/main` ✅
+- Latest deployed commit: `6a24b3e`
+- Working tree: clean
 
 ---
 
 ## 5. Next Step — First Thing to Do Next Session
 
-**Test the boarding → home session flow end to end:**
+**Confirm or fix group training validation (5–10 min):**
 
-1. Go to `/training` → "אילוף בפנסיון" tab
-2. Find a dog with an active boarding program
-3. Confirm the green "מפגש בית הלקוח" button appears (only if the boarding plan was created with `homeFollowupSessions > 0`)
-4. If no button appears: click "צור תוכנית אילוף לפנסיון" for a stay → set "מפגשי המשך" to e.g. 5 → save → button should appear
-5. Click the button → confirm "רישום מפגש" modal opens (not "עדכון שבועי")
-6. Save a session → check it appears in "אילוף פרטני" tab under the HOME program card
+1. Hard refresh `petra-app.com` (Cmd+Shift+R)
+2. Create new order → training → click "המשך לפריטים"
+3. On step 2: select "אילוף קבוצתי" — do NOT pick a group
+4. Check: red warning + disabled button?
 
-If the HOME program doesn't show in "אילוף פרטני": the `programs` query fetches `?status=ACTIVE,PAUSED` with `trainingType != SERVICE_DOG`. HOME programs should be included and appear in `IndividualTab` (filter: `!p.isPackage && !p.boardingStayId`). If not, debug the API response.
+**If still broken** — fix `CreateOrderModal.tsx` around the `trainingGroups` query and the warning conditions:
+
+```typescript
+// Add isLoading to destructure:
+const { data: trainingGroups = [], isLoading: groupsLoading } = useQuery(...)
+
+// Guard "no groups" warning with groupsLoading:
+{orderType === "training" && trainingSubType === "group" 
+  && !groupsLoading && trainingGroups.filter(g => g.isActive).length === 0 && (
+  <p ...>⚠️ אין קבוצות אילוף פעילות...</p>
+)}
+
+// Same guard on disabled condition:
+disabled={
+  lines.length === 0 ||
+  (orderType === "training" && trainingSubType === "group" &&
+    (!selectedGroupId || (!groupsLoading && trainingGroups.filter(g => g.isActive).length === 0)))
+}
+```
 
 ---
 
 ## 6. Open Questions
 
-1. **Home program after-the-fact**: should there be a "הוסף מפגשי המשך בבית" button on boarding cards that have no HOME program? The trainer may forget to set it during boarding plan creation.
-
-2. **HOME program card in "אילוף פרטני"**: it shows up there generically. Should it have a visual badge "המשך פנסיון — [dog name]" to distinguish it from regular personal training? Right now nothing visually connects it to the boarding stay.
-
-3. **RESEND_API_KEY**: is this on the to-do list or blocked waiting for resend.com account setup?
-
-4. **Cron jobs**: check Vercel dashboard → Functions → Cron. If `CRON_SECRET` is missing, birthday reminders and vaccination reminders never run.
-
-5. **`/intake` middleware bug**: is the `/intake` dashboard page ever actually used? It's in the sidebar. If yes, fix by removing `/intake` from `PUBLIC_PATHS` and keeping only `/intake/` (with trailing slash or token pattern).
-
-6. **Search pagination**: when will the customer base be large enough that 50-record pages + client search becomes a problem? Should be fixed before launch if expecting 100+ customers.
+1. **Group validation** — cache or code bug? Needs fresh test.
+2. **Group order bypassed** — server-side validation missing; API falls into else → creates lone TrainingProgram(HOME).
+3. **Package without package selected** — `packageId: null`, `totalSessions: null`. OK?
+4. **HOME program link** — lookup by `dog.id` only; two boarding stays → same HOME program button on both.
+5. **RESEND_API_KEY** — open resend.com, create key, set in Vercel env.
+6. **Cron jobs** — check Vercel → Functions → Cron. Set `CRON_SECRET` if missing.
 
 ---
 
@@ -117,16 +144,29 @@ If the HOME program doesn't show in "אילוף פרטני": the `programs` quer
 ### New Files
 | File | Purpose |
 |------|---------|
-| `src/components/dashboard/RevenueChart.tsx` | Recharts chart extracted for lazy loading |
-| `docs/PERFORMANCE.md` | Full performance audit reference |
+| `src/app/(dashboard)/service-dogs/recipients/[id]/page.tsx` | Recipient profile page |
+| `src/app/api/service-placements/[id]/complete/route.ts` | Atomic archive endpoint |
 
 ### Modified Files
 | File | Change |
 |------|--------|
-| `src/app/(dashboard)/training/page.tsx` | `BoardingTrainingTab`: +`homePrograms` prop, +`onLogHomeSession` prop, home program lookup by `dog.id`, green "מפגש בית הלקוח" button with session counter |
-| `src/components/orders/CreateOrderModal.tsx` | Group training: red warning if no groups exist, disable continue; validation moved to correct step |
-| `src/app/(dashboard)/dashboard/page.tsx` | Remove inline `RevenueChart`, add `dynamic()` import |
-| `CLAUDE.md` | Performance Conventions section added |
+| `src/app/api/orders/route.ts` | All 4 training order bug fixes |
+| `src/components/orders/CreateOrderModal.tsx` | Group training validation (step 2); cache invalidation |
+| `src/app/(dashboard)/training/page.tsx` | Home session button on boarding cards |
+| `src/app/api/training-programs/route.ts` | Exclude SERVICE_DOG by default |
+| `src/app/api/pets/[petId]/health/route.ts` | Standalone pet support |
+| `src/app/api/pets/[petId]/behavior/route.ts` | Standalone pet support |
+| `src/app/api/pets/[petId]/medications/route.ts` | Standalone pet support |
+| `src/app/api/pets/[petId]/medications/[medId]/route.ts` | Standalone pet support |
+| `src/app/api/pets/[petId]/route.ts` | Standalone pet support |
+| `src/app/api/service-dogs/[id]/route.ts` | Include health/behavior/medications |
+| `src/app/(dashboard)/service-dogs/[id]/page.tsx` | תיק כלב + מבחני הכשרה + מסמכים tabs; סיום תהליך button |
+| `src/app/(dashboard)/service-dogs/dogs/page.tsx` | Archive mode toggle |
+| `src/app/(dashboard)/service-dogs/placements/page.tsx` | Searchable combos |
+| `src/app/(dashboard)/service-dogs/recipients/page.tsx` | Clickable rows |
+| `src/app/(dashboard)/customers/[id]/page.tsx` | Medications button style |
+| `prisma/schema.prisma` | ServiceDogProfile/Recipient JSON fields |
+| `prisma/schema.production.prisma` | Synced |
 
 ---
 
@@ -134,8 +174,8 @@ If the HOME program doesn't show in "אילוף פרטני": the `programs` quer
 
 | Item | Status |
 |------|--------|
-| Latest commit | `f9dd072` |
+| Latest commit | `6a24b3e` |
 | Production (petra-app.com) | ✅ Deployed |
 | TypeScript | ✅ Clean |
-| GitHub (origin/main) | ✅ Synced |
-| Branch protection on main | ✅ Active |
+| Git | `main` = `origin/main` ✅ |
+| Branch protection | ✅ Active |

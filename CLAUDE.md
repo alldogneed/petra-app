@@ -463,7 +463,7 @@ isProd               // true on Vercel production (main branch)
 | **אילוף פרטני** | Home training programs. Package/session management, goals, sessions, homework |
 | **אילוף בפנסיון** | Boarding training programs. Weekly update modal. Green "מפגש בית הלקוח" button appears when a HOME follow-up program exists for the dog — opens standard session log (not weekly format) |
 | **קבוצות** | Training groups + workshops (merged sub-tab) |
-| **כלבי שירות** | Service dog training programs. Phase display, "הוסף כלב שירות" + "הוסף זכאי" buttons |
+| **כלבי שירות** | Service dog training programs with phase display (managed via `/service-dogs/*` pages) |
 | **חבילות** | TrainingPackage CRUD (type, sessions, price) |
 | **ארכיון** | Completed/canceled programs with date filter + CSV export |
 
@@ -502,6 +502,13 @@ isProd               // true on Vercel production (main branch)
 - Order list with status filter
 - Order detail: line items, discount, tax, total
 - Order creation modal with training sub-types (מפגש/חבילה/פנסיון/קבוצתי)
+
+**Training order auto-creation** (`POST /api/orders` transaction):
+- `trainingSubType === "boarding"` → creates `BoardingStay` + `TrainingProgram(trainingType: BOARDING, boardingStayId)`
+- `trainingSubType === "package"` → creates `TrainingProgram(isPackage: true, packageId)` using `TrainingPackage` for sessions/name
+- `trainingSubType === "group"` + `trainingGroupId` → upserts `TrainingGroupParticipant` (no separate program); dog appears in "קבוצות" tab
+- `trainingSubType === "private"` → creates `TrainingProgram(isPackage: false, trainingType: HOME)`
+- All training orders require a pet (`selectedPetId`) and group orders require a group selected — blocked in UI with red warning if missing
 
 ### ✅ Invoicing (`/invoices`)
 - Invoice document list
