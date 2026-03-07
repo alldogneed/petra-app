@@ -155,6 +155,7 @@ petra-app/
 │   │       ├── admin/             # Platform admin shell
 │   │       ├── analytics/         # Analytics charts
 │   │       ├── boarding/          # BoardingTabs
+│   │       ├── dashboard/         # RevenueChart (lazy-loaded, defers recharts from initial bundle)
 │   │       ├── finance/           # FinanceTabs
 │   │       ├── service-dogs/      # ServiceDogsTabs
 │   │       ├── tenant-admin/      # Tenant admin components
@@ -302,8 +303,8 @@ petra-app/
 ### Service Dogs
 | Model | Purpose |
 |-------|---------|
-| `ServiceDogProfile` | 1:1 extension of Pet. phase (SELECTION→TRAINING→ADVANCED→PLACEMENT→CERTIFIED→RETIRED), certificationDate, trainingHours |
-| `ServiceDogRecipient` | Person receiving a service dog (disability info, waitlist status) |
+| `ServiceDogProfile` | 1:1 extension of Pet. phase (SELECTION→TRAINING→ADVANCED→PLACEMENT→CERTIFIED→RETIRED), certificationDate, trainingHours, `documents Json` (URL links), `trainingTests Json` (ADI exam results) |
+| `ServiceDogRecipient` | Person receiving a service dog (disability info, waitlist status), `attachments Json` (URL links), `meetings Json` (coordination log) |
 | `ServiceDogPlacement` | Dog↔Recipient match (PENDING/TRIAL/ACTIVE/TERMINATED) |
 | `ServiceDogMedicalProtocol` | Phase-based medical requirements with due dates |
 | `ServiceDogTrainingLog` | ADI training session logs with cumulative hours |
@@ -460,7 +461,7 @@ isProd               // true on Vercel production (main branch)
 |-----|--------------|
 | **סקירה** (Overview) | Active dogs grid, alerts (≤2 sessions remaining, 14+ days gap), WhatsApp button |
 | **אילוף פרטני** | Home training programs. Package/session management, goals, sessions, homework |
-| **אילוף בפנסיון** | Boarding training programs. Weekly update modal with home sessions |
+| **אילוף בפנסיון** | Boarding training programs. Weekly update modal. Green "מפגש בית הלקוח" button appears when a HOME follow-up program exists for the dog — opens standard session log (not weekly format) |
 | **קבוצות** | Training groups + workshops (merged sub-tab) |
 | **כלבי שירות** | Service dog training programs. Phase display, "הוסף כלב שירות" + "הוסף זכאי" buttons |
 | **חבילות** | TrainingPackage CRUD (type, sessions, price) |
@@ -472,20 +473,25 @@ isProd               // true on Vercel production (main branch)
 - Program settings modal (goals, homework)
 
 ### ✅ Service Dogs — Full Module (`/service-dogs/*`)
-6 sub-pages:
+6 sub-pages + recipient profile:
 
 | Page | Purpose |
 |------|---------|
 | `/service-dogs` | Overview dashboard: counts by phase, recent activity |
-| `/service-dogs/dogs` | Dog card grid with phase filter |
-| `/service-dogs/[id]` | Individual dog profile (training, medical, compliance, placements, ID card tabs) |
-| `/service-dogs/recipients` | Recipient table + detail modal |
-| `/service-dogs/placements` | Placements list + active placement highlight |
+| `/service-dogs/dogs` | Dog card grid with phase filter. Archive toggle (RETIRED/DECERTIFIED hidden by default) |
+| `/service-dogs/[id]` | Individual dog profile — 8 tabs: תיק כלב, פרוטוקולים רפואיים, יומן אימונים, מבחני הכשרה, משמעת ודיווח, שיבוצים, מסמכים, תעודת זהות |
+| `/service-dogs/recipients` | Recipient table with clickable rows → full profile page |
+| `/service-dogs/recipients/[id]` | Full recipient profile: פרטים, מסמכים, מפגשים (coordination log) |
+| `/service-dogs/placements` | Placements list + active placement. `SearchableSelect` for dog/recipient in create modal |
 | `/service-dogs/compliance` | Compliance events + urgency grouping |
 | `/service-dogs/id-cards` | ID card grid + QR code viewer |
 
 - Public endpoint: `/api/service-dogs/id-card/[token]` — no auth, verifies QR
-- Standalone service dogs: Pet created without Customer (businessId set directly)
+- Standalone service dogs: Pet created without Customer (`businessId` set directly)
+- **TrainingTests tab**: ADI-standard exam log — 18 categories per test, pass/fail/score, overall result
+- **Documents tab**: URL-based document links (Google Drive, Dropbox, etc.) with type + date
+- **End-of-process**: "סיום תהליך הכשרה ושיבוץ" button → atomically sets placement→COMPLETED, dog→RETIRED, recipient→CLOSED (`POST /api/service-placements/[id]/complete`)
+- `training-programs` API excludes `trainingType=SERVICE_DOG` by default — service dog programs only visible via `?trainingType=SERVICE_DOG`
 
 ### ✅ Payments (`/payments`)
 - Payment table with amount, status, method, date
@@ -615,7 +621,8 @@ isProd               // true on Vercel production (main branch)
 ### 🔄 Reminders / Cron
 - Cron routes exist: `/api/cron/birthday-reminders`, `/api/cron/generate-tasks`, `/api/cron/send-reminders`, `/api/cron/vaccination-reminders`
 - `reminder-service.ts` built
-- **Missing:** cron jobs registered on Vercel — not configured in `vercel.json`
+- ✅ Cron jobs defined in `vercel.json` (4 schedules)
+- **Missing:** `CRON_SECRET` env var must be set in Vercel for routes to accept requests; confirm in Vercel dashboard → Functions → Cron
 
 ### 🔄 Onboarding
 - `OnboardingProfile` + `OnboardingProgress` models exist
@@ -640,7 +647,7 @@ isProd               // true on Vercel production (main branch)
 
 Based on code comments, schema fields, and incomplete implementations:
 
-1. **Cron jobs (Vercel)** — birthday reminders, send-reminders, vaccination alerts, auto task generation are coded but not scheduled
+1. **Cron jobs (Vercel)** — ✅ Defined in `vercel.json`. Require `CRON_SECRET` env var in Vercel to be active. Verify in Vercel dashboard → Functions → Cron.
 2. **GCal sync worker** — SyncJob queue exists but processing never runs automatically
 3. **Stripe checkout** — keys stored, but no checkout flow for customers
 4. **Tier gating** — schema has `tier` on Business, TIERS constant defined, but zero enforcement
@@ -654,21 +661,19 @@ Based on code comments, schema fields, and incomplete implementations:
 
 ## 8. Current Status (March 2026)
 
-**Most active area:** Training module (March 2026 complete overhaul).
+**Most active area:** Training module (March 2026 complete overhaul) + performance/infra.
 
 Recent git history (most recent first):
-- `eaa85db` — Rate limiting, goal invalidation fixes, WhatsApp booking confirmations
-- `f39011f` — Standalone service dog auto-creates TrainingProgram + adds "הוסף זכאי" to training tab
-- `ac7fe47` — Null-guard fixes for Pet.customer after making customerId optional
-- `5fd07b6` — Null-safe customer access, boarding tab RTL redesign
-- `9d4c89d` — **Standalone service dogs** (Pet.customerId now optional, new API `/api/service-dogs/standalone-pet`)
-- `41ba743` — Weekly update modal: unrestricted date + home sessions section
-- `594d6bc` — Training-order deep sync (goals, order link, programType)
-- `9dcc54b` — CreateOrderModal: boarding + group training sub-types
-- `c5607a6` — Boarding weekly update modal: SessionLogModal with `isWeekly: true`
-- `4f69fba` — Boarding training: weekly updates flow + auto-create HOME follow-up program
-- `3341c97` — Service dog phase selector in training tab
-- `6611027` — Training archive date range filter
+- `6a24b3e` — Service dogs: recipient profiles, archive, training tests, documents tab; end-of-process flow
+- `452ec8d` — Dog profile first tab fix + default active tab
+- `338cb86` — Service dog isolation + dog file tab with full pet health
+- `adff103` — Training orders: boarding stay, package program, group enrollment
+- `f9dd072` — Boarding training card: "מפגש בית הלקוח" button for HOME follow-up sessions
+- `eab699c`/`9b94268` — CreateOrderModal: group training validation + block when no group
+- `eaa85db` — Rate limiting, goal invalidation, WhatsApp booking confirmations
+- `f39011f` — Standalone service dog: auto-creates TrainingProgram + "הוסף זכאי" to training tab
+- `ac7fe47` — Null-guard for Pet.customer (customerId now optional)
+- Performance: cursor pagination, lazy loading, API limits, image optimization
 
 **Production deployment:** Vercel, auto-deploys from `main` branch push. Schema at `prisma/schema.production.prisma` (must stay in sync with `prisma/schema.prisma`).
 
@@ -891,7 +896,7 @@ p.business.findMany().then(r => console.log(JSON.stringify(r, null, 2))).finally
 
 ## 13. Open Questions & Unresolved Decisions
 
-1. **Cron jobs not scheduled**: Birthday reminders, send-reminders, vaccination reminders, and task generation are fully coded but never triggered. Need to add cron config to `vercel.json` or use Vercel Cron.
+1. **Cron jobs**: ✅ Defined in `vercel.json`. Still need `CRON_SECRET` env var in Vercel to be active.
 
 2. **GCal sync worker**: SyncJob queue is built and jobs are enqueued, but nothing processes them. The `/api/integrations/google/process-jobs` endpoint exists but isn't called on a schedule.
 
