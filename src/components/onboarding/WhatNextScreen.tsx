@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   Upload,
   Tag,
@@ -98,7 +99,7 @@ export function WhatNextScreen({ businessType }: WhatNextScreenProps) {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-14 h-14 rounded-2xl overflow-hidden mx-auto mb-4">
-            <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
+            <Image src="/logo.svg" alt="Petra" width={56} height={56} className="w-full h-full object-cover" />
           </div>
           <h1 className="text-xl font-bold text-petra-text mb-2">
             מה בא לך לעשות עכשיו?

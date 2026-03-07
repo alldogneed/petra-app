@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 
 interface WelcomeScreenProps {
   onStart: () => void;
@@ -14,7 +15,7 @@ export function WelcomeScreen({ onStart, onSkip }: WelcomeScreenProps) {
           className="w-20 h-20 rounded-3xl overflow-hidden mx-auto mb-8"
           style={{ boxShadow: "0 8px 32px rgba(249,115,22,0.3)" }}
         >
-          <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
+          <Image src="/logo.svg" alt="Petra" width={80} height={80} className="w-full h-full object-cover" />
         </div>
 
         {/* Title */}
