@@ -316,14 +316,14 @@ export default function RecipientDetailPage() {
                   { label: "כתובת", value: recipient.address },
                   { label: "תאריך רשימת המתנה", value: recipient.waitlistDate ? formatDate(recipient.waitlistDate) : null },
                 ].filter((r) => r.value).map((row) => (
-                  <div key={row.label} className="flex justify-between items-center py-1.5 border-b last:border-0">
-                    <span className="text-sm text-petra-muted">{row.label}</span>
+                  <div key={row.label} className="py-2 border-b last:border-0">
+                    <p className="text-xs text-petra-muted mb-0.5">{row.label}</p>
                     {row.href ? (
                       <a href={row.href} className="text-sm font-medium text-brand-500 hover:underline">
                         {row.value}
                       </a>
                     ) : (
-                      <span className="text-sm font-medium">{row.value}</span>
+                      <p className="text-sm font-medium">{row.value}</p>
                     )}
                   </div>
                 ))}
@@ -338,9 +338,9 @@ export default function RecipientDetailPage() {
                   מידע על הלקות
                 </h3>
                 {recipient.disabilityType && (
-                  <div className="flex justify-between py-1.5 border-b">
-                    <span className="text-sm text-petra-muted">סוג לקות</span>
-                    <span className="text-sm font-medium">{DISABILITY_TYPE_MAP[recipient.disabilityType]}</span>
+                  <div className="py-2 border-b">
+                    <p className="text-xs text-petra-muted mb-0.5">סוג לקות</p>
+                    <p className="text-sm font-medium">{DISABILITY_TYPE_MAP[recipient.disabilityType]}</p>
                   </div>
                 )}
                 {recipient.disabilityNotes && (
