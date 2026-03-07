@@ -10,7 +10,7 @@ const TABS = [
   { name: "כלבים",          href: "/service-dogs/dogs",        icon: Dog             },
   { name: "זכאים",          href: "/service-dogs/recipients",  icon: UserCheck       },
   { name: "שיבוצים",        href: "/service-dogs/placements",  icon: Activity        },
-  { name: "משמעת ודיווח",   href: "/service-dogs/compliance",  icon: AlertTriangle   },
+  { name: "דיווח ממשלתי",   href: "/service-dogs/compliance",  icon: AlertTriangle   },
   { name: "תעודות זהות",    href: "/service-dogs/id-cards",    icon: CreditCard      },
 ];
 

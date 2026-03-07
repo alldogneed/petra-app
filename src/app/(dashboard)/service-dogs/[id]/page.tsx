@@ -293,7 +293,7 @@ export default function ServiceDogProfilePage() {
     { id: "medical" as const, label: "פרוטוקולים רפואיים", icon: Heart },
     { id: "training" as const, label: "יומן אימונים", icon: Clock },
     { id: "tests" as const, label: "מבחני הכשרה", icon: GraduationCap, badge: Array.isArray(dog.trainingTests) ? (dog.trainingTests as unknown[]).length : 0 },
-    { id: "compliance" as const, label: "משמעת ודיווח", icon: AlertTriangle, badge: dog.isGovReportPending ? 1 : 0 },
+    { id: "compliance" as const, label: "דיווח ממשלתי", icon: AlertTriangle, badge: dog.isGovReportPending ? 1 : 0 },
     { id: "placements" as const, label: "שיבוצים", icon: Activity },
     { id: "documents" as const, label: "מסמכים", icon: FileText, badge: Array.isArray(dog.documents) ? (dog.documents as unknown[]).length : 0 },
     { id: "idcard" as const, label: "תעודת זהות", icon: CreditCard },

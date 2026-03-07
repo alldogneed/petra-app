@@ -105,11 +105,11 @@ export default function CompliancePage() {
           <div className="flex items-center gap-2 text-sm text-petra-muted mb-1">
             <Link href="/service-dogs" className="hover:text-foreground">כלבי שירות</Link>
             <ChevronLeft className="w-3.5 h-3.5" />
-            <span>משמעת ודיווח</span>
+            <span>דיווח ממשלתי</span>
           </div>
           <h1 className="page-title flex items-center gap-2">
             <AlertTriangle className="w-6 h-6 text-brand-500" />
-            משמעת ודיווח ממשלתי
+            דיווח ממשלתי
           </h1>
           <p className="text-sm text-petra-muted mt-1">
             ניהול אירועי משמעת ודיווחים נדרשים לרשויות
