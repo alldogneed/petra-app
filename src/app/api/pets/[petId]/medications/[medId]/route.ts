@@ -5,7 +5,11 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 async function verifyMed(petId: string, medId: string, businessId: string) {
   return prisma.dogMedication.findFirst({
-    where: { id: medId, petId, pet: { customer: { businessId } } },
+    where: {
+      id: medId,
+      petId,
+      pet: { OR: [{ customer: { businessId } }, { businessId }] },
+    },
   });
 }
 

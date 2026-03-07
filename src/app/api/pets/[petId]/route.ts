@@ -14,7 +14,10 @@ export async function GET(
     const pet = await prisma.pet.findFirst({
       where: {
         id: params.petId,
-        customer: { businessId: authResult.businessId },
+        OR: [
+          { customer: { businessId: authResult.businessId } },
+          { businessId: authResult.businessId },
+        ],
       },
       include: {
         customer: { select: { id: true, name: true, phone: true, email: true } },
@@ -59,7 +62,13 @@ export async function PATCH(
 
     // Verify the pet belongs to this business before updating
     const existing = await prisma.pet.findFirst({
-      where: { id: params.petId, customer: { businessId: authResult.businessId } },
+      where: {
+        id: params.petId,
+        OR: [
+          { customer: { businessId: authResult.businessId } },
+          { businessId: authResult.businessId },
+        ],
+      },
     });
     if (!existing) {
       return NextResponse.json({ error: "Pet not found" }, { status: 404 });

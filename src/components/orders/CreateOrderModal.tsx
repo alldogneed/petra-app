@@ -541,9 +541,14 @@ export function CreateOrderModal({
         qc.invalidateQueries({ queryKey: ["appointments"] });
       }
 
-      // 4. Invalidate training programs when training order created
+      // 4. Invalidate training data when training order created
       if (orderType === "training") {
         qc.invalidateQueries({ queryKey: ["training-programs"] });
+        qc.invalidateQueries({ queryKey: ["training-programs-boarding"] });
+        if (trainingSubType === "group") {
+          qc.invalidateQueries({ queryKey: ["training-groups"] });
+          qc.invalidateQueries({ queryKey: ["training-groups-active"] });
+        }
       }
 
       return order;

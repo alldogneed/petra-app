@@ -5,7 +5,10 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 async function verifyPet(petId: string, businessId: string) {
   return prisma.pet.findFirst({
-    where: { id: petId, customer: { businessId } },
+    where: {
+      id: petId,
+      OR: [{ customer: { businessId } }, { businessId }],
+    },
   });
 }
 

@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
 
     const body = await request.json();
-    const { customerId, orderType, startAt, endAt, lines, discountType, discountValue, notes, status, appointmentData, trainingSubType, trainingPackageId } = body;
+    const { customerId, orderType, startAt, endAt, lines, discountType, discountValue, notes, status, appointmentData, trainingSubType, trainingPackageId, trainingBoardingStart, trainingBoardingEnd } = body;
 
     if (!customerId || !lines || lines.length === 0) {
       return NextResponse.json({ error: "customerId and at least one line are required" }, { status: 400 });
@@ -161,65 +161,104 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Auto-create TrainingProgram for training orders when a pet is selected
+      // Auto-create TrainingProgram (+ BoardingStay if boarding subtype) for training orders
       const trainingPetId = appointmentData?.petId || body.petId;
       if (orderType === "training" && trainingPetId) {
-        // Determine if this is a package order:
-        // 1. Explicit trainingSubType="package" + trainingPackageId
-        // 2. OR: any line item references a PriceListItem with sessions > 0 (package item)
-        let isPkg = trainingSubType === "package" && !!trainingPackageId;
-        let resolvedPackageItemId: string | null = trainingPackageId || null;
+        // GROUP: add dog as participant to existing group (no TrainingProgram created)
+        if (trainingSubType === "group" && body.trainingGroupId) {
+          await tx.trainingGroupParticipant.upsert({
+            where: {
+              trainingGroupId_dogId: { trainingGroupId: body.trainingGroupId, dogId: trainingPetId },
+            },
+            create: {
+              trainingGroupId: body.trainingGroupId,
+              dogId: trainingPetId,
+              customerId,
+              status: "ACTIVE",
+            },
+            update: { status: "ACTIVE", customerId },
+          });
+        } else {
+          // PACKAGE: always isPackage=true for package subtype; look up TrainingPackage for sessions
+          let isPkg = trainingSubType === "package";
+          let resolvedPackageId: string | null = trainingPackageId || null;
+          let resolvedPriceListItemId: string | null = null;
+          let totalSessions: number | null = null;
+          let programName = lines[0]?.name || "תוכנית אילוף";
 
-        if (!isPkg) {
-          const lineItemIds = lines
-            .map((l: { priceListItemId?: string | null }) => l.priceListItemId)
-            .filter(Boolean) as string[];
-          if (lineItemIds.length > 0) {
-            const pkgItem = await tx.priceListItem.findFirst({
-              where: { id: { in: lineItemIds }, businessId: authResult.businessId, sessions: { gt: 0 } },
+          if (isPkg && resolvedPackageId) {
+            const pkg = await tx.trainingPackage.findFirst({
+              where: { id: resolvedPackageId, businessId: authResult.businessId },
             });
-            if (pkgItem) {
-              isPkg = true;
-              resolvedPackageItemId = pkgItem.id;
+            if (pkg) {
+              totalSessions = pkg.sessions ?? null;
+              programName = pkg.name;
+            }
+          } else if (!isPkg) {
+            // Legacy: detect package via PriceListItem.sessions
+            const lineItemIds = lines
+              .map((l: { priceListItemId?: string | null }) => l.priceListItemId)
+              .filter(Boolean) as string[];
+            if (lineItemIds.length > 0) {
+              const pkgItem = await tx.priceListItem.findFirst({
+                where: { id: { in: lineItemIds }, businessId: authResult.businessId, sessions: { gt: 0 } },
+              });
+              if (pkgItem) {
+                isPkg = true;
+                resolvedPriceListItemId = pkgItem.id;
+                totalSessions = (pkgItem as { sessions?: number | null }).sessions ?? null;
+                programName = pkgItem.name;
+              }
             }
           }
-        }
 
-        let totalSessions: number | null = null;
-        let programName = lines[0]?.name || "תוכנית אילוף";
-
-        if (isPkg && resolvedPackageItemId) {
-          const item = await tx.priceListItem.findFirst({
-            where: { id: resolvedPackageItemId, businessId: authResult.businessId },
-          });
-          if (item) {
-            totalSessions = (item as { sessions?: number | null }).sessions ?? null;
-            programName = item.name;
+          if (!isPkg || (!resolvedPackageId && !resolvedPriceListItemId)) {
+            const sessionLines = lines.filter((l: { unit: string }) => l.unit === "per_session");
+            if (sessionLines.length > 0) {
+              totalSessions = Math.round(sessionLines.reduce((sum: number, l: { quantity: number }) => sum + l.quantity, 0));
+            }
           }
-        } else {
-          const sessionLines = lines.filter((l: { unit: string }) => l.unit === "per_session");
-          totalSessions = sessionLines.length > 0
-            ? Math.round(sessionLines.reduce((sum: number, l: { quantity: number }) => sum + l.quantity, 0))
-            : null;
-        }
 
-        await tx.trainingProgram.create({
-          data: {
-            businessId: authResult.businessId,
-            dogId: trainingPetId,
-            customerId,
-            name: programName,
-            programType: (body.programType as string) || "BASIC_OBEDIENCE",
-            trainingType: "HOME",
-            startDate: appointmentData?.date ? new Date(appointmentData.date) : new Date(),
-            totalSessions,
-            price: calc.total || null,
-            notes: notes || null,
-            isPackage: isPkg,
-            orderId: created.id,
-            priceListItemId: resolvedPackageItemId || null,
-          },
-        });
+          // For boarding training: create a BoardingStay first, then link program to it
+          let boardingStayId: string | null = null;
+          if (trainingSubType === "boarding" && trainingBoardingStart) {
+            const stay = await tx.boardingStay.create({
+              data: {
+                businessId: authResult.businessId,
+                customerId,
+                petId: trainingPetId,
+                checkIn: new Date(trainingBoardingStart),
+                checkOut: trainingBoardingEnd ? new Date(trainingBoardingEnd) : null,
+                status: "reserved",
+                roomId: null,
+                notes: notes || null,
+              },
+            });
+            boardingStayId = stay.id;
+          }
+
+          await tx.trainingProgram.create({
+            data: {
+              businessId: authResult.businessId,
+              dogId: trainingPetId,
+              customerId,
+              name: programName,
+              programType: (body.programType as string) || "BASIC_OBEDIENCE",
+              trainingType: trainingSubType === "boarding" ? "BOARDING" : "HOME",
+              startDate: trainingSubType === "boarding" && trainingBoardingStart
+                ? new Date(trainingBoardingStart)
+                : appointmentData?.date ? new Date(appointmentData.date) : new Date(),
+              totalSessions,
+              price: calc.total || null,
+              notes: notes || null,
+              isPackage: isPkg,
+              orderId: created.id,
+              packageId: resolvedPackageId || null,
+              priceListItemId: resolvedPriceListItemId || null,
+              boardingStayId: boardingStayId || null,
+            },
+          });
+        }
       }
 
       return created;
