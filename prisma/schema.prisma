@@ -273,6 +273,7 @@ model Business {
   recipientStages        ServiceRecipientStage[]
   careLogs               BoardingCareLog[]
   standalonePets         Pet[]            @relation("StandalonePets")
+  petWeightEntries       PetWeightEntry[]
 
   @@index([slug])
 }
@@ -366,10 +367,27 @@ model Pet {
   medications    DogMedication[]
   careLogs       BoardingCareLog[]
   serviceDogProfile ServiceDogProfile?
+  weightHistory  PetWeightEntry[]
 
   @@index([customerId])
   @@index([businessId])
   @@index([birthDate])
+}
+
+model PetWeightEntry {
+  id          String   @id @default(uuid())
+  petId       String
+  businessId  String
+  weight      Float
+  recordedAt  DateTime @default(now())
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  pet         Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  business    Business @relation(fields: [businessId], references: [id])
+
+  @@index([petId, recordedAt])
+  @@index([businessId])
 }
 
 model Service {

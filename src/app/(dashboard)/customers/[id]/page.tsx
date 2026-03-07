@@ -60,6 +60,81 @@ import {
   fetchJSON,
 } from "@/lib/utils";
 
+const DOG_BREEDS = [
+  "גולדן רטריוור", "לברדור", "בורדר קולי", "ג'ק ראסל", "פודל", "צ'יוואווה",
+  "ביגל", "בולדוג", "הסקי סיבירי", "בוקסר", "רוטוויילר", "גרמן שפרד",
+  "מלמוט", "שנאוצר", "דלמציה", "דוברמן", "שיצו", "מלטזי",
+  "יורקשייר טריאר", "פומרניאן", "קניש", "שפניאל", "ספינגר ספניאל",
+  "קוקר ספניאל", "ויזסלה", "ויימרנר", "סמויד", "מלמוט אלסקי",
+  "אמריקן בולי", "פיטבול", "אמריקן סטפורדשייר", "סטפורדשייר בול",
+  "רידג'בק רודזיאני", "בסנג'י", "שרפיי", "אקיטה", "שיבה אינו",
+  "צ'או צ'או", "ניופאונדלנד", "ברנר זנן הר", "גרייהאונד", "וויפט",
+  "אפגן האונד", "סלוקי", "דוג דה בורדו", "מונגרל", "כלב כנעני", "מעורב",
+  "פינשר", "דוברמן פינשר", "ארגנטינה דוגו", "קאנה קורסו", "ספינוני",
+  "קאלי", "אוסטרלי שפרד", "קורגי", "פלוודה מוגת', שקסלנד שפדוג'",
+];
+
+const CAT_BREEDS = [
+  "פרסי", "מיין קון", "בריטי שורטהייר", "בנגלי", "סיאמי", "אביסיני",
+  "בירמן", "ספינקס", "רגדול", "סקוטיש פולד", "נורבגי יערות",
+  "מיקס", "כלב כנעני", "ללא גזע ידוע",
+];
+
+function BreedCombobox({
+  value,
+  onChange,
+  species,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  species: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const breeds = species === "dog" ? DOG_BREEDS : species === "cat" ? CAT_BREEDS : [];
+  const filtered = breeds.filter((b) =>
+    b.toLowerCase().includes(value.toLowerCase())
+  );
+
+  if (breeds.length === 0) {
+    return (
+      <input
+        className="input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="הזן גזע"
+      />
+    );
+  }
+
+  return (
+    <div className="relative">
+      <input
+        className="input"
+        value={value}
+        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder="הזן או בחר גזע"
+        autoComplete="off"
+      />
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 top-full mt-1 right-0 left-0 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+          {filtered.slice(0, 12).map((breed) => (
+            <button
+              key={breed}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); onChange(breed); setOpen(false); }}
+              className="w-full text-right px-3 py-2 text-sm hover:bg-brand-50 text-petra-text"
+            >
+              {breed}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const BEHAVIORAL_TAGS = [
   "ריאקטיבי",
   "תוקפן",
@@ -446,10 +521,10 @@ function AddPetModal({
             </div>
             <div>
               <label className="label">גזע</label>
-              <input
-                className="input"
+              <BreedCombobox
                 value={form.breed}
-                onChange={(e) => setForm({ ...form, breed: e.target.value })}
+                onChange={(v) => setForm({ ...form, breed: v })}
+                species={form.species}
               />
             </div>
           </div>
@@ -1127,7 +1202,11 @@ function EditPetModal({
           </div>
           <div>
             <label className="label">גזע</label>
-            <input className="input" value={form.breed} onChange={(e) => setForm({ ...form, breed: e.target.value })} />
+            <BreedCombobox
+              value={form.breed}
+              onChange={(v) => setForm({ ...form, breed: v })}
+              species={pet.species}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

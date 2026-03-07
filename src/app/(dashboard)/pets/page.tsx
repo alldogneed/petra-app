@@ -14,6 +14,7 @@ import {
   Cat,
   HelpCircle,
   RefreshCw,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -93,10 +94,27 @@ function VaccineBadge({ status }: { status: Pet["vaccinationStatus"] }) {
   return null;
 }
 
+const GENDER_FILTER_OPTIONS = [
+  { value: "", label: "כל המינים" },
+  { value: "male", label: "זכרים" },
+  { value: "female", label: "נקבות" },
+];
+
+const VACCINE_FILTER_OPTIONS = [
+  { value: "", label: "כל החיסונים" },
+  { value: "expired", label: "פג תוקף" },
+  { value: "expiring", label: "עומד לפוג" },
+  { value: "ok", label: "תקין" },
+  { value: "unknown", label: "לא ידוע" },
+];
+
 export default function PetsPage() {
   const [search, setSearch] = useState("");
   const [species, setSpecies] = useState("");
+  const [gender, setGender] = useState("");
+  const [vaccineStatus, setVaccineStatus] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
 
   const handleSearchChange = (val: string) => {
     setSearch(val);
@@ -116,7 +134,35 @@ export default function PetsPage() {
     queryFn: () => fetch(`/api/pets?${params.toString()}`).then((r) => r.json()),
   });
 
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const res = await fetch("/api/pets/export");
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "pets-export.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("שגיאה בייצוא");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const pets = data?.pets ?? [];
+
+  // Client-side filters (gender + vaccine status)
+  const filteredPets = pets.filter((p) => {
+    if (gender && p.gender !== gender) return false;
+    if (vaccineStatus && p.vaccinationStatus !== vaccineStatus) return false;
+    return true;
+  });
 
   // Stats
   const vaccinationIssues = pets.filter(
@@ -136,10 +182,20 @@ export default function PetsPage() {
             כל החיות הרשומות בעסק
           </p>
         </div>
-        <button onClick={() => refetch()} className="btn-secondary gap-2 inline-flex items-center">
-          <RefreshCw className="w-4 h-4" />
-          רענן
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleExport}
+            disabled={isExporting}
+            className="btn-secondary gap-2 inline-flex items-center"
+          >
+            <Download className="w-4 h-4" />
+            {isExporting ? "מייצא..." : "ייצוא XLSX"}
+          </button>
+          <button onClick={() => refetch()} className="btn-secondary gap-2 inline-flex items-center">
+            <RefreshCw className="w-4 h-4" />
+            רענן
+          </button>
+        </div>
       </div>
 
       {/* Stats row */}
@@ -185,37 +241,76 @@ export default function PetsPage() {
       )}
 
       {/* Filters */}
-      <div className="card p-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
-          <input
-            className="input pr-9 w-full"
-            placeholder="חפש לפי שם חיה, גזע, בעלים..."
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-          />
+      <div className="card p-4 space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
+            <input
+              className="input pr-9 w-full"
+              placeholder="חפש לפי שם חיה, גזע, בעלים..."
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {SPECIES_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setSpecies(opt.value)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                  species === opt.value
+                    ? "bg-brand-500 text-white border-brand-500"
+                    : "bg-white text-petra-muted border-slate-200 hover:border-brand-300"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-2">
-          {SPECIES_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setSpecies(opt.value)}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
-                species === opt.value
-                  ? "bg-brand-500 text-white border-brand-500"
-                  : "bg-white text-petra-muted border-slate-200 hover:border-brand-300"
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex gap-2 flex-wrap">
+            {GENDER_FILTER_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setGender(opt.value)}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-xs font-medium border transition-all",
+                  gender === opt.value
+                    ? "bg-blue-500 text-white border-blue-500"
+                    : "bg-white text-petra-muted border-slate-200 hover:border-blue-300"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {VACCINE_FILTER_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setVaccineStatus(opt.value)}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-xs font-medium border transition-all",
+                  vaccineStatus === opt.value
+                    ? "bg-emerald-500 text-white border-emerald-500"
+                    : "bg-white text-petra-muted border-slate-200 hover:border-emerald-300"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          {data && (
+            <span className="text-sm text-petra-muted ms-auto">
+              {filteredPets.length !== pets.length
+                ? `${filteredPets.length} מתוך ${data.total}`
+                : `${data.total}`}{" "}
+              חיות
+            </span>
+          )}
         </div>
-        {data && (
-          <span className="text-sm text-petra-muted ms-auto">
-            {data.total} חיות
-          </span>
-        )}
       </div>
 
       {/* Loading / Error */}
@@ -228,17 +323,17 @@ export default function PetsPage() {
       {isError && (
         <div className="card p-8 text-center text-red-500 text-sm">שגיאה בטעינת נתונים</div>
       )}
-      {!isLoading && !isError && pets.length === 0 && (
+      {!isLoading && !isError && filteredPets.length === 0 && (
         <div className="card p-12 text-center">
           <PawPrint className="w-10 h-10 mx-auto mb-3 text-petra-muted opacity-30" />
           <p className="text-petra-muted text-sm">
-            {debouncedSearch || species ? "לא נמצאו חיות התואמות את החיפוש" : "אין חיות רשומות עדיין"}
+            {debouncedSearch || species || gender || vaccineStatus ? "לא נמצאו חיות התואמות את הסינון" : "אין חיות רשומות עדיין"}
           </p>
         </div>
       )}
 
       {/* Pets table */}
-      {!isLoading && pets.length > 0 && (
+      {!isLoading && filteredPets.length > 0 && (
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -254,7 +349,7 @@ export default function PetsPage() {
                 </tr>
               </thead>
               <tbody>
-                {pets.map((pet) => {
+                {filteredPets.map((pet) => {
                   const ageStr = pet.birthDate
                     ? (() => {
                         const bd = new Date(pet.birthDate);

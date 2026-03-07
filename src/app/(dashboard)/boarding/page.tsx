@@ -1536,10 +1536,165 @@ function VaccinationAlertBanner() {
   );
 }
 
+// ─── Care Log Modal ───────────────────────────────────────────────────────────
+
+interface CareLogEntry {
+  id: string;
+  type: string;
+  title: string;
+  notes: string | null;
+  doneAt: string;
+}
+
+const CARE_LOG_TYPES = [
+  { value: "FEEDING", label: "האכלה", emoji: "🍽️" },
+  { value: "MEDICATION", label: "תרופה", emoji: "💊" },
+  { value: "WALK", label: "טיול", emoji: "🦮" },
+  { value: "NOTE", label: "הערה", emoji: "📝" },
+];
+
+function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: string; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [logType, setLogType] = useState("FEEDING");
+  const [title, setTitle] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const { data, isLoading } = useQuery<{ logs: CareLogEntry[] }>({
+    queryKey: ["care-logs", stayId],
+    queryFn: () => fetch(`/api/boarding/${stayId}/care-logs`).then((r) => r.json()),
+  });
+
+  const logs = data?.logs ?? [];
+
+  const addMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/boarding/${stayId}/care-logs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: logType, title, notes }),
+      }).then(async (r) => {
+        if (!r.ok) throw new Error("שגיאה");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["care-logs", stayId] });
+      setTitle("");
+      setNotes("");
+      toast.success("רישום נוסף");
+    },
+    onError: () => toast.error("שגיאה בהוספת רישום"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (logId: string) =>
+      fetch(`/api/boarding/${stayId}/care-logs?logId=${logId}`, { method: "DELETE" }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["care-logs", stayId] });
+    },
+  });
+
+  const typeConfig = Object.fromEntries(CARE_LOG_TYPES.map((t) => [t.value, t]));
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6 max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
+            <ClipboardList className="w-5 h-5 text-brand-500" />
+            יומן טיפול — {petName}
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Add form */}
+        <div className="p-3 bg-slate-50 rounded-xl mb-4 space-y-2">
+          <div className="flex gap-1 flex-wrap">
+            {CARE_LOG_TYPES.map((t) => (
+              <button
+                key={t.value}
+                onClick={() => setLogType(t.value)}
+                className={cn(
+                  "px-2 py-1 rounded-lg text-xs font-medium border transition-all",
+                  logType === t.value
+                    ? "bg-brand-500 text-white border-brand-500"
+                    : "bg-white text-petra-muted border-slate-200"
+                )}
+              >
+                {t.emoji} {t.label}
+              </button>
+            ))}
+          </div>
+          <input
+            className="input text-sm"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="כותרת הרישום *"
+          />
+          <input
+            className="input text-sm"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="הערות (אופציונלי)"
+          />
+          <button
+            className="btn-primary w-full text-sm py-1.5"
+            disabled={!title.trim() || addMutation.isPending}
+            onClick={() => addMutation.mutate()}
+          >
+            {addMutation.isPending ? "שומר..." : "הוסף רישום"}
+          </button>
+        </div>
+
+        {/* Log timeline */}
+        {isLoading && (
+          <div className="text-center py-4 text-petra-muted text-sm">
+            <RefreshCw className="w-4 h-4 mx-auto animate-spin mb-1" />
+            טוען...
+          </div>
+        )}
+        {!isLoading && logs.length === 0 && (
+          <p className="text-center text-sm text-petra-muted py-4">אין רישומים עדיין</p>
+        )}
+        {logs.map((log) => {
+          const tc = typeConfig[log.type] ?? { emoji: "📋", label: log.type };
+          return (
+            <div key={log.id} className="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0">
+              <span className="text-xl flex-shrink-0 mt-0.5">{tc.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium text-petra-text">{log.title}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-petra-muted">
+                    {tc.label}
+                  </span>
+                </div>
+                {log.notes && <p className="text-xs text-petra-muted mt-0.5">{log.notes}</p>}
+                <p className="text-[10px] text-petra-muted mt-0.5">
+                  {new Date(log.doneAt).toLocaleDateString("he-IL")} · {new Date(log.doneAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </div>
+              <button
+                onClick={() => deleteMutation.mutate(log.id)}
+                className="text-petra-muted hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                disabled={deleteMutation.isPending}
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function BoardingPage() {
   const [showNewStay, setShowNewStay] = useState(false);
+  const [careLogStay, setCareLogStay] = useState<{ id: string; petName: string } | null>(null);
   const [form, setForm] = useState({
     customerId: "", petIds: [] as string[], roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "", pricePerNight: 0,
   });
@@ -2516,18 +2671,39 @@ export default function BoardingPage() {
         ) : (
           <div className="space-y-2">
             {displayedStays.map((stay) => (
-              <StayRow
-                key={stay.id}
-                stay={stay}
-                onCheckin={handleCheckin}
-                onCheckout={handleCheckout}
-                onExtend={handleExtend}
-                settings={settings}
-              />
+              <div key={stay.id}>
+                <StayRow
+                  stay={stay}
+                  onCheckin={handleCheckin}
+                  onCheckout={handleCheckout}
+                  onExtend={handleExtend}
+                  settings={settings}
+                />
+                {(stay.status === "checked_in" || stay.status === "reserved") && (
+                  <div className="mr-14 mt-1 mb-2">
+                    <button
+                      onClick={() => setCareLogStay({ id: stay.id, petName: stay.pet.name })}
+                      className="text-xs text-petra-muted hover:text-brand-600 flex items-center gap-1 transition-colors"
+                    >
+                      <ClipboardList className="w-3 h-3" />
+                      יומן טיפול
+                    </button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* ── Care Log Modal ── */}
+      {careLogStay && (
+        <CareLogModal
+          stayId={careLogStay.id}
+          petName={careLogStay.petName}
+          onClose={() => setCareLogStay(null)}
+        />
+      )}
 
       {/* ── Rooms Manager Modal ── */}
       {showRoomsManager && (
