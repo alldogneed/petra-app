@@ -235,6 +235,7 @@ function SessionLogModal({
   dogName,
   sessionNumber,
   isWeekly,
+  isServiceDog,
   isPending,
   onClose,
   onSubmit,
@@ -244,6 +245,7 @@ function SessionLogModal({
   dogName: string;
   sessionNumber: number;
   isWeekly?: boolean;
+  isServiceDog?: boolean;
   isPending: boolean;
   onClose: () => void;
   onSubmit: (summary: string, sessionDate: string, rating: number | null, practiceItems: string, nextSessionGoals: string, homeworkForCustomer: string) => void;
@@ -287,6 +289,20 @@ function SessionLogModal({
     summaryLabel: "סיכום שבועי (אופציונלי)",
     summaryPlaceholder: "תאר את ההתקדמות השבועית, נקודות לשיפור, הצלחות...",
     saveBtn: "שמור עדכון שבועי",
+  } : isServiceDog ? {
+    title: "רישום אימון",
+    badge: `אימון מספר ${sessionNumber}`,
+    dateLabel: "תאריך האימון",
+    ratingLabel: "דירוג הכלב באימון (אופציונלי)",
+    practiceLabel: "תרגילים שבוצעו",
+    practicePlaceholder: "אילו תרגילים עשיתם היום...",
+    goalsLabel: "יעדים לאימון הבא",
+    goalsPlaceholder: "מה תעבדו באימון הבא...",
+    homeworkLabel: "הערות לצוות",
+    homeworkPlaceholder: "הערות רלוונטיות לשאר הצוות...",
+    summaryLabel: "סיכום האימון (אופציונלי)",
+    summaryPlaceholder: "תאר מה עבדתם היום, התקדמות, הצלחות, נקודות לשיפור...",
+    saveBtn: "שמור אימון",
   } : {
     title: "רישום מפגש",
     badge: `מפגש מספר ${sessionNumber}`,
@@ -446,7 +462,7 @@ export default function TrainingPage() {
   const [showAssignDog, setShowAssignDog] = useState<{ groupId: string; groupName: string } | null>(null);
   const [editingProgram, setEditingProgram] = useState<TrainingProgram | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
-  const [sessionLogTarget, setSessionLogTarget] = useState<{ programId: string; sessionNumber: number; dogName: string; customerPhone?: string; customerName?: string; isWeekly?: boolean; goals?: { id: string; title: string; status: string; progressPercent: number }[] } | null>(null);
+  const [sessionLogTarget, setSessionLogTarget] = useState<{ programId: string; sessionNumber: number; dogName: string; customerPhone?: string; customerName?: string; isWeekly?: boolean; isServiceDog?: boolean; goals?: { id: string; title: string; status: string; progressPercent: number }[] } | null>(null);
   const [sessionSummarySend, setSessionSummarySend] = useState<{ customerPhone: string; customerName: string; dogName: string; sessionNumber: number; practiceItems?: string; homeworkForCustomer?: string; nextSessionGoals?: string; rating?: number | null } | null>(null);
   const [showCreatePackage, setShowCreatePackage] = useState(false);
   const [editingPackage, setEditingPackage] = useState<TrainingPackage | null>(null);
@@ -1182,7 +1198,7 @@ export default function TrainingPage() {
                 programs={serviceDogPrograms}
                 searchQuery={searchQuery}
                 onMarkAttendance={(programId, sessionNumber, dogName, customerPhone, customerName) =>
-                  setSessionLogTarget({ programId, sessionNumber, dogName, customerPhone, customerName })
+                  setSessionLogTarget({ programId, sessionNumber, dogName, customerPhone, customerName, isServiceDog: true })
                 }
                 onEditSettings={(program) => setEditingProgram(program)}
                 isMarkingAttendance={markAttendanceMutation.isPending}
@@ -1316,6 +1332,7 @@ export default function TrainingPage() {
           dogName={sessionLogTarget.dogName}
           sessionNumber={sessionLogTarget.sessionNumber}
           isWeekly={sessionLogTarget.isWeekly}
+          isServiceDog={sessionLogTarget.isServiceDog}
           isPending={markAttendanceMutation.isPending}
           programId={sessionLogTarget.programId}
           goals={sessionLogTarget.goals}
