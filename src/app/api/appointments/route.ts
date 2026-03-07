@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { scheduleAppointmentReminder } from "@/lib/reminder-service";
+import { syncAppointmentToGcal } from "@/lib/google-calendar";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest) {
 
     logCurrentUserActivity("CREATE_APPOINTMENT");
 
-    // Schedule a WhatsApp reminder 24h before (fire-and-forget, don't block response)
+    // Schedule WhatsApp reminder (fire-and-forget)
     scheduleAppointmentReminder({
       id: appointment.id,
       businessId: authResult.businessId,
@@ -124,6 +125,11 @@ export async function POST(request: NextRequest) {
       customer: { name: appointment.customer.name },
       pet: appointment.pet ? { name: appointment.pet.name } : null,
     }).catch((err) => console.error("Failed to schedule appointment reminder:", err));
+
+    // Sync to Google Calendar (fire-and-forget)
+    syncAppointmentToGcal(appointment.id, authResult.businessId).catch((err) =>
+      console.error("Failed to sync appointment to GCal:", err)
+    );
 
     return NextResponse.json(appointment, { status: 201 });
   } catch (error) {

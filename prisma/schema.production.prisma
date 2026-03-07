@@ -409,6 +409,7 @@ model Appointment {
   petId       String?
   staffId     String?
   businessId  String
+  gcalEventId String? // Google Calendar event ID (staff-created appointments)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1155,7 +1156,8 @@ model TrainingProgramSession {
   rating              Int?     // 1-5 how well the dog performed
   practiceItems       String?  // exercises done in session
   nextSessionGoals    String?  // focus for next session
-  homeworkForCustomer String?  // homework assigned to customer
+  homeworkForCustomer String?  // homework assigned to customer / team notes for service dogs
+  trainerName         String?  // who conducted the session
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

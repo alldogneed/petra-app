@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { cancelAppointmentReminders, rescheduleAppointmentReminder } from "@/lib/reminder-service";
+import { syncAppointmentToGcal, deleteAppointmentFromGcal } from "@/lib/google-calendar";
 
 const PatchAppointmentSchema = z.object({
   status: z.enum(["scheduled", "completed", "canceled"]).optional(),
@@ -79,7 +80,6 @@ export async function PATCH(
         console.error("Failed to cancel appointment reminders:", err)
       );
     } else if (date !== undefined || startTime !== undefined) {
-      // Date/time changed — reschedule reminder
       rescheduleAppointmentReminder({
         id: appointment.id,
         businessId: authResult.businessId,
@@ -91,6 +91,17 @@ export async function PATCH(
         pet: appointment.pet ? { name: appointment.pet.name } : null,
       }).catch((err) =>
         console.error("Failed to reschedule appointment reminder:", err)
+      );
+    }
+
+    // Sync to Google Calendar (fire-and-forget)
+    if (status === "canceled") {
+      deleteAppointmentFromGcal(id, authResult.businessId).catch((err) =>
+        console.error("Failed to delete appointment from GCal:", err)
+      );
+    } else {
+      syncAppointmentToGcal(id, authResult.businessId).catch((err) =>
+        console.error("Failed to sync appointment to GCal:", err)
       );
     }
 
@@ -126,6 +137,10 @@ export async function DELETE(
     }
 
     await cancelAppointmentReminders(id);
+    // Remove from GCal before deleting from DB
+    await deleteAppointmentFromGcal(id, authResult.businessId).catch((err) =>
+      console.error("Failed to delete appointment from GCal:", err)
+    );
     await prisma.appointment.delete({ where: { id, businessId: authResult.businessId } });
 
     const { session } = authResult;

@@ -14,7 +14,7 @@ export async function POST(
 
     const body = await req.json();
     const { sessionDate, durationMinutes, sessionNumber, summary, rating, status,
-            practiceItems, nextSessionGoals, homeworkForCustomer } = body;
+            practiceItems, nextSessionGoals, homeworkForCustomer, trainerName } = body;
 
     if (!sessionDate) {
       return NextResponse.json({ error: "sessionDate is required" }, { status: 400 });
@@ -28,23 +28,40 @@ export async function POST(
       return NextResponse.json({ error: "Training program not found" }, { status: 404 });
     }
 
+    const sessionStatus = status || "COMPLETED";
+    const mins = durationMinutes ? parseInt(durationMinutes) : 60;
+
     const session = await prisma.trainingProgramSession.create({
       data: {
         trainingProgramId: params.id,
         sessionDate: new Date(sessionDate),
-        durationMinutes: durationMinutes ? parseInt(durationMinutes) : 60,
+        durationMinutes: mins,
         sessionNumber: sessionNumber ? parseInt(sessionNumber) : null,
         summary: summary || null,
         rating: rating ? parseInt(rating) : null,
-        status: status || "SCHEDULED",
+        status: sessionStatus,
         practiceItems: practiceItems || null,
         nextSessionGoals: nextSessionGoals || null,
         homeworkForCustomer: homeworkForCustomer || null,
+        trainerName: trainerName || null,
       },
     });
 
+    // Auto-accumulate training hours for service dogs
+    if (sessionStatus === "COMPLETED" && program.trainingType === "SERVICE_DOG") {
+      const sdProfile = await prisma.serviceDogProfile.findFirst({
+        where: { petId: program.dogId, businessId: authResult.businessId },
+      });
+      if (sdProfile) {
+        await prisma.serviceDogProfile.update({
+          where: { id: sdProfile.id },
+          data: { trainingTotalHours: { increment: mins / 60 } },
+        });
+      }
+    }
+
     // Auto-complete program when all planned sessions are done
-    if (program.totalSessions && (status || "SCHEDULED") === "COMPLETED") {
+    if (program.totalSessions && sessionStatus === "COMPLETED") {
       const completedCount = await prisma.trainingProgramSession.count({
         where: { trainingProgramId: params.id, status: "COMPLETED" },
       });

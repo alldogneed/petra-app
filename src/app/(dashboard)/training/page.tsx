@@ -31,6 +31,7 @@ import {
   ShoppingCart,
   Home,
   UserCheck,
+  Printer,
 } from "lucide-react";
 import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -248,7 +249,7 @@ function SessionLogModal({
   isServiceDog?: boolean;
   isPending: boolean;
   onClose: () => void;
-  onSubmit: (summary: string, sessionDate: string, rating: number | null, practiceItems: string, nextSessionGoals: string, homeworkForCustomer: string) => void;
+  onSubmit: (summary: string, sessionDate: string, rating: number | null, practiceItems: string, nextSessionGoals: string, homeworkForCustomer: string, trainerName?: string) => void;
   programId?: string;
   goals?: { id: string; title: string; status: string; progressPercent: number }[];
 }) {
@@ -260,6 +261,7 @@ function SessionLogModal({
   const [practiceItems, setPracticeItems] = useState("");
   const [nextSessionGoals, setNextSessionGoals] = useState("");
   const [homeworkForCustomer, setHomeworkForCustomer] = useState("");
+  const [trainerName, setTrainerName] = useState("");
   const [homeSession, setHomeSession] = useState(false);
 
   const isSameWeek = (dateStr: string) => {
@@ -386,6 +388,12 @@ function SessionLogModal({
             <label className="label">{L.homeworkLabel}</label>
             <textarea className="input" rows={2} placeholder={L.homeworkPlaceholder} value={homeworkForCustomer} onChange={(e) => setHomeworkForCustomer(e.target.value)} />
           </div>
+          {isServiceDog && (
+            <div>
+              <label className="label">שם המאמן/ת</label>
+              <input className="input" placeholder="שם המאמן שביצע את האימון..." value={trainerName} onChange={(e) => setTrainerName(e.target.value)} />
+            </div>
+          )}
           <div>
             <label className="label">{L.summaryLabel}</label>
             <textarea
@@ -435,7 +443,7 @@ function SessionLogModal({
           <button
             className="btn-primary flex-1"
             disabled={isPending || !sessionDate}
-            onClick={() => onSubmit(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer)}
+            onClick={() => onSubmit(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer, trainerName || undefined)}
           >
             <CheckCircle2 className="w-4 h-4" />
             {isPending ? "שומר..." : L.saveBtn}
@@ -469,9 +477,24 @@ export default function TrainingPage() {
   const [showBoardingTraining, setShowBoardingTraining] = useState<{ stay: BoardingStay } | null>(null);
   const [showAddServiceDog, setShowAddServiceDog] = useState(false);
   const [showAddRecipient, setShowAddRecipient] = useState(false);
+  const [showCreateServiceDogProgram, setShowCreateServiceDogProgram] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [dropoutTarget, setDropoutTarget] = useState<{ programId: string; dogName: string } | null>(null);
   const queryClient = useQueryClient();
+
+  // Sync service dog training programs when tab is activated
+  useEffect(() => {
+    if (activeTab === "service-dogs") {
+      fetch("/api/service-dogs/sync-training", { method: "POST" })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.created > 0) {
+            queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [activeTab, queryClient]);
 
   // Auto-refresh every 30 seconds when enabled
   useEffect(() => {
@@ -631,7 +654,7 @@ export default function TrainingPage() {
   // ─── Mutations ───
 
   const markAttendanceMutation = useMutation({
-    mutationFn: async ({ programId, sessionNumber, summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer, customerPhone: _cp, customerName: _cn, dogName: _dn }: { programId: string; sessionNumber: number; summary?: string; sessionDate?: string; rating?: number | null; practiceItems?: string; nextSessionGoals?: string; homeworkForCustomer?: string; customerPhone?: string; customerName?: string; dogName?: string }) => {
+    mutationFn: async ({ programId, sessionNumber, summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer, trainerName, customerPhone: _cp, customerName: _cn, dogName: _dn }: { programId: string; sessionNumber: number; summary?: string; sessionDate?: string; rating?: number | null; practiceItems?: string; nextSessionGoals?: string; homeworkForCustomer?: string; trainerName?: string; customerPhone?: string; customerName?: string; dogName?: string }) => {
       const res = await fetch(`/api/training-programs/${programId}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -645,6 +668,7 @@ export default function TrainingPage() {
           ...(practiceItems ? { practiceItems } : {}),
           ...(nextSessionGoals ? { nextSessionGoals } : {}),
           ...(homeworkForCustomer ? { homeworkForCustomer } : {}),
+          ...(trainerName ? { trainerName } : {}),
         }),
       });
       if (!res.ok) throw new Error("Failed");
@@ -653,6 +677,8 @@ export default function TrainingPage() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
+      queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
+      queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
       if (variables.customerPhone) {
         setSessionSummarySend({
           customerPhone: variables.customerPhone,
@@ -1186,8 +1212,8 @@ export default function TrainingPage() {
                   <span className="text-sm font-medium text-brand-700">תוכניות אילוף לכלבי שירות</span>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <button className="btn-primary text-xs" onClick={() => setShowSellPackage(true)}>
-                    <Plus className="w-3.5 h-3.5" /> אימון חדש
+                  <button className="btn-primary text-xs" onClick={() => setShowCreateServiceDogProgram(true)}>
+                    <Plus className="w-3.5 h-3.5" /> הוסף תוכנית אימון
                   </button>
                   <a href="/service-dogs" className="btn-secondary text-xs flex items-center gap-1">
                     <Shield className="w-3.5 h-3.5" /> ניהול כלבי שירות ←
@@ -1337,7 +1363,7 @@ export default function TrainingPage() {
           programId={sessionLogTarget.programId}
           goals={sessionLogTarget.goals}
           onClose={() => setSessionLogTarget(null)}
-          onSubmit={(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer) =>
+          onSubmit={(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer, trainerName) =>
             markAttendanceMutation.mutate({
               programId: sessionLogTarget.programId,
               sessionNumber: sessionLogTarget.sessionNumber,
@@ -1347,11 +1373,22 @@ export default function TrainingPage() {
               practiceItems,
               nextSessionGoals,
               homeworkForCustomer,
+              trainerName,
               customerPhone: sessionLogTarget.customerPhone,
               customerName: sessionLogTarget.customerName,
               dogName: sessionLogTarget.dogName,
             })
           }
+        />
+      )}
+
+      {showCreateServiceDogProgram && (
+        <CreateServiceDogProgramModal
+          onClose={() => setShowCreateServiceDogProgram(false)}
+          onSuccess={() => {
+            setShowCreateServiceDogProgram(false);
+            queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
+          }}
         />
       )}
 
@@ -2292,14 +2329,44 @@ function ServiceDogSessionLog({
                         </div>
                       )}
                       {session.homeworkForCustomer && (
-                        <div>
-                          <span className="font-medium text-petra-muted">🏠 שיעורי בית: </span>
+                        <div className="mb-1.5">
+                          <span className="font-medium text-petra-muted">📋 הערות לצוות: </span>
                           <span className="text-petra-text whitespace-pre-line">{session.homeworkForCustomer}</span>
+                        </div>
+                      )}
+                      {(session as { trainerName?: string | null }).trainerName && (
+                        <div className="mt-1 text-[11px] text-petra-muted">
+                          👤 מאמן: {(session as { trainerName?: string | null }).trainerName}
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
+              )}
+
+              {/* Print training history */}
+              {completedSessions.length > 0 && (
+                <button
+                  type="button"
+                  className="mt-2 w-full py-1.5 rounded-xl border border-slate-200 text-xs text-petra-muted hover:bg-slate-50 transition-all flex items-center justify-center gap-1.5"
+                  onClick={() => {
+                    const win = window.open("", "_blank");
+                    if (!win) return;
+                    win.document.write(`<html dir="rtl"><head><title>יומן אימונים — ${program.dog.name}</title><style>body{font-family:sans-serif;padding:24px;direction:rtl}h1{font-size:20px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:20px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ddd;padding:8px;text-align:right}th{background:#f3f4f6}@media print{button{display:none}}</style></head><body>`);
+                    win.document.write(`<h1>יומן אימונים — ${program.dog.name}</h1><h2>סה"כ ${completedSessions.length} אימונים · הודפס ${new Date().toLocaleDateString("he-IL")}</h2>`);
+                    win.document.write(`<table><thead><tr><th>#</th><th>תאריך</th><th>מאמן</th><th>דירוג</th><th>תרגילים</th><th>יעדים הבאים</th><th>הערות לצוות</th><th>סיכום</th></tr></thead><tbody>`);
+                    completedSessions.forEach((s) => {
+                      const sTyped = s as { sessionNumber?: number | null; sessionDate: string; trainerName?: string | null; rating?: number | null; practiceItems?: string | null; nextSessionGoals?: string | null; homeworkForCustomer?: string | null; summary?: string | null };
+                      win.document.write(`<tr><td>${sTyped.sessionNumber ?? ""}</td><td>${new Date(sTyped.sessionDate).toLocaleDateString("he-IL")}</td><td>${sTyped.trainerName ?? ""}</td><td>${sTyped.rating ? "★".repeat(sTyped.rating) : ""}</td><td>${(sTyped.practiceItems ?? "").replace(/\n/g, "<br>")}</td><td>${(sTyped.nextSessionGoals ?? "").replace(/\n/g, "<br>")}</td><td>${(sTyped.homeworkForCustomer ?? "").replace(/\n/g, "<br>")}</td><td>${(sTyped.summary ?? "").replace(/\n/g, "<br>")}</td></tr>`);
+                    });
+                    win.document.write("</tbody></table></body></html>");
+                    win.document.close();
+                    win.print();
+                  }}
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  הדפס יומן אימונים
+                </button>
               )}
 
               {/* Add session button */}
@@ -4766,6 +4833,125 @@ function AddStandaloneServiceDogModal({
             onClick={() => mutation.mutate({ name, breed, gender, birthDate, weight, microchip, medicalNotes, behaviorNotes, serviceType, notes })}
           >
             {mutation.isPending ? "שומר..." : "הוסף כלב שירות"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// CREATE SERVICE DOG PROGRAM MODAL
+// ═══════════════════════════════════════════════════════
+
+interface ServiceDogOption {
+  id: string;
+  petId: string;
+  phase: string;
+  pet: { id: string; name: string; breed: string | null; customerId: string | null };
+}
+
+function CreateServiceDogProgramModal({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [selectedDogId, setSelectedDogId] = useState("");
+  const [programType, setProgramType] = useState("SD_FOUNDATION");
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+
+  const { data: dogs = [], isLoading } = useQuery<ServiceDogOption[]>({
+    queryKey: ["service-dogs-list-for-program"],
+    queryFn: () =>
+      fetch("/api/service-dogs").then((r) => r.json()).then((d) => Array.isArray(d) ? d : d.dogs ?? []),
+  });
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const dog = dogs.find((d) => d.id === selectedDogId);
+      if (!dog) throw new Error("No dog selected");
+      const res = await fetch("/api/training-programs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dogId: dog.petId,
+          customerId: dog.pet.customerId ?? null,
+          trainingType: "SERVICE_DOG",
+          name: `הכשרת כלב שירות — ${dog.pet.name}`,
+          programType,
+          startDate: new Date(startDate).toISOString(),
+          status: "ACTIVE",
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("תוכנית אימון נוצרה בהצלחה");
+      onSuccess();
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת תוכנית"),
+  });
+
+  const activeDogs = dogs.filter((d) => !["RETIRED", "DECERTIFIED"].includes(d.phase));
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
+            <Shield className="w-5 h-5 text-brand-500" />
+            תוכנית אימון חדשה — כלב שירות
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="label">כלב שירות *</label>
+            {isLoading ? (
+              <div className="input text-petra-muted text-sm">טוען...</div>
+            ) : activeDogs.length === 0 ? (
+              <p className="text-sm text-petra-muted py-2">אין כלבי שירות פעילים. <a href="/service-dogs" className="text-brand-600 hover:underline">הוסף כלב שירות</a></p>
+            ) : (
+              <select className="input" value={selectedDogId} onChange={(e) => setSelectedDogId(e.target.value)}>
+                <option value="">בחר כלב...</option>
+                {activeDogs.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.pet.name}{d.pet.breed ? ` (${d.pet.breed})` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          <div>
+            <label className="label">שלב הכשרה</label>
+            <select className="input" value={programType} onChange={(e) => setProgramType(e.target.value)}>
+              {SERVICE_DOG_PHASES.map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">תאריך התחלה</label>
+            <input type="date" className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button
+            className="btn-primary flex-1"
+            disabled={!selectedDogId || !startDate || mutation.isPending}
+            onClick={() => mutation.mutate()}
+          >
+            {mutation.isPending ? "יוצר..." : "צור תוכנית אימון"}
           </button>
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>

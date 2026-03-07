@@ -639,6 +639,203 @@ export async function getGcalBusyIntervals(
   return allIntervals
 }
 
+// ─── Staff-created Appointment sync ──────────────────────────────────────────
+
+type AppointmentForGcal = {
+  id: string;
+  businessId: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  status: string;
+  notes: string | null;
+  gcalEventId: string | null;
+  service: { name: string; price: number } | null;
+  priceListItem: { name: string; basePrice: number } | null;
+  customer: { name: string; phone: string; email: string | null; address: string | null };
+  pet: { name: string } | null;
+};
+
+function buildAppointmentEventPayload(appt: AppointmentForGcal, appBaseUrl: string) {
+  const serviceName = appt.service?.name ?? appt.priceListItem?.name ?? "תור";
+  const summary = appt.pet
+    ? `${serviceName} – ${appt.customer.name} – ${appt.pet.name}`
+    : `${serviceName} – ${appt.customer.name}`;
+
+  // Build ISO datetime strings in Israel timezone by treating date as local
+  const dateStr = appt.date.toISOString().split("T")[0]; // YYYY-MM-DD UTC
+  const startDateTime = `${dateStr}T${appt.startTime}:00`;
+  const endDateTime = `${dateStr}T${appt.endTime}:00`;
+
+  const serviceNameLower = serviceName.toLowerCase();
+  const isHomeVisit =
+    serviceNameLower.includes("ביקור") ||
+    serviceNameLower.includes("בית") ||
+    serviceNameLower.includes("home");
+  const location = isHomeVisit && appt.customer.address ? appt.customer.address : undefined;
+
+  const deepLink = `${appBaseUrl}/calendar`;
+  const description = [
+    `📋 תור – ${serviceName}`,
+    ``,
+    `👤 לקוח: ${appt.customer.name}`,
+    `📞 טלפון: ${appt.customer.phone}`,
+    appt.customer.email ? `📧 אימייל: ${appt.customer.email}` : null,
+    appt.pet ? `🐾 חיית מחמד: ${appt.pet.name}` : null,
+    appt.notes ? `📝 הערות: ${appt.notes}` : null,
+    ``,
+    `🔗 קישור: ${deepLink}`,
+    `⚙️ מנוהל על ידי Petra`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return {
+    summary,
+    description,
+    start: { dateTime: startDateTime, timeZone: BOOKING_TIMEZONE },
+    end: { dateTime: endDateTime, timeZone: BOOKING_TIMEZONE },
+    ...(location ? { location } : {}),
+    extendedProperties: {
+      private: { petraAppointmentId: appt.id, businessId: appt.businessId, source: "petra" },
+    },
+  };
+}
+
+async function fetchAppointmentForGcal(appointmentId: string): Promise<AppointmentForGcal | null> {
+  return prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    select: {
+      id: true, businessId: true, date: true, startTime: true, endTime: true,
+      status: true, notes: true, gcalEventId: true,
+      service: { select: { name: true, price: true } },
+      priceListItem: { select: { name: true, basePrice: true } },
+      customer: { select: { name: true, phone: true, email: true, address: true } },
+      pet: { select: { name: true } },
+    },
+  });
+}
+
+/**
+ * Sync a staff-created appointment to Google Calendar for all connected business users.
+ * Fire-and-forget safe — catches per-user errors internally.
+ */
+export async function syncAppointmentToGcal(
+  appointmentId: string,
+  businessId: string
+): Promise<void> {
+  const connectedUsers = await findConnectedUsersForBusiness(businessId);
+  const syncableUsers = connectedUsers.filter((u) => u.gcalSyncEnabled);
+  if (syncableUsers.length === 0) return;
+
+  const appt = await fetchAppointmentForGcal(appointmentId);
+  if (!appt || appt.status === "canceled") return;
+
+  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://petra-app.com";
+  const payload = buildAppointmentEventPayload(appt, appBaseUrl);
+
+  let storedEventId = appt.gcalEventId;
+
+  for (const user of syncableUsers) {
+    try {
+      const [accessToken, calendarId] = await Promise.all([
+        getValidAccessToken(user.id),
+        ensureUserCalendar(user.id),
+      ]);
+
+      let eventId: string;
+
+      if (storedEventId) {
+        // Update existing event
+        const updateRes = await fetch(
+          `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${storedEventId}`,
+          {
+            method: "PUT",
+            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }
+        );
+        if (updateRes.ok) {
+          eventId = storedEventId;
+        } else {
+          // Event was deleted from GCal — recreate
+          const createRes = await fetch(
+            `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            }
+          );
+          const data = await createRes.json();
+          eventId = data.id;
+        }
+      } else {
+        // Create new event
+        const createRes = await fetch(
+          `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`,
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }
+        );
+        const data = await createRes.json();
+        eventId = data.id;
+      }
+
+      // Persist gcalEventId after first successful sync
+      if (!storedEventId && eventId) {
+        await prisma.appointment.update({
+          where: { id: appointmentId },
+          data: { gcalEventId: eventId },
+        });
+        storedEventId = eventId;
+      }
+    } catch (err) {
+      console.error(`GCal appointment sync error (user ${user.id}):`, err);
+    }
+  }
+}
+
+/**
+ * Remove a staff-created appointment from Google Calendar.
+ * Called on appointment cancel or delete.
+ */
+export async function deleteAppointmentFromGcal(
+  appointmentId: string,
+  businessId: string
+): Promise<void> {
+  const appt = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    select: { gcalEventId: true },
+  });
+  if (!appt?.gcalEventId) return;
+
+  const connectedUsers = await findConnectedUsersForBusiness(businessId);
+  const syncableUsers = connectedUsers.filter((u) => u.gcalSyncEnabled);
+
+  for (const user of syncableUsers) {
+    try {
+      const [accessToken, calendarId] = await Promise.all([
+        getValidAccessToken(user.id),
+        ensureUserCalendar(user.id),
+      ]);
+      await fetch(
+        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${appt.gcalEventId}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+    } catch (err) {
+      console.error(`GCal appointment delete error (user ${user.id}):`, err);
+    }
+  }
+
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { gcalEventId: null },
+  });
+}
+
 /**
  * Build the Google OAuth URL for Calendar scope (separate from auth login).
  */

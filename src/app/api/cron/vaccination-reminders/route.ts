@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 import prisma from "@/lib/prisma";
+import { verifyCronAuth } from "@/lib/cron-auth";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 function addDays(d: Date, n: number) { return new Date(d.getTime() + n * DAY_MS); }
@@ -90,15 +90,7 @@ const VAX_DEFS: VaxDef[] = [
  * for expiring/expired vaccinations.
  */
 export async function GET(request: NextRequest) {
-  const secret = request.headers.get("x-cron-secret");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret || !secret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const a = Buffer.from(secret);
-  const b = Buffer.from(cronSecret);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+  if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

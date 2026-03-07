@@ -1,25 +1,16 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 import prisma from "@/lib/prisma";
 import { buildRruleDates } from "@/lib/rrule-utils";
+import { verifyCronAuth } from "@/lib/cron-auth";
 
 /**
  * GET /api/cron/generate-tasks
  * Generates tasks for all active recurrence rules for the next 7 days.
  * Called daily via Vercel Cron (see vercel.json).
- * Requires x-cron-secret header or ?secret= query param.
  */
 export async function GET(request: NextRequest) {
-  const secret = request.headers.get("x-cron-secret");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret || !secret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const a = Buffer.from(secret);
-  const b = Buffer.from(cronSecret);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+  if (!verifyCronAuth(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

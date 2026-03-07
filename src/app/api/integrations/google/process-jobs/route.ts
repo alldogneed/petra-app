@@ -1,28 +1,16 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { processPendingSyncJobs } from "@/lib/sync-jobs";
-import crypto from "crypto";
+import { verifyCronAuth } from "@/lib/cron-auth";
 
 /**
- * GET /api/integrations/google/process-jobs  (pass secret via x-cron-secret header)
+ * GET /api/integrations/google/process-jobs
  * Processes pending Google Calendar sync jobs.
- * Should be called by a cron scheduler (Vercel Cron, external service, etc.)
+ * Called every 5 minutes via Vercel Cron.
  */
 export async function GET(request: NextRequest) {
   try {
-    const secret = request.headers.get("x-cron-secret");
-    const cronSecret = process.env.CRON_SECRET;
-
-    // Verify CRON_SECRET using timing-safe comparison to prevent timing attacks
-    let authorized = false;
-    if (cronSecret && secret) {
-      try {
-        authorized = crypto.timingSafeEqual(Buffer.from(secret), Buffer.from(cronSecret));
-      } catch {
-        // Different buffer lengths → no match
-      }
-    }
-    if (!authorized) {
+    if (!verifyCronAuth(request)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
