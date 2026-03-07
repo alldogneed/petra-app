@@ -34,9 +34,8 @@ interface TrainingProgram {
   id: string;
   name: string;
   status: string;
-  totalHours: number;
-  targetHours: number;
-  dog: { id: string; name: string };
+  totalSessions: number | null;
+  dog: { id: string; name: string } | null;
   sessions: { id: string; sessionDate: string; status: string }[];
 }
 
@@ -245,17 +244,19 @@ export default function ServiceDogsReportsPage() {
               ) : (
                 <div className="space-y-3 max-h-64 overflow-y-auto">
                   {activePrograms.map((prog) => {
-                    const pct = prog.targetHours > 0
-                      ? Math.min(100, Math.round((prog.totalHours / prog.targetHours) * 100))
+                    const completedSessions = prog.sessions.filter((s) => s.status === "COMPLETED").length;
+                    const totalSessions = prog.totalSessions ?? 0;
+                    const pct = totalSessions > 0
+                      ? Math.min(100, Math.round((completedSessions / totalSessions) * 100))
                       : 0;
                     const isStale = stalePrograms.some((s) => s.id === prog.id);
                     return (
                       <div key={prog.id} className={cn("p-3 rounded-xl border", isStale ? "border-amber-200 bg-amber-50" : "border-petra-border bg-slate-50/40")}>
                         <div className="flex items-center justify-between mb-1.5">
-                          <Link href={`/service-dogs/${prog.dog?.id}`} className="text-sm font-medium hover:text-brand-600">
+                          <span className="text-sm font-medium">
                             {prog.dog?.name || prog.name}
-                          </Link>
-                          <span className="text-xs text-petra-muted">{prog.totalHours.toFixed(1)} / {prog.targetHours} שעות</span>
+                          </span>
+                          <span className="text-xs text-petra-muted">{completedSessions} / {totalSessions || "—"} מפגשים</span>
                         </div>
                         <div className="h-2 bg-white border rounded-full overflow-hidden">
                           <div
