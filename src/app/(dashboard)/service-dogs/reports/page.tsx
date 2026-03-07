@@ -16,6 +16,7 @@ import {
   UserCheck,
   Calendar,
   RefreshCw,
+  Download,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
@@ -148,6 +149,24 @@ export default function ServiceDogsReportsPage() {
             דוחות פנימיים — כלבי שירות
           </h1>
           <p className="text-sm text-petra-muted mt-1">סיכום תפעולי · ציות רפואי · אימונים · שיבוצים</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <a
+            href="/api/service-dogs/export"
+            download
+            className="btn-outline flex items-center gap-2 text-sm px-3 py-2"
+          >
+            <Download className="w-4 h-4" />
+            ייצוא כלבים לאקסל
+          </a>
+          <a
+            href="/api/service-recipients/export"
+            download
+            className="btn-outline flex items-center gap-2 text-sm px-3 py-2"
+          >
+            <Download className="w-4 h-4" />
+            ייצוא זכאים לאקסל
+          </a>
         </div>
       </div>
 
