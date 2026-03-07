@@ -99,6 +99,7 @@ export async function PATCH(
         ...(body.maintenanceNotes !== undefined && { maintenanceNotes: body.maintenanceNotes }),
         ...(body.yardGroup !== undefined && { yardGroup: body.yardGroup }),
         ...(body.feedingInstructions !== undefined && { feedingInstructions: body.feedingInstructions }),
+        ...(body.dogPhoto !== undefined && { dogPhoto: body.dogPhoto }),
       },
       include: { pet: true },
     });

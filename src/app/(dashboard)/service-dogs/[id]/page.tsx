@@ -42,6 +42,9 @@ import {
   Tag,
   Building,
   Check,
+  Upload,
+  ImageIcon,
+  FileText as FileTextIcon,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import {
@@ -151,6 +154,7 @@ interface ServiceDogDetail {
   maintenanceNotes: string | null;
   yardGroup: string | null;
   feedingInstructions: string | null;
+  dogPhoto: string | null;
   createdAt: string;
   pet: {
     id: string;
@@ -1587,20 +1591,28 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
   const [showAddTest, setShowAddTest] = useState(false);
   const [expandedTestId, setExpandedTestId] = useState<string | null>(null);
 
+  // All dogs for the selector in AddTestModal
+  const { data: allDogs = [] } = useQuery<{ id: string; pet: { name: string } }[]>({
+    queryKey: ["service-dogs"],
+    queryFn: () => fetch("/api/service-dogs").then((r) => r.json()),
+    staleTime: 60_000,
+  });
+
   const tests: TrainingTest[] = Array.isArray(dog.trainingTests) ? (dog.trainingTests as TrainingTest[]) : [];
 
   const saveMutation = useMutation({
-    mutationFn: (t: TrainingTest[]) =>
-      fetch(`/api/service-dogs/${dogId}`, {
+    mutationFn: ({ targetDogId, newTests }: { targetDogId: string; newTests: TrainingTest[] }) =>
+      fetch(`/api/service-dogs/${targetDogId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trainingTests: t }),
+        body: JSON.stringify({ trainingTests: newTests }),
       }).then((r) => {
         if (!r.ok) throw new Error("Failed");
         return r.json();
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", vars.targetDogId] });
+      queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
       toast.success("מבחן נשמר");
       setShowAddTest(false);
     },
@@ -1609,7 +1621,7 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
 
   const deleteTest = (testId: string) => {
     if (!confirm("למחוק את המבחן?")) return;
-    saveMutation.mutate(tests.filter((t) => t.id !== testId));
+    saveMutation.mutate({ targetDogId: dogId, newTests: tests.filter((t) => t.id !== testId) });
   };
 
   const passCount = tests.filter((t) => t.overallResult === "PASS" || t.overallResult === "CONDITIONAL_PASS").length;
@@ -1729,7 +1741,20 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
 
       {showAddTest && (
         <AddTrainingTestModal
-          onSave={(test) => saveMutation.mutate([test, ...tests])}
+          currentDogId={dogId}
+          currentDogName={dog.pet.name}
+          allDogs={allDogs}
+          onSave={(test, targetDogId) => {
+            if (targetDogId === dogId) {
+              saveMutation.mutate({ targetDogId: dogId, newTests: [test, ...tests] });
+            } else {
+              // Save to different dog — fetch their existing tests first then append
+              fetch(`/api/service-dogs/${targetDogId}`).then((r) => r.json()).then((d) => {
+                const existing: TrainingTest[] = Array.isArray(d.trainingTests) ? (d.trainingTests as TrainingTest[]) : [];
+                saveMutation.mutate({ targetDogId, newTests: [test, ...existing] });
+              });
+            }
+          }}
           onClose={() => setShowAddTest(false)}
           isSaving={saveMutation.isPending}
         />
@@ -1739,12 +1764,16 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
 }
 
 function AddTrainingTestModal({
-  onSave, onClose, isSaving,
+  onSave, onClose, isSaving, currentDogId, currentDogName, allDogs,
 }: {
-  onSave: (test: TrainingTest) => void;
+  onSave: (test: TrainingTest, targetDogId: string) => void;
   onClose: () => void;
   isSaving: boolean;
+  currentDogId: string;
+  currentDogName: string;
+  allDogs: { id: string; pet: { name: string } }[];
 }) {
+  const [selectedDogId, setSelectedDogId] = useState(currentDogId);
   const [testType, setTestType] = useState("PROGRESS_TEST");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [examinerName, setExaminerName] = useState("");
@@ -1775,7 +1804,7 @@ function AddTrainingTestModal({
       categories: categories.filter((c) => c.result !== "NOT_TESTED"),
       overallResult,
       notes,
-    });
+    }, selectedDogId);
   };
 
   return (
@@ -1787,6 +1816,21 @@ function AddTrainingTestModal({
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
         </div>
         <div className="space-y-4 max-h-[75vh] overflow-y-auto">
+          {/* Dog selector */}
+          <div className="bg-slate-50 rounded-xl p-3 border">
+            <label className="label text-xs mb-1">כלב מקושר למבחן</label>
+            <select
+              value={selectedDogId}
+              onChange={(e) => setSelectedDogId(e.target.value)}
+              className="input w-full text-sm"
+            >
+              {allDogs.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.pet.name}{d.id === currentDogId ? " (נוכחי)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">סוג מבחן</label>
@@ -2102,6 +2146,7 @@ function DocumentsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) 
 function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
   const queryClient = useQueryClient();
   const [viewingCard, setViewingCard] = useState<IDCard | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const generateMutation = useMutation({
     mutationFn: () =>
@@ -2116,6 +2161,30 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
     },
     onError: () => toast.error("שגיאה בהנפקת תעודה"),
   });
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) { toast.error("תמונה גדולה מדי (מקסימום 3MB)"); return; }
+    setUploadingPhoto(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        await fetch(`/api/service-dogs/${dogId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dogPhoto: reader.result }),
+        });
+        queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+        toast.success("תמונת הכלב עודכנה");
+      } catch {
+        toast.error("שגיאה בשמירת תמונה");
+      } finally {
+        setUploadingPhoto(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const fetchCard = async () => {
     try {
@@ -2133,6 +2202,26 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Dog photo upload section */}
+      <div className="card p-4 flex items-center gap-4">
+        <div className="w-20 h-20 rounded-xl border-2 border-dashed border-petra-border overflow-hidden flex items-center justify-center bg-slate-50 shrink-0">
+          {dog.dogPhoto ? (
+            <img src={dog.dogPhoto} alt="תמונת כלב" className="w-full h-full object-cover" />
+          ) : (
+            <ImageIcon className="w-8 h-8 text-petra-muted/40" />
+          )}
+        </div>
+        <div>
+          <p className="text-sm font-medium mb-1">תמונת הכלב לתעודה</p>
+          <p className="text-xs text-petra-muted mb-2">התמונה תוצג בתעודת ההסמכה</p>
+          <label className="btn-secondary text-xs cursor-pointer flex items-center gap-1.5 w-fit">
+            <Upload className="w-3.5 h-3.5" />
+            {uploadingPhoto ? "מעלה..." : dog.dogPhoto ? "החלף תמונה" : "העלה תמונה"}
+            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={uploadingPhoto} />
+          </label>
+        </div>
+      </div>
+
       {dog.phase !== "CERTIFIED" && !activeCard && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -2808,6 +2897,7 @@ interface InsuranceRecord {
   renewalDate: string | null;
   isActive: boolean;
   notes: string | null;
+  policyDocument: string | null;
   claims: ClaimRecord[];
 }
 
@@ -2955,6 +3045,18 @@ function InsuranceTab({ dogId }: { dogId: string }) {
                   {ins.startDate && <div><p className="text-xs text-petra-muted">תחילת כיסוי</p><p className="font-medium">{formatDate(ins.startDate)}</p></div>}
                 </div>
 
+                {/* Policy document */}
+                {ins.policyDocument && (
+                  <a
+                    href={ins.policyDocument}
+                    download={`policy-${ins.policyNumber || ins.id}.pdf`}
+                    className="inline-flex items-center gap-1.5 text-xs text-brand-500 hover:text-brand-600 mt-2"
+                  >
+                    <FileTextIcon className="w-3.5 h-3.5" />
+                    הורד מסמך פוליסה
+                  </a>
+                )}
+
                 {/* Claims */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -3023,7 +3125,20 @@ function InsuranceTab({ dogId }: { dogId: string }) {
 
 function AddInsuranceForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<string, unknown>) => void; onCancel: () => void; isSaving: boolean }) {
   const [form, setForm] = useState({ provider: "", policyNumber: "", premium: "", deductible: "", coverageType: "", startDate: "", renewalDate: "", notes: "" });
+  const [policyDocument, setPolicyDocument] = useState<string | null>(null);
+  const [docName, setDocName] = useState<string | null>(null);
   const f = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm((p) => ({ ...p, [k]: e.target.value }));
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("קובץ גדול מדי (מקסימום 5MB)"); return; }
+    setDocName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => setPolicyDocument(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="card p-4 border-2 border-blue-200 bg-blue-50/30 space-y-3">
       <h4 className="text-sm font-semibold">פוליסה חדשה</h4>
@@ -3042,8 +3157,22 @@ function AddInsuranceForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<s
         <div><label className="label text-xs">תאריך חידוש</label><input type="date" className="input w-full text-sm" value={form.renewalDate} onChange={f("renewalDate")} /></div>
       </div>
       <div><label className="label text-xs">הערות</label><textarea className="input w-full text-sm" rows={2} value={form.notes} onChange={f("notes")} /></div>
+      {/* File upload */}
+      <div>
+        <label className="label text-xs">מסמך פוליסה (PDF / תמונה)</label>
+        <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-blue-200 rounded-lg p-3 hover:border-blue-400 transition-colors">
+          <Upload className="w-4 h-4 text-blue-400 shrink-0" />
+          <span className="text-sm text-blue-600 truncate">{docName || "לחץ להעלאת קובץ"}</span>
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={handleFileChange} />
+        </label>
+        {policyDocument && (
+          <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+            <Check className="w-3 h-3" /> קובץ מוכן להעלאה: {docName}
+          </p>
+        )}
+      </div>
       <div className="flex gap-2">
-        <button className="btn-primary text-sm" onClick={() => onSave(form)} disabled={!form.provider || isSaving}>{isSaving ? "שומר..." : "שמור"}</button>
+        <button className="btn-primary text-sm" onClick={() => onSave({ ...form, policyDocument })} disabled={!form.provider || isSaving}>{isSaving ? "שומר..." : "שמור"}</button>
         <button className="btn-secondary text-sm" onClick={onCancel}>ביטול</button>
       </div>
     </div>

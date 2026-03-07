@@ -52,6 +52,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         startDate: body.startDate ? new Date(body.startDate) : null,
         renewalDate: body.renewalDate ? new Date(body.renewalDate) : null,
         notes: body.notes || null,
+        policyDocument: body.policyDocument || null,
         isActive: body.isActive !== false,
       },
       include: { claims: true },

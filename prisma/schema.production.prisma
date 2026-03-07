@@ -270,6 +270,7 @@ model Business {
   serviceDogInsurances   ServiceDogInsurance[]
   serviceDogClaims       ServiceDogClaim[]
   serviceDogVests        ServiceDogVest[]
+  recipientStages        ServiceRecipientStage[]
   careLogs               BoardingCareLog[]
   standalonePets         Pet[]            @relation("StandalonePets")
 
@@ -1615,6 +1616,7 @@ model ServiceDogProfile {
   // Boarding / logistics
   yardGroup             String?   // קבוצת חצר (גורים, רטריברים, כו')
   feedingInstructions   String?   // הוראות האכלה מיוחדות
+  dogPhoto              String?   // base64 data URL of dog photo for ID card
   notes                 String?
   documents             Json      @default("[]")
   trainingTests         Json      @default("[]")
@@ -1857,6 +1859,7 @@ model ServiceDogInsurance {
   startDate     DateTime?
   renewalDate   DateTime?
   notes         String?
+  policyDocument String?  // base64 data URL of uploaded policy PDF/image
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -1916,6 +1919,24 @@ model ServiceDogVest {
 
   @@index([serviceDogId])
   @@index([businessId])
+}
+
+/// Customizable pipeline stages for service dog recipients (like LeadStage)
+model ServiceRecipientStage {
+  id         String   @id @default(uuid())
+  businessId String
+  key        String   // matches status value on ServiceDogRecipient (e.g. "LEAD" or "CUSTOM_abc")
+  name       String
+  color      String   @default("bg-slate-100 text-slate-600")  // tailwind badge classes
+  sortOrder  Int      @default(99)
+  isBuiltIn  Boolean  @default(false)  // built-in stages cannot be deleted
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business   Business @relation(fields: [businessId], references: [id])
+
+  @@unique([businessId, key])
+  @@index([businessId, sortOrder])
 }
 
 // ─────────────────────────────────────────────
