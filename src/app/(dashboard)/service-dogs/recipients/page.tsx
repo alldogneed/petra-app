@@ -9,15 +9,24 @@ import {
   X,
   Search,
   Phone,
-  Mail,
   ChevronLeft,
   Dog,
-  Clock,
   ChevronRight,
+  LayoutGrid,
+  LayoutList,
+  ArrowRight,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
-import { RECIPIENT_STATUSES, RECIPIENT_STATUS_MAP, DISABILITY_TYPES, DISABILITY_TYPE_MAP, PLACEMENT_STATUS_MAP } from "@/lib/service-dogs";
+import {
+  RECIPIENT_STATUSES,
+  RECIPIENT_STATUS_MAP,
+  DISABILITY_TYPES,
+  DISABILITY_TYPE_MAP,
+  PLACEMENT_STATUS_MAP,
+  RECIPIENT_FUNDING_SOURCES,
+  FUNDING_SOURCE_MAP,
+} from "@/lib/service-dogs";
 import { toast } from "sonner";
 
 interface Recipient {
@@ -28,6 +37,7 @@ interface Recipient {
   idNumber: string | null;
   address: string | null;
   disabilityType: string | null;
+  fundingSource: string | null;
   status: string;
   waitlistDate: string | null;
   notes: string | null;
@@ -38,21 +48,34 @@ interface Recipient {
   }>;
 }
 
+const PIPELINE_STAGES: string[] = RECIPIENT_STATUSES.map((s) => s.id as string);
+
 export default function RecipientsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedRecipient, setSelectedRecipient] = useState<Recipient | null>(null);
+  const [view, setView] = useState<"kanban" | "table">("kanban");
+  const queryClient = useQueryClient();
 
   const { data: recipients = [], isLoading } = useQuery<Recipient[]>({
     queryKey: ["service-recipients"],
     queryFn: () => fetch("/api/service-recipients").then((r) => r.json()),
   });
 
+  const advanceMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      fetch(`/api/service-recipients/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      }).then((r) => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["service-recipients"] }),
+    onError: () => toast.error("שגיאה בעדכון סטטוס"),
+  });
+
   const filtered = recipients.filter((r) => {
     const matchStatus = !statusFilter || r.status === statusFilter;
-    const matchSearch =
-      !search || r.name.includes(search) || (r.phone || "").includes(search);
+    const matchSearch = !search || r.name.includes(search) || (r.phone || "").includes(search);
     return matchStatus && matchSearch;
   });
 
@@ -61,9 +84,15 @@ export default function RecipientsPage() {
     {} as Record<string, number>
   );
 
+  const getNextStage = (currentStatus: string) => {
+    const idx = PIPELINE_STAGES.indexOf(currentStatus);
+    return idx >= 0 && idx < PIPELINE_STAGES.length - 1 ? PIPELINE_STAGES[idx + 1] : null;
+  };
+
   return (
     <div className="animate-fade-in space-y-4">
       <ServiceDogsTabs />
+
       {/* Header */}
       <div className="page-header">
         <div>
@@ -77,79 +106,172 @@ export default function RecipientsPage() {
             ניהול זכאים
           </h1>
           <p className="text-sm text-petra-muted mt-1">
-            {recipients.length} זכאים במערכת ·{" "}
+            {recipients.length} זכאים ·{" "}
             {recipients.filter((r) => r.status === "WAITLIST").length} ברשימת המתנה ·{" "}
             {recipients.filter((r) => r.status === "ACTIVE").length} פעילים
           </p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          הוסף זכאי
-        </button>
-      </div>
-
-      {/* Status Filter */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <button
-          onClick={() => setStatusFilter("")}
-          className={cn(
-            "text-sm px-3 py-1.5 rounded-lg font-medium transition-colors",
-            !statusFilter ? "bg-slate-800 text-white" : "text-petra-muted hover:bg-slate-50"
-          )}
-        >
-          הכל ({recipients.length})
-        </button>
-        {RECIPIENT_STATUSES.map((s) => {
-          const count = statusCounts[s.id] || 0;
-          return (
+        <div className="flex items-center gap-2">
+          {/* View Toggle */}
+          <div className="flex items-center bg-slate-100 rounded-lg p-1">
             <button
-              key={s.id}
-              onClick={() => setStatusFilter(statusFilter === s.id ? "" : s.id)}
-              className={cn(
-                "text-sm px-3 py-1.5 rounded-lg font-medium border transition-all",
-                statusFilter === s.id
-                  ? "bg-brand-50 text-brand-600 border-brand-200 shadow-sm"
-                  : "text-petra-muted hover:bg-slate-50 border-transparent",
-                count === 0 && "opacity-40"
-              )}
+              onClick={() => setView("kanban")}
+              className={cn("p-1.5 rounded transition-colors", view === "kanban" ? "bg-white shadow-sm text-brand-600" : "text-petra-muted hover:text-foreground")}
+              title="תצוגת קנבן"
             >
-              {s.label} ({count})
+              <LayoutGrid className="w-4 h-4" />
             </button>
-          );
-        })}
+            <button
+              onClick={() => setView("table")}
+              className={cn("p-1.5 rounded transition-colors", view === "table" ? "bg-white shadow-sm text-brand-600" : "text-petra-muted hover:text-foreground")}
+              title="תצוגת טבלה"
+            >
+              <LayoutList className="w-4 h-4" />
+            </button>
+          </div>
+          <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            הוסף זכאי
+          </button>
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
-        <input
-          type="text"
-          placeholder="חיפוש לפי שם או טלפון..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="input pr-10 w-full"
-        />
+      {/* Search + status filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
+          <input
+            type="text"
+            placeholder="חיפוש לפי שם או טלפון..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input pr-10 w-56"
+          />
+        </div>
+        {view === "table" && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setStatusFilter("")}
+              className={cn("text-sm px-3 py-1.5 rounded-lg font-medium transition-colors", !statusFilter ? "bg-slate-800 text-white" : "text-petra-muted hover:bg-slate-50")}
+            >
+              הכל ({recipients.length})
+            </button>
+            {RECIPIENT_STATUSES.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setStatusFilter(statusFilter === s.id ? "" : s.id)}
+                className={cn(
+                  "text-sm px-3 py-1.5 rounded-lg font-medium border transition-all",
+                  statusFilter === s.id ? "bg-brand-50 text-brand-600 border-brand-200 shadow-sm" : "text-petra-muted hover:bg-slate-50 border-transparent",
+                  (statusCounts[s.id] || 0) === 0 && "opacity-40"
+                )}
+              >
+                {s.label} ({statusCounts[s.id] || 0})
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Table */}
       {isLoading ? (
         <div className="card animate-pulse h-64" />
+      ) : view === "kanban" ? (
+        /* ─── Kanban Board ─── */
+        <div className="overflow-x-auto pb-4 -mx-1 px-1">
+          <div className="flex gap-3 min-w-max">
+            {RECIPIENT_STATUSES.map((stage) => {
+              const stageRecipients = filtered.filter((r) => r.status === stage.id);
+              return (
+                <div key={stage.id} className="w-60 flex-shrink-0">
+                  {/* Column header */}
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <span className={cn("text-xs font-semibold px-2.5 py-1 rounded-full", stage.color)}>
+                      {stage.label}
+                    </span>
+                    <span className="text-xs text-petra-muted font-medium bg-slate-100 px-2 py-0.5 rounded-full">
+                      {stageRecipients.length}
+                    </span>
+                  </div>
+
+                  {/* Cards */}
+                  <div className="space-y-2 min-h-28 bg-slate-50/70 rounded-xl p-2">
+                    {stageRecipients.map((r) => {
+                      const nextStage = getNextStage(r.status);
+                      const nextStageInfo = nextStage ? RECIPIENT_STATUS_MAP[nextStage] : null;
+                      const activePlacement = r.placements?.find((p) =>
+                        ["ACTIVE", "TRIAL"].includes(p.status)
+                      );
+                      return (
+                        <div
+                          key={r.id}
+                          className="bg-white border rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow"
+                        >
+                          <Link href={`/service-dogs/recipients/${r.id}`} className="block">
+                            <p className="font-semibold text-sm leading-tight">{r.name}</p>
+                            {r.disabilityType && (
+                              <p className="text-xs text-petra-muted mt-0.5">
+                                {DISABILITY_TYPE_MAP[r.disabilityType] || r.disabilityType}
+                              </p>
+                            )}
+                            {r.fundingSource && (
+                              <p className="text-xs text-brand-500 font-medium mt-1">
+                                {FUNDING_SOURCE_MAP[r.fundingSource] || r.fundingSource}
+                              </p>
+                            )}
+                            {activePlacement && (
+                              <div className="flex items-center gap-1 mt-1.5 text-xs text-emerald-600">
+                                <Dog className="w-3 h-3" />
+                                {activePlacement.serviceDog.pet.name}
+                              </div>
+                            )}
+                            {r.phone && (
+                              <p className="text-xs text-petra-muted mt-1 flex items-center gap-1">
+                                <Phone className="w-3 h-3" />
+                                {r.phone}
+                              </p>
+                            )}
+                          </Link>
+                          {nextStageInfo && (
+                            <button
+                              onClick={() => advanceMutation.mutate({ id: r.id, status: nextStage! })}
+                              disabled={advanceMutation.isPending}
+                              className="w-full mt-2 text-xs flex items-center justify-center gap-1 text-petra-muted hover:text-brand-600 hover:bg-brand-50 py-1 rounded-lg transition-colors border border-transparent hover:border-brand-200"
+                            >
+                              <ArrowRight className="w-3 h-3 rotate-180" />
+                              העבר ל{nextStageInfo.label}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {stageRecipients.length === 0 && (
+                      <div className="border border-dashed border-slate-200 rounded-xl p-4 text-center text-xs text-petra-muted">
+                        אין זכאים
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
           <UserCheck className="empty-state-icon" />
           <p className="text-petra-muted">אין זכאים</p>
         </div>
       ) : (
+        /* ─── Table View ─── */
         <div className="card p-0 overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-slate-50/50">
                 <th className="table-header-cell">שם</th>
                 <th className="table-header-cell">סוג לקות</th>
+                <th className="table-header-cell">מקור מימון</th>
                 <th className="table-header-cell">סטטוס</th>
                 <th className="table-header-cell">כלב משובץ</th>
                 <th className="table-header-cell">טלפון</th>
-                <th className="table-header-cell">תאריך רשימה</th>
                 <th className="table-header-cell">פעולות</th>
               </tr>
             </thead>
@@ -160,7 +282,11 @@ export default function RecipientsPage() {
                   ["ACTIVE", "TRIAL"].includes(p.status)
                 );
                 return (
-                  <tr key={recipient.id} className="border-b hover:bg-slate-50/40 transition-colors cursor-pointer" onClick={() => window.location.href = `/service-dogs/recipients/${recipient.id}`}>
+                  <tr
+                    key={recipient.id}
+                    className="border-b hover:bg-slate-50/40 transition-colors cursor-pointer"
+                    onClick={() => (window.location.href = `/service-dogs/recipients/${recipient.id}`)}
+                  >
                     <td className="table-cell">
                       <div className="font-medium">{recipient.name}</div>
                       {recipient.idNumber && (
@@ -173,6 +299,13 @@ export default function RecipientsPage() {
                       )}
                     </td>
                     <td className="table-cell">
+                      {recipient.fundingSource ? (
+                        <span className="text-sm">{FUNDING_SOURCE_MAP[recipient.fundingSource] || recipient.fundingSource}</span>
+                      ) : (
+                        <span className="text-petra-muted">—</span>
+                      )}
+                    </td>
+                    <td className="table-cell">
                       <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", statusInfo?.color)}>
                         {statusInfo?.label || recipient.status}
                       </span>
@@ -181,6 +314,7 @@ export default function RecipientsPage() {
                       {activePlacement ? (
                         <Link
                           href={`/service-dogs/${activePlacement.serviceDog.id}`}
+                          onClick={(e) => e.stopPropagation()}
                           className="flex items-center gap-1.5 text-sm text-brand-500 hover:text-brand-600"
                         >
                           <Dog className="w-3.5 h-3.5" />
@@ -192,21 +326,17 @@ export default function RecipientsPage() {
                     </td>
                     <td className="table-cell">
                       {recipient.phone ? (
-                        <a href={`tel:${recipient.phone}`} className="flex items-center gap-1 text-sm hover:text-brand-500">
+                        <a
+                          href={`tel:${recipient.phone}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1 text-sm hover:text-brand-500"
+                        >
                           <Phone className="w-3.5 h-3.5" />
                           {recipient.phone}
                         </a>
                       ) : (
                         <span className="text-petra-muted text-sm">—</span>
                       )}
-                    </td>
-                    <td className="table-cell text-petra-muted text-sm">
-                      {recipient.waitlistDate ? (
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          {formatDate(recipient.waitlistDate)}
-                        </span>
-                      ) : "—"}
                     </td>
                     <td className="table-cell">
                       <Link
@@ -227,12 +357,6 @@ export default function RecipientsPage() {
       )}
 
       {showAddModal && <AddRecipientModal onClose={() => setShowAddModal(false)} />}
-      {selectedRecipient && (
-        <RecipientDetailModal
-          recipient={selectedRecipient}
-          onClose={() => setSelectedRecipient(null)}
-        />
-      )}
     </div>
   );
 }
@@ -247,6 +371,7 @@ function AddRecipientModal({ onClose }: { onClose: () => void }) {
   const [idNumber, setIdNumber] = useState("");
   const [address, setAddress] = useState("");
   const [disabilityType, setDisabilityType] = useState("");
+  const [fundingSource, setFundingSource] = useState("");
   const [notes, setNotes] = useState("");
 
   const createMutation = useMutation({
@@ -279,7 +404,13 @@ function AddRecipientModal({ onClose }: { onClose: () => void }) {
         <div className="space-y-3">
           <div>
             <label className="label">שם מלא *</label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input w-full" placeholder="שם ומשפחה" />
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="input w-full"
+              placeholder="שם ומשפחה"
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -307,6 +438,15 @@ function AddRecipientModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <div>
+            <label className="label">מקור מימון</label>
+            <select value={fundingSource} onChange={(e) => setFundingSource(e.target.value)} className="input w-full">
+              <option value="">לא נבחר</option>
+              {RECIPIENT_FUNDING_SOURCES.map((f) => (
+                <option key={f.id} value={f.id}>{f.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="label">כתובת</label>
             <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} className="input w-full" />
           </div>
@@ -316,7 +456,9 @@ function AddRecipientModal({ onClose }: { onClose: () => void }) {
           </div>
           <div className="flex gap-2 pt-2">
             <button
-              onClick={() => createMutation.mutate({ name, phone, email, idNumber, address, disabilityType, notes })}
+              onClick={() =>
+                createMutation.mutate({ name, phone, email, idNumber, address, disabilityType, fundingSource, notes })
+              }
               disabled={!name || createMutation.isPending}
               className="btn-primary flex-1"
             >
@@ -324,79 +466,6 @@ function AddRecipientModal({ onClose }: { onClose: () => void }) {
             </button>
             <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Recipient Detail Modal ───
-
-function RecipientDetailModal({ recipient, onClose }: { recipient: Recipient; onClose: () => void }) {
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-backdrop" />
-      <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold">{recipient.name}</h2>
-          <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
-        </div>
-
-        <div className="space-y-3">
-          {/* Status */}
-          <div className="flex items-center justify-between py-2 border-b">
-            <span className="text-sm text-petra-muted">סטטוס</span>
-            <span className={cn("text-sm px-2.5 py-1 rounded-full font-medium", RECIPIENT_STATUS_MAP[recipient.status]?.color)}>
-              {RECIPIENT_STATUS_MAP[recipient.status]?.label || recipient.status}
-            </span>
-          </div>
-
-          {/* Details */}
-          {[
-            { label: "סוג לקות", value: DISABILITY_TYPE_MAP[recipient.disabilityType || ""] || null },
-            { label: "תעודת זהות", value: recipient.idNumber },
-            { label: "טלפון", value: recipient.phone },
-            { label: "אימייל", value: recipient.email },
-            { label: "כתובת", value: recipient.address },
-            { label: "תאריך רשימה", value: recipient.waitlistDate ? formatDate(recipient.waitlistDate) : null },
-          ]
-            .filter((f) => f.value)
-            .map((f) => (
-              <div key={f.label} className="flex justify-between py-1.5 border-b last:border-0">
-                <span className="text-sm text-petra-muted">{f.label}</span>
-                <span className="text-sm font-medium">{f.value}</span>
-              </div>
-            ))}
-
-          {/* Placements */}
-          {recipient.placements && recipient.placements.length > 0 && (
-            <div className="pt-2">
-              <p className="text-sm font-semibold mb-2">שיבוצים</p>
-              {recipient.placements.map((p) => (
-                <Link
-                  key={p.id}
-                  href={`/service-dogs/${p.serviceDog.id}`}
-                  onClick={onClose}
-                  className="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50/50 hover:bg-slate-50 transition-colors"
-                >
-                  <span className="flex items-center gap-2 text-sm">
-                    <Dog className="w-4 h-4 text-petra-muted" />
-                    {p.serviceDog.pet.name}
-                  </span>
-                  <span className={cn("text-xs px-2 py-0.5 rounded-full", PLACEMENT_STATUS_MAP[p.status]?.color || "bg-slate-100 text-slate-600")}>
-                    {PLACEMENT_STATUS_MAP[p.status]?.label || p.status}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {recipient.notes && (
-            <div className="pt-2 border-t">
-              <p className="text-xs text-petra-muted mb-1">הערות</p>
-              <p className="text-sm">{recipient.notes}</p>
-            </div>
-          )}
         </div>
       </div>
     </div>

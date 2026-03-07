@@ -90,6 +90,15 @@ export async function PATCH(
         ...(body.notes !== undefined && { notes: body.notes }),
         ...(body.documents !== undefined && { documents: body.documents }),
         ...(body.trainingTests !== undefined && { trainingTests: body.trainingTests }),
+        // New acquisition / license / logistics fields
+        ...(body.pedigreeNumber !== undefined && { pedigreeNumber: body.pedigreeNumber }),
+        ...(body.purchasePrice !== undefined && { purchasePrice: body.purchasePrice != null ? parseFloat(body.purchasePrice) : null }),
+        ...(body.purchaseSource !== undefined && { purchaseSource: body.purchaseSource }),
+        ...(body.licenseNumber !== undefined && { licenseNumber: body.licenseNumber }),
+        ...(body.licenseExpiry !== undefined && { licenseExpiry: body.licenseExpiry ? new Date(body.licenseExpiry) : null }),
+        ...(body.maintenanceNotes !== undefined && { maintenanceNotes: body.maintenanceNotes }),
+        ...(body.yardGroup !== undefined && { yardGroup: body.yardGroup }),
+        ...(body.feedingInstructions !== undefined && { feedingInstructions: body.feedingInstructions }),
       },
       include: { pet: true },
     });

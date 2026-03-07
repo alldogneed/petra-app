@@ -12,7 +12,7 @@ import {
 import { cn, formatDate } from "@/lib/utils";
 import {
   RECIPIENT_STATUS_MAP, RECIPIENT_STATUSES, DISABILITY_TYPES, DISABILITY_TYPE_MAP,
-  PLACEMENT_STATUS_MAP, SERVICE_DOG_PHASE_MAP,
+  PLACEMENT_STATUS_MAP, SERVICE_DOG_PHASE_MAP, RECIPIENT_FUNDING_SOURCES, FUNDING_SOURCE_MAP,
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
 
@@ -60,6 +60,7 @@ interface RecipientDetail {
   address: string | null;
   disabilityType: string | null;
   disabilityNotes: string | null;
+  fundingSource: string | null;
   waitlistDate: string | null;
   notes: string | null;
   status: string;
@@ -310,6 +311,7 @@ export default function RecipientDetailPage() {
               <div className="space-y-2.5">
                 {[
                   { label: "שם מלא", value: recipient.name },
+                  { label: "מקור מימון", value: recipient.fundingSource ? (FUNDING_SOURCE_MAP[recipient.fundingSource] || recipient.fundingSource) : null },
                   { label: "טלפון", value: recipient.phone, href: recipient.phone ? `tel:${recipient.phone}` : undefined },
                   { label: "אימייל", value: recipient.email, href: recipient.email ? `mailto:${recipient.email}` : undefined },
                   { label: "תעודת זהות", value: recipient.idNumber },
@@ -588,6 +590,7 @@ function EditRecipientModal({
   const [address, setAddress] = useState(recipient.address || "");
   const [disabilityType, setDisabilityType] = useState(recipient.disabilityType || "");
   const [disabilityNotes, setDisabilityNotes] = useState(recipient.disabilityNotes || "");
+  const [fundingSource, setFundingSource] = useState(recipient.fundingSource || "");
   const [notes, setNotes] = useState(recipient.notes || "");
   const [status, setStatus] = useState(recipient.status);
 
@@ -642,6 +645,15 @@ function EditRecipientModal({
                 ))}
               </select>
             </div>
+            <div>
+              <label className="label">מקור מימון</label>
+              <select value={fundingSource} onChange={(e) => setFundingSource(e.target.value)} className="input w-full">
+                <option value="">לא נבחר</option>
+                {RECIPIENT_FUNDING_SOURCES.map((f) => (
+                  <option key={f.id} value={f.id}>{f.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div>
             <label className="label">פרטים על הלקות</label>
@@ -654,7 +666,7 @@ function EditRecipientModal({
         </div>
         <div className="flex gap-2 mt-4 pt-4 border-t">
           <button
-            onClick={() => onSave({ name, phone, email, idNumber, address, disabilityType, disabilityNotes, notes, status })}
+            onClick={() => onSave({ name, phone, email, idNumber, address, disabilityType, disabilityNotes, fundingSource, notes, status })}
             disabled={!name || isSaving}
             className="btn-primary flex-1"
           >

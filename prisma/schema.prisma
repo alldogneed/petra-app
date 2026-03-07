@@ -265,6 +265,11 @@ model Business {
   serviceDogTrainingLogs ServiceDogTrainingLog[]
   serviceDogCompliance   ServiceDogComplianceEvent[]
   serviceDogIDCards      ServiceDogIDCard[]
+  serviceDogMilestones   ServiceDogMilestone[]
+  serviceDogEvaluations  ServiceDogEvaluation[]
+  serviceDogInsurances   ServiceDogInsurance[]
+  serviceDogClaims       ServiceDogClaim[]
+  serviceDogVests        ServiceDogVest[]
   careLogs               BoardingCareLog[]
   standalonePets         Pet[]            @relation("StandalonePets")
 
@@ -1599,6 +1604,17 @@ model ServiceDogProfile {
   isGovReportPending    Boolean   @default(false)
   idCardIsActive        Boolean   @default(false)
   idCardQrToken         String?   @unique
+  // Acquisition & identity
+  pedigreeNumber        String?   // תעודת יוחסין
+  purchasePrice         Float?    // סכום קניה
+  purchaseSource        String?   // מקור קניה (breeder name / org)
+  // Licensing & maintenance
+  licenseNumber         String?   // רשיון עירוני
+  licenseExpiry         DateTime? // תוקף רשיון עירוני
+  maintenanceNotes      String?   // הערות אחזקה
+  // Boarding / logistics
+  yardGroup             String?   // קבוצת חצר (גורים, רטריברים, כו')
+  feedingInstructions   String?   // הוראות האכלה מיוחדות
   notes                 String?
   documents             Json      @default("[]")
   trainingTests         Json      @default("[]")
@@ -1612,6 +1628,10 @@ model ServiceDogProfile {
   trainingLogs          ServiceDogTrainingLog[]
   complianceEvents      ServiceDogComplianceEvent[]
   idCards               ServiceDogIDCard[]
+  milestones            ServiceDogMilestone[]
+  evaluations           ServiceDogEvaluation[]
+  insurances            ServiceDogInsurance[]
+  vests                 ServiceDogVest[]
 
   @@index([businessId])
   @@index([businessId, phase])
@@ -1630,9 +1650,12 @@ model ServiceDogRecipient {
   address         String?
   disabilityType  String?
   disabilityNotes String?
+  fundingSource   String?   // BITUACH_LEUMI | MINISTRY_OF_DEFENSE | PRIVATE | OTHER
   waitlistDate    DateTime?
+  intakeDate      DateTime? // date of intake interview
+  approvedAt      DateTime? // date approved for match
   notes           String?
-  status          String    @default("WAITLIST")
+  status          String    @default("LEAD") // LEAD | INTAKE | APPROVED | WAITLIST | MATCHED | JOINT_TRAINING | ACTIVE | CLOSED
   attachments     Json      @default("[]")
   meetings        Json      @default("[]")
   createdAt       DateTime  @default(now())
@@ -1775,6 +1798,124 @@ model ServiceDogIDCard {
   @@index([serviceDogId])
   @@index([qrToken])
   @@index([businessId, isActive])
+}
+
+/// Training milestone achieved by a service dog
+model ServiceDogMilestone {
+  id           String    @id @default(uuid())
+  serviceDogId String
+  businessId   String
+  milestoneKey String    // PUPPY_FOUNDATION | PUBLIC_ACCESS_READY | TASK_CERTIFIED | JOINT_TRAINING_COMPLETE
+  achievedAt   DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  serviceDog   ServiceDogProfile @relation(fields: [serviceDogId], references: [id], onDelete: Cascade)
+  business     Business          @relation(fields: [businessId], references: [id])
+
+  @@unique([serviceDogId, milestoneKey])
+  @@index([serviceDogId])
+  @@index([businessId])
+}
+
+/// Digital evaluation / test record for a service dog
+model ServiceDogEvaluation {
+  id                 String    @id @default(uuid())
+  serviceDogId       String
+  businessId         String
+  evaluationType     String    // PUBLIC_SPACE | TASKS | JOINT_TRAINING | FINAL_CERT
+  evaluationDate     DateTime
+  evaluatorName      String?
+  scores             String    @default("{}") // JSON: { criterionKey: { label, score, maxScore, notes } }
+  totalScore         Float     @default(0)
+  maxScore           Float     @default(0)
+  passed             Boolean   @default(false)
+  notes              String?
+  certificateIssuedAt DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  serviceDog         ServiceDogProfile @relation(fields: [serviceDogId], references: [id], onDelete: Cascade)
+  business           Business          @relation(fields: [businessId], references: [id])
+
+  @@index([serviceDogId])
+  @@index([businessId])
+  @@index([serviceDogId, evaluationType])
+}
+
+/// Insurance policy for a service dog
+model ServiceDogInsurance {
+  id            String    @id @default(uuid())
+  serviceDogId  String
+  businessId    String
+  provider      String?
+  policyNumber  String?
+  premium       Float?
+  deductible    Float?
+  coverageType  String?   // COMPREHENSIVE | LIABILITY | ACCIDENT
+  startDate     DateTime?
+  renewalDate   DateTime?
+  notes         String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  serviceDog    ServiceDogProfile @relation(fields: [serviceDogId], references: [id], onDelete: Cascade)
+  business      Business          @relation(fields: [businessId], references: [id])
+  claims        ServiceDogClaim[]
+
+  @@index([serviceDogId])
+  @@index([businessId])
+}
+
+/// Insurance claim for a service dog
+model ServiceDogClaim {
+  id              String    @id @default(uuid())
+  insuranceId     String
+  businessId      String
+  incidentDate    DateTime
+  description     String?
+  amount          Float?
+  deductiblePaid  Float?
+  invoiceAttached Boolean   @default(false)
+  submittedAt     DateTime?
+  resolvedAt      DateTime?
+  status          String    @default("PENDING") // PENDING | PAID | DENIED | WITHDRAWN
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  insurance       ServiceDogInsurance @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
+  business        Business            @relation(fields: [businessId], references: [id])
+
+  @@index([insuranceId])
+  @@index([businessId])
+  @@index([businessId, status])
+}
+
+/// Service dog vest inventory item
+model ServiceDogVest {
+  id           String    @id @default(uuid())
+  serviceDogId String
+  businessId   String
+  size         String?   // XS | S | M | L | XL
+  color        String?   // e.g., "Orange", "Blue"
+  vestType     String?   // TRAINING | CERTIFIED | WORKING
+  serialNumber String?
+  condition    String    @default("GOOD") // NEW | GOOD | WORN | RETIRED
+  assignedAt   DateTime  @default(now())
+  retiredAt    DateTime?
+  notes        String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  serviceDog   ServiceDogProfile @relation(fields: [serviceDogId], references: [id], onDelete: Cascade)
+  business     Business          @relation(fields: [businessId], references: [id])
+
+  @@index([serviceDogId])
+  @@index([businessId])
 }
 
 // ─────────────────────────────────────────────

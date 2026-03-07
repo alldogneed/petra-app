@@ -33,6 +33,15 @@ import {
   Trash2,
   Pencil,
   Stethoscope,
+  Flag,
+  Trophy,
+  BadgeCheck,
+  ShieldCheck,
+  Banknote,
+  Package,
+  Tag,
+  Building,
+  Check,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import {
@@ -44,6 +53,17 @@ import {
   MEDICAL_PROTOCOL_CATEGORIES,
   COMPLIANCE_EVENT_MAP,
   PLACEMENT_STATUS_MAP,
+  TRAINING_MILESTONES,
+  MILESTONE_MAP,
+  EVALUATION_TYPES,
+  EVALUATION_CRITERIA,
+  EVALUATION_TYPE_MAP,
+  VEST_SIZES,
+  VEST_TYPES,
+  VEST_CONDITIONS,
+  INSURANCE_COVERAGE_TYPES,
+  CLAIM_STATUSES,
+  CLAIM_STATUS_MAP,
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
 
@@ -122,6 +142,15 @@ interface ServiceDogDetail {
   certificationDate: string | null;
   certificationExpiry: string | null;
   notes: string | null;
+  // New fields
+  pedigreeNumber: string | null;
+  purchasePrice: number | null;
+  purchaseSource: string | null;
+  licenseNumber: string | null;
+  licenseExpiry: string | null;
+  maintenanceNotes: string | null;
+  yardGroup: string | null;
+  feedingInstructions: string | null;
   createdAt: string;
   pet: {
     id: string;
@@ -231,7 +260,7 @@ export default function ServiceDogProfilePage() {
   const params = useParams();
   const router = useRouter();
   const dogId = params.id as string;
-  const [activeTab, setActiveTab] = useState<"training" | "medical" | "compliance" | "placements" | "idcard" | "dogfile" | "documents" | "tests">("dogfile");
+  const [activeTab, setActiveTab] = useState<"training" | "medical" | "compliance" | "placements" | "idcard" | "dogfile" | "documents" | "tests" | "insurance" | "equipment">("dogfile");
   const [showPhaseDropdown, setShowPhaseDropdown] = useState(false);
   const queryClient = useQueryClient();
 
@@ -294,6 +323,8 @@ export default function ServiceDogProfilePage() {
     { id: "training" as const, label: "יומן אימונים", icon: Clock },
     { id: "tests" as const, label: "מבחני הכשרה", icon: GraduationCap, badge: Array.isArray(dog.trainingTests) ? (dog.trainingTests as unknown[]).length : 0 },
     { id: "placements" as const, label: "שיבוצים", icon: Activity },
+    { id: "insurance" as const, label: "ביטוח", icon: ShieldCheck },
+    { id: "equipment" as const, label: "ציוד", icon: Package },
     { id: "documents" as const, label: "מסמכים", icon: FileText, badge: Array.isArray(dog.documents) ? (dog.documents as unknown[]).length : 0 },
     { id: "idcard" as const, label: "תעודת הסמכה", icon: CreditCard },
   ];
@@ -525,6 +556,8 @@ export default function ServiceDogProfilePage() {
         {activeTab === "compliance" && <ComplianceTab dog={dog} dogId={dogId} />}
         {activeTab === "placements" && <PlacementsTab dog={dog} />}
         {activeTab === "tests" && <TrainingTestsTab dog={dog} dogId={dogId} />}
+        {activeTab === "insurance" && <InsuranceTab dogId={dogId} />}
+        {activeTab === "equipment" && <EquipmentTab dogId={dogId} />}
         {activeTab === "documents" && <DocumentsTab dog={dog} dogId={dogId} />}
         {activeTab === "idcard" && <IDCardTab dog={dog} dogId={dogId} />}
         {activeTab === "dogfile" && <DogFileTab dog={dog} dogId={dogId} />}
@@ -548,6 +581,93 @@ export default function ServiceDogProfilePage() {
 
 // ─── Training Tab ───
 
+// ─── Milestone Stepper ───
+
+interface MilestoneRecord {
+  id: string;
+  milestoneKey: string;
+  achievedAt: string | null;
+  notes: string | null;
+}
+
+function MilestonesStepper({ dogId }: { dogId: string }) {
+  const queryClient = useQueryClient();
+
+  const { data: milestones = [] } = useQuery<MilestoneRecord[]>({
+    queryKey: ["sd-milestones", dogId],
+    queryFn: () => fetch(`/api/service-dogs/${dogId}/milestones`).then((r) => r.json()),
+  });
+
+  const patchMutation = useMutation({
+    mutationFn: ({ milestoneKey, achievedAt }: { milestoneKey: string; achievedAt: string | null }) =>
+      fetch(`/api/service-dogs/${dogId}/milestones`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ milestoneKey, achievedAt }),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sd-milestones", dogId] });
+      toast.success("אבן דרך עודכנה");
+    },
+    onError: () => toast.error("שגיאה בעדכון אבן דרך"),
+  });
+
+  const achievedKeys = new Set(milestones.filter((m) => m.achievedAt).map((m) => m.milestoneKey));
+
+  const icons = [Flag, GraduationCap, Trophy, BadgeCheck];
+
+  return (
+    <div className="card p-5">
+      <h3 className="font-semibold mb-4 flex items-center gap-2">
+        <Flag className="w-4 h-4 text-brand-500" />
+        אבני דרך
+      </h3>
+      <div className="relative">
+        {/* connector line */}
+        <div className="absolute top-5 right-5 left-5 h-0.5 bg-slate-200 z-0" />
+        <div className="flex justify-between relative z-10">
+          {TRAINING_MILESTONES.map((m, i) => {
+            const achieved = achievedKeys.has(m.key);
+            const record = milestones.find((r) => r.milestoneKey === m.key);
+            const Icon = icons[i] || Flag;
+            return (
+              <div key={m.key} className="flex flex-col items-center gap-2 flex-1">
+                <button
+                  onClick={() =>
+                    patchMutation.mutate({
+                      milestoneKey: m.key,
+                      achievedAt: achieved ? null : new Date().toISOString(),
+                    })
+                  }
+                  title={achieved ? "בטל אבן דרך" : "סמן כהושג"}
+                  className={cn(
+                    "w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all",
+                    achieved
+                      ? "bg-emerald-500 border-emerald-500 text-white shadow-md"
+                      : "bg-white border-slate-300 text-slate-400 hover:border-brand-400"
+                  )}
+                >
+                  {achieved ? <Check className="w-5 h-5" /> : <Icon className="w-4 h-4" />}
+                </button>
+                <div className="text-center max-w-[80px]">
+                  <p className={cn("text-xs font-medium leading-tight", achieved ? "text-emerald-700" : "text-petra-muted")}>
+                    {m.label}
+                  </p>
+                  {record?.achievedAt && (
+                    <p className="text-[10px] text-emerald-600 mt-0.5">
+                      {formatDate(record.achievedAt)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TrainingTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
   const queryClient = useQueryClient();
   const [showAddForm, setShowAddForm] = useState(false);
@@ -555,6 +675,9 @@ function TrainingTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Milestone Stepper */}
+      <MilestonesStepper dogId={dogId} />
+
       {/* Link to training programs */}
       <a
         href="/training"
@@ -2193,6 +2316,13 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
           פרטי כלב
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+          {/* Microchip first — most important ID */}
+          {pet.microchip && (
+            <div className="col-span-2 sm:col-span-1 bg-brand-50 rounded-lg p-2.5 border border-brand-200">
+              <p className="text-xs text-brand-600 font-medium">מספר שבב</p>
+              <p className="font-bold font-mono">{pet.microchip}</p>
+            </div>
+          )}
           {pet.birthDate && (
             <div>
               <p className="text-xs text-petra-muted">תאריך לידה</p>
@@ -2203,12 +2333,6 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
             <div>
               <p className="text-xs text-petra-muted">משקל</p>
               <p className="font-medium">{pet.weight} ק״ג</p>
-            </div>
-          )}
-          {pet.microchip && (
-            <div>
-              <p className="text-xs text-petra-muted">שבב מיקרו</p>
-              <p className="font-medium font-mono text-xs">{pet.microchip}</p>
             </div>
           )}
           {pet.health?.neuteredSpayed && (
@@ -2226,11 +2350,14 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
           )}
           {pet.health?.originInfo && (
             <div>
-              <p className="text-xs text-petra-muted">מקור</p>
+              <p className="text-xs text-petra-muted">מקור הכלב</p>
               <p className="font-medium">{pet.health.originInfo}</p>
             </div>
           )}
         </div>
+
+        {/* Service Dog — acquisition, license, maintenance */}
+        <SDExtraInfoSection dog={dog} dogId={dogId} />
         {pet.medicalNotes && (
           <div className="mt-3 pt-3 border-t">
             <p className="text-xs text-petra-muted mb-1">הערות רפואיות</p>
@@ -2544,6 +2671,584 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── SD Extra Info Section (acquisition / license / logistics) ───
+
+function SDExtraInfoSection({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    pedigreeNumber: dog.pedigreeNumber ?? "",
+    purchasePrice: dog.purchasePrice != null ? String(dog.purchasePrice) : "",
+    purchaseSource: dog.purchaseSource ?? "",
+    licenseNumber: dog.licenseNumber ?? "",
+    licenseExpiry: dog.licenseExpiry ? dog.licenseExpiry.split("T")[0] : "",
+    maintenanceNotes: dog.maintenanceNotes ?? "",
+    yardGroup: dog.yardGroup ?? "",
+    feedingInstructions: dog.feedingInstructions ?? "",
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/service-dogs/${dogId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pedigreeNumber: form.pedigreeNumber || null,
+          purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : null,
+          purchaseSource: form.purchaseSource || null,
+          licenseNumber: form.licenseNumber || null,
+          licenseExpiry: form.licenseExpiry || null,
+          maintenanceNotes: form.maintenanceNotes || null,
+          yardGroup: form.yardGroup || null,
+          feedingInstructions: form.feedingInstructions || null,
+        }),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+      setEditing(false);
+      toast.success("פרטים עודכנו");
+    },
+    onError: () => toast.error("שגיאה בשמירה"),
+  });
+
+  const hasData = dog.pedigreeNumber || dog.purchasePrice || dog.purchaseSource || dog.licenseNumber || dog.maintenanceNotes;
+
+  return (
+    <div className="mt-4 pt-4 border-t">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-semibold text-petra-muted flex items-center gap-1.5">
+          <Building className="w-3.5 h-3.5" />
+          מקור, רישוי ואחזקה
+        </h4>
+        <button className="btn-ghost text-xs flex items-center gap-1" onClick={() => setEditing(!editing)}>
+          <Pencil className="w-3 h-3" />
+          {editing ? "סגור" : "ערוך"}
+        </button>
+      </div>
+      {editing ? (
+        <div className="space-y-3 bg-slate-50 rounded-xl p-4 border">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label text-xs">תעודת יוחסין</label>
+              <input className="input w-full text-sm" value={form.pedigreeNumber} onChange={(e) => setForm((p) => ({ ...p, pedigreeNumber: e.target.value }))} placeholder="מספר תעודת יוחסין" />
+            </div>
+            <div>
+              <label className="label text-xs">סכום קניה (₪)</label>
+              <input type="number" className="input w-full text-sm" value={form.purchasePrice} onChange={(e) => setForm((p) => ({ ...p, purchasePrice: e.target.value }))} placeholder="0" />
+            </div>
+            <div>
+              <label className="label text-xs">מקור קניה</label>
+              <input className="input w-full text-sm" value={form.purchaseSource} onChange={(e) => setForm((p) => ({ ...p, purchaseSource: e.target.value }))} placeholder="שם המגדל / ארגון" />
+            </div>
+            <div>
+              <label className="label text-xs">רשיון עירוני</label>
+              <input className="input w-full text-sm" value={form.licenseNumber} onChange={(e) => setForm((p) => ({ ...p, licenseNumber: e.target.value }))} placeholder="מספר רשיון" />
+            </div>
+            <div>
+              <label className="label text-xs">תוקף רשיון</label>
+              <input type="date" className="input w-full text-sm" value={form.licenseExpiry} onChange={(e) => setForm((p) => ({ ...p, licenseExpiry: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label text-xs">קבוצת חצר</label>
+              <input className="input w-full text-sm" value={form.yardGroup} onChange={(e) => setForm((p) => ({ ...p, yardGroup: e.target.value }))} placeholder="גורים / רטריברים / גדולים" />
+            </div>
+          </div>
+          <div>
+            <label className="label text-xs">הוראות האכלה מיוחדות</label>
+            <textarea className="input w-full text-sm" rows={2} value={form.feedingInstructions} onChange={(e) => setForm((p) => ({ ...p, feedingInstructions: e.target.value }))} placeholder="הוראות האכלה ייחודיות לכלב שירות זה" />
+          </div>
+          <div>
+            <label className="label text-xs">הערות אחזקה</label>
+            <textarea className="input w-full text-sm" rows={2} value={form.maintenanceNotes} onChange={(e) => setForm((p) => ({ ...p, maintenanceNotes: e.target.value }))} placeholder="הערות תפעולי שוטף" />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button className="btn-primary text-sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+              {saveMutation.isPending ? "שומר..." : "שמור"}
+            </button>
+            <button className="btn-secondary text-sm" onClick={() => setEditing(false)}>ביטול</button>
+          </div>
+        </div>
+      ) : hasData ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+          {dog.pedigreeNumber && <div><p className="text-xs text-petra-muted">תעודת יוחסין</p><p className="font-medium font-mono text-xs">{dog.pedigreeNumber}</p></div>}
+          {dog.purchasePrice && <div><p className="text-xs text-petra-muted">סכום קניה</p><p className="font-medium">{dog.purchasePrice.toLocaleString("he-IL")} ₪</p></div>}
+          {dog.purchaseSource && <div><p className="text-xs text-petra-muted">מקור קניה</p><p className="font-medium">{dog.purchaseSource}</p></div>}
+          {dog.licenseNumber && <div><p className="text-xs text-petra-muted">רשיון עירוני</p><p className="font-medium">{dog.licenseNumber}</p></div>}
+          {dog.licenseExpiry && <div><p className="text-xs text-petra-muted">תוקף רשיון</p><p className="font-medium">{formatDate(dog.licenseExpiry)}</p></div>}
+          {dog.yardGroup && <div><p className="text-xs text-petra-muted">קבוצת חצר</p><p className="font-medium">{dog.yardGroup}</p></div>}
+          {dog.feedingInstructions && <div className="col-span-2"><p className="text-xs text-petra-muted">הוראות האכלה</p><p className="font-medium text-xs">{dog.feedingInstructions}</p></div>}
+          {dog.maintenanceNotes && <div className="col-span-2"><p className="text-xs text-petra-muted">הערות אחזקה</p><p className="text-xs text-petra-muted">{dog.maintenanceNotes}</p></div>}
+        </div>
+      ) : (
+        <button
+          className="w-full text-sm text-petra-muted hover:text-foreground py-2 border border-dashed border-slate-200 hover:border-slate-300 rounded-xl transition-colors"
+          onClick={() => setEditing(true)}
+        >
+          + הוסף פרטי מקור ורישוי
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Insurance Tab ───
+
+interface InsuranceRecord {
+  id: string;
+  provider: string | null;
+  policyNumber: string | null;
+  premium: number | null;
+  deductible: number | null;
+  coverageType: string | null;
+  startDate: string | null;
+  renewalDate: string | null;
+  isActive: boolean;
+  notes: string | null;
+  claims: ClaimRecord[];
+}
+
+interface ClaimRecord {
+  id: string;
+  incidentDate: string;
+  description: string | null;
+  amount: number | null;
+  deductiblePaid: number | null;
+  invoiceAttached: boolean;
+  submittedAt: string | null;
+  resolvedAt: string | null;
+  status: string;
+  notes: string | null;
+}
+
+function InsuranceTab({ dogId }: { dogId: string }) {
+  const queryClient = useQueryClient();
+  const [showAddInsurance, setShowAddInsurance] = useState(false);
+  const [expandedInsId, setExpandedInsId] = useState<string | null>(null);
+  const [showAddClaim, setShowAddClaim] = useState<string | null>(null); // insuranceId
+
+  const { data: insurances = [], isLoading } = useQuery<InsuranceRecord[]>({
+    queryKey: ["sd-insurance", dogId],
+    queryFn: () => fetch(`/api/service-dogs/${dogId}/insurance`).then((r) => r.json()),
+  });
+
+  const addInsMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      fetch(`/api/service-dogs/${dogId}/insurance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sd-insurance", dogId] });
+      setShowAddInsurance(false);
+      toast.success("פוליסה נוספה");
+    },
+    onError: () => toast.error("שגיאה בהוספת פוליסה"),
+  });
+
+  const addClaimMutation = useMutation({
+    mutationFn: ({ insuranceId, data }: { insuranceId: string; data: Record<string, unknown> }) =>
+      fetch(`/api/service-dogs/${dogId}/insurance/${insuranceId}/claims`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sd-insurance", dogId] });
+      setShowAddClaim(null);
+      toast.success("תביעה נוספה");
+    },
+    onError: () => toast.error("שגיאה בהוספת תביעה"),
+  });
+
+  const updateClaimMutation = useMutation({
+    mutationFn: ({ insuranceId, claimId, status }: { insuranceId: string; claimId: string; status: string }) =>
+      fetch(`/api/service-dogs/${dogId}/insurance/${insuranceId}/claims/${claimId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, resolvedAt: ["PAID","DENIED","WITHDRAWN"].includes(status) ? new Date().toISOString() : null }),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sd-insurance", dogId] });
+      toast.success("תביעה עודכנה");
+    },
+  });
+
+  if (isLoading) return <div className="card h-40 animate-pulse" />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-blue-500" />
+          ביטוח כלב שירות
+        </h3>
+        <button className="btn-primary text-sm flex items-center gap-1.5" onClick={() => setShowAddInsurance(!showAddInsurance)}>
+          <Plus className="w-4 h-4" />
+          הוסף פוליסה
+        </button>
+      </div>
+
+      {showAddInsurance && (
+        <AddInsuranceForm
+          onSave={(data) => addInsMutation.mutate(data)}
+          onCancel={() => setShowAddInsurance(false)}
+          isSaving={addInsMutation.isPending}
+        />
+      )}
+
+      {insurances.length === 0 && !showAddInsurance && (
+        <div className="card p-10 text-center">
+          <ShieldCheck className="w-12 h-12 mx-auto text-petra-muted/30 mb-3" />
+          <p className="text-petra-muted">אין פוליסות ביטוח</p>
+        </div>
+      )}
+
+      {insurances.map((ins) => {
+        const isExpanded = expandedInsId === ins.id;
+        const pendingClaims = ins.claims.filter((c) => c.status === "PENDING").length;
+        const totalClaimed = ins.claims.reduce((s, c) => s + (c.amount ?? 0), 0);
+
+        return (
+          <div key={ins.id} className={cn("card p-0 overflow-hidden", !ins.isActive && "opacity-70")}>
+            <div
+              className="p-4 flex items-start justify-between gap-3 cursor-pointer hover:bg-slate-50/40"
+              onClick={() => setExpandedInsId(isExpanded ? null : ins.id)}
+            >
+              <div className="flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold">{ins.provider || "ביטוח לא ידוע"}</p>
+                  <span className={cn("text-xs px-2 py-0.5 rounded-full", ins.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500")}>
+                    {ins.isActive ? "פעיל" : "לא פעיל"}
+                  </span>
+                  {pendingClaims > 0 && (
+                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{pendingClaims} תביעות פתוחות</span>
+                  )}
+                </div>
+                <div className="flex gap-4 text-xs text-petra-muted mt-1 flex-wrap">
+                  {ins.policyNumber && <span>פוליסה: {ins.policyNumber}</span>}
+                  {ins.premium && <span>פרמיה: ₪{ins.premium.toLocaleString("he-IL")}</span>}
+                  {ins.renewalDate && <span>חידוש: {formatDate(ins.renewalDate)}</span>}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {ins.claims.length > 0 && (
+                  <div className="text-right">
+                    <p className="text-xs text-petra-muted">{ins.claims.length} תביעות</p>
+                    <p className="text-xs font-medium">₪{totalClaimed.toLocaleString("he-IL")}</p>
+                  </div>
+                )}
+                {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+              </div>
+            </div>
+
+            {isExpanded && (
+              <div className="border-t px-4 pb-4 pt-3 bg-slate-50/30 space-y-3">
+                {/* Insurance details */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                  {ins.coverageType && <div><p className="text-xs text-petra-muted">סוג כיסוי</p><p className="font-medium">{INSURANCE_COVERAGE_TYPES.find((c) => c.id === ins.coverageType)?.label || ins.coverageType}</p></div>}
+                  {ins.deductible && <div><p className="text-xs text-petra-muted">השתתפות עצמית</p><p className="font-medium">₪{ins.deductible.toLocaleString("he-IL")}</p></div>}
+                  {ins.startDate && <div><p className="text-xs text-petra-muted">תחילת כיסוי</p><p className="font-medium">{formatDate(ins.startDate)}</p></div>}
+                </div>
+
+                {/* Claims */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h5 className="text-sm font-semibold">תביעות</h5>
+                    <button className="text-xs text-brand-500 hover:text-brand-600" onClick={() => setShowAddClaim(ins.id)}>
+                      + תביעה חדשה
+                    </button>
+                  </div>
+
+                  {showAddClaim === ins.id && (
+                    <AddClaimForm
+                      onSave={(data) => addClaimMutation.mutate({ insuranceId: ins.id, data })}
+                      onCancel={() => setShowAddClaim(null)}
+                      isSaving={addClaimMutation.isPending}
+                    />
+                  )}
+
+                  {ins.claims.length === 0 ? (
+                    <p className="text-xs text-petra-muted">אין תביעות</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {ins.claims.map((claim) => {
+                        const sc = CLAIM_STATUS_MAP[claim.status] || { label: claim.status, color: "bg-slate-100 text-slate-600" };
+                        return (
+                          <div key={claim.id} className="bg-white rounded-lg border p-3 flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium", sc.color)}>{sc.label}</span>
+                                <span className="text-xs text-petra-muted">{formatDate(claim.incidentDate)}</span>
+                                {claim.invoiceAttached && <span className="text-xs text-emerald-600">✓ חשבונית</span>}
+                              </div>
+                              {claim.description && <p className="text-sm">{claim.description}</p>}
+                              <div className="flex gap-3 text-xs text-petra-muted mt-0.5">
+                                {claim.amount && <span>סכום: ₪{claim.amount.toLocaleString("he-IL")}</span>}
+                                {claim.deductiblePaid && <span>ה״ע: ₪{claim.deductiblePaid.toLocaleString("he-IL")}</span>}
+                                {claim.submittedAt && <span>הוגש: {formatDate(claim.submittedAt)}</span>}
+                              </div>
+                            </div>
+                            {claim.status === "PENDING" && (
+                              <div className="flex gap-1 shrink-0">
+                                <button
+                                  onClick={() => updateClaimMutation.mutate({ insuranceId: ins.id, claimId: claim.id, status: "PAID" })}
+                                  className="text-xs text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded border border-emerald-200"
+                                >שולם</button>
+                                <button
+                                  onClick={() => updateClaimMutation.mutate({ insuranceId: ins.id, claimId: claim.id, status: "DENIED" })}
+                                  className="text-xs text-red-600 hover:bg-red-50 px-2 py-1 rounded border border-red-200"
+                                >נדחה</button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                {ins.notes && <p className="text-xs text-petra-muted">{ins.notes}</p>}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AddInsuranceForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<string, unknown>) => void; onCancel: () => void; isSaving: boolean }) {
+  const [form, setForm] = useState({ provider: "", policyNumber: "", premium: "", deductible: "", coverageType: "", startDate: "", renewalDate: "", notes: "" });
+  const f = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm((p) => ({ ...p, [k]: e.target.value }));
+  return (
+    <div className="card p-4 border-2 border-blue-200 bg-blue-50/30 space-y-3">
+      <h4 className="text-sm font-semibold">פוליסה חדשה</h4>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className="label text-xs">חברת ביטוח</label><input className="input w-full text-sm" value={form.provider} onChange={f("provider")} placeholder="שם חברת הביטוח" /></div>
+        <div><label className="label text-xs">מספר פוליסה</label><input className="input w-full text-sm" value={form.policyNumber} onChange={f("policyNumber")} /></div>
+        <div><label className="label text-xs">סוג כיסוי</label>
+          <select className="input w-full text-sm" value={form.coverageType} onChange={f("coverageType")}>
+            <option value="">בחר...</option>
+            {INSURANCE_COVERAGE_TYPES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+        </div>
+        <div><label className="label text-xs">פרמיה שנתית (₪)</label><input type="number" className="input w-full text-sm" value={form.premium} onChange={f("premium")} /></div>
+        <div><label className="label text-xs">השתתפות עצמית (₪)</label><input type="number" className="input w-full text-sm" value={form.deductible} onChange={f("deductible")} /></div>
+        <div><label className="label text-xs">תחילת כיסוי</label><input type="date" className="input w-full text-sm" value={form.startDate} onChange={f("startDate")} /></div>
+        <div><label className="label text-xs">תאריך חידוש</label><input type="date" className="input w-full text-sm" value={form.renewalDate} onChange={f("renewalDate")} /></div>
+      </div>
+      <div><label className="label text-xs">הערות</label><textarea className="input w-full text-sm" rows={2} value={form.notes} onChange={f("notes")} /></div>
+      <div className="flex gap-2">
+        <button className="btn-primary text-sm" onClick={() => onSave(form)} disabled={!form.provider || isSaving}>{isSaving ? "שומר..." : "שמור"}</button>
+        <button className="btn-secondary text-sm" onClick={onCancel}>ביטול</button>
+      </div>
+    </div>
+  );
+}
+
+function AddClaimForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<string, unknown>) => void; onCancel: () => void; isSaving: boolean }) {
+  const [form, setForm] = useState({ incidentDate: new Date().toISOString().split("T")[0], description: "", amount: "", deductiblePaid: "", invoiceAttached: false, submittedAt: "", notes: "" });
+  const f = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm((p) => ({ ...p, [k]: e.target.value }));
+  return (
+    <div className="bg-white border rounded-xl p-3 space-y-3 mb-2">
+      <div className="grid grid-cols-2 gap-2">
+        <div><label className="label text-xs">תאריך אירוע</label><input type="date" className="input w-full text-sm" value={form.incidentDate} onChange={f("incidentDate")} /></div>
+        <div><label className="label text-xs">סכום תביעה (₪)</label><input type="number" className="input w-full text-sm" value={form.amount} onChange={f("amount")} /></div>
+        <div><label className="label text-xs">השתתפות עצמית (₪)</label><input type="number" className="input w-full text-sm" value={form.deductiblePaid} onChange={f("deductiblePaid")} /></div>
+        <div><label className="label text-xs">תאריך הגשה</label><input type="date" className="input w-full text-sm" value={form.submittedAt} onChange={f("submittedAt")} /></div>
+      </div>
+      <div><label className="label text-xs">תיאור</label><textarea className="input w-full text-sm" rows={2} value={form.description} onChange={f("description")} /></div>
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" checked={form.invoiceAttached} onChange={(e) => setForm((p) => ({ ...p, invoiceAttached: e.target.checked }))} />
+        חשבונית מצורפת
+      </label>
+      <div className="flex gap-2">
+        <button className="btn-primary text-xs" onClick={() => onSave(form)} disabled={!form.incidentDate || isSaving}>{isSaving ? "שומר..." : "הגש תביעה"}</button>
+        <button className="btn-ghost text-xs" onClick={onCancel}>ביטול</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Equipment Tab (Vests) ───
+
+interface VestRecord {
+  id: string;
+  size: string | null;
+  color: string | null;
+  vestType: string | null;
+  serialNumber: string | null;
+  condition: string;
+  isActive: boolean;
+  assignedAt: string;
+  notes: string | null;
+}
+
+function EquipmentTab({ dogId }: { dogId: string }) {
+  const queryClient = useQueryClient();
+  const [showAddVest, setShowAddVest] = useState(false);
+
+  const { data: vests = [], isLoading } = useQuery<VestRecord[]>({
+    queryKey: ["sd-vests", dogId],
+    queryFn: () => fetch(`/api/service-dogs/${dogId}/vests`).then((r) => r.json()),
+  });
+
+  const addVestMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      fetch(`/api/service-dogs/${dogId}/vests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sd-vests", dogId] });
+      setShowAddVest(false);
+      toast.success("וסט נוסף");
+    },
+    onError: () => toast.error("שגיאה בהוספת וסט"),
+  });
+
+  const retireVestMutation = useMutation({
+    mutationFn: (vestId: string) =>
+      fetch(`/api/service-dogs/${dogId}/vests/${vestId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: false }),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sd-vests", dogId] });
+      toast.success("וסט יצא משימוש");
+    },
+  });
+
+  const activeVests = vests.filter((v) => v.isActive);
+  const retiredVests = vests.filter((v) => !v.isActive);
+
+  if (isLoading) return <div className="card h-40 animate-pulse" />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold flex items-center gap-2">
+          <Package className="w-4 h-4 text-brand-500" />
+          ציוד — אפודות
+        </h3>
+        <button className="btn-primary text-sm flex items-center gap-1.5" onClick={() => setShowAddVest(!showAddVest)}>
+          <Plus className="w-4 h-4" />
+          הוסף אפודה
+        </button>
+      </div>
+
+      {showAddVest && <AddVestForm onSave={(d) => addVestMutation.mutate(d)} onCancel={() => setShowAddVest(false)} isSaving={addVestMutation.isPending} />}
+
+      {activeVests.length === 0 && !showAddVest && (
+        <div className="card p-10 text-center">
+          <Package className="w-12 h-12 mx-auto text-petra-muted/30 mb-3" />
+          <p className="text-petra-muted">אין אפודות פעילות</p>
+        </div>
+      )}
+
+      {activeVests.length > 0 && (
+        <div className="card p-0 overflow-hidden">
+          <div className="px-4 py-2 bg-slate-50/50 border-b text-xs font-semibold text-petra-muted">פעילות</div>
+          <div className="divide-y">
+            {activeVests.map((vest) => {
+              const cond = VEST_CONDITIONS.find((c) => c.id === vest.condition);
+              const type = VEST_TYPES.find((t) => t.id === vest.vestType);
+              return (
+                <div key={vest.id} className="p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-200 flex items-center justify-center">
+                      <Tag className="w-5 h-5 text-brand-500" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">
+                        {type?.label || "אפודה"}
+                        {vest.color && ` · ${vest.color}`}
+                        {vest.size && ` · מידה ${vest.size}`}
+                      </p>
+                      <div className="flex gap-2 text-xs text-petra-muted mt-0.5">
+                        {vest.serialNumber && <span>ס/נ: {vest.serialNumber}</span>}
+                        <span>שובץ: {formatDate(vest.assignedAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={cn("text-xs px-2 py-0.5 rounded-full", cond?.color || "bg-slate-100 text-slate-600")}>
+                      {cond?.label || vest.condition}
+                    </span>
+                    <button
+                      onClick={() => { if (confirm("להוציא אפודה משימוש?")) retireVestMutation.mutate(vest.id); }}
+                      className="text-xs text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200 rounded px-2 py-1 transition-colors"
+                    >
+                      יצא משימוש
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {retiredVests.length > 0 && (
+        <details className="card p-4">
+          <summary className="text-sm text-petra-muted cursor-pointer">ארכיון ({retiredVests.length})</summary>
+          <div className="space-y-2 mt-3">
+            {retiredVests.map((vest) => {
+              const cond = VEST_CONDITIONS.find((c) => c.id === vest.condition);
+              const type = VEST_TYPES.find((t) => t.id === vest.vestType);
+              return (
+                <div key={vest.id} className="flex items-center gap-3 text-sm opacity-60">
+                  <Tag className="w-4 h-4 text-petra-muted" />
+                  <span>{type?.label || "אפודה"} {vest.color} {vest.size && `(${vest.size})`}</span>
+                  <span className={cn("text-xs px-1.5 py-0.5 rounded-full", cond?.color)}>{cond?.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function AddVestForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<string, unknown>) => void; onCancel: () => void; isSaving: boolean }) {
+  const [form, setForm] = useState({ size: "", color: "", vestType: "", serialNumber: "", condition: "GOOD", notes: "" });
+  const f = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm((p) => ({ ...p, [k]: e.target.value }));
+  return (
+    <div className="card p-4 border-2 border-brand-200 bg-brand-50/30 space-y-3">
+      <h4 className="text-sm font-semibold">אפודה חדשה</h4>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div><label className="label text-xs">סוג</label>
+          <select className="input w-full text-sm" value={form.vestType} onChange={f("vestType")}>
+            <option value="">בחר...</option>
+            {VEST_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+          </select>
+        </div>
+        <div><label className="label text-xs">מידה</label>
+          <select className="input w-full text-sm" value={form.size} onChange={f("size")}>
+            <option value="">בחר...</option>
+            {VEST_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div><label className="label text-xs">צבע</label><input className="input w-full text-sm" value={form.color} onChange={f("color")} placeholder="כתום / כחול / שחור" /></div>
+        <div><label className="label text-xs">מצב</label>
+          <select className="input w-full text-sm" value={form.condition} onChange={f("condition")}>
+            {VEST_CONDITIONS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+        </div>
+        <div><label className="label text-xs">מספר סידורי</label><input className="input w-full text-sm" value={form.serialNumber} onChange={f("serialNumber")} /></div>
+      </div>
+      <div><label className="label text-xs">הערות</label><textarea className="input w-full text-sm" rows={2} value={form.notes} onChange={f("notes")} /></div>
+      <div className="flex gap-2">
+        <button className="btn-primary text-sm" onClick={() => onSave(form)} disabled={isSaving}>{isSaving ? "שומר..." : "שמור"}</button>
+        <button className="btn-secondary text-sm" onClick={onCancel}>ביטול</button>
+      </div>
     </div>
   );
 }

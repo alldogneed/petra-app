@@ -52,17 +52,33 @@ export const SERVICE_DOG_PLACEMENT_STATUSES = [
 export const PLACEMENT_STATUS_MAP: Record<string, { label: string; color: string }> =
   Object.fromEntries(SERVICE_DOG_PLACEMENT_STATUSES.map((s) => [s.id, { label: s.label, color: s.color }]));
 
-// ─── Recipient Statuses ───
+// ─── Recipient Statuses (Pipeline) ───
 
 export const RECIPIENT_STATUSES = [
-  { id: "WAITLIST", label: "רשימת המתנה", color: "bg-slate-100 text-slate-600" },
-  { id: "MATCHED", label: "שובץ", color: "bg-blue-100 text-blue-700" },
-  { id: "ACTIVE", label: "פעיל", color: "bg-emerald-100 text-emerald-700" },
-  { id: "CLOSED", label: "סגור", color: "bg-red-100 text-red-600" },
+  { id: "LEAD",           label: "ליד",              color: "bg-slate-100 text-slate-600",   kanbanBg: "#F1F5F9" },
+  { id: "INTAKE",         label: "קבלה",             color: "bg-purple-100 text-purple-700", kanbanBg: "#FAF5FF" },
+  { id: "APPROVED",       label: "מאושר",            color: "bg-amber-100 text-amber-700",   kanbanBg: "#FFFBEB" },
+  { id: "WAITLIST",       label: "רשימת המתנה",      color: "bg-slate-100 text-slate-600",   kanbanBg: "#F8FAFC" },
+  { id: "MATCHED",        label: "שובץ",             color: "bg-blue-100 text-blue-700",     kanbanBg: "#EFF6FF" },
+  { id: "JOINT_TRAINING", label: "אימון משותף",      color: "bg-indigo-100 text-indigo-700", kanbanBg: "#EEF2FF" },
+  { id: "ACTIVE",         label: "פעיל",             color: "bg-emerald-100 text-emerald-700", kanbanBg: "#F0FDF4" },
+  { id: "CLOSED",         label: "סגור",             color: "bg-red-100 text-red-600",       kanbanBg: "#FEF2F2" },
 ] as const;
 
-export const RECIPIENT_STATUS_MAP: Record<string, { label: string; color: string }> =
-  Object.fromEntries(RECIPIENT_STATUSES.map((s) => [s.id, { label: s.label, color: s.color }]));
+export const RECIPIENT_STATUS_MAP: Record<string, { label: string; color: string; kanbanBg: string }> =
+  Object.fromEntries(RECIPIENT_STATUSES.map((s) => [s.id, { label: s.label, color: s.color, kanbanBg: s.kanbanBg }]));
+
+// ─── Recipient Funding Sources ───
+
+export const RECIPIENT_FUNDING_SOURCES = [
+  { id: "MINISTRY_OF_DEFENSE", label: "משרד הביטחון" },
+  { id: "BITUACH_LEUMI",       label: "ביטוח לאומי" },
+  { id: "PRIVATE",             label: "פרטי" },
+  { id: "OTHER",               label: "אחר" },
+] as const;
+
+export const FUNDING_SOURCE_MAP: Record<string, string> =
+  Object.fromEntries(RECIPIENT_FUNDING_SOURCES.map((f) => [f.id, f.label]));
 
 // ─── Disability Types ───
 
@@ -111,22 +127,25 @@ export const MEDICAL_PROTOCOL_CATEGORIES = [
 ] as const;
 
 export const MEDICAL_PROTOCOL_KEYS: MedicalProtocolDef[] = [
-  { key: "RABIES_PRIMARY", label: "חיסון כלבת ראשוני", category: "VACCINATION" },
-  { key: "RABIES_BOOSTER", label: "חיסון כלבת מחזורי", category: "VACCINATION" },
-  { key: "DHPP_PRIMARY", label: "חיסון משושה ראשוני", category: "VACCINATION" },
-  { key: "DHPP", label: "חיסון משושה", category: "VACCINATION" },
-  { key: "DHPP_BOOSTER", label: "חיסון משושה מחזורי", category: "VACCINATION" },
-  { key: "LEPTOSPIROSIS", label: "לפטוספירוזיס", category: "VACCINATION" },
-  { key: "BORDETELLA", label: "בורדטלה", category: "VACCINATION" },
-  { key: "DEWORMING", label: "תילוע", category: "PARASITE" },
-  { key: "FLEA_TICK", label: "טיפול פרעושים וקרציות", category: "PARASITE" },
-  { key: "VET_EXAM", label: "בדיקה וטרינרית", category: "HEALTH_CHECK" },
-  { key: "VET_CLEARANCE", label: "אישור וטרינרי להמשך", category: "VET_CLEARANCE" },
-  { key: "HIP_XRAY", label: "צילום אגן", category: "HEALTH_CHECK" },
-  { key: "EYE_EXAM", label: "בדיקת עיניים", category: "HEALTH_CHECK" },
-  { key: "TEMPERAMENT_EVAL", label: "הערכת מזג", category: "BEHAVIOR_EVAL" },
-  { key: "HEALTH_CERT", label: "תעודת בריאות", category: "VET_CLEARANCE" },
-  { key: "ANNUAL_RECERT", label: "הסמכה מחדש שנתית", category: "VET_CLEARANCE" },
+  { key: "RABIES_PRIMARY",    label: "חיסון כלבת ראשוני",         category: "VACCINATION" },
+  { key: "RABIES_BOOSTER",    label: "חיסון כלבת מחזורי",         category: "VACCINATION" },
+  { key: "RABIES_TITER",      label: "נוגדני כלבת (טיטר)",        category: "VACCINATION" },
+  { key: "DHPP_PRIMARY",      label: "חיסון משושה ראשוני",        category: "VACCINATION" },
+  { key: "DHPP",              label: "חיסון משושה",               category: "VACCINATION" },
+  { key: "DHPP_BOOSTER",      label: "חיסון משושה מחזורי",        category: "VACCINATION" },
+  { key: "LEPTOSPIROSIS",     label: "לפטוספירוזיס",              category: "VACCINATION" },
+  { key: "BORDETELLA",        label: "בורדטלה",                   category: "VACCINATION" },
+  { key: "DEWORMING",         label: "תילוע",                     category: "PARASITE" },
+  { key: "PARK_WORM",         label: "תולעת גן (גיחון)",          category: "PARASITE" },
+  { key: "FLEA_TICK",         label: "טיפול פרעושים וקרציות",     category: "PARASITE" },
+  { key: "VET_EXAM",          label: "בדיקה וטרינרית",            category: "HEALTH_CHECK" },
+  { key: "VET_CLEARANCE",     label: "אישור וטרינרי להמשך",       category: "VET_CLEARANCE" },
+  { key: "HIP_XRAY",          label: "צילום אגן",                 category: "HEALTH_CHECK" },
+  { key: "EYE_EXAM",          label: "בדיקת עיניים",              category: "HEALTH_CHECK" },
+  { key: "TEMPERAMENT_EVAL",  label: "הערכת מזג",                 category: "BEHAVIOR_EVAL" },
+  { key: "HEALTH_CERT",       label: "תעודת בריאות",              category: "VET_CLEARANCE" },
+  { key: "MUNICIPAL_LICENSE", label: "רשיון עירוני",              category: "VET_CLEARANCE" },
+  { key: "ANNUAL_RECERT",     label: "הסמכה מחדש שנתית",          category: "VET_CLEARANCE" },
 ];
 
 export const MEDICAL_PROTOCOL_MAP: Record<string, MedicalProtocolDef> =
@@ -197,6 +216,96 @@ export const COMPLIANCE_NOTIFICATION_STATUSES = [
   { id: "WAIVED", label: "ויתור", color: "bg-amber-100 text-amber-700" },
   { id: "NOT_REQUIRED", label: "לא נדרש", color: "bg-slate-100 text-slate-600" },
 ] as const;
+
+// ─── Training Milestones ───
+
+export const TRAINING_MILESTONES = [
+  { key: "PUPPY_FOUNDATION",        label: "יסודות גור",        description: "בסיס משמעת, חברות, גירויים" },
+  { key: "PUBLIC_ACCESS_READY",     label: "כשירות גישה לציבור", description: "התנהגות במרחב הציבורי" },
+  { key: "TASK_CERTIFIED",          label: "מוסמך משימות",       description: "ביצוע משימות ספציפיות לנכות" },
+  { key: "JOINT_TRAINING_COMPLETE", label: "אימון משותף הושלם",  description: "אימון עם הזכאי הסתיים בהצלחה" },
+] as const;
+
+export const MILESTONE_MAP: Record<string, { label: string; description: string }> =
+  Object.fromEntries(TRAINING_MILESTONES.map((m) => [m.key, { label: m.label, description: m.description }]));
+
+// ─── Evaluation Types ───
+
+export const EVALUATION_TYPES = [
+  { id: "PUBLIC_SPACE",   label: "מבחן כשירות (גישה לציבור)" },
+  { id: "TASKS",          label: "מבחן משימות" },
+  { id: "JOINT_TRAINING", label: "מבחן אימון משותף" },
+  { id: "FINAL_CERT",     label: "מבחן הסמכה סופי" },
+] as const;
+
+export const EVALUATION_TYPE_MAP: Record<string, string> =
+  Object.fromEntries(EVALUATION_TYPES.map((e) => [e.id, e.label]));
+
+// Scoring criteria per evaluation type
+export const EVALUATION_CRITERIA: Record<string, { key: string; label: string; maxScore: number }[]> = {
+  PUBLIC_SPACE: [
+    { key: "entering_building",  label: "כניסה לבניין",            maxScore: 10 },
+    { key: "elevator",           label: "מעלית / מדרגות",          maxScore: 10 },
+    { key: "crowd",              label: "התנהגות בהמון",            maxScore: 10 },
+    { key: "noise_distraction",  label: "הסחת רעש",                maxScore: 10 },
+    { key: "greeting_strangers", label: "ביקור אנשים זרים",        maxScore: 10 },
+    { key: "public_transport",   label: "תחבורה ציבורית",          maxScore: 10 },
+    { key: "stay_command",       label: "שהייה על פקודה",          maxScore: 10 },
+    { key: "heel",               label: "הליכה צמוד",              maxScore: 10 },
+  ],
+  TASKS: [
+    { key: "task_1",  label: "משימה 1 — ייחודית לנכות",            maxScore: 20 },
+    { key: "task_2",  label: "משימה 2 — ייחודית לנכות",            maxScore: 20 },
+    { key: "task_3",  label: "משימה 3 — ייחודית לנכות",            maxScore: 20 },
+    { key: "handler", label: "שיתוף פעולה עם בעלים",               maxScore: 20 },
+    { key: "off_duty",label: "התנהגות מחוץ לתפקיד",                maxScore: 20 },
+  ],
+  JOINT_TRAINING: [
+    { key: "bonding",      label: "קשר כלב-אדם",                    maxScore: 25 },
+    { key: "commands",     label: "ציות לפקודות",                   maxScore: 25 },
+    { key: "task_perform", label: "ביצוע משימות יחד",               maxScore: 25 },
+    { key: "daily_routine",label: "שגרת יום",                        maxScore: 25 },
+  ],
+  FINAL_CERT: [
+    { key: "public_access",   label: "גישה לציבור",                 maxScore: 30 },
+    { key: "tasks",           label: "משימות",                      maxScore: 30 },
+    { key: "handler_teamwork",label: "עבודת צוות עם בעלים",         maxScore: 20 },
+    { key: "temperament",     label: "מזג ויציבות",                  maxScore: 20 },
+  ],
+};
+
+// ─── Vest Constants ───
+
+export const VEST_SIZES = ["XS","S","M","L","XL","XXL"] as const;
+export const VEST_TYPES = [
+  { id: "TRAINING",   label: "אימון" },
+  { id: "CERTIFIED",  label: "מוסמך" },
+  { id: "WORKING",    label: "עבודה" },
+] as const;
+export const VEST_CONDITIONS = [
+  { id: "NEW",     label: "חדש",     color: "bg-emerald-100 text-emerald-700" },
+  { id: "GOOD",    label: "תקין",    color: "bg-blue-100 text-blue-700" },
+  { id: "WORN",    label: "שחוק",    color: "bg-amber-100 text-amber-700" },
+  { id: "RETIRED", label: "יצא משימוש", color: "bg-slate-100 text-slate-500" },
+] as const;
+
+// ─── Insurance Constants ───
+
+export const INSURANCE_COVERAGE_TYPES = [
+  { id: "COMPREHENSIVE", label: "מקיף" },
+  { id: "LIABILITY",     label: "אחריות צד שלישי" },
+  { id: "ACCIDENT",      label: "תאונות" },
+] as const;
+
+export const CLAIM_STATUSES = [
+  { id: "PENDING",    label: "ממתין",       color: "bg-amber-100 text-amber-700" },
+  { id: "PAID",       label: "שולם",        color: "bg-emerald-100 text-emerald-700" },
+  { id: "DENIED",     label: "נדחה",        color: "bg-red-100 text-red-600" },
+  { id: "WITHDRAWN",  label: "בוטל",        color: "bg-slate-100 text-slate-500" },
+] as const;
+
+export const CLAIM_STATUS_MAP: Record<string, { label: string; color: string }> =
+  Object.fromEntries(CLAIM_STATUSES.map((s) => [s.id, { label: s.label, color: s.color }]));
 
 // ─── TypeScript Interfaces ───
 
