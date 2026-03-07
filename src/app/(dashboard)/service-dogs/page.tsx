@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Shield,
   Dog,
@@ -19,6 +19,12 @@ import {
   X,
   GraduationCap,
   Star,
+  Syringe,
+  Dumbbell,
+  FileWarning,
+  ChevronDown,
+  ChevronUp,
+  Bell,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
@@ -90,6 +96,18 @@ export default function ServiceDogsOverviewPage() {
     }),
   });
 
+  const { data: alertsData } = useQuery<{
+    medical: { count: number; items: { id: string; dogId: string; dogName: string; label: string; dueDate: string | null; isOverdue: boolean }[] };
+    training: { count: number; items: { id: string; dogId: string; dogName: string; lastSessionDate: string | null; daysSinceLastSession: number | null }[] };
+    compliance: { count: number; items: { id: string; dogId: string; dogName: string; eventType: string; eventDescription: string; notificationDue: string | null; isOverdue: boolean }[] };
+    total: number;
+  }>({
+    queryKey: ["sd-alerts"],
+    queryFn: () => fetch("/api/service-dogs/alerts").then((r) => r.json()),
+    refetchInterval: 5 * 60_000,
+    staleTime: 3 * 60_000,
+  });
+
   // Training stats
   const allSessions = trainingPrograms.flatMap((p) =>
     p.sessions
@@ -156,6 +174,11 @@ export default function ServiceDogsOverviewPage() {
         <StatCard label="אימונים השבוע" value={thisWeek} icon={GraduationCap} color="brand" />
       </div>
 
+
+      {/* ── Unified Alerts Widget ─────────────────────────────────────── */}
+      {alertsData && alertsData.total > 0 && (
+        <AlertsWidget alerts={alertsData} />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Dogs Needing Attention */}
@@ -621,6 +644,195 @@ function AddServiceDogModal({ onClose }: { onClose: () => void }) {
           </button>
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// ALERTS WIDGET
+// ═══════════════════════════════════════════════════════
+
+type AlertsData = {
+  medical: { count: number; items: { id: string; dogId: string; dogName: string; label: string; dueDate: string | null; isOverdue: boolean }[] };
+  training: { count: number; items: { id: string; dogId: string; dogName: string; lastSessionDate: string | null; daysSinceLastSession: number | null }[] };
+  compliance: { count: number; items: { id: string; dogId: string; dogName: string; eventType: string; eventDescription: string; notificationDue: string | null; isOverdue: boolean }[] };
+  total: number;
+};
+
+function AlertsWidget({ alerts }: { alerts: AlertsData }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({
+    medical: true,
+    training: true,
+    compliance: true,
+  });
+
+  const toggle = (key: string) => setOpen((p) => ({ ...p, [key]: !p[key] }));
+
+  const overdueCount =
+    alerts.medical.items.filter((i) => i.isOverdue).length +
+    alerts.compliance.items.filter((i) => i.isOverdue).length;
+
+  const sections = [
+    {
+      key: "compliance",
+      label: "דיווחים ממשלתיים",
+      icon: FileWarning,
+      color: "text-red-600",
+      bg: "bg-red-50 border-red-200",
+      headerBg: "bg-red-50",
+      count: alerts.compliance.count,
+      items: alerts.compliance.items.map((e) => ({
+        id: e.id,
+        dogId: e.dogId,
+        dogName: e.dogName,
+        isOverdue: e.isOverdue,
+        line1: e.eventDescription,
+        line2: e.notificationDue
+          ? `יש לדווח עד: ${new Date(e.notificationDue).toLocaleDateString("he-IL")}`
+          : "נדרש דיווח",
+      })),
+    },
+    {
+      key: "medical",
+      label: "חיסונים ופרוטוקולים רפואיים",
+      icon: Syringe,
+      color: "text-amber-600",
+      bg: "bg-amber-50 border-amber-200",
+      headerBg: "bg-amber-50",
+      count: alerts.medical.count,
+      items: alerts.medical.items.map((p) => ({
+        id: p.id,
+        dogId: p.dogId,
+        dogName: p.dogName,
+        isOverdue: p.isOverdue,
+        line1: p.label,
+        line2: p.dueDate
+          ? `${p.isOverdue ? "עבר תאריך: " : "יעד: "}${new Date(p.dueDate).toLocaleDateString("he-IL")}`
+          : "ללא תאריך יעד",
+      })),
+    },
+    {
+      key: "training",
+      label: "אימונים — ללא מפגש בשבועיים",
+      icon: Dumbbell,
+      color: "text-blue-600",
+      bg: "bg-blue-50 border-blue-200",
+      headerBg: "bg-blue-50",
+      count: alerts.training.count,
+      items: alerts.training.items.map((t) => ({
+        id: t.id,
+        dogId: t.dogId,
+        dogName: t.dogName,
+        isOverdue: false,
+        line1: t.daysSinceLastSession
+          ? `${t.daysSinceLastSession} ימים ללא אימון`
+          : "טרם בוצע אימון",
+        line2: t.lastSessionDate
+          ? `אימון אחרון: ${new Date(t.lastSessionDate).toLocaleDateString("he-IL")}`
+          : "אין אימון מתועד",
+      })),
+    },
+  ].filter((s) => s.count > 0);
+
+  return (
+    <div className="card p-0 overflow-hidden border border-amber-200">
+      {/* Header */}
+      <div className="px-5 py-4 bg-gradient-to-l from-amber-50 to-orange-50 border-b border-amber-200 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center">
+            <Bell className="w-5 h-5 text-amber-600" />
+          </div>
+          <div>
+            <h2 className="font-bold text-petra-text">מרכז התראות — כלבי שירות</h2>
+            <p className="text-xs text-petra-muted mt-0.5">
+              {alerts.total} התראות פעילות
+              {overdueCount > 0 && (
+                <span className="text-red-600 font-semibold mr-1">· {overdueCount} דחופות</span>
+              )}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {overdueCount > 0 && (
+            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+              {overdueCount} דחוף
+            </span>
+          )}
+          <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
+            {alerts.total} סה״כ
+          </span>
+        </div>
+      </div>
+
+      {/* Categories */}
+      <div className="divide-y">
+        {sections.map((section) => {
+          const Icon = section.icon;
+          const isOpen = open[section.key];
+          return (
+            <div key={section.key}>
+              <button
+                type="button"
+                onClick={() => toggle(section.key)}
+                className={cn(
+                  "w-full flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors text-right",
+                  isOpen && "bg-slate-50/50"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center", section.bg.split(" ")[0])}>
+                    <Icon className={cn("w-4 h-4", section.color)} />
+                  </div>
+                  <span className="text-sm font-semibold">{section.label}</span>
+                  <span className={cn("text-xs font-bold px-1.5 py-0.5 rounded-full", section.bg)}>
+                    {section.count}
+                  </span>
+                </div>
+                {isOpen ? (
+                  <ChevronUp className="w-4 h-4 text-petra-muted flex-shrink-0" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-petra-muted flex-shrink-0" />
+                )}
+              </button>
+
+              {isOpen && (
+                <div className="px-5 pb-3 space-y-2">
+                  {section.items.map((item) => (
+                    <Link
+                      key={item.id}
+                      href={`/service-dogs/${item.dogId}`}
+                      className={cn(
+                        "flex items-start gap-3 p-3 rounded-xl border transition-all hover:shadow-sm",
+                        item.isOverdue
+                          ? "bg-red-50 border-red-200 hover:bg-red-100"
+                          : "bg-white border-petra-border hover:bg-slate-50"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-2 h-2 rounded-full flex-shrink-0 mt-1.5",
+                        item.isOverdue ? "bg-red-500" : "bg-amber-400"
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-petra-text">{item.dogName}</span>
+                          {item.isOverdue && (
+                            <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">דחוף</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-petra-muted mt-0.5">{item.line1}</p>
+                        <p className={cn("text-xs mt-0.5", item.isOverdue ? "text-red-600 font-medium" : "text-petra-muted")}>
+                          {item.line2}
+                        </p>
+                      </div>
+                      <ChevronLeft className="w-4 h-4 text-petra-muted flex-shrink-0 mt-0.5" />
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

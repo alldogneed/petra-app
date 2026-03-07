@@ -175,10 +175,21 @@ export function Sidebar({
     staleTime: 30_000,
   });
 
+  const { data: sdAlerts } = useQuery<{ total: number }>({
+    queryKey: ["sidebar-sd-alerts"],
+    queryFn: () => fetch("/api/service-dogs/alerts").then((r) => {
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    }),
+    refetchInterval: 5 * 60_000,
+    staleTime: 3 * 60_000,
+  });
+
   const BADGES: Record<string, number> = {
     "/tasks": counters?.openTasks || 0,
     "/leads": counters?.overdueFollowUps || 0,
     "/bookings": counters?.pendingBookings || 0,
+    "/service-dogs": sdAlerts?.total || 0,
   };
 
   const [helpOpen, setHelpOpen] = useState(false);
