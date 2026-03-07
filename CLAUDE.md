@@ -114,7 +114,7 @@ petra-app/
 │   │   │   ├── boarding/          # Room grid + stays
 │   │   │   ├── training/          # All training (7 tabs — see Training section)
 │   │   │   ├── training-groups/   # Group training management
-│   │   │   ├── service-dogs/      # Service dog program (6 sub-pages)
+│   │   │   ├── service-dogs/      # Service dog program (7 sub-pages + recipient profile + reports)
 │   │   │   ├── payments/          # Payment table + summary
 │   │   │   ├── orders/            # Order list + [id] detail
 │   │   │   ├── invoices/          # Invoice document viewer
@@ -187,7 +187,8 @@ petra-app/
 │   │   ├── order-calc.ts          # Order total + VAT calculation
 │   │   ├── import-utils.ts        # CSV parsing for bulk import
 │   │   ├── encryption.ts          # AES-256-GCM for OAuth/API token storage
-│   │   ├── google-calendar.ts     # GCal API: ensureUserCalendar, buildEventPayload
+│   │   ├── cron-auth.ts           # verifyCronAuth() — accepts Authorization: Bearer + x-cron-secret
+│   │   ├── google-calendar.ts     # GCal API: ensureUserCalendar, buildEventPayload, syncAppointmentToGcal, deleteAppointmentFromGcal
 │   │   ├── google-oauth.ts        # Google OAuth flow helpers
 │   │   ├── sync-jobs.ts           # enqueueSyncJob for GCal background sync
 │   │   ├── onboarding-state.ts    # Onboarding progress state machine
@@ -303,13 +304,15 @@ petra-app/
 ### Service Dogs
 | Model | Purpose |
 |-------|---------|
-| `ServiceDogProfile` | 1:1 extension of Pet. phase (SELECTION→TRAINING→ADVANCED→PLACEMENT→CERTIFIED→RETIRED), certificationDate, trainingHours, `documents Json` (URL links), `trainingTests Json` (ADI exam results) |
-| `ServiceDogRecipient` | Person receiving a service dog (disability info, waitlist status), `attachments Json` (URL links), `meetings Json` (coordination log) |
-| `ServiceDogPlacement` | Dog↔Recipient match (PENDING/TRIAL/ACTIVE/TERMINATED) |
-| `ServiceDogMedicalProtocol` | Phase-based medical requirements with due dates |
+| `ServiceDogProfile` | 1:1 extension of Pet. phase (SELECTION→TRAINING→ADVANCED→PLACEMENT→CERTIFIED→RETIRED), certificationDate, trainingHours, `documents Json`, `trainingTests Json` (ADI results), `dogPhoto` (base64), `milestones Json` |
+| `ServiceDogInsurance` | Insurance policy per dog (policyNumber, insurer, expiry, `policyDocument` base64) |
+| `ServiceDogRecipient` | Person receiving a service dog (disability info, fundingSource, waitlist status), `attachments Json`, `meetings Json` |
+| `ServiceRecipientStage` | Custom kanban stages for the recipient pipeline (name, color, sortOrder, per-business). Auto-seeded with 8 defaults |
+| `ServiceDogPlacement` | Dog↔Recipient match (PENDING/TRIAL/ACTIVE/TERMINATED). Has `fundingSource` |
+| `ServiceDogMedicalProtocol` | Phase-based medical requirements with due dates. Smart auto-generation from health data + Israeli-specific protocols |
 | `ServiceDogTrainingLog` | ADI training session logs with cumulative hours |
-| `ServiceDogComplianceEvent` | 48-hour government notification events |
-| `ServiceDogIDCard` | Digital ID card with QR token (public endpoint to verify) |
+| `ServiceDogComplianceEvent` | Government notification events (48-hour deadline) |
+| `ServiceDogIDCard` | Digital ID card with QR token (public endpoint to verify). PDF download supported |
 
 ### Online Booking
 | Model | Purpose |
@@ -473,25 +476,39 @@ isProd               // true on Vercel production (main branch)
 - Program settings modal (goals, homework)
 
 ### ✅ Service Dogs — Full Module (`/service-dogs/*`)
-6 sub-pages + recipient profile:
+Sidebar group: **"ניהול כלבי שירות"** (6 sub-pages + recipient profile)
 
 | Page | Purpose |
 |------|---------|
-| `/service-dogs` | Overview dashboard: counts by phase, recent activity |
+| `/service-dogs` | Overview dashboard: phase counts, alerts widget (dismissible), smart protocol reminders, pipeline widget |
 | `/service-dogs/dogs` | Dog card grid with phase filter. Archive toggle (RETIRED/DECERTIFIED hidden by default) |
-| `/service-dogs/[id]` | Individual dog profile — 8 tabs: תיק כלב, פרוטוקולים רפואיים, יומן אימונים, מבחני הכשרה, משמעת ודיווח, שיבוצים, מסמכים, תעודת זהות |
-| `/service-dogs/recipients` | Recipient table with clickable rows → full profile page |
-| `/service-dogs/recipients/[id]` | Full recipient profile: פרטים, מסמכים, מפגשים (coordination log) |
-| `/service-dogs/placements` | Placements list + active placement. `SearchableSelect` for dog/recipient in create modal |
-| `/service-dogs/compliance` | Compliance events + urgency grouping |
-| `/service-dogs/id-cards` | ID card grid + QR code viewer |
+| `/service-dogs/[id]` | Individual dog profile — 10 tabs: תיק כלב, פרוטוקולים רפואיים, יומן אימונים, אבני דרך, ביטוח, ציוד (vests), מבחני הכשרה, דיווח ממשלתי, שיבוצים, מסמכים, הסמכה |
+| `/service-dogs/recipients` | Kanban board with custom `ServiceRecipientStage` columns (draggable, editable, color-coded). Clickable cards → full profile |
+| `/service-dogs/recipients/[id]` | Full recipient profile: פרטים (linked to Customer), מסמכים, מפגשים (coordination log), דוח ממשלתי |
+| `/service-dogs/placements` | Placements list + active placement. Shows `fundingSource`. `SearchableSelect` for dog/recipient in create modal |
+| `/service-dogs/reports` | Reports: upcoming certification renewals + recipients summary by funding source. Excel export |
+| `/service-dogs/id-cards` → renamed `/service-dogs/certifications` | **הסמכה** tab — ID card grid + QR code viewer + PDF download |
 
 - Public endpoint: `/api/service-dogs/id-card/[token]` — no auth, verifies QR
 - Standalone service dogs: Pet created without Customer (`businessId` set directly)
-- **TrainingTests tab**: ADI-standard exam log — 18 categories per test, pass/fail/score, overall result
-- **Documents tab**: URL-based document links (Google Drive, Dropbox, etc.) with type + date
+- **Alerts system**: sidebar badge shows count of urgent alerts. Overview widget lists overdue protocols, unvaccinated, missing tests. `POST /api/cron/service-dog-alerts` runs daily
+- **Smart protocol auto-generation**: health data (vaccines, conditions) auto-generates relevant `ServiceDogMedicalProtocol` records with due dates. Israeli-specific protocols included (national registry, ADI certification)
+- **Dog photo**: `ServiceDogProfile.dogPhoto` — base64 upload from תיק כלב tab
+- **Insurance**: `ServiceDogInsurance` records with policy document file upload (PDF/image → base64). Shown in ביטוח tab
+- **Milestones**: JSON field on `ServiceDogProfile`. Shown in אבני דרך tab
+- **Vests/equipment**: tracked in ציוד tab
+- **TrainingTests tab** (מבחני הכשרה): ADI-standard exam log — 18 categories per test, pass/fail/score, overall result. Dog selector in add modal
+- **Documents tab** (מסמכים): file uploads (via Vercel Blob) + URL links. No URL field in add-document modal
+- **דיווח ממשלתי tab**: government compliance events + urgency grouping (replaces old "compliance" tab name)
 - **End-of-process**: "סיום תהליך הכשרה ושיבוץ" button → atomically sets placement→COMPLETED, dog→RETIRED, recipient→CLOSED (`POST /api/service-placements/[id]/complete`)
 - `training-programs` API excludes `trainingType=SERVICE_DOG` by default — service dog programs only visible via `?trainingType=SERVICE_DOG`
+- Session log modal in training tab: "רישום אימון" label + team notes field
+- Excel export from reports page: service dogs sheet + recipients sheet in one XLSX file
+
+**Service recipient kanban stages** — `ServiceRecipientStage` model:
+- `GET /POST /api/service-recipient-stages` — auto-seeds 8 default stages on first GET
+- `PATCH/DELETE /api/service-recipient-stages/[id]`
+- Recipients page is a full kanban: drag cards between columns (updates recipient status), drag column headers to reorder stages, inline column name editing, add/delete custom stages with color picker
 
 ### ✅ Payments (`/payments`)
 - Payment table with amount, status, method, date
@@ -614,10 +631,11 @@ isProd               // true on Vercel production (main branch)
 
 ### 🔄 Google Calendar Sync
 - OAuth connect flow built (`/api/integrations/google/*`)
-- `SyncJob` model + queue built
+- `SyncJob` model + queue built for Bookings (public widget)
 - `sync-jobs.ts` enqueueSyncJob built
-- **Missing:** background worker to process jobs (needs cron or Vercel edge function)
-- Settings UI for GCal connection exists
+- ✅ `/api/integrations/google/process-jobs` now runs daily via Vercel Cron + every 5 min via GitHub Actions
+- ✅ Staff-created `Appointment` model now syncs to GCal on create/update/cancel/delete (`syncAppointmentToGcal`, `deleteAppointmentFromGcal` in `google-calendar.ts`; `Appointment.gcalEventId` field added)
+- Settings UI for GCal connection exists (connect via Integrations page)
 
 ### 🔄 Stripe Payments
 - `StripeSettings` model + encrypted key storage
@@ -626,10 +644,11 @@ isProd               // true on Vercel production (main branch)
 - **Missing:** actual checkout session creation, payment confirmation webhook handling is basic
 
 ### 🔄 Reminders / Cron
-- Cron routes exist: `/api/cron/birthday-reminders`, `/api/cron/generate-tasks`, `/api/cron/send-reminders`, `/api/cron/vaccination-reminders`
-- `reminder-service.ts` built
-- ✅ Cron jobs defined in `vercel.json` (4 schedules)
-- **Missing:** `CRON_SECRET` env var must be set in Vercel for routes to accept requests; confirm in Vercel dashboard → Functions → Cron
+- Cron routes: `send-reminders`, `generate-tasks`, `birthday-reminders`, `vaccination-reminders`, `service-dog-alerts` (5 total)
+- `reminder-service.ts` built; `src/lib/cron-auth.ts` — shared auth helper (accepts `Authorization: Bearer` AND `x-cron-secret`)
+- ✅ Cron jobs defined in `vercel.json` (5 daily schedules) — Vercel Hobby plan = daily only
+- ✅ `.github/workflows/cron.yml` — GitHub Actions runs `send-reminders` every 15 min + `process-jobs` every 5 min (requires `CRON_SECRET` secret in GitHub repo settings)
+- **Pending:** `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` must be set in Vercel for actual WhatsApp delivery
 
 ### 🔄 Onboarding
 - `OnboardingProfile` + `OnboardingProgress` models exist
@@ -654,8 +673,8 @@ isProd               // true on Vercel production (main branch)
 
 Based on code comments, schema fields, and incomplete implementations:
 
-1. **Cron jobs (Vercel)** — ✅ Defined in `vercel.json`. Require `CRON_SECRET` env var in Vercel to be active. Verify in Vercel dashboard → Functions → Cron.
-2. **GCal sync worker** — SyncJob queue exists but processing never runs automatically
+1. **Cron jobs (Vercel)** — ✅ Defined in `vercel.json` (5 daily crons). Auth fixed (accepts `Authorization: Bearer`). GitHub Actions runs frequent crons.
+2. **GCal sync worker** — ✅ process-jobs now in vercel.json + GitHub Actions every 5 min. Appointment model now syncs on create/update/cancel/delete.
 3. **Stripe checkout** — keys stored, but no checkout flow for customers
 4. **Tier gating** — schema has `tier` on Business, TIERS constant defined, but zero enforcement
 5. **WhatsApp API messages** — Twilio integration built, but some automation rules may fail silently without RESEND_API_KEY / Twilio credentials
@@ -668,19 +687,16 @@ Based on code comments, schema fields, and incomplete implementations:
 
 ## 8. Current Status (March 2026)
 
-**Most active area:** Training module (March 2026 complete overhaul) + performance/infra.
+**Most active area:** Infrastructure + WhatsApp/GCal readiness (March 2026 Session 5).
 
 Recent git history (most recent first):
+- `0c7719f` — GitHub Actions cron.yml for 15-min reminders; revert vercel.json to daily (Hobby plan)
+- `8c932c9` — Cron auth fixed; GCal sync for Appointments; gcalEventId schema; process-jobs in vercel.json
+- `884e6dd` — Service dog documents: file upload (Vercel Blob) + URL toggle
 - `6a24b3e` — Service dogs: recipient profiles, archive, training tests, documents tab; end-of-process flow
-- `452ec8d` — Dog profile first tab fix + default active tab
-- `338cb86` — Service dog isolation + dog file tab with full pet health
 - `adff103` — Training orders: boarding stay, package program, group enrollment
-- `f9dd072` — Boarding training card: "מפגש בית הלקוח" button for HOME follow-up sessions
 - `eab699c`/`9b94268` — CreateOrderModal: group training validation + block when no group
 - `eaa85db` — Rate limiting, goal invalidation, WhatsApp booking confirmations
-- `f39011f` — Standalone service dog: auto-creates TrainingProgram + "הוסף זכאי" to training tab
-- `ac7fe47` — Null-guard for Pet.customer (customerId now optional)
-- Performance: cursor pagination, lazy loading, API limits, image optimization
 
 **Production deployment:** Vercel, auto-deploys from `main` branch push. Schema at `prisma/schema.production.prisma` (must stay in sync with `prisma/schema.prisma`).
 
@@ -903,9 +919,9 @@ p.business.findMany().then(r => console.log(JSON.stringify(r, null, 2))).finally
 
 ## 13. Open Questions & Unresolved Decisions
 
-1. **Cron jobs**: ✅ Defined in `vercel.json`. Still need `CRON_SECRET` env var in Vercel to be active.
+1. **Cron jobs**: ✅ Defined in `vercel.json` (5 daily). Auth fixed. GitHub Actions handles 15-min/5-min cadence. Requires `CRON_SECRET` in GitHub repo secrets.
 
-2. **GCal sync worker**: SyncJob queue is built and jobs are enqueued, but nothing processes them. The `/api/integrations/google/process-jobs` endpoint exists but isn't called on a schedule.
+2. **GCal sync worker**: ✅ `process-jobs` runs via vercel.json daily + GitHub Actions every 5 min. Appointment model syncs on create/update/cancel/delete (`gcalEventId` field added).
 
 3. **`/intake` accessible without auth**: The dashboard admin page at `/intake` is publicly accessible because the middleware uses prefix matching for `intake/[token]`. This is a known bug.
 
