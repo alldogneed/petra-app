@@ -162,6 +162,7 @@ function getTodayStr() {
 
 export default function OrdersPage() {
   const [activeStatus, setActiveStatus] = useState("ALL");
+  const [paymentFilter, setPaymentFilter] = useState("ALL");
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
@@ -189,12 +190,23 @@ export default function OrdersPage() {
     staleTime: 30_000,
   });
 
-  // Client-side customer name filter
+  // Client-side filters: customer name + payment status
   const filteredOrders = useMemo(() => {
-    if (!customerSearch.trim()) return orders;
-    const q = customerSearch.toLowerCase();
-    return orders.filter((o) => o.customer.name.toLowerCase().includes(q));
-  }, [orders, customerSearch]);
+    let result = orders;
+    if (customerSearch.trim()) {
+      const q = customerSearch.toLowerCase();
+      result = result.filter((o) => o.customer.name.toLowerCase().includes(q));
+    }
+    if (paymentFilter !== "ALL") {
+      result = result.filter((o) => {
+        const paid = o.payments.filter(p => p.status === "paid").reduce((s, p) => s + p.amount, 0);
+        if (paymentFilter === "paid") return paid >= o.total;
+        if (paymentFilter === "unpaid") return paid < o.total;
+        return true;
+      });
+    }
+    return result;
+  }, [orders, customerSearch, paymentFilter]);
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
@@ -220,13 +232,14 @@ export default function OrdersPage() {
     completed: orders.filter((o) => o.status === "completed").length,
   }), [orders]);
 
-  const hasActiveFilters = customerSearch || fromDate || toDate || activeStatus !== "ALL";
+  const hasActiveFilters = customerSearch || fromDate || toDate || activeStatus !== "ALL" || paymentFilter !== "ALL";
 
   function clearFilters() {
     setCustomerSearch("");
     setFromDate(getTodayStr());
     setToDate("");
     setActiveStatus("ALL");
+    setPaymentFilter("ALL");
   }
 
   return (
@@ -312,6 +325,35 @@ export default function OrdersPage() {
                   )}
                 >
                   {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Payment status filter */}
+          <div className="flex-shrink-0">
+            <p className="text-xs font-medium text-petra-muted mb-1.5">סטטוס תשלום</p>
+            <div className="flex gap-1.5">
+              {[
+                { id: "ALL", label: "הכל" },
+                { id: "paid", label: "שולם" },
+                { id: "unpaid", label: "טרם שולם" },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setPaymentFilter(f.id)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
+                    paymentFilter === f.id
+                      ? f.id === "paid"
+                        ? "bg-emerald-500 text-white border-emerald-500"
+                        : f.id === "unpaid"
+                        ? "bg-red-500 text-white border-red-500"
+                        : "bg-brand-500 text-white border-brand-500"
+                      : "bg-white text-petra-muted border-petra-border hover:border-slate-300 hover:text-petra-text"
+                  )}
+                >
+                  {f.label}
                 </button>
               ))}
             </div>
