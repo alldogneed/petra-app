@@ -200,7 +200,7 @@ petra-app/
 │   │
 │   ├── middleware.ts              # Auth gate: checks petra_session cookie
 │   └── providers/
-│       ├── query-provider.tsx     # React Query setup (staleTime: 30s)
+│       ├── query-provider.tsx     # React Query setup (staleTime: 5min, gcTime: 10min)
 │       └── auth-provider.tsx      # AuthProvider + useAuth() hook
 │
 ├── .env                           # Local env vars (DATABASE_URL, secrets)
@@ -1103,3 +1103,25 @@ npm run deploy:production
 # → opens a PR: staging → main (requires review + approval to merge)
 # → after merge, Vercel auto-deploys to production
 ```
+
+---
+
+## Performance Conventions
+
+Full details in `docs/PERFORMANCE.md`. Key rules:
+
+### Lazy Loading
+- Use `dynamic(() => import(...), { ssr: false })` for any component that imports `recharts`, large modal trees, or `@dnd-kit`
+- Charts must include a skeleton `loading:` prop to prevent layout shift
+- `RevenueChart` is in `src/components/dashboard/RevenueChart.tsx` (extracted from dashboard for lazy loading)
+
+### Pagination
+- All list APIs accept `cursor` + `take` (clamped 1–100, default 50)
+- Return `{ items, nextCursor, hasMore }` — never return unbounded arrays
+- Client uses `useInfiniteQuery` with `getNextPageParam: (page) => page.nextCursor ?? undefined`
+- Maximum hard limits per route: customers 100, payments/leads/tasks/appointments 200
+
+### Images
+- Always use Next.js `<Image>` — never `<img>` — except for data URIs and `onError`-heavy previews
+- External image domains: `remotePatterns: [{ protocol: "https", hostname: "**" }]` in next.config.mjs
+- SVG logos: `dangerouslyAllowSVG: true` in next.config.mjs
