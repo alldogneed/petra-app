@@ -13,16 +13,25 @@ import {
   CheckCircle2,
   AlertTriangle,
   ChevronLeft,
+  UserCheck,
+  Calendar,
+  RefreshCw,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
-import { SERVICE_DOG_PHASE_MAP, SERVICE_DOG_PHASE_COLORS } from "@/lib/service-dogs";
+import {
+  SERVICE_DOG_PHASE_MAP, SERVICE_DOG_PHASE_COLORS,
+  RECIPIENT_STATUSES, FUNDING_SOURCE_MAP,
+} from "@/lib/service-dogs";
 
 interface ServiceDogSummary {
   id: string;
   phase: string;
   trainingStatus: string;
   certificationDate: string | null;
+  certificationExpiry: string | null;
+  licenseNumber: string | null;
+  licenseExpiry: string | null;
   serviceType: string | null;
   isGovReportPending: boolean;
   medicalCompliance: { status: string; completedCount: number; totalProtocols: number; overdueCount: number; compliancePercent: number };
@@ -49,6 +58,12 @@ export default function ServiceDogsReportsPage() {
   const { data: programs = [], isLoading: programsLoading } = useQuery<TrainingProgram[]>({
     queryKey: ["training-programs-sd"],
     queryFn: () => fetch("/api/training-programs?trainingType=SERVICE_DOG").then((r) => r.json()).then((d) => Array.isArray(d) ? d : d.programs ?? []),
+    staleTime: 60_000,
+  });
+
+  const { data: recipients = [] } = useQuery<{ id: string; name: string; status: string; fundingSource: string | null; disabilityType: string | null }[]>({
+    queryKey: ["service-recipients"],
+    queryFn: () => fetch("/api/service-recipients").then((r) => r.json()),
     staleTime: 60_000,
   });
 
@@ -81,6 +96,42 @@ export default function ServiceDogsReportsPage() {
     )[0];
     return !lastDone || new Date(lastDone.sessionDate) < ago14;
   });
+
+  // Upcoming renewals (next 90 days)
+  const in90Days = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+  const upcomingRenewals: Array<{ dogId: string; dogName: string; label: string; expiry: Date; urgency: "overdue" | "soon" | "ok" }> = [];
+  dogs.forEach((dog) => {
+    const checks = [
+      { label: "תוקף רישיון", date: dog.licenseExpiry ? new Date(dog.licenseExpiry) : null },
+      { label: "תוקף הסמכה", date: dog.certificationExpiry ? new Date(dog.certificationExpiry) : null },
+    ];
+    checks.forEach(({ label, date }) => {
+      if (!date) return;
+      if (date <= in90Days) {
+        upcomingRenewals.push({
+          dogId: dog.id,
+          dogName: dog.pet.name,
+          label,
+          expiry: date,
+          urgency: date < now ? "overdue" : date < new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) ? "soon" : "ok",
+        });
+      }
+    });
+  });
+  upcomingRenewals.sort((a, b) => a.expiry.getTime() - b.expiry.getTime());
+
+  // Recipients by funding source
+  const byFunding = recipients.reduce((acc, r) => {
+    const key = r.fundingSource || "UNKNOWN";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Recipients pipeline counts
+  const recipientsByStage = RECIPIENT_STATUSES.map((s) => ({
+    ...s,
+    count: recipients.filter((r) => r.status === s.id).length,
+  }));
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -313,6 +364,96 @@ export default function ServiceDogsReportsPage() {
               )}
             </div>
           </div>
+
+          {/* ── Upcoming Renewals ────────────────────────────────────── */}
+          {upcomingRenewals.length > 0 && (
+            <div className="card p-5">
+              <h2 className="font-semibold mb-4 flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-amber-500" />
+                חידושים קרובים — 90 יום
+                <span className="text-xs font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                  {upcomingRenewals.length} פריטים
+                </span>
+              </h2>
+              <div className="divide-y max-h-64 overflow-y-auto">
+                {upcomingRenewals.map((r, i) => (
+                  <Link
+                    key={i}
+                    href={`/service-dogs/${r.dogId}`}
+                    className="flex items-center justify-between py-2.5 hover:bg-slate-50 px-1 rounded transition-colors"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{r.dogName}</p>
+                      <p className="text-xs text-petra-muted">{r.label}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "text-xs font-medium px-2 py-0.5 rounded-full",
+                        r.urgency === "overdue" ? "bg-red-100 text-red-700"
+                          : r.urgency === "soon" ? "bg-amber-100 text-amber-700"
+                          : "bg-slate-100 text-slate-600"
+                      )}>
+                        {r.urgency === "overdue" ? "פג תוקף" : formatDate(r.expiry.toISOString())}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Recipients Summary ────────────────────────────────────── */}
+          {recipients.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Pipeline */}
+              <div className="card p-5">
+                <h2 className="font-semibold mb-4 flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-brand-500" />
+                  פיפליין זכאים ({recipients.length})
+                </h2>
+                <div className="space-y-2">
+                  {recipientsByStage.filter((s) => s.count > 0).map((stage) => {
+                    const pct = recipients.length > 0 ? Math.round((stage.count / recipients.length) * 100) : 0;
+                    return (
+                      <div key={stage.id}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", stage.color)}>{stage.label}</span>
+                          <span className="text-sm font-bold">{stage.count}</span>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* By funding source */}
+              <div className="card p-5">
+                <h2 className="font-semibold mb-4 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-brand-500" />
+                  לפי מקור מימון
+                </h2>
+                <div className="space-y-3">
+                  {Object.entries(byFunding).map(([source, count]) => {
+                    const pct = recipients.length > 0 ? Math.round((count / recipients.length) * 100) : 0;
+                    return (
+                      <div key={source}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm">{FUNDING_SOURCE_MAP[source] || "לא ידוע"}</span>
+                          <span className="text-sm font-bold">{count} ({pct}%)</span>
+                        </div>
+                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-indigo-400 transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
