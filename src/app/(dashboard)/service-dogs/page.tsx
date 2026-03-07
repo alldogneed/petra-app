@@ -36,6 +36,9 @@ import {
   SERVICE_DOG_PHASE_COLORS,
   COMPLIANCE_EVENT_MAP,
   DISABILITY_TYPES,
+  RECIPIENT_STATUSES,
+  RECIPIENT_STATUS_MAP,
+  FUNDING_SOURCE_MAP,
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
 
@@ -111,6 +114,11 @@ export default function ServiceDogsOverviewPage() {
     staleTime: 3 * 60_000,
   });
 
+  const { data: recipients = [] } = useQuery<{ id: string; name: string; status: string; fundingSource: string | null }[]>({
+    queryKey: ["service-recipients"],
+    queryFn: () => fetch("/api/service-recipients").then((r) => r.json()),
+  });
+
   // Training stats
   const allSessions = trainingPrograms.flatMap((p) =>
     p.sessions
@@ -135,6 +143,11 @@ export default function ServiceDogsOverviewPage() {
   const pendingCert = dogs.filter((d) => d.trainingStatus === "PENDING_CERT").length;
   const complianceAlerts = dogs.filter((d) => d.isGovReportPending).length;
   const activePlacements = dogs.filter((d) => d.activePlacement?.status === "ACTIVE").length;
+
+  // Recipients stats
+  const totalRecipients = recipients.length;
+  const waitingForMatch = recipients.filter((r) => ["APPROVED", "WAITLIST"].includes(r.status)).length;
+  const activeRecipients = recipients.filter((r) => r.status === "ACTIVE").length;
 
   // Dogs needing attention
   const dogsNeedingAttention = dogs.filter(
@@ -173,7 +186,7 @@ export default function ServiceDogsOverviewPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-3">
         <StatCard label="סה״כ כלבים" value={totalDogs} icon={Dog} />
         <StatCard label="באימון" value={inTraining} icon={Clock} color="blue" />
         <StatCard label="מוסמכים" value={certified} icon={CheckCircle2} color="emerald" />
@@ -181,6 +194,9 @@ export default function ServiceDogsOverviewPage() {
         <StatCard label="התראות דיווח" value={complianceAlerts} icon={AlertTriangle} color={complianceAlerts > 0 ? "red" : "emerald"} />
         <StatCard label="שיבוצים פעילים" value={activePlacements} icon={Activity} color="purple" />
         <StatCard label="אימונים השבוע" value={thisWeek} icon={GraduationCap} color="brand" />
+        <StatCard label="סה״כ זכאים" value={totalRecipients} icon={UserCheck} />
+        <StatCard label="ממתינים לשיבוץ" value={waitingForMatch} icon={UserCheck} color="amber" />
+        <StatCard label="זכאים פעילים" value={activeRecipients} icon={UserCheck} color="emerald" />
       </div>
 
 
@@ -202,6 +218,59 @@ export default function ServiceDogsOverviewPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recipients Pipeline Mini-board */}
+        {recipients.length > 0 && (
+          <div className="card p-0 overflow-hidden">
+            <div className="px-5 py-4 border-b flex items-center justify-between">
+              <h2 className="font-semibold flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-brand-500" />
+                פיפליין זכאים
+              </h2>
+              <Link href="/service-dogs/recipients" className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1">
+                ניהול זכאים <ArrowLeft className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="p-4 overflow-x-auto">
+              <div className="flex gap-2 min-w-max">
+                {RECIPIENT_STATUSES.map((stage) => {
+                  const count = recipients.filter((r) => r.status === stage.id).length;
+                  if (count === 0 && stage.id === "CLOSED") return null;
+                  return (
+                    <Link
+                      key={stage.id}
+                      href={`/service-dogs/recipients`}
+                      className="flex flex-col items-center gap-1 min-w-[68px] p-2 rounded-xl border hover:shadow-sm transition-all"
+                      style={{ backgroundColor: stage.kanbanBg }}
+                    >
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${stage.color}`}>
+                        {stage.label}
+                      </span>
+                      <span className="text-xl font-bold text-petra-text">{count}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+            {/* Funding source breakdown */}
+            {(() => {
+              const byFunding = recipients.reduce((acc, r) => {
+                const key = r.fundingSource || "UNKNOWN";
+                acc[key] = (acc[key] || 0) + 1;
+                return acc;
+              }, {} as Record<string, number>);
+              return (
+                <div className="px-5 pb-4 flex items-center gap-3 flex-wrap">
+                  {Object.entries(byFunding).map(([source, count]) => (
+                    <span key={source} className="text-xs text-petra-muted">
+                      {FUNDING_SOURCE_MAP[source] || "לא ידוע"}: <strong>{count}</strong>
+                    </span>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
         {/* Dogs Needing Attention */}
         <div className="card p-0 overflow-hidden">
           <div className="px-5 py-4 border-b flex items-center justify-between">

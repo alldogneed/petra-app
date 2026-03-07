@@ -8,6 +8,7 @@ import {
   UserCheck, ChevronLeft, Phone, Mail, MapPin, CreditCard,
   Dog, Calendar, Plus, X, Pencil, Trash2, FileText, Clock,
   CheckCircle2, AlertCircle, ExternalLink, ArrowRight,
+  Link2, Printer, Search,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import {
@@ -64,6 +65,8 @@ interface RecipientDetail {
   waitlistDate: string | null;
   notes: string | null;
   status: string;
+  customerId: string | null;
+  customer: { id: string; name: string; phone: string | null; email: string | null } | null;
   attachments: Attachment[];
   meetings: Meeting[];
   placements: Placement[];
@@ -110,6 +113,8 @@ export default function RecipientDetailPage() {
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
   const [showAddDoc, setShowAddDoc] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [showLinkCustomer, setShowLinkCustomer] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -248,7 +253,7 @@ export default function RecipientDetailPage() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
             {activePlacement && (
               <Link
                 href={`/service-dogs/${activePlacement.serviceDog.id}`}
@@ -259,6 +264,30 @@ export default function RecipientDetailPage() {
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             )}
+            {recipient.customer ? (
+              <Link
+                href={`/customers/${recipient.customer.id}`}
+                className="flex items-center gap-2 text-sm bg-brand-50 text-brand-600 border border-brand-200 px-3 py-1.5 rounded-lg hover:bg-brand-100 transition-colors"
+              >
+                <UserCheck className="w-4 h-4" />
+                {recipient.customer.name}
+              </Link>
+            ) : (
+              <button
+                onClick={() => setShowLinkCustomer(true)}
+                className="btn-ghost flex items-center gap-1.5 text-sm"
+              >
+                <Link2 className="w-4 h-4" />
+                קשר ללקוח
+              </button>
+            )}
+            <button
+              onClick={() => setShowReport(true)}
+              className="btn-ghost flex items-center gap-1.5 text-sm"
+            >
+              <Printer className="w-4 h-4" />
+              דוח
+            </button>
             <button
               onClick={() => setEditMode(true)}
               className="btn-ghost flex items-center gap-1.5 text-sm"
@@ -569,6 +598,25 @@ export default function RecipientDetailPage() {
           onClose={() => setShowAddDoc(false)}
         />
       )}
+
+      {/* Link Customer Modal */}
+      {showLinkCustomer && (
+        <LinkCustomerModal
+          onLink={(customerId) => {
+            patchMutation.mutate({ customerId });
+            setShowLinkCustomer(false);
+          }}
+          onClose={() => setShowLinkCustomer(false)}
+        />
+      )}
+
+      {/* Government Report Modal */}
+      {showReport && (
+        <GovernmentReportModal
+          recipient={recipient}
+          onClose={() => setShowReport(false)}
+        />
+      )}
     </div>
   );
 }
@@ -812,6 +860,225 @@ function AddDocModal({
           <div className="flex gap-2 pt-2">
             <button onClick={handleSave} disabled={!name.trim()} className="btn-primary flex-1">הוסף מסמך</button>
             <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Link Customer Modal ───
+
+function LinkCustomerModal({
+  onLink, onClose,
+}: {
+  onLink: (customerId: string) => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const { data: customers = [], isLoading } = useQuery<{ id: string; name: string; phone: string | null; email: string | null }[]>({
+    queryKey: ["customers-search", search],
+    queryFn: () => fetch(`/api/customers?search=${encodeURIComponent(search)}&take=20`).then((r) => r.json()),
+    enabled: search.length >= 1,
+  });
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-backdrop" />
+      <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <Link2 className="w-5 h-5 text-brand-500" />
+            קישור ללקוח במערכת
+          </h2>
+          <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
+        </div>
+        <p className="text-sm text-petra-muted mb-4">
+          חיפוש לקוח קיים במערכת וקישורו לתיק הזכאי. הלקוח יופיע בפרופיל ותוכל לנווט בין שני הפרופילים.
+        </p>
+        <div className="relative mb-4">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input pr-10 w-full"
+            placeholder="חיפוש לפי שם או טלפון..."
+            autoFocus
+          />
+        </div>
+        <div className="space-y-2 max-h-72 overflow-y-auto">
+          {isLoading && <p className="text-sm text-petra-muted text-center py-4">מחפש...</p>}
+          {!isLoading && search.length >= 1 && customers.length === 0 && (
+            <p className="text-sm text-petra-muted text-center py-4">לא נמצאו לקוחות</p>
+          )}
+          {customers.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => onLink(c.id)}
+              className="w-full flex items-center gap-3 p-3 rounded-xl border hover:bg-brand-50 hover:border-brand-200 transition-colors text-right"
+            >
+              <div className="w-9 h-9 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center shrink-0">
+                <UserCheck className="w-4 h-4 text-brand-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">{c.name}</p>
+                {(c.phone || c.email) && (
+                  <p className="text-xs text-petra-muted truncate">{c.phone || c.email}</p>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} className="btn-secondary w-full mt-4">ביטול</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Government Report Modal ───
+
+function GovernmentReportModal({
+  recipient, onClose,
+}: {
+  recipient: RecipientDetail;
+  onClose: () => void;
+}) {
+  const activePlacement = recipient.placements?.find((p) => ["ACTIVE", "TRIAL"].includes(p.status));
+  const today = new Date().toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" });
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-backdrop" />
+      <div className="modal-content max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5 print:hidden">
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <Printer className="w-5 h-5 text-brand-500" />
+            דוח מצב זכאי לרשויות
+          </h2>
+          <div className="flex items-center gap-2">
+            <button onClick={handlePrint} className="btn-primary flex items-center gap-2">
+              <Printer className="w-4 h-4" />
+              הדפס
+            </button>
+            <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
+          </div>
+        </div>
+
+        {/* Report content */}
+        <div className="space-y-5 text-sm" id="gov-report">
+          {/* Header */}
+          <div className="text-center border-b pb-4">
+            <h3 className="text-xl font-bold">דוח מצב זכאי — כלב שירות</h3>
+            <p className="text-petra-muted mt-1">תאריך הפקה: {today}</p>
+          </div>
+
+          {/* Recipient details */}
+          <div className="border rounded-xl p-4">
+            <h4 className="font-bold mb-3 text-base border-b pb-2">פרטי הזכאי</h4>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+              {[
+                { label: "שם מלא", value: recipient.name },
+                { label: "תעודת זהות", value: recipient.idNumber },
+                { label: "טלפון", value: recipient.phone },
+                { label: "אימייל", value: recipient.email },
+                { label: "כתובת", value: recipient.address },
+                { label: "סוג לקות", value: DISABILITY_TYPE_MAP[recipient.disabilityType || ""] || recipient.disabilityType },
+                { label: "מקור מימון", value: FUNDING_SOURCE_MAP[recipient.fundingSource || ""] || recipient.fundingSource },
+                { label: "סטטוס", value: RECIPIENT_STATUS_MAP[recipient.status]?.label || recipient.status },
+              ].filter((r) => r.value).map((row) => (
+                <div key={row.label} className="flex gap-2">
+                  <span className="text-petra-muted font-medium min-w-28">{row.label}:</span>
+                  <span className="font-medium">{row.value}</span>
+                </div>
+              ))}
+            </div>
+            {recipient.disabilityNotes && (
+              <div className="mt-3 pt-3 border-t">
+                <span className="text-petra-muted font-medium">פרטים על הלקות: </span>
+                <span>{recipient.disabilityNotes}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Placement / matched dog */}
+          {activePlacement && (
+            <div className="border rounded-xl p-4">
+              <h4 className="font-bold mb-3 text-base border-b pb-2">פרטי הכלב המשובץ</h4>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <div className="flex gap-2">
+                  <span className="text-petra-muted font-medium min-w-28">שם הכלב:</span>
+                  <span className="font-medium">{activePlacement.serviceDog.pet.name}</span>
+                </div>
+                {activePlacement.serviceDog.pet.breed && (
+                  <div className="flex gap-2">
+                    <span className="text-petra-muted font-medium min-w-28">גזע:</span>
+                    <span className="font-medium">{activePlacement.serviceDog.pet.breed}</span>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <span className="text-petra-muted font-medium min-w-28">שלב אימון:</span>
+                  <span className="font-medium">{SERVICE_DOG_PHASE_MAP[activePlacement.serviceDog.phase]?.label || activePlacement.serviceDog.phase}</span>
+                </div>
+                {activePlacement.placementDate && (
+                  <div className="flex gap-2">
+                    <span className="text-petra-muted font-medium min-w-28">תאריך שיבוץ:</span>
+                    <span className="font-medium">{formatDate(activePlacement.placementDate)}</span>
+                  </div>
+                )}
+                {activePlacement.nextCheckInAt && (
+                  <div className="flex gap-2">
+                    <span className="text-petra-muted font-medium min-w-28">בדיקת מעקב:</span>
+                    <span className="font-medium">{formatDate(activePlacement.nextCheckInAt)}</span>
+                  </div>
+                )}
+              </div>
+              {activePlacement.notes && (
+                <div className="mt-3 pt-3 border-t">
+                  <span className="text-petra-muted font-medium">הערות שיבוץ: </span>
+                  <span>{activePlacement.notes}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Meetings summary */}
+          {recipient.meetings && recipient.meetings.length > 0 && (
+            <div className="border rounded-xl p-4">
+              <h4 className="font-bold mb-3 text-base border-b pb-2">
+                מפגשים ותיאומים ({recipient.meetings.length})
+              </h4>
+              <div className="space-y-2">
+                {[...recipient.meetings]
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .slice(0, 10)
+                  .map((m) => (
+                    <div key={m.id} className="flex gap-3 text-xs py-1.5 border-b last:border-0">
+                      <span className="text-petra-muted min-w-24">{formatDate(m.date)}</span>
+                      <span className="font-medium">{MEETING_TYPE_MAP[m.type] || m.type}</span>
+                      {m.trainerName && <span className="text-petra-muted">— {m.trainerName}</span>}
+                      {m.notes && <span className="text-petra-muted truncate">{m.notes}</span>}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Notes */}
+          {recipient.notes && (
+            <div className="border rounded-xl p-4">
+              <h4 className="font-bold mb-2 text-base">הערות כלליות</h4>
+              <p className="text-sm whitespace-pre-wrap">{recipient.notes}</p>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="text-center text-xs text-petra-muted border-t pt-4">
+            דוח זה הופק ממערכת Petra · {today}
           </div>
         </div>
       </div>
