@@ -885,6 +885,18 @@ function AddTrainingForm({ dogId, onDone }: { dogId: string; onDone: () => void 
 
 // ─── Medical Tab ───
 
+// Maps protocol keys to the corresponding health date field
+const PROTOCOL_HEALTH_DATE_MAP: Record<string, keyof PetHealth> = {
+  RABIES_PRIMARY: "rabiesLastDate",
+  RABIES_BOOSTER: "rabiesLastDate",
+  DHPP_PRIMARY: "dhppLastDate",
+  DHPP: "dhppLastDate",
+  DHPP_BOOSTER: "dhppLastDate",
+  BORDETELLA: "bordatellaDate",
+  DEWORMING: "dewormingLastDate",
+  FLEA_TICK: "fleaTickDate",
+};
+
 function MedicalTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
   const queryClient = useQueryClient();
   const mc = dog.medicalCompliance;
@@ -911,6 +923,57 @@ function MedicalTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
     onError: () => toast.error("שגיאה בעדכון פרוטוקול"),
   });
 
+  // Sync vaccination dates from pet health record to protocols
+  const syncVaccinationsMutation = useMutation({
+    mutationFn: async () => {
+      const health = dog.pet.health;
+      if (!health) throw new Error("אין נתוני בריאות לכלב");
+
+      const toSync = dog.medicalProtocols.filter((p) => {
+        const healthField = PROTOCOL_HEALTH_DATE_MAP[p.protocolKey];
+        if (!healthField) return false;
+        const healthDate = health[healthField] as string | null;
+        return healthDate && p.status !== "COMPLETED" && p.status !== "WAIVED";
+      });
+
+      if (toSync.length === 0) throw new Error("NOTHING");
+
+      await Promise.all(
+        toSync.map((p) => {
+          const healthField = PROTOCOL_HEALTH_DATE_MAP[p.protocolKey];
+          const healthDate = health[healthField] as string;
+          return fetch(`/api/service-dogs/${dogId}/medical`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              protocolId: p.id,
+              status: "COMPLETED",
+              completedDate: new Date(healthDate).toISOString(),
+            }),
+          });
+        })
+      );
+      return toSync.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+      queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
+      toast.success(`${count} פרוטוקולים עודכנו מחיסוני הכלב`);
+    },
+    onError: (err: Error) => {
+      if (err.message === "NOTHING") toast.info("אין פרוטוקולים לסנכרון — כולם כבר מסומנים כבוצעו");
+      else toast.error(err.message || "שגיאה בסנכרון חיסונים");
+    },
+  });
+
+  // Count syncable protocols
+  const syncableCount = dog.medicalProtocols.filter((p) => {
+    const hf = PROTOCOL_HEALTH_DATE_MAP[p.protocolKey];
+    if (!hf) return false;
+    const hDate = dog.pet.health?.[hf] as string | null;
+    return hDate && p.status !== "COMPLETED" && p.status !== "WAIVED";
+  }).length;
+
   // Group protocols by category
   const grouped = MEDICAL_PROTOCOL_CATEGORIES.reduce((acc, cat) => {
     const protocols = dog.medicalProtocols.filter((p) => p.category === cat.id);
@@ -927,6 +990,24 @@ function MedicalTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Vaccination sync banner */}
+      {syncableCount > 0 && (
+        <div className="rounded-xl p-3 border border-blue-200 bg-blue-50 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Stethoscope className="w-4 h-4 text-blue-500 flex-shrink-0" />
+            <span className="text-sm text-blue-800">
+              נמצאו <strong>{syncableCount}</strong> חיסונים בפרופיל הכלב שטרם סומנו כבוצעו
+            </span>
+          </div>
+          <button
+            className="btn-primary text-xs flex-shrink-0"
+            disabled={syncVaccinationsMutation.isPending}
+            onClick={() => syncVaccinationsMutation.mutate()}
+          >
+            {syncVaccinationsMutation.isPending ? "מסנכרן..." : "סנכרן חיסונים"}
+          </button>
+        </div>
+      )}
       {/* Summary */}
       <div
         className={cn(

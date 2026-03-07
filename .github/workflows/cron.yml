@@ -1,0 +1,37 @@
+name: Petra Cron Jobs
+
+on:
+  schedule:
+    # Every 15 minutes — process pending WhatsApp reminders
+    - cron: "*/15 * * * *"
+    # Every 5 minutes — process pending Google Calendar sync jobs
+    - cron: "*/5 * * * *"
+
+jobs:
+  send-reminders:
+    name: Send WhatsApp Reminders
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '*/15 * * * *'
+    steps:
+      - name: Call send-reminders endpoint
+        run: |
+          curl -s -X GET \
+            "https://petra-app.com/api/cron/send-reminders" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --max-time 30 \
+            -w "\nHTTP %{http_code}"
+
+  process-gcal-jobs:
+    name: Process Google Calendar Sync Jobs
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '*/5 * * * *'
+    steps:
+      - name: Call process-jobs endpoint
+        run: |
+          curl -s -X GET \
+            "https://petra-app.com/api/integrations/google/process-jobs" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --max-time 30 \
+            -w "\nHTTP %{http_code}"
