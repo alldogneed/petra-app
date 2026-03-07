@@ -20,7 +20,7 @@ export async function GET(
     }
 
     const protocols = await prisma.serviceDogMedicalProtocol.findMany({
-      where: { serviceDogId: params.id },
+      where: { serviceDogId: params.id, businessId: authResult.businessId },
       orderBy: [{ phase: "asc" }, { createdAt: "asc" }],
     });
 
@@ -99,7 +99,7 @@ export async function PATCH(
     }
 
     const updated = await prisma.serviceDogMedicalProtocol.update({
-      where: { id: protocolId },
+      where: { id: protocolId, businessId: authResult.businessId },
       data: {
         ...(status !== undefined && { status }),
         ...(completedDate !== undefined && { completedDate: completedDate ? new Date(completedDate) : null }),

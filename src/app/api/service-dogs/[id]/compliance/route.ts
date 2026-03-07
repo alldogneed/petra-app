@@ -20,7 +20,7 @@ export async function GET(
     }
 
     const events = await prisma.serviceDogComplianceEvent.findMany({
-      where: { serviceDogId: params.id },
+      where: { serviceDogId: params.id, businessId: authResult.businessId },
       include: { placement: true },
       orderBy: { eventAt: "desc" },
     });

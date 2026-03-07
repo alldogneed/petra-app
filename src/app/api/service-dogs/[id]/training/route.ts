@@ -21,7 +21,7 @@ export async function GET(
     }
 
     const logs = await prisma.serviceDogTrainingLog.findMany({
-      where: { serviceDogId: params.id },
+      where: { serviceDogId: params.id, businessId: authResult.businessId },
       orderBy: { sessionDate: "desc" },
     });
 
@@ -101,7 +101,7 @@ export async function POST(
         : dog.trainingStatus;
 
     await prisma.serviceDogProfile.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: {
         trainingTotalHours: newTotalHours,
         trainingStatus: newTrainingStatus,
