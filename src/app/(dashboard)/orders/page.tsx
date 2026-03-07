@@ -594,6 +594,7 @@ export default function OrdersPage() {
                   <th className="table-header-cell hidden lg:table-cell">סוג</th>
                   <th className="table-header-cell">סטטוס</th>
                   <th className="table-header-cell">סה&quot;כ לתשלום</th>
+                  <th className="table-header-cell">תשלום</th>
                   <th className="table-header-cell">תאריך יצירה</th>
                   <th className="table-header-cell">פעולות</th>
                 </tr>
@@ -603,6 +604,10 @@ export default function OrdersPage() {
                   const statusInfo = STATUS_INFO[order.status] ?? STATUS_INFO.draft;
                   const StatusIcon = statusInfo.icon;
                   const isCancellable = order.status === "draft" || order.status === "confirmed";
+
+                  const paidAmountDesk = order.payments
+                    .filter((p) => p.status === "paid")
+                    .reduce((sum, p) => sum + p.amount, 0);
 
                   return (
                     <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
@@ -650,6 +655,29 @@ export default function OrdersPage() {
                         <span className="text-sm font-semibold text-petra-text" dir="ltr">
                           {formatCurrency(order.total)}
                         </span>
+                      </td>
+
+                      {/* Payment status */}
+                      <td className="table-cell">
+                        {paidAmountDesk >= order.total ? (
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            <CheckCircle2 className="w-3 h-3" />
+                            שולם
+                          </span>
+                        ) : paidAmountDesk > 0 ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-medium bg-amber-50 text-amber-700 border border-amber-100">
+                              שולם חלקית
+                            </span>
+                            <span className="text-[11px] text-petra-muted" dir="ltr">
+                              {formatCurrency(paidAmountDesk)} / {formatCurrency(order.total)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-medium bg-red-50 text-red-600 border border-red-100">
+                            טרם שולם
+                          </span>
+                        )}
                       </td>
 
                       {/* Date */}
