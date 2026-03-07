@@ -4,93 +4,101 @@
 
 ## 1. What We Did Today
 
-### Full Performance Audit + Implementation
+### 3-Environment Workflow Setup
+- Created `src/lib/env.ts` — typed, server-only env validator. `DATABASE_URL` + `DIRECT_URL` are **required** (throw at startup if missing). All other vars are `optional()` with defaults. Has `isDev`, `isStaging`, `isProd` helpers.
+- Created `.env.example` — safe-to-commit template for all env vars
+- Created `.env.staging` + `.env.production` — gitignored templates with instructions
+- Updated `vercel.json` — added `git.deploymentEnabled.staging: true` so Vercel auto-deploys the staging branch
+- Created `scripts/deploy.sh` — `npm run deploy:staging` merges current branch → staging and pushes; `npm run deploy:production` opens a GitHub PR from staging → main (requires approval)
+- Created `scripts/DEPLOY_CHECKLIST.md` — pre-deploy checklist
+- Updated `CLAUDE.md` sections 5, 15, 16 — env.ts usage, Supabase setup guide, initial git setup + daily workflow
 
-#### Lazy Loading (`next/dynamic`)
-- Dashboard: extracted `RevenueChart` to `src/components/dashboard/RevenueChart.tsx` so that `recharts` (~130 kB) is deferred until the chart renders. Added `loading:` skeleton prop.
-- Dashboard: converted `SetupChecklist`, `TeamWelcomeModal`, `OnboardingWizardModal`, `CreateOrderModal` to `dynamic()` with `ssr: false`.
-- `owner-shell.tsx`, `tenant-admin-shell.tsx`: `<img>` → `<Image>` (optimization, not lazy-load per se).
+### Staging Database
+- Used Vercel's built-in Neon database (already connected via storage integration) for staging
+- Set `DATABASE_URL` + `DIRECT_URL` in Vercel for Preview/staging branch → Neon pooler + direct URLs
+- Applied full Prisma schema to Neon: `prisma db push --schema=prisma/schema.production.prisma --accept-data-loss`
 
-#### Cursor-Based Pagination
-- `GET /api/customers` — full cursor pagination: `cursor` + `take` params (clamped 1–100, default 50), returns `{ customers, nextCursor, hasMore }`.
-- Customers page switched from `useQuery` to `useInfiniteQuery` with a "טען עוד לקוחות" Load More button.
-- All other list routes hard-capped: `appointments`, `leads`, `payments`, `pets`, `tasks` at 200; `training-packages`, `task-recurrence`, `booking/availability` at 100; `booking/blocks` at 200.
+### Deployed + PR Workflow Validated
+- Pushed to staging branch → Vercel built ✅ Ready
+- Opened PR #2 (staging → main) via `npm run deploy:production`
+- PR #2 merged → production build ✅ Ready
+- Full cycle tested and working end-to-end
 
-#### Image Optimization
-- `next.config.mjs`: added `images.remotePatterns` (any HTTPS host), `dangerouslyAllowSVG: true`, CSP for SVGs.
-- Converted `<img>` → `<Image>` in: `sidebar.tsx`, `login/page.tsx`, `WelcomeScreen.tsx`, `WhatNextScreen.tsx`, `book/[slug]/page.tsx`, `owner-shell.tsx`, `tenant-admin-shell.tsx`.
-- Exceptions kept as `<img>`: QR code data URIs, logo preview with `onError` in settings.
-
-#### Caching
-- Verified React Query already configured: `staleTime: 5min`, `gcTime: 10min`, `refetchOnWindowFocus: false`. No changes needed.
-
-#### Database Indexes
-- Verified: 82 `@@index` directives already in schema. All critical composite indexes present. No gaps.
-
-#### Bundle Analysis (from `next build`)
-- Shared first-load JS: **87.8 kB** ✅ (target < 100 kB)
-- Largest pages: `/leads` 284 kB (dnd-kit kanban, acceptable), `/settings` + `/tasks` + `/training` ~145–146 kB
-- Recharts successfully deferred out of the dashboard bundle.
-
-#### Documentation
-- Created `docs/PERFORMANCE.md` — comprehensive guide covering all 7 audit areas.
-- Updated `CLAUDE.md` — added Performance Conventions section, fixed staleTime note.
+### Performance Improvements (committed alongside, from uncommitted local changes)
+- **Customers page**: refactored from `useQuery` → `useInfiniteQuery` with cursor-based pagination (50/page, "טען עוד לקוחות" button). API now returns `{ customers, nextCursor, hasMore }` instead of a flat array.
+- **API limits reduced**: appointments/leads/payments/pets/tasks `take: 500` → `take: 200`; training-packages/availability/blocks/task-recurrence had no limit → added `take: 100–200`
+- **`next.config.mjs`**: added `images.remotePatterns` (any HTTPS host) so Next.js `<Image>` works for external logos/photos
+- **`<img>` → `<Image>`**: sidebar, login page, booking page, WelcomeScreen, WhatNextScreen, OwnerShell, TenantAdminShell
+- **Dashboard**: moved `RevenueChart` out to `src/components/dashboard/RevenueChart.tsx` (dynamic import). Also lazily loads onboarding modals and CreateOrderModal.
 
 ---
 
 ## 2. What's Working
 
-- **TypeScript**: ✅ `tsc --noEmit` passes with 0 errors
-- **Production build**: ✅ `next build` succeeds, no warnings
-- **Cursor pagination**: customers API + UI fully working
-- **Lazy loading**: RevenueChart, modals deferred; recharts out of initial bundle
-- **Image optimization**: Next.js `<Image>` throughout; next.config.mjs configured for external URLs
-- **WhatsApp booking confirmations**: fire-and-forget, non-blocking (from previous session)
-- **All QA fixes from previous session**: rate limiting, goal invalidation, IDOR review
-- **Production**: deployed to `petra-app.com` at commit `9c8d4f8`
+- **3-environment workflow**: staging auto-deploys on push, production requires PR approval. `npm run deploy:staging` + `npm run deploy:production` both work.
+- **Staging DB**: Neon database has full schema, staging Vercel deployments have `DATABASE_URL`/`DIRECT_URL` set
+- **Production DB**: Supabase `ipeshpbikcfcwkvkztxn` (ap-northeast-2), unchanged, working
+- **Customers infinite scroll**: loads 50/page with "Load More" button, client-side status/financial/tag filtering still works across all loaded pages
+- **Image optimization**: all `<img>` tags converted to Next.js `<Image>`, `next.config.mjs` allows any HTTPS host
+- **TypeScript**: build passes (Vercel deployment succeeded)
+- **Production**: `petra-app.com` live, last commit `9c8d4f8`
+- **Git branches**: `main` (protected, PR-only), `staging` (auto-deploy), `dev` (local)
 
 ---
 
 ## 3. What's Broken or Incomplete
 
-- **RESEND_API_KEY not set**: emails (forgot password, reminders) won't send. Needs to be added as a Vercel env var.
-- **`/intake` middleware bug**: `/intake` is listed in `PUBLIC_PATHS` in `middleware.ts` — the dashboard intake management page is accessible without auth.
-- **WhatsApp booking confirmations**: requires `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WHATSAPP_FROM` env vars. Silently no-ops without them.
-- **Pagination not applied to all pages**: only customers has useInfiniteQuery + Load More. Payments, leads, tasks, boarding are still single-page with hard caps (200 records). Sufficient for now but worth revisiting if a tenant hits the limit.
-- **GoalSection toggle** (mark goal complete/incomplete): the fix added `training-programs-service` invalidation to the "add goal" mutation — but whether the toggle/complete mutation also invalidates this query wasn't verified. May be missing.
-- **Standalone pets in `/service-dogs/dogs` page**: the card grid may only query pets via `Pet.customer`, not via `Pet.businessId`. Standalone dogs created without a customer might not appear. Needs verification.
+- **`RESEND_API_KEY` not set in Vercel**: forgot-password emails and reminder emails don't send. Needs account at resend.com → set in Vercel Production + Preview env vars.
+- **`/intake` middleware bug**: `/intake` (dashboard admin page) is publicly accessible because `PUBLIC_PATHS` in `middleware.ts` uses prefix matching. Known bug, not fixed this session.
+- **Staging APP_URL wrong**: set to `https://petra-app.com` for ALL preview environments (blanket Preview var). This means `env.isStaging` returns `false` on staging, and any email links in staging will point to production. Fix: set APP_URL for staging branch specifically in Vercel.
+- **Local main has 4 extra commits**: `d6363c6`, `ea42cd5`, `08f3874`, `47ea438` exist locally but not on `origin/main` (push was blocked by branch protection). All 4 are already in production via PR #2. Safe to `git reset --hard origin/main`.
 
 ---
 
 ## 4. Exact Stopping Point
 
-Last action this session: committed `docs/PERFORMANCE.md` + CLAUDE.md updates (`9c8d4f8`), deployed to production (`petra-app.com`), pushed to `origin/main`. All 5 performance commits are live.
+Last action: merged PR #2 (staging → main), confirmed production ✅ Ready. Updated MEMORY.md. All code is in production. HANDOFF.md being written now.
 
 ---
 
 ## 5. Next Step — First Thing to Do Next Session
 
-**Verify standalone service dogs appear correctly in `/service-dogs/dogs`.**
+**Set `RESEND_API_KEY` so email works:**
+```bash
+# 1. Go to resend.com → sign in → API Keys → Create API Key (free tier)
+# 2. Copy the key, then run:
+vercel env add RESEND_API_KEY production   # paste key when prompted
+vercel env add RESEND_API_KEY preview      # same key for staging
+# 3. Redeploy:
+npm run deploy:staging && npm run deploy:production
+# → merge the PR → Vercel redeploys with the key set
+```
+This unblocks: forgot-password, birthday reminders, vaccination reminders, appointment reminders.
 
-Specifically:
-1. Open the app → Training → כלבי שירות tab → click "הוסף כלב שירות" → create a standalone dog (no customer linked).
-2. Navigate to `/service-dogs/dogs` — confirm the dog appears in the card grid.
-3. If it doesn't appear: check `GET /api/service-dogs` (or whichever API the dogs page calls) — it likely has `where: { customer: { businessId } }` and needs to add `OR: [{ customer: { businessId } }, { businessId, customerId: null }]`.
-
-After that, the remaining items:
-- Fix `/intake` middleware bug (remove `/intake` from `PUBLIC_PATHS`).
-- Set `RESEND_API_KEY` on Vercel to enable emails.
-- Verify GoalSection toggle mutation also invalidates `training-programs-service`.
+**Then clean up local main:**
+```bash
+git fetch origin && git reset --hard origin/main
+```
 
 ---
 
 ## 6. Open Questions
 
-- **Standalone dogs in dogs grid**: does `/api/service-dogs` query include `Pet.businessId` (standalone) or only pets via customer? (See Next Step above.)
-- **GoalSection toggle**: does clicking the checkmark on a goal also call `invalidateQueries` for `training-programs-service`? Only the "add goal" mutation was confirmed fixed.
-- **Load More UX on customers page**: currently shows all filtered customers (flattened from all pages). If a user searches, does the cursor reset correctly? React Query should reset `pageParam` when `queryKey` changes — worth a quick smoke test.
-- **`/intake` in middleware**: is `/intake` (dashboard page) intentionally public, or is this an oversight from when the only intake route was the public `/intake/[token]`? Almost certainly an oversight — the public one is the token page, not the dashboard listing.
-- **CreateOrderModal boarding fields** (`trainingBoardingStart`, `trainingBoardingEnd`, `trainingGroupId`): these are passed to `POST /api/orders`. Does the orders API actually use them to enrich the auto-created TrainingProgram? Check `src/app/api/orders/route.ts`.
+1. **Staging APP_URL**: needs to be set to the actual Vercel staging URL so `env.isStaging` works and email links go to staging. Find the URL: Vercel dashboard → Deployments → filter by "staging" branch → copy the URL. Then: `vercel env add APP_URL preview staging` + `vercel env add NEXT_PUBLIC_APP_URL preview staging`.
+
+2. **Neon staging DB schema sync**: whenever `prisma/schema.prisma` changes, both production (Supabase) and staging (Neon) need the schema applied. For staging, run:
+   ```bash
+   DATABASE_URL="<neon-pooler-url>" DIRECT_URL="<neon-direct-url>" \
+     PATH="/Users/or-rabinovich/local/node/bin:$PATH" \
+     npx prisma db push --schema=prisma/schema.production.prisma
+   ```
+   The Neon URLs are in `.env.vercel-temp` or in Vercel env pull for development.
+
+3. **Customers `useInfiniteQuery` and server-side filtering**: client-side filters (status, financial, tags) currently apply only to loaded pages. For businesses with 500+ customers, the "debt" filter will miss customers not yet loaded. Consider adding server-side filter params to the enhanced API.
+
+4. **Cron jobs**: birthday/vaccination/appointment reminders are scheduled in `vercel.json` and coded, but won't send until `RESEND_API_KEY` is set. WhatsApp reminders also need `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`.
+
+5. **Local main state**: 4 local commits exist that are not on `origin/main`. They ARE in production (via PR). Running `git reset --hard origin/main` is safe and recommended to keep local in sync.
 
 ---
 
@@ -99,39 +107,45 @@ After that, the remaining items:
 ### New Files
 | File | What |
 |------|------|
-| `src/components/dashboard/RevenueChart.tsx` | Extracted from dashboard/page.tsx for lazy loading recharts |
-| `docs/PERFORMANCE.md` | Full performance audit reference document |
+| `src/lib/env.ts` | Typed server-side env validator with required/optional helpers |
+| `.env.example` | Safe-to-commit template for all env vars |
+| `scripts/deploy.sh` | Deploy automation: staging merge + production PR |
+| `scripts/DEPLOY_CHECKLIST.md` | Pre-deploy checklist |
+| `src/components/dashboard/RevenueChart.tsx` | Extracted from dashboard/page.tsx for dynamic import |
+| `docs/PERFORMANCE.md` | Performance guide (lazy loading, pagination, caching, DB indexes) |
 
 ### Modified Files
 | File | Change Summary |
 |------|----------------|
-| `src/app/(dashboard)/dashboard/page.tsx` | Remove recharts import; dynamic() for RevenueChart + 4 heavy modals |
-| `src/app/(dashboard)/customers/page.tsx` | useInfiniteQuery cursor pagination + Load More button |
-| `src/app/api/customers/route.ts` | Cursor pagination: `cursor`/`take`/`nextCursor`/`hasMore` response shape |
-| `src/app/api/appointments/route.ts` | take: 500 → 200 |
-| `src/app/api/leads/route.ts` | take: 500 → 200 |
-| `src/app/api/payments/route.ts` | take: 500 → 200 |
-| `src/app/api/pets/route.ts` | take: 500 → 200 |
-| `src/app/api/tasks/route.ts` | take: 500 → 200 |
-| `src/app/api/training-packages/route.ts` | Added take: 100 guard |
-| `src/app/api/task-recurrence/route.ts` | Added take: 100 guard |
-| `src/app/api/booking/availability/route.ts` | Added take: 100 guard |
-| `src/app/api/booking/blocks/route.ts` | Added take: 200 guard |
-| `src/components/layout/sidebar.tsx` | `<img>` → `<Image>` (logo) |
-| `src/components/owner/owner-shell.tsx` | `<img>` → `<Image>` (logo) |
-| `src/components/tenant-admin/tenant-admin-shell.tsx` | `<img>` → `<Image>` (logo) |
-| `src/app/login/page.tsx` | `<img>` → `<Image>` (logo) |
-| `src/components/onboarding/WelcomeScreen.tsx` | `<img>` → `<Image>` (logo) |
-| `src/components/onboarding/WhatNextScreen.tsx` | `<img>` → `<Image>` (logo) |
-| `src/app/book/[slug]/page.tsx` | `<img>` → `<Image>` (business logo + fallback) |
-| `next.config.mjs` | images config: remotePatterns, dangerouslyAllowSVG, CSP |
-| `CLAUDE.md` | Performance Conventions section added; staleTime note fixed |
+| `CLAUDE.md` | Added sections 15 (Supabase setup), 16 (git setup + daily workflow); updated section 5 (env.ts usage); Performance Conventions |
+| `vercel.json` | Added `git.deploymentEnabled.staging: true` |
+| `.gitignore` | Added `.env.staging`, `.env.production` |
+| `next.config.mjs` | Added `images.remotePatterns` (any HTTPS), `dangerouslyAllowSVG: true` |
+| `src/app/(dashboard)/customers/page.tsx` | `useQuery` → `useInfiniteQuery` with cursor pagination + "Load More"; updated `EnhancedCustomer` interface |
+| `src/app/(dashboard)/dashboard/page.tsx` | Dynamic imports for RevenueChart, onboarding modals, CreateOrderModal |
+| `src/app/api/customers/route.ts` | Cursor pagination, `{customers, nextCursor, hasMore}` response, `source` field restored |
+| `src/app/api/appointments/route.ts` | `take: 500` → `take: 200` |
+| `src/app/api/leads/route.ts` | `take: 500` → `take: 200` |
+| `src/app/api/payments/route.ts` | `take: 500` → `take: 200` |
+| `src/app/api/pets/route.ts` | `take: 500` → `take: 200` |
+| `src/app/api/tasks/route.ts` | `take: 500` → `take: 200` |
+| `src/app/api/training-packages/route.ts` | Added `take: 100` |
+| `src/app/api/booking/availability/route.ts` | Added `take: 100` |
+| `src/app/api/booking/blocks/route.ts` | Added `take: 200` |
+| `src/app/api/task-recurrence/route.ts` | Added `take: 100` |
+| `src/app/book/[slug]/page.tsx` | `<img>` → `<Image>` for business logo |
+| `src/app/login/page.tsx` | `<img>` → `<Image>` for logo |
+| `src/components/layout/sidebar.tsx` | `<img>` → `<Image>` for logo |
+| `src/components/onboarding/WelcomeScreen.tsx` | `<img>` → `<Image>` |
+| `src/components/onboarding/WhatNextScreen.tsx` | `<img>` → `<Image>` |
+| `src/components/owner/owner-shell.tsx` | `<img>` → `<Image>` |
+| `src/components/tenant-admin/tenant-admin-shell.tsx` | `<img>` → `<Image>` |
 
 ---
 
 ## Production Status
-- **Last deploy**: `9c8d4f8` — deployed successfully to `petra-app.com`
-- **TypeScript**: ✅ clean
-- **Build**: ✅ no errors
-- **Git**: all 5 performance commits pushed to `origin/main`
-- **Schema**: `prisma/schema.production.prisma` in sync with `schema.prisma`
+- **Last deploy**: `9c8d4f8` — ✅ Ready on `petra-app.com`
+- **Staging**: `47ea438` — ✅ Ready on Vercel preview URL
+- **TypeScript**: ✅ clean (build passes)
+- **Git**: `origin/main` at `9c8d4f8`. Local main has 4 extra commits (already in prod via PR) — safe to reset.
+- **Open PRs**: none
