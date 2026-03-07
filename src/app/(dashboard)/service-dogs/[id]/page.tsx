@@ -229,7 +229,7 @@ export default function ServiceDogProfilePage() {
   const params = useParams();
   const router = useRouter();
   const dogId = params.id as string;
-  const [activeTab, setActiveTab] = useState<"training" | "medical" | "compliance" | "placements" | "idcard" | "dogfile">("training");
+  const [activeTab, setActiveTab] = useState<"training" | "medical" | "compliance" | "placements" | "idcard" | "dogfile">("dogfile");
   const [showPhaseDropdown, setShowPhaseDropdown] = useState(false);
   const queryClient = useQueryClient();
 
@@ -287,12 +287,12 @@ export default function ServiceDogProfilePage() {
   const mc = dog.medicalCompliance;
 
   const tabs = [
-    { id: "training" as const, label: "יומן אימונים", icon: Clock },
+    { id: "dogfile" as const, label: "תיק כלב", icon: Stethoscope },
     { id: "medical" as const, label: "פרוטוקולים רפואיים", icon: Heart },
+    { id: "training" as const, label: "יומן אימונים", icon: Clock },
     { id: "compliance" as const, label: "משמעת ודיווח", icon: AlertTriangle, badge: dog.isGovReportPending ? 1 : 0 },
     { id: "placements" as const, label: "שיבוצים", icon: Activity },
     { id: "idcard" as const, label: "תעודת זהות", icon: CreditCard },
-    { id: "dogfile" as const, label: "תיק כלב", icon: Stethoscope },
   ];
 
   return (
