@@ -2,7 +2,7 @@
 
 import { FinanceTabs } from "@/components/finance/FinanceTabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   ShoppingCart,
@@ -23,6 +23,9 @@ import {
   Tag,
   AlertTriangle,
   RefreshCw,
+  Download,
+  Sheet,
+  Printer,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
@@ -232,6 +235,109 @@ export default function OrdersPage() {
     completed: orders.filter((o) => o.status === "completed").length,
   }), [orders]);
 
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close export menu on outside click
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showExportMenu]);
+
+  function exportExcel() {
+    const p = new URLSearchParams();
+    if (activeStatus !== "ALL") p.set("status", activeStatus);
+    if (fromDate) p.set("from", fromDate);
+    if (toDate) p.set("to", toDate);
+    window.location.href = `/api/orders/export?${p.toString()}`;
+    setShowExportMenu(false);
+  }
+
+  function exportPDF() {
+    setShowExportMenu(false);
+    const STATUS_LABEL: Record<string, string> = {
+      draft: "טיוטה", confirmed: "מאושרת", completed: "הושלמה",
+      cancelled: "בוטלה", canceled: "בוטלה",
+    };
+    const TYPE_LABEL: Record<string, string> = {
+      sale: "מוצרים", products: "מוצרים", appointment: "תור",
+      training: "אילוף", boarding: "פנסיון", grooming: "טיפוח", service_dog: "כלבי שירות",
+    };
+    const today = new Date().toLocaleDateString("he-IL");
+    const rows = filteredOrders.map((o) => {
+      const paid = o.payments.filter(p => p.status === "paid").reduce((s, p) => s + p.amount, 0);
+      const remaining = Math.max(0, o.total - paid);
+      return `
+        <tr>
+          <td>#${o.id.slice(-8).toUpperCase()}</td>
+          <td>${o.customer.name}<br/><small>${o.customer.phone}</small></td>
+          <td>${TYPE_LABEL[o.orderType] ?? o.orderType}</td>
+          <td>${STATUS_LABEL[o.status] ?? o.status}</td>
+          <td style="text-align:left">₪${o.total.toFixed(2)}</td>
+          <td style="text-align:left;color:${paid >= o.total ? "#059669" : paid > 0 ? "#d97706" : "#dc2626"}">
+            ${paid >= o.total ? "שולם" : paid > 0 ? `₪${paid.toFixed(2)}` : "טרם שולם"}
+          </td>
+          <td style="text-align:left${remaining > 0 ? ";color:#dc2626;font-weight:600" : ""}">
+            ${remaining > 0.01 ? `₪${remaining.toFixed(2)}` : "—"}
+          </td>
+          <td>${formatDate(o.createdAt)}</td>
+        </tr>`;
+    }).join("");
+
+    const html = `<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8">
+<title>הזמנות – פטרה</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Heebo', Arial, sans-serif; font-size: 12px; color: #1e293b; padding: 24px; direction: rtl; }
+  h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .meta { font-size: 11px; color: #64748b; margin-bottom: 20px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f1f5f9; font-size: 11px; font-weight: 700; padding: 7px 10px; text-align: right; border-bottom: 2px solid #e2e8f0; }
+  td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; font-size: 11px; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  small { color: #94a3b8; font-size: 10px; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+<h1>דוח הזמנות</h1>
+<p class="meta">הופק: ${today} · סה"כ: ${filteredOrders.length} הזמנות</p>
+<table>
+  <thead>
+    <tr>
+      <th>מס' הזמנה</th>
+      <th>לקוח</th>
+      <th>סוג</th>
+      <th>סטטוס</th>
+      <th>סה"כ</th>
+      <th>שולם</th>
+      <th>יתרה</th>
+      <th>תאריך</th>
+    </tr>
+  </thead>
+  <tbody>${rows}</tbody>
+</table>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank");
+    if (!win) { toast.error("חסום חלון קופץ — אפשר פופ-אפים בדפדפן"); return; }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); }, 400);
+  }
+
   const hasActiveFilters = customerSearch || fromDate || toDate || activeStatus !== "ALL" || paymentFilter !== "ALL";
 
   function clearFilters() {
@@ -257,10 +363,43 @@ export default function OrdersPage() {
             <RefreshCw className={`w-3.5 h-3.5 ${isOrdersFetching ? "animate-spin" : ""}`} />
           </button>
         </div>
-        <button className="btn-primary" onClick={() => setShowNewOrder(true)}>
-          <Plus className="w-4 h-4" />
-          הזמנה חדשה
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Export dropdown */}
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              className="btn-secondary gap-1.5"
+              onClick={() => setShowExportMenu((v) => !v)}
+              title="ייצוא"
+            >
+              <Download className="w-4 h-4" />
+              ייצוא
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+            {showExportMenu && (
+              <div className="absolute left-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-lg border border-petra-border z-50 overflow-hidden animate-fade-in">
+                <button
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-petra-text hover:bg-slate-50 transition-colors"
+                  onClick={exportExcel}
+                >
+                  <Sheet className="w-4 h-4 text-emerald-600" />
+                  ייצוא לאקסל
+                </button>
+                <button
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-petra-text hover:bg-slate-50 transition-colors border-t border-petra-border"
+                  onClick={exportPDF}
+                >
+                  <Printer className="w-4 h-4 text-red-500" />
+                  ייצוא ל-PDF
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button className="btn-primary" onClick={() => setShowNewOrder(true)}>
+            <Plus className="w-4 h-4" />
+            הזמנה חדשה
+          </button>
+        </div>
       </div>
 
       {/* ── Stats ──────────────────────────────────────────────────────── */}
