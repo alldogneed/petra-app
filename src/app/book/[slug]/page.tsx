@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import Image from "next/image"
 import { ChevronRight, ChevronLeft, Check, Clock, Calendar, PawPrint, User, Plus, X, MapPin, Mail, CreditCard, ExternalLink, Scissors, GraduationCap, Hotel, Sparkles, MessageCircle, CalendarPlus } from "lucide-react"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -422,10 +423,10 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
       <div className="bg-white/95 backdrop-blur-sm border-b border-petra-border sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
           {business.logo ? (
-            <img src={business.logo} alt={business.name} className="w-10 h-10 rounded-xl object-cover" />
+            <Image src={business.logo} alt={business.name} width={40} height={40} className="w-10 h-10 rounded-xl object-cover" />
           ) : (
             <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
-              <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
+              <Image src="/logo.svg" alt="Petra" width={40} height={40} className="w-full h-full object-cover" />
             </div>
           )}
           <div className="flex-1 min-w-0">
