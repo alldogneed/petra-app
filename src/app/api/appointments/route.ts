@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         pet: { select: { id: true, name: true, species: true, breed: true } },
       },
       orderBy: { date: "asc" },
-      take: 500,
+      take: 200,
     });
 
     return NextResponse.json(appointments);

@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const rules = await prisma.availabilityRule.findMany({
       where: { businessId: authResult.businessId },
       orderBy: { dayOfWeek: "asc" },
+      take: 100,
     });
 
     // If no rules exist, return defaults

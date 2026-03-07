@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
         callLogs: true,
       },
       orderBy: { createdAt: "desc" },
-      take: 500,
+      take: 200,
     });
 
     return NextResponse.json(leads);

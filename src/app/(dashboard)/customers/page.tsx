@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useCallback, useEffect, useRef, DragEvent } from "react";
 import Link from "next/link";
 import {
@@ -78,6 +78,10 @@ interface EnhancedCustomer {
   pets: PetInfo[];
   _count: { pets: number; appointments: number };
   status: "active" | "dormant" | "vip";
+  isVip?: boolean;
+  isInBoarding?: boolean;
+  hasActiveTraining?: boolean;
+  appointmentsLast30?: number;
   lastAppointment: AppointmentInfo | null;
   nextAppointment: AppointmentInfo | null;
   financial: FinancialInfo;
@@ -1425,16 +1429,31 @@ export default function CustomersPage() {
     onError: () => toast.error("שגיאה בשמירת התגיות. נסה שוב."),
   });
 
-  // ── Data fetching ──
-  const { data: rawCustomers = [], isLoading, isFetching: isCustomersFetching } = useQuery<EnhancedCustomer[]>({
+  // ── Data fetching with cursor pagination ──
+  const {
+    data: customerPages,
+    isLoading,
+    isFetching: isCustomersFetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery<{ customers: EnhancedCustomer[]; nextCursor: string | null; hasMore: boolean }>({
     queryKey: ["customers", search, serviceTypeFilter],
-    queryFn: () => {
-      const params = new URLSearchParams({ enhanced: "1" });
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams({ enhanced: "1", take: "50" });
       if (search) params.set("search", search);
       if (serviceTypeFilter) params.set("serviceType", serviceTypeFilter);
-      return fetchJSON<EnhancedCustomer[]>(`/api/customers?${params}`);
+      if (pageParam) params.set("cursor", pageParam as string);
+      return fetchJSON<{ customers: EnhancedCustomer[]; nextCursor: string | null; hasMore: boolean }>(`/api/customers?${params}`);
     },
+    initialPageParam: null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
+
+  const rawCustomers = useMemo(
+    () => customerPages?.pages.flatMap((p) => p.customers) ?? [],
+    [customerPages]
+  );
 
   // ── Client-side filtering ──
   const customers = useMemo(() => {
@@ -2078,10 +2097,28 @@ export default function CustomersPage() {
             </table>
           </div>
 
+          {/* Load More */}
+          {hasNextPage && (
+            <div className="flex justify-center py-3 border-t border-slate-100">
+              <button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="btn-secondary text-sm gap-2"
+              >
+                {isFetchingNextPage ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
+                {isFetchingNextPage ? "טוען..." : "טען עוד לקוחות"}
+              </button>
+            </div>
+          )}
+
           {/* Table footer with summary */}
           <div className="px-5 py-3 bg-[#FAF7F3] border-t border-[#E8DFD5] flex flex-wrap items-center gap-4 text-xs text-[#8B7355]">
             <span>
-              מציג {customers.length} מתוך {stats.total} לקוחות
+              מציג {customers.length} מתוך {rawCustomers.length}{hasNextPage ? "+" : ""} לקוחות
             </span>
             <div className="flex-1" />
             <div className="flex items-center gap-4">

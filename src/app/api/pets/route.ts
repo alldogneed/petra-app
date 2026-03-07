@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { name: "asc" },
-      take: 500,
+      take: 200,
     });
 
     const now = new Date();

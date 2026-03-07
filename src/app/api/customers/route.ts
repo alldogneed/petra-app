@@ -17,6 +17,9 @@ export async function GET(request: NextRequest) {
     const tag = searchParams.get("tag")?.slice(0, 50);
     const enhanced = searchParams.get("enhanced") === "1";
     const serviceType = searchParams.get("serviceType");
+    const cursor = searchParams.get("cursor") || undefined;
+    const rawTake = parseInt(searchParams.get("take") ?? "50", 10);
+    const take = Math.min(Math.max(rawTake, 1), 100); // clamp 1–100
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { businessId };
@@ -44,12 +47,10 @@ export async function GET(request: NextRequest) {
 
     // ─── Enhanced mode: return rich data for the management dashboard ───
     if (enhanced) {
-      const now = new Date();
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
       const customers = await prisma.customer.findMany({
         where,
-        take: 500,
+        take: take + 1, // fetch one extra to determine hasMore
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         include: {
           pets: {
             select: { id: true, name: true, species: true, breed: true },
@@ -84,94 +85,42 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: "desc" },
       });
 
-      const enriched = customers.map((c) => {
-        // Parse tags
+      const hasMore = customers.length > take;
+      const page = hasMore ? customers.slice(0, take) : customers;
+      const nextCursor = hasMore ? page[page.length - 1]?.id : null;
+      const enrichedPage = page.map((c) => {
         const tags: string[] = (() => {
-          try {
-            return JSON.parse(c.tags);
-          } catch {
-            return [];
-          }
+          try { return JSON.parse(c.tags); } catch { return []; }
         })();
-        const isVip = tags.some(
-          (t) => t.toLowerCase().includes("vip")
-        );
-
-        // Separate past and future appointments
-        const pastAppts = c.appointments
-          .filter((a) => new Date(a.date) <= now && a.status !== "canceled")
-          .sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-          );
-        const futureAppts = c.appointments
-          .filter((a) => new Date(a.date) > now && a.status === "scheduled")
-          .sort(
-            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-          );
-        const recentAppts = pastAppts.filter(
-          (a) => new Date(a.date) >= thirtyDaysAgo
-        );
-
-        // Compute status: active = in boarding / active training / future appointment
+        const isVip = tags.some((t) => t.toLowerCase().includes("vip"));
+        const now2 = new Date();
+        const thirtyDaysAgo2 = new Date(now2.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const pastAppts = c.appointments.filter((a) => new Date(a.date) <= now2 && a.status !== "canceled").sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const futureAppts = c.appointments.filter((a) => new Date(a.date) > now2 && a.status === "scheduled").sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const recentAppts = pastAppts.filter((a) => new Date(a.date) >= thirtyDaysAgo2);
         const isInBoarding = c.boardingStays.length > 0;
         const hasActiveTraining = c.trainingPrograms.length > 0;
         const hasFutureAppointment = futureAppts.length > 0;
         const isActive = isInBoarding || hasActiveTraining || hasFutureAppointment;
         const status = isVip ? "vip" : isActive ? "active" : "dormant";
-
-        // Last & next appointments
         const lastAppt = pastAppts[0] || null;
         const nextAppt = futureAppts[0] || null;
-
-        // Financial summary
-        const totalPaid = c.payments
-          .filter((p) => p.status === "paid")
-          .reduce((s, p) => s + p.amount, 0);
-        const totalPending = c.payments
-          .filter((p) => p.status === "pending")
-          .reduce((s, p) => s + p.amount, 0);
-        const hasDeposits = c.payments.some(
-          (p) => p.isDeposit && p.status === "paid"
-        );
-
-        // Unique service types used by this customer
-        const serviceTypes = [
-          ...new Set(c.appointments.map((a) => a.service?.type).filter(Boolean)),
-        ];
-
+        const totalPaid = c.payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
+        const totalPending = c.payments.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
+        const hasDeposits = c.payments.some((p) => p.isDeposit);
+        const serviceTypes = [...new Set(c.appointments.map((a) => a.service?.type).filter(Boolean))];
         return {
-          id: c.id,
-          name: c.name,
-          phone: c.phone,
-          email: c.email,
-          address: c.address,
-          notes: c.notes,
-          tags: c.tags,
-          source: c.source,
-          createdAt: c.createdAt,
-          pets: c.pets,
-          _count: c._count,
-          status,
-          lastAppointment: lastAppt
-            ? {
-                date: lastAppt.date,
-                startTime: lastAppt.startTime,
-                serviceName: lastAppt.service?.name ?? null,
-              }
-            : null,
-          nextAppointment: nextAppt
-            ? {
-                date: nextAppt.date,
-                startTime: nextAppt.startTime,
-                serviceName: nextAppt.service?.name ?? null,
-              }
-            : null,
+          id: c.id, name: c.name, phone: c.phone, email: c.email, address: c.address, tags: c.tags, notes: c.notes, source: c.source, createdAt: c.createdAt,
+          pets: c.pets, _count: c._count,
+          status, isVip, isInBoarding, hasActiveTraining,
+          appointmentsLast30: recentAppts.length,
+          lastAppointment: lastAppt ? { date: lastAppt.date, startTime: lastAppt.startTime, serviceName: lastAppt.service?.name ?? null } : null,
+          nextAppointment: nextAppt ? { date: nextAppt.date, startTime: nextAppt.startTime, serviceName: nextAppt.service?.name ?? null } : null,
           financial: { totalPaid, totalPending, hasDeposits },
           serviceTypes,
         };
       });
-
-      return NextResponse.json(enriched);
+      return NextResponse.json({ customers: enrichedPage, nextCursor, hasMore });
     }
 
     // ─── Original mode (backward compatible) ───
@@ -179,7 +128,8 @@ export async function GET(request: NextRequest) {
 
     const customers = await prisma.customer.findMany({
       where,
-      take: 1000,
+      take: Math.min(take, 100),
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: full
         ? { pets: { select: { id: true, name: true, species: true } } }
         : { _count: { select: { pets: true, appointments: true } } },

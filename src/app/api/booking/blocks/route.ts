@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
         endAt: { gte: new Date() },
       },
       orderBy: { startAt: "asc" },
+      take: 200,
     });
 
     return NextResponse.json(blocks);

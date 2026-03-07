@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -366,7 +367,7 @@ export function Sidebar({
           )}
         >
           <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0">
-            <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
+            <Image src="/logo.svg" alt="Petra" width={36} height={36} className="w-full h-full object-cover" priority />
           </div>
           {isExpanded && (
             <div className="flex-1">

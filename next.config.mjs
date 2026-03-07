@@ -7,6 +7,20 @@ const nextConfig = {
   },
   productionBrowserSourceMaps: false,
   eslint: { ignoreDuringBuilds: true },
+  images: {
+    // Allow Next.js Image component to optimize images from any HTTPS source
+    // Business logos and pet photos can be hosted anywhere
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**",
+      },
+    ],
+    // SVGs are served as-is (no raster optimization)
+    dangerouslyAllowSVG: true,
+    contentDispositionType: "attachment",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+  },
   async headers() {
     return [
       {
