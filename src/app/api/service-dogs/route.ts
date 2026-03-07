@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "נדרש לבחור חיית מחמד" }, { status: 400 });
     }
 
-    // Verify pet belongs to business (via customer or directly)
+    // Verify pet belongs to business (via customer or directly) — include health for smart protocol seeding
     const pet = await prisma.pet.findFirst({
       where: {
         id: petId,
@@ -78,6 +78,18 @@ export async function POST(request: NextRequest) {
           { customer: { businessId: authResult.businessId } },
           { businessId: authResult.businessId },
         ],
+      },
+      include: {
+        health: {
+          select: {
+            rabiesLastDate: true,
+            rabiesValidUntil: true,
+            dhppLastDate: true,
+            bordatellaDate: true,
+            dewormingLastDate: true,
+            fleaTickExpiryDate: true,
+          },
+        },
       },
     });
 
@@ -130,8 +142,8 @@ export async function POST(request: NextRequest) {
       return p;
     });
 
-    // Seed initial medical protocols
-    await seedMedicalProtocols(profile.id, authResult.businessId, initialPhase);
+    // Seed initial medical protocols — use existing health data for smart dates
+    await seedMedicalProtocols(profile.id, authResult.businessId, initialPhase, pet.health);
 
     return NextResponse.json(profile, { status: 201 });
   } catch (error) {

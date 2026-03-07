@@ -923,56 +923,45 @@ function MedicalTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
     onError: () => toast.error("שגיאה בעדכון פרוטוקול"),
   });
 
-  // Sync vaccination dates from pet health record to protocols
+  // Sync protocols from pet health record — marks completed + sets due dates
   const syncVaccinationsMutation = useMutation({
     mutationFn: async () => {
-      const health = dog.pet.health;
-      if (!health) throw new Error("אין נתוני בריאות לכלב");
-
-      const toSync = dog.medicalProtocols.filter((p) => {
-        const healthField = PROTOCOL_HEALTH_DATE_MAP[p.protocolKey];
-        if (!healthField) return false;
-        const healthDate = health[healthField] as string | null;
-        return healthDate && p.status !== "COMPLETED" && p.status !== "WAIVED";
+      const res = await fetch(`/api/service-dogs/${dogId}/protocols/sync-health`, {
+        method: "POST",
       });
-
-      if (toSync.length === 0) throw new Error("NOTHING");
-
-      await Promise.all(
-        toSync.map((p) => {
-          const healthField = PROTOCOL_HEALTH_DATE_MAP[p.protocolKey];
-          const healthDate = health[healthField] as string;
-          return fetch(`/api/service-dogs/${dogId}/medical`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              protocolId: p.id,
-              status: "COMPLETED",
-              completedDate: new Date(healthDate).toISOString(),
-            }),
-          });
-        })
-      );
-      return toSync.length;
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "שגיאה בסנכרון");
+      }
+      return res.json() as Promise<{ completed: number; dueDatesSet: number; total: number }>;
     },
-    onSuccess: (count) => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
       queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
-      toast.success(`${count} פרוטוקולים עודכנו מחיסוני הכלב`);
+      if (data.total === 0) {
+        toast.info("אין שינויים — הפרוטוקולים כבר מעודכנים");
+      } else {
+        const parts = [];
+        if (data.completed > 0) parts.push(`${data.completed} סומנו כבוצעו`);
+        if (data.dueDatesSet > 0) parts.push(`${data.dueDatesSet} מועדים עודכנו`);
+        toast.success(`סנכרון הושלם: ${parts.join(", ")}`);
+      }
     },
     onError: (err: Error) => {
-      if (err.message === "NOTHING") toast.info("אין פרוטוקולים לסנכרון — כולם כבר מסומנים כבוצעו");
-      else toast.error(err.message || "שגיאה בסנכרון חיסונים");
+      toast.error(err.message || "שגיאה בסנכרון חיסונים");
     },
   });
 
-  // Count syncable protocols
-  const syncableCount = dog.medicalProtocols.filter((p) => {
-    const hf = PROTOCOL_HEALTH_DATE_MAP[p.protocolKey];
-    if (!hf) return false;
-    const hDate = dog.pet.health?.[hf] as string | null;
-    return hDate && p.status !== "COMPLETED" && p.status !== "WAIVED";
-  }).length;
+  // Show sync banner if dog has any health data that could update protocols
+  const hasSyncableHealth = !!(
+    dog.pet.health?.rabiesLastDate ||
+    dog.pet.health?.rabiesValidUntil ||
+    dog.pet.health?.dhppLastDate ||
+    dog.pet.health?.bordatellaDate ||
+    dog.pet.health?.dewormingLastDate ||
+    dog.pet.health?.fleaTickExpiryDate
+  );
+  const syncableCount = hasSyncableHealth ? 1 : 0; // keep banner logic working
 
   // Group protocols by category
   const grouped = MEDICAL_PROTOCOL_CATEGORIES.reduce((acc, cat) => {
@@ -996,7 +985,7 @@ function MedicalTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
           <div className="flex items-center gap-2 min-w-0">
             <Stethoscope className="w-4 h-4 text-blue-500 flex-shrink-0" />
             <span className="text-sm text-blue-800">
-              נמצאו <strong>{syncableCount}</strong> חיסונים בפרופיל הכלב שטרם סומנו כבוצעו
+              נמצאו נתוני חיסונים בפרופיל הכלב — ניתן לסנכרן מועדים ולסמן פרוטוקולים שבוצעו אוטומטית
             </span>
           </div>
           <button

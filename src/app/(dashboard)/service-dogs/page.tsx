@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Shield,
   Dog,
@@ -26,6 +26,8 @@ import {
   ChevronUp,
   Bell,
   Check,
+  Archive,
+  RotateCcw,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
@@ -147,12 +149,12 @@ export default function ServiceDogsOverviewPage() {
     .filter((e) => e.notificationStatus === "PENDING")
     .slice(0, 8);
 
-  // Dismissed IDs for inline cards (local session state)
-  const [dismissedDogIds, setDismissedDogIds] = useState<Set<string>>(new Set());
-  const [dismissedEventIds, setDismissedEventIds] = useState<Set<string>>(new Set());
+  // Persistent dismissed state — survives page refresh, stored in localStorage for 7 days
+  const { dismissedIds, dismiss, archive, restore, clearAll } = usePersistentDismissed();
+  const [showArchive, setShowArchive] = useState(false);
 
-  const visibleDogs = dogsNeedingAttention.filter((d) => !dismissedDogIds.has(d.id));
-  const visibleEvents = pendingEvents.filter((e) => !dismissedEventIds.has(e.id));
+  const visibleDogs = dogsNeedingAttention.filter((d) => !dismissedIds.has(d.id));
+  const visibleEvents = pendingEvents.filter((e) => !dismissedIds.has(e.id));
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -184,7 +186,19 @@ export default function ServiceDogsOverviewPage() {
 
       {/* ── Unified Alerts Widget ─────────────────────────────────────── */}
       {alertsData && alertsData.total > 0 && (
-        <AlertsWidget alerts={alertsData} />
+        <AlertsWidget alerts={alertsData} dismissedIds={dismissedIds} onDismiss={dismiss} />
+      )}
+
+      {/* Archive button — shown when there are dismissed items */}
+      {archive.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowArchive(true)}
+          className="flex items-center gap-2 text-xs text-petra-muted hover:text-brand-600 transition-colors"
+        >
+          <Archive className="w-3.5 h-3.5" />
+          {archive.length} פריטים מסומנים — הצג ארכיון
+        </button>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -219,7 +233,7 @@ export default function ServiceDogsOverviewPage() {
                   <div key={dog.id} className="flex items-center gap-2 px-4 py-3.5 hover:bg-slate-50 transition-colors group">
                     <button
                       type="button"
-                      onClick={() => setDismissedDogIds((prev) => new Set([...prev, dog.id]))}
+                      onClick={() => dismiss(dog.id, dog.pet.name, "dog")}
                       className="w-5 h-5 rounded-full border-2 border-slate-300 flex-shrink-0 flex items-center justify-center hover:border-emerald-400 hover:bg-emerald-50 transition-all"
                       title="סמן כטופל"
                     />
@@ -299,7 +313,7 @@ export default function ServiceDogsOverviewPage() {
                   <div key={event.id} className="px-4 py-3.5 flex items-start gap-2">
                     <button
                       type="button"
-                      onClick={() => setDismissedEventIds((prev) => new Set([...prev, event.id]))}
+                      onClick={() => dismiss(event.id, COMPLIANCE_EVENT_MAP[event.eventType]?.label || event.eventType, "event")}
                       className="w-5 h-5 rounded-full border-2 border-slate-300 flex-shrink-0 flex items-center justify-center hover:border-emerald-400 hover:bg-emerald-50 transition-all mt-0.5"
                       title="סמן כטופל"
                     />
@@ -422,6 +436,65 @@ export default function ServiceDogsOverviewPage() {
                 </Link>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Archive modal */}
+      {showArchive && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowArchive(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b flex items-center justify-between">
+              <h2 className="font-bold flex items-center gap-2">
+                <Archive className="w-4 h-4 text-brand-500" />
+                ארכיון פריטים מטופלים
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="text-xs text-red-500 hover:text-red-600 flex items-center gap-1"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  נקה הכל
+                </button>
+                <button type="button" onClick={() => setShowArchive(false)} className="p-1 hover:bg-slate-100 rounded-lg">
+                  <X className="w-4 h-4 text-petra-muted" />
+                </button>
+              </div>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {archive.length === 0 ? (
+                <p className="text-center text-petra-muted py-8 text-sm">אין פריטים בארכיון</p>
+              ) : (
+                <div className="divide-y">
+                  {[...archive].reverse().map((entry) => (
+                    <div key={entry.id} className="flex items-center gap-3 px-5 py-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{entry.label}</p>
+                        <p className="text-xs text-petra-muted mt-0.5">
+                          {entry.type === "dog" ? "כלב" : entry.type === "event" ? "דיווח" : "התראה"}
+                          {" · "}
+                          {new Date(entry.dismissedAt).toLocaleDateString("he-IL", { day: "numeric", month: "long" })}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => restore(entry.id)}
+                        className="text-xs text-brand-500 hover:text-brand-700 flex items-center gap-1 flex-shrink-0"
+                        title="שחזר"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        שחזר
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t text-xs text-petra-muted">
+              פריטים נשמרים ל-7 ימים ואז נמחקים אוטומטית
+            </div>
           </div>
         </div>
       )}
@@ -675,6 +748,66 @@ function AddServiceDogModal({ onClose }: { onClose: () => void }) {
 // ALERTS WIDGET
 // ═══════════════════════════════════════════════════════
 
+// ─── Persistent dismissed alerts hook ────────────────────────────────────────
+
+const DISMISSED_KEY = "sd-alerts-dismissed";
+const TTL_DAYS = 7;
+
+type DismissedEntry = {
+  id: string;
+  type: "dog" | "event" | "alert";
+  label: string;
+  dismissedAt: string; // ISO string
+};
+
+function usePersistentDismissed() {
+  const [entries, setEntries] = useState<DismissedEntry[]>([]);
+
+  // Load from localStorage on mount (runs only client-side)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DISMISSED_KEY);
+      if (!raw) return;
+      const parsed: DismissedEntry[] = JSON.parse(raw);
+      const cutoff = Date.now() - TTL_DAYS * 24 * 60 * 60 * 1000;
+      const filtered = parsed.filter((e) => new Date(e.dismissedAt).getTime() > cutoff);
+      setEntries(filtered);
+      // Prune expired entries
+      if (filtered.length !== parsed.length) {
+        localStorage.setItem(DISMISSED_KEY, JSON.stringify(filtered));
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  const dismissedIds = useMemo(() => new Set(entries.map((e) => e.id)), [entries]);
+
+  const dismiss = useCallback((id: string, label: string, type: DismissedEntry["type"]) => {
+    setEntries((prev) => {
+      if (prev.some((e) => e.id === id)) return prev;
+      const next = [...prev, { id, label, type, dismissedAt: new Date().toISOString() }];
+      try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  const restore = useCallback((id: string) => {
+    setEntries((prev) => {
+      const next = prev.filter((e) => e.id !== id);
+      try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  const clearAll = useCallback(() => {
+    setEntries([]);
+    try { localStorage.removeItem(DISMISSED_KEY); } catch { /* ignore */ }
+  }, []);
+
+  return { dismissedIds, dismiss, archive: entries, restore, clearAll };
+}
+
+// ─── Alerts data types ────────────────────────────────────────────────────────
+
 type AlertsData = {
   medical: { count: number; items: { id: string; dogId: string; dogName: string; label: string; dueDate: string | null; isOverdue: boolean }[] };
   training: { count: number; items: { id: string; dogId: string; dogName: string; lastSessionDate: string | null; daysSinceLastSession: number | null }[] };
@@ -682,26 +815,33 @@ type AlertsData = {
   total: number;
 };
 
-function AlertsWidget({ alerts }: { alerts: AlertsData }) {
+function AlertsWidget({
+  alerts,
+  dismissedIds,
+  onDismiss,
+}: {
+  alerts: AlertsData;
+  dismissedIds: Set<string>;
+  onDismiss: (id: string, label: string, type: "alert") => void;
+}) {
   const [open, setOpen] = useState<Record<string, boolean>>({
     medical: true,
     training: true,
     compliance: true,
   });
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   const toggle = (key: string) => setOpen((p) => ({ ...p, [key]: !p[key] }));
-  const dismiss = (id: string, e: React.MouseEvent) => {
+  const dismiss = (id: string, label: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setDismissed((prev) => new Set([...prev, id]));
+    onDismiss(id, label, "alert");
   };
 
   const overdueCount =
-    alerts.medical.items.filter((i) => i.isOverdue && !dismissed.has(i.id)).length +
-    alerts.compliance.items.filter((i) => i.isOverdue && !dismissed.has(i.id)).length;
+    alerts.medical.items.filter((i) => i.isOverdue && !dismissedIds.has(i.id)).length +
+    alerts.compliance.items.filter((i) => i.isOverdue && !dismissedIds.has(i.id)).length;
 
-  const activeTotal = alerts.total - dismissed.size;
+  const activeTotal = alerts.total - dismissedIds.size;
 
   const sections = [
     {
@@ -763,7 +903,7 @@ function AlertsWidget({ alerts }: { alerts: AlertsData }) {
           : "אין אימון מתועד",
       })),
     },
-  ].map((s) => ({ ...s, items: s.items.filter((i) => !dismissed.has(i.id)) }))
+  ].map((s) => ({ ...s, items: s.items.filter((i) => !dismissedIds.has(i.id)) }))
    .filter((s) => s.items.length > 0);
 
   return (
@@ -841,7 +981,7 @@ function AlertsWidget({ alerts }: { alerts: AlertsData }) {
                     >
                       <button
                         type="button"
-                        onClick={(e) => dismiss(item.id, e)}
+                        onClick={(e) => dismiss(item.id, `${item.dogName} — ${item.line1}`, e)}
                         className="w-5 h-5 rounded-full border-2 border-slate-300 flex-shrink-0 flex items-center justify-center hover:border-emerald-400 hover:bg-emerald-50 transition-all mt-0.5"
                         title="סמן כטופל"
                       />

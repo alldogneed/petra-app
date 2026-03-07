@@ -10,6 +10,73 @@ import {
   type ADITrainingProgress,
 } from "./service-dogs";
 
+// ─── Health → Protocol Sync Map ───────────────────────────────────────────────
+//
+// Each entry defines how a DogHealth record informs a protocol:
+//   completedFrom — if this DogHealth field has a date, the protocol is COMPLETED
+//                   (used for primary / one-time vaccinations)
+//   dueDateFn     — computes the protocol's next dueDate from DogHealth
+//                   (used for booster / recurring protocols)
+//
+// Both can coexist: e.g. BORDETELLA is "COMPLETED on bordatellaDate,
+// and the next one is DUE in 365 days".
+
+type HealthFields = {
+  rabiesLastDate?: Date | null;
+  rabiesValidUntil?: Date | null;
+  dhppLastDate?: Date | null;
+  bordatellaDate?: Date | null;
+  dewormingLastDate?: Date | null;
+  fleaTickExpiryDate?: Date | null;
+};
+
+type SyncRule = {
+  completedFrom?: keyof HealthFields;
+  dueDateFn?: (h: HealthFields) => Date | null;
+};
+
+function addDays(d: Date, n: number) {
+  return new Date(d.getTime() + n * 24 * 60 * 60 * 1000);
+}
+
+export const PROTOCOL_HEALTH_SYNC_MAP: Record<string, SyncRule> = {
+  // ── Rabies ────────────────────────────────────────────────────────────────
+  RABIES_PRIMARY: {
+    completedFrom: "rabiesLastDate",
+  },
+  RABIES_BOOSTER: {
+    // Booster is due when current vaccination expires
+    dueDateFn: (h) => (h.rabiesValidUntil ? new Date(h.rabiesValidUntil) : null),
+  },
+
+  // ── DHPP ──────────────────────────────────────────────────────────────────
+  DHPP_PRIMARY: {
+    completedFrom: "dhppLastDate",
+  },
+  DHPP: {
+    // Annual renewal
+    dueDateFn: (h) => (h.dhppLastDate ? addDays(new Date(h.dhppLastDate), 365) : null),
+  },
+  DHPP_BOOSTER: {
+    dueDateFn: (h) => (h.dhppLastDate ? addDays(new Date(h.dhppLastDate), 365) : null),
+  },
+
+  // ── Bordetella ────────────────────────────────────────────────────────────
+  BORDETELLA: {
+    completedFrom: "bordatellaDate",
+    dueDateFn: (h) => (h.bordatellaDate ? addDays(new Date(h.bordatellaDate), 365) : null),
+  },
+
+  // ── Parasites ─────────────────────────────────────────────────────────────
+  DEWORMING: {
+    // Every 6 months
+    dueDateFn: (h) => (h.dewormingLastDate ? addDays(new Date(h.dewormingLastDate), 180) : null),
+  },
+  FLEA_TICK: {
+    dueDateFn: (h) => (h.fleaTickExpiryDate ? new Date(h.fleaTickExpiryDate) : null),
+  },
+};
+
 // ─── Medical Rules Engine ───
 
 /**
@@ -189,25 +256,98 @@ export async function getOverdueComplianceEvents(businessId: string) {
 
 /**
  * Seed medical protocols for a service dog based on their current phase.
+ * If health data is provided, auto-completes known protocols and sets
+ * calculated due dates for recurring ones.
  */
 export async function seedMedicalProtocols(
   serviceDogId: string,
   businessId: string,
-  phase: string
+  phase: string,
+  health?: HealthFields | null
 ) {
   const protocols = getRequiredProtocolsForPhase(phase);
   if (protocols.length === 0) return [];
 
-  const data = protocols.map((p) => ({
-    serviceDogId,
-    businessId,
-    phase,
-    protocolKey: p.key,
-    protocolLabel: p.label,
-    category: p.category,
-    status: "PENDING",
-  }));
+  const now = new Date();
+
+  const data = protocols.map((p) => {
+    const rule = health ? PROTOCOL_HEALTH_SYNC_MAP[p.key] : null;
+
+    // Check if health data proves this protocol was already done
+    const completedDate = rule?.completedFrom && health?.[rule.completedFrom]
+      ? new Date(health[rule.completedFrom] as Date)
+      : null;
+
+    // Compute due date from health, or leave null for manual entry
+    const dueDate = rule?.dueDateFn && health ? rule.dueDateFn(health) : null;
+
+    const isOverdue = dueDate && dueDate < now && !completedDate;
+
+    return {
+      serviceDogId,
+      businessId,
+      phase,
+      protocolKey: p.key,
+      protocolLabel: p.label,
+      category: p.category,
+      status: completedDate ? "COMPLETED" : isOverdue ? "OVERDUE" : "PENDING",
+      completedDate: completedDate ?? undefined,
+      dueDate: dueDate ?? undefined,
+    };
+  });
 
   await prisma.serviceDogMedicalProtocol.createMany({ data });
   return data;
+}
+
+/**
+ * Sync medical protocols for an existing service dog against its pet's health record.
+ * - Marks primary protocols COMPLETED where health data confirms completion
+ * - Updates dueDate on PENDING/OVERDUE protocols using health-derived calculations
+ * Returns: { completed: number; dueDatesSet: number }
+ */
+export async function syncProtocolsFromHealth(
+  serviceDogId: string,
+  health: HealthFields
+): Promise<{ completed: number; dueDatesSet: number }> {
+  const protocols = await prisma.serviceDogMedicalProtocol.findMany({
+    where: { serviceDogId },
+  });
+
+  let completed = 0;
+  let dueDatesSet = 0;
+  const now = new Date();
+
+  for (const proto of protocols) {
+    const rule = PROTOCOL_HEALTH_SYNC_MAP[proto.protocolKey];
+    if (!rule) continue;
+
+    const updates: Record<string, unknown> = {};
+
+    // Mark as COMPLETED if health record confirms it was done
+    if (rule.completedFrom && health[rule.completedFrom] && proto.status !== "COMPLETED" && proto.status !== "WAIVED") {
+      updates.status = "COMPLETED";
+      updates.completedDate = new Date(health[rule.completedFrom] as Date);
+      completed++;
+    }
+
+    // Set or update dueDate from health calculation (only if still pending)
+    if (rule.dueDateFn && proto.status !== "COMPLETED" && proto.status !== "WAIVED") {
+      const dueDate = rule.dueDateFn(health);
+      if (dueDate && dueDate.getTime() !== proto.dueDate?.getTime()) {
+        updates.dueDate = dueDate;
+        updates.status = dueDate < now ? "OVERDUE" : "PENDING";
+        dueDatesSet++;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await prisma.serviceDogMedicalProtocol.update({
+        where: { id: proto.id },
+        data: updates,
+      });
+    }
+  }
+
+  return { completed, dueDatesSet };
 }
