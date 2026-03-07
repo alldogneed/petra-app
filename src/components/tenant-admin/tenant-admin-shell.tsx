@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Users, BarChart2, FileText, LogOut, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -57,7 +58,7 @@ export function TenantAdminShell({
       >
         <div className="flex items-center h-16 px-4 gap-3 border-b border-white/[0.07]">
           <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
-            <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
+            <Image src="/logo.svg" alt="Petra" width={32} height={32} className="w-full h-full object-cover" />
           </div>
           <div className="min-w-0">
             <div className="text-white font-bold text-sm leading-none truncate">{business.name}</div>

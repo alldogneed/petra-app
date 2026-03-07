@@ -44,25 +44,32 @@ import {
   format,
   startOfDay,
 } from "date-fns";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from "recharts";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { formatCurrency, fetchJSON, cn, toWhatsAppPhone } from "@/lib/utils";
-import { SetupChecklist } from "@/components/onboarding/SetupChecklist";
-import { TeamWelcomeModal } from "@/components/onboarding/TeamWelcomeModal";
-import OnboardingWizardModal from "@/components/onboarding/OnboardingWizardModal";
 import dynamic from "next/dynamic";
+const SetupChecklist = dynamic(
+  () => import("@/components/onboarding/SetupChecklist").then((m) => ({ default: m.SetupChecklist })),
+  { ssr: false }
+);
+const TeamWelcomeModal = dynamic(
+  () => import("@/components/onboarding/TeamWelcomeModal").then((m) => ({ default: m.TeamWelcomeModal })),
+  { ssr: false }
+);
+const OnboardingWizardModal = dynamic(
+  () => import("@/components/onboarding/OnboardingWizardModal"),
+  { ssr: false }
+);
 const CreateOrderModal = dynamic(
   () => import("@/components/orders/CreateOrderModal").then((m) => ({ default: m.CreateOrderModal })),
   { ssr: false }
+);
+const RevenueChart = dynamic(
+  () => import("@/components/dashboard/RevenueChart"),
+  {
+    ssr: false,
+    loading: () => <div className="card p-5 h-[280px] animate-pulse bg-slate-100 rounded-2xl" />,
+  }
 );
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -360,76 +367,6 @@ function AppointmentRow({
         <div className="text-xs font-medium text-petra-text">{appointment.startTime}</div>
         <div className="text-xs text-petra-muted">{dayStr}</div>
       </div>
-    </div>
-  );
-}
-
-function RevenueChart({
-  data,
-  target,
-  topService,
-}: {
-  data: { month: string; amount: number }[];
-  target: number;
-  topService: { name: string; count: number } | null;
-}) {
-  return (
-    <div className="card p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-bold text-petra-text">הכנסות</h2>
-          {topService && (
-            <span className="badge-brand text-[10px]">
-              שירות מוביל: {topService.name}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-petra-muted">
-          <div className="w-2 h-2 rounded-full bg-brand-500" />
-          הכנסות
-          <div className="w-4 border-t border-dashed border-slate-400 mx-1" />
-          יעד
-        </div>
-      </div>
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-          <XAxis
-            dataKey="month"
-            axisLine={false}
-            tickLine={false}
-            tick={{ fontSize: 12, fill: "#64748B" }}
-          />
-          <YAxis
-            axisLine={false}
-            tickLine={false}
-            tick={{ fontSize: 11, fill: "#94A3B8" }}
-            tickFormatter={(v) => `₪${(v / 1000).toFixed(0)}k`}
-            width={50}
-            mirror
-          />
-          <Tooltip
-            formatter={(value: number | undefined) => [formatCurrency(value || 0), "הכנסות"]}
-            contentStyle={{
-              borderRadius: 12,
-              border: "1px solid #E2E8F0",
-              fontSize: 13,
-              direction: "rtl",
-            }}
-          />
-          <ReferenceLine
-            y={target}
-            stroke="#94A3B8"
-            strokeDasharray="6 4"
-            label={{
-              value: `יעד ${formatCurrency(target)}`,
-              position: "insideTopRight",
-              fontSize: 11,
-              fill: "#94A3B8",
-            }}
-          />
-          <Bar dataKey="amount" fill="#F97316" radius={[6, 6, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
     </div>
   );
 }
