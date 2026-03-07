@@ -382,6 +382,25 @@ WEBHOOK_BUSINESS_ID=""         # Default business for lead webhook
 BLOB_READ_WRITE_TOKEN=""
 ```
 
+### Typed server-side access (`src/lib/env.ts`)
+
+Use `env.ts` instead of `process.env` directly in any server-side code:
+
+```typescript
+import { env, isDev, isProd, isStaging } from "@/lib/env";
+
+env.APP_URL          // typed string, defaults to "http://localhost:3000"
+env.DATABASE_URL     // required — throws at startup if missing
+isDev                // true on localhost
+isStaging            // true on Vercel preview of "staging" branch
+isProd               // true on Vercel production (main branch)
+```
+
+- `DATABASE_URL` and `DIRECT_URL` are **required** — missing → throw at startup
+- All other vars are optional with sensible defaults
+- **Never import `env.ts` from a Client Component** — it throws at runtime if bundled for the browser
+- For client-side values: use `process.env.NEXT_PUBLIC_*` directly
+
 ---
 
 ## 6. Feature Map
@@ -989,3 +1008,98 @@ After connecting `staging` branch in Vercel, the staging URL will be something l
 `https://petra-app-git-staging-alldogneed-9395s-projects.vercel.app`
 
 Find the exact URL in: Vercel dashboard → Deployments → filter by "staging" branch → click the deployment → copy the URL.
+
+---
+
+## 15. Supabase Setup (Two Projects — Staging + Production)
+
+### Why two projects?
+- Each Supabase project is a separate PostgreSQL database
+- Staging DB can be destroyed/migrated freely without touching production data
+- Free tier allows 2 projects per account (sufficient)
+
+### Step 1 — Create staging project
+1. Go to [supabase.com](https://supabase.com) → sign in → **New project**
+2. Name: `petra-staging`
+3. Password: generate a strong password and save it
+4. Region: `ap-northeast-1` (Tokyo — matches Vercel `hnd1`)
+5. Click **Create new project** — wait ~2 minutes
+
+### Step 2 — Get staging connection strings
+In `petra-staging` project → **Project Settings** → **Database** → **Connection string**:
+- Switch to **URI** tab
+- Copy **Transaction pooler** URL (port 6543, has `?pgbouncer=true`) → `DATABASE_URL`
+- Copy **Session pooler** URL (port 5432) → `DIRECT_URL`
+- Replace `[YOUR-PASSWORD]` placeholder with the password you set
+
+### Step 3 — Create production project
+Repeat steps 1–2 with name `petra-production`.
+
+### Step 4 — Apply schema to both DBs
+```bash
+# Apply to staging DB (set DATABASE_URL + DIRECT_URL in .env.staging first, then:)
+DATABASE_URL="<staging-txn-url>" DIRECT_URL="<staging-session-url>" \
+  PATH="/Users/or-rabinovich/local/node/bin:$PATH" npx prisma db push
+
+# Apply to production DB
+DATABASE_URL="<prod-txn-url>" DIRECT_URL="<prod-session-url>" \
+  PATH="/Users/or-rabinovich/local/node/bin:$PATH" npx prisma db push
+```
+
+### Step 5 — Set env vars in Vercel
+Go to: Vercel → petra-app → Settings → Environment Variables
+
+| Variable | Environment | Value |
+|----------|-------------|-------|
+| `DATABASE_URL` | Production | petra-production txn pooler URL |
+| `DIRECT_URL` | Production | petra-production session pooler URL |
+| `DATABASE_URL` | Preview (branch: staging) | petra-staging txn pooler URL |
+| `DIRECT_URL` | Preview (branch: staging) | petra-staging session pooler URL |
+| All other vars | Production | real production values |
+| All other vars | Preview | staging/test values |
+
+> In Vercel, when adding a Preview variable you can scope it to a specific branch (`staging`) so it only applies to that branch's deployments.
+
+### Step 6 — Verify
+After pushing to `staging` branch, check the Vercel deployment log. It should show `prisma generate` succeeding and the app booting without `Missing required environment variable: DATABASE_URL` errors.
+
+---
+
+## 16. Initial Git Setup (One-Time)
+
+These commands set up the three-branch structure. **Already done** for this repo — documented here for reference if rebuilding.
+
+```bash
+# 1. Ensure you're on main (production branch)
+git checkout main
+
+# 2. Create staging branch from main
+git checkout -b staging
+git push -u origin staging
+
+# 3. Create dev branch from main
+git checkout -b dev
+git push -u origin dev
+
+# 4. Return to dev for daily work
+git checkout dev
+```
+
+### Daily development workflow
+```bash
+# Work on dev (or a feature branch off dev)
+git checkout dev
+# ... make changes, commit ...
+git add -p   # or: git add specific-files
+git commit -m "feat: ..."
+git push origin dev
+
+# When ready to test on staging:
+npm run deploy:staging
+# → merges dev into staging, pushes, Vercel builds staging
+
+# When staging is verified and ready for production:
+npm run deploy:production
+# → opens a PR: staging → main (requires review + approval to merge)
+# → after merge, Vercel auto-deploys to production
+```
