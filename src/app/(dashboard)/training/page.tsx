@@ -1171,18 +1171,16 @@ export default function TrainingPage() {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button className="btn-primary text-xs" onClick={() => setShowSellPackage(true)}>
-                    <Plus className="w-3.5 h-3.5" /> תוכנית חדשה
+                    <Plus className="w-3.5 h-3.5" /> אימון חדש
                   </button>
                   <a href="/service-dogs" className="btn-secondary text-xs flex items-center gap-1">
                     <Shield className="w-3.5 h-3.5" /> ניהול כלבי שירות ←
                   </a>
                 </div>
               </div>
-              <IndividualTab
+              <ServiceDogSessionLog
                 programs={serviceDogPrograms}
                 searchQuery={searchQuery}
-                expandedCards={expandedCards}
-                toggleExpand={toggleExpand}
                 onMarkAttendance={(programId, sessionNumber, dogName, customerPhone, customerName) =>
                   setSessionLogTarget({ programId, sessionNumber, dogName, customerPhone, customerName })
                 }
@@ -2146,6 +2144,178 @@ function ServiceDogPhaseRow({ program }: { program: TrainingProgram }) {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// SERVICE DOG SESSION LOG
+// ═══════════════════════════════════════════════════════
+
+function ServiceDogSessionLog({
+  programs,
+  searchQuery,
+  onMarkAttendance,
+  isMarkingAttendance,
+  onEditSettings,
+  onFinishProgram,
+  onDropoutProgram,
+  isUpdatingStatus,
+}: {
+  programs: TrainingProgram[];
+  searchQuery: string;
+  onMarkAttendance: (programId: string, sessionNumber: number, dogName: string, customerPhone?: string, customerName?: string) => void;
+  onEditSettings: (program: TrainingProgram) => void;
+  isMarkingAttendance: boolean;
+  onFinishProgram?: (programId: string) => void;
+  onDropoutProgram?: (programId: string, dogName: string) => void;
+  isUpdatingStatus?: boolean;
+}) {
+  const filtered = useMemo(() => {
+    if (!searchQuery.trim()) return programs;
+    const q = searchQuery.toLowerCase();
+    return programs.filter((p) => p.dog.name.toLowerCase().includes(q));
+  }, [programs, searchQuery]);
+
+  if (filtered.length === 0) {
+    return (
+      <div className="empty-state">
+        <div className="empty-state-icon"><Shield className="w-6 h-6 text-slate-400" /></div>
+        <h3 className="text-base font-semibold text-petra-text mb-1">אין תוכניות אילוף לכלבי שירות</h3>
+        <p className="text-sm text-petra-muted">
+          <a href="/service-dogs" className="text-brand-600 hover:underline">עבור לניהול כלבי שירות</a>
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {filtered.map((program) => {
+        const completedSessions = [...program.sessions]
+          .filter((s) => s.status === "COMPLETED")
+          .sort((a, b) => new Date(b.sessionDate).getTime() - new Date(a.sessionDate).getTime());
+        const usedSessions = completedSessions.length;
+        const statusInfo = PROGRAM_STATUS_MAP[program.status] || PROGRAM_STATUS_MAP.ACTIVE;
+
+        return (
+          <div key={program.id} className="card overflow-hidden">
+            {/* Program header */}
+            <div className="p-4 border-b border-petra-border bg-brand-50/40">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
+                  <Shield className="w-5 h-5 text-brand-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-semibold text-petra-text">{program.dog.name}</h3>
+                    <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", statusInfo.color)}>{statusInfo.label}</span>
+                    {program.programType && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-brand-100 text-brand-700">
+                        {SERVICE_DOG_PHASES.find((p) => p.value === program.programType)?.label ?? program.programType}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5 text-xs text-petra-muted">
+                    <span>{usedSessions} אימונים בוצעו</span>
+                    {program.startDate && <span>• התחיל {formatDate(program.startDate)}</span>}
+                  </div>
+                </div>
+                <a href={`/service-dogs/${program.dog.id}`} className="text-xs text-brand-600 hover:underline flex items-center gap-0.5 flex-shrink-0">
+                  פרופיל ←
+                </a>
+              </div>
+              {/* Actions */}
+              <div className="flex gap-2 mt-3 flex-wrap">
+                <button className="btn-secondary text-xs" onClick={() => onEditSettings(program)}>
+                  <Settings className="w-3.5 h-3.5" /> הגדרות
+                </button>
+                {program.status === "ACTIVE" && onFinishProgram && (
+                  <button
+                    className="btn-secondary text-xs text-emerald-600 hover:text-emerald-700 border-emerald-200 hover:border-emerald-300"
+                    disabled={isUpdatingStatus}
+                    onClick={() => onFinishProgram(program.id)}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" /> סיים
+                  </button>
+                )}
+                {program.status === "ACTIVE" && onDropoutProgram && (
+                  <button
+                    className="btn-secondary text-xs text-red-500 hover:text-red-600 border-red-200 hover:border-red-300"
+                    disabled={isUpdatingStatus}
+                    onClick={() => onDropoutProgram(program.id, program.dog.name)}
+                  >
+                    <XCircle className="w-3.5 h-3.5" /> נשר
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Session log */}
+            <div className="p-4">
+              <h4 className="text-xs font-semibold text-petra-muted mb-3 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5" />
+                יומן אימונים
+              </h4>
+
+              {completedSessions.length === 0 ? (
+                <p className="text-xs text-petra-muted text-center py-4">טרם בוצעו אימונים</p>
+              ) : (
+                <div className="space-y-2">
+                  {completedSessions.map((session) => (
+                    <div key={session.id} className="p-3 rounded-xl bg-slate-50 border border-petra-border text-xs">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-petra-text">אימון {session.sessionNumber}</span>
+                        <div className="flex items-center gap-2">
+                          {session.rating && <span className="text-amber-500">{"★".repeat(session.rating)}</span>}
+                          <span className="text-petra-muted">{formatDate(session.sessionDate)}</span>
+                        </div>
+                      </div>
+                      {session.practiceItems && (
+                        <div className="mb-1.5">
+                          <span className="font-medium text-petra-muted">📝 תרגילים: </span>
+                          <span className="text-petra-text whitespace-pre-line">{session.practiceItems}</span>
+                        </div>
+                      )}
+                      {session.summary && (
+                        <div className="mb-1.5">
+                          <span className="font-medium text-petra-muted">💬 סיכום: </span>
+                          <span className="text-petra-text whitespace-pre-line">{session.summary}</span>
+                        </div>
+                      )}
+                      {session.nextSessionGoals && (
+                        <div className="mb-1.5">
+                          <span className="font-medium text-petra-muted">🎯 יעדים לאימון הבא: </span>
+                          <span className="text-petra-text whitespace-pre-line">{session.nextSessionGoals}</span>
+                        </div>
+                      )}
+                      {session.homeworkForCustomer && (
+                        <div>
+                          <span className="font-medium text-petra-muted">🏠 שיעורי בית: </span>
+                          <span className="text-petra-text whitespace-pre-line">{session.homeworkForCustomer}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add session button */}
+              {program.status === "ACTIVE" && (
+                <button
+                  type="button"
+                  disabled={isMarkingAttendance}
+                  onClick={() => onMarkAttendance(program.id, usedSessions + 1, program.dog.name, program.customer?.phone ?? "", program.customer?.name ?? "")}
+                  className="mt-3 w-full py-2.5 rounded-xl border-2 border-dashed border-brand-200 text-xs font-semibold text-brand-500 hover:bg-brand-50 hover:border-brand-400 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  הוסף אימון +
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
