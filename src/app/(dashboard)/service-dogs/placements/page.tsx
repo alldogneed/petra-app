@@ -23,6 +23,7 @@ import {
   SERVICE_DOG_PLACEMENT_STATUSES,
   SERVICE_DOG_PHASE_MAP,
   DISABILITY_TYPE_MAP,
+  FUNDING_SOURCE_MAP,
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
 
@@ -44,6 +45,7 @@ interface Placement {
     name: string;
     phone: string | null;
     disabilityType: string | null;
+    fundingSource: string | null;
   };
 }
 
@@ -172,6 +174,11 @@ export default function PlacementsPage() {
                         {DISABILITY_TYPE_MAP[p.recipient.disabilityType]}
                       </p>
                     )}
+                    {p.recipient.fundingSource && (
+                      <p className="text-xs text-brand-500 font-medium">
+                        {FUNDING_SOURCE_MAP[p.recipient.fundingSource] || p.recipient.fundingSource}
+                      </p>
+                    )}
                   </div>
                 </div>
                 {p.nextCheckInAt && (
@@ -261,6 +268,11 @@ export default function PlacementsPage() {
                       {placement.recipient.disabilityType && (
                         <div className="text-xs text-petra-muted">
                           {DISABILITY_TYPE_MAP[placement.recipient.disabilityType]}
+                        </div>
+                      )}
+                      {placement.recipient.fundingSource && (
+                        <div className="text-xs text-brand-500 font-medium">
+                          {FUNDING_SOURCE_MAP[placement.recipient.fundingSource] || placement.recipient.fundingSource}
                         </div>
                       )}
                     </td>
