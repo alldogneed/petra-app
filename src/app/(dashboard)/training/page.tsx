@@ -2225,29 +2225,14 @@ function ServiceDogSessionLog({
                   פרופיל ←
                 </a>
               </div>
-              {/* Actions */}
+              {/* Actions — no finish/dropout for service dogs; managed via service dogs system */}
               <div className="flex gap-2 mt-3 flex-wrap">
                 <button className="btn-secondary text-xs" onClick={() => onEditSettings(program)}>
                   <Settings className="w-3.5 h-3.5" /> הגדרות
                 </button>
-                {program.status === "ACTIVE" && onFinishProgram && (
-                  <button
-                    className="btn-secondary text-xs text-emerald-600 hover:text-emerald-700 border-emerald-200 hover:border-emerald-300"
-                    disabled={isUpdatingStatus}
-                    onClick={() => onFinishProgram(program.id)}
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" /> סיים
-                  </button>
-                )}
-                {program.status === "ACTIVE" && onDropoutProgram && (
-                  <button
-                    className="btn-secondary text-xs text-red-500 hover:text-red-600 border-red-200 hover:border-red-300"
-                    disabled={isUpdatingStatus}
-                    onClick={() => onDropoutProgram(program.id, program.dog.name)}
-                  >
-                    <XCircle className="w-3.5 h-3.5" /> נשר
-                  </button>
-                )}
+                <a href={`/service-dogs/${program.dog.id}`} className="btn-secondary text-xs flex items-center gap-1">
+                  <Shield className="w-3.5 h-3.5" /> ניהול כלב שירות ←
+                </a>
               </div>
             </div>
 

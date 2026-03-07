@@ -96,15 +96,38 @@ export async function POST(request: NextRequest) {
 
     const initialPhase = phase || "SELECTION";
 
-    const profile = await prisma.serviceDogProfile.create({
-      data: {
-        petId,
-        businessId: authResult.businessId,
-        phase: initialPhase,
-        serviceType: serviceType || null,
-        notes: notes || null,
-      },
-      include: { pet: true },
+    const profile = await prisma.$transaction(async (tx) => {
+      const p = await tx.serviceDogProfile.create({
+        data: {
+          petId,
+          businessId: authResult.businessId,
+          phase: initialPhase,
+          serviceType: serviceType || null,
+          notes: notes || null,
+        },
+        include: { pet: true },
+      });
+
+      // Auto-create TrainingProgram so the dog immediately appears in the training tab
+      const existingProgram = await tx.trainingProgram.findFirst({
+        where: { dogId: petId, trainingType: "SERVICE_DOG", businessId: authResult.businessId },
+      });
+      if (!existingProgram) {
+        await tx.trainingProgram.create({
+          data: {
+            businessId: authResult.businessId,
+            dogId: petId,
+            customerId: pet.customerId || null,
+            name: `הכשרת כלב שירות — ${pet.name}`,
+            programType: "SD_FOUNDATION",
+            trainingType: "SERVICE_DOG",
+            status: "ACTIVE",
+            startDate: new Date(),
+          },
+        });
+      }
+
+      return p;
     });
 
     // Seed initial medical protocols

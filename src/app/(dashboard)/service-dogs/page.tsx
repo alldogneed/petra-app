@@ -17,6 +17,8 @@ import {
   ArrowLeft,
   Plus,
   X,
+  GraduationCap,
+  Star,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
@@ -77,6 +79,34 @@ export default function ServiceDogsOverviewPage() {
     }),
   });
 
+  const { data: trainingPrograms = [] } = useQuery<{
+    id: string;
+    dog: { id: string; name: string };
+    sessions: { id: string; sessionDate: string; summary: string | null; rating: number | null; sessionNumber: number | null; status: string }[];
+    status: string;
+  }[]>({
+    queryKey: ["training-programs-service"],
+    queryFn: () => fetch("/api/training-programs?trainingType=SERVICE_DOG&status=ACTIVE,PAUSED,COMPLETED").then((r) => {
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    }),
+  });
+
+  // Training stats
+  const allSessions = trainingPrograms.flatMap((p) =>
+    p.sessions
+      .filter((s) => s.status === "COMPLETED")
+      .map((s) => ({ ...s, dogName: p.dog.name, dogId: p.dog.id, programId: p.id }))
+  );
+  const totalSessions = allSessions.length;
+  const thisWeek = (() => {
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+    return allSessions.filter((s) => new Date(s.sessionDate) >= weekAgo).length;
+  })();
+  const recentSessions = [...allSessions]
+    .sort((a, b) => new Date(b.sessionDate).getTime() - new Date(a.sessionDate).getTime())
+    .slice(0, 8);
+
   // Stats
   const totalDogs = dogs.length;
   const inTraining = dogs.filter((d) =>
@@ -136,13 +166,14 @@ export default function ServiceDogsOverviewPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <StatCard label="סה״כ כלבים" value={totalDogs} icon={Dog} />
         <StatCard label="באימון" value={inTraining} icon={Clock} color="blue" />
         <StatCard label="מוסמכים" value={certified} icon={CheckCircle2} color="emerald" />
         <StatCard label="ממתינים להסמכה" value={pendingCert} icon={CheckCircle2} color="amber" />
         <StatCard label="התראות דיווח" value={complianceAlerts} icon={AlertTriangle} color={complianceAlerts > 0 ? "red" : "emerald"} />
         <StatCard label="שיבוצים פעילים" value={activePlacements} icon={Activity} color="purple" />
+        <StatCard label="אימונים השבוע" value={thisWeek} icon={GraduationCap} color="brand" />
       </div>
 
       {/* Quick Links */}
@@ -304,6 +335,53 @@ export default function ServiceDogsOverviewPage() {
         </div>
       </div>
 
+      {/* Recent Training Sessions */}
+      {recentSessions.length > 0 && (
+        <div className="card p-0 overflow-hidden">
+          <div className="px-5 py-4 border-b flex items-center justify-between">
+            <h2 className="font-semibold flex items-center gap-2">
+              <GraduationCap className="w-4 h-4 text-brand-500" />
+              אימונים אחרונים
+              <span className="bg-brand-100 text-brand-700 text-xs font-bold rounded-full px-2 py-0.5">
+                {totalSessions} סה״כ
+              </span>
+            </h2>
+            <Link href="/training" className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1">
+              כל תהליכי האילוף <ArrowLeft className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="divide-y">
+            {recentSessions.map((session) => (
+              <Link
+                key={session.id}
+                href={`/service-dogs/${session.dogId}`}
+                className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors group"
+              >
+                <div className="w-8 h-8 rounded-full bg-brand-50 flex items-center justify-center flex-shrink-0">
+                  <GraduationCap className="w-4 h-4 text-brand-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-petra-text">{session.dogName}</span>
+                    <span className="text-xs text-petra-muted">אימון {session.sessionNumber}</span>
+                    {session.rating && (
+                      <span className="text-xs text-amber-500 flex items-center gap-0.5">
+                        <Star className="w-3 h-3 fill-amber-400" />
+                        {session.rating}
+                      </span>
+                    )}
+                  </div>
+                  {session.summary && (
+                    <p className="text-xs text-petra-muted truncate mt-0.5">{session.summary}</p>
+                  )}
+                </div>
+                <span className="text-xs text-petra-muted flex-shrink-0">{formatDate(session.sessionDate)}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {showAddRecipient && <AddRecipientModal onClose={() => setShowAddRecipient(false)} />}
       {showAddDog && <AddServiceDogModal onClose={() => setShowAddDog(false)} />}
 
@@ -361,7 +439,7 @@ function StatCard({
   label: string;
   value: number;
   icon: React.ComponentType<{ className?: string }>;
-  color?: "default" | "blue" | "emerald" | "amber" | "red" | "purple";
+  color?: "default" | "blue" | "emerald" | "amber" | "red" | "purple" | "brand";
 }) {
   const colorMap = {
     default: { bg: "bg-slate-50", text: "text-slate-600", val: "text-slate-900" },
@@ -370,6 +448,7 @@ function StatCard({
     amber: { bg: "bg-amber-50", text: "text-amber-600", val: "text-amber-700" },
     red: { bg: "bg-red-50", text: "text-red-600", val: "text-red-700" },
     purple: { bg: "bg-purple-50", text: "text-purple-600", val: "text-purple-700" },
+    brand: { bg: "bg-brand-50", text: "text-brand-600", val: "text-brand-700" },
   };
   const c = colorMap[color];
 
