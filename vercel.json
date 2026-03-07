@@ -2,6 +2,14 @@
   "buildCommand": "npm run vercel-build",
   "framework": "nextjs",
   "regions": ["hnd1"],
+
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "staging": true
+    }
+  },
+
   "crons": [
     {
       "path": "/api/cron/send-reminders",
