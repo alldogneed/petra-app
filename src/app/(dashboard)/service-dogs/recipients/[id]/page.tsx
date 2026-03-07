@@ -796,11 +796,7 @@ function AddDocModal({
               ))}
             </select>
           </div>
-          <div>
-            <label className="label">קישור למסמך (URL)</label>
-            <input value={url} onChange={(e) => setUrl(e.target.value)} className="input w-full" placeholder="https://..." type="url" dir="ltr" />
-            <p className="text-xs text-petra-muted mt-1">הדבק קישור ל-Google Drive, Dropbox, או כל קישור אחר</p>
-          </div>
+
           <div className="flex gap-2 pt-2">
             <button onClick={handleSave} disabled={!name.trim()} className="btn-primary flex-1">הוסף מסמך</button>
             <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
