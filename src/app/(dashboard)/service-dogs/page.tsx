@@ -60,8 +60,6 @@ interface ComplianceEvent {
 }
 
 export default function ServiceDogsOverviewPage() {
-  const [showAddRecipient, setShowAddRecipient] = useState(false);
-  const [showAddDog, setShowAddDog] = useState(false);
 
   const { data: dogs = [] } = useQuery<ServiceDogSummary[]>({
     queryKey: ["service-dogs"],
@@ -144,16 +142,6 @@ export default function ServiceDogsOverviewPage() {
           <p className="text-sm text-petra-muted mt-1">
             מרכז הכשרת כלבי שירות · ניהול מקצועי
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setShowAddRecipient(true)} className="btn-secondary flex items-center gap-2 text-sm">
-            <UserCheck className="w-4 h-4" />
-            הוסף זכאי
-          </button>
-          <button onClick={() => setShowAddDog(true)} className="btn-primary flex items-center gap-2 text-sm">
-            <Plus className="w-4 h-4" />
-            הוסף כלב שירות
-          </button>
         </div>
       </div>
 
@@ -350,8 +338,6 @@ export default function ServiceDogsOverviewPage() {
         </div>
       )}
 
-      {showAddRecipient && <AddRecipientModal onClose={() => setShowAddRecipient(false)} />}
-      {showAddDog && <AddServiceDogModal onClose={() => setShowAddDog(false)} />}
 
       {/* Phase Distribution */}
       {dogs.length > 0 && (
