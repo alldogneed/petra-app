@@ -6,6 +6,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   X, Search, Plus, Minus, Trash2, CalendarDays, Clock,
   Send, MessageCircle, Building2, GraduationCap, Package, Scissors, Users,
+  CreditCard, ChevronDown, ChevronUp, CheckCircle2,
 } from "lucide-react";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
@@ -187,7 +188,7 @@ export function CreateOrderModal({
 
   // Step state: "category" → "customer" → "items" → "review" → "payment"
   const [step, setStep] = useState<"category" | "customer" | "items" | "review" | "payment">("category");
-  const [createdOrder, setCreatedOrder] = useState<{ id: string; status: string } | null>(null);
+  const [createdOrder, setCreatedOrder] = useState<{ id: string; status: string; paid?: boolean } | null>(null);
 
   // Customer
   const [customerId, setCustomerId] = useState(prefillCustomerId ?? "");
@@ -220,6 +221,11 @@ export function CreateOrderModal({
 
   // WhatsApp link toggle
   const [includeLandingPage, setIncludeLandingPage] = useState(true);
+
+  // Pay-at-checkout
+  const [payAtCheckout, setPayAtCheckout] = useState(false);
+  const [checkoutPayMethod, setCheckoutPayMethod] = useState("cash");
+  const [checkoutPayAmount, setCheckoutPayAmount] = useState("");
 
   // Lines
   const [lines, setLines] = useState<OrderLineForm[]>([]);
@@ -469,7 +475,8 @@ export function CreateOrderModal({
 
   // Mutation — accepts explicit status to avoid stale-closure race condition
   const mutation = useMutation({
-    mutationFn: async (statusOverride: "draft" | "confirmed") => {
+    mutationFn: async (opts: { status: "draft" | "confirmed"; payNow?: { amount: number; method: string } }) => {
+      const statusOverride = opts.status;
       // 1. Create the order (+ linked Appointment for service types, via API transaction)
       const res = await fetch("/api/orders", {
         method: "POST",
@@ -551,14 +558,29 @@ export function CreateOrderModal({
         }
       }
 
+      // 5. If paying at checkout, record the payment immediately
+      if (opts.payNow && order.id) {
+        await fetch("/api/payments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: opts.payNow.amount,
+            method: opts.payNow.method,
+            status: "paid",
+            customerId,
+            orderId: order.id,
+          }),
+        });
+      }
+
       return order;
     },
-    onSuccess: (data, statusOverride) => {
+    onSuccess: (data, opts) => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["customer", customerId] });
       onCreated?.(data.id);
-      if (statusOverride === "confirmed") {
-        setCreatedOrder(data);
+      if (opts.status === "confirmed") {
+        setCreatedOrder({ ...data, paid: !!opts.payNow });
         setStep("payment");
       } else {
         handleClose();
@@ -592,6 +614,9 @@ export function CreateOrderModal({
     setTrainingHomeFollowup(0);
     setSelectedGroupId("");
     setCreatedOrder(null);
+    setPayAtCheckout(false);
+    setCheckoutPayMethod("cash");
+    setCheckoutPayAmount("");
     onClose();
   };
 
@@ -1433,11 +1458,18 @@ export function CreateOrderModal({
       {/* Success + WhatsApp banner */}
       <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
         <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-          <MessageCircle className="w-5 h-5 text-emerald-600" />
+          {createdOrder?.paid
+            ? <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            : <MessageCircle className="w-5 h-5 text-emerald-600" />
+          }
         </div>
         <div>
-          <p className="text-sm font-bold text-emerald-700">ההזמנה אושרה בהצלחה!</p>
-          <p className="text-xs text-emerald-600">שלח ללקוח בקשת תשלום בוואטסאפ</p>
+          <p className="text-sm font-bold text-emerald-700">
+            {createdOrder?.paid ? "ההזמנה אושרה ותשלום נרשם!" : "ההזמנה אושרה בהצלחה!"}
+          </p>
+          <p className="text-xs text-emerald-600">
+            {createdOrder?.paid ? "התשלום קושר להזמנה אוטומטית" : "שלח ללקוח בקשת תשלום בוואטסאפ"}
+          </p>
         </div>
       </div>
 
@@ -1601,6 +1633,59 @@ export function CreateOrderModal({
         />
       </div>
 
+      {/* ── Pay at checkout ── */}
+      <div className="rounded-xl border border-emerald-200 overflow-hidden">
+        <button
+          type="button"
+          className="w-full flex items-center justify-between px-3 py-2.5 bg-emerald-50 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors"
+          onClick={() => {
+            setPayAtCheckout((v) => !v);
+            if (!checkoutPayAmount) setCheckoutPayAmount(calc.total.toFixed(2));
+          }}
+        >
+          <span className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4" />
+            הלקוח שילם עכשיו
+          </span>
+          {payAtCheckout
+            ? <ChevronUp className="w-4 h-4" />
+            : <ChevronDown className="w-4 h-4" />
+          }
+        </button>
+        {payAtCheckout && (
+          <div className="px-3 pb-3 pt-2 space-y-2 bg-white border-t border-emerald-100">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="label text-xs">סכום שהתקבל (₪)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="input text-sm"
+                  value={checkoutPayAmount}
+                  onChange={(e) => setCheckoutPayAmount(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label text-xs">אמצעי תשלום</label>
+                <select
+                  className="input text-sm"
+                  value={checkoutPayMethod}
+                  onChange={(e) => setCheckoutPayMethod(e.target.value)}
+                >
+                  <option value="cash">מזומן</option>
+                  <option value="credit_card">כרטיס אשראי</option>
+                  <option value="bank_transfer">העברה בנקאית</option>
+                  <option value="bit">ביט</option>
+                  <option value="paybox">פייבוקס</option>
+                  <option value="check">צ&apos;ק</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {mutation.isError && (
         <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
           {mutation.error?.message || "שגיאה ביצירת ההזמנה"}
@@ -1608,7 +1693,7 @@ export function CreateOrderModal({
       )}
 
       {/* ── Payment request button ── */}
-      {selectedCustomer?.phone && (
+      {selectedCustomer?.phone && !payAtCheckout && (
         <button
           type="button"
           className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all flex items-center justify-center gap-2"
@@ -1624,16 +1709,22 @@ export function CreateOrderModal({
         <button
           className="flex-1 py-2.5 rounded-xl border-2 border-petra-border text-sm font-medium text-petra-text hover:bg-slate-50 transition-all"
           disabled={mutation.isPending}
-          onClick={() => mutation.mutate("draft")}
+          onClick={() => mutation.mutate({ status: "draft" })}
         >
           שמור כטיוטה
         </button>
         <button
-          className="btn-primary flex-1"
+          className={cn("btn-primary flex-1 gap-1.5", payAtCheckout && "bg-emerald-500 hover:bg-emerald-600 border-emerald-500")}
           disabled={mutation.isPending || calc.total <= 0}
-          onClick={() => mutation.mutate("confirmed")}
+          onClick={() => mutation.mutate({
+            status: "confirmed",
+            payNow: payAtCheckout ? { amount: parseFloat(checkoutPayAmount) || calc.total, method: checkoutPayMethod } : undefined,
+          })}
         >
-          {mutation.isPending ? "שומר..." : `אשר הזמנה ${fmt(calc.total)}`}
+          {mutation.isPending ? "שומר..." : payAtCheckout
+            ? <><CheckCircle2 className="w-4 h-4" />אשר + שולם {fmt(parseFloat(checkoutPayAmount) || calc.total)}</>
+            : `אשר הזמנה ${fmt(calc.total)}`
+          }
         </button>
       </div>
     </div>
