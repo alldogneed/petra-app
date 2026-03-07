@@ -1706,8 +1706,20 @@ function DocumentsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) 
   const [docName, setDocName] = useState("");
   const [docUrl, setDocUrl] = useState("");
   const [docType, setDocType] = useState("OTHER");
+  const [sourceMode, setSourceMode] = useState<"url" | "file">("url");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const documents: DogDocument[] = Array.isArray(dog.documents) ? (dog.documents as DogDocument[]) : [];
+
+  const resetForm = () => {
+    setShowAddDoc(false);
+    setDocName("");
+    setDocUrl("");
+    setDocType("OTHER");
+    setSourceMode("url");
+    setSelectedFile(null);
+  };
 
   const saveMutation = useMutation({
     mutationFn: (docs: DogDocument[]) =>
@@ -1722,30 +1734,52 @@ function DocumentsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
       toast.success("מסמכים עודכנו");
-      setShowAddDoc(false);
-      setDocName("");
-      setDocUrl("");
+      resetForm();
       setDocType("OTHER");
     },
     onError: () => toast.error("שגיאה בשמירת מסמך"),
   });
 
-  const addDoc = () => {
+  const addDoc = async () => {
     if (!docName.trim()) return;
-    const newDoc: DogDocument = {
-      id: crypto.randomUUID(),
-      name: docName.trim(),
-      url: docUrl.trim(),
-      docType,
-      uploadedAt: new Date().toISOString(),
-    };
-    saveMutation.mutate([newDoc, ...documents]);
+    if (sourceMode === "file") {
+      if (!selectedFile) return;
+      setIsUploading(true);
+      try {
+        const fd = new FormData();
+        fd.append("file", selectedFile);
+        fd.append("name", docName.trim());
+        fd.append("docType", docType);
+        const res = await fetch(`/api/service-dogs/${dogId}/documents`, { method: "POST", body: fd });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          toast.error(err.error || "שגיאה בהעלאת הקובץ");
+          return;
+        }
+        queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+        toast.success("מסמך הועלה בהצלחה");
+        resetForm();
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      const newDoc: DogDocument = {
+        id: crypto.randomUUID(),
+        name: docName.trim(),
+        url: docUrl.trim(),
+        docType,
+        uploadedAt: new Date().toISOString(),
+      };
+      saveMutation.mutate([newDoc, ...documents]);
+    }
   };
 
   const deleteDoc = (docId: string) => {
     if (!confirm("למחוק את המסמך?")) return;
     saveMutation.mutate(documents.filter((d) => d.id !== docId));
   };
+
+  const isBusy = saveMutation.isPending || isUploading;
 
   return (
     <div className="card p-5">
@@ -1807,16 +1841,55 @@ function DocumentsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) 
                 ))}
               </select>
             </div>
-            <div>
-              <label className="label">קישור למסמך (URL)</label>
-              <input value={docUrl} onChange={(e) => setDocUrl(e.target.value)} className="input w-full" placeholder="https://..." type="url" dir="ltr" />
-              <p className="text-xs text-petra-muted mt-1">הדבק קישור ל-Google Drive, Dropbox, או כל קישור אחר</p>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={addDoc} disabled={!docName.trim() || saveMutation.isPending} className="btn-primary flex-1 text-sm">
-                {saveMutation.isPending ? "שומר..." : "הוסף מסמך"}
+            {/* Source mode toggle */}
+            <div className="flex gap-1 p-1 bg-slate-100 rounded-lg">
+              <button
+                type="button"
+                onClick={() => { setSourceMode("url"); setSelectedFile(null); }}
+                className={`flex-1 text-xs py-1.5 rounded-md transition-colors ${sourceMode === "url" ? "bg-white shadow-sm font-medium" : "text-petra-muted hover:bg-white/60"}`}
+              >
+                קישור URL
               </button>
-              <button onClick={() => { setShowAddDoc(false); setDocName(""); setDocUrl(""); }} className="btn-secondary flex-1 text-sm">ביטול</button>
+              <button
+                type="button"
+                onClick={() => { setSourceMode("file"); setDocUrl(""); }}
+                className={`flex-1 text-xs py-1.5 rounded-md transition-colors ${sourceMode === "file" ? "bg-white shadow-sm font-medium" : "text-petra-muted hover:bg-white/60"}`}
+              >
+                העלאת קובץ
+              </button>
+            </div>
+
+            {sourceMode === "url" ? (
+              <div>
+                <label className="label">קישור למסמך (URL)</label>
+                <input value={docUrl} onChange={(e) => setDocUrl(e.target.value)} className="input w-full" placeholder="https://..." type="url" dir="ltr" />
+                <p className="text-xs text-petra-muted mt-1">הדבק קישור ל-Google Drive, Dropbox, או כל קישור אחר</p>
+              </div>
+            ) : (
+              <div>
+                <label className="label">קובץ להעלאה</label>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp"
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                  className="input w-full text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
+                />
+                {selectedFile && (
+                  <p className="text-xs text-petra-muted mt-1">{selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(1)} MB)</p>
+                )}
+                <p className="text-xs text-petra-muted mt-1">מקסימום 10MB — PDF, Word, תמונות</p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={addDoc}
+                disabled={!docName.trim() || isBusy || (sourceMode === "url" ? !docUrl.trim() : !selectedFile)}
+                className="btn-primary flex-1 text-sm"
+              >
+                {isBusy ? "שומר..." : "הוסף מסמך"}
+              </button>
+              <button onClick={resetForm} className="btn-secondary flex-1 text-sm">ביטול</button>
             </div>
           </div>
         ) : (
