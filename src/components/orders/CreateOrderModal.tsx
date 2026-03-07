@@ -956,26 +956,13 @@ export function CreateOrderModal({
           יש לבחור כלב ספציפי לפני המשך — ההזמנה תקשר לתוכנית אילוף
         </p>
       )}
-      {/* Group training: no groups exist */}
-      {orderType === "training" && trainingSubType === "group" && trainingGroups.filter(g => g.isActive).length === 0 && (
-        <p className="text-xs text-red-700 bg-red-50 border border-red-300 rounded-lg px-3 py-2 text-center font-medium">
-          ⚠️ אין קבוצות אילוף פעילות — יש ליצור קבוצה תחת לשונית &quot;אימונים&quot; לפני יצירת ההזמנה
-        </p>
-      )}
-      {/* Group training: group not selected */}
-      {orderType === "training" && trainingSubType === "group" && trainingGroups.filter(g => g.isActive).length > 0 && !selectedGroupId && (
-        <p className="text-xs text-red-700 bg-red-50 border border-red-300 rounded-lg px-3 py-2 text-center font-medium">
-          ⚠️ חובה לבחור קבוצת אילוף לפני המשך
-        </p>
-      )}
       <button
         type="button"
         className="btn-primary w-full"
         disabled={
           !customerId ||
           (!petsLoading && customerPets.length === 0) ||
-          (orderType === "training" && !petsLoading && customerPets.length > 0 && !selectedPetId) ||
-          (orderType === "training" && trainingSubType === "group" && (!selectedGroupId || trainingGroups.filter(g => g.isActive).length === 0))
+          (orderType === "training" && !petsLoading && customerPets.length > 0 && !selectedPetId)
         }
         onClick={handleAdvanceToItems}
       >
@@ -1377,10 +1364,25 @@ export function CreateOrderModal({
           </div>
         )}
 
+        {/* Group training: no groups exist */}
+        {orderType === "training" && trainingSubType === "group" && trainingGroups.filter(g => g.isActive).length === 0 && (
+          <p className="text-xs text-red-700 bg-red-50 border border-red-300 rounded-lg px-3 py-2 text-center font-medium">
+            ⚠️ אין קבוצות אילוף פעילות — יש ליצור קבוצה תחת לשונית &quot;אימונים&quot; לפני יצירת ההזמנה
+          </p>
+        )}
+        {/* Group training: group not selected */}
+        {orderType === "training" && trainingSubType === "group" && trainingGroups.filter(g => g.isActive).length > 0 && !selectedGroupId && (
+          <p className="text-xs text-red-700 bg-red-50 border border-red-300 rounded-lg px-3 py-2 text-center font-medium">
+            ⚠️ חובה לבחור קבוצת אילוף לפני המשך
+          </p>
+        )}
         <button
           type="button"
           className="btn-primary w-full"
-          disabled={lines.length === 0}
+          disabled={
+            lines.length === 0 ||
+            (orderType === "training" && trainingSubType === "group" && (!selectedGroupId || trainingGroups.filter(g => g.isActive).length === 0))
+          }
           onClick={() => setStep("review")}
         >
           המשך לסיכום ({fmt(calc.total)}) →
