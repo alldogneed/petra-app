@@ -57,10 +57,63 @@ export default function IDCardsPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
-      toast.success("תעודת זהות הונפקה בהצלחה");
+      toast.success("תעודת הסמכה הונפקה בהצלחה");
     },
     onError: () => toast.error("שגיאה בהנפקת תעודה"),
   });
+
+  const downloadPDF = (card: IDCard, dogName: string) => {
+    const data = JSON.parse(card.cardDataJson || "{}");
+    const certDate = data.certificationDate ? formatDate(data.certificationDate) : null;
+    const html = `<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>תעודת הסמכה — ${dogName}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; background: white; padding: 20mm; }
+    .cert { max-width: 170mm; margin: 0 auto; border: 2px solid #2563EB; border-radius: 12px; overflow: hidden; }
+    .header { background: #1e3a8a; color: white; padding: 20px; text-align: center; }
+    .header-title { font-size: 22px; font-weight: bold; letter-spacing: 1px; }
+    .header-sub { font-size: 12px; color: #93C5FD; margin-top: 4px; }
+    .dog-name { background: #EFF6FF; padding: 16px; text-align: center; border-bottom: 1px solid #BFDBFE; }
+    .dog-name h2 { font-size: 28px; font-weight: bold; color: #1e3a8a; }
+    .details { padding: 16px 20px; }
+    .field { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid #F1F5F9; }
+    .field:last-child { border: none; }
+    .field-label { color: #6B7280; font-size: 12px; }
+    .field-value { font-weight: bold; font-size: 13px; color: #111827; }
+    .qr-section { text-align: center; padding: 16px; border-top: 1px solid #E5E7EB; }
+    .qr-section img { width: 130px; height: 130px; }
+    .qr-note { font-size: 10px; color: #9CA3AF; margin-top: 6px; }
+    .footer { background: #F8FAFC; padding: 10px 20px; text-align: center; font-size: 10px; color: #9CA3AF; border-top: 1px solid #E5E7EB; }
+    @media print { body { padding: 10mm; } }
+  </style>
+</head>
+<body>
+  <div class="cert">
+    <div class="header">
+      <div class="header-title">תעודת הסמכה — כלב שירות</div>
+      <div class="header-sub">Certified Service Dog · Official Certification</div>
+    </div>
+    <div class="dog-name"><h2>${dogName}</h2></div>
+    <div class="details">
+      ${data.breed ? `<div class="field"><span class="field-label">גזע</span><span class="field-value">${data.breed}</span></div>` : ""}
+      ${data.registrationNumber ? `<div class="field"><span class="field-label">מספר רישום</span><span class="field-value">${data.registrationNumber}</span></div>` : ""}
+      ${data.recipientName ? `<div class="field"><span class="field-label">משתמש / זכאי</span><span class="field-value">${data.recipientName}</span></div>` : ""}
+      ${data.certifyingBody ? `<div class="field"><span class="field-label">גוף מסמיך</span><span class="field-value">${data.certifyingBody}</span></div>` : ""}
+      ${certDate ? `<div class="field"><span class="field-label">תאריך הסמכה</span><span class="field-value">${certDate}</span></div>` : ""}
+    </div>
+    ${card.qrPayload ? `<div class="qr-section"><img src="${card.qrPayload}" alt="QR Code" /><p class="qr-note">סרוק לאימות תעודה</p></div>` : ""}
+    <div class="footer">הונפק על ידי Petra Pet Business Management · מסמך רשמי</div>
+  </div>
+  <script>window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; }</script>
+</body></html>`;
+    const win = window.open("", "_blank", "width=700,height=900");
+    if (win) { win.document.write(html); win.document.close(); }
+    else toast.error("חסמת חלונות קופצים — אפשר ידנית בדפדפן");
+  };
 
   const fetchAndViewCard = async (dogId: string, dogName: string) => {
     try {
@@ -89,11 +142,11 @@ export default function IDCardsPage() {
           <div className="flex items-center gap-2 text-sm text-petra-muted mb-1">
             <Link href="/service-dogs" className="hover:text-foreground">כלבי שירות</Link>
             <ChevronLeft className="w-3.5 h-3.5" />
-            <span>תעודות זהות</span>
+            <span>תעודות הסמכה</span>
           </div>
           <h1 className="page-title flex items-center gap-2">
             <CreditCard className="w-6 h-6 text-brand-500" />
-            תעודות זהות
+            תעודות הסמכה
           </h1>
           <p className="text-sm text-petra-muted mt-1">
             {dogsWithCards.length} תעודות פעילות · {certifiedWithoutCards.length} מוסמכים ללא תעודה
@@ -134,7 +187,7 @@ export default function IDCardsPage() {
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4 text-amber-500" />
             <h3 className="font-semibold text-amber-700">
-              כלבים מוסמכים ללא תעודת זהות ({certifiedWithoutCards.length})
+              כלבים מוסמכים ללא תעודת הסמכה ({certifiedWithoutCards.length})
             </h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -351,11 +404,11 @@ export default function IDCardsPage() {
 
             <div className="flex gap-2">
               <button
-                onClick={() => window.print()}
+                onClick={() => downloadPDF(viewingCard.card, viewingCard.dogName)}
                 className="btn-primary flex-1 flex items-center justify-center gap-2"
               >
                 <Printer className="w-4 h-4" />
-                הדפס תעודה
+                הורד PDF
               </button>
               <button onClick={() => setViewingCard(null)} className="btn-secondary flex-1">
                 סגור

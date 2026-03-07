@@ -260,9 +260,6 @@ export default function ServiceDogsOverviewPage() {
                           >
                             {phaseInfo?.label || dog.phase}
                           </span>
-                          {dog.isGovReportPending && (
-                            <span className="text-xs text-red-600 font-medium">⚠ דיווח ממשלתי</span>
-                          )}
                           {dog.medicalCompliance.status === "red" && (
                             <span className="text-xs text-red-600">
                               {dog.medicalCompliance.overdueCount} פרוטוקולים באיחור
@@ -282,72 +279,6 @@ export default function ServiceDogsOverviewPage() {
           )}
         </div>
 
-        {/* Pending Compliance Events */}
-        <div className="card p-0 overflow-hidden">
-          <div className="px-5 py-4 border-b flex items-center justify-between">
-            <h2 className="font-semibold flex items-center gap-2">
-              <Heart className="w-4 h-4 text-red-500" />
-              דיווחים ממתינים
-              {visibleEvents.length > 0 && (
-                <span className="bg-red-100 text-red-700 text-xs font-bold rounded-full px-2 py-0.5">
-                  {visibleEvents.length}
-                </span>
-              )}
-            </h2>
-            <Link href="/service-dogs/compliance" className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1">
-              כל הדיווחים <ArrowLeft className="w-3 h-3" />
-            </Link>
-          </div>
-
-          {visibleEvents.length === 0 ? (
-            <div className="px-5 py-8 text-center">
-              <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-400 mb-2" />
-              <p className="text-sm text-petra-muted">אין דיווחים ממתינים</p>
-            </div>
-          ) : (
-            <div className="divide-y">
-              {visibleEvents.map((event) => {
-                const isOverdue =
-                  event.notificationDue && new Date(event.notificationDue) < new Date();
-                return (
-                  <div key={event.id} className="px-4 py-3.5 flex items-start gap-2">
-                    <button
-                      type="button"
-                      onClick={() => dismiss(event.id, COMPLIANCE_EVENT_MAP[event.eventType]?.label || event.eventType, "event")}
-                      className="w-5 h-5 rounded-full border-2 border-slate-300 flex-shrink-0 flex items-center justify-center hover:border-emerald-400 hover:bg-emerald-50 transition-all mt-0.5"
-                      title="סמן כטופל"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">
-                            {COMPLIANCE_EVENT_MAP[event.eventType]?.label || event.eventType}
-                          </p>
-                          <p className="text-xs text-petra-muted mt-0.5 truncate">
-                            {event.eventDescription}
-                          </p>
-                          <p className="text-xs text-petra-muted mt-0.5">
-                            {formatDate(event.eventAt)}
-                            {event.notificationDue && (
-                              <span className={cn("mr-2", isOverdue ? "text-red-600 font-medium" : "text-amber-600")}>
-                                · דד-ליין: {formatDate(event.notificationDue)}
-                              </span>
-                            )}
-                          </p>
-                        </div>
-                        {isOverdue && (
-                          <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
-                            באיחור
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Recent Training Sessions */}
@@ -838,31 +769,11 @@ function AlertsWidget({
   };
 
   const overdueCount =
-    alerts.medical.items.filter((i) => i.isOverdue && !dismissedIds.has(i.id)).length +
-    alerts.compliance.items.filter((i) => i.isOverdue && !dismissedIds.has(i.id)).length;
+    alerts.medical.items.filter((i) => i.isOverdue && !dismissedIds.has(i.id)).length;
 
-  const activeTotal = alerts.total - dismissedIds.size;
+  const activeTotal = alerts.medical.count + alerts.training.count - dismissedIds.size;
 
   const sections = [
-    {
-      key: "compliance",
-      label: "דיווחים ממשלתיים",
-      icon: FileWarning,
-      color: "text-red-600",
-      bg: "bg-red-50 border-red-200",
-      headerBg: "bg-red-50",
-      count: alerts.compliance.count,
-      items: alerts.compliance.items.map((e) => ({
-        id: e.id,
-        dogId: e.dogId,
-        dogName: e.dogName,
-        isOverdue: e.isOverdue,
-        line1: e.eventDescription,
-        line2: e.notificationDue
-          ? `יש לדווח עד: ${new Date(e.notificationDue).toLocaleDateString("he-IL")}`
-          : "נדרש דיווח",
-      })),
-    },
     {
       key: "medical",
       label: "חיסונים ופרוטוקולים רפואיים",

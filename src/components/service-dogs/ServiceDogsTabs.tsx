@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Dog, UserCheck, Activity, AlertTriangle, CreditCard } from "lucide-react";
+import { LayoutDashboard, Dog, UserCheck, Activity, CreditCard, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { name: "סקירה",          href: "/service-dogs",             icon: LayoutDashboard },
-  { name: "כלבים",          href: "/service-dogs/dogs",        icon: Dog             },
-  { name: "זכאים",          href: "/service-dogs/recipients",  icon: UserCheck       },
-  { name: "שיבוצים",        href: "/service-dogs/placements",  icon: Activity        },
-  { name: "דיווח ממשלתי",   href: "/service-dogs/compliance",  icon: AlertTriangle   },
-  { name: "תעודות זהות",    href: "/service-dogs/id-cards",    icon: CreditCard      },
+  { name: "סקירה",          href: "/service-dogs",              icon: LayoutDashboard },
+  { name: "כלבים",          href: "/service-dogs/dogs",         icon: Dog             },
+  { name: "זכאים",          href: "/service-dogs/recipients",   icon: UserCheck       },
+  { name: "שיבוצים",        href: "/service-dogs/placements",   icon: Activity        },
+  { name: "תעודות הסמכה",  href: "/service-dogs/id-cards",     icon: CreditCard      },
+  { name: "דוחות פנימיים", href: "/service-dogs/reports",      icon: BarChart2       },
 ];
 
 export function ServiceDogsTabs() {

@@ -293,10 +293,9 @@ export default function ServiceDogProfilePage() {
     { id: "medical" as const, label: "פרוטוקולים רפואיים", icon: Heart },
     { id: "training" as const, label: "יומן אימונים", icon: Clock },
     { id: "tests" as const, label: "מבחני הכשרה", icon: GraduationCap, badge: Array.isArray(dog.trainingTests) ? (dog.trainingTests as unknown[]).length : 0 },
-    { id: "compliance" as const, label: "דיווח ממשלתי", icon: AlertTriangle, badge: dog.isGovReportPending ? 1 : 0 },
     { id: "placements" as const, label: "שיבוצים", icon: Activity },
     { id: "documents" as const, label: "מסמכים", icon: FileText, badge: Array.isArray(dog.documents) ? (dog.documents as unknown[]).length : 0 },
-    { id: "idcard" as const, label: "תעודת זהות", icon: CreditCard },
+    { id: "idcard" as const, label: "תעודת הסמכה", icon: CreditCard },
   ];
 
   return (
@@ -1990,7 +1989,7 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
       queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
-      toast.success("תעודת זהות הונפקה");
+      toast.success("תעודת הסמכה הונפקה");
     },
     onError: () => toast.error("שגיאה בהנפקת תעודה"),
   });
@@ -2017,7 +2016,7 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
           <div>
             <p className="font-semibold text-amber-700">הכלב טרם הוסמך</p>
             <p className="text-sm text-amber-600 mt-0.5">
-              ניתן להנפיק תעודת זהות רק לכלבים מוסמכים (שלב: מוסמך)
+              ניתן להנפיק תעודת הסמכה רק לכלבים מוסמכים (שלב: מוסמך)
             </p>
           </div>
         </div>
@@ -2026,7 +2025,7 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
       {!activeCard ? (
         <div className="card p-8 text-center">
           <CreditCard className="w-12 h-12 mx-auto text-petra-muted/40 mb-3" />
-          <p className="text-petra-muted mb-4">אין תעודת זהות פעילה</p>
+          <p className="text-petra-muted mb-4">אין תעודת הסמכה פעילה</p>
           {dog.phase === "CERTIFIED" && (
             <button
               onClick={() => generateMutation.mutate()}
@@ -2034,7 +2033,7 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
               className="btn-primary inline-flex items-center gap-2"
             >
               <QrCode className="w-4 h-4" />
-              {generateMutation.isPending ? "מייצר..." : "הנפק תעודת זהות"}
+              {generateMutation.isPending ? "מייצר..." : "הנפק תעודת הסמכה"}
             </button>
           )}
         </div>
@@ -2044,7 +2043,7 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
             <div>
               <h4 className="font-semibold flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-emerald-500" />
-                תעודת זהות פעילה
+                תעודת הסמכה פעילה
               </h4>
               <p className="text-xs text-petra-muted mt-0.5">
                 הונפקה: {formatDate(activeCard.generatedAt)}
