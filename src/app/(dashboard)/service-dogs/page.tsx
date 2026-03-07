@@ -130,13 +130,6 @@ export default function ServiceDogsOverviewPage() {
     .filter((e) => e.notificationStatus === "PENDING")
     .slice(0, 8);
 
-  const quickLinks = [
-    { href: "/service-dogs/dogs", label: "ניהול כלבים", icon: Dog, color: "bg-blue-50 text-blue-700 border-blue-200" },
-    { href: "/service-dogs/recipients", label: "זכאים", icon: UserCheck, color: "bg-purple-50 text-purple-700 border-purple-200" },
-    { href: "/service-dogs/placements", label: "שיבוצים", icon: Activity, color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-    { href: "/service-dogs/compliance", label: "משמעת ודיווח", icon: AlertTriangle, color: "bg-amber-50 text-amber-700 border-amber-200" },
-    { href: "/service-dogs/id-cards", label: "תעודות זהות", icon: CreditCard, color: "bg-slate-50 text-slate-700 border-slate-200" },
-  ];
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -175,30 +168,6 @@ export default function ServiceDogsOverviewPage() {
         <StatCard label="אימונים השבוע" value={thisWeek} icon={GraduationCap} color="brand" />
       </div>
 
-      {/* Quick Links */}
-      <div>
-        <h2 className="text-sm font-semibold text-petra-muted mb-3 uppercase tracking-wider">
-          ניווט מהיר
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-          {quickLinks.map((link) => {
-            const Icon = link.icon;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "flex flex-col items-center gap-2 p-4 rounded-xl border text-center transition-all hover:shadow-md hover:-translate-y-0.5",
-                  link.color
-                )}
-              >
-                <Icon className="w-6 h-6" />
-                <span className="text-sm font-medium">{link.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Dogs Needing Attention */}
