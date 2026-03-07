@@ -23,7 +23,9 @@ export async function GET(request: NextRequest) {
       where: {
         businessId: authResult.businessId,
         ...statusFilter,
-        ...(trainingType && { trainingType }),
+        ...(trainingType
+          ? { trainingType }
+          : { trainingType: { not: "SERVICE_DOG" } }),
       },
       include: {
         dog: true,

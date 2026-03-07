@@ -15,7 +15,13 @@ export async function GET(
     const dog = await prisma.serviceDogProfile.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
       include: {
-        pet: true,
+        pet: {
+          include: {
+            health: true,
+            behavior: true,
+            medications: { orderBy: { createdAt: "desc" } },
+          },
+        },
         medicalProtocols: { orderBy: { createdAt: "asc" } },
         trainingLogs: { orderBy: { sessionDate: "desc" }, take: 20 },
         complianceEvents: { orderBy: { eventAt: "desc" }, take: 20 },

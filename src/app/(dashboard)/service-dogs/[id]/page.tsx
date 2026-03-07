@@ -15,6 +15,7 @@ import {
   X,
   CheckCircle2,
   ChevronDown,
+  ChevronUp,
   Eye,
   Activity,
   Shield,
@@ -27,6 +28,11 @@ import {
   FileText,
   TrendingUp,
   GraduationCap,
+  UtensilsCrossed,
+  Pill,
+  Trash2,
+  Pencil,
+  Stethoscope,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import {
@@ -42,6 +48,62 @@ import {
 import { toast } from "sonner";
 
 // ─── Types ───
+
+interface PetHealth {
+  neuteredSpayed: boolean;
+  allergies: string | null;
+  medicalConditions: string | null;
+  surgeriesHistory: string | null;
+  activityLimitations: string | null;
+  vetName: string | null;
+  vetPhone: string | null;
+  rabiesLastDate: string | null;
+  rabiesValidUntil: string | null;
+  dhppLastDate: string | null;
+  dhppPuppy1Date: string | null;
+  dhppPuppy2Date: string | null;
+  dhppPuppy3Date: string | null;
+  bordatellaDate: string | null;
+  parkWormDate: string | null;
+  dewormingLastDate: string | null;
+  fleaTickType: string | null;
+  fleaTickDate: string | null;
+  fleaTickExpiryDate: string | null;
+  originInfo: string | null;
+  timeWithOwner: string | null;
+}
+
+interface PetBehavior {
+  dogAggression: boolean;
+  humanAggression: boolean;
+  leashReactivity: boolean;
+  leashPulling: boolean;
+  jumping: boolean;
+  separationAnxiety: boolean;
+  excessiveBarking: boolean;
+  destruction: boolean;
+  resourceGuarding: boolean;
+  fears: boolean;
+  badWithKids: boolean;
+  houseSoiling: boolean;
+  biteHistory: boolean;
+  biteDetails: string | null;
+  triggers: string | null;
+  priorTraining: boolean;
+  priorTrainingDetails: string | null;
+  customIssues: string | null;
+}
+
+interface PetMedication {
+  id: string;
+  medName: string;
+  dosage: string | null;
+  frequency: string | null;
+  times: string | null;
+  instructions: string | null;
+  startDate: string | null;
+  endDate: string | null;
+}
 
 interface ServiceDogDetail {
   id: string;
@@ -61,7 +123,24 @@ interface ServiceDogDetail {
   certificationExpiry: string | null;
   notes: string | null;
   createdAt: string;
-  pet: { id: string; name: string; breed: string | null; species: string; gender: string | null };
+  pet: {
+    id: string;
+    name: string;
+    breed: string | null;
+    species: string;
+    gender: string | null;
+    birthDate: string | null;
+    weight: number | null;
+    microchip: string | null;
+    foodBrand: string | null;
+    foodGramsPerDay: number | null;
+    foodFrequency: string | null;
+    foodNotes: string | null;
+    medicalNotes: string | null;
+    health: PetHealth | null;
+    behavior: PetBehavior | null;
+    medications: PetMedication[];
+  };
   medicalProtocols: MedicalProtocol[];
   trainingLogs: TrainingLog[];
   complianceEvents: ComplianceEvent[];
@@ -150,7 +229,7 @@ export default function ServiceDogProfilePage() {
   const params = useParams();
   const router = useRouter();
   const dogId = params.id as string;
-  const [activeTab, setActiveTab] = useState<"training" | "medical" | "compliance" | "placements" | "idcard">("training");
+  const [activeTab, setActiveTab] = useState<"training" | "medical" | "compliance" | "placements" | "idcard" | "dogfile">("training");
   const [showPhaseDropdown, setShowPhaseDropdown] = useState(false);
   const queryClient = useQueryClient();
 
@@ -213,6 +292,7 @@ export default function ServiceDogProfilePage() {
     { id: "compliance" as const, label: "משמעת ודיווח", icon: AlertTriangle, badge: dog.isGovReportPending ? 1 : 0 },
     { id: "placements" as const, label: "שיבוצים", icon: Activity },
     { id: "idcard" as const, label: "תעודת זהות", icon: CreditCard },
+    { id: "dogfile" as const, label: "תיק כלב", icon: Stethoscope },
   ];
 
   return (
@@ -442,6 +522,7 @@ export default function ServiceDogProfilePage() {
         {activeTab === "compliance" && <ComplianceTab dog={dog} dogId={dogId} />}
         {activeTab === "placements" && <PlacementsTab dog={dog} />}
         {activeTab === "idcard" && <IDCardTab dog={dog} dogId={dogId} />}
+        {activeTab === "dogfile" && <DogFileTab dog={dog} dogId={dogId} />}
       </div>
 
       {/* Notes */}
@@ -1366,6 +1447,830 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Dog File Tab ───
+
+const BEHAVIOR_FLAGS: { key: keyof PetBehavior; label: string }[] = [
+  { key: "dogAggression", label: "תוקפנות כלפי כלבים" },
+  { key: "humanAggression", label: "תוקפנות כלפי בני אדם" },
+  { key: "leashReactivity", label: "ריאקטיביות בשרשרת" },
+  { key: "leashPulling", label: "משיכה בשרשרת" },
+  { key: "jumping", label: "קפיצה על אנשים" },
+  { key: "separationAnxiety", label: "חרדת נטישה" },
+  { key: "excessiveBarking", label: "נביחות מוגזמות" },
+  { key: "destruction", label: "הרס" },
+  { key: "resourceGuarding", label: "שמירת משאבים" },
+  { key: "fears", label: "פחדים" },
+  { key: "badWithKids", label: "לא מתאים לילדים" },
+  { key: "houseSoiling", label: "כלוך בבית" },
+  { key: "biteHistory", label: "היסטוריית נשיכה" },
+  { key: "priorTraining", label: "עבר אילוף בעבר" },
+];
+
+function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
+  const queryClient = useQueryClient();
+  const pet = dog.pet;
+
+  const [showHealthModal, setShowHealthModal] = useState(false);
+  const [showBehaviorModal, setShowBehaviorModal] = useState(false);
+  const [showFeedingModal, setShowFeedingModal] = useState(false);
+  const [medModal, setMedModal] = useState<{ med: PetMedication | null } | null>(null);
+  const [deletingMed, setDeletingMed] = useState<string | null>(null);
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+
+  // ── Active behavior flags ──
+  const behaviorFlags = BEHAVIOR_FLAGS.filter(({ key }) => {
+    const v = pet.behavior?.[key];
+    return typeof v === "boolean" && v;
+  });
+  const customIssues: string[] = (() => {
+    try { return pet.behavior?.customIssues ? JSON.parse(pet.behavior.customIssues) : []; }
+    catch { return []; }
+  })();
+
+  const toDate = (v: string | null) => v ? new Date(v).toLocaleDateString("he-IL") : null;
+
+  const deleteMedMutation = useMutation({
+    mutationFn: (medId: string) =>
+      fetch(`/api/pets/${pet.id}/medications/${medId}`, { method: "DELETE" }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: () => { invalidate(); setDeletingMed(null); toast.success("תרופה הוסרה"); },
+    onError: () => toast.error("שגיאה במחיקת תרופה"),
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* Basic dog info */}
+      <div className="card p-5">
+        <h3 className="font-semibold mb-3 flex items-center gap-2">
+          <Dog className="w-4 h-4 text-brand-500" />
+          פרטי כלב
+        </h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+          {pet.birthDate && (
+            <div>
+              <p className="text-xs text-petra-muted">תאריך לידה</p>
+              <p className="font-medium">{toDate(pet.birthDate)}</p>
+            </div>
+          )}
+          {pet.weight && (
+            <div>
+              <p className="text-xs text-petra-muted">משקל</p>
+              <p className="font-medium">{pet.weight} ק״ג</p>
+            </div>
+          )}
+          {pet.microchip && (
+            <div>
+              <p className="text-xs text-petra-muted">שבב מיקרו</p>
+              <p className="font-medium font-mono text-xs">{pet.microchip}</p>
+            </div>
+          )}
+          {pet.health?.neuteredSpayed && (
+            <div>
+              <p className="text-xs text-petra-muted">מצב</p>
+              <p className="font-medium">מסורס / עקור</p>
+            </div>
+          )}
+          {pet.health?.vetName && (
+            <div>
+              <p className="text-xs text-petra-muted">וטרינר</p>
+              <p className="font-medium">{pet.health.vetName}</p>
+              {pet.health.vetPhone && <p className="text-xs text-petra-muted">{pet.health.vetPhone}</p>}
+            </div>
+          )}
+          {pet.health?.originInfo && (
+            <div>
+              <p className="text-xs text-petra-muted">מקור</p>
+              <p className="font-medium">{pet.health.originInfo}</p>
+            </div>
+          )}
+        </div>
+        {pet.medicalNotes && (
+          <div className="mt-3 pt-3 border-t">
+            <p className="text-xs text-petra-muted mb-1">הערות רפואיות</p>
+            <p className="text-sm">{pet.medicalNotes}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Feeding */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold flex items-center gap-2">
+            <UtensilsCrossed className="w-4 h-4 text-amber-500" />
+            האכלה
+          </h3>
+          <button
+            className="btn-ghost flex items-center gap-1.5 text-sm"
+            onClick={() => setShowFeedingModal(true)}
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            ערוך
+          </button>
+        </div>
+        {pet.foodBrand || pet.foodGramsPerDay || pet.foodFrequency || pet.foodNotes ? (
+          <div className="space-y-2 text-sm">
+            {pet.foodBrand && (
+              <div className="flex gap-2">
+                <span className="text-petra-muted">מותג:</span>
+                <span className="font-medium">{pet.foodBrand}</span>
+              </div>
+            )}
+            <div className="flex gap-6">
+              {pet.foodGramsPerDay && (
+                <div className="flex gap-2">
+                  <span className="text-petra-muted">כמות:</span>
+                  <span className="font-medium">{pet.foodGramsPerDay} גרם/יום</span>
+                </div>
+              )}
+              {pet.foodFrequency && (
+                <div className="flex gap-2">
+                  <span className="text-petra-muted">תדירות:</span>
+                  <span>{pet.foodFrequency}</span>
+                </div>
+              )}
+            </div>
+            {pet.foodNotes && <p className="text-petra-muted text-xs">{pet.foodNotes}</p>}
+          </div>
+        ) : (
+          <button
+            className="w-full text-sm text-amber-400 hover:text-amber-600 py-2 border border-dashed border-amber-200 hover:border-amber-300 rounded-xl transition-colors"
+            onClick={() => setShowFeedingModal(true)}
+          >
+            + הוסף פרטי האכלה
+          </button>
+        )}
+      </div>
+
+      {/* Medications */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Pill className="w-4 h-4 text-red-500" />
+            תרופות ({pet.medications.length})
+          </h3>
+          <button
+            className="btn-ghost flex items-center gap-1.5 text-sm"
+            onClick={() => setMedModal({ med: null })}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            הוסף תרופה
+          </button>
+        </div>
+        {pet.medications.length > 0 ? (
+          <div className="space-y-2">
+            {pet.medications.map((med) => (
+              <div key={med.id} className="flex items-start justify-between p-3 bg-red-50 rounded-xl">
+                <div>
+                  <p className="text-sm font-medium">{med.medName}</p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-petra-muted mt-0.5">
+                    {med.dosage && <span>מינון: {med.dosage}</span>}
+                    {med.frequency && <span>תדירות: {med.frequency}</span>}
+                    {med.times && <span>שעות: {med.times}</span>}
+                    {med.startDate && <span>מ-{toDate(med.startDate)}</span>}
+                    {med.endDate && <span>עד {toDate(med.endDate)}</span>}
+                  </div>
+                  {med.instructions && <p className="text-xs text-petra-muted mt-0.5">{med.instructions}</p>}
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white transition-colors"
+                    onClick={() => setMedModal({ med })}
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-brand-500" />
+                  </button>
+                  <button
+                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white transition-colors"
+                    onClick={() => setDeletingMed(med.id)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-petra-muted text-center py-3">אין תרופות רשומות</p>
+        )}
+      </div>
+
+      {/* Health + Vaccinations */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Heart className="w-4 h-4 text-emerald-500" />
+            בריאות וחיסונים
+          </h3>
+          <button
+            className="btn-ghost flex items-center gap-1.5 text-sm"
+            onClick={() => setShowHealthModal(true)}
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            ערוך
+          </button>
+        </div>
+        {pet.health ? (
+          <div className="space-y-4">
+            {/* Medical info */}
+            {(pet.health.allergies || pet.health.medicalConditions || pet.health.surgeriesHistory || pet.health.activityLimitations) && (
+              <div>
+                <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">מצב רפואי</p>
+                <div className="space-y-1.5 text-sm">
+                  {pet.health.allergies && (
+                    <div className="flex gap-2">
+                      <span className="text-petra-muted">אלרגיות:</span>
+                      <span>{pet.health.allergies}</span>
+                    </div>
+                  )}
+                  {pet.health.medicalConditions && (
+                    <div className="flex gap-2">
+                      <span className="text-petra-muted">מצבים רפואיים:</span>
+                      <span>{pet.health.medicalConditions}</span>
+                    </div>
+                  )}
+                  {pet.health.surgeriesHistory && (
+                    <div className="flex gap-2">
+                      <span className="text-petra-muted">ניתוחים:</span>
+                      <span>{pet.health.surgeriesHistory}</span>
+                    </div>
+                  )}
+                  {pet.health.activityLimitations && (
+                    <div className="flex gap-2">
+                      <span className="text-petra-muted">מגבלות:</span>
+                      <span>{pet.health.activityLimitations}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {/* Vaccinations */}
+            <div>
+              <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">חיסונים וטיפולים</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  { label: "כלבת", date: pet.health.rabiesLastDate, until: pet.health.rabiesValidUntil },
+                  { label: "משושה בוגר (DHPP)", date: pet.health.dhppLastDate, until: null },
+                  { label: "שעלת מכלאות", date: pet.health.bordatellaDate, until: null },
+                  { label: "תולעת הפארק", date: pet.health.parkWormDate, until: null },
+                  { label: "תילוע", date: pet.health.dewormingLastDate, until: null },
+                  ...(pet.health.fleaTickDate ? [{ label: pet.health.fleaTickType || "קרציות ופרעושים", date: pet.health.fleaTickDate, until: pet.health.fleaTickExpiryDate }] : []),
+                ]
+                  .filter((v) => v.date)
+                  .map((v) => (
+                    <div key={v.label} className="flex items-center justify-between p-2.5 bg-emerald-50 rounded-lg text-sm">
+                      <span className="text-petra-text font-medium">{v.label}</span>
+                      <div className="text-right">
+                        <span className="text-petra-muted">{toDate(v.date)}</span>
+                        {v.until && (
+                          <p className="text-xs text-petra-muted">תוקף: {toDate(v.until)}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                {[pet.health.rabiesLastDate, pet.health.dhppLastDate, pet.health.bordatellaDate, pet.health.parkWormDate, pet.health.dewormingLastDate, pet.health.fleaTickDate].every((d) => !d) && (
+                  <p className="text-sm text-petra-muted col-span-2">אין חיסונים מתועדים</p>
+                )}
+              </div>
+            </div>
+            {/* Puppy vaccines */}
+            {(pet.health.dhppPuppy1Date || pet.health.dhppPuppy2Date || pet.health.dhppPuppy3Date) && (
+              <div>
+                <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">משושה גורים</p>
+                <div className="flex gap-3 text-sm">
+                  {pet.health.dhppPuppy1Date && <span className="bg-blue-50 px-2 py-1 rounded-lg">מנה 1: {toDate(pet.health.dhppPuppy1Date)}</span>}
+                  {pet.health.dhppPuppy2Date && <span className="bg-blue-50 px-2 py-1 rounded-lg">מנה 2: {toDate(pet.health.dhppPuppy2Date)}</span>}
+                  {pet.health.dhppPuppy3Date && <span className="bg-blue-50 px-2 py-1 rounded-lg">מנה 3: {toDate(pet.health.dhppPuppy3Date)}</span>}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            className="w-full text-sm text-emerald-400 hover:text-emerald-600 py-2 border border-dashed border-emerald-200 hover:border-emerald-300 rounded-xl transition-colors"
+            onClick={() => setShowHealthModal(true)}
+          >
+            + הוסף מידע בריאות וחיסונים
+          </button>
+        )}
+      </div>
+
+      {/* Behavior */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            התנהגות
+          </h3>
+          <button
+            className="btn-ghost flex items-center gap-1.5 text-sm"
+            onClick={() => setShowBehaviorModal(true)}
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            ערוך
+          </button>
+        </div>
+        {behaviorFlags.length > 0 || customIssues.length > 0 ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-1.5">
+              {behaviorFlags.map(({ key, label }) => (
+                <span key={key} className="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                  {label}
+                </span>
+              ))}
+              {customIssues.map((issue, idx) => (
+                <span key={idx} className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                  {issue}
+                </span>
+              ))}
+            </div>
+            {pet.behavior?.biteHistory && pet.behavior.biteDetails && (
+              <div className="text-sm">
+                <span className="text-petra-muted">פרטי נשיכה: </span>
+                <span>{pet.behavior.biteDetails}</span>
+              </div>
+            )}
+            {pet.behavior?.triggers && (
+              <div className="text-sm">
+                <span className="text-petra-muted">טריגרים: </span>
+                <span>{pet.behavior.triggers}</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-petra-muted">לא תועדו בעיות התנהגות</p>
+        )}
+      </div>
+
+      {/* Modals */}
+      {showHealthModal && (
+        <SDHealthModal
+          petId={pet.id}
+          petName={pet.name}
+          health={pet.health}
+          dogId={dogId}
+          onClose={() => setShowHealthModal(false)}
+        />
+      )}
+      {showBehaviorModal && (
+        <SDBehaviorModal
+          petId={pet.id}
+          petName={pet.name}
+          behavior={pet.behavior}
+          dogId={dogId}
+          onClose={() => setShowBehaviorModal(false)}
+        />
+      )}
+      {showFeedingModal && (
+        <SDFeedingModal
+          petId={pet.id}
+          petName={pet.name}
+          pet={pet}
+          dogId={dogId}
+          onClose={() => setShowFeedingModal(false)}
+        />
+      )}
+      {medModal !== null && (
+        <SDMedModal
+          petId={pet.id}
+          petName={pet.name}
+          med={medModal.med}
+          dogId={dogId}
+          onClose={() => setMedModal(null)}
+        />
+      )}
+      {deletingMed && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setDeletingMed(null)} />
+          <div className="modal-content max-w-sm p-6">
+            <p className="font-medium mb-4">למחוק תרופה זו?</p>
+            <div className="flex gap-3">
+              <button
+                className="btn-primary flex-1 bg-red-600 hover:bg-red-700"
+                disabled={deleteMedMutation.isPending}
+                onClick={() => deleteMedMutation.mutate(deletingMed)}
+              >
+                {deleteMedMutation.isPending ? "מוחק..." : "מחק"}
+              </button>
+              <button className="btn-secondary" onClick={() => setDeletingMed(null)}>ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── SD Health Modal ───
+
+function SDHealthModal({
+  petId, petName, health, dogId, onClose,
+}: {
+  petId: string; petName: string; health: PetHealth | null; dogId: string; onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const toDateInput = (v: string | null) => (v ? v.split("T")[0] : "");
+  const h = health;
+  const [form, setForm] = useState({
+    rabiesLastDate: toDateInput(h?.rabiesLastDate ?? null),
+    rabiesValidUntil: toDateInput(h?.rabiesValidUntil ?? null),
+    dhppLastDate: toDateInput(h?.dhppLastDate ?? null),
+    dhppPuppy1Date: toDateInput(h?.dhppPuppy1Date ?? null),
+    dhppPuppy2Date: toDateInput(h?.dhppPuppy2Date ?? null),
+    dhppPuppy3Date: toDateInput(h?.dhppPuppy3Date ?? null),
+    bordatellaDate: toDateInput(h?.bordatellaDate ?? null),
+    parkWormDate: toDateInput(h?.parkWormDate ?? null),
+    dewormingLastDate: toDateInput(h?.dewormingLastDate ?? null),
+    fleaTickType: h?.fleaTickType ?? "",
+    fleaTickDate: toDateInput(h?.fleaTickDate ?? null),
+    fleaTickExpiryDate: toDateInput(h?.fleaTickExpiryDate ?? null),
+    allergies: h?.allergies ?? "",
+    medicalConditions: h?.medicalConditions ?? "",
+    surgeriesHistory: h?.surgeriesHistory ?? "",
+    activityLimitations: h?.activityLimitations ?? "",
+    vetName: h?.vetName ?? "",
+    vetPhone: h?.vetPhone ?? "",
+    neuteredSpayed: h?.neuteredSpayed ?? false,
+    originInfo: h?.originInfo ?? "",
+    timeWithOwner: h?.timeWithOwner ?? "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/pets/${petId}/health`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+      onClose();
+      toast.success("מידע בריאות עודכן");
+    },
+    onError: () => toast.error("שגיאה בעדכון מידע הבריאות"),
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-lg mx-4 p-6 max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold">בריאות — {petName}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-5">
+          <div className="space-y-4">
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide">חיסונים וטיפולים</p>
+            <div>
+              <p className="text-xs font-medium mb-2">כלבת — אחת לשנה</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="label">תאריך חיסון</label><input className="input" type="date" value={form.rabiesLastDate} onChange={(e) => setForm({ ...form, rabiesLastDate: e.target.value })} /></div>
+                <div><label className="label">תוקף עד</label><input className="input" type="date" value={form.rabiesValidUntil} onChange={(e) => setForm({ ...form, rabiesValidUntil: e.target.value })} /></div>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-medium mb-2">משושה גורים — 3 מנות</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div><label className="label">מנה 1</label><input className="input" type="date" value={form.dhppPuppy1Date} onChange={(e) => setForm({ ...form, dhppPuppy1Date: e.target.value })} /></div>
+                <div><label className="label">מנה 2</label><input className="input" type="date" value={form.dhppPuppy2Date} onChange={(e) => setForm({ ...form, dhppPuppy2Date: e.target.value })} /></div>
+                <div><label className="label">מנה 3</label><input className="input" type="date" value={form.dhppPuppy3Date} onChange={(e) => setForm({ ...form, dhppPuppy3Date: e.target.value })} /></div>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-medium mb-2">משושה בוגר (DHPP)</p>
+              <div><label className="label">תאריך חיסון</label><input className="input" type="date" value={form.dhppLastDate} onChange={(e) => setForm({ ...form, dhppLastDate: e.target.value })} /></div>
+            </div>
+            <div>
+              <p className="text-xs font-medium mb-2">שעלת מכלאות</p>
+              <div><label className="label">תאריך קבלה</label><input className="input" type="date" value={form.bordatellaDate} onChange={(e) => setForm({ ...form, bordatellaDate: e.target.value })} /></div>
+            </div>
+            <div>
+              <p className="text-xs font-medium mb-2">תולעת הפארק</p>
+              <div><label className="label">תאריך טיפול</label><input className="input" type="date" value={form.parkWormDate} onChange={(e) => setForm({ ...form, parkWormDate: e.target.value })} /></div>
+            </div>
+            <div>
+              <p className="text-xs font-medium mb-2">תילוע</p>
+              <div><label className="label">תאריך תילוע</label><input className="input" type="date" value={form.dewormingLastDate} onChange={(e) => setForm({ ...form, dewormingLastDate: e.target.value })} /></div>
+            </div>
+            <div>
+              <p className="text-xs font-medium mb-2">קרציות ופרעושים</p>
+              <div className="space-y-2">
+                <div><label className="label">סוג טיפול</label><input className="input" placeholder="Nexgard, Bravecto..." value={form.fleaTickType} onChange={(e) => setForm({ ...form, fleaTickType: e.target.value })} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="label">תאריך טיפול</label><input className="input" type="date" value={form.fleaTickDate} onChange={(e) => setForm({ ...form, fleaTickDate: e.target.value })} /></div>
+                  <div><label className="label">תוקף עד</label><input className="input" type="date" value={form.fleaTickExpiryDate} onChange={(e) => setForm({ ...form, fleaTickExpiryDate: e.target.value })} /></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">מצב רפואי</p>
+            <div className="space-y-3">
+              <div><label className="label">אלרגיות</label><input className="input" value={form.allergies} onChange={(e) => setForm({ ...form, allergies: e.target.value })} /></div>
+              <div><label className="label">מצבים רפואיים</label><textarea className="input min-h-[60px]" value={form.medicalConditions} onChange={(e) => setForm({ ...form, medicalConditions: e.target.value })} /></div>
+              <div><label className="label">ניתוחים בעבר</label><input className="input" value={form.surgeriesHistory} onChange={(e) => setForm({ ...form, surgeriesHistory: e.target.value })} /></div>
+              <div><label className="label">מגבלות פעילות</label><input className="input" value={form.activityLimitations} onChange={(e) => setForm({ ...form, activityLimitations: e.target.value })} /></div>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">וטרינר</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="label">שם וטרינר</label><input className="input" value={form.vetName} onChange={(e) => setForm({ ...form, vetName: e.target.value })} /></div>
+              <div><label className="label">טלפון וטרינר</label><input className="input" value={form.vetPhone} onChange={(e) => setForm({ ...form, vetPhone: e.target.value })} /></div>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">כללי</p>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={!!form.neuteredSpayed} onChange={(e) => setForm({ ...form, neuteredSpayed: e.target.checked })} className="w-4 h-4 accent-brand-500" />
+                <span className="text-sm">מסורס / עקור</span>
+              </label>
+              <div><label className="label">מקור</label><input className="input" value={form.originInfo} onChange={(e) => setForm({ ...form, originInfo: e.target.value })} placeholder="מאמץ, מגדל..." /></div>
+              <div><label className="label">זמן עם הבעלים / מטפל</label><input className="input" value={form.timeWithOwner} onChange={(e) => setForm({ ...form, timeWithOwner: e.target.value })} /></div>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button className="btn-primary flex-1" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+            {mutation.isPending ? "שומר..." : "שמור שינויים"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SD Behavior Modal ───
+
+function SDBehaviorModal({
+  petId, petName, behavior, dogId, onClose,
+}: {
+  petId: string; petName: string; behavior: PetBehavior | null; dogId: string; onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [customInput, setCustomInput] = useState("");
+  const [form, setForm] = useState({
+    dogAggression: behavior?.dogAggression ?? false,
+    humanAggression: behavior?.humanAggression ?? false,
+    leashReactivity: behavior?.leashReactivity ?? false,
+    leashPulling: behavior?.leashPulling ?? false,
+    jumping: behavior?.jumping ?? false,
+    separationAnxiety: behavior?.separationAnxiety ?? false,
+    excessiveBarking: behavior?.excessiveBarking ?? false,
+    destruction: behavior?.destruction ?? false,
+    resourceGuarding: behavior?.resourceGuarding ?? false,
+    fears: behavior?.fears ?? false,
+    badWithKids: behavior?.badWithKids ?? false,
+    houseSoiling: behavior?.houseSoiling ?? false,
+    biteHistory: behavior?.biteHistory ?? false,
+    priorTraining: behavior?.priorTraining ?? false,
+    biteDetails: behavior?.biteDetails ?? "",
+    triggers: behavior?.triggers ?? "",
+    priorTrainingDetails: behavior?.priorTrainingDetails ?? "",
+    customIssues: (() => {
+      try { return behavior?.customIssues ? JSON.parse(behavior.customIssues) : []; }
+      catch { return []; }
+    })() as string[],
+  });
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/pets/${petId}/behavior`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+      onClose();
+      toast.success("מידע התנהגות עודכן");
+    },
+    onError: () => toast.error("שגיאה בעדכון מידע ההתנהגות"),
+  });
+
+  const toggle = (key: string) => setForm((f) => ({ ...f, [key]: !f[key as keyof typeof f] }));
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6 max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold">התנהגות — {petName}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">דגלי התנהגות</p>
+            <div className="grid grid-cols-2 gap-y-2 gap-x-3">
+              {BEHAVIOR_FLAGS.map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={!!form[key as keyof typeof form]} onChange={() => toggle(key)} className="w-4 h-4 accent-brand-500" />
+                  <span className="text-xs">{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-3">
+            {form.biteHistory && (
+              <div><label className="label">פרטי נשיכה</label><textarea className="input min-h-[60px]" value={form.biteDetails} onChange={(e) => setForm({ ...form, biteDetails: e.target.value })} /></div>
+            )}
+            <div><label className="label">טריגרים</label><input className="input" value={form.triggers} onChange={(e) => setForm({ ...form, triggers: e.target.value })} placeholder="קולות חזקים, כלבים אחרים..." /></div>
+            {form.priorTraining && (
+              <div><label className="label">פרטי אילוף קודם</label><input className="input" value={form.priorTrainingDetails} onChange={(e) => setForm({ ...form, priorTrainingDetails: e.target.value })} /></div>
+            )}
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">בעיות נוספות</p>
+            {form.customIssues.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {form.customIssues.map((issue, idx) => (
+                  <span key={idx} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                    {issue}
+                    <button type="button" onClick={() => setForm((f) => ({ ...f, customIssues: f.customIssues.filter((_, i) => i !== idx) }))} className="hover:text-red-600">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input className="input flex-1" value={customInput} onChange={(e) => setCustomInput(e.target.value)} placeholder="הוסף בעיה..." onKeyDown={(e) => { if (e.key === "Enter" && customInput.trim()) { setForm((f) => ({ ...f, customIssues: [...f.customIssues, customInput.trim()] })); setCustomInput(""); } }} />
+              <button type="button" className="btn-secondary px-3" onClick={() => { if (customInput.trim()) { setForm((f) => ({ ...f, customIssues: [...f.customIssues, customInput.trim()] })); setCustomInput(""); } }}>
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button className="btn-primary flex-1" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+            {mutation.isPending ? "שומר..." : "שמור שינויים"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SD Feeding Modal ───
+
+function SDFeedingModal({
+  petId, petName, pet, dogId, onClose,
+}: {
+  petId: string;
+  petName: string;
+  pet: ServiceDogDetail["pet"];
+  dogId: string;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    foodBrand: pet.foodBrand ?? "",
+    foodGramsPerDay: pet.foodGramsPerDay?.toString() ?? "",
+    foodFrequency: pet.foodFrequency ?? "",
+    foodNotes: pet.foodNotes ?? "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/pets/${petId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          foodBrand: form.foodBrand || null,
+          foodGramsPerDay: form.foodGramsPerDay ? parseFloat(form.foodGramsPerDay) : null,
+          foodFrequency: form.foodFrequency || null,
+          foodNotes: form.foodNotes || null,
+        }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+      onClose();
+      toast.success("פרטי האכלה עודכנו");
+    },
+    onError: () => toast.error("שגיאה בעדכון פרטי האכלה"),
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold">האכלה — {petName}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-3">
+          <div><label className="label">מותג אוכל</label><input className="input" value={form.foodBrand} onChange={(e) => setForm({ ...form, foodBrand: e.target.value })} /></div>
+          <div><label className="label">כמות (גרם/יום)</label><input className="input" type="number" value={form.foodGramsPerDay} onChange={(e) => setForm({ ...form, foodGramsPerDay: e.target.value })} /></div>
+          <div>
+            <label className="label">תדירות האכלה</label>
+            <select className="input" value={form.foodFrequency} onChange={(e) => setForm({ ...form, foodFrequency: e.target.value })}>
+              <option value="">בחר...</option>
+              <option value="פעם ביום">פעם ביום</option>
+              <option value="פעמיים ביום">פעמיים ביום</option>
+              <option value="3 פעמים ביום">3 פעמים ביום</option>
+              <option value="4 פעמים ביום">4 פעמים ביום</option>
+            </select>
+          </div>
+          <div><label className="label">הערות</label><textarea className="input min-h-[60px]" value={form.foodNotes} onChange={(e) => setForm({ ...form, foodNotes: e.target.value })} /></div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button className="btn-primary flex-1" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+            {mutation.isPending ? "שומר..." : "שמור שינויים"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SD Medication Modal ───
+
+function SDMedModal({
+  petId, petName, med, dogId, onClose,
+}: {
+  petId: string; petName: string; med: PetMedication | null; dogId: string; onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    medName: med?.medName ?? "",
+    dosage: med?.dosage ?? "",
+    frequency: med?.frequency ?? "",
+    times: med?.times ?? "",
+    instructions: med?.instructions ?? "",
+    startDate: med?.startDate ? med.startDate.split("T")[0] : "",
+    endDate: med?.endDate ? med.endDate.split("T")[0] : "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      const url = med
+        ? `/api/pets/${petId}/medications/${med.id}`
+        : `/api/pets/${petId}/medications`;
+      return fetch(url, {
+        method: med ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          medName: form.medName.trim(),
+          dosage: form.dosage || null,
+          frequency: form.frequency || null,
+          times: form.times || null,
+          instructions: form.instructions || null,
+          startDate: form.startDate || null,
+          endDate: form.endDate || null,
+        }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+      onClose();
+      toast.success(med ? "תרופה עודכנה" : "תרופה נוספה");
+    },
+    onError: () => toast.error("שגיאה בשמירת תרופה"),
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold">{med ? "ערוך תרופה" : "הוסף תרופה"} — {petName}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-3">
+          <div><label className="label">שם תרופה *</label><input className="input" value={form.medName} onChange={(e) => setForm({ ...form, medName: e.target.value })} /></div>
+          <div><label className="label">מינון</label><input className="input" value={form.dosage} onChange={(e) => setForm({ ...form, dosage: e.target.value })} placeholder="1 כדור" /></div>
+          <div><label className="label">תדירות</label><input className="input" value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })} placeholder="פעמיים ביום" /></div>
+          <div><label className="label">שעות מתן</label><input className="input" value={form.times} onChange={(e) => setForm({ ...form, times: e.target.value })} placeholder="07:00, 19:00" /></div>
+          <div><label className="label">הוראות</label><input className="input" value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="label">תאריך התחלה</label><input className="input" type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} /></div>
+            <div><label className="label">תאריך סיום</label><input className="input" type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} /></div>
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button className="btn-primary flex-1" disabled={mutation.isPending || !form.medName.trim()} onClick={() => mutation.mutate()}>
+            {mutation.isPending ? "שומר..." : med ? "שמור שינויים" : "הוסף תרופה"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
     </div>
   );
 }
