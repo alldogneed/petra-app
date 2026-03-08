@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Shield, UserCheck, UserX, Plus, Loader2, X } from "lucide-react";
+import { Search, Shield, UserCheck, UserX, Plus, Loader2, X, Zap } from "lucide-react";
 import Link from "next/link";
 import { fetchJSON, cn } from "@/lib/utils";
 
@@ -166,22 +166,31 @@ export default function OwnerUsersPage() {
                     </span>
                   </td>
                   <td className="table-cell">
-                    <button
-                      onClick={() => toggleMutation.mutate(user)}
-                      disabled={toggleMutation.isPending}
-                      className={cn(
-                        "text-xs px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-40 flex items-center gap-1.5",
-                        user.isActive
-                          ? "bg-red-50 text-red-600 hover:bg-red-100"
-                          : "bg-green-50 text-green-600 hover:bg-green-100"
-                      )}
-                    >
-                      {user.isActive ? (
-                        <><UserX className="w-3.5 h-3.5" /> חסום</>
-                      ) : (
-                        <><UserCheck className="w-3.5 h-3.5" /> בטל חסימה</>
-                      )}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleMutation.mutate(user)}
+                        disabled={toggleMutation.isPending}
+                        className={cn(
+                          "text-xs px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-40 flex items-center gap-1.5",
+                          user.isActive
+                            ? "bg-red-50 text-red-600 hover:bg-red-100"
+                            : "bg-green-50 text-green-600 hover:bg-green-100"
+                        )}
+                      >
+                        {user.isActive ? (
+                          <><UserX className="w-3.5 h-3.5" /> חסום</>
+                        ) : (
+                          <><UserCheck className="w-3.5 h-3.5" /> בטל חסימה</>
+                        )}
+                      </button>
+                      <Link
+                        href={`/owner/users/${user.id}`}
+                        className="text-xs px-2 py-1.5 rounded-lg font-medium bg-orange-50 text-orange-600 hover:bg-orange-100 transition-colors flex items-center gap-1"
+                        title="ניהול מנוי ופיצ׳רים"
+                      >
+                        <Zap className="w-3 h-3" /> מנוי
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

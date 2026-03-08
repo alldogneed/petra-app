@@ -32,7 +32,7 @@ export async function GET(
       updatedAt: true,
       businessMemberships: {
         include: {
-          business: { select: { id: true, name: true, status: true } },
+          business: { select: { id: true, name: true, status: true, tier: true, featureOverrides: true } },
         },
       },
     },
