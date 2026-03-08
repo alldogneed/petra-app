@@ -233,6 +233,17 @@ export async function requireBusinessAuth(
     return NextResponse.json({ error: "Account is disabled" }, { status: 403 });
   }
 
+  // Impersonation: super_admin acting as a tenant
+  if (session.impersonatedBusinessId) {
+    const biz = await prisma.business.findUnique({
+      where: { id: session.impersonatedBusinessId },
+      select: { status: true },
+    });
+    if (biz?.status === "suspended") return NextResponse.json({ error: "business_suspended" }, { status: 403 });
+    if (biz?.status === "closed") return NextResponse.json({ error: "business_closed" }, { status: 403 });
+    return { session, businessId: session.impersonatedBusinessId };
+  }
+
   // Find the first active business membership
   const membership = session.memberships.find((m) => m.isActive);
   if (!membership) {
@@ -249,6 +260,14 @@ export async function requireBusinessAuth(
       { status: 403 }
     );
   }
+
+  // Check if the business is suspended/closed
+  const biz = await prisma.business.findUnique({
+    where: { id: membership.businessId },
+    select: { status: true },
+  });
+  if (biz?.status === "suspended") return NextResponse.json({ error: "business_suspended" }, { status: 403 });
+  if (biz?.status === "closed") return NextResponse.json({ error: "business_closed" }, { status: 403 });
 
   return { session, businessId: membership.businessId };
 }

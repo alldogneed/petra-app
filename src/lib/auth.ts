@@ -150,12 +150,16 @@ export async function getCurrentUser() {
     }
   }
 
+  // Resolve effective businessId (impersonation or membership)
+  const isImpersonating = !!session.impersonatedBusinessId;
+  const effectiveBusinessId = session.impersonatedBusinessId ?? membership?.businessId ?? null;
+
   // Fetch business details and avatarUrl in parallel (not in FullSession)
   const [business, platformUser] = await Promise.all([
-    membership?.businessId
+    effectiveBusinessId
       ? prisma.business.findUnique({
-          where: { id: membership.businessId },
-          select: { name: true, slug: true, tier: true, featureOverrides: true },
+          where: { id: effectiveBusinessId },
+          select: { name: true, slug: true, tier: true, featureOverrides: true, trialEndsAt: true },
         })
       : Promise.resolve(null),
     prisma.platformUser.findUnique({
@@ -164,6 +168,12 @@ export async function getCurrentUser() {
     }),
   ]);
 
+  // Effective tier: if trial expired, downgrade to "free"
+  const storedTier = business?.tier ?? "free";
+  const trialEndsAt = business?.trialEndsAt ?? null;
+  const trialExpired = trialEndsAt && trialEndsAt < new Date();
+  const businessEffectiveTier = trialExpired ? "free" : storedTier;
+
   return {
     id: session.user.id,
     email: session.user.email,
@@ -171,10 +181,12 @@ export async function getCurrentUser() {
     avatarUrl: platformUser?.avatarUrl ?? null,
     role: session.user.role || "USER",
     platformRole: session.user.platformRole,
-    businessId: membership?.businessId ?? null,
+    businessId: effectiveBusinessId,
     businessName: business?.name ?? null,
     businessSlug: business?.slug ?? null,
-    businessTier: business?.tier ?? "free",
+    businessTier: storedTier,
+    businessEffectiveTier,
+    businessTrialEndsAt: trialEndsAt?.toISOString() ?? null,
     businessFeatureOverrides: (() => {
       try {
         const raw = business?.featureOverrides;
@@ -182,8 +194,10 @@ export async function getCurrentUser() {
         return typeof raw === "string" ? JSON.parse(raw) : raw;
       } catch { return null; }
     })(),
-    businessRole: membership?.role ?? null,
+    businessRole: isImpersonating ? "owner" : (membership?.role ?? null),
     authProvider: platformUser?.authProvider ?? "local",
     hasPassword: !!platformUser?.passwordHash,
+    isImpersonating,
+    impersonatedBusinessId: session.impersonatedBusinessId ?? null,
   };
 }

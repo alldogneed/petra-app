@@ -109,6 +109,10 @@ model AdminSession {
   createdAt    DateTime @default(now())
   lastSeenAt   DateTime @default(now())
 
+  // Impersonation fields (set when super_admin is acting as a tenant)
+  impersonatedBusinessId String?
+  impersonatedByAdminId  String?
+
   user         PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])

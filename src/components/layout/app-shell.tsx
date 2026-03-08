@@ -6,6 +6,7 @@ import { MobileBottomNav } from "./mobile-bottom-nav";
 import { type ReactNode, useState } from "react";
 import { HelpCircle } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useAuth } from "@/providers/auth-provider";
 
 const HelpCenter = dynamic(
   () => import("@/components/help/HelpCenter").then((m) => ({ default: m.HelpCenter })),
@@ -16,9 +17,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const { user, exitImpersonation } = useAuth();
 
   return (
     <div className="min-h-screen">
+      {/* Impersonation banner */}
+      {user?.isImpersonating && (
+        <div className="bg-red-600 text-white text-sm px-4 py-2.5 flex items-center justify-between sticky top-0 z-50">
+          <span className="flex items-center gap-2">
+            ⚠️ מצב התחזות — עסק: <strong>{user.businessName}</strong>
+          </span>
+          <button
+            onClick={exitImpersonation}
+            className="underline font-semibold hover:text-red-100 transition-colors"
+          >
+            יציאה מהתחזות ←
+          </button>
+        </div>
+      )}
       <Sidebar
         collapsed={collapsed}
         onCollapsedChange={setCollapsed}

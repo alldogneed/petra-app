@@ -15,7 +15,8 @@ import { hasFeature, normalizeTier, type TierKey, type FeatureKey } from "@/lib/
  */
 export function usePlan() {
   const { user } = useAuth();
-  const tier = normalizeTier(user?.businessTier) as TierKey;
+  // Use effectiveTier (trial-expiry aware) when available, else fall back to stored tier
+  const tier = normalizeTier(user?.businessEffectiveTier ?? user?.businessTier) as TierKey;
   const overrides: Record<string, boolean> | null =
     user?.businessFeatureOverrides ?? null;
 

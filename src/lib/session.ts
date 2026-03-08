@@ -21,6 +21,8 @@ export interface FullSession {
   sessionId: string;
   twoFaVerified: boolean;
   memberships: SessionMembership[];
+  impersonatedBusinessId: string | null;
+  impersonatedByAdminId: string | null;
 }
 
 /** Generate a 256-bit hex token */
@@ -142,6 +144,8 @@ export async function getSessionByToken(token: string): Promise<FullSession | nu
     sessionId: session.id,
     twoFaVerified: session.twoFaVerified,
     memberships,
+    impersonatedBusinessId: (session as { impersonatedBusinessId?: string | null }).impersonatedBusinessId ?? null,
+    impersonatedByAdminId: (session as { impersonatedByAdminId?: string | null }).impersonatedByAdminId ?? null,
   };
 }
 

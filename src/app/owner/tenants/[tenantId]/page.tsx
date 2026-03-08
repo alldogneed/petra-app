@@ -5,7 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Users, Calendar, ArrowRight, Shield, Loader2,
   ToggleLeft, ToggleRight, Minus, Zap, Check, X,
-  ChevronDown, RotateCcw,
+  ChevronDown, RotateCcw, LogIn, Clock, CreditCard,
+  Activity, Eye,
 } from "lucide-react";
 import Link from "next/link";
 import { fetchJSON, cn } from "@/lib/utils";
@@ -60,6 +61,13 @@ interface TenantMember {
   };
 }
 
+interface TenantStats {
+  customerCount: number;
+  monthlyAppointments: number;
+  monthlyRevenue: number;
+  lastSeenAt: string | null;
+}
+
 interface TenantDetail {
   id: string;
   name: string;
@@ -67,10 +75,12 @@ interface TenantDetail {
   phone: string | null;
   tier: string;
   status: string;
+  trialEndsAt: string | null;
   createdAt: string;
   updatedAt: string;
   members: TenantMember[];
   _count: { customers: number; appointments: number };
+  stats?: TenantStats;
 }
 
 // ─── Small components ─────────────────────────────────────────────────────────
@@ -122,6 +132,7 @@ export default function TenantDetailPage() {
   const { tenantId } = useParams<{ tenantId: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [impersonating, setImpersonating] = useState(false);
 
   const [pendingOverrides, setPendingOverrides] = useState<Record<string, OverrideValue>>({});
   const [overridesDirty, setOverridesDirty] = useState(false);
@@ -169,6 +180,30 @@ export default function TenantDetailPage() {
     },
   });
 
+  const setTrialMutation = useMutation({
+    mutationFn: (trialEndsAt: string | null) =>
+      fetchJSON(`/api/owner/tenants/${tenantId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trialEndsAt }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["owner", "tenants", tenantId] });
+    },
+  });
+
+  const impersonateMutation = useMutation({
+    mutationFn: () =>
+      fetchJSON(`/api/owner/tenants/${tenantId}/impersonate`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      setImpersonating(false);
+      router.push("/dashboard");
+      router.refresh();
+    },
+  });
+
   // ── Override helpers ──────────────────────────────────────────────────────────
   const setOverride = useCallback((feature: FeatureKey, value: OverrideValue) => {
     setPendingOverrides((prev) => ({ ...prev, [feature]: value }));
@@ -195,6 +230,20 @@ export default function TenantDetailPage() {
     if (override !== null) return override;
     return hasFeature(featureData?.tier ?? tenant?.tier, feature);
   };
+
+  // ── Trial helpers ─────────────────────────────────────────────────────────────
+  const trialEndsAt = tenant?.trialEndsAt ? new Date(tenant.trialEndsAt) : null;
+  const trialActive = trialEndsAt && trialEndsAt > new Date();
+  const trialExpired = trialEndsAt && trialEndsAt <= new Date();
+  const trialDaysLeft = trialEndsAt
+    ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / 86400000))
+    : 0;
+
+  function addTrialDays(days: number) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    setTrialMutation.mutate(d.toISOString());
+  }
 
   // ── Derived ───────────────────────────────────────────────────────────────────
   const activeTier = (featureData?.tier ?? tenant?.tier ?? "free") as TierKey;
@@ -238,16 +287,35 @@ export default function TenantDetailPage() {
             נוצר {new Date(tenant.createdAt).toLocaleDateString("he-IL")}
           </p>
         </div>
-        <button
-          onClick={() => patchTenantMutation.mutate({ status: tenant.status === "active" ? "suspended" : "active" })}
-          disabled={patchTenantMutation.isPending || tenant.status === "closed"}
-          className={cn(
-            "text-sm px-4 py-2 rounded-xl font-medium transition-colors disabled:opacity-40",
-            tenant.status === "active" ? "btn-danger" : "bg-green-50 text-green-600 hover:bg-green-100"
-          )}
-        >
-          {patchTenantMutation.isPending ? "מעדכן..." : tenant.status === "active" ? "השהה עסק" : "הפעל עסק"}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Impersonate button — super_admin only */}
+          <button
+            onClick={() => {
+              setImpersonating(true);
+              impersonateMutation.mutate();
+            }}
+            disabled={impersonateMutation.isPending || tenant.status === "closed"}
+            className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-xl font-medium bg-violet-50 text-violet-700 hover:bg-violet-100 transition-colors disabled:opacity-40"
+            title="כנס כעסק (impersonation)"
+          >
+            {impersonateMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <LogIn className="w-4 h-4" />
+            )}
+            כנס כעסק
+          </button>
+          <button
+            onClick={() => patchTenantMutation.mutate({ status: tenant.status === "active" ? "suspended" : "active" })}
+            disabled={patchTenantMutation.isPending || tenant.status === "closed"}
+            className={cn(
+              "text-sm px-4 py-2 rounded-xl font-medium transition-colors disabled:opacity-40",
+              tenant.status === "active" ? "btn-danger" : "bg-green-50 text-green-600 hover:bg-green-100"
+            )}
+          >
+            {patchTenantMutation.isPending ? "מעדכן..." : tenant.status === "active" ? "השהה עסק" : "הפעל עסק"}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -323,7 +391,7 @@ export default function TenantDetailPage() {
                 <Users className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-slate-900">{tenant._count.customers}</div>
+                <div className="text-2xl font-bold text-slate-900">{tenant.stats?.customerCount ?? tenant._count.customers}</div>
                 <div className="text-xs text-slate-400">לקוחות</div>
               </div>
             </div>
@@ -334,11 +402,93 @@ export default function TenantDetailPage() {
                 <Calendar className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-slate-900">{tenant._count.appointments}</div>
-                <div className="text-xs text-slate-400">תורים</div>
+                <div className="text-2xl font-bold text-slate-900">{tenant.stats?.monthlyAppointments ?? 0}</div>
+                <div className="text-xs text-slate-400">תורים החודש</div>
               </div>
             </div>
           </div>
+          <div className="card p-5">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-green-500 flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-slate-900">₪{(tenant.stats?.monthlyRevenue ?? 0).toLocaleString()}</div>
+                <div className="text-xs text-slate-400">הכנסה החודש</div>
+              </div>
+            </div>
+          </div>
+          <div className="card p-5">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-slate-400 flex items-center justify-center">
+                <Activity className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-slate-900">
+                  {tenant.stats?.lastSeenAt
+                    ? new Date(tenant.stats.lastSeenAt).toLocaleDateString("he-IL")
+                    : "—"}
+                </div>
+                <div className="text-xs text-slate-400">כניסה אחרונה</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Trial Management ──────────────────────────────────────────────────── */}
+      <div className="card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Clock className="w-4 h-4 text-amber-500" />
+          <h2 className="font-semibold text-slate-900">ניסיון חינמי</h2>
+          {trialActive && (
+            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+              פעיל — {trialDaysLeft} ימים נותרו
+            </span>
+          )}
+          {trialExpired && (
+            <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">פג תוקף</span>
+          )}
+          {!trialEndsAt && (
+            <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">ללא ניסיון</span>
+          )}
+        </div>
+        {trialEndsAt && (
+          <p className="text-sm text-slate-500 mb-4">
+            תאריך סיום: {trialEndsAt.toLocaleDateString("he-IL")}
+          </p>
+        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => addTrialDays(14)}
+            disabled={setTrialMutation.isPending}
+            className="text-sm px-3 py-2 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 font-medium transition-colors disabled:opacity-40"
+          >
+            הגדר ניסיון 14 יום
+          </button>
+          <button
+            onClick={() => addTrialDays(30)}
+            disabled={setTrialMutation.isPending}
+            className="text-sm px-3 py-2 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 font-medium transition-colors disabled:opacity-40"
+          >
+            הגדר ניסיון 30 יום
+          </button>
+          <button
+            onClick={() => setTrialMutation.mutate(new Date().toISOString())}
+            disabled={setTrialMutation.isPending || !trialEndsAt}
+            className="text-sm px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 font-medium transition-colors disabled:opacity-40"
+          >
+            סיים מיידית
+          </button>
+          <button
+            onClick={() => setTrialMutation.mutate(null)}
+            disabled={setTrialMutation.isPending || !trialEndsAt}
+            className="text-sm px-3 py-2 rounded-xl text-slate-500 hover:bg-slate-100 font-medium transition-colors disabled:opacity-40"
+          >
+            הסר ניסיון
+          </button>
+          {setTrialMutation.isPending && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+          {setTrialMutation.isSuccess && <span className="text-xs text-green-600">✓ עודכן</span>}
         </div>
       </div>
 

@@ -15,16 +15,21 @@ interface AuthUser {
   businessName: string | null;
   businessSlug: string | null;
   businessTier: string | null;
+  businessEffectiveTier: string | null;
+  businessTrialEndsAt: string | null;
   businessFeatureOverrides: Record<string, boolean> | null;
   businessRole: string | null;
   authProvider: string;
   hasPassword: boolean;
+  isImpersonating: boolean;
+  impersonatedBusinessId: string | null;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   logout: () => Promise<void>;
+  exitImpersonation: () => Promise<void>;
   hasPermission: (permission: TenantPermission) => boolean;
   isOwner: boolean;
   isManager: boolean;
@@ -36,6 +41,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   logout: async () => {},
+  exitImpersonation: async () => {},
   hasPermission: () => false,
   isOwner: false,
   isManager: false,
@@ -82,8 +88,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.refresh();
   }, [router]);
 
+  const exitImpersonation = useCallback(async () => {
+    try {
+      await fetch("/api/auth/exit-impersonation", { method: "POST" });
+    } catch {
+      /* ignore */
+    }
+    // Refresh user state + navigate back to owner panel
+    const data = await fetch("/api/auth/me").then((r) => (r.ok ? r.json() : null));
+    setUser(data?.user || null);
+    router.push("/owner/tenants");
+    router.refresh();
+  }, [router]);
+
   return (
-    <AuthContext.Provider value={{ user, loading, logout, hasPermission, isOwner: !!isOwner, isManager: !!isManager, isStaff: !!isStaff, isVolunteer: !!isVolunteer }}>
+    <AuthContext.Provider value={{ user, loading, logout, exitImpersonation, hasPermission, isOwner: !!isOwner, isManager: !!isManager, isStaff: !!isStaff, isVolunteer: !!isVolunteer }}>
       {children}
     </AuthContext.Provider>
   );

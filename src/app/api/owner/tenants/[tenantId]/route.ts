@@ -42,7 +42,35 @@ export async function GET(
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
 
-  return NextResponse.json(tenant);
+  // Usage stats
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const [monthlyAppointments, monthlyRevenue, lastSession] = await Promise.all([
+    prisma.appointment.count({
+      where: { businessId: params.tenantId, date: { gte: startOfMonth.toISOString().slice(0, 10) } },
+    }),
+    prisma.payment.aggregate({
+      where: { businessId: params.tenantId, createdAt: { gte: startOfMonth } },
+      _sum: { amount: true },
+    }),
+    prisma.adminSession.findFirst({
+      where: {
+        user: { businessMemberships: { some: { businessId: params.tenantId, isActive: true } } },
+      },
+      orderBy: { lastSeenAt: "desc" },
+      select: { lastSeenAt: true },
+    }),
+  ]);
+
+  return NextResponse.json({
+    ...tenant,
+    stats: {
+      customerCount: tenant._count.customers,
+      monthlyAppointments,
+      monthlyRevenue: monthlyRevenue._sum.amount ?? 0,
+      lastSeenAt: lastSession?.lastSeenAt ?? null,
+    },
+  });
 }
 
 const PatchTenantSchema = z.object({
@@ -51,6 +79,7 @@ const PatchTenantSchema = z.object({
   tier: z.enum(["free", "basic", "pro", "groomer", "groomer_plus", "service_dog"]).optional(),
   email: z.string().email().optional().nullable(),
   phone: z.string().optional().nullable(),
+  trialEndsAt: z.string().datetime().optional().nullable(),
 }).strict();
 
 export async function PATCH(
@@ -75,9 +104,15 @@ export async function PATCH(
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
 
+  const { trialEndsAt: trialEndsAtStr, ...restBody } = body;
   const updated = await prisma.business.update({
     where: { id: params.tenantId },
-    data: body,
+    data: {
+      ...restBody,
+      ...(trialEndsAtStr !== undefined
+        ? { trialEndsAt: trialEndsAtStr ? new Date(trialEndsAtStr) : null }
+        : {}),
+    },
   });
 
   // Determine action for audit log
