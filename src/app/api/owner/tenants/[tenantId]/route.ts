@@ -48,7 +48,7 @@ export async function GET(
 const PatchTenantSchema = z.object({
   status: z.enum(["active", "suspended", "closed"]).optional(),
   name: z.string().min(1).max(100).optional(),
-  tier: z.enum(["basic", "pro", "enterprise"]).optional(),
+  tier: z.enum(["free", "basic", "pro", "groomer", "groomer_plus", "service_dog"]).optional(),
   email: z.string().email().optional().nullable(),
   phone: z.string().optional().nullable(),
 }).strict();
