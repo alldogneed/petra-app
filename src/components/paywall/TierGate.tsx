@@ -1,7 +1,8 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { useSubscription } from "@/hooks/useSubscription";
+import { usePlan } from "@/hooks/usePlan";
+import { getUpgradeTier } from "@/lib/feature-flags";
 import { PaywallCard } from "./PaywallCard";
 import { type FeatureKey, type TierKey } from "@/lib/feature-flags";
 
@@ -26,10 +27,10 @@ export function TierGate({
   ctaLabel,
   children,
 }: TierGateProps) {
-  const { hasFeature, upgradeTier: defaultUpgrade } = useSubscription();
+  const { can, tier } = usePlan();
 
-  if (!hasFeature(feature)) {
-    const target = upgradeTier ?? defaultUpgrade ?? "pro";
+  if (!can(feature)) {
+    const target = upgradeTier ?? getUpgradeTier(tier) ?? "pro";
     return (
       <PaywallCard
         title={title}
