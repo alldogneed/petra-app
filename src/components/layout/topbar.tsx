@@ -37,6 +37,7 @@ const GlobalSearch = dynamic(
   { ssr: false, loading: () => <div className="h-9 w-64 bg-slate-100 rounded-xl animate-pulse" /> }
 );
 import { cn, fetchJSON, formatCurrency, toWhatsAppPhone } from "@/lib/utils";
+import { InAppNotificationBell } from "@/components/layout/InAppNotificationBell";
 
 const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/customers": { title: "לקוחות", subtitle: "ניהול בסיס הלקוחות" },
@@ -637,6 +638,9 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
               </div>
             )}
           </div>
+
+          {/* In-App Notification Bell (milestones & engagement) */}
+          <InAppNotificationBell />
 
           <div className="w-px h-6 bg-slate-200 mx-2" />
 

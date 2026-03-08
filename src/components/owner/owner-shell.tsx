@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   Shield,
+  HeartHandshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FullSession } from "@/lib/session";
@@ -19,6 +20,7 @@ import { useState } from "react";
 const nav = [
   { name: "דשבורד", href: "/owner", icon: LayoutDashboard, exact: true },
   { name: "עסקים", href: "/owner/tenants", icon: Building2 },
+  { name: "Customer Success", href: "/owner/customer-success", icon: HeartHandshake },
   { name: "משתמשים", href: "/owner/users", icon: Users },
   { name: "יומן פעולות", href: "/owner/audit-logs", icon: FileText },
   { name: "הגדרות", href: "/owner/settings", icon: Settings },

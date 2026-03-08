@@ -5,6 +5,7 @@ import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxCustomers } from "@/lib/feature-flags";
+import { checkFirstCustomer } from "@/lib/engagement-service";
 
 export async function GET(request: NextRequest) {
   try {
@@ -220,6 +221,9 @@ export async function POST(request: NextRequest) {
     });
 
     logCurrentUserActivity("CREATE_CUSTOMER");
+
+    // Fire-and-forget: first-customer engagement notification
+    checkFirstCustomer(authResult.session.user.id, businessId);
 
     await prisma.timelineEvent.create({
       data: {

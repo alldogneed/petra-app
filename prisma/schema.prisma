@@ -45,6 +45,9 @@ model PlatformUser {
   tosAcceptedVersion  String?   // e.g. "1.0" — version last accepted
   tosAcceptedAt       DateTime? // timestamp of acceptance
 
+  // Engagement tracking
+  lastLoginAt         DateTime? // updated on every successful login
+
   sessions            AdminSession[]
   passwordResetTokens PasswordResetToken[]
   businessMemberships BusinessUser[]
@@ -54,6 +57,7 @@ model PlatformUser {
   onboardingProfile  OnboardingProfile?
   onboardingProgress OnboardingProgress?
   consents       UserConsent[]
+  notifications  Notification[]
 
   @@index([email])
   @@index([googleId])
@@ -905,6 +909,22 @@ model SystemMessage {
 
   @@index([businessId, isRead])
   @@index([businessId, createdAt])
+}
+
+/// Per-user in-app notifications (engagement triggers, milestones, etc.)
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  actionUrl String?  // optional deep-link
+  createdAt DateTime @default(now())
+
+  user      PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }
 
 // ─────────────────────────────────────────────

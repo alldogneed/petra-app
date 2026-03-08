@@ -59,6 +59,12 @@ export async function POST(request: NextRequest) {
     const { token } = await createSession(user.id, request);
     setSessionCookie(token);
 
+    // Track last login for Customer Success dashboard
+    prisma.platformUser.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    }).catch(() => {}); // fire-and-forget
+
     logActivity(user.id, user.name, "LOGIN");
 
     const membership = user.businessMemberships[0] || null;
