@@ -1,5 +1,6 @@
 "use client";
 
+import { TierGate } from "@/components/paywall/TierGate";
 import { FinanceTabs } from "@/components/finance/FinanceTabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -522,7 +523,7 @@ function ItemRow({
 
 // ─── Main Page ────────────────────────────────────────────────
 
-export default function PricingPage() {
+function PricingPageContent() {
   const queryClient = useQueryClient();
   const [showAddItem, setShowAddItem] = useState(false);
   const [editItem, setEditItem] = useState<PriceListItem | null>(null);
@@ -858,5 +859,17 @@ export default function PricingPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <TierGate
+      feature="pricing"
+      title="ניהול תמחור ושירותים"
+      description="הגדר שירותים, מחירונים ופריטי חיוב. הכלי הבסיסי לניהול הכנסות של העסק."
+    >
+      <PricingPageContent />
+    </TierGate>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState, useMemo, useEffect, useCallback } from "react";
@@ -71,7 +72,7 @@ interface ComplianceEvent {
   eventAt: string;
 }
 
-export default function ServiceDogsOverviewPage() {
+function ServiceDogsOverviewPageContent() {
 
   const { data: dogs = [] } = useQuery<ServiceDogSummary[]>({
     queryKey: ["service-dogs"],
@@ -992,5 +993,19 @@ function AlertsWidget({
         })}
       </div>
     </div>
+  );
+}
+
+export default function ServiceDogsOverviewPage() {
+  return (
+    <TierGate
+      feature="service_dogs"
+      title="מודול כלבי שירות"
+      description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה. מעקב 120 שעות אימון לפי תקן ADI."
+      upgradeTier="service_dog"
+      ctaLabel="ניהול כלבי שירות, תעודות ומעקב 120 שעות זמין במסלול Service Dog — שדרג עכשיו"
+    >
+      <ServiceDogsOverviewPageContent />
+    </TierGate>
   );
 }

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { getMaxCustomers } from "@/lib/feature-flags";
 
 export async function GET(request: NextRequest) {
   try {
@@ -158,6 +159,23 @@ export async function POST(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
 
     const { businessId } = authResult;
+
+    // ── Tier-based customer limit enforcement ─────────────────────────────────
+    const business = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { tier: true },
+    });
+    const maxCustomers = getMaxCustomers(business?.tier);
+    if (maxCustomers !== null) {
+      const count = await prisma.customer.count({ where: { businessId } });
+      if (count >= maxCustomers) {
+        return NextResponse.json(
+          { error: `הגעת למגבלת הלקוחות (${maxCustomers}) בחבילה החינמית. שדרג/י לחבילת בייסיק להוספת לקוחות ללא הגבלה.`, code: "CUSTOMER_LIMIT_REACHED" },
+          { status: 403 }
+        );
+      }
+    }
+
     const body = await request.json();
 
     if (!body.name || typeof body.name !== "string" || !body.name.trim()) {

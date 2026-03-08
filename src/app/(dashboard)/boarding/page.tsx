@@ -1,5 +1,6 @@
 "use client";
 
+import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useRef, useCallback, memo } from "react";
 import Link from "next/link";
@@ -1692,7 +1693,7 @@ function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: s
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
-export default function BoardingPage() {
+function BoardingPageContent() {
   const [showNewStay, setShowNewStay] = useState(false);
   const [careLogStay, setCareLogStay] = useState<{ id: string; petName: string } | null>(null);
   const [form, setForm] = useState({
@@ -3238,5 +3239,17 @@ export default function BoardingPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function BoardingPage() {
+  return (
+    <TierGate
+      feature="boarding"
+      title="ניהול פנסיון"
+      description="ניהול חדרים, לינות ותפוסה. עקוב אחרי כל כלב שנמצא בפנסיון בזמן אמת."
+    >
+      <BoardingPageContent />
+    </TierGate>
   );
 }

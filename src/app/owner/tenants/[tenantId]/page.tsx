@@ -2,9 +2,30 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Users, Calendar, ArrowRight, Shield, Loader2 } from "lucide-react";
+import { Users, Calendar, ArrowRight, Shield, Loader2, ToggleLeft, ToggleRight, Minus, Zap } from "lucide-react";
 import Link from "next/link";
 import { fetchJSON, cn } from "@/lib/utils";
+import { useState, useCallback } from "react";
+import type { FeatureKey } from "@/lib/feature-flags";
+
+// ─── Feature management section data ────────────────────────────────────────
+
+const FEATURE_ROWS: { key: FeatureKey; label: string; description: string }[] = [
+  { key: "gcal_sync",         label: "סנכרון יומן גוגל",         description: "חיבור Google Calendar לאימות ועדכון תורים" },
+  { key: "invoicing",         label: "סליקה וחשבוניות",          description: "הפקת חשבוניות וקבלות דיגיטליות (Green Invoice / Morning)" },
+  { key: "leads",             label: "מערכת לידים / CRM",        description: "קנבן לידים, מעקב מכירות ומערכת קריאה" },
+  { key: "boarding",          label: "ניהול פנסיון",             description: "חדרים, לינות ויומן תפוסה (drag & drop)" },
+  { key: "training",          label: "מנוע אילוף 1-על-1",        description: "תכניות אילוף, מטרות ומעקב מפגשים" },
+  { key: "training_groups",   label: "סדנאות וקבוצות",           description: "ניהול קבוצות אילוף וסדנאות" },
+  { key: "automations",       label: "אוטומציות הודעות",         description: "כללי שליחה אוטומטית לפי אירועים" },
+  { key: "scheduled_messages",label: "תזכורות בוואטסאפ",         description: "תזכורות אוטומטיות לתורים ופעולות" },
+  { key: "staff_management",  label: "ניהול צוות",               description: "הוספת משתמשים, תפקידים וניהול גישה" },
+  { key: "excel_export",      label: "ייצוא לאקסל",             description: "ייצוא לקוחות, חיות ומידע לקובץ Excel" },
+  { key: "service_dogs",      label: "מודול כלבי שירות",        description: "ניהול כלבי שירות, זכאים, שיבוצים ותעודות ADI" },
+  { key: "groomer_portfolio", label: "תיק עבודות גרומר",        description: "גלריית לפני/אחרי לגרומר" },
+];
+
+type OverrideValue = true | false | null; // null = use tier default
 
 interface TenantMember {
   id: string;
@@ -63,9 +84,19 @@ export default function TenantDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
+  // Local state for pending override edits
+  const [pendingOverrides, setPendingOverrides] = useState<Record<string, OverrideValue>>({});
+  const [overridesDirty, setOverridesDirty] = useState(false);
+
   const { data: tenant, isLoading, error } = useQuery<TenantDetail>({
     queryKey: ["owner", "tenants", tenantId],
     queryFn: () => fetchJSON(`/api/owner/tenants/${tenantId}`),
+  });
+
+  const { data: featureData } = useQuery<{ tier: string; featureOverrides: Record<string, boolean> }>({
+    queryKey: ["owner", "tenants", tenantId, "features"],
+    queryFn: () => fetchJSON(`/api/owner/tenants/${tenantId}/features`),
+    enabled: !!tenantId,
   });
 
   const toggleMutation = useMutation({
@@ -80,6 +111,33 @@ export default function TenantDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["owner", "tenants"] });
     },
   });
+
+  const saveOverridesMutation = useMutation({
+    mutationFn: () =>
+      fetchJSON(`/api/owner/tenants/${tenantId}/features`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ overrides: pendingOverrides }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["owner", "tenants", tenantId, "features"] });
+      setPendingOverrides({});
+      setOverridesDirty(false);
+    },
+  });
+
+  const setOverride = useCallback((feature: FeatureKey, value: OverrideValue) => {
+    setPendingOverrides((prev) => ({ ...prev, [feature]: value }));
+    setOverridesDirty(true);
+  }, []);
+
+  // Compute effective override value for a feature (pending → saved → null)
+  const getOverrideValue = (feature: FeatureKey): OverrideValue => {
+    if (feature in pendingOverrides) return pendingOverrides[feature];
+    const saved = featureData?.featureOverrides ?? {};
+    if (feature in saved) return saved[feature] as boolean;
+    return null;
+  };
 
   if (isLoading) {
     return (
@@ -186,6 +244,104 @@ export default function TenantDetailPage() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ─── Feature Management Card ─────────────────────────────────────── */}
+      <div className="card overflow-hidden mb-6">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-orange-500" />
+            <h2 className="font-semibold text-slate-900">ניהול פיצ׳רים והרשאות</h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-slate-400">
+              מנוי: <span className="font-medium text-slate-700">{featureData?.tier ?? tenant.tier}</span>
+            </span>
+            {overridesDirty && (
+              <button
+                onClick={() => saveOverridesMutation.mutate()}
+                disabled={saveOverridesMutation.isPending}
+                className="text-sm px-3 py-1.5 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 transition-colors disabled:opacity-50"
+              >
+                {saveOverridesMutation.isPending ? "שומר..." : "שמור שינויים"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="p-5">
+          <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+            עקוף את ברירת המחדל של המנוי לפיצ׳רים ספציפיים.
+            <strong className="text-slate-600"> ברירת מחדל</strong> = לפי המנוי.
+            <strong className="text-green-600"> פתוח</strong> = פתיחה כפויה.
+            <strong className="text-red-600"> חסום</strong> = חסימה כפויה.
+          </p>
+
+          <div className="divide-y divide-slate-50">
+            {FEATURE_ROWS.map(({ key, label, description }) => {
+              const val = getOverrideValue(key);
+              return (
+                <div key={key} className="flex items-center gap-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-slate-800">{label}</div>
+                    <div className="text-xs text-slate-400">{description}</div>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    {/* Default */}
+                    <button
+                      onClick={() => setOverride(key, null)}
+                      title="ברירת מחדל (לפי מנוי)"
+                      className={cn(
+                        "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors",
+                        val === null
+                          ? "bg-slate-200 text-slate-700"
+                          : "text-slate-400 hover:bg-slate-100"
+                      )}
+                    >
+                      <Minus className="w-3 h-3" />
+                      ברירת מחדל
+                    </button>
+                    {/* Force enable */}
+                    <button
+                      onClick={() => setOverride(key, true)}
+                      title="פתוח (Force Enable)"
+                      className={cn(
+                        "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors",
+                        val === true
+                          ? "bg-green-100 text-green-700"
+                          : "text-slate-400 hover:bg-green-50 hover:text-green-700"
+                      )}
+                    >
+                      <ToggleRight className="w-3.5 h-3.5" />
+                      פתוח
+                    </button>
+                    {/* Force disable */}
+                    <button
+                      onClick={() => setOverride(key, false)}
+                      title="חסום (Force Disable)"
+                      className={cn(
+                        "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors",
+                        val === false
+                          ? "bg-red-100 text-red-700"
+                          : "text-slate-400 hover:bg-red-50 hover:text-red-700"
+                      )}
+                    >
+                      <ToggleLeft className="w-3.5 h-3.5" />
+                      חסום
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {saveOverridesMutation.isError && (
+            <p className="text-xs text-red-500 mt-3">שגיאה בשמירת השינויים. נסה שוב.</p>
+          )}
+          {saveOverridesMutation.isSuccess && !overridesDirty && (
+            <p className="text-xs text-green-600 mt-3">✓ השינויים נשמרו בהצלחה</p>
+          )}
         </div>
       </div>
 

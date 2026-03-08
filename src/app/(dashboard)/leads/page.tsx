@@ -1,5 +1,6 @@
 "use client";
 
+import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -974,7 +975,7 @@ function ArchiveList({
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
-export default function LeadsPage() {
+function LeadsPageContent() {
   const [showModal, setShowModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
@@ -1573,5 +1574,17 @@ export default function LeadsPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function LeadsPage() {
+  return (
+    <TierGate
+      feature="leads"
+      title="מערכת לידים ומכירות"
+      description="ניהול לידים, CRM ועוקב מכירות. עקוב אחרי לקוחות פוטנציאליים, שלח הודעות ועקוב אחרי המרות."
+    >
+      <LeadsPageContent />
+    </TierGate>
   );
 }

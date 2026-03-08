@@ -14,6 +14,8 @@ interface AuthUser {
   businessId: string | null;
   businessName: string | null;
   businessSlug: string | null;
+  businessTier: string | null;
+  businessFeatureOverrides: Record<string, boolean> | null;
   businessRole: string | null;
   authProvider: string;
   hasPassword: boolean;

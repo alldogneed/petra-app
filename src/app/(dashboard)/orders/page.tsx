@@ -1,5 +1,6 @@
 "use client";
 
+import { TierGate } from "@/components/paywall/TierGate";
 import { FinanceTabs } from "@/components/finance/FinanceTabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useRef, useEffect } from "react";
@@ -163,7 +164,7 @@ function getTodayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export default function OrdersPage() {
+function OrdersPageContent() {
   const [activeStatus, setActiveStatus] = useState("ALL");
   const [paymentFilter, setPaymentFilter] = useState("ALL");
   const [showNewOrder, setShowNewOrder] = useState(false);
@@ -919,5 +920,17 @@ export default function OrdersPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function OrdersPage() {
+  return (
+    <TierGate
+      feature="orders"
+      title="ניהול הזמנות"
+      description="צור ונהל הזמנות עם פריטי שורה, הנחות ותחשיב מע׳׳מ אוטומטי."
+    >
+      <OrdersPageContent />
+    </TierGate>
   );
 }

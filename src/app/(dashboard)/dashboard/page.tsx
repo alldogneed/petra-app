@@ -1913,8 +1913,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Greeting Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex flex-col gap-1">
+      <div className="space-y-3 mb-2">
+        <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-petra-text">
               שלום, {user?.name || "משתמש"} 👋
@@ -1932,64 +1932,64 @@ export default function DashboardPage() {
           </div>
           <p className="text-sm text-petra-muted">{todayStr}</p>
         </div>
-        <div className="flex flex-wrap gap-2 justify-end">
-            <button
-              onClick={() => setShowNewCustomer(true)}
-              className="btn-primary flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              לקוח חדש
-            </button>
-            <Link
-              href="/scheduler"
-              className="btn-secondary flex items-center gap-2"
-            >
-              <CalendarClock className="w-4 h-4" />
-              קביעת תור ידני
-            </Link>
-            <button
-              onClick={() => setShowNewOrder(true)}
-              className="btn-secondary flex items-center gap-2"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              הזמנה חדשה
-            </button>
-            <button
-              onClick={handleCopyIntakeForm}
-              disabled={intakeLoading}
-              className={cn(
-                "btn-secondary flex items-center gap-2 transition-colors",
-                intakeCopied && "bg-green-50 text-green-700 border-green-300"
-              )}
-              title="יצירת טופס קליטה והעתקת קישור"
-            >
-              {intakeCopied ? (
-                <>
-                  <ClipboardCheck className="w-4 h-4" />
-                  הועתק!
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  טופס קליטה למערכת
-                </>
-              )}
-            </button>
-            <button
-              onClick={() => {
-                const slug = user?.businessSlug || user?.businessId || "demo-business-001";
-                const url = `${window.location.origin}/book/${slug}`;
-                navigator.clipboard.writeText(url).then(() => {
-                  toast.success("קישור הזמנת תורים הועתק!", { description: url });
-                }).catch(() => toast.error("לא הצלחנו להעתיק"));
-              }}
-              className="btn-secondary flex items-center gap-2"
-              title="העתק קישור הזמנת תורים אונליין"
-            >
-              <Copy className="w-4 h-4" />
-              <span className="hidden sm:inline">תורים אונליין</span>
-            </button>
-          </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setShowNewCustomer(true)}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            לקוח חדש
+          </button>
+          <Link
+            href="/scheduler"
+            className="btn-secondary flex items-center gap-2"
+          >
+            <CalendarClock className="w-4 h-4" />
+            קביעת תור ידני
+          </Link>
+          <button
+            onClick={() => setShowNewOrder(true)}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <ShoppingCart className="w-4 h-4" />
+            הזמנה חדשה
+          </button>
+          <button
+            onClick={handleCopyIntakeForm}
+            disabled={intakeLoading}
+            className={cn(
+              "btn-secondary flex items-center gap-2 transition-colors",
+              intakeCopied && "bg-green-50 text-green-700 border-green-300"
+            )}
+            title="יצירת טופס קליטה והעתקת קישור"
+          >
+            {intakeCopied ? (
+              <>
+                <ClipboardCheck className="w-4 h-4" />
+                הועתק!
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" />
+                טופס קליטה למערכת
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => {
+              const slug = user?.businessSlug || user?.businessId || "demo-business-001";
+              const url = `${window.location.origin}/book/${slug}`;
+              navigator.clipboard.writeText(url).then(() => {
+                toast.success("קישור הזמנת תורים הועתק!", { description: url });
+              }).catch(() => toast.error("לא הצלחנו להעתיק"));
+            }}
+            className="btn-secondary flex items-center gap-2"
+            title="העתק קישור הזמנת תורים אונליין"
+          >
+            <Copy className="w-4 h-4" />
+            <span className="hidden sm:inline">תורים אונליין</span>
+          </button>
+        </div>
       </div>
 
       {/* Setup Checklist — shown to users who haven't completed setup yet */}

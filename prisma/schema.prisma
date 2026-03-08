@@ -199,6 +199,7 @@ model Business {
   address     String?
   logo        String?
   tier        String   @default("basic")
+  featureOverrides Json?   // per-tenant overrides: { "leads": true, "boarding": false, ... }
   status      String   @default("active") // "active" | "suspended" | "closed"
   trialEndsAt DateTime?
   vatNumber          String?

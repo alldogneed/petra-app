@@ -35,6 +35,10 @@ import {
   Dog,
   CalendarClock,
   Receipt,
+  Sparkles,
+  Phone,
+  Mail,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -129,6 +133,21 @@ const faqCategories: FaqCategory[] = [
         question: "איך מנהלים מסמכים ותמונות של חיה?",
         answer:
           "בכרטיס החיה ניתן להעלות קבצים: תמונות, תעודות חיסון, תוצאות בדיקות דם, הסכמים ומסמכים נוספים. הקבצים מאורגנים לפי סוג ותאריך העלאה.",
+      },
+      {
+        question: "איך עובד מעקב המשקל?",
+        answer:
+          "בפרופיל החיה (עמוד \"חיות מחמד\") קיימת לשונית מעקב משקל. ניתן להוסיף רשומות משקל עם תאריך והערות. המשקל מוצג כגרף קו עם כל הנקודות ההיסטוריות, כך ניתן לעקוב אחרי שינויים לאורך זמן.",
+      },
+      {
+        question: "איך מעלים תמונות לחיה?",
+        answer:
+          "בפרופיל החיה יש גלריית תמונות ייעודית. לחצו \"העלה תמונה\" ← בחרו קובץ תמונה מהמכשיר. התמונות מוצגות בגריד. לחיצה על תמונה פותחת תצוגת lightbox עם אפשרות מחיקה.",
+      },
+      {
+        question: "מה זה יומן הטיפול בפנסיון?",
+        answer:
+          "יומן הטיפול עוקב אחרי כל הפעולות שבוצעו לכלב בשהות בפנסיון: האכלה, מתן תרופה, טיול ועוד. לחצו \"יומן טיפול\" ליד השהייה הרלוונטית, ותמצאו ציר זמן מלא של כל הפעולות עם שעה ומי ביצע.",
       },
     ],
   },
@@ -478,6 +497,52 @@ const faqCategories: FaqCategory[] = [
   },
 ];
 
+const changelog = [
+  {
+    version: "v8.0",
+    date: "מרץ 2026",
+    title: "מודול חיות מחמד",
+    items: [
+      "מעקב משקל עם גרף קו היסטורי",
+      "גלריית תמונות + תצוגת lightbox",
+      "יומן טיפול בפנסיון (האכלה, תרופה, טיול)",
+      "קומבובוקס 60+ גזעי כלבים ו-14 גזעי חתולים",
+      "ייצוא XLSX לכל חיות המחמד",
+    ],
+  },
+  {
+    version: "v7.0",
+    date: "מרץ 2026",
+    title: "WhatsApp Meta API + כלבי שירות",
+    items: [
+      "תמיכה ב-Meta WhatsApp Cloud API (עדיפות על Twilio)",
+      "דשבורד כלבי שירות משודרג עם ווידג'ט התראות",
+      "תיקוני אבטחה (IDOR) בכל נתיבי ה-API",
+    ],
+  },
+  {
+    version: "v6.0",
+    date: "פבר׳ 2026",
+    title: "ייצוא, אבטחה, DnD קנבן",
+    items: [
+      "ייצוא לקוחות + חיות מחמד ל-XLSX/CSV",
+      "גרירה ושחרור בלוח הלידים (DnD קנבן)",
+      "QA ואבטחה כוללת — 118 נתיבים מאובטחים",
+    ],
+  },
+  {
+    version: "v5.0",
+    date: "ינו׳ 2026",
+    title: "מודול כלבי שירות",
+    items: [
+      "7 לשוניות: תיק, אימון, רפואה, שיבוץ, הסמכה, ציוד, מסמכים",
+      "תעודת זיהוי דיגיטלית + QR לאימות",
+      "קנבן זכאים עם 8 שלבים מותאמים",
+      "מיתאמי שיבוץ (פנדינג / ניסיון / פעיל)",
+    ],
+  },
+];
+
 function AccordionItem({ item }: { item: FaqItem }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -511,12 +576,15 @@ function AccordionItem({ item }: { item: FaqItem }) {
   );
 }
 
+type Tab = "faq" | "changelog" | "contact";
+
 interface HelpCenterProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
+  const [activeTab, setActiveTab] = useState<Tab>("faq");
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -546,104 +614,227 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 rounded-2xl">
         {/* Header */}
-        <DialogHeader className="p-6 pb-4 border-b border-petra-border space-y-4">
-          <DialogTitle className="text-xl font-bold text-petra-text">
-            מרכז עזרה
-          </DialogTitle>
-
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
-            <input
-              type="text"
-              placeholder="חפשו שאלה..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input pr-10"
-            />
+        <DialogHeader className="p-5 pb-0 border-b border-petra-border space-y-0">
+          <div className="flex items-center justify-between mb-4">
+            <DialogTitle className="text-xl font-bold text-petra-text">
+              מרכז עזרה
+            </DialogTitle>
           </div>
 
-          {/* Category pills */}
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setSelectedCategory(null)}
-              className={cn(
-                "badge transition-colors duration-150 cursor-pointer",
-                !selectedCategory
-                  ? "bg-brand-50 text-brand-700 border border-brand-100"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              )}
-            >
-              הכל
-            </button>
-            {faqCategories.map((cat) => {
-              const Icon = cat.icon;
-              return (
+          {/* Tabs */}
+          <div className="flex gap-0 border-b border-petra-border -mb-px">
+            {(
+              [
+                { id: "faq" as Tab, label: "שאלות נפוצות" },
+                { id: "changelog" as Tab, label: "מה חדש" },
+                { id: "contact" as Tab, label: "צרו קשר" },
+              ] as { id: Tab; label: string }[]
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
+                  activeTab === tab.id
+                    ? "border-brand-500 text-brand-600"
+                    : "border-transparent text-petra-muted hover:text-petra-text"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* FAQ search + category pills — only on FAQ tab */}
+          {activeTab === "faq" && (
+            <div className="pt-4 space-y-3 pb-4">
+              <div className="relative">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
+                <input
+                  type="text"
+                  placeholder="חפשו שאלה..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="input pr-10"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
                 <button
-                  key={cat.id}
-                  onClick={() =>
-                    setSelectedCategory(
-                      selectedCategory === cat.id ? null : cat.id
-                    )
-                  }
+                  onClick={() => setSelectedCategory(null)}
                   className={cn(
-                    "badge gap-1.5 transition-colors duration-150 cursor-pointer",
-                    selectedCategory === cat.id
+                    "badge transition-colors duration-150 cursor-pointer",
+                    !selectedCategory
                       ? "bg-brand-50 text-brand-700 border border-brand-100"
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   )}
                 >
-                  <Icon className="w-3 h-3" />
-                  {cat.name}
+                  הכל
                 </button>
-              );
-            })}
-          </div>
+                {faqCategories.map((cat) => {
+                  const Icon = cat.icon;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() =>
+                        setSelectedCategory(
+                          selectedCategory === cat.id ? null : cat.id
+                        )
+                      }
+                      className={cn(
+                        "badge gap-1.5 transition-colors duration-150 cursor-pointer",
+                        selectedCategory === cat.id
+                          ? "bg-brand-50 text-brand-700 border border-brand-100"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      )}
+                    >
+                      <Icon className="w-3 h-3" />
+                      {cat.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </DialogHeader>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 pt-4 space-y-5">
-          {filteredCategories.length === 0 ? (
-            <div className="empty-state py-12">
-              <div className="empty-state-icon">
-                <Search className="w-6 h-6 text-slate-400" />
-              </div>
-              <p className="text-sm font-medium text-petra-text mb-1">
-                לא נמצאו תוצאות
-              </p>
-              <p className="text-xs text-petra-muted">
-                נסו לחפש במילים אחרות
-              </p>
-            </div>
-          ) : (
-            filteredCategories.map((category) => {
-              const Icon = category.icon;
-              return (
-                <div key={category.id} className="card overflow-hidden">
-                  <div className="flex items-center gap-2.5 px-4 py-3 bg-slate-50/80 border-b border-petra-border">
-                    <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center">
-                      <Icon className="w-3.5 h-3.5 text-brand-600" />
-                    </div>
-                    <h3 className="text-sm font-semibold text-petra-text">
-                      {category.name}
-                    </h3>
-                    <span className="badge-neutral text-[10px] ms-auto">
-                      {category.items.length} שאלות
-                    </span>
+          {/* FAQ Tab */}
+          {activeTab === "faq" && (
+            <>
+              {filteredCategories.length === 0 ? (
+                <div className="empty-state py-12">
+                  <div className="empty-state-icon">
+                    <Search className="w-6 h-6 text-slate-400" />
                   </div>
-
-                  {category.items.map((item, idx) => (
-                    <AccordionItem key={idx} item={item} />
-                  ))}
+                  <p className="text-sm font-medium text-petra-text mb-1">
+                    לא נמצאו תוצאות
+                  </p>
+                  <p className="text-xs text-petra-muted">
+                    נסו לחפש במילים אחרות
+                  </p>
                 </div>
-              );
-            })
+              ) : (
+                filteredCategories.map((category) => {
+                  const Icon = category.icon;
+                  return (
+                    <div key={category.id} className="card overflow-hidden">
+                      <div className="flex items-center gap-2.5 px-4 py-3 bg-slate-50/80 border-b border-petra-border">
+                        <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center">
+                          <Icon className="w-3.5 h-3.5 text-brand-600" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-petra-text">
+                          {category.name}
+                        </h3>
+                        <span className="badge-neutral text-[10px] ms-auto">
+                          {category.items.length} שאלות
+                        </span>
+                      </div>
+
+                      {category.items.map((item, idx) => (
+                        <AccordionItem key={idx} item={item} />
+                      ))}
+                    </div>
+                  );
+                })
+              )}
+
+              {search.trim() && filteredCategories.length > 0 && (
+                <p className="text-center text-xs text-petra-muted pt-2">
+                  נמצאו {totalResults} תוצאות
+                </p>
+              )}
+            </>
           )}
 
-          {search.trim() && filteredCategories.length > 0 && (
-            <p className="text-center text-xs text-petra-muted pt-2">
-              נמצאו {totalResults} תוצאות
-            </p>
+          {/* Changelog Tab */}
+          {activeTab === "changelog" && (
+            <div className="space-y-4">
+              {changelog.map((release) => (
+                <div key={release.version} className="card overflow-hidden">
+                  <div className="flex items-center gap-3 px-4 py-3 bg-slate-50/80 border-b border-petra-border">
+                    <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center">
+                      <Sparkles className="w-3.5 h-3.5 text-brand-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-petra-text">
+                          {release.title}
+                        </span>
+                        <span className="badge bg-brand-50 text-brand-700 border border-brand-100 text-[10px]">
+                          {release.version}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-xs text-petra-muted">{release.date}</span>
+                  </div>
+                  <ul className="px-4 py-3 space-y-1.5">
+                    {release.items.map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-sm text-petra-muted">
+                        <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-400 flex-shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Contact Tab */}
+          {activeTab === "contact" && (
+            <div className="space-y-4">
+              <div className="card p-5 space-y-4">
+                <h3 className="text-base font-semibold text-petra-text">
+                  יצירת קשר עם התמיכה
+                </h3>
+                <div className="space-y-3">
+                  <a
+                    href="https://wa.me/972500000000"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 rounded-xl border border-petra-border hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+                      <Phone className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-petra-text">WhatsApp</p>
+                      <p className="text-xs text-petra-muted">050-000-0000</p>
+                    </div>
+                  </a>
+
+                  <a
+                    href="mailto:support@petra-app.com"
+                    className="flex items-center gap-3 p-3 rounded-xl border border-petra-border hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                      <Mail className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-petra-text">אימייל</p>
+                      <p className="text-xs text-petra-muted">support@petra-app.com</p>
+                    </div>
+                  </a>
+                </div>
+              </div>
+
+              <div className="card p-5 flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Clock className="w-4 h-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-petra-text mb-1">זמן תגובה</p>
+                  <p className="text-sm text-petra-muted">
+                    WhatsApp — בדרך כלל תוך שעה בשעות פעילות (א׳–ו׳, 09:00–18:00).
+                  </p>
+                  <p className="text-sm text-petra-muted mt-1">
+                    אימייל — תוך 24 שעות.
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </DialogContent>

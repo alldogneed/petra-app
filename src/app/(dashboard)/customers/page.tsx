@@ -35,6 +35,8 @@ import {
 } from "lucide-react";
 import { toWhatsAppPhone, fetchJSON, formatCurrency } from "@/lib/utils";
 import { SERVICE_TYPES } from "@/lib/constants";
+import { useSubscription } from "@/hooks/useSubscription";
+import { PaywallCard } from "@/components/paywall/PaywallCard";
 import dynamic from "next/dynamic";
 const CreateOrderModal = dynamic(
   () => import("@/components/orders/CreateOrderModal").then((m) => ({ default: m.CreateOrderModal })),
@@ -1378,6 +1380,7 @@ interface PriceListItemOption {
 
 export default function CustomersPage() {
   const queryClient = useQueryClient();
+  const { maxCustomers, tier } = useSubscription();
 
   // ── State ──
   const [search, setSearch] = useState("");
@@ -1577,23 +1580,22 @@ export default function CustomersPage() {
     <div>
       {/* ─── Page Header ─── */}
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-        <div className="flex items-center gap-2">
-          <div>
-            <h1 className="page-title">לקוחות</h1>
-            <p className="text-sm text-petra-muted">{stats.total} לקוחות במערכת</p>
-          </div>
-          <button
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["customers"] })}
-            title="רענן נתונים"
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-colors"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isCustomersFetching ? "animate-spin" : ""}`} />
-          </button>
-        </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <button className="btn-primary" onClick={() => setShowNewModal(true)}>
+          <button
+            className="btn-primary"
+            onClick={() => {
+              if (maxCustomers !== null && stats.total >= maxCustomers) {
+                toast.error(`מסלול ${tier === "free" ? "חינמי" : tier} מוגבל ל-${maxCustomers} לקוחות. שדרג כדי להוסיף עוד.`);
+                return;
+              }
+              setShowNewModal(true);
+            }}
+          >
             <Plus className="w-4 h-4" />
             לקוח חדש
+            {maxCustomers !== null && (
+              <span className="mr-1 opacity-70 text-xs">({stats.total}/{maxCustomers})</span>
+            )}
           </button>
           <button
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white text-sm shadow-sm transition-all hover:shadow-md"
@@ -1612,6 +1614,19 @@ export default function CustomersPage() {
             <FileDown className="w-4 h-4" />
             ייצוא CSV
           </a>
+        </div>
+        <div className="flex items-center gap-2">
+          <div>
+            <h1 className="page-title">לקוחות</h1>
+            <p className="text-sm text-petra-muted">{stats.total} לקוחות במערכת</p>
+          </div>
+          <button
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["customers"] })}
+            title="רענן נתונים"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isCustomersFetching ? "animate-spin" : ""}`} />
+          </button>
         </div>
       </div>
 

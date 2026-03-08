@@ -1,5 +1,6 @@
 "use client";
 
+import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
@@ -90,7 +91,7 @@ function getTriggerInfo(triggerId: string) {
 
 const emptyForm = { name: "", trigger: "appointment_reminder", triggerOffset: 24, templateId: "", isActive: true };
 
-export default function AutomationsPage() {
+function AutomationsPageContent() {
   const [showModal, setShowModal] = useState(false);
   const [editRule, setEditRule] = useState<AutomationRule | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -506,5 +507,17 @@ export default function AutomationsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AutomationsPage() {
+  return (
+    <TierGate
+      feature="automations"
+      title="אוטומציות והודעות אוטומטיות"
+      description="הגדר כללי אוטומציה לשליחת הודעות אוטומטיות. חסוך שעות עבודה בכל שבוע."
+    >
+      <AutomationsPageContent />
+    </TierGate>
   );
 }

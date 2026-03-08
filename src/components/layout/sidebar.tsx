@@ -34,23 +34,21 @@ import {
   AlertTriangle,
   ShieldCheck,
   MessageSquare,
+  Lock,
 } from "lucide-react";
+import { hasFeatureWithOverrides, type FeatureKey } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import dynamic from "next/dynamic";
 import { useAuth } from "@/providers/auth-provider";
-
-const HelpCenter = dynamic(
-  () => import("@/components/help/HelpCenter").then((m) => ({ default: m.HelpCenter })),
-  { ssr: false }
-);
 
 interface NavItem {
   name: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   minRole?: "owner" | "manager" | "user" | "volunteer";
+  /** Feature that must be enabled for this item to be unlocked (shows lock badge if not). */
+  lockedFeature?: FeatureKey;
 }
 
 interface NavGroup {
@@ -82,19 +80,19 @@ function canSee(item: { minRole?: string }, role: string | null, platformRole?: 
 const navEntries: NavEntry[] = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
   { name: "לקוחות", href: "/customers", icon: Users },
-  { name: "מערכת מכירות", href: "/leads", icon: Target, minRole: "user" },
+  { name: "מערכת מכירות", href: "/leads", icon: Target, minRole: "user", lockedFeature: "leads" },
   { name: "ניהול משימות", href: "/tasks", icon: ListTodo },
   { name: "ניהול תורים אונליין", href: "/bookings", icon: CalendarCheck },
-  { name: "פנסיון", href: "/boarding", icon: Hotel },
+  { name: "פנסיון", href: "/boarding", icon: Hotel, lockedFeature: "boarding" },
   { name: "פיננסים", href: "/pricing", icon: Wallet, minRole: "user" },
-  { name: "ניהול כלבי שירות", href: "/service-dogs", icon: Shield },
+  { name: "ניהול כלבי שירות", href: "/service-dogs", icon: Shield, lockedFeature: "service_dogs" },
   { name: "ניהול תהליכי אילוף", href: "/training", icon: Dog },
   { name: "חיות מחמד", href: "/pets", icon: PawPrint },
   { name: "יומן", href: "/calendar", icon: Calendar },
   { name: "הודעות", href: "/messages", icon: MessageSquare },
-  { name: "אוטומציות", href: "/automations", icon: Zap },
+  { name: "אוטומציות", href: "/automations", icon: Zap, lockedFeature: "automations" },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner" },
-  { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner" },
+  { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner", lockedFeature: "staff_management" },
   { name: "הגדרות", href: "/settings", icon: Settings, minRole: "user" },
 ];
 
@@ -103,6 +101,7 @@ interface SidebarProps {
   onCollapsedChange: (value: boolean) => void;
   mobileOpen: boolean;
   onMobileClose: () => void;
+  onHelpOpen: () => void;
 }
 
 export function Sidebar({
@@ -110,6 +109,7 @@ export function Sidebar({
   onCollapsedChange,
   mobileOpen,
   onMobileClose,
+  onHelpOpen,
 }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
@@ -165,6 +165,16 @@ export function Sidebar({
   const toggleGroup = (key: string) =>
     setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
+  // Compute per-item lock status from current user's tier + overrides
+  const userTier = user?.businessTier ?? "free";
+  const userOverrides: Record<string, boolean> | null =
+    (user as (typeof user & { businessFeatureOverrides?: Record<string, boolean> | null }))?.businessFeatureOverrides ?? null;
+
+  function isItemLocked(item: NavItem): boolean {
+    if (!item.lockedFeature) return false;
+    return !hasFeatureWithOverrides(userTier, item.lockedFeature, userOverrides);
+  }
+
   const { data: counters } = useQuery<{ openTasks: number; overdueFollowUps: number; pendingBookings: number }>({
     queryKey: ["sidebar-counters"],
     queryFn: () => fetch("/api/dashboard/counters").then((r) => {
@@ -192,8 +202,6 @@ export function Sidebar({
     "/service-dogs": sdAlerts?.total || 0,
   };
 
-  const [helpOpen, setHelpOpen] = useState(false);
-
   const renderNavItem = (item: NavItem, isMobile: boolean, isChild = false) => {
     const isActive =
       item.href === "/dashboard"
@@ -212,6 +220,7 @@ export function Sidebar({
     const Icon = item.icon;
     const badge = BADGES[item.href] || 0;
     const isExpanded = isMobile || !collapsed;
+    const locked = isItemLocked(item);
 
     return (
       <Link
@@ -221,12 +230,14 @@ export function Sidebar({
         className={cn(
           "flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
           isChild && isExpanded && "pr-8",
-          isActive
+          locked
+            ? "text-slate-500 hover:text-slate-400 hover:bg-white/[0.04] opacity-75"
+            : isActive
             ? "text-white"
             : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
         )}
         style={
-          isActive
+          !locked && isActive
             ? {
                 background: "rgba(249,115,22,0.15)",
                 boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.2)",
@@ -238,25 +249,33 @@ export function Sidebar({
         <div
           className={cn(
             "flex-shrink-0 transition-transform duration-150 relative",
-            isActive ? "text-brand-400" : "text-slate-500 group-hover:text-slate-300"
+            locked
+              ? "text-slate-600"
+              : isActive
+              ? "text-brand-400"
+              : "text-slate-500 group-hover:text-slate-300"
           )}
         >
           <Icon className="w-[18px] h-[18px]" />
-          {badge > 0 && collapsed && !isMobile && (
+          {badge > 0 && !locked && collapsed && !isMobile && (
             <span className="absolute -top-1 -left-1 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
               {badge > 99 ? "99+" : badge}
             </span>
           )}
         </div>
         {isExpanded && (
-          <span className={cn("flex-1", isActive ? "text-white" : "")}>{item.name}</span>
+          <span className={cn("flex-1", !locked && isActive ? "text-white" : "")}>{item.name}</span>
         )}
-        {badge > 0 && isExpanded && (
+        {/* Lock badge — shown instead of notification badge */}
+        {locked && isExpanded && (
+          <Lock className="w-3 h-3 text-slate-600 flex-shrink-0" />
+        )}
+        {badge > 0 && !locked && isExpanded && (
           <span className="min-w-[20px] h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none flex-shrink-0">
             {badge > 99 ? "99+" : badge}
           </span>
         )}
-        {isActive && isExpanded && (
+        {!locked && isActive && isExpanded && (
           <span
             className="absolute right-0 w-1 h-5 rounded-l-full"
             style={{ background: "#F97316" }}
@@ -354,7 +373,7 @@ export function Sidebar({
     const isExpanded = isMobile || !collapsed;
 
     const handleHelpClick = () => {
-      setHelpOpen(true);
+      onHelpOpen();
       if (isMobile) onMobileClose();
     };
 
@@ -498,7 +517,6 @@ export function Sidebar({
         {sidebarContent(true)}
       </div>
 
-      <HelpCenter open={helpOpen} onOpenChange={setHelpOpen} />
     </>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { TierGate } from "@/components/paywall/TierGate";
 import { FinanceTabs } from "@/components/finance/FinanceTabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
@@ -92,7 +93,7 @@ const METHOD_LABELS: Record<string, string> = {
   check: "צ'ק",
 };
 
-export default function PaymentsPage() {
+function PaymentsPageContent() {
   const [activeStatus, setActiveStatus] = useState("ALL");
   const [activePeriod, setActivePeriod] = useState("ALL");
   const [showNewPayment, setShowNewPayment] = useState(false);
@@ -1055,5 +1056,17 @@ function NewPaymentModal({
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PaymentsPage() {
+  return (
+    <TierGate
+      feature="payments"
+      title="ניהול תשלומים"
+      description="מעקב אחרי תשלומים, הנפקת קבלות וחשבוניות, וסקירת מצב פיננסי מלא."
+    >
+      <PaymentsPageContent />
+    </TierGate>
   );
 }

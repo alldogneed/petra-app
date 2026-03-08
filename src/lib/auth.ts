@@ -155,7 +155,7 @@ export async function getCurrentUser() {
     membership?.businessId
       ? prisma.business.findUnique({
           where: { id: membership.businessId },
-          select: { name: true, slug: true },
+          select: { name: true, slug: true, tier: true, featureOverrides: true },
         })
       : Promise.resolve(null),
     prisma.platformUser.findUnique({
@@ -174,6 +174,14 @@ export async function getCurrentUser() {
     businessId: membership?.businessId ?? null,
     businessName: business?.name ?? null,
     businessSlug: business?.slug ?? null,
+    businessTier: business?.tier ?? "free",
+    businessFeatureOverrides: (() => {
+      try {
+        const raw = business?.featureOverrides;
+        if (!raw) return null;
+        return typeof raw === "string" ? JSON.parse(raw) : raw;
+      } catch { return null; }
+    })(),
     businessRole: membership?.role ?? null,
     authProvider: platformUser?.authProvider ?? "local",
     hasPassword: !!platformUser?.passwordHash,

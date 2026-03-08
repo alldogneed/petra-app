@@ -1,5 +1,6 @@
 "use client";
 
+import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
 import {
@@ -459,7 +460,7 @@ function SessionLogModal({
 // MAIN PAGE COMPONENT
 // ═══════════════════════════════════════════════════════
 
-export default function TrainingPage() {
+function TrainingPageContent() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [individualSubTab, setIndividualSubTab] = useState<"private" | "package" | "boarding-alt">("private");
   const [groupSubTab, setGroupSubTab] = useState<"groups" | "workshops">("groups");
@@ -5058,5 +5059,17 @@ function AddRecipientInlineModal({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TrainingPage() {
+  return (
+    <TierGate
+      feature="training"
+      title="מנוע תהליכי אילוף"
+      description="ניהול תוכניות אילוף, מטרות ומפגשים. עקוב אחרי ההתקדמות של כל כלב בכל תוכנית אילוף."
+    >
+      <TrainingPageContent />
+    </TierGate>
   );
 }
