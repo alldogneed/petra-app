@@ -33,120 +33,141 @@ export type FeatureKey =
   | "scheduled_messages";
 
 // ─── Feature access matrix ────────────────────────────────────────────────────
+// Columns match the Petra V2 pricing table (March 2026):
+//   Free | Basic (₪99) | Groomer+ (₪169) | Pro (₪199) | Service Dog (₪229)
 
 const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
+  // ── Free ─────────────────────────────────────────────────────────────────────
+  // Customers capped at 15 (FREE_CUSTOMER_LIMIT), basic calendar only.
   free: {
-    leads: false,
-    boarding: false,
-    training: false,
-    training_groups: false,
-    automations: false,
-    custom_messages: false,
-    service_dogs: false,
+    leads:             false,
+    boarding:          false,
+    training:          false,
+    training_groups:   false,
+    automations:       false,
+    custom_messages:   false,
+    service_dogs:      false,
     groomer_portfolio: false,
-    invoicing: false,
-    staff_management: false,
-    excel_export: false,
-    gcal_sync: false,
-    payments: false,
-    orders: false,
-    pricing: false,
-    pets_advanced: false,
+    invoicing:         false,
+    staff_management:  false,
+    excel_export:      false,
+    gcal_sync:         false,
+    payments:          false,
+    orders:            false,
+    pricing:           false,
+    pets_advanced:     false,
     scheduled_messages: false,
   },
+
+  // ── Basic (₪99) ──────────────────────────────────────────────────────────────
+  // Unlimited customers, Google Calendar, payment links, basic WhatsApp reminders,
+  // 1-on-1 training (Goals/Tasks). No CRM, no boarding, no groups, no invoicing.
   basic: {
-    leads: false,             // CRM locked — PRO+
-    boarding: false,          // Boarding locked — PRO+
-    training: true,           // 1-on-1 training UNLOCKED for BASIC
-    training_groups: false,   // Group workshops locked — PRO+
-    automations: false,       // Automations locked — PRO+
-    custom_messages: false,   // Advanced custom messages locked — PRO+
-    service_dogs: false,      // Service dog module locked — SERVICE_DOG only
-    groomer_portfolio: false, // Groomer portfolio locked — GROOMER track only
-    invoicing: false,         // Full invoicing locked — PRO+
-    staff_management: false,  // Staff management locked — PRO+
-    excel_export: false,      // Excel export locked — PRO+
-    gcal_sync: true,          // Google Calendar sync UNLOCKED for BASIC
-    payments: true,           // Simple payments UNLOCKED for BASIC
-    orders: true,             // Orders UNLOCKED for BASIC
-    pricing: true,            // Pricing/products UNLOCKED for BASIC
-    pets_advanced: true,      // Advanced pet features UNLOCKED for BASIC
-    scheduled_messages: true, // WhatsApp appointment reminders UNLOCKED for BASIC
+    leads:             false,  // CRM — PRO+ only
+    boarding:          false,  // Boarding rooms — PRO+ only
+    training:          true,   // 1-on-1 training engine ✅
+    training_groups:   false,  // Group workshops — PRO+ only
+    automations:       false,  // Full automation rules — PRO+ only
+    custom_messages:   false,  // Custom message templates — PRO+ only
+    service_dogs:      false,  // Service dog module — SERVICE_DOG only
+    groomer_portfolio: false,  // Before/after portfolio — GROOMER+ only
+    invoicing:         false,  // Invoices — PRO+ only
+    staff_management:  false,  // Extra staff users — PRO+ only
+    excel_export:      false,  // Excel export — PRO+ only
+    gcal_sync:         true,   // Google Calendar sync ✅
+    payments:          true,   // Payment links ✅
+    orders:            true,
+    pricing:           true,
+    pets_advanced:     true,
+    scheduled_messages: true,  // Basic WhatsApp appointment reminders ✅
   },
-  pro: {
-    leads: true,
-    boarding: true,
-    training: true,
-    training_groups: true,
-    automations: true,
-    custom_messages: true,
-    service_dogs: false,
-    groomer_portfolio: false,
-    invoicing: true,
-    staff_management: true,
-    excel_export: true,
-    gcal_sync: true,
-    payments: true,
-    orders: true,
-    pricing: true,
-    pets_advanced: true,
+
+  // ── Groomer+ (₪169) ──────────────────────────────────────────────────────────
+  // Groomer-specific track: portfolio, full invoicing, automations tuned for
+  // groomers, staff management, Excel export, GCal. No training, no CRM, no boarding.
+  groomer: {
+    leads:             false,  // CRM not relevant for groomers
+    boarding:          false,
+    training:          false,  // Training engine not relevant for groomers
+    training_groups:   false,
+    automations:       true,   // WhatsApp automations (groomer-tuned) ✅
+    custom_messages:   true,   // Custom templates ✅
+    service_dogs:      false,
+    groomer_portfolio: true,   // Before/after portfolio ✅
+    invoicing:         true,   // Full invoicing ✅
+    staff_management:  true,   // Staff/additional users ✅
+    excel_export:      true,   // Excel export ✅
+    gcal_sync:         true,   // Google Calendar ✅
+    payments:          true,
+    orders:            true,
+    pricing:           true,
+    pets_advanced:     true,
+    scheduled_messages: true,  // WhatsApp reminders ✅
+  },
+
+  // ── Groomer+ legacy alias (kept for DB backward-compat — same as groomer) ────
+  groomer_plus: {
+    leads:             false,
+    boarding:          false,
+    training:          false,
+    training_groups:   false,
+    automations:       true,
+    custom_messages:   true,
+    service_dogs:      false,
+    groomer_portfolio: true,
+    invoicing:         true,
+    staff_management:  true,
+    excel_export:      true,
+    gcal_sync:         true,
+    payments:          true,
+    orders:            true,
+    pricing:           true,
+    pets_advanced:     true,
     scheduled_messages: true,
   },
-  groomer: {
-    leads: true,
-    boarding: false,
-    training: false,
-    training_groups: false,
-    automations: false,
-    custom_messages: false,
-    service_dogs: false,
-    groomer_portfolio: true,
-    invoicing: true,
-    staff_management: false,
-    excel_export: false,
-    gcal_sync: false,
-    payments: true,
-    orders: true,
-    pricing: true,
-    pets_advanced: true,
-    scheduled_messages: false,
+
+  // ── Pro (₪199) ───────────────────────────────────────────────────────────────
+  // Full platform: CRM, boarding rooms, group training, full automations,
+  // invoicing, staff, Excel. No service dog module, no groomer portfolio.
+  pro: {
+    leads:             true,   // CRM ✅
+    boarding:          true,   // Boarding rooms ✅
+    training:          true,   // Training engine ✅
+    training_groups:   true,   // Group workshops ✅
+    automations:       true,   // Full automations ✅
+    custom_messages:   true,
+    service_dogs:      false,  // Service dog — SERVICE_DOG only
+    groomer_portfolio: false,  // Portfolio — GROOMER track only
+    invoicing:         true,   // Invoicing ✅
+    staff_management:  true,   // Staff ✅
+    excel_export:      true,   // Excel export ✅
+    gcal_sync:         true,
+    payments:          true,
+    orders:            true,
+    pricing:           true,
+    pets_advanced:     true,
+    scheduled_messages: true,
   },
-  groomer_plus: {
-    leads: false,
-    boarding: false,
-    training: false,
-    training_groups: false,
-    automations: false,
-    custom_messages: false,
-    service_dogs: false,
-    groomer_portfolio: true,
-    invoicing: true,
-    staff_management: true,
-    excel_export: true,
-    gcal_sync: true,
-    payments: true,
-    orders: true,
-    pricing: true,
-    pets_advanced: true,
-    scheduled_messages: false,
-  },
+
+  // ── Service Dog (₪229) ───────────────────────────────────────────────────────
+  // All PRO features + service dog module (120h tracking, placements, ID cards).
   service_dog: {
-    leads: true,
-    boarding: true,
-    training: true,
-    training_groups: true,
-    automations: true,
-    custom_messages: true,
-    service_dogs: true,
+    leads:             true,
+    boarding:          true,
+    training:          true,
+    training_groups:   true,
+    automations:       true,
+    custom_messages:   true,
+    service_dogs:      true,   // Service dog module ✅ (exclusive to this tier)
     groomer_portfolio: false,
-    invoicing: true,
-    staff_management: true,
-    excel_export: true,
-    gcal_sync: true,
-    payments: true,
-    orders: true,
-    pricing: true,
-    pets_advanced: true,
+    invoicing:         true,
+    staff_management:  true,
+    excel_export:      true,
+    gcal_sync:         true,
+    payments:          true,
+    orders:            true,
+    pricing:           true,
+    pets_advanced:     true,
     scheduled_messages: true,
   },
 };
@@ -168,21 +189,21 @@ const MAX_CUSTOMERS: Record<TierKey, number | null> = {
 // ─── Upgrade path ─────────────────────────────────────────────────────────────
 
 const UPGRADE_SUGGESTION: Record<TierKey, TierKey | null> = {
-  free: "basic",
-  basic: "pro",
-  pro: "service_dog",
-  groomer: "groomer_plus",
-  groomer_plus: "pro",
+  free:        "basic",
+  basic:       "pro",
+  pro:         "service_dog",
+  groomer:     null,        // lateral track — no linear upgrade
+  groomer_plus: null,
   service_dog: null,
 };
 
 const TIER_DISPLAY: Record<TierKey, { name: string; price: number }> = {
-  free: { name: "חינמי", price: 0 },
-  basic: { name: "בייסיק", price: 99 },
-  pro: { name: "פרו", price: 199 },
-  groomer: { name: "גרומר", price: 169 },
-  groomer_plus: { name: "גרומר+", price: 229 },
-  service_dog: { name: "Service Dog", price: 299 },
+  free:        { name: "חינמי",        price: 0   },
+  basic:       { name: "בייסיק",       price: 99  },
+  pro:         { name: "פרו",          price: 199 },
+  groomer:     { name: "גרומר+",       price: 169 },
+  groomer_plus:{ name: "גרומר+",       price: 169 }, // legacy alias
+  service_dog: { name: "Service Dog",  price: 229 },
 };
 
 // ─── Public API ───────────────────────────────────────────────────────────────
