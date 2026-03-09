@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
@@ -14,7 +15,7 @@ import { toast } from "sonner";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { LeadTreatmentModal } from "@/components/leads/LeadTreatmentModal";
 import LeadDetailsModal from "@/components/leads/LeadDetailsModal";
-import { LeadsReports } from "@/components/leads/LeadsReports";
+const LeadsReports = dynamic(() => import("@/components/leads/LeadsReports").then(m => ({ default: m.LeadsReports })), { ssr: false });
 import { BarChart2 } from "lucide-react";
 import {
   DndContext,

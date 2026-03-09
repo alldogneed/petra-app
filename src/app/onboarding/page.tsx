@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import {
   CheckCircle2,
   ChevronLeft,
@@ -153,7 +154,7 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
   return (
     <div className="text-center space-y-6">
       <div className="w-16 h-16 rounded-2xl overflow-hidden mx-auto">
-        <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
+        <Image src="/logo.svg" alt="Petra" width={64} height={64} className="w-full h-full object-cover" />
       </div>
       <div>
         <h1 className="text-2xl font-bold text-petra-text mb-2">ברוך הבא ל-Petra! 🎉</h1>

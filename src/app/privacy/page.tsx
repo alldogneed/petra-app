@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { ShieldCheck } from "lucide-react";
 
 export const metadata = {
@@ -123,7 +124,7 @@ export default function PrivacyPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-2xl mx-auto mb-4 overflow-hidden">
-            <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
+            <Image src="/logo.svg" alt="Petra" width={64} height={64} className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800">מדיניות פרטיות – Petra</h1>
           <p className="text-sm text-slate-500 mt-1">עדכון אחרון: מרץ 2026</p>

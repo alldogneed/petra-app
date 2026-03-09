@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   Dog,
   Heart,
@@ -177,7 +178,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
         {/* Header */}
         <div className="text-center mb-4 pt-4">
           <div className="w-10 h-10 rounded-xl mx-auto mb-2 overflow-hidden">
-            <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
+            <Image src="/logo.svg" alt="Petra" width={40} height={40} className="w-full h-full object-cover" />
           </div>
           <h1 className="text-base font-bold text-slate-900">טופס קליטה</h1>
           <p className="text-xs text-slate-500">{formInfo?.businessName}</p>

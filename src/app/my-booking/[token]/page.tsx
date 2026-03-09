@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Image from "next/image"
 import { Check, Clock, X, PawPrint, Calendar, User, Phone, MessageCircle, Loader2, AlertCircle } from "lucide-react"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -117,7 +118,7 @@ export default function MyBookingPage({ params }: { params: { token: string } })
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0">
-            <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
+            <Image src="/logo.svg" alt="Petra" width={36} height={36} className="w-full h-full object-cover" />
           </div>
           <div>
             <p className="text-xs text-slate-500">ההזמנה שלך אצל</p>

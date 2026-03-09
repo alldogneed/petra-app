@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { CheckSquare, Square, ShieldCheck } from "lucide-react";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 
@@ -161,7 +162,7 @@ export default function TosAcceptPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-2xl mx-auto mb-4 overflow-hidden">
-            <img src="/logo.svg" alt="Petra" className="w-full h-full object-cover" />
+            <Image src="/logo.svg" alt="Petra" width={64} height={64} className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-petra-text">תנאי שימוש – Petra</h1>
           <p className="text-sm text-petra-muted mt-1">גרסה 1.0 | נא לקרוא בעיון לפני השימוש במערכת</p>
