@@ -12,23 +12,35 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  let user;
+  try {
+    user = await getCurrentUser();
+  } catch (err) {
+    console.error("[DashboardLayout] getCurrentUser error:", err);
+    throw err;
+  }
 
   if (!user) {
     redirect("/login");
   }
 
   // Run ToS and onboarding checks in parallel to avoid sequential DB round-trips
-  const [consent, progress] = await Promise.all([
-    prisma.userConsent.findFirst({
-      where: { userId: user.id, termsVersion: CURRENT_TOS_VERSION },
-      select: { id: true },
-    }),
-    prisma.onboardingProgress.findUnique({
-      where: { userId: user.id },
-      select: { completedAt: true },
-    }),
-  ]);
+  let consent, progress;
+  try {
+    [consent, progress] = await Promise.all([
+      prisma.userConsent.findFirst({
+        where: { userId: user.id, termsVersion: CURRENT_TOS_VERSION },
+        select: { id: true },
+      }),
+      prisma.onboardingProgress.findUnique({
+        where: { userId: user.id },
+        select: { completedAt: true },
+      }),
+    ]);
+  } catch (err) {
+    console.error("[DashboardLayout] DB checks error:", err);
+    throw err;
+  }
 
   if (!consent) {
     redirect("/tos-accept");
