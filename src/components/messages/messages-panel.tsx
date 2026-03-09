@@ -30,6 +30,24 @@ import { TEMPLATE_VARIABLES } from "@/lib/constants";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+interface AutomationRuleInline {
+  id: string;
+  trigger: string;
+  triggerOffset: number;
+  isActive: boolean;
+}
+
+// kept only for _AutomationsTab_REMOVED compatibility
+interface AutomationRule {
+  id: string;
+  name: string;
+  trigger: string;
+  triggerOffset: number;
+  isActive: boolean;
+  createdAt: string;
+  template: { id: string; name: string; channel: string };
+}
+
 interface MessageTemplate {
   id: string;
   name: string;
@@ -39,16 +57,7 @@ interface MessageTemplate {
   variables: string;
   isActive: boolean;
   createdAt: string;
-}
-
-interface AutomationRule {
-  id: string;
-  name: string;
-  trigger: string;
-  triggerOffset: number;
-  isActive: boolean;
-  createdAt: string;
-  template: { id: string; name: string; channel: string };
+  automationRules: AutomationRuleInline[];
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -61,12 +70,10 @@ const CHANNELS = [
 ];
 
 const AUTOMATION_TRIGGERS = [
-  { id: "before_appointment", label: "לפני תור", description: "שלח הודעה X שעות לפני התור" },
-  { id: "after_appointment", label: "אחרי תור", description: "שלח הודעה X שעות אחרי התור" },
-  { id: "on_appointment_booked", label: "בעת קביעת תור", description: "שלח הודעה כאשר נקבע תור חדש" },
-  { id: "on_payment_confirmed", label: "בעת אישור תשלום", description: "שלח הודעה כאשר תשלום אושר" },
-  { id: "on_lead_created", label: "ליד חדש", description: "שלח הודעה כאשר ליד חדש נוצר" },
-  { id: "birthday_reminder", label: "יום הולדת לכלב", description: "שלח הודעה X ימים לפני יום הולדת הכלב" },
+  { id: "appointment_reminder", label: "תזכורת לפני תור", description: "שלח הודעה X שעות לפני התור" },
+  { id: "appointment_followup", label: "מעקב אחרי תור", description: "שלח הודעה X שעות אחרי התור" },
+  { id: "lead_followup", label: "ליד חדש", description: "שלח הודעה X שעות אחרי יצירת ליד" },
+  { id: "birthday_reminder", label: "יום הולדת לכלב", description: "שלח הודעה X ימים לפני יום ההולדת" },
 ];
 
 const TRIGGER_LABEL: Record<string, string> = Object.fromEntries(
@@ -74,12 +81,10 @@ const TRIGGER_LABEL: Record<string, string> = Object.fromEntries(
 );
 
 function triggerOffsetLabel(trigger: string, offset: number): string {
-  if (trigger === "before_appointment") return `${offset} שעות לפני`;
-  if (trigger === "after_appointment") return `${offset} שעות אחרי`;
+  if (trigger === "appointment_reminder") return `${offset} שעות לפני`;
+  if (trigger === "appointment_followup") return `${offset} שעות אחרי`;
+  if (trigger === "lead_followup") return `${offset} שעות אחרי יצירה`;
   if (trigger === "birthday_reminder") return `${offset} ימים לפני`;
-  if (trigger === "on_appointment_booked") return "בזמן הקביעה";
-  if (trigger === "on_payment_confirmed") return "בזמן האישור";
-  if (trigger === "on_lead_created") return "בזמן הכניסה";
   return `${offset} שעות`;
 }
 
@@ -382,7 +387,8 @@ function TemplatesTab() {
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   const [sendingTemplate, setSendingTemplate] = useState<MessageTemplate | null>(null);
   const [bulkSendingTemplate, setBulkSendingTemplate] = useState<MessageTemplate | null>(null);
-  const [form, setForm] = useState({ name: "", channel: "whatsapp", subject: "", body: "" });
+  const emptyForm = { name: "", channel: "whatsapp", subject: "", body: "", autoEnabled: false, autoTrigger: "appointment_reminder", autoOffset: 24, autoRuleId: null as string | null };
+  const [form, setForm] = useState(emptyForm);
   const [cursorPos, setCursorPos] = useState(0);
   const [showStarters, setShowStarters] = useState(false);
   const queryClient = useQueryClient();
@@ -396,21 +402,37 @@ function TemplatesTab() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: (data: typeof form) => {
+    mutationFn: async (data: typeof form) => {
+      // 1. Save template
       const url = editingTemplate ? `/api/messages/${editingTemplate.id}` : "/api/messages";
       const method = editingTemplate ? "PATCH" : "POST";
-      return fetch(url, {
+      const templateRes = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); });
+        body: JSON.stringify({ name: data.name, channel: data.channel, subject: data.subject, body: data.body }),
+      });
+      if (!templateRes.ok) throw new Error("Failed to save template");
+      const savedTemplate = await templateRes.json();
+
+      // 2. Handle linked automation rule
+      const rulePayload = { name: data.name, trigger: data.autoTrigger, triggerOffset: data.autoOffset, templateId: savedTemplate.id, isActive: true };
+      if (data.autoEnabled) {
+        if (data.autoRuleId) {
+          await fetch(`/api/automations/${data.autoRuleId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rulePayload) });
+        } else {
+          await fetch("/api/automations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rulePayload) });
+        }
+      } else if (data.autoRuleId) {
+        await fetch(`/api/automations/${data.autoRuleId}`, { method: "DELETE" });
+      }
+      return savedTemplate;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["messages"] });
       setShowEditor(false);
       toast.success(editingTemplate ? "התבנית עודכנה" : "התבנית נוצרה בהצלחה");
       setEditingTemplate(null);
-      setForm({ name: "", channel: "whatsapp", subject: "", body: "" });
+      setForm(emptyForm);
     },
     onError: () => toast.error("שגיאה בשמירת התבנית. נסה שוב."),
   });
@@ -425,19 +447,34 @@ function TemplatesTab() {
     onError: () => toast.error("שגיאה במחיקת התבנית. נסה שוב."),
   });
 
+  const toggleRuleMutation = useMutation({
+    mutationFn: ({ ruleId, isActive }: { ruleId: string; isActive: boolean }) =>
+      fetch(`/api/automations/${ruleId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive }) })
+        .then(r => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messages"] }),
+    onError: () => toast.error("שגיאה בעדכון אוטומציה"),
+  });
+
   function insertVariable(v: string) {
     const newBody = form.body.slice(0, cursorPos) + v + form.body.slice(cursorPos);
     setForm({ ...form, body: newBody });
     setCursorPos(cursorPos + v.length);
   }
 
-  function openEditor(template?: MessageTemplate) {
+  function openEditor(template?: MessageTemplate, withAuto = false) {
     if (template) {
+      const rule = template.automationRules?.[0] ?? null;
       setEditingTemplate(template);
-      setForm({ name: template.name, channel: template.channel, subject: template.subject || "", body: template.body });
+      setForm({
+        name: template.name, channel: template.channel, subject: template.subject || "", body: template.body,
+        autoEnabled: !!rule || withAuto,
+        autoTrigger: rule?.trigger ?? "appointment_reminder",
+        autoOffset: rule?.triggerOffset ?? 24,
+        autoRuleId: rule?.id ?? null,
+      });
     } else {
       setEditingTemplate(null);
-      setForm({ name: "", channel: "whatsapp", subject: "", body: "" });
+      setForm({ ...emptyForm, autoEnabled: withAuto });
     }
     setShowEditor(true);
   }
@@ -521,7 +558,44 @@ function TemplatesTab() {
                   </button>
                 </div>
               </div>
-              <p className="text-xs text-petra-muted line-clamp-3 whitespace-pre-wrap">{template.body}</p>
+              <p className="text-xs text-petra-muted line-clamp-2 whitespace-pre-wrap mb-3">{template.body}</p>
+
+              {/* Automation row */}
+              <div className="border-t border-slate-100 pt-2.5">
+                {(() => {
+                  const rule = template.automationRules?.[0];
+                  if (rule) {
+                    return (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-xs min-w-0">
+                          <Zap className="w-3 h-3 text-brand-500 flex-shrink-0" />
+                          <span className={cn("truncate", rule.isActive ? "text-petra-text font-medium" : "text-petra-muted line-through")}>
+                            {triggerOffsetLabel(rule.trigger, rule.triggerOffset)} · {TRIGGER_LABEL[rule.trigger] ?? rule.trigger}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => toggleRuleMutation.mutate({ ruleId: rule.id, isActive: !rule.isActive })}
+                          className="p-0.5 hover:opacity-75 transition-opacity flex-shrink-0"
+                          title={rule.isActive ? "כבה אוטומציה" : "הפעל אוטומציה"}
+                        >
+                          {rule.isActive
+                            ? <ToggleRight className="w-5 h-5 text-brand-500" />
+                            : <ToggleLeft className="w-5 h-5 text-slate-400" />}
+                        </button>
+                      </div>
+                    );
+                  }
+                  return (
+                    <button
+                      onClick={() => openEditor(template, true)}
+                      className="flex items-center gap-1 text-xs text-slate-400 hover:text-brand-500 transition-colors"
+                    >
+                      <Plus className="w-3 h-3" />
+                      הוסף אוטומציה
+                    </button>
+                  );
+                })()}
+              </div>
             </div>
           ))}
         </div>
@@ -653,7 +727,65 @@ function TemplatesTab() {
                 )}
               </div>
             </div>
-            <div className="flex gap-3 mt-6">
+            {/* Automation section */}
+            <div className="border-t border-slate-100 pt-4 mt-2">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-sm font-semibold text-petra-text flex items-center gap-1.5">
+                    <Zap className="w-4 h-4 text-brand-500" />
+                    שליחה אוטומטית
+                  </p>
+                  <p className="text-xs text-petra-muted mt-0.5">הפעל כדי לשלוח הודעה זו אוטומטית</p>
+                </div>
+                <button type="button" onClick={() => setForm(f => ({ ...f, autoEnabled: !f.autoEnabled }))}>
+                  {form.autoEnabled
+                    ? <ToggleRight className="w-7 h-7 text-brand-500" />
+                    : <ToggleLeft className="w-7 h-7 text-slate-400" />}
+                </button>
+              </div>
+              {form.autoEnabled && (
+                <div className="space-y-3 p-3 bg-slate-50 rounded-xl">
+                  <div>
+                    <label className="label">מתי לשלוח?</label>
+                    <select
+                      className="input"
+                      value={form.autoTrigger}
+                      onChange={e => setForm(f => ({ ...f, autoTrigger: e.target.value }))}
+                    >
+                      {AUTOMATION_TRIGGERS.map(t => (
+                        <option key={t.id} value={t.id}>{t.label}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-petra-muted mt-1">
+                      {AUTOMATION_TRIGGERS.find(t => t.id === form.autoTrigger)?.description}
+                    </p>
+                  </div>
+                  {["appointment_reminder", "appointment_followup", "lead_followup", "birthday_reminder"].includes(form.autoTrigger) && (
+                    <div>
+                      <label className="label">
+                        {form.autoTrigger === "birthday_reminder" ? "ימים לפני" : "שעות"}
+                      </label>
+                      <input
+                        type="number"
+                        className="input"
+                        min={1}
+                        max={form.autoTrigger === "birthday_reminder" ? 30 : 168}
+                        value={form.autoOffset}
+                        onChange={e => setForm(f => ({ ...f, autoOffset: parseInt(e.target.value) || 1 }))}
+                        dir="ltr"
+                      />
+                      <p className="text-xs text-petra-muted mt-1">
+                        {form.autoTrigger === "birthday_reminder"
+                          ? `שלח ${form.autoOffset} ימים לפני יום ההולדת`
+                          : `שלח ${form.autoOffset} שעות ${form.autoTrigger === "appointment_reminder" ? "לפני" : "אחרי"} התור`}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-4">
               <button
                 className="btn-primary flex-1"
                 disabled={!form.name || !form.body || saveMutation.isPending}
@@ -686,9 +818,9 @@ function TemplatesTab() {
   );
 }
 
-// ─── Automations Tab ──────────────────────────────────────────────────────────
+// ─── AutomationsTab removed — automation is now inline on template cards ───────
 
-function AutomationsTab() {
+function _AutomationsTab_REMOVED() {
   const [showModal, setShowModal] = useState(false);
   const [editingRule, setEditingRule] = useState<AutomationRule | null>(null);
   const [form, setForm] = useState({
@@ -1229,14 +1361,7 @@ function BulkSendTab() {
 // ─── Main Panel ───────────────────────────────────────────────────────────────
 
 export function MessagesPanel() {
-  const [activeTab, setActiveTab] = useState<"templates" | "automations" | "bulk">("templates");
-
-  const { data: automationsCount } = useQuery<AutomationRule[]>({
-    queryKey: ["automations"],
-    queryFn: () => fetchJSON<AutomationRule[]>("/api/automations"),
-  });
-
-  const activeAutomations = (automationsCount ?? []).filter((r) => r.isActive).length;
+  const [activeTab, setActiveTab] = useState<"templates" | "bulk">("templates");
 
   return (
     <div>
@@ -1257,25 +1382,6 @@ export function MessagesPanel() {
           </span>
         </button>
         <button
-          onClick={() => setActiveTab("automations")}
-          className={cn(
-            "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-            activeTab === "automations"
-              ? "bg-white text-petra-text shadow-sm"
-              : "text-petra-muted hover:text-petra-text"
-          )}
-        >
-          <span className="flex items-center gap-2">
-            <Zap className="w-4 h-4" />
-            אוטומציות
-            {activeAutomations > 0 && (
-              <span className="bg-brand-500 text-white text-[10px] px-1.5 py-0.5 rounded-full leading-none">
-                {activeAutomations}
-              </span>
-            )}
-          </span>
-        </button>
-        <button
           onClick={() => setActiveTab("bulk")}
           className={cn(
             "px-4 py-2 rounded-lg text-sm font-medium transition-all",
@@ -1292,7 +1398,6 @@ export function MessagesPanel() {
       </div>
 
       {activeTab === "templates" && <TemplatesTab />}
-      {activeTab === "automations" && <AutomationsTab />}
       {activeTab === "bulk" && <BulkSendTab />}
     </div>
   );

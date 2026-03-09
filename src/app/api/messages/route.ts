@@ -23,6 +23,11 @@ export async function GET(request: NextRequest) {
 
     const templates = await prisma.messageTemplate.findMany({
       where,
+      include: {
+        automationRules: {
+          select: { id: true, trigger: true, triggerOffset: true, isActive: true },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
 
