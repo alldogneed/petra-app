@@ -6,7 +6,7 @@ import {
   Users, Calendar, ArrowRight, Shield, Loader2,
   ToggleLeft, ToggleRight, Minus, Zap, Check, X,
   ChevronDown, RotateCcw, LogIn, Clock, CreditCard,
-  Activity, Eye,
+  Activity,
 } from "lucide-react";
 import Link from "next/link";
 import { fetchJSON, cn } from "@/lib/utils";
@@ -132,7 +132,6 @@ export default function TenantDetailPage() {
   const { tenantId } = useParams<{ tenantId: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [impersonating, setImpersonating] = useState(false);
 
   const [pendingOverrides, setPendingOverrides] = useState<Record<string, OverrideValue>>({});
   const [overridesDirty, setOverridesDirty] = useState(false);
@@ -198,7 +197,6 @@ export default function TenantDetailPage() {
         method: "POST",
       }),
     onSuccess: () => {
-      setImpersonating(false);
       router.push("/dashboard");
       router.refresh();
     },
@@ -291,7 +289,6 @@ export default function TenantDetailPage() {
           {/* Impersonate button — super_admin only */}
           <button
             onClick={() => {
-              setImpersonating(true);
               impersonateMutation.mutate();
             }}
             disabled={impersonateMutation.isPending || tenant.status === "closed"}

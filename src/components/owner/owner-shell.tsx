@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import { Toaster } from "sonner";
 import {
   LayoutDashboard,
   Building2,
@@ -140,6 +141,7 @@ export function OwnerShell({
 
         <main className="p-6 max-w-7xl">{children}</main>
       </div>
+      <Toaster position="top-left" richColors />
     </div>
   );
 }

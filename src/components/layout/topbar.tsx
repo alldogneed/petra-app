@@ -38,6 +38,7 @@ const GlobalSearch = dynamic(
 );
 import { cn, fetchJSON, formatCurrency, toWhatsAppPhone } from "@/lib/utils";
 import { InAppNotificationBell } from "@/components/layout/InAppNotificationBell";
+import { SystemInbox } from "@/components/layout/SystemInbox";
 
 const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/customers": { title: "לקוחות", subtitle: "ניהול בסיס הלקוחות" },
@@ -638,6 +639,9 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
               </div>
             )}
           </div>
+
+          {/* System Inbox — broadcast messages from platform admin */}
+          <SystemInbox />
 
           {/* In-App Notification Bell (milestones & engagement) */}
           <InAppNotificationBell />

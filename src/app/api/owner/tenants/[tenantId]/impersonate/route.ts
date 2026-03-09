@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requirePlatformPermission, isGuardError, resolveSession } from "@/lib/auth-guards";
+import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
 import { PLATFORM_PERMS, PLATFORM_ROLES } from "@/lib/permissions";
 import { logAudit, getRequestContext } from "@/lib/audit";
