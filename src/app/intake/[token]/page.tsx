@@ -68,6 +68,8 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
   const [health, setHealth] = useState({
     allergies: "",
     medicalConditions: "",
+    surgeriesHistory: "",
+    activityLimitations: "",
     foodNotes: "",
     vetName: "",
     vetPhone: "",
@@ -78,6 +80,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
 
   // Behavior info
   const [behavior, setBehavior] = useState<Record<string, boolean | string>>({
+    customIssues: "",
     dogAggression: false,
     humanAggression: false,
     leashReactivity: false,
@@ -315,6 +318,26 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                 />
               </div>
               <div>
+                <label className="text-xs font-medium text-slate-600 block mb-1">ניתוחים בעבר</label>
+                <textarea
+                  className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
+                  rows={2}
+                  value={health.surgeriesHistory}
+                  onChange={(e) => setHealth({ ...health, surgeriesHistory: e.target.value })}
+                  placeholder="אם עבר ניתוחים — פרט סוג ותאריך..."
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-600 block mb-1">מגבלות פעילות</label>
+                <textarea
+                  className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
+                  rows={2}
+                  value={health.activityLimitations}
+                  onChange={(e) => setHealth({ ...health, activityLimitations: e.target.value })}
+                  placeholder="האם יש מגבלות על פעילות גופנית? פרט..."
+                />
+              </div>
+              <div>
                 <label className="text-xs font-medium text-slate-600 block mb-1">הוראות האכלה / אוכל</label>
                 <textarea
                   className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
@@ -446,6 +469,19 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                   value={behavior.triggers as string}
                   onChange={(e) => setBehavior({ ...behavior, triggers: e.target.value })}
                   placeholder="מה גורם לבעיות ההתנהגות..."
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-slate-600 block mb-1">
+                  הערות התנהגות נוספות
+                </label>
+                <textarea
+                  className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
+                  rows={2}
+                  value={behavior.customIssues as string}
+                  onChange={(e) => setBehavior({ ...behavior, customIssues: e.target.value })}
+                  placeholder="פרט כל מידע נוסף על התנהגות הכלב..."
                 />
               </div>
 
