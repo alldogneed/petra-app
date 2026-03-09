@@ -209,7 +209,8 @@ model Business {
   tier        String   @default("basic")
   featureOverrides Json?   // per-tenant overrides: { "leads": true, "boarding": false, ... }
   status      String   @default("active") // "active" | "suspended" | "closed"
-  trialEndsAt DateTime?
+  trialEndsAt        DateTime?
+  subscriptionEndsAt DateTime?
   vatNumber          String?
   businessRegNumber  String?   // ח.פ / עוסק מורשה / בע"מ
   vatEnabled         Boolean  @default(true)

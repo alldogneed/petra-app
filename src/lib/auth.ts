@@ -68,13 +68,18 @@ export async function ensureUserHasBusiness(
   const slugSuffix = Math.random().toString(36).slice(2, 7);
   const slug = `${slugBase}-${slugSuffix}`;
 
+  // 14-day free trial for new signups
+  const trialEndsAt = new Date();
+  trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+
   const business = await prisma.$transaction(async (tx) => {
     const biz = await tx.business.create({
       data: {
         name: `העסק של ${displayName}`,
         slug,
         status: "active",
-        tier: "basic",
+        tier: "pro",         // Trial gives access to pro features
+        trialEndsAt,         // Downgrades to free after 14 days
       },
     });
 
@@ -159,7 +164,7 @@ export async function getCurrentUser() {
     effectiveBusinessId
       ? prisma.business.findUnique({
           where: { id: effectiveBusinessId },
-          select: { name: true, slug: true, tier: true, featureOverrides: true, trialEndsAt: true },
+          select: { name: true, slug: true, tier: true, featureOverrides: true, trialEndsAt: true, subscriptionEndsAt: true },
         })
       : Promise.resolve(null),
     prisma.platformUser.findUnique({
@@ -168,11 +173,13 @@ export async function getCurrentUser() {
     }),
   ]);
 
-  // Effective tier: if trial expired, downgrade to "free"
+  // Effective tier: if trial OR subscription expired, downgrade to "free"
   const storedTier = business?.tier ?? "free";
   const trialEndsAt = business?.trialEndsAt ?? null;
+  const subscriptionEndsAt = business?.subscriptionEndsAt ?? null;
   const trialExpired = trialEndsAt && trialEndsAt < new Date();
-  const businessEffectiveTier = trialExpired ? "free" : storedTier;
+  const subscriptionExpired = subscriptionEndsAt && subscriptionEndsAt < new Date();
+  const businessEffectiveTier = (trialExpired || subscriptionExpired) ? "free" : storedTier;
 
   return {
     id: session.user.id,
@@ -187,6 +194,7 @@ export async function getCurrentUser() {
     businessTier: storedTier,
     businessEffectiveTier,
     businessTrialEndsAt: trialEndsAt?.toISOString() ?? null,
+    businessSubscriptionEndsAt: subscriptionEndsAt?.toISOString() ?? null,
     businessFeatureOverrides: (() => {
       try {
         const raw = business?.featureOverrides;

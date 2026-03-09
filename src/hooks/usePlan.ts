@@ -29,6 +29,24 @@ export function usePlan() {
     return hasFeature(tier, feature);
   };
 
+  const now = new Date();
+
+  // Trial info
+  const trialEndsAt = user?.businessTrialEndsAt ? new Date(user.businessTrialEndsAt) : null;
+  const trialActive = trialEndsAt !== null && trialEndsAt > now;
+  const trialExpired = trialEndsAt !== null && trialEndsAt <= now;
+  const trialDaysLeft = trialActive
+    ? Math.max(0, Math.ceil((trialEndsAt!.getTime() - now.getTime()) / 86400000))
+    : 0;
+
+  // Subscription info
+  const subscriptionEndsAt = user?.businessSubscriptionEndsAt ? new Date(user.businessSubscriptionEndsAt) : null;
+  const subscriptionActive = subscriptionEndsAt !== null && subscriptionEndsAt > now;
+  const subscriptionExpired = subscriptionEndsAt !== null && subscriptionEndsAt <= now;
+  const subscriptionDaysLeft = subscriptionActive
+    ? Math.max(0, Math.ceil((subscriptionEndsAt!.getTime() - now.getTime()) / 86400000))
+    : 0;
+
   return {
     tier,
     isFree: tier === "free",
@@ -38,5 +56,15 @@ export function usePlan() {
     isServiceDog: tier === "service_dog",
     can,
     cannot: (feature: FeatureKey) => !can(feature),
+    // Trial
+    trialEndsAt,
+    trialActive,
+    trialExpired,
+    trialDaysLeft,
+    // Subscription
+    subscriptionEndsAt,
+    subscriptionActive,
+    subscriptionExpired,
+    subscriptionDaysLeft,
   };
 }

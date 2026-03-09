@@ -76,6 +76,7 @@ interface TenantDetail {
   tier: string;
   status: string;
   trialEndsAt: string | null;
+  subscriptionEndsAt: string | null;
   createdAt: string;
   updatedAt: string;
   members: TenantMember[];
@@ -191,6 +192,18 @@ export default function TenantDetailPage() {
     },
   });
 
+  const setSubscriptionMutation = useMutation({
+    mutationFn: (subscriptionEndsAt: string | null) =>
+      fetchJSON(`/api/owner/tenants/${tenantId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscriptionEndsAt }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["owner", "tenants", tenantId] });
+    },
+  });
+
   const impersonateMutation = useMutation({
     mutationFn: () =>
       fetchJSON(`/api/owner/tenants/${tenantId}/impersonate`, {
@@ -241,6 +254,21 @@ export default function TenantDetailPage() {
     const d = new Date();
     d.setDate(d.getDate() + days);
     setTrialMutation.mutate(d.toISOString());
+  }
+
+  // ── Subscription helpers ──────────────────────────────────────────────────────
+  const subEndsAt = tenant?.subscriptionEndsAt ? new Date(tenant.subscriptionEndsAt) : null;
+  const subActive = subEndsAt !== null && subEndsAt > new Date();
+  const subExpired = subEndsAt !== null && subEndsAt <= new Date();
+  const subDaysLeft = subEndsAt
+    ? Math.max(0, Math.ceil((subEndsAt.getTime() - Date.now()) / 86400000))
+    : 0;
+
+  function addSubMonths(months: number) {
+    // Extend from current end date if still active, otherwise from today
+    const base = subActive && subEndsAt ? new Date(subEndsAt) : new Date();
+    base.setMonth(base.getMonth() + months);
+    setSubscriptionMutation.mutate(base.toISOString());
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────────
@@ -488,6 +516,79 @@ export default function TenantDetailPage() {
           {setTrialMutation.isSuccess && <span className="text-xs text-green-600">✓ עודכן</span>}
         </div>
       </div>
+
+      {/* ── Subscription Management ────────────────────────────────────────── */}
+      {activeTier !== "free" && (
+        <div className="card p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <CreditCard className="w-4 h-4 text-green-600" />
+            <h2 className="font-semibold text-slate-900">מנוי שנתי</h2>
+            {subActive && subDaysLeft > 14 && (
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                פעיל — {subDaysLeft} ימים נותרו
+              </span>
+            )}
+            {subActive && subDaysLeft <= 14 && (
+              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                ⚠️ פחות מ-14 יום!
+              </span>
+            )}
+            {subExpired && (
+              <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">פג תוקף</span>
+            )}
+            {!subEndsAt && (
+              <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">ללא מנוי פעיל</span>
+            )}
+          </div>
+          {subEndsAt && (
+            <p className="text-sm text-slate-500 mb-4">
+              תאריך סיום: {subEndsAt.toLocaleDateString("he-IL")}
+              {subActive && subDaysLeft <= 14 && (
+                <span className="mr-2 text-amber-600 font-medium">({subDaysLeft} ימים נותרו)</span>
+              )}
+            </p>
+          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => addSubMonths(1)}
+              disabled={setSubscriptionMutation.isPending}
+              className="text-sm px-3 py-2 rounded-xl bg-green-50 text-green-700 hover:bg-green-100 font-medium transition-colors disabled:opacity-40"
+            >
+              +1 חודש
+            </button>
+            <button
+              onClick={() => addSubMonths(6)}
+              disabled={setSubscriptionMutation.isPending}
+              className="text-sm px-3 py-2 rounded-xl bg-green-50 text-green-700 hover:bg-green-100 font-medium transition-colors disabled:opacity-40"
+            >
+              +6 חודשים
+            </button>
+            <button
+              onClick={() => addSubMonths(12)}
+              disabled={setSubscriptionMutation.isPending}
+              className="text-sm px-3 py-2 rounded-xl bg-green-50 text-green-700 hover:bg-green-100 font-medium transition-colors disabled:opacity-40"
+            >
+              +שנה
+            </button>
+            <button
+              onClick={() => setSubscriptionMutation.mutate(new Date().toISOString())}
+              disabled={setSubscriptionMutation.isPending || !subEndsAt}
+              className="text-sm px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 font-medium transition-colors disabled:opacity-40"
+            >
+              סיים מיידית
+            </button>
+            <button
+              onClick={() => setSubscriptionMutation.mutate(null)}
+              disabled={setSubscriptionMutation.isPending || !subEndsAt}
+              className="text-sm px-3 py-2 rounded-xl text-slate-500 hover:bg-slate-100 font-medium transition-colors disabled:opacity-40"
+            >
+              הסר מנוי
+            </button>
+            {setSubscriptionMutation.isPending && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+            {setSubscriptionMutation.isSuccess && <span className="text-xs text-green-600">✓ עודכן</span>}
+          </div>
+        </div>
+      )}
 
       {/* ── Feature Management ─────────────────────────────────────────────── */}
       <div className="card overflow-hidden">

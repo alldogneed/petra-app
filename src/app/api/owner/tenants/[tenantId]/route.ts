@@ -80,6 +80,7 @@ const PatchTenantSchema = z.object({
   email: z.string().email().optional().nullable(),
   phone: z.string().optional().nullable(),
   trialEndsAt: z.string().datetime().optional().nullable(),
+  subscriptionEndsAt: z.string().datetime().optional().nullable(),
 }).strict();
 
 export async function PATCH(
@@ -106,13 +107,16 @@ export async function PATCH(
 
   // No future-date restriction — admins can explicitly set past dates to expire a trial immediately
 
-  const { trialEndsAt: trialEndsAtStr, ...restBody } = body;
+  const { trialEndsAt: trialEndsAtStr, subscriptionEndsAt: subscriptionEndsAtStr, ...restBody } = body;
   const updated = await prisma.business.update({
     where: { id: params.tenantId },
     data: {
       ...restBody,
       ...(trialEndsAtStr !== undefined
         ? { trialEndsAt: trialEndsAtStr ? new Date(trialEndsAtStr) : null }
+        : {}),
+      ...(subscriptionEndsAtStr !== undefined
+        ? { subscriptionEndsAt: subscriptionEndsAtStr ? new Date(subscriptionEndsAtStr) : null }
         : {}),
     },
   });

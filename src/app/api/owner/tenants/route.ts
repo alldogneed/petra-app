@@ -59,7 +59,8 @@ const CreateTenantSchema = z.object({
   name: z.string().min(1).max(100),
   email: z.string().email().optional(),
   phone: z.string().optional(),
-  tier: z.enum(["free", "basic", "pro", "groomer"]).default("basic"),
+  tier: z.enum(["free", "basic", "pro", "groomer", "groomer_plus", "service_dog"]).default("pro"),
+  trialDays: z.number().int().min(0).max(365).optional().default(14),
   ownerName: z.string().min(1).max(100).optional(),
   ownerEmail: z.string().email().optional(),
   ownerPassword: z.string().min(8).optional(),
@@ -80,6 +81,11 @@ export async function POST(request: NextRequest) {
   }
 
   const hasOwner = body.ownerName && body.ownerEmail && body.ownerPassword;
+
+  // Compute trial end date
+  const trialEndsAt = body.trialDays > 0
+    ? new Date(Date.now() + body.trialDays * 24 * 60 * 60 * 1000)
+    : null;
 
   if (hasOwner) {
     // Check for existing user before transaction
@@ -102,6 +108,7 @@ export async function POST(request: NextRequest) {
           phone: body.phone ?? null,
           tier: body.tier,
           status: "active",
+          trialEndsAt,
         },
       });
       const platformUser = await tx.platformUser.create({
@@ -132,6 +139,7 @@ export async function POST(request: NextRequest) {
         phone: body.phone ?? null,
         tier: body.tier,
         status: "active",
+        trialEndsAt,
       },
     });
   }
