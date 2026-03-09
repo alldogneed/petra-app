@@ -96,7 +96,7 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="px-5 pt-5 pb-8 space-y-4">
+        <form onSubmit={handleSubmit} className="px-5 pt-5 space-y-4" style={{ paddingBottom: "max(2rem, env(safe-area-inset-bottom, 0px))" }}>
           <div>
             <label className="label">
               שם מלא <span className="text-red-500">*</span>
@@ -221,8 +221,12 @@ export function MobileBottomNav() {
 
   return (
     <>
-      {/* Spacer so page content isn't hidden behind the nav */}
-      <div className="h-20 md:hidden" aria-hidden />
+      {/* Spacer so page content isn't hidden behind the nav (includes iOS safe area) */}
+      <div
+        className="md:hidden"
+        style={{ height: "calc(5rem + env(safe-area-inset-bottom, 0px))" }}
+        aria-hidden
+      />
 
       {/* Bottom nav bar — visible only on mobile */}
       <nav
@@ -294,7 +298,7 @@ export function MobileBottomNav() {
                 />
                 <span
                   className={[
-                    "text-[10px] font-medium leading-none",
+                    "text-[10px] font-medium leading-none truncate max-w-[56px]",
                     active ? "text-brand-500" : "text-slate-400",
                     item.key === "booking-link" && copied === "booking"
                       ? "text-emerald-500"

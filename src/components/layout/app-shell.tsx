@@ -57,7 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Floating help button */}
       <button
         onClick={() => setHelpOpen(true)}
-        className="fixed bottom-20 left-4 md:bottom-6 md:left-6 z-40 w-11 h-11 rounded-full bg-brand-500 text-white shadow-lg hover:bg-brand-600 transition-all flex items-center justify-center"
+        className="fixed bottom-24 left-4 md:bottom-6 md:left-6 z-40 w-11 h-11 rounded-full bg-brand-500 text-white shadow-lg hover:bg-brand-600 transition-all flex items-center justify-center"
         aria-label="מרכז עזרה"
       >
         <HelpCircle className="w-5 h-5" />

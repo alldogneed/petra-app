@@ -494,7 +494,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
             {/* Petra Messages Dropdown */}
             {messagesOpen && (
-              <div className="absolute left-0 top-full mt-2 w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
+              <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                   <h3 className="text-sm font-bold text-petra-text">הודעות מפטרה</h3>
                   {unreadCount > 0 && (
@@ -570,7 +570,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
             {/* Business Notifications Dropdown */}
             {notificationsOpen && (
-              <div className="absolute left-0 top-full mt-2 w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
+              <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
                 <div className="px-4 py-3 border-b border-slate-100">
                   <h3 className="text-sm font-bold text-petra-text">התראות עסקיות</h3>
                   {criticalCount > 0 && (
