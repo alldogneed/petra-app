@@ -791,7 +791,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                 </h3>
                 <div className="space-y-3">
                   <a
-                    href="https://wa.me/972500000000"
+                    href="https://wa.me/972515311435"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-3 p-3 rounded-xl border border-petra-border hover:bg-slate-50 transition-colors"
@@ -801,12 +801,12 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-petra-text">WhatsApp</p>
-                      <p className="text-xs text-petra-muted">050-000-0000</p>
+                      <p className="text-xs text-petra-muted">051-531-1435</p>
                     </div>
                   </a>
 
                   <a
-                    href="mailto:support@petra-app.com"
+                    href="mailto:alldogneed@gmail.com"
                     className="flex items-center gap-3 p-3 rounded-xl border border-petra-border hover:bg-slate-50 transition-colors"
                   >
                     <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
@@ -814,7 +814,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-petra-text">אימייל</p>
-                      <p className="text-xs text-petra-muted">support@petra-app.com</p>
+                      <p className="text-xs text-petra-muted">alldogneed@gmail.com</p>
                     </div>
                   </a>
                 </div>
