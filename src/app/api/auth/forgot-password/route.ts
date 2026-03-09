@@ -30,9 +30,17 @@ export async function POST(request: NextRequest) {
       where: { email: email.toLowerCase().trim() },
     });
 
-    // Always return success — prevents user enumeration
-    if (!user || !user.isActive || !user.passwordHash) {
+    // Non-existent or inactive users — silent success (prevents user enumeration)
+    if (!user || !user.isActive) {
       return NextResponse.json({ ok: true });
+    }
+
+    // Google-only account — tell the user to sign in with Google instead
+    if (!user.passwordHash) {
+      return NextResponse.json(
+        { error: "החשבון שלך מחובר דרך Google. לחץ על 'התחברות עם Google' בדף הכניסה." },
+        { status: 400 }
+      );
     }
 
     // Invalidate any previous unused tokens for this user
