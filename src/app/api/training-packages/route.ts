@@ -47,14 +47,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "שם, מספר מפגשים ומחיר הם שדות חובה" }, { status: 400 });
     }
 
+    const parsedSessions = parseInt(sessions);
+    const parsedPrice = parseFloat(price);
+    if (isNaN(parsedSessions) || parsedSessions < 1) {
+      return NextResponse.json({ error: "מספר מפגשים חייב להיות מספר חיובי" }, { status: 400 });
+    }
+    if (isNaN(parsedPrice) || parsedPrice < 0) {
+      return NextResponse.json({ error: "מחיר לא תקין" }, { status: 400 });
+    }
+
     const pkg = await prisma.trainingPackage.create({
       data: {
         businessId: authResult.businessId,
         name,
         type: type || "HOME",
-        sessions: parseInt(sessions),
+        sessions: parsedSessions,
         durationDays: durationDays ? parseInt(durationDays) : null,
-        price: parseFloat(price),
+        price: parsedPrice,
         description: description || null,
       },
       include: {

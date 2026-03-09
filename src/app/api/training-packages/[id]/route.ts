@@ -21,7 +21,7 @@ export async function PATCH(
     const body = await request.json();
 
     const pkg = await prisma.trainingPackage.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: {
         ...(body.name !== undefined && { name: body.name }),
         ...(body.type !== undefined && { type: body.type }),
@@ -66,7 +66,7 @@ export async function DELETE(
       );
     }
 
-    await prisma.trainingPackage.delete({ where: { id: params.id } });
+    await prisma.trainingPackage.delete({ where: { id: params.id, businessId: authResult.businessId } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

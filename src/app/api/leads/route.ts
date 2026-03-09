@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let resolvedStage = stage;
     if (stage) {
       const validStage = await prisma.leadStage.findFirst({
         where: { id: stage, businessId: authResult.businessId },
@@ -58,6 +59,14 @@ export async function POST(request: NextRequest) {
       if (!validStage) {
         return NextResponse.json({ error: "Invalid stage value" }, { status: 400 });
       }
+    } else {
+      // Default to the first stage (lowest sortOrder) for this business
+      const defaultStage = await prisma.leadStage.findFirst({
+        where: { businessId: authResult.businessId },
+        orderBy: { sortOrder: "asc" },
+        select: { id: true },
+      });
+      resolvedStage = defaultStage?.id ?? "new";
     }
 
     const lead = await prisma.lead.create({
@@ -67,7 +76,7 @@ export async function POST(request: NextRequest) {
         phone,
         email,
         source,
-        stage: stage || "new",
+        stage: resolvedStage,
         notes,
         customerId: customerId || undefined,
       },
