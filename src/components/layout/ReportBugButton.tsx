@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useMutation } from "@tanstack/react-query";
 import { LifeBuoy, X, Send } from "lucide-react";
 import { toast } from "sonner";
@@ -58,8 +59,8 @@ export function ReportBugButton() {
         <span>תקלה?</span>
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+      {open && typeof window !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-xl" dir="rtl">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
@@ -120,7 +121,8 @@ export function ReportBugButton() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
