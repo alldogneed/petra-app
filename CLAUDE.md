@@ -1,6 +1,6 @@
 # Petra App — Complete AI Agent Reference
 
-> Last updated: March 2026. Written by reading actual code, not guessing.
+> Last updated: March 2026 (Session 9). Written by reading actual code, not guessing.
 
 ---
 
@@ -15,7 +15,7 @@
 
 **Core problem it solves:** Israeli pet professionals manage everything in WhatsApp groups, paper notebooks, and Excel. Petra centralizes clients, appointments, training programs, finances, and lead management in one RTL Hebrew interface.
 
-**Business model:** Multi-tenant SaaS. Each business has its own isolated data. Tiers: free, basic (₪99/mo), pro (₪199/mo), groomer (₪169/mo). Tier enforcement is schema-level only — no gating logic in code yet.
+**Business model:** Multi-tenant SaaS. Each business has its own isolated data. Tiers: free, basic (₪99/mo), pro (₪199/mo), groomer (₪169/mo). Tier enforcement is live: `usePlan()` + `TierGate` components gate features; `businessEffectiveTier` downgrades to "free" on trial expiry. New signups get 14-day pro trial.
 
 ---
 
@@ -663,9 +663,15 @@ Sidebar group: **"ניהול כלבי שירות"** (6 sub-pages + recipient pro
 - RTL mobile layout partially handled (`mobile-bottom-nav.tsx` exists)
 - Not a native app, PWA not configured
 
-### ❌ Tier Enforcement
-- TIERS constant defined in constants.ts
-- No actual feature gating in code based on tier
+### ✅ Tier Enforcement (Session 9)
+- `src/lib/feature-flags.ts` — tier/feature matrix, `hasFeature()`, `FREE_CUSTOMER_LIMIT = 15`
+- `src/hooks/usePlan.ts` — `can(feature)`, `tier`, `isFree`, `isPro`, `trialActive`, `trialDaysLeft`, etc.
+- `src/components/paywall/TierGate.tsx` + `PaywallCard.tsx` — gating UI components
+- `Business.featureOverrides Json?` — per-tenant override (admin-editable via `/api/owner/tenants/[id]/features`)
+- `businessEffectiveTier` — computed at login: expires trial → "free"
+- Applied to: leads, training, boarding, messages, automations, service-dogs, payments, orders, pricing
+- Suspended business → 403 on all API routes (`requireBusinessAuth`)
+- Trial expiry banner on dashboard (amber ≤7 days, red when expired)
 
 ---
 
@@ -676,7 +682,7 @@ Based on code comments, schema fields, and incomplete implementations:
 1. **Cron jobs (Vercel)** — ✅ Defined in `vercel.json` (5 daily crons). Auth fixed (accepts `Authorization: Bearer`). GitHub Actions runs frequent crons.
 2. **GCal sync worker** — ✅ process-jobs now in vercel.json + GitHub Actions every 5 min. Appointment model now syncs on create/update/cancel/delete.
 3. **Stripe checkout** — keys stored, but no checkout flow for customers
-4. **Tier gating** — schema has `tier` on Business, TIERS constant defined, but zero enforcement
+4. **Tier gating** — ✅ Fully implemented (Session 9). `usePlan()`, `TierGate`, `businessEffectiveTier`, per-tenant overrides, suspension enforcement.
 5. **WhatsApp API messages** — Twilio integration built, but some automation rules may fail silently without RESEND_API_KEY / Twilio credentials
 6. **Boarding care log UI** — Model + API exists, but no dedicated UI page surfacing it per stay
 7. **Group training attendance** — Full schema exists (TrainingGroupAttendance), attendance marking API at `/api/training-attendance/[id]`, UI partial
@@ -685,18 +691,23 @@ Based on code comments, schema fields, and incomplete implementations:
 
 ---
 
-## 8. Current Status (March 2026)
+## 8. Current Status (March 2026 — Session 9)
 
-**Most active area:** Infrastructure + WhatsApp/GCal readiness (March 2026 Session 5).
+**Most active area:** Go-live readiness — trial enforcement, admin impersonation, MRR dashboard, broadcast messaging.
 
 Recent git history (most recent first):
-- `0c7719f` — GitHub Actions cron.yml for 15-min reminders; revert vercel.json to daily (Hobby plan)
-- `8c932c9` — Cron auth fixed; GCal sync for Appointments; gcalEventId schema; process-jobs in vercel.json
-- `884e6dd` — Service dog documents: file upload (Vercel Blob) + URL toggle
-- `6a24b3e` — Service dogs: recipient profiles, archive, training tests, documents tab; end-of-process flow
-- `adff103` — Training orders: boarding stay, package program, group enrollment
-- `eab699c`/`9b94268` — CreateOrderModal: group training validation + block when no group
-- `eaa85db` — Rate limiting, goal invalidation, WhatsApp booking confirmations
+- `eb99a5d` — Trial expiry banner on dashboard (amber ≤7d, red expired)
+- `ac02e04` — Full subscription & feature control in admin users panel
+- `b01be8b` — Full tenant subscription & feature control in Master Admin
+- `7dfcf6f` — Tier feature matrix updated to match Petra V2 pricing table
+- `a66b72e` — In-app notifications, engagement service, CS dashboard
+- `1bc35e8` — Subscription tier RBAC: TierGate + usePlan hook
+
+**Pre-launch blockers remaining** (see Section 13):
+1. `RESEND_API_KEY` not set in Vercel → password reset broken
+2. Twilio credentials not configured → WhatsApp is stub-only
+3. Stripe Checkout API routes missing → no online payments
+4. No error monitoring (Sentry)
 
 **Production deployment:** Vercel, auto-deploys from `main` branch push. Schema at `prisma/schema.production.prisma` (must stay in sync with `prisma/schema.prisma`).
 
@@ -925,7 +936,7 @@ p.business.findMany().then(r => console.log(JSON.stringify(r, null, 2))).finally
 
 3. **`/intake` accessible without auth**: The dashboard admin page at `/intake` is publicly accessible because the middleware uses prefix matching for `intake/[token]`. This is a known bug.
 
-4. **Tier enforcement**: `Business.tier` field exists, TIERS constant defined, but zero features are gated. Will this ever be enforced?
+4. **Tier enforcement**: ✅ Fully implemented (Session 9) — `usePlan()`, `TierGate`, suspension blocking, trial expiry, per-tenant overrides.
 
 5. **Training archive CSV vs server export**: `exportArchiveCSV` is client-side (uses Blob download). The main exports page uses server-side XLSX. Inconsistent approach — client CSV may fail on large datasets.
 
@@ -938,6 +949,15 @@ p.business.findMany().then(r => console.log(JSON.stringify(r, null, 2))).finally
 9. **Mobile experience**: `mobile-bottom-nav.tsx` component exists but sidebar overflow and mobile layout are not thoroughly tested. RTL mobile is fragile.
 
 10. **No test coverage**: Three test files exist (`booking-engine.test.ts`, `order-calc.test.ts`, `permissions.test.ts`) but no test runner is configured. Tests can't run.
+
+11. **Pre-launch blockers (Session 9 audit)**:
+    - `RESEND_API_KEY` not set in Vercel → password reset emails not delivered
+    - Twilio/WhatsApp credentials not configured → all WhatsApp falls back to console.log stub
+    - Stripe Checkout routes missing → `POST /api/orders/[id]/checkout` + `POST /api/webhooks/stripe` need to be built
+    - No error monitoring → add Sentry (`@sentry/nextjs`)
+    - Onboarding not enforced → user can skip all steps; add redirect check
+    - ToS not re-checked in middleware → old sessions bypass new ToS version
+    - `CRON_SECRET` must be set in both Vercel env AND GitHub repo secrets
 
 ---
 
