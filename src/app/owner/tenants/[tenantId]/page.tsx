@@ -6,7 +6,7 @@ import {
   Users, Calendar, ArrowRight, Shield, Loader2,
   ToggleLeft, ToggleRight, Minus, Zap, Check, X,
   ChevronDown, RotateCcw, LogIn, Clock, CreditCard,
-  Activity,
+  Activity, FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { fetchJSON, cn } from "@/lib/utils";
@@ -314,6 +314,16 @@ export default function TenantDetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* ToS consent PDF */}
+          <a
+            href={`/api/owner/tenants/${tenantId}/tos-consent-pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-xl font-medium transition-colors bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
+          >
+            <FileText className="w-4 h-4" />
+            חתימת תנאי שימוש
+          </a>
           {/* Impersonate button — super_admin only */}
           <button
             onClick={() => {
