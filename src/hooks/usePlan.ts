@@ -14,13 +14,15 @@ import { hasFeature, normalizeTier, type TierKey, type FeatureKey } from "@/lib/
  *   if (!can("crm_leads")) return <PaywallCard ... />;
  */
 export function usePlan() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   // Use effectiveTier (trial-expiry aware) when available, else fall back to stored tier
   const tier = normalizeTier(user?.businessEffectiveTier ?? user?.businessTier) as TierKey;
   const overrides: Record<string, boolean> | null =
     user?.businessFeatureOverrides ?? null;
 
   const can = (feature: FeatureKey): boolean => {
+    // While auth is loading, grant access to prevent flash of paywall
+    if (loading) return true;
     // 1. Explicit override wins
     if (overrides && feature in overrides && typeof overrides[feature] === "boolean") {
       return overrides[feature];
