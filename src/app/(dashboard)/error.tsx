@@ -26,8 +26,10 @@ export default function DashboardError({
             ? error.message
             : "משהו השתבש בטעינת הדף. אנא נסה שוב."}
         </p>
-        {error.digest && (
-          <p className="text-xs text-slate-400">קוד שגיאה: {error.digest}</p>
+        {(error.message || error.digest) && (
+          <p className="text-xs text-slate-400 break-all">
+            {error.message ? error.message : ""}{error.digest ? ` [${error.digest}]` : ""}
+          </p>
         )}
         <div className="flex gap-3 justify-center">
           <button
