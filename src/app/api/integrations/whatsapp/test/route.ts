@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       messageSid: result.messageSid,
       stub: isStub,
       message: isStub
-        ? "הודעה נרשמה בלוג (מצב Stub — הגדר TWILIO_* כדי לשלוח בפועל)"
+        ? "הודעה נרשמה בלוג (מצב Stub — הגדר META_WHATSAPP_TOKEN + META_PHONE_NUMBER_ID כדי לשלוח בפועל)"
         : "הודעה נשלחה בהצלחה!",
     });
   } catch (error) {

@@ -78,11 +78,16 @@ export async function GET(request: NextRequest) {
       },
       {
         id: "whatsapp",
-        name: "WhatsApp Business (Twilio)",
+        name: "WhatsApp Business",
         description: "שליחת הודעות WhatsApp אוטומטיות — תזכורות, ימי הולדת, חיסונים",
         icon: "message-circle",
-        connected: !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN),
-        fromNumber: process.env.TWILIO_WHATSAPP_FROM ?? null,
+        connected: !!(
+          (process.env.META_WHATSAPP_TOKEN && process.env.META_PHONE_NUMBER_ID) ||
+          (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
+        ),
+        fromNumber: process.env.META_PHONE_NUMBER_ID
+          ? `Meta ID: ${process.env.META_PHONE_NUMBER_ID}`
+          : (process.env.TWILIO_WHATSAPP_FROM ?? null),
         connectUrl: null,
       },
       {
