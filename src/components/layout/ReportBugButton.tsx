@@ -42,7 +42,7 @@ export function ReportBugButton() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.title.trim() || !form.description.trim()) return;
+    if (form.description.trim().length < 10) return;
     mutation.mutate(form);
   }
 
