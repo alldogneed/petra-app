@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Upload, Database, CheckCircle2, AlertTriangle, XCircle,
-  Building2, Users, PawPrint, SkipForward, Play, RefreshCw, FileSpreadsheet,
+  Building2, Users, PawPrint, SkipForward, Play, RefreshCw, FileSpreadsheet, Download,
 } from "lucide-react";
 
 interface Business {
@@ -151,8 +151,17 @@ export default function AdminMigrationPage() {
 
       {!executeResult && (
         <div className="rounded-2xl overflow-hidden" style={{ background: "#12121A", border: "1px solid #1E1E2E" }}>
-          <div className="px-5 py-4" style={{ borderBottom: "1px solid #1E1E2E" }}>
+          <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid #1E1E2E" }}>
             <h2 className="text-sm font-semibold text-white">הגדרות ייבוא</h2>
+            <a
+              href="/api/admin/migration/template"
+              download="petra-import-template.xlsx"
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors"
+              style={{ background: "rgba(6,182,212,0.08)", color: "#06B6D4", border: "1px solid rgba(6,182,212,0.2)" }}
+            >
+              <Download className="w-3.5 h-3.5" />
+              הורד תבנית
+            </a>
           </div>
           <div className="p-5 space-y-5">
             {/* Step 1: Business selector */}
