@@ -44,6 +44,7 @@ import {
   Check,
   Upload,
   ImageIcon,
+  Award,
   FileText as FileTextIcon,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
@@ -353,9 +354,9 @@ export default function ServiceDogProfilePage() {
       </div>
 
       {/* Profile Header */}
-      <div className="card p-0 overflow-hidden">
+      <div className="card p-0">
         {/* Phase color bar */}
-        <div className="h-1.5" style={{ background: phaseColors?.text || "#64748B" }} />
+        <div className="h-1.5 rounded-t-xl" style={{ background: phaseColors?.text || "#64748B" }} />
 
         <div className="p-5">
           <div className="flex items-start justify-between gap-4">
@@ -391,7 +392,7 @@ export default function ServiceDogProfilePage() {
                     {showPhaseDropdown && (
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setShowPhaseDropdown(false)} />
-                        <div className="absolute z-20 top-full mt-1 right-0 bg-white rounded-xl shadow-xl border py-1 min-w-[170px]">
+                        <div className="absolute z-20 top-full mt-1 right-0 bg-white rounded-xl shadow-xl border py-1 min-w-[170px] max-h-64 overflow-y-auto">
                           <p className="text-xs text-petra-muted px-3 py-1.5 border-b">שנה שלב</p>
                           {SERVICE_DOG_PHASES.map((p) => {
                             const pc = SERVICE_DOG_PHASE_COLORS[p.id];
@@ -2147,6 +2148,31 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
   const queryClient = useQueryClient();
   const [viewingCard, setViewingCard] = useState<IDCard | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [certForm, setCertForm] = useState({
+    certificationDate: dog.certificationDate ? new Date(dog.certificationDate).toISOString().split("T")[0] : "",
+    certificationExpiry: dog.certificationExpiry ? new Date(dog.certificationExpiry).toISOString().split("T")[0] : "",
+    certifyingBody: dog.certifyingBody ?? "",
+    registrationNumber: dog.registrationNumber ?? "",
+  });
+
+  const certMutation = useMutation({
+    mutationFn: (data: typeof certForm) =>
+      fetch(`/api/service-dogs/${dogId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          certificationDate: data.certificationDate || null,
+          certificationExpiry: data.certificationExpiry || null,
+          certifyingBody: data.certifyingBody || null,
+          registrationNumber: data.registrationNumber || null,
+        }),
+      }).then((r) => { if (!r.ok) throw new Error(); return r.json(); }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+      toast.success("פרטי ההסמכה עודכנו");
+    },
+    onError: () => toast.error("שגיאה בשמירה"),
+  });
 
   const generateMutation = useMutation({
     mutationFn: () =>
@@ -2222,13 +2248,68 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
         </div>
       </div>
 
+      {/* Certification details form */}
+      <div className="card p-5">
+        <h4 className="font-semibold mb-4 flex items-center gap-2">
+          <Award className="w-4 h-4 text-emerald-500" />
+          פרטי הסמכה
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="label">תאריך הסמכה</label>
+            <input
+              type="date"
+              className="input"
+              value={certForm.certificationDate}
+              onChange={(e) => setCertForm({ ...certForm, certificationDate: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">תפוגת הסמכה</label>
+            <input
+              type="date"
+              className="input"
+              value={certForm.certificationExpiry}
+              onChange={(e) => setCertForm({ ...certForm, certificationExpiry: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">גוף מסמיך</label>
+            <input
+              type="text"
+              className="input"
+              placeholder="לדוגמה: ADI, IAADP"
+              value={certForm.certifyingBody}
+              onChange={(e) => setCertForm({ ...certForm, certifyingBody: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="label">מספר רישום</label>
+            <input
+              type="text"
+              className="input"
+              placeholder="מספר תעודה / רישום"
+              value={certForm.registrationNumber}
+              onChange={(e) => setCertForm({ ...certForm, registrationNumber: e.target.value })}
+            />
+          </div>
+        </div>
+        <button
+          onClick={() => certMutation.mutate(certForm)}
+          disabled={certMutation.isPending}
+          className="btn-primary mt-4 text-sm"
+        >
+          {certMutation.isPending ? "שומר..." : "שמור פרטי הסמכה"}
+        </button>
+      </div>
+
       {dog.phase !== "CERTIFIED" && !activeCard && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold text-amber-700">הכלב טרם הוסמך</p>
             <p className="text-sm text-amber-600 mt-0.5">
-              ניתן להנפיק תעודת הסמכה רק לכלבים מוסמכים (שלב: מוסמך)
+              ניתן להנפיק תעודת הסמכה רק לכלבים מוסמכים (שלב: מוסמך). שנה את השלב בראש הדף.
             </p>
           </div>
         </div>
