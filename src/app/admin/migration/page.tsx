@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Upload, Database, CheckCircle2, AlertTriangle, XCircle,
@@ -37,19 +37,26 @@ const inputStyle = {
 export default function AdminMigrationPage() {
   const [targetBusinessId, setTargetBusinessId] = useState("");
   const [businessSearch, setBusinessSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
+
+  // Debounce search input by 300ms
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(businessSearch), 300);
+    return () => clearTimeout(t);
+  }, [businessSearch]);
   const [executeResult, setExecuteResult] = useState<{ createdCustomers: number; mergedCustomers: number; createdPets: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Load business list
-  const { data: tenantData } = useQuery({
-    queryKey: ["admin-migration-tenants", businessSearch],
+  // Load business list — dedicated endpoint with case-insensitive search
+  const { data: bizData, isFetching: bizLoading } = useQuery({
+    queryKey: ["admin-migration-businesses", debouncedSearch],
     queryFn: () => {
-      const params = new URLSearchParams({ search: businessSearch, limit: "50" });
-      return fetch(`/api/owner/tenants?${params}`).then((r) => r.json());
+      const params = new URLSearchParams({ search: debouncedSearch });
+      return fetch(`/api/admin/migration/businesses?${params}`).then((r) => r.json());
     },
   });
-  const businesses: Business[] = tenantData?.tenants ?? [];
+  const businesses: Business[] = bizData?.businesses ?? [];
 
   // Parse mutation
   const parseMutation = useMutation({
@@ -153,15 +160,20 @@ export default function AdminMigrationPage() {
               <label className="block text-xs font-medium mb-2" style={{ color: "#94A3B8" }}>
                 1. בחר עסק יעד
               </label>
-              <input
-                type="text"
-                value={businessSearch}
-                onChange={(e) => setBusinessSearch(e.target.value)}
-                placeholder="חפש עסק לפי שם..."
-                dir="rtl"
-                className="w-full px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder:text-slate-600 mb-2"
-                style={inputStyle}
-              />
+              <div className="relative mb-2">
+                <input
+                  type="text"
+                  value={businessSearch}
+                  onChange={(e) => { setBusinessSearch(e.target.value); setTargetBusinessId(""); }}
+                  placeholder="חפש עסק לפי שם, אימייל או טלפון..."
+                  dir="rtl"
+                  className="w-full px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder:text-slate-600"
+                  style={inputStyle}
+                />
+                {bizLoading && (
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: "#475569" }}>טוען...</span>
+                )}
+              </div>
               {businesses.length > 0 && (
                 <div className="rounded-xl overflow-hidden max-h-48 overflow-y-auto" style={{ border: "1px solid #1E1E2E" }}>
                   {businesses.map((b) => (
