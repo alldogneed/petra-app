@@ -456,6 +456,9 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
         {/* Notifications & Messages */}
         <div className="flex items-center gap-1 ms-auto">
+          {/* Report a bug — far right, before refresh */}
+          <ReportBugButton />
+
           {/* Refresh Button */}
           <button
             onClick={async () => {
@@ -640,9 +643,6 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
               </div>
             )}
           </div>
-
-          {/* Report a bug */}
-          <ReportBugButton />
 
           {/* System Inbox — broadcast messages from platform admin */}
           <SystemInbox />

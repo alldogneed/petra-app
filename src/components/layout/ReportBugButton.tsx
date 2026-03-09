@@ -50,10 +50,11 @@ export function ReportBugButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all duration-150"
-        title="דווח על בעיה"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all duration-150 text-xs font-medium"
+        title="דווח על תקלה"
       >
-        <LifeBuoy className="w-[18px] h-[18px]" />
+        <LifeBuoy className="w-4 h-4 flex-shrink-0" />
+        <span>תקלה?</span>
       </button>
 
       {open && (
