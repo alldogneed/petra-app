@@ -12,6 +12,7 @@ import { TENANT_PERMS } from "@/lib/permissions";
 import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 
 export async function GET(
   request: NextRequest,
@@ -69,6 +70,19 @@ export async function POST(
   );
   if (isGuardError(guard)) return guard;
   const { session, membership } = guard;
+
+  // Enforce staff_management feature gate
+  const business = await prisma.business.findUnique({
+    where: { id: params.businessId },
+    select: { tier: true, featureOverrides: true },
+  });
+  const overrides = (business?.featureOverrides as Record<string, boolean> | null) ?? null;
+  if (!hasFeatureWithOverrides(business?.tier, "staff_management", overrides)) {
+    return NextResponse.json(
+      { error: "תוסף ניהול עובדים אינו זמין במסלול הנוכחי. שדרג למסלול Pro." },
+      { status: 403 }
+    );
+  }
 
   const { ip, userAgent } = getRequestContext(request);
 

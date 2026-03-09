@@ -720,7 +720,9 @@ function IntegrationsTab() {
         </div>
       )}
 
-      {integrations?.map((integ) => {
+      {integrations?.filter((integ) =>
+        integ.id !== "invoicing" && integ.id !== "stripe"
+      ).map((integ) => {
         const Icon = ICON_MAP[integ.icon] ?? Plug;
         const isInvoicing = integ.id === "invoicing";
         const isGcal = integ.id === "google-calendar";
