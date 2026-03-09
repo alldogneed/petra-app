@@ -104,6 +104,8 @@ export async function PATCH(
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
 
+  // No future-date restriction — admins can explicitly set past dates to expire a trial immediately
+
   const { trialEndsAt: trialEndsAtStr, ...restBody } = body;
   const updated = await prisma.business.update({
     where: { id: params.tenantId },

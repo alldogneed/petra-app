@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { TierGate } from "@/components/paywall/TierGate";
 import {
   ShieldCheck,
   Users,
@@ -1154,7 +1155,7 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: st
   { id: "messages", label: "הודעות מערכת", icon: MessageSquare },
 ];
 
-export default function BusinessAdminPage() {
+function BusinessAdminPageContent() {
   const { user, isOwner } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
 
@@ -1223,5 +1224,18 @@ export default function BusinessAdminPage() {
       {activeTab === "sessions" && <SessionsTab currentUserId={user?.id ?? ""} />}
       {activeTab === "messages" && <SystemMessagesTab />}
     </div>
+  );
+}
+
+export default function BusinessAdminPage() {
+  return (
+    <TierGate
+      feature="staff_management"
+      title="ניהול צוות ומשתמשים"
+      description="הוסף עובדים נוספים, נהל הרשאות, ועקוב אחר פעילות הצוות. זמין במסלול Pro ומעלה."
+      upgradeTier="pro"
+    >
+      <BusinessAdminPageContent />
+    </TierGate>
   );
 }

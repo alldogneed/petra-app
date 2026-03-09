@@ -28,6 +28,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
+  // Only super_admin can exit impersonation (it's their session feature)
+  if (session.user.platformRole !== "super_admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (!session.impersonatedBusinessId) {
+    return NextResponse.json({ error: "Not currently impersonating" }, { status: 400 });
+  }
+
   const token = extractToken(request);
   if (!token) {
     return NextResponse.json({ error: "No session token" }, { status: 401 });

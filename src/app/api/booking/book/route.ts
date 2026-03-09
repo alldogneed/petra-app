@@ -5,6 +5,7 @@ import { enqueueSyncJob } from "@/lib/sync-jobs";
 import { rateLimit } from "@/lib/rate-limit";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
+import { notifyNewBooking } from "@/lib/engagement-service";
 
 // Public endpoint - no auth required
 export async function POST(request: NextRequest) {
@@ -106,6 +107,14 @@ export async function POST(request: NextRequest) {
     // Enqueue Google Calendar sync (fire-and-forget, don't block response)
     enqueueSyncJob(booking.id, businessId, "create").catch((err) =>
       console.error("Failed to enqueue sync job:", err)
+    );
+
+    // In-app notification to business owners
+    notifyNewBooking(
+      businessId,
+      booking.customer.name,
+      booking.priceListItem?.name ?? "שירות",
+      booking.id
     );
 
     // Send WhatsApp confirmations (fire-and-forget)

@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { TierGate } from "@/components/paywall/TierGate";
 import {
   Receipt,
   Plus,
@@ -298,7 +299,7 @@ function CreateInvoiceModal({ onClose, onSuccess }: { onClose: () => void; onSuc
 
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
-export default function InvoicesPage() {
+function InvoicesPageContent() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [docTypeFilter, setDocTypeFilter] = useState<string>("all");
@@ -564,5 +565,18 @@ export default function InvoicesPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function InvoicesPage() {
+  return (
+    <TierGate
+      feature="invoicing"
+      title="חשבוניות ומסמכים פיננסיים"
+      description="הפקת חשבוניות, קבלות ומסמכי חיוב מקצועיים עם אינטגרציה ל-Morning (Green Invoice). זמין במסלול Pro ומעלה."
+      upgradeTier="pro"
+    >
+      <InvoicesPageContent />
+    </TierGate>
   );
 }

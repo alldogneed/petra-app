@@ -441,6 +441,21 @@ export function Sidebar({
               </div>
               {isExpanded && <span>עזרה</span>}
             </button>
+
+            {/* Upgrade banner — shown for free/basic users */}
+            {(userTier === "free" || userTier === "basic") && (
+              <Link
+                href="/upgrade"
+                onClick={isMobile ? onMobileClose : undefined}
+                title={!isMobile && collapsed ? "שדרג מנוי" : undefined}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-150 bg-gradient-to-r from-brand-600/30 to-brand-500/20 text-brand-300 hover:from-brand-600/50 hover:to-brand-500/30 border border-brand-500/20"
+              >
+                <div className="flex-shrink-0">
+                  <Crown className="w-[18px] h-[18px]" />
+                </div>
+                {isExpanded && <span>שדרג מנוי</span>}
+              </Link>
+            )}
           </div>
         </nav>
 

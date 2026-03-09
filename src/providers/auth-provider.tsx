@@ -89,12 +89,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const exitImpersonation = useCallback(async () => {
-    try {
-      await fetch("/api/auth/exit-impersonation", { method: "POST" });
-    } catch {
-      /* ignore */
+    const res = await fetch("/api/auth/exit-impersonation", { method: "POST" });
+    if (!res.ok) {
+      console.error("Failed to exit impersonation:", await res.text());
+      return; // Do not redirect if exit failed
     }
-    // Refresh user state + navigate back to owner panel
     const data = await fetch("/api/auth/me").then((r) => (r.ok ? r.json() : null));
     setUser(data?.user || null);
     router.push("/owner/tenants");

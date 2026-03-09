@@ -6,6 +6,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { InvoicingService } from "@/lib/invoicing/invoicing-service";
 import { enqueueInvoiceJob } from "@/lib/invoicing/invoicing-jobs";
+import { notifyPaymentReceived } from "@/lib/engagement-service";
 
 export async function GET(request: NextRequest) {
   try {
@@ -129,6 +130,16 @@ export async function POST(request: NextRequest) {
     });
 
     logCurrentUserActivity("CREATE_PAYMENT");
+
+    // In-app notification milestone (first payment)
+    if (status === "paid") {
+      notifyPaymentReceived(
+        authResult.session.user.id,
+        authResult.businessId,
+        amount,
+        payment.customer?.name ?? "לקוח"
+      );
+    }
 
     // Auto-issue invoicing document for paid payments
     if (status === "paid") {

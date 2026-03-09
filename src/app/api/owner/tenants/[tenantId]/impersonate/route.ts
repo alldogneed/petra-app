@@ -48,6 +48,9 @@ export async function POST(
   if (business.status === "closed") {
     return NextResponse.json({ error: "Cannot impersonate a closed business" }, { status: 400 });
   }
+  if (business.status === "suspended") {
+    return NextResponse.json({ error: "Cannot impersonate a suspended business" }, { status: 400 });
+  }
 
   // Update session with impersonation fields
   const token = extractToken(request);

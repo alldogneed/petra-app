@@ -223,7 +223,7 @@ export default function OwnerDashboard() {
             {(!logsData?.logs || logsData.logs.length === 0) && (
               <div className="px-5 py-8 text-center text-slate-400 text-sm">אין פעילות עדיין</div>
             )}
-            {logsData?.logs.map((log) => (
+            {logsData?.logs?.map((log) => (
               <div key={log.id} className="px-5 py-3 flex items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <span className="font-mono text-xs font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded">

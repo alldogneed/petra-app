@@ -2,6 +2,7 @@
 
 import { Lock, Crown, Sparkles, ArrowLeft } from "lucide-react";
 import { getTierDisplay, type TierKey } from "@/lib/feature-flags";
+import { useRouter } from "next/navigation";
 
 interface PaywallCardProps {
   title: string;
@@ -59,6 +60,7 @@ export function PaywallCard({
   badgeLabel,
   variant = "page",
 }: PaywallCardProps) {
+  const router = useRouter();
   const display = getTierDisplay(requiredTier);
   const colors = TIER_COLORS[requiredTier];
 
@@ -108,13 +110,13 @@ export function PaywallCard({
         <h2 className="text-xl font-bold text-slate-800 mb-3">{title}</h2>
         <p className="text-slate-500 text-sm leading-relaxed mb-8">{description}</p>
 
-        <a
-          href="mailto:support@petra-app.com?subject=שדרוג מסלול"
+        <button
+          onClick={() => router.push("/upgrade")}
           className="inline-flex items-center justify-center gap-2 w-full py-3 px-6 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-sm"
         >
           {cta}
           <ArrowLeft className="w-4 h-4" />
-        </a>
+        </button>
 
         {display.price > 0 && (
           <p className="text-xs text-slate-400 mt-3">

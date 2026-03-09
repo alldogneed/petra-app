@@ -144,8 +144,8 @@ export async function getSessionByToken(token: string): Promise<FullSession | nu
     sessionId: session.id,
     twoFaVerified: session.twoFaVerified,
     memberships,
-    impersonatedBusinessId: (session as { impersonatedBusinessId?: string | null }).impersonatedBusinessId ?? null,
-    impersonatedByAdminId: (session as { impersonatedByAdminId?: string | null }).impersonatedByAdminId ?? null,
+    impersonatedBusinessId: session.impersonatedBusinessId ?? null,
+    impersonatedByAdminId: session.impersonatedByAdminId ?? null,
   };
 }
 
