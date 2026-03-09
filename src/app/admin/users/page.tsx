@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search, Users, Shield, ShieldOff, X, Clock, Activity,
   ChevronLeft, ChevronRight, Crown, Laptop, RefreshCw, UserPlus, Eye, EyeOff,
-  Check, Minus, ToggleLeft, ToggleRight, Zap, Loader2,
+  Check, Minus, ToggleLeft, ToggleRight, Zap, Loader2, Trash2,
 } from "lucide-react";
 import { type FeatureKey, type TierKey, hasFeature } from "@/lib/feature-flags";
 
@@ -343,6 +343,7 @@ export default function AdminUsersPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [detailTab, setDetailTab] = useState<"info" | "subscription">("info");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -384,6 +385,20 @@ export default function AdminUsersPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-users"] });
       qc.invalidateQueries({ queryKey: ["admin-user-detail", selectedUserId] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/admin/users/${id}`, { method: "DELETE" }).then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "שגיאה במחיקה");
+        return json;
+      }),
+    onSuccess: () => {
+      setDeleteConfirmId(null);
+      if (selectedUserId === deleteConfirmId) setSelectedUserId(null);
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
     },
   });
 
@@ -538,6 +553,16 @@ export default function AdminUsersPage() {
                               style={{ background: user.isActive ? "#EF444410" : "#22C55E10", color: user.isActive ? "#EF4444" : "#22C55E" }}
                             >
                               {user.isActive ? <ShieldOff className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmId(user.id)}
+                              title="מחק משתמש"
+                              className="p-1.5 rounded-lg transition-colors"
+                              style={{ background: "#EF444408", color: "#EF444460" }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = "#EF4444")}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = "#EF444460")}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>
@@ -779,6 +804,51 @@ export default function AdminUsersPage() {
           onClose={() => setShowAddModal(false)}
           onSuccess={() => { setShowAddModal(false); qc.invalidateQueries({ queryKey: ["admin-users"] }); }}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.75)" }}>
+          <div className="rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4 text-right" style={{ background: "#0D0D14", border: "1px solid #EF444430" }} dir="rtl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(239,68,68,0.15)" }}>
+                <Trash2 className="w-5 h-5" style={{ color: "#EF4444" }} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white text-sm">מחיקת משתמש</h3>
+                <p className="text-xs mt-0.5" style={{ color: "#64748B" }}>פעולה זו אינה הפיכה</p>
+              </div>
+            </div>
+            <p className="text-sm" style={{ color: "#94A3B8" }}>
+              כל הנתונים של המשתמש (סשנים, חברויות בעסקים, הגדרות) יימחקו לצמיתות.
+              העסקים עצמם <strong className="text-white">לא</strong> יימחקו.
+            </p>
+            {deleteMutation.isError && (
+              <p className="text-xs" style={{ color: "#EF4444" }}>
+                {(deleteMutation.error as Error).message}
+              </p>
+            )}
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => deleteMutation.mutate(deleteConfirmId)}
+                disabled={deleteMutation.isPending}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-1.5"
+                style={{ background: "rgba(239,68,68,0.2)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.3)" }}
+              >
+                {deleteMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                {deleteMutation.isPending ? "מוחק..." : "כן, מחק"}
+              </button>
+              <button
+                onClick={() => { setDeleteConfirmId(null); deleteMutation.reset(); }}
+                disabled={deleteMutation.isPending}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium"
+                style={{ background: "#1E1E2E", color: "#94A3B8" }}
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

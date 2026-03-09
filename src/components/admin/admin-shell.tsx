@@ -15,6 +15,7 @@ import {
   X,
   BarChart2,
   Megaphone,
+  Database,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { name: "הודעות שידור", href: "/admin/messages", icon: Megaphone },
   { name: "סטטיסטיקות", href: "/admin/stats", icon: BarChart2 },
   { name: "פיד פעילות", href: "/admin/feed", icon: Activity },
+  { name: "מיגרציה", href: "/admin/migration", icon: Database },
 ];
 
 interface AdminShellProps {

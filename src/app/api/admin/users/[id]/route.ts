@@ -2,7 +2,8 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards";
-import { PLATFORM_PERMS } from "@/lib/permissions";
+import { PLATFORM_PERMS, PLATFORM_ROLES } from "@/lib/permissions";
+import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
 
 export async function GET(
   request: NextRequest,
@@ -94,4 +95,62 @@ export async function PATCH(
     console.error("Admin PATCH user error:", error);
     return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
   }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const guard = await requirePlatformPermission(request, PLATFORM_PERMS.USERS_WRITE);
+  if (isGuardError(guard)) return guard;
+  const { session } = guard;
+
+  // Only super_admin may delete users
+  if (session.user.platformRole !== PLATFORM_ROLES.SUPER_ADMIN) {
+    return NextResponse.json({ error: "Only super_admin can delete users" }, { status: 403 });
+  }
+
+  // Cannot delete self
+  if (params.id === session.user.id) {
+    return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
+  }
+
+  const target = await prisma.platformUser.findUnique({
+    where: { id: params.id },
+    select: { id: true, email: true, name: true, platformRole: true },
+  });
+  if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  // Cannot delete another super_admin
+  if (target.platformRole === PLATFORM_ROLES.SUPER_ADMIN) {
+    return NextResponse.json({ error: "Cannot delete another super_admin" }, { status: 403 });
+  }
+
+  // Cascade-delete all user-related records, then the user
+  await prisma.$transaction([
+    prisma.adminSession.deleteMany({ where: { userId: params.id } }),
+    prisma.activityLog.deleteMany({ where: { userId: params.id } }),
+    prisma.businessUser.deleteMany({ where: { userId: params.id } }),
+    prisma.userConsent.deleteMany({ where: { userId: params.id } }),
+    prisma.passwordResetToken.deleteMany({ where: { userId: params.id } }),
+    prisma.notification.deleteMany({ where: { userId: params.id } }),
+    prisma.onboardingProgress.deleteMany({ where: { userId: params.id } }),
+    prisma.onboardingProfile.deleteMany({ where: { userId: params.id } }),
+    prisma.exportJob.deleteMany({ where: { userId: params.id } }),
+  ]);
+  await prisma.platformUser.delete({ where: { id: params.id } });
+
+  const { ip, userAgent } = getRequestContext(request);
+  await logAudit({
+    actorUserId: session.user.id,
+    actorPlatformRole: session.user.platformRole,
+    action: AUDIT_ACTIONS.PLATFORM_USER_DELETED,
+    targetType: "user",
+    targetId: params.id,
+    ip,
+    userAgent,
+    metadata: { deletedEmail: target.email, deletedName: target.name },
+  });
+
+  return NextResponse.json({ success: true });
 }

@@ -1,6 +1,6 @@
 # Petra App — Complete AI Agent Reference
 
-> Last updated: March 2026 (Session 9). Written by reading actual code, not guessing.
+> Last updated: March 2026 (Session 11). Written by reading actual code, not guessing.
 
 ---
 
@@ -61,7 +61,7 @@
 | **Supabase** (PostgreSQL) | Production database (transaction pooler port 6543, direct port 5432) |
 | **Vercel** | Hosting + edge functions |
 | **Resend** | Email delivery (password reset, reminders) |
-| **Twilio** | WhatsApp messages (booking confirmations, reminders) |
+| **Meta Cloud API** | WhatsApp messages (primary — `META_WHATSAPP_TOKEN` + `META_PHONE_NUMBER_ID`). Twilio remains as fallback. |
 | **Google OAuth + Calendar** | Login with Google + GCal sync for bookings |
 | **Morning (Green Invoice)** | Israeli invoice/receipt issuance integration |
 | **Stripe** | Online payment collection |
@@ -173,7 +173,7 @@ petra-app/
 │   │   ├── activity-log.ts        # logCurrentUserActivity() — business action log
 │   │   ├── audit.ts               # logAudit() — platform action audit trail
 │   │   ├── email.ts               # sendEmail() via Resend
-│   │   ├── whatsapp.ts            # sendWhatsAppMessage() via Twilio
+│   │   ├── whatsapp.ts            # sendWhatsAppMessage() — Meta Cloud API (primary), Twilio (fallback), Stub
 │   │   ├── intake.ts              # Intake token generation + link building
 │   │   ├── slots.ts               # Booking slot availability engine
 │   │   ├── rrule-utils.ts         # Recurring appointment rule parsing
@@ -373,7 +373,12 @@ STRIPE_ENCRYPTION_KEY=""      # 32-byte hex
 RESEND_API_KEY=""
 EMAIL_FROM="Petra <onboarding@resend.dev>"
 
-# WhatsApp / SMS (Twilio)
+# WhatsApp — Meta Cloud API (primary)
+META_WHATSAPP_TOKEN=""              # System User Token (permanent, never expires)
+META_PHONE_NUMBER_ID=""             # Phone number ID from Meta Business Suite
+META_WHATSAPP_BUSINESS_ACCOUNT_ID="" # WABA ID
+
+# WhatsApp — Twilio (fallback if Meta vars not set)
 TWILIO_ACCOUNT_SID=""
 TWILIO_AUTH_TOKEN=""
 TWILIO_WHATSAPP_FROM="+14155238886"   # sandbox or approved number
@@ -573,8 +578,14 @@ Sidebar group: **"ניהול כלבי שירות"** (6 sub-pages + recipient pro
 - Public: `/intake/[token]` — pet health/behavior questionnaire
 - API creates/updates DogHealth, DogBehavior, DogMedication on submit
 
-### ✅ Automations (`/automations`)
-- AutomationRule CRUD (trigger + template + active toggle)
+### ✅ Messages + Automations — Unified (`/messages`)
+- Template cards with inline automation: trigger label + on/off toggle per card, "+ הוסף אוטומציה" if none linked
+- Live preview, 4 starter templates, `{petAge}` variable, char counter in template modal
+- `saveMutation` atomically saves template + creates/updates/deletes linked AutomationRule
+- `toggleRuleMutation` for quick card-level toggle
+- `GET /api/messages` includes `automationRules: { id, trigger, triggerOffset, isActive }`
+- `/automations` redirects to `/messages`
+- Correct trigger IDs: `appointment_reminder`, `appointment_followup`, `birthday_reminder`, `lead_followup`
 
 ### ✅ Scheduled Messages (`/scheduled-messages`)
 - Queue viewer + cancel
@@ -643,12 +654,14 @@ Sidebar group: **"ניהול כלבי שירות"** (6 sub-pages + recipient pro
 - `StripeSettings` CRUD in settings
 - **Missing:** actual checkout session creation, payment confirmation webhook handling is basic
 
-### 🔄 Reminders / Cron
+### ✅ Reminders / Cron (Session 10 — Automation Engine Wired)
 - Cron routes: `send-reminders`, `generate-tasks`, `birthday-reminders`, `vaccination-reminders`, `service-dog-alerts` (5 total)
 - `reminder-service.ts` built; `src/lib/cron-auth.ts` — shared auth helper (accepts `Authorization: Bearer` AND `x-cron-secret`)
 - ✅ Cron jobs defined in `vercel.json` (5 daily schedules) — Vercel Hobby plan = daily only
-- ✅ `.github/workflows/cron.yml` — GitHub Actions runs `send-reminders` every 15 min + `process-jobs` every 5 min (requires `CRON_SECRET` secret in GitHub repo settings)
-- **Pending:** `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` must be set in Vercel for actual WhatsApp delivery
+- ✅ `.github/workflows/cron.yml` — GitHub Actions runs `send-reminders` every 15 min + `process-jobs` every 5 min
+- ✅ `scheduleAppointmentReminder()` now rule-aware: queries `AutomationRule(trigger=appointment_reminder)`, uses `triggerOffset` + template body. Falls back to 48h hardcoded if no rule.
+- ✅ `birthday-reminders` cron now rule-aware: pre-fetches all `birthday_reminder` rules, uses `triggerOffset` as days-before, interpolates `{petName}`, `{petAge}`, `{businessPhone}`
+- ✅ Meta Cloud API WhatsApp credentials set in Vercel (Session 11). 🔄 Pending: Meta Business Verification approval to enable outbound messaging.
 
 ### 🔄 Onboarding
 - `OnboardingProfile` + `OnboardingProgress` models exist
@@ -683,7 +696,7 @@ Based on code comments, schema fields, and incomplete implementations:
 2. **GCal sync worker** — ✅ process-jobs now in vercel.json + GitHub Actions every 5 min. Appointment model now syncs on create/update/cancel/delete.
 3. **Stripe checkout** — keys stored, but no checkout flow for customers
 4. **Tier gating** — ✅ Fully implemented (Session 9). `usePlan()`, `TierGate`, `businessEffectiveTier`, per-tenant overrides, suspension enforcement.
-5. **WhatsApp API messages** — Twilio integration built, but some automation rules may fail silently without RESEND_API_KEY / Twilio credentials
+5. **WhatsApp Meta Cloud API** — ✅ Connected (Session 11). Env vars set, System User "petra API" created, phone +972 51-531-1435 (ID: 1079067058616014). Automation engine wired. 🔄 Pending: Meta Business Verification (in review as of 9.3.2026).
 6. **Boarding care log UI** — Model + API exists, but no dedicated UI page surfacing it per stay
 7. **Group training attendance** — Full schema exists (TrainingGroupAttendance), attendance marking API at `/api/training-attendance/[id]`, UI partial
 8. **Notification center** — SystemMessage model + API exist, NotificationBell in topbar, but auto-creation of notifications (e.g., "new booking received") not wired
@@ -691,23 +704,29 @@ Based on code comments, schema fields, and incomplete implementations:
 
 ---
 
-## 8. Current Status (March 2026 — Session 9)
+## 8. Current Status (March 2026 — Session 11)
 
-**Most active area:** Go-live readiness — trial enforcement, admin impersonation, MRR dashboard, broadcast messaging.
+**Most active area:** WhatsApp Meta Cloud API setup + service dog certification UX fixes.
 
 Recent git history (most recent first):
-- `eb99a5d` — Trial expiry banner on dashboard (amber ≤7d, red expired)
-- `ac02e04` — Full subscription & feature control in admin users panel
-- `b01be8b` — Full tenant subscription & feature control in Master Admin
-- `7dfcf6f` — Tier feature matrix updated to match Petra V2 pricing table
-- `a66b72e` — In-app notifications, engagement service, CS dashboard
-- `1bc35e8` — Subscription tier RBAC: TierGate + usePlan hook
+- `3a2bc9a` — Perf: convert logo img tags to Next.js Image + lazy-load LeadsReports chart
+- `5bd4d26` — Feat: ToS consent PDF download in master admin tenant page
+- `ad71932` — Fix: block staff_management on free tier + hide Morning/Stripe from settings
+- `a324a6b` — Feat: in-app support ticket system (report bug button + admin view)
 
-**Pre-launch blockers remaining** (see Section 13):
-1. `RESEND_API_KEY` not set in Vercel → password reset broken
-2. Twilio credentials not configured → WhatsApp is stub-only
-3. Stripe Checkout API routes missing → no online payments
-4. No error monitoring (Sentry)
+**Session 11 changes:**
+- ✅ Meta Cloud API WhatsApp: `META_WHATSAPP_TOKEN` + `META_PHONE_NUMBER_ID` + `META_WHATSAPP_BUSINESS_ACCOUNT_ID` set in Vercel. System User "petra API" created. Phone: +972 51-531-1435.
+- 🔄 Business Verification submitted to Meta (9.3.2026, "Rabinowitz Or Haim") — In Review, expected 2 biz days. WhatsApp will work automatically when approved.
+- ✅ Service dog phase dropdown fix: removed `overflow-hidden` from parent card that was clipping the dropdown
+- ✅ Certification details form added to IDCardTab: `certificationDate`, `certificationExpiry`, `certifyingBody`, `registrationNumber`
+- ✅ `RESEND_API_KEY` set in Vercel; `petra-app.com` verified on Resend (Ireland) — email is LIVE
+- ✅ WhatsApp Automation Engine wired: `scheduleAppointmentReminder()` + birthday cron read from `AutomationRule`
+- ✅ `/messages` + `/automations` merged — template cards have inline automation, `/automations` redirects
+
+**Pre-launch blockers remaining:**
+1. WhatsApp Business Verification at Meta — In Review (🔴 blocker for actual message delivery)
+2. Stripe Checkout API routes missing → no online payments
+3. No error monitoring (Sentry)
 
 **Production deployment:** Vercel, auto-deploys from `main` branch push. Schema at `prisma/schema.production.prisma` (must stay in sync with `prisma/schema.prisma`).
 
@@ -924,7 +943,7 @@ p.business.findMany().then(r => console.log(JSON.stringify(r, null, 2))).finally
 - Public booking: `https://petra-app.com/book/[slug]`
 
 ### Vercel env vars required
-`DATABASE_URL`, `DIRECT_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GCAL_ENCRYPTION_KEY`, `INVOICING_ENCRYPTION_KEY`, `STRIPE_ENCRYPTION_KEY`, `CRON_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `MAKE_WEBHOOK_SECRET`, `WEBHOOK_BUSINESS_ID`, `BLOB_READ_WRITE_TOKEN`, `NEXT_PUBLIC_APP_URL`
+`DATABASE_URL`, `DIRECT_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GCAL_ENCRYPTION_KEY`, `INVOICING_ENCRYPTION_KEY`, `STRIPE_ENCRYPTION_KEY`, `CRON_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `META_WHATSAPP_TOKEN`, `META_PHONE_NUMBER_ID`, `META_WHATSAPP_BUSINESS_ACCOUNT_ID`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `MAKE_WEBHOOK_SECRET`, `WEBHOOK_BUSINESS_ID`, `BLOB_READ_WRITE_TOKEN`, `NEXT_PUBLIC_APP_URL`
 
 ---
 
@@ -950,9 +969,9 @@ p.business.findMany().then(r => console.log(JSON.stringify(r, null, 2))).finally
 
 10. **No test coverage**: Three test files exist (`booking-engine.test.ts`, `order-calc.test.ts`, `permissions.test.ts`) but no test runner is configured. Tests can't run.
 
-11. **Pre-launch blockers (Session 9 audit)**:
-    - `RESEND_API_KEY` not set in Vercel → password reset emails not delivered
-    - Twilio/WhatsApp credentials not configured → all WhatsApp falls back to console.log stub
+11. **Pre-launch blockers (Session 10 audit)**:
+    - ✅ `RESEND_API_KEY` set in Vercel; `petra-app.com` domain verified (Resend Ireland). `EMAIL_FROM="Petra <noreply@petra-app.com>"`. Email is LIVE.
+    - WhatsApp credentials not configured → all WhatsApp falls back to stub (Meta Cloud API awaiting business verification)
     - Stripe Checkout routes missing → `POST /api/orders/[id]/checkout` + `POST /api/webhooks/stripe` need to be built
     - No error monitoring → add Sentry (`@sentry/nextjs`)
     - Onboarding not enforced → user can skip all steps; add redirect check
