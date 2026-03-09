@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { interpolateTemplate } from "@/lib/whatsapp";
 import { REMINDER_TEMPLATES } from "@/lib/training-groups";
 
 // ─── Appointment reminder scheduling ─────────────────────────────────────────
@@ -24,7 +25,18 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
   const apptDatetime = new Date(appt.date);
   apptDatetime.setHours(h, m, 0, 0);
 
-  const sendAt = new Date(apptDatetime.getTime() - 48 * 60 * 60 * 1000);
+  // Look up active appointment_reminder rule for this business
+  const rule = await prisma.automationRule.findFirst({
+    where: { businessId: appt.businessId, trigger: "appointment_reminder", isActive: true },
+    include: {
+      template: { select: { body: true } },
+      business: { select: { phone: true } },
+    },
+  });
+
+  // Compute sendAt using rule offset (hours) or 48h default
+  const offsetHours = rule?.triggerOffset ?? 48;
+  const sendAt = new Date(apptDatetime.getTime() - offsetHours * 60 * 60 * 1000);
   if (sendAt <= new Date()) return null;
 
   // Deduplicate: skip if a pending reminder already exists
@@ -43,15 +55,27 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
     month: "long",
   }).format(apptDatetime);
 
-  const petPart = appt.pet ? ` עם ${appt.pet.name}` : "";
-  const body = `שלום ${appt.customer.name}! 🐾 תזכורת לפגישה שלנו בעוד יומיים (${formattedDate}) – ${appt.service.name}${petPart} בשעה ${appt.startTime}. נתראה!`;
+  let body: string;
+  if (rule?.template?.body) {
+    body = interpolateTemplate(rule.template.body, {
+      customerName: appt.customer.name,
+      petName: appt.pet?.name ?? "",
+      date: formattedDate,
+      time: appt.startTime,
+      serviceName: appt.service.name,
+      businessPhone: rule.business?.phone ?? "",
+    });
+  } else {
+    const petPart = appt.pet ? ` עם ${appt.pet.name}` : "";
+    body = `שלום ${appt.customer.name}! 🐾 תזכורת לפגישה שלנו בעוד יומיים (${formattedDate}) – ${appt.service.name}${petPart} בשעה ${appt.startTime}. נתראה!`;
+  }
 
   return prisma.scheduledMessage.create({
     data: {
       businessId: appt.businessId,
       customerId: appt.customerId,
       channel: "whatsapp",
-      templateKey: "appointment_reminder_48h",
+      templateKey: rule ? `automation-rule-${rule.id}` : "appointment_reminder_48h",
       payloadJson: JSON.stringify({ body }),
       sendAt,
       status: "PENDING",

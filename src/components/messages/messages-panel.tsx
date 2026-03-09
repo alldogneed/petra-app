@@ -21,6 +21,8 @@ import {
   Copy,
   CheckCheck,
   Check,
+  Wand2,
+  Eye,
 } from "lucide-react";
 import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
@@ -86,6 +88,40 @@ const CHANNEL_LABELS: Record<string, string> = {
   sms: "SMS",
   email: "אימייל",
 };
+
+// Sample data used in the live preview
+const SAMPLE_VARS: Record<string, string> = {
+  customerName: "ישראל ישראלי",
+  petName: "רקס",
+  petAge: "3 שנים",
+  date: "יום שני, 10 במרץ",
+  time: "14:00",
+  serviceName: "אילוף פרטני",
+  businessPhone: "050-1234567",
+};
+
+function applyPreview(body: string): string {
+  return body.replace(/\{(\w+)\}/g, (match, key) => SAMPLE_VARS[key] ?? match);
+}
+
+const STARTER_TEMPLATES = [
+  {
+    label: "📅 תזכורת פגישה",
+    body: "שלום {customerName}! 🐾\nתזכורת – מחר בשעה {time} יש לנו פגישת {serviceName} עם {petName}.\nמחפשים אותנו? {businessPhone}",
+  },
+  {
+    label: "🎂 יום הולדת + הנחה",
+    body: "יום הולדת שמח ל-{petName}! 🎂🐾\n{petName} מלא/ה {petAge} היום – כל הכבוד! 🎉\n\nבתור מתנת יום הולדת נשמח לפנק אתכם ב-10% הנחה על הטיפול הבא 🎁\nליצירת קשר: {businessPhone}",
+  },
+  {
+    label: "🌟 מעקב אחרי טיפול",
+    body: "שלום {customerName}! 🌟\nרצינו לדעת איך {petName} מסתדר/ת לאחר הטיפול האחרון.\nיש שאלות? אנחנו כאן: {businessPhone}",
+  },
+  {
+    label: "👋 ברוכים הבאים",
+    body: "שלום {customerName}! 😊\nברוכים הבאים! שמחים לקבל את {petName} ואתכם.\n\nלכל שאלה אנחנו זמינים: {businessPhone}",
+  },
+];
 
 // ─── Send Modal ───────────────────────────────────────────────────────────────
 
@@ -348,6 +384,7 @@ function TemplatesTab() {
   const [bulkSendingTemplate, setBulkSendingTemplate] = useState<MessageTemplate | null>(null);
   const [form, setForm] = useState({ name: "", channel: "whatsapp", subject: "", body: "" });
   const [cursorPos, setCursorPos] = useState(0);
+  const [showStarters, setShowStarters] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: templates = [], isLoading } = useQuery<MessageTemplate[]>({
@@ -538,7 +575,45 @@ function TemplatesTab() {
                 </div>
               )}
               <div>
-                <label className="label">תוכן ההודעה *</label>
+                {/* Label row: title + starter picker + char count */}
+                <div className="flex items-center justify-between mb-1">
+                  <label className="label mb-0">תוכן ההודעה *</label>
+                  <div className="flex items-center gap-3">
+                    {/* Starter templates */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowStarters((s) => !s)}
+                        className="flex items-center gap-1 text-[11px] text-brand-500 hover:text-brand-700 font-medium"
+                      >
+                        <Wand2 className="w-3 h-3" />
+                        טען דוגמה
+                      </button>
+                      {showStarters && (
+                        <div className="absolute left-0 top-5 z-20 w-52 bg-white rounded-xl shadow-lg border border-petra-border p-1">
+                          {STARTER_TEMPLATES.map((s) => (
+                            <button
+                              key={s.label}
+                              type="button"
+                              onClick={() => {
+                                setForm((f) => ({ ...f, body: s.body }));
+                                setShowStarters(false);
+                              }}
+                              className="w-full text-right px-3 py-2 text-xs rounded-lg hover:bg-slate-50 text-petra-text transition-colors"
+                            >
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* Char count */}
+                    <span className={`text-[11px] font-medium ${form.body.length > 800 ? "text-amber-500" : "text-petra-muted"}`}>
+                      {form.body.length} תווים
+                    </span>
+                  </div>
+                </div>
+
                 <textarea
                   className="input font-mono text-sm"
                   rows={5}
@@ -546,18 +621,36 @@ function TemplatesTab() {
                   value={form.body}
                   onChange={(e) => setForm({ ...form, body: e.target.value })}
                   onSelect={(e) => setCursorPos((e.target as HTMLTextAreaElement).selectionStart)}
+                  onClick={() => setShowStarters(false)}
                 />
+
+                {/* Variable chips */}
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {TEMPLATE_VARIABLES.map((v) => (
                     <button
                       key={v}
+                      type="button"
                       onClick={() => insertVariable(v)}
                       className="px-2 py-0.5 rounded-md bg-brand-50 text-brand-600 text-[11px] font-medium hover:bg-brand-100 transition-colors"
+                      title={`לחץ להוספת ${v} בנקודת הסמן`}
                     >
                       {v}
                     </button>
                   ))}
                 </div>
+
+                {/* Live preview */}
+                {form.body.trim() && (
+                  <div className="mt-3 rounded-xl bg-slate-50 border border-petra-border p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Eye className="w-3 h-3 text-petra-muted" />
+                      <span className="text-[10px] text-petra-muted font-medium">תצוגה מקדימה (נתונים לדוגמה)</span>
+                    </div>
+                    <p className="text-sm text-petra-text whitespace-pre-wrap leading-relaxed">
+                      {applyPreview(form.body)}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex gap-3 mt-6">

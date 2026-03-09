@@ -118,6 +118,7 @@ export const PAYMENT_METHODS = [
 export const TEMPLATE_VARIABLES = [
   "{customerName}",
   "{petName}",
+  "{petAge}",
   "{date}",
   "{time}",
   "{serviceName}",
