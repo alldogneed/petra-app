@@ -18,10 +18,11 @@ export function ReportBugButton() {
 
   const mutation = useMutation({
     mutationFn: async (data: FormState) => {
+      const autoTitle = data.description.slice(0, 60).trim() || "פנייה מהאפליקציה";
       const res = await fetch("/api/support/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, pageUrl: pathname }),
+        body: JSON.stringify({ title: autoTitle, description: data.description, pageUrl: pathname }),
       });
       if (!res.ok) {
         const json = await res.json();
@@ -82,27 +83,14 @@ export function ReportBugButton() {
             {/* Form */}
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               <div>
-                <label className="label block mb-1.5">כותרת הבעיה</label>
-                <input
-                  className="input w-full"
-                  placeholder="לדוגמה: לא ניתן להוסיף לקוח חדש"
-                  value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  required
-                  minLength={3}
-                  maxLength={120}
-                />
-              </div>
-
-              <div>
-                <label className="label block mb-1.5">תיאור מפורט</label>
+                <label className="label block mb-1.5">תאר את הבעיה</label>
                 <textarea
                   className="input w-full resize-none"
-                  rows={4}
+                  rows={5}
                   placeholder="תאר מה קרה, מה ניסית לעשות, ומה הייתה השגיאה..."
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  required
+                  autoFocus
                   minLength={10}
                   maxLength={1000}
                 />
@@ -123,7 +111,7 @@ export function ReportBugButton() {
                 </button>
                 <button
                   type="submit"
-                  disabled={mutation.isPending || !form.title.trim() || !form.description.trim()}
+                  disabled={mutation.isPending || form.description.trim().length < 10}
                   className="btn-primary flex-1 justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
