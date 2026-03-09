@@ -13,8 +13,6 @@ import {
   ChevronRight,
   Menu,
   X,
-  CalendarCheck,
-  Clock,
   BarChart2,
   Megaphone,
 } from "lucide-react";
@@ -25,8 +23,6 @@ const NAV_ITEMS = [
   { name: "הודעות שידור", href: "/admin/messages", icon: Megaphone },
   { name: "סטטיסטיקות", href: "/admin/stats", icon: BarChart2 },
   { name: "פיד פעילות", href: "/admin/feed", icon: Activity },
-  { name: "הזמנות", href: "/admin/bookings", icon: CalendarCheck },
-  { name: "שעות פעילות", href: "/admin/availability", icon: Clock },
 ];
 
 interface AdminShellProps {
