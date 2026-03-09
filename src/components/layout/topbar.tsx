@@ -686,10 +686,10 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             onClick={() => setProfileOpen(false)}
           />
 
-          {/* Panel - slides from right */}
+          {/* Panel - slides from left */}
           <div
             className={cn(
-              "absolute top-0 right-0 h-full w-[320px] max-w-full bg-white shadow-2xl",
+              "absolute top-0 left-0 h-full w-[320px] max-w-full bg-white shadow-2xl",
               "transition-transform duration-300 ease-out",
               "flex flex-col overflow-y-auto"
             )}
@@ -850,14 +850,6 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                     >
                       <Settings className="w-4 h-4 text-slate-500" />
                       הגדרות
-                    </Link>
-                    <Link
-                      href="/payment-request"
-                      onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-petra-text hover:bg-slate-50 transition-colors"
-                    >
-                      <CreditCard className="w-4 h-4 text-slate-500" />
-                      בקשת תשלום
                     </Link>
                     <button
                       onClick={() => {
