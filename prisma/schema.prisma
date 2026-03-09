@@ -58,6 +58,7 @@ model PlatformUser {
   onboardingProgress OnboardingProgress?
   consents       UserConsent[]
   notifications  Notification[]
+  supportTickets SupportTicket[]
 
   @@index([email])
   @@index([googleId])
@@ -254,6 +255,7 @@ model Business {
   orderLines        OrderLine[]
   importBatches     ImportBatch[]
   systemMessages    SystemMessage[]
+  supportTickets    SupportTicket[]
   availabilityRules AvailabilityRule[]
   availabilityBlocks AvailabilityBlock[]
   availabilityBreaks AvailabilityBreak[]
@@ -930,6 +932,29 @@ model Notification {
 
   @@index([userId, isRead])
   @@index([userId, createdAt])
+}
+
+// ─────────────────────────────────────────────
+// SUPPORT TICKETS
+// ─────────────────────────────────────────────
+
+/// In-app bug reports submitted by tenants
+model SupportTicket {
+  id          String   @id @default(cuid())
+  businessId  String
+  userId      String
+  title       String
+  description String
+  pageUrl     String?  // the page the user was on
+  status      String   @default("open")  // open | in_progress | resolved
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business    Business     @relation(fields: [businessId], references: [id])
+  user        PlatformUser @relation(fields: [userId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([businessId])
 }
 
 // ─────────────────────────────────────────────

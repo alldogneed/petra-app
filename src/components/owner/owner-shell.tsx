@@ -14,6 +14,7 @@ import {
   Shield,
   HeartHandshake,
   Megaphone,
+  LifeBuoy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FullSession } from "@/lib/session";
@@ -24,6 +25,7 @@ const nav = [
   { name: "עסקים", href: "/owner/tenants", icon: Building2 },
   { name: "Customer Success", href: "/owner/customer-success", icon: HeartHandshake },
   { name: "שידור הודעה", href: "/owner/broadcast", icon: Megaphone },
+  { name: "תמיכה", href: "/owner/support", icon: LifeBuoy },
   { name: "משתמשים", href: "/owner/users", icon: Users },
   { name: "יומן פעולות", href: "/owner/audit-logs", icon: FileText },
   { name: "הגדרות", href: "/owner/settings", icon: Settings },

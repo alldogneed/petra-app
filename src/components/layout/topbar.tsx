@@ -39,6 +39,7 @@ const GlobalSearch = dynamic(
 import { cn, fetchJSON, formatCurrency, toWhatsAppPhone } from "@/lib/utils";
 import { InAppNotificationBell } from "@/components/layout/InAppNotificationBell";
 import { SystemInbox } from "@/components/layout/SystemInbox";
+import { ReportBugButton } from "@/components/layout/ReportBugButton";
 
 const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/customers": { title: "לקוחות", subtitle: "ניהול בסיס הלקוחות" },
@@ -639,6 +640,9 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
               </div>
             )}
           </div>
+
+          {/* Report a bug */}
+          <ReportBugButton />
 
           {/* System Inbox — broadcast messages from platform admin */}
           <SystemInbox />

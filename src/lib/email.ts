@@ -113,6 +113,62 @@ function buildPasswordResetHtml(params: PasswordResetEmailParams): string {
 </html>`;
 }
 
+// ─── Support Ticket Email ────────────────────────────────────────────────────
+
+export interface SupportTicketEmailParams {
+  ticketId: string;
+  businessName: string;
+  userEmail: string;
+  title: string;
+  description: string;
+  pageUrl?: string | null;
+  adminUrl: string;
+}
+
+export async function sendSupportTicketEmail(
+  params: SupportTicketEmailParams
+): Promise<void> {
+  const { error } = await getResend().emails.send({
+    from: getFromEmail(),
+    to: "info@petra-app.com",
+    subject: `🐛 פנייה חדשה מ-${params.businessName}: ${params.title}`,
+    html: buildSupportTicketHtml(params),
+  });
+  if (error) {
+    throw new Error(`Resend email failed: ${error.message}`);
+  }
+}
+
+function buildSupportTicketHtml(params: SupportTicketEmailParams): string {
+  return `<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head><meta charset="utf-8" /></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 40px 20px; direction: rtl;">
+  <div style="max-width: 560px; margin: 0 auto; background: white; border-radius: 16px; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+    <div style="text-align: center; margin-bottom: 28px;">
+      <div style="width: 52px; height: 52px; background: linear-gradient(135deg, #ef4444, #f97316); border-radius: 14px; margin: 0 auto 14px; display:flex; align-items:center; justify-content:center;">
+        <span style="font-size: 26px;">🐛</span>
+      </div>
+      <h1 style="font-size: 20px; color: #1e293b; margin: 0 0 6px;">פנייה חדשה למערכת</h1>
+      <p style="color: #64748b; font-size: 14px; margin: 0;">כרטיס #${params.ticketId.slice(-8)}</p>
+    </div>
+    <table style="width:100%; font-size:14px; color:#1e293b; border-collapse:collapse; margin-bottom:20px;">
+      <tr><td style="padding:8px 0; font-weight:600; width:130px; vertical-align:top;">עסק:</td><td style="padding:8px 0;">${params.businessName}</td></tr>
+      <tr><td style="padding:8px 0; font-weight:600; vertical-align:top;">מייל:</td><td style="padding:8px 0;" dir="ltr">${params.userEmail}</td></tr>
+      <tr><td style="padding:8px 0; font-weight:600; vertical-align:top;">כותרת:</td><td style="padding:8px 0;">${params.title}</td></tr>
+      ${params.pageUrl ? `<tr><td style="padding:8px 0; font-weight:600; vertical-align:top;">דף:</td><td style="padding:8px 0; font-size:12px; color:#475569;" dir="ltr">${params.pageUrl}</td></tr>` : ""}
+    </table>
+    <div style="background:#f1f5f9; border-radius:10px; padding:16px; margin-bottom:24px; white-space:pre-wrap; font-size:14px; color:#334155; line-height:1.6;">${params.description}</div>
+    <div style="text-align:center;">
+      <a href="${params.adminUrl}" style="display:inline-block; background:#1e293b; color:white; text-decoration:none; padding:12px 28px; border-radius:12px; font-weight:600; font-size:14px;">
+        פתח בממשק הניהול
+      </a>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 function buildWelcomeHtml(params: WelcomeEmailParams, loginUrl: string): string {
   return `<!DOCTYPE html>
 <html dir="rtl" lang="he">
