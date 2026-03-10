@@ -17,12 +17,14 @@ import {
   Calendar,
   RefreshCw,
   Download,
+  MapPin,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import {
   SERVICE_DOG_PHASE_MAP, SERVICE_DOG_PHASE_COLORS,
   RECIPIENT_STATUSES, FUNDING_SOURCE_MAP,
+  LOCATION_OPTIONS, LOCATION_MAP,
 } from "@/lib/service-dogs";
 
 interface ServiceDogSummary {
@@ -35,6 +37,7 @@ interface ServiceDogSummary {
   licenseExpiry: string | null;
   serviceType: string | null;
   isGovReportPending: boolean;
+  currentLocation: string;
   medicalCompliance: { status: string; completedCount: number; totalProtocols: number; overdueCount: number; compliancePercent: number };
   pet: { name: string; breed: string | null };
   activePlacement: { recipientName: string; status: string } | null;
@@ -194,6 +197,58 @@ export default function ServiceDogsReportsPage() {
         </div>
       ) : (
         <>
+          {/* ── Location Distribution ────────────────────────────────────── */}
+          {(() => {
+            const byLocation = LOCATION_OPTIONS.map((l) => ({
+              ...l,
+              count: dogs.filter((d) => (d.currentLocation || "TRAINER") === l.id).length,
+            }));
+            const awayDogs = dogs.filter((d) => d.currentLocation && d.currentLocation !== "TRAINER");
+            return (
+              <div className="card p-5">
+                <h2 className="font-semibold mb-4 flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-brand-500" />
+                  מיקום כלבים
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                  {byLocation.map((l) => (
+                    <div key={l.id} className="rounded-xl p-3 text-center border" style={{ backgroundColor: l.color.bg, borderColor: l.color.border }}>
+                      <div className="text-2xl font-bold" style={{ color: l.color.text }}>{l.count}</div>
+                      <div className="text-xs mt-1" style={{ color: l.color.text }}>{l.label}</div>
+                    </div>
+                  ))}
+                </div>
+                {awayDogs.length > 0 && (
+                  <div className="divide-y max-h-48 overflow-y-auto">
+                    {awayDogs.map((dog) => {
+                      const loc = dog.currentLocation || "TRAINER";
+                      const locInfo = LOCATION_MAP[loc];
+                      const phaseInfo = SERVICE_DOG_PHASE_MAP[dog.phase];
+                      return (
+                        <Link
+                          key={dog.id}
+                          href={`/service-dogs/${dog.id}`}
+                          className="flex items-center justify-between py-2.5 hover:bg-slate-50 px-1 rounded transition-colors"
+                        >
+                          <span className="text-sm font-medium">{dog.pet.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-petra-muted">{phaseInfo?.label || dog.phase}</span>
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-full font-medium border"
+                              style={{ backgroundColor: locInfo?.color.bg, color: locInfo?.color.text, borderColor: locInfo?.color.border }}
+                            >
+                              {locInfo?.label || loc}
+                            </span>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* ── Summary Stats ─────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="card p-4 text-center">

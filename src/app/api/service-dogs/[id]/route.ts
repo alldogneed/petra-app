@@ -101,6 +101,7 @@ export async function PATCH(
         ...(body.yardGroup !== undefined && { yardGroup: body.yardGroup }),
         ...(body.feedingInstructions !== undefined && { feedingInstructions: body.feedingInstructions }),
         ...(body.dogPhoto !== undefined && { dogPhoto: body.dogPhoto }),
+        ...(body.currentLocation !== undefined && { currentLocation: body.currentLocation }),
       },
       include: { pet: true },
     });

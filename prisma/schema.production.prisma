@@ -1694,6 +1694,8 @@ model ServiceDogProfile {
   yardGroup             String?   // קבוצת חצר (גורים, רטריברים, כו')
   feedingInstructions   String?   // הוראות האכלה מיוחדות
   dogPhoto              String?   // base64 data URL of dog photo for ID card
+  // Location tracking
+  currentLocation       String    @default("TRAINER")  // TRAINER | FOSTER | BOARDING | FIELD
   notes                 String?
   documents             Json      @default("[]")
   trainingTests         Json      @default("[]")

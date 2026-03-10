@@ -25,6 +25,18 @@ export const SERVICE_DOG_PHASE_COLORS: Record<string, { bg: string; text: string
   DECERTIFIED:       { bg: "#FEF2F2", text: "#DC2626", border: "#FCA5A5" },
 };
 
+// ─── Current Location Options ───
+
+export const LOCATION_OPTIONS = [
+  { id: "TRAINER",  label: "אצל המאמן",    color: { bg: "#F0FDF4", text: "#16A34A", border: "#86EFAC" } },
+  { id: "FOSTER",   label: "משפחת אומנה",  color: { bg: "#FFF7ED", text: "#C2410C", border: "#FED7AA" } },
+  { id: "BOARDING", label: "פנסיון",        color: { bg: "#EFF6FF", text: "#2563EB", border: "#93C5FD" } },
+  { id: "FIELD",    label: "שטח / לקוח",   color: { bg: "#F5F3FF", text: "#7C3AED", border: "#DDD6FE" } },
+] as const;
+
+export const LOCATION_MAP: Record<string, { label: string; color: { bg: string; text: string; border: string } }> =
+  Object.fromEntries(LOCATION_OPTIONS.map((l) => [l.id, { label: l.label, color: l.color }]));
+
 // ─── Training Statuses ───
 
 export const SERVICE_DOG_TRAINING_STATUSES = [

@@ -14,12 +14,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const phase = searchParams.get("phase");
     const trainingStatus = searchParams.get("trainingStatus");
+    const location = searchParams.get("location");
 
     const dogs = await prisma.serviceDogProfile.findMany({
       where: {
         businessId: authResult.businessId,
         ...(phase && { phase }),
         ...(trainingStatus && { trainingStatus }),
+        ...(location && { currentLocation: location }),
       },
       include: {
         pet: true,

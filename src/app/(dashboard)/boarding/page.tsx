@@ -1853,6 +1853,11 @@ function BoardingPageContent() {
     enabled: showNewStay && serviceDogMode,
   });
 
+  const { data: serviceDogsInBoarding = [] } = useQuery<Array<{ id: string; phase: string; trainingTotalHours: number; pet: { id: string; name: string; breed?: string | null } }>>({
+    queryKey: ["service-dogs-in-boarding"],
+    queryFn: () => fetchJSON("/api/service-dogs?location=BOARDING"),
+  });
+
   const { data: occStays = [], isFetching: occLoading } = useQuery<BoardingStay[]>({
     queryKey: ["boarding-occupancy", occFrom, occTo],
     queryFn: () => fetchJSON<BoardingStay[]>(`/api/boarding?from=${occFrom}&to=${occTo}`),
@@ -2802,6 +2807,38 @@ function BoardingPageContent() {
           </div>
         )}
       </div>
+
+      {/* ── Service Dogs in Boarding ── */}
+      {serviceDogsInBoarding.length > 0 && (
+        <div className="mt-6 card p-5">
+          <h2 className="font-semibold mb-3 flex items-center gap-2 text-blue-700">
+            <ShieldAlert className="w-4 h-4 text-blue-500" />
+            כלבי שירות בפנסיון
+            <span className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+              {serviceDogsInBoarding.length} כלבים
+            </span>
+          </h2>
+          <div className="divide-y">
+            {serviceDogsInBoarding.map((dog) => (
+              <div key={dog.id} className="flex items-center justify-between py-2.5 gap-3">
+                <div>
+                  <p className="text-sm font-medium">{dog.pet.name}</p>
+                  {dog.pet.breed && <p className="text-xs text-petra-muted">{dog.pet.breed}</p>}
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-petra-muted">{dog.trainingTotalHours.toFixed(0)} שעות אימון</span>
+                  <a
+                    href={`/service-dogs/${dog.id}`}
+                    className="text-xs text-brand-600 hover:underline"
+                  >
+                    תיק כלב
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Care Log Modal ── */}
       {careLogStay && (

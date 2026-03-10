@@ -16,6 +16,7 @@ import {
   Shield,
   ChevronLeft,
   Archive,
+  MapPin,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
@@ -24,6 +25,7 @@ import {
   SERVICE_DOG_PHASE_MAP,
   SERVICE_DOG_PHASE_COLORS,
   SERVICE_DOG_TYPES,
+  LOCATION_MAP,
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
 
@@ -35,6 +37,7 @@ interface ServiceDogCard {
   trainingTargetHours: number;
   trainingStatus: string;
   isGovReportPending: boolean;
+  currentLocation: string;
   pet: { id: string; name: string; breed: string | null; species: string };
   medicalCompliance: {
     completedCount: number;
@@ -306,6 +309,25 @@ export default function ServiceDogsListPage() {
                         <CheckCircle2 className="w-3 h-3" /> מוכן להסמכה
                       </span>
                     )}
+                    {/* Location badge — show only when NOT at trainer */}
+                    {(() => {
+                      const loc = dog.currentLocation || "TRAINER";
+                      if (loc === "TRAINER") return null;
+                      const locInfo = LOCATION_MAP[loc];
+                      return (
+                        <span
+                          className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full font-medium border"
+                          style={{
+                            backgroundColor: locInfo?.color.bg,
+                            color: locInfo?.color.text,
+                            borderColor: locInfo?.color.border,
+                          }}
+                        >
+                          <MapPin className="w-3 h-3" />
+                          {locInfo?.label || loc}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
 

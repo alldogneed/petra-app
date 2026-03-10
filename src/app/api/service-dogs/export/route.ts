@@ -42,6 +42,13 @@ const COMPLIANCE_STATUS_LABELS: Record<string, string> = {
   red: "באיחור",
 };
 
+const LOCATION_LABELS: Record<string, string> = {
+  TRAINER: "אצל המאמן",
+  FOSTER: "משפחת אומנה",
+  BOARDING: "פנסיון",
+  FIELD: "שטח / לקוח",
+};
+
 const GENDER_LABELS: Record<string, string> = {
   male: "זכר",
   female: "נקבה",
@@ -103,6 +110,7 @@ export async function GET(request: NextRequest) {
       "תאריך לידה",
       "מיקרוצ'יפ",
       "שלב",
+      "מיקום נוכחי",
       "סוג שירות",
       "סטטוס אימון",
       "שעות אימון",
@@ -143,6 +151,7 @@ export async function GET(request: NextRequest) {
         fmt(dog.pet.birthDate),
         dog.pet.microchip || "",
         PHASE_LABELS[dog.phase] || dog.phase,
+        LOCATION_LABELS[dog.currentLocation || "TRAINER"] || dog.currentLocation || "אצל המאמן",
         SERVICE_TYPE_LABELS[dog.serviceType || ""] || dog.serviceType || "",
         TRAINING_STATUS_LABELS[dog.trainingStatus] || dog.trainingStatus,
         dog.trainingTotalHours,
@@ -174,11 +183,11 @@ export async function GET(request: NextRequest) {
 
     ws["!cols"] = [
       { wch: 18 }, { wch: 16 }, { wch: 8 }, { wch: 14 }, { wch: 16 },
-      { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 18 },
-      { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 14 },
-      { wch: 16 }, { wch: 12 }, { wch: 18 }, { wch: 12 }, { wch: 16 },
-      { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 16 },
-      { wch: 16 }, { wch: 14 }, { wch: 22 }, { wch: 30 },
+      { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 12 },
+      { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 18 },
+      { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 18 }, { wch: 12 },
+      { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 20 },
+      { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 22 }, { wch: 30 },
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, "כלבי שירות");

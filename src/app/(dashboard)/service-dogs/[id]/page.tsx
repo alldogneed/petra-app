@@ -69,6 +69,8 @@ import {
   INSURANCE_COVERAGE_TYPES,
   CLAIM_STATUSES,
   CLAIM_STATUS_MAP,
+  LOCATION_OPTIONS,
+  LOCATION_MAP,
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
 
@@ -162,6 +164,7 @@ interface ServiceDogDetail {
   yardGroup: string | null;
   feedingInstructions: string | null;
   dogPhoto: string | null;
+  currentLocation: string;
   createdAt: string;
   pet: {
     id: string;
@@ -273,6 +276,7 @@ export default function ServiceDogProfilePage() {
   const dogId = params.id as string;
   const [activeTab, setActiveTab] = useState<"training" | "medical" | "compliance" | "placements" | "idcard" | "dogfile" | "documents" | "tests" | "insurance" | "equipment">("dogfile");
   const [showPhaseDropdown, setShowPhaseDropdown] = useState(false);
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: dog, isLoading, isError } = useQuery<ServiceDogDetail>({
@@ -300,6 +304,25 @@ export default function ServiceDogProfilePage() {
       toast.success("שלב עודכן");
     },
     onError: () => toast.error("שגיאה בעדכון שלב"),
+  });
+
+  const locationChangeMutation = useMutation({
+    mutationFn: (currentLocation: string) =>
+      fetch(`/api/service-dogs/${dogId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentLocation }),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+      queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
+      setShowLocationDropdown(false);
+      toast.success("מיקום עודכן");
+    },
+    onError: () => toast.error("שגיאה בעדכון מיקום"),
   });
 
   if (isLoading) {
@@ -425,6 +448,55 @@ export default function ServiceDogProfilePage() {
                       </>
                     )}
                   </div>
+
+                  {/* Location dropdown */}
+                  {(() => {
+                    const loc = dog.currentLocation || "TRAINER";
+                    const locInfo = LOCATION_MAP[loc];
+                    return (
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowLocationDropdown(!showLocationDropdown)}
+                          className="flex items-center gap-1.5 text-sm px-3 py-1 rounded-full border font-medium transition-all hover:shadow-sm"
+                          style={{
+                            backgroundColor: locInfo?.color.bg,
+                            color: locInfo?.color.text,
+                            borderColor: locInfo?.color.border,
+                          }}
+                        >
+                          <MapPin className="w-3 h-3" />
+                          {locInfo?.label || loc}
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                        {showLocationDropdown && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setShowLocationDropdown(false)} />
+                            <div className="absolute z-20 top-full mt-1 right-0 bg-white rounded-xl shadow-xl border py-1 min-w-[160px]">
+                              <p className="text-xs text-petra-muted px-3 py-1.5 border-b">מיקום נוכחי</p>
+                              {LOCATION_OPTIONS.map((l) => (
+                                <button
+                                  key={l.id}
+                                  onClick={() => locationChangeMutation.mutate(l.id)}
+                                  disabled={l.id === loc || locationChangeMutation.isPending}
+                                  className={cn(
+                                    "w-full text-right px-3 py-2 text-sm hover:bg-muted/40 transition-colors flex items-center gap-2",
+                                    l.id === loc && "opacity-40 cursor-default"
+                                  )}
+                                >
+                                  <span
+                                    className="w-2 h-2 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: l.color.text }}
+                                  />
+                                  {l.label}
+                                  {l.id === loc && " ✓"}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {dog.registrationNumber && (
                     <span className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-full font-mono">
