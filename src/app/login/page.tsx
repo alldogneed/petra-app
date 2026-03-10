@@ -23,6 +23,7 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState(
     googleError ? GOOGLE_ERROR_MESSAGES[googleError] || "שגיאה בהתחברות עם Google" : ""
   );
@@ -37,7 +38,7 @@ function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, rememberMe }),
       });
 
       const data = await res.json();
@@ -120,7 +121,16 @@ function LoginForm() {
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-brand-500 accent-orange-500 cursor-pointer"
+            />
+            <span className="text-xs text-petra-muted">זכור אותי</span>
+          </label>
           <Link
             href="/forgot-password"
             className="text-xs text-petra-muted hover:text-brand-500 transition-colors"

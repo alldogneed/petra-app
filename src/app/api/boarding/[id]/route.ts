@@ -17,6 +17,7 @@ const PatchBoardingSchema = z.object({
   checkinNotes: z.string().max(500).optional(),
   checkoutNotes: z.string().max(500).optional(),
   feedingPlan: z.string().max(2000).nullable().optional(),
+  medicalNeeds: z.string().max(2000).nullable().optional(),
   dailyTrainingMinutes: z.number().int().min(0).max(480).nullable().optional(),
 });
 
@@ -103,11 +104,12 @@ export async function PATCH(
         ...(body.roomId !== undefined && { roomId: body.roomId }),
         ...(notesUpdate !== undefined && { notes: notesUpdate }),
         ...(body.feedingPlan !== undefined && { feedingPlan: body.feedingPlan }),
+        ...(body.medicalNeeds !== undefined && { medicalNeeds: body.medicalNeeds }),
         ...(body.dailyTrainingMinutes !== undefined && { dailyTrainingMinutes: body.dailyTrainingMinutes }),
       },
       select: {
         id: true, checkIn: true, checkOut: true, status: true, notes: true,
-        dailyTrainingMinutes: true,
+        feedingPlan: true, medicalNeeds: true, dailyTrainingMinutes: true,
         businessId: true, customerId: true, petId: true, roomId: true,
         room: { select: { id: true, name: true } },
         pet: {

@@ -60,14 +60,29 @@ export async function PATCH(
 
     const data: Record<string, unknown> = {};
     if (body.status !== undefined) {
+      const validStatuses = ["pending", "paid", "canceled", "refunded"];
+      if (!validStatuses.includes(body.status)) {
+        return NextResponse.json({ error: "Invalid payment status" }, { status: 400 });
+      }
       data.status = body.status;
       // Auto-set paidAt when status changes to paid
       if (body.status === "paid" && !existing.paidAt) {
         data.paidAt = new Date();
       }
     }
-    if (body.method !== undefined) data.method = body.method;
-    if (body.amount !== undefined) data.amount = body.amount;
+    if (body.method !== undefined) {
+      const validMethods = ["cash", "credit_card", "bank_transfer", "bit", "paybox", "check"];
+      if (!validMethods.includes(body.method)) {
+        return NextResponse.json({ error: "Invalid payment method" }, { status: 400 });
+      }
+      data.method = body.method;
+    }
+    if (body.amount !== undefined) {
+      if (typeof body.amount !== "number" || body.amount <= 0) {
+        return NextResponse.json({ error: "Amount must be a positive number" }, { status: 400 });
+      }
+      data.amount = body.amount;
+    }
     if (body.notes !== undefined) data.notes = body.notes;
 
     const payment = await prisma.payment.update({

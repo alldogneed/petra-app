@@ -107,7 +107,7 @@ async function handleCheckoutCompleted(
       customerId,
       amount,
       method: "credit_card",
-      status: "completed",
+      status: "paid",
       notes: `תשלום Stripe — session: ${session.id}`,
       ...(appointmentId ? { appointmentId } : {}),
       ...(orderId ? { orderId } : {}),

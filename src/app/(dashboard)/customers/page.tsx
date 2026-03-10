@@ -1384,6 +1384,12 @@ export default function CustomersPage() {
 
   // ── State ──
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "dormant" | "vip">("all");
   const [serviceTypeFilter, setServiceTypeFilter] = useState("");
@@ -1441,10 +1447,10 @@ export default function CustomersPage() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery<{ customers: EnhancedCustomer[]; nextCursor: string | null; hasMore: boolean }>({
-    queryKey: ["customers", search, serviceTypeFilter],
+    queryKey: ["customers", debouncedSearch, serviceTypeFilter],
     queryFn: ({ pageParam }) => {
       const params = new URLSearchParams({ enhanced: "1", take: "50" });
-      if (search) params.set("search", search);
+      if (debouncedSearch) params.set("search", debouncedSearch);
       if (serviceTypeFilter) params.set("serviceType", serviceTypeFilter);
       if (pageParam) params.set("cursor", pageParam as string);
       return fetchJSON<{ customers: EnhancedCustomer[]; nextCursor: string | null; hasMore: boolean }>(`/api/customers?${params}`);

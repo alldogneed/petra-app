@@ -1898,7 +1898,7 @@ function BoardingPageContent() {
             checkOut: checkOutDT || null,
             notes: data.notes || null,
           }),
-        }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+        }).then(async (r) => { if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || "Failed"); } return r.json(); })
       );
       return Promise.all(promises);
     },
@@ -1911,7 +1911,7 @@ function BoardingPageContent() {
       setServiceDogMode(false);
       toast.success("ההשמה נוצרה בהצלחה");
     },
-    onError: () => toast.error("שגיאה ביצירת ההשמה. נסה שוב."),
+    onError: (err: Error) => toast.error(err.message === "Failed" ? "שגיאה ביצירת ההשמה. נסה שוב." : (err.message || "שגיאה ביצירת ההשמה")),
   });
 
   const statusMutation = useMutation({

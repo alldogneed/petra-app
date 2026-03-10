@@ -189,11 +189,31 @@ export default function OrderDetailPage() {
   });
 
   const cancelMutation = useMutation({
-    mutationFn: () =>
-      fetch(`/api/orders/${orderId}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בביטול"); return d; }),
+    mutationFn: async () => {
+      if (order?.status === "draft") {
+        // Draft → delete entirely
+        const r = await fetch(`/api/orders/${orderId}`, { method: "DELETE" });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "שגיאה במחיקה");
+        return d;
+      }
+      // Confirmed/other → cancel via PATCH
+      const r = await fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "cancelled" }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "שגיאה בביטול");
+      return d;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
-      router.push("/orders");
+      if (order?.status === "draft") {
+        router.push("/orders");
+      } else {
+        qc.invalidateQueries({ queryKey: ["order", orderId] });
+      }
     },
   });
 

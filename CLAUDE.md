@@ -1,6 +1,6 @@
 # Petra App — Complete AI Agent Reference
 
-> Last updated: March 2026 (Session 11). Written by reading actual code, not guessing.
+> Last updated: March 2026 (Session 12). Written by reading actual code, not guessing.
 
 ---
 
@@ -83,7 +83,12 @@ petra-app/
 │   └── dev.db                     # SQLite file (dev only)
 │
 ├── public/
-│   └── logo.svg
+│   ├── logo.svg
+│   ├── favicon.ico              # 32x32 ICO (Petra paw logo)
+│   ├── icon.png                 # 192x192 PNG
+│   ├── icon-512.png             # 512x512 PNG
+│   ├── icon.svg                 # SVG (old orange P — needs update)
+│   └── apple-icon.png           # 180x180 PNG (Apple touch icon)
 │
 ├── src/
 │   ├── app/
@@ -704,24 +709,42 @@ Based on code comments, schema fields, and incomplete implementations:
 
 ---
 
-## 8. Current Status (March 2026 — Session 11)
+## 8. Current Status (March 2026 — Session 12)
 
-**Most active area:** WhatsApp Meta Cloud API setup + service dog certification UX fixes.
+**Most active area:** Systematic bug scan + service dog boarding UX + favicon/branding.
 
 Recent git history (most recent first):
-- `3a2bc9a` — Perf: convert logo img tags to Next.js Image + lazy-load LeadsReports chart
-- `5bd4d26` — Feat: ToS consent PDF download in master admin tenant page
-- `ad71932` — Fix: block staff_management on free tier + hide Morning/Stripe from settings
-- `a324a6b` — Feat: in-app support ticket system (report bug button + admin view)
+- `7e1bf92` — Fix: dashboard — add success toast on appointment create and intake link copy
+- `5a3ccdd` — Feat: service dogs — gov report, Simba tests, insurance claims, Pet color/neutered
+- `fab7b61` — Feat: boarding phase 1 — service dog integration + medication board + export
+- `73252af` — Fix: security and validation bugs in training-packages and leads APIs
 
-**Session 11 changes:**
-- ✅ Meta Cloud API WhatsApp: `META_WHATSAPP_TOKEN` + `META_PHONE_NUMBER_ID` + `META_WHATSAPP_BUSINESS_ACCOUNT_ID` set in Vercel. System User "petra API" created. Phone: +972 51-531-1435.
-- 🔄 Business Verification submitted to Meta (9.3.2026, "Rabinowitz Or Haim") — In Review, expected 2 biz days. WhatsApp will work automatically when approved.
-- ✅ Service dog phase dropdown fix: removed `overflow-hidden` from parent card that was clipping the dropdown
-- ✅ Certification details form added to IDCardTab: `certificationDate`, `certificationExpiry`, `certifyingBody`, `registrationNumber`
-- ✅ `RESEND_API_KEY` set in Vercel; `petra-app.com` verified on Resend (Ireland) — email is LIVE
-- ✅ WhatsApp Automation Engine wired: `scheduleAppointmentReminder()` + birthday cron read from `AutomationRule`
-- ✅ `/messages` + `/automations` merged — template cards have inline automation, `/automations` redirects
+**Session 12 changes:**
+- ✅ Systematic bug scan across all modules — 10 bugs found and fixed (IDOR, hardcoded lead stages, standalone pets, null crashes, race conditions, UI/API mismatches)
+- ✅ IDOR fixes: training homework & goals APIs now verify business ownership before mutating
+- ✅ Dashboard openLeads count fixed: queries LeadStage table instead of hardcoded stage strings
+- ✅ Lead creation: returns 400 error instead of falling back to hardcoded "new" stage
+- ✅ Standalone pets (service dogs) now returned by pets API, birthdays API, and pets export
+- ✅ Pets/[id] profile: null customer crash fixed (Pet.customerId nullable)
+- ✅ Orders: confirmed order cancellation uses PATCH (not DELETE), draft orders use DELETE
+- ✅ Boarding: room capacity check wrapped in `prisma.$transaction()` to prevent race conditions
+- ✅ Service dog recipients: DnD sorting strategy fixed (verticalListSortingStrategy for cards)
+- ✅ Service dog overview: alert count now filters by dismissed IDs correctly
+- ✅ Dashboard: removed duplicate BirthdayWidget
+- ✅ Settings: password minimum length aligned to 12 (was 8, registration requires 12)
+- ✅ Training page: removed "כלבי שירות" tab (managed from dedicated sidebar section)
+- ✅ Boarding: service dogs in training → no pricing (ללא חיוב notice + phase badge)
+- ✅ Favicon: all icon files regenerated from Petra logo (colorful paw + "PETRA" text)
+  - Source file: `/Users/or-rabinovich/Downloads/עיצוב ללא שם (17).png` (1024x1024)
+  - Deleted conflicting `src/app/favicon.ico`, `src/app/icon.png`, `src/app/apple-icon.png`
+  - Generated: `public/favicon.ico` (32x32), `public/icon.png` (192x192), `public/icon-512.png` (512x512), `public/apple-icon.png` (180x180)
+
+**Previous session (Session 11) changes:**
+- ✅ Meta Cloud API WhatsApp: env vars set in Vercel. System User "petra API" created. Phone: +972 51-531-1435.
+- 🔄 Business Verification submitted to Meta (9.3.2026) — In Review
+- ✅ `RESEND_API_KEY` set in Vercel; email is LIVE
+- ✅ WhatsApp Automation Engine wired
+- ✅ `/messages` + `/automations` merged
 
 **Pre-launch blockers remaining:**
 1. WhatsApp Business Verification at Meta — In Review (🔴 blocker for actual message delivery)

@@ -15,6 +15,16 @@ export async function PATCH(
     const body = await request.json();
     const { name, capacity, type, status, pricePerNight } = body;
 
+    const VALID_ROOM_STATUSES = ["available", "needs_cleaning"];
+    if (status !== undefined && !VALID_ROOM_STATUSES.includes(status)) {
+      return NextResponse.json({ error: "סטטוס חדר לא תקין" }, { status: 400 });
+    }
+
+    const parsedPrice = "pricePerNight" in body && pricePerNight != null ? Number(pricePerNight) : undefined;
+    if (parsedPrice !== undefined && parsedPrice !== null && (isNaN(parsedPrice) || parsedPrice < 0)) {
+      return NextResponse.json({ error: "מחיר ללילה לא תקין" }, { status: 400 });
+    }
+
     const room = await prisma.room.update({
       where: { id: params.id, businessId: authResult.businessId },
       data: {
@@ -22,7 +32,7 @@ export async function PATCH(
         ...(capacity !== undefined && { capacity: Number(capacity) }),
         ...(type !== undefined && { type }),
         ...(status !== undefined && { status }),
-        ...("pricePerNight" in body && { pricePerNight: pricePerNight != null ? Number(pricePerNight) : null }),
+        ...("pricePerNight" in body && { pricePerNight: pricePerNight != null ? parsedPrice : null }),
       },
       include: {
         _count: {

@@ -6,6 +6,8 @@ on:
     - cron: "*/15 * * * *"
     # Every 5 minutes — process pending Google Calendar sync jobs
     - cron: "*/5 * * * *"
+    # Every 10 minutes — process failed invoice jobs (retry queue)
+    - cron: "*/10 * * * *"
 
 jobs:
   send-reminders:
@@ -31,6 +33,20 @@ jobs:
         run: |
           curl -s -X GET \
             "https://petra-app.com/api/integrations/google/process-jobs" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --max-time 30 \
+            -w "\nHTTP %{http_code}"
+
+  process-invoice-jobs:
+    name: Process Failed Invoice Jobs
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '*/10 * * * *'
+    steps:
+      - name: Call invoice process-jobs endpoint
+        run: |
+          curl -s -X POST \
+            "https://petra-app.com/api/invoicing/process-jobs" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json" \
             --max-time 30 \

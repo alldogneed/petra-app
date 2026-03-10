@@ -42,7 +42,7 @@ export async function GET(
             pet: { select: { id: true, name: true, species: true } },
           },
           orderBy: { date: "desc" },
-          take: 20,
+          take: 100,
         },
         payments: {
           select: {
@@ -64,7 +64,9 @@ export async function GET(
         },
         orders: {
           select: {
-            id: true, status: true, total: true, createdAt: true,
+            id: true, orderType: true, status: true, subtotal: true,
+            discountAmount: true, taxTotal: true, total: true,
+            notes: true, createdAt: true,
             lines: {
               select: {
                 id: true, name: true, quantity: true,
@@ -95,7 +97,7 @@ export async function GET(
         timelineEvents: {
           select: { id: true, type: true, description: true, metadata: true, createdAt: true },
           orderBy: { createdAt: "desc" },
-          take: 20,
+          take: 50,
         },
       },
     });

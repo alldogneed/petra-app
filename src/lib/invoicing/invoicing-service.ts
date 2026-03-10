@@ -196,9 +196,9 @@ export const InvoicingService = {
       throw err;
     }
 
-    // Load payment + customer
-    const payment = await prisma.payment.findUnique({
-      where: { id: paymentId },
+    // Load payment + customer (verify belongs to this business)
+    const payment = await prisma.payment.findFirst({
+      where: { id: paymentId, businessId },
       include: {
         customer: { select: { name: true, phone: true, email: true } },
         appointment: {

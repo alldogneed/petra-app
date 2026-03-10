@@ -1,213 +1,171 @@
-# Petra App — Session Handoff (2026-03-07, Session 8)
+# Petra App — Session Handoff (2026-03-10, Session 12)
 
 ---
 
 ## 1. What We Did Today
 
-### Pets Module — Full Build (`787d0d8`)
+### Systematic Bug Scan — 10 Bugs Found & Fixed
 
-Complete overhaul of the pet management experience:
+Full scan across all modules (dashboard → calendar → customers → pets → boarding → training → leads → payments → orders → service dogs → messages → settings → auth). 7 parallel agents scanned the codebase.
 
-| Feature | Details |
-|---------|---------|
-| **Weight tracking** | `PetWeightEntry` model — add/delete entries, inline SVG line chart, table view. API: `GET/POST/DELETE /api/pets/[petId]/weight` |
-| **Photo gallery** | Upload `image/*` via `/api/pets/[petId]/attachments`, grid view, lightbox on click, delete |
-| **Boarding care log** | "יומן טיפול" link per active/reserved stay in boarding page. `BoardingCareLog` model. API: `GET/POST/DELETE /api/boarding/[id]/care-logs`. Types: FEEDING / MEDICATION / WALK / NOTE |
-| **Breed combobox** | 60+ dog breeds + 14 cat breeds, free-type, shown only for dog/cat species. Component: `BreedCombobox` in customer profile |
-| **Pets list filters** | Gender filter + vaccine status filter on `/pets` page |
-| **XLSX export** | "ייצוא XLSX" button on `/pets` page — all pets with full info. API: `GET /api/pets/export` |
+| # | Bug | Fix |
+|---|-----|-----|
+| 1 | **IDOR in training homework & goals APIs** | Added business ownership verification before PATCH/DELETE |
+| 2 | **Dashboard openLeads always 0** | Changed from hardcoded stage strings to querying LeadStage table |
+| 3 | **Lead creation fallback to hardcoded "new"** | Returns 400 error if no stages configured instead of using invalid string |
+| 4 | **Standalone pets (service dogs) excluded from pets API** | Added `OR: [customer.businessId, pet.businessId]` to pets, birthdays, and export routes |
+| 5 | **Null customer crash in pets/[id] profile** | Added null check for `pet.customer` (Pet.customerId is nullable) |
+| 6 | **Orders: confirmed orders couldn't be cancelled** | UI now uses PATCH for confirmed, DELETE only for drafts |
+| 7 | **Boarding room capacity race condition** | Wrapped check+create in `prisma.$transaction()` |
+| 8 | **Service dog recipients DnD wrong strategy** | Changed to `verticalListSortingStrategy` for card lists |
+| 9 | **Dashboard duplicate birthday widgets** | Removed standalone `BirthdayWidget` (kept `PetBirthdaysWidget`) |
+| 10 | **Password min length mismatch** | Settings page now enforces 12 chars (was 8, registration requires 12) |
 
-Schema changes pushed to production:
-- `PetWeightEntry` model: `petId`, `businessId`, `weight`, `recordedAt`, `notes`
-- `Pet.weightHistory` relation
-- `Business.petWeightEntries` relation
+### Training Page — Removed Service Dogs Tab
+- Removed "כלבי שירות" tab from `/training` page TABS array
+- Service dogs are managed exclusively from the dedicated sidebar section ("ניהול כלבי שירות")
 
-### Orders + Payments Improvements (`00240a6`, `ce4a64f`, `cf74ca7`, `3356c5c`)
+### Boarding — Service Dog Pricing Logic
+- Service dogs **in training** (phase !== CERTIFIED): no nights/price calculation, shows "כלב שירות בהכשרה — ללא חיוב" notice
+- Phase badge (בהכשרה amber / מוסמך green) shown next to selected service dog name
+- Certified service dogs show normal pricing
 
-| Commit | Feature |
-|--------|---------|
-| `00240a6` | Payment status badge on orders list + "תשלום" section in order detail. "הוסף תשלום" modal inside order detail page |
-| `ce4a64f` | Payment status filter on orders list: All / שולם / טרם שולם |
-| `cf74ca7` | Pay-at-checkout in order creation modal — optional immediate payment entry when creating an order |
-| `3356c5c` | Export orders to Excel (XLSX) and PDF. API: `GET /api/orders/export?format=xlsx|pdf` |
-
-### Help Center — 3-Tab Layout + Floating FAB (this session, uncommitted)
-
-Rewrote `HelpCenter.tsx` from a single FAQ tab into a 3-tab modal, lifted state to `app-shell.tsx`, and added a floating "?" button accessible from every page.
-
-**Tab 1 — שאלות נפוצות:**
-- Kept existing search + category filter pills
-- Added 3 new FAQ items in "חיות מחמד" category:
-  - "איך עובד מעקב המשקל?" — explains weight chart
-  - "איך מעלים תמונות לחיה?" — explains photo gallery + lightbox
-  - "מה זה יומן הטיפול בפנסיון?" — explains boarding care log
-
-**Tab 2 — מה חדש (Changelog):**
-- Static array, newest-first, 4 entries: v8.0, v7.0, v6.0, v5.0
-
-**Tab 3 — צרו קשר:**
-- Placeholder WhatsApp + email — **needs real contact details** (see Section 3)
-
-**Floating FAB:**
-- `app-shell.tsx` now owns `helpOpen` state and renders `<HelpCenter>`
-- Fixed-position `?` button: `bottom-20 left-4 md:bottom-6 md:left-6 z-40`
-- Sidebar "עזרה" button calls `props.onHelpOpen()` instead of managing its own state
-- `sidebar.tsx` no longer imports or renders `HelpCenter`
-
-### Dashboard & Customers — RTL Alignment Fix (this session, uncommitted)
-
-**Problem:** Page headers had `flex justify-between` — title FIRST (→ visual RIGHT in RTL), buttons SECOND (→ visual LEFT in RTL).
-
-**Dashboard fix:** Removed `justify-between`, changed to a vertical stack:
-```
-[שלום, אור רבינוביץ׳ 👋]   ← top, right-aligned naturally in RTL
-[יום שבת, 7 במרץ 2026]
-[לקוח חדש] [קביעת תור ידני] [הזמנה חדשה] [טופס קליטה] [תורים אונליין]
-```
-Both greeting and buttons are in a single `space-y-3` column, naturally right-aligned in RTL.
-
-**Customers fix:** Swapped DOM order — buttons div FIRST (→ RIGHT in RTL), title div SECOND (→ LEFT in RTL).
+### Favicon — All Icons Regenerated from Petra Logo
+- **Source file**: `/Users/or-rabinovich/Downloads/עיצוב ללא שם (17).png` (1024x1024 colorful paw + "PETRA" text, Canva)
+- Deleted conflicting files: `src/app/favicon.ico`, `src/app/icon.png`, `src/app/apple-icon.png`
+- Generated into `public/`:
+  - `favicon.ico` — 32x32 (proper ICO format via Node.js Buffer)
+  - `icon.png` — 192x192 (via sips)
+  - `icon-512.png` — 512x512 (via sips)
+  - `apple-icon.png` — 180x180 (via sips)
+- `src/app/layout.tsx` metadata references all 4 files correctly
 
 ---
 
 ## 2. What's Working
 
-- ✅ Production at `petra-app.com` — latest deployed commit `3356c5c`
-- ✅ Pets module: weight tracking, photo gallery, boarding care logs, breed combobox, XLSX export, filters
-- ✅ Orders: payment status badge, payment filter, pay-at-checkout, XLSX+PDF export
-- ✅ Help Center: 3 tabs (FAQ / מה חדש / צרו קשר), floating FAB on all pages — **not yet deployed**
-- ✅ Dashboard header: greeting above buttons, both right-aligned — **not yet deployed**
-- ✅ Customers header: buttons right-aligned — **not yet deployed**
-- ✅ WhatsApp: Meta Cloud API live (temp token — see Section 3)
-- ✅ GCal sync for Appointments
-- ✅ TypeScript: clean
+- ✅ All 10 bug fixes applied (IDOR, lead stages, standalone pets, null safety, race conditions, DnD, passwords)
+- ✅ Training page: service dogs tab removed
+- ✅ Boarding: service dog in-training pricing hidden correctly
+- ✅ Favicon: Petra logo shows in browser tabs (all icon sizes generated)
+- ✅ TypeScript: should be clean (was clean after bug fixes)
 
 ---
 
 ## 3. What's Broken or Incomplete
 
-### ⚠️ META_WHATSAPP_TOKEN expires ~2026-03-08 20:16 (URGENT)
-Temporary 24-hour token. After expiry, WhatsApp falls back to stub mode (logs only).
-**Fix:** Go to Meta Developer Console → add real Israeli phone number → generate permanent token → update `META_WHATSAPP_TOKEN` in Vercel.
+### ⚠️ Changes not yet committed or deployed
+All changes from this session are uncommitted in the working tree. Need to commit and push.
 
-### ⚠️ This session's changes not yet committed or deployed
-5 files changed locally, not pushed:
-- `src/components/help/HelpCenter.tsx`
-- `src/components/layout/app-shell.tsx`
-- `src/components/layout/sidebar.tsx`
-- `src/app/(dashboard)/dashboard/page.tsx`
-- `src/app/(dashboard)/customers/page.tsx`
+### ⚠️ `public/icon.svg` still has old orange "P" design
+Low priority — ICO/PNG icons take precedence, but SVG should be updated for consistency.
 
-### Help Center — contact details are placeholders
-- WhatsApp number: `050-000-0000` (fake)
-- Email: `support@petra-app.com` (fake)
-- File: `src/components/help/HelpCenter.tsx` — search for `050-000-0000`
+### ⚠️ Certified service dog → price list item linking (not implemented)
+User mentioned: "כשהוא מוסמך אז כדאי לשים אותו תחת מוצר שנמצא במחירון שקשור לפנסיון" — when a service dog is certified, boarding should link to a PriceListItem. Currently only the pricing visibility toggle was implemented (hide for training, show for certified).
 
-### GitHub Actions cron not active
-`CRON_SECRET` not added to GitHub repo secrets yet.
-- GitHub → `alldogneed/petra-app` → Settings → Secrets → Actions → New secret
-- Name: `CRON_SECRET`, Value: from `.env` file
-
-### RESEND_API_KEY not set
-Email delivery (password reset, reminders) silently fails.
-
-### Google Calendar not connected
-User must go to Petra → Integrations page → Connect Google Calendar.
-
-### `/intake` middleware bug
-`/intake` dashboard page accessible without auth (prefix match issue in middleware). Low priority.
-
-### Group training validation (session 4, unresolved)
-`!groupsLoading` guard needed in `CreateOrderModal.tsx` for the "no groups exist" condition.
+### Ongoing from previous sessions:
+- 🔄 WhatsApp Business Verification at Meta — In Review since 9.3.2026
+- ⏳ Stripe Checkout API routes missing
+- ⏳ No error monitoring (Sentry)
+- ⏳ `CRON_SECRET` needed in GitHub Secrets
 
 ---
 
 ## 4. Exact Stopping Point
 
-- Last action: customers page RTL alignment fix
-- TypeScript: clean (`tsc --noEmit` passes)
-- **5 files uncommitted** — help center + RTL fixes sitting in working tree
-- Previously deployed: `3356c5c` (orders export)
-- No schema changes this session
+- Last action: deleted `src/app/apple-icon.png` (conflicting with metadata config)
+- All icon files verified visually (favicon.ico, icon.png, icon-512.png, apple-icon.png — all show Petra paw logo)
+- CLAUDE.md updated to Session 12
+- HANDOFF.md updated (this file)
+- **All changes uncommitted** — need `git add` + `git commit` + `git push`
 
 ---
 
 ## 5. Next Step — First Thing to Do Next Session
 
-**Step 1 — Commit and deploy this session's changes (3 min):**
+**Step 1 — Commit and deploy (2 min):**
 ```bash
 cd '/Users/or-rabinovich/Desktop/פיתוח/petra-app'
-git add src/components/help/HelpCenter.tsx \
-        src/components/layout/app-shell.tsx \
-        src/components/layout/sidebar.tsx \
-        src/app/(dashboard)/dashboard/page.tsx \
-        src/app/(dashboard)/customers/page.tsx
-git commit -m "feat: help center 3-tab + FAB, dashboard/customers RTL alignment"
+git add -A
+git commit -m "fix: 10 bug fixes + service dog boarding UX + favicon regeneration"
 git push origin main
-vercel --prod
 ```
 
-**Step 2 — Fill in real contact details in Help Center (2 min):**
-Open `src/components/help/HelpCenter.tsx`, find these two placeholders and replace:
-- `href="https://wa.me/972500000000"` → real WhatsApp support number
-- `050-000-0000` → real phone display text
-- `support@petra-app.com` → real support email
+**Step 2 — Verify favicon in production:**
+Open `https://petra-app.com` in a new incognito tab and confirm the Petra paw logo appears in the browser tab.
 
-**Step 3 — Fix Meta WhatsApp token before it expires (15 min, URGENT):**
-1. `https://developers.facebook.com/apps/940078891940194/whatsapp-business/wa-dev-console/`
-2. "From" dropdown → "Add phone number" → Israeli number → SMS verify
-3. Generate permanent token → update `META_WHATSAPP_TOKEN` in Vercel → `vercel --prod`
+**Step 3 (optional) — Implement certified service dog → PriceListItem linking:**
+When boarding a certified service dog, auto-suggest or require selecting a PriceListItem from the boarding category.
 
 ---
 
-## 6. Open Questions
+## 6. Branding / Logo Assets
 
-1. **Help Center contact details** — What real WhatsApp number and email should appear on the "צרו קשר" tab?
+| Asset | Location | Size |
+|-------|----------|------|
+| **Source logo** | `/Users/or-rabinovich/Downloads/עיצוב ללא שם (17).png` | 1024x1024 |
+| favicon.ico | `public/favicon.ico` | 32x32 ICO |
+| icon.png | `public/icon.png` | 192x192 PNG |
+| icon-512.png | `public/icon-512.png` | 512x512 PNG |
+| apple-icon.png | `public/apple-icon.png` | 180x180 PNG |
+| icon.svg | `public/icon.svg` | Old orange "P" (needs update) |
+| logo.svg | `public/logo.svg` | Business logo used in sidebar/topbar |
 
-2. **Meta WhatsApp permanent token** — Need to add a real Israeli phone number to Meta Dev Console before the temp token expires (~2026-03-08 20:16).
+**To regenerate icons from source:**
+```bash
+# Resize with sips (macOS)
+/usr/bin/sips -z 192 192 source.png --out public/icon.png
+/usr/bin/sips -z 512 512 source.png --out public/icon-512.png
+/usr/bin/sips -z 180 180 source.png --out public/apple-icon.png
 
-3. **Changelog ownership** — The `v8.0`/`v7.0` entries in the Help Center "מה חדש" tab are hardcoded in `HelpCenter.tsx`. After each session, a new entry should be added. Should this stay manual or be data-driven?
-
-4. **GitHub Actions cron** — Still needs `CRON_SECRET` added to GitHub repo secrets (`alldogneed/petra-app` → Settings → Secrets → Actions).
-
-5. **RESEND_API_KEY** — Email reminders + password reset not working. Open [resend.com](https://resend.com), create free key, add to Vercel.
-
-6. **Document storage at scale** — Insurance PDFs + dog photos stored as base64 in DB. Fine for now; consider migrating to Vercel Blob if DB size becomes an issue.
-
-7. **Group training validation** — `!groupsLoading` guard in `CreateOrderModal.tsx` unconfirmed in production.
-
-8. **Orders PDF export** — PDF is generated server-side. Verify it renders correctly with Hebrew RTL text in production (Hebrew fonts in Node.js PDF libs can be tricky).
+# ICO: resize to 32x32 then wrap in ICO container via Node.js
+/usr/bin/sips -z 32 32 source.png --out /tmp/icon32.png
+# Then use Node.js Buffer to create ICO header + embed PNG
+```
 
 ---
 
 ## 7. Files Changed This Session
 
-### Commits Since Last Handoff
-
-| Commit | What |
-|--------|------|
-| `787d0d8` | Pets module: weight tracking, photo gallery, boarding care logs, breed combobox, export, filters |
-| `2eedc1d` | Meta WhatsApp Cloud API (priority over Twilio) |
-| `00240a6` | Payment status on orders — list badge + detail section + add payment modal |
-| `ce4a64f` | Payment status filter on orders list |
-| `cf74ca7` | Pay-at-checkout in order creation modal |
-| `3356c5c` | Export orders to Excel and PDF |
-
-### Uncommitted Changes (this session — need to be committed)
+### Uncommitted Changes
 
 | File | Change |
 |------|--------|
-| `src/components/help/HelpCenter.tsx` | Complete rewrite: 3-tab layout, changelog data, contact section, 3 new pet FAQ items |
-| `src/components/layout/app-shell.tsx` | Lifted `helpOpen` state; added floating FAB; renders `<HelpCenter>`; passes `onHelpOpen` to Sidebar |
-| `src/components/layout/sidebar.tsx` | Removed local HelpCenter state + render; accepts `onHelpOpen` prop |
-| `src/app/(dashboard)/dashboard/page.tsx` | Header: vertical stack — greeting above buttons, both right-aligned in RTL |
-| `src/app/(dashboard)/customers/page.tsx` | Header: buttons div first (→ RIGHT in RTL), title div second |
+| `src/app/api/training-programs/[id]/homework/route.ts` | IDOR fix: business ownership check before PATCH/DELETE |
+| `src/app/api/training-programs/[id]/goals/route.ts` | IDOR fix: business ownership check before PATCH |
+| `src/app/api/dashboard/route.ts` | openLeads query: LeadStage table instead of hardcoded strings |
+| `src/app/api/leads/route.ts` | Return 400 if no stages configured (was fallback to "new") |
+| `src/app/api/pets/route.ts` | Include standalone pets (OR: customer.businessId / pet.businessId) |
+| `src/app/api/pets/birthdays/route.ts` | Same standalone pets fix |
+| `src/app/api/pets/export/route.ts` | Same standalone pets fix |
+| `src/app/(dashboard)/pets/[id]/page.tsx` | Null customer safety (Pet.customerId nullable) |
+| `src/app/(dashboard)/orders/page.tsx` | PATCH for confirmed cancellation, DELETE only for drafts |
+| `src/app/api/boarding/route.ts` | `prisma.$transaction()` for room capacity + service dog null customer |
+| `src/app/(dashboard)/service-dogs/recipients/page.tsx` | verticalListSortingStrategy for card DnD |
+| `src/app/(dashboard)/service-dogs/page.tsx` | Alert count filters by dismissed IDs |
+| `src/app/(dashboard)/dashboard/page.tsx` | Removed duplicate BirthdayWidget |
+| `src/app/(dashboard)/settings/page.tsx` | Password minimum 12 chars |
+| `src/app/(dashboard)/training/page.tsx` | Removed service dogs tab |
+| `src/app/(dashboard)/boarding/page.tsx` | Service dog pricing logic + phase badge |
+| `src/app/api/booking/bookings/[id]/route.ts` | Null customer safety |
+| `src/app/api/boarding/export/route.ts` | Null customer safety |
+| `src/app/layout.tsx` | Icon metadata order |
+| `public/favicon.ico` | Regenerated from Petra logo (32x32 ICO) |
+| `public/icon.png` | Regenerated from Petra logo (192x192) |
+| `public/icon-512.png` | Regenerated from Petra logo (512x512) |
+| `public/apple-icon.png` | Regenerated from Petra logo (180x180) |
+| `CLAUDE.md` | Updated to Session 12 |
+| `HANDOFF.md` | This file |
 
-### Schema Changes (this session — already pushed)
-None this session. Schema was last updated in the pets module commit (`787d0d8`):
-- `PetWeightEntry` model added
-- `Pet.weightHistory` relation
-- `Business.petWeightEntries` relation
+### Deleted Files
+| File | Reason |
+|------|--------|
+| `src/app/favicon.ico` | Conflicted with metadata config (Next.js file convention override) |
+| `src/app/icon.png` | Same |
+| `src/app/apple-icon.png` | Same |
+
+### Schema Changes
+None this session.
 
 ---
 
@@ -215,16 +173,12 @@ None this session. Schema was last updated in the pets module commit (`787d0d8`)
 
 | Item | Status |
 |------|--------|
-| Latest deployed commit | `3356c5c` |
-| Uncommitted local changes | ⚠️ 5 files (help center + RTL fixes) |
-| Production (petra-app.com) | ✅ Running `3356c5c` |
-| TypeScript | ✅ Clean |
-| DB schema | ✅ Synced |
-| Pets module | ✅ Weight + gallery + care logs + export |
-| Orders export | ✅ XLSX + PDF |
-| Help Center 3-tab + FAB | ⚠️ Built, not yet deployed |
-| WhatsApp (Meta) | ⚠️ Live — temp token expires ~2026-03-08 20:16 |
-| WhatsApp (real customers) | ⏳ Pending real phone number in Meta |
-| Google Calendar | ⏳ Pending OAuth connection by user |
-| GitHub Actions cron | ⏳ Pending `CRON_SECRET` secret in GitHub |
-| RESEND_API_KEY | ⏳ Pending setup |
+| Latest deployed commit | `7e1bf92` |
+| Uncommitted local changes | ⚠️ ~25 files (bug fixes + boarding UX + favicon + docs) |
+| TypeScript | ✅ Clean (after fixes) |
+| DB schema | ✅ No changes |
+| Bug scan | ✅ 10 bugs fixed |
+| Favicon | ✅ Petra logo in all sizes |
+| WhatsApp (Meta) | 🔄 Business Verification pending |
+| Stripe Checkout | ⏳ Not built |
+| Sentry | ⏳ Not added |

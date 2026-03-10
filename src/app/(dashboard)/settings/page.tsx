@@ -59,6 +59,18 @@ import { useAuth } from "@/providers/auth-provider";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+interface SdSettings {
+  trackHours: boolean;
+  defaultTargetHours: number;
+  allowManualCert: boolean;
+}
+
+const DEFAULT_SD_SETTINGS: SdSettings = {
+  trackHours: true,
+  defaultTargetHours: 120,
+  allowManualCert: true,
+};
+
 interface Business {
   id: string;
   name: string;
@@ -76,6 +88,7 @@ interface Business {
   cancellationPolicy: string | null;
   bookingWelcomeText: string | null;
   depositInstructions: string | null;
+  sdSettings: SdSettings | null;
   _count: { customers: number; appointments: number };
 }
 
@@ -2635,6 +2648,132 @@ function AddEmployeeModal({
 }
 
 
+// ─── Service Dogs Settings Tab ───────────────────────────────────────────────
+
+function ServiceDogsSettingsTab() {
+  const queryClient = useQueryClient();
+  const { data: biz, isLoading } = useQuery<Business>({
+    queryKey: ["settings"],
+    queryFn: () => fetchJSON<Business>("/api/settings"),
+  });
+
+  const [form, setForm] = useState<SdSettings | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const settings: SdSettings = form ?? (biz?.sdSettings ? { ...DEFAULT_SD_SETTINGS, ...biz.sdSettings } : DEFAULT_SD_SETTINGS);
+
+  const mutation = useMutation({
+    mutationFn: (data: SdSettings) =>
+      fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sdSettings: data }),
+      }).then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "שגיאה");
+        return d;
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+      toast.success("הגדרות כלבי שירות נשמרו");
+    },
+    onError: () => toast.error("שגיאה בשמירה"),
+  });
+
+  if (isLoading) {
+    return <div className="space-y-4 animate-pulse">{[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-slate-100 rounded-xl" />)}</div>;
+  }
+
+  function toggle(field: keyof SdSettings) {
+    setForm({ ...settings, [field]: !settings[field as "trackHours" | "allowManualCert"] });
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      {/* Track hours */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="font-semibold text-petra-text">מעקב שעות הכשרה</p>
+            <p className="text-sm text-petra-muted mt-0.5">האם לעקוב אחרי שעות ולהציג התקדמות לכל כלב</p>
+          </div>
+          <button
+            onClick={() => toggle("trackHours")}
+            className={cn("flex-shrink-0 w-12 h-6 rounded-full transition-colors relative", settings.trackHours ? "bg-orange-500" : "bg-slate-300")}
+          >
+            <span className={cn("absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all", settings.trackHours ? "right-0.5" : "left-0.5")} />
+          </button>
+        </div>
+
+        {/* Default target hours — shown only when trackHours is on */}
+        {settings.trackHours && (
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <label className="label">יעד שעות ברירת מחדל לכלב חדש</label>
+            <div className="flex items-center gap-3 mt-1">
+              <input
+                type="number"
+                min={1}
+                max={999}
+                className="input w-28 text-center"
+                value={settings.defaultTargetHours}
+                onChange={(e) => setForm({ ...settings, defaultTargetHours: Math.max(1, Number(e.target.value) || 1) })}
+              />
+              <span className="text-sm text-petra-muted">שעות</span>
+            </div>
+            <p className="text-xs text-petra-muted mt-1">ניתן לשנות ליעד שונה לכל כלב בפרופיל הכלב</p>
+          </div>
+        )}
+      </div>
+
+      {/* Allow manual certification */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="font-semibold text-petra-text">אפשר הסמכה ידנית</p>
+            <p className="text-sm text-petra-muted mt-0.5">
+              {settings.trackHours
+                ? "אפשר לבעל העסק להסמיך כלב גם אם לא הגיע ליעד שעות ההכשרה"
+                : "הסמכה על פי שיקול דעת בעל העסק — ללא מעקב שעות"}
+            </p>
+          </div>
+          <button
+            onClick={() => toggle("allowManualCert")}
+            className={cn("flex-shrink-0 w-12 h-6 rounded-full transition-colors relative", settings.allowManualCert ? "bg-orange-500" : "bg-slate-300")}
+          >
+            <span className={cn("absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all", settings.allowManualCert ? "right-0.5" : "left-0.5")} />
+          </button>
+        </div>
+        {!settings.trackHours && !settings.allowManualCert && (
+          <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            כשמעקב שעות כבוי, מומלץ לאפשר הסמכה ידנית כדי שניתן יהיה להסמיך כלבים
+          </p>
+        )}
+      </div>
+
+      {/* Summary */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-petra-muted space-y-1">
+        <p className="font-medium text-petra-text mb-2">סיכום הגדרות:</p>
+        <p>• מעקב שעות: <span className="font-medium text-petra-text">{settings.trackHours ? "פעיל" : "כבוי"}</span></p>
+        {settings.trackHours && (
+          <p>• יעד שעות לכלב חדש: <span className="font-medium text-petra-text">{settings.defaultTargetHours} שעות</span></p>
+        )}
+        <p>• הסמכה ידנית: <span className="font-medium text-petra-text">{settings.allowManualCert ? "מאושרת" : "לא מאושרת"}</span></p>
+      </div>
+
+      <button
+        className="btn-primary"
+        disabled={mutation.isPending}
+        onClick={() => mutation.mutate(settings)}
+      >
+        {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+        {mutation.isPending ? "שומר..." : saved ? "נשמר!" : "שמור הגדרות"}
+      </button>
+    </div>
+  );
+}
+
 // ─── Main Settings Page ──────────────────────────────────────────────────────
 
 import AvailabilityTab from "./availability-tab";
@@ -2644,7 +2783,7 @@ export default function SettingsPage() {
   const gcalParam = searchParams.get("gcal");
   const { isOwner } = useAuth();
   const invoicingParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data" | "messages">(
+  const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data" | "messages" | "service-dogs">(
     gcalParam ? "integrations" : invoicingParam === "invoicing" ? "invoicing" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : "business"
   );
 
@@ -2654,6 +2793,7 @@ export default function SettingsPage() {
     ...(isOwner ? [{ id: "team" as const, label: "ניהול צוות", icon: Users2 }] : []),
     // { id: "invoicing" as const, label: "חשבוניות", icon: FileText }, // hidden — in development
     { id: "messages" as const, label: "הודעות ואוטומציות", icon: MessageCircle },
+    { id: "service-dogs" as const, label: "כלבי שירות", icon: PawPrint },
     { id: "data" as const, label: "נתונים", icon: Database },
     { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
   ];
@@ -2689,6 +2829,7 @@ export default function SettingsPage() {
       {activeTab === "team" && isOwner && <TeamTab />}
       {activeTab === "invoicing" && <InvoicingTab />}
       {activeTab === "messages" && <MessagesPanel />}
+      {activeTab === "service-dogs" && <ServiceDogsSettingsTab />}
       {activeTab === "data" && <DataTab />}
       {activeTab === "integrations" && <IntegrationsTab />}
     </div>

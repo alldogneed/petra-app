@@ -53,13 +53,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, capacity, type, pricePerNight } = body;
 
+    if (!name?.trim()) {
+      return NextResponse.json({ error: "שם החדר הוא שדה חובה" }, { status: 400 });
+    }
+
+    const parsedPrice = pricePerNight != null ? Number(pricePerNight) : null;
+    if (parsedPrice !== null && (isNaN(parsedPrice) || parsedPrice < 0)) {
+      return NextResponse.json({ error: "מחיר ללילה לא תקין" }, { status: 400 });
+    }
+
     const room = await prisma.room.create({
       data: {
         businessId: authResult.businessId,
-        name,
+        name: name.trim(),
         capacity: capacity || 1,
         type: type || "standard",
-        pricePerNight: pricePerNight != null ? Number(pricePerNight) : null,
+        pricePerNight: parsedPrice,
       },
       include: {
         _count: {

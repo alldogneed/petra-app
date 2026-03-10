@@ -22,9 +22,9 @@ interface PaymentModalProps {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const PAYMENT_METHODS = [
-  { value: "cash",     label: "מזומן",              emoji: "💵" },
-  { value: "card",     label: "כרטיס אשראי",        emoji: "💳" },
-  { value: "transfer", label: "העברה בנקאית",       emoji: "🏦" },
+  { value: "cash",          label: "מזומן",              emoji: "💵" },
+  { value: "credit_card",  label: "כרטיס אשראי",        emoji: "💳" },
+  { value: "bank_transfer", label: "העברה בנקאית",       emoji: "🏦" },
   { value: "bit",      label: "ביט",                emoji: "📱" },
   { value: "paybox",   label: "פייבוקס",             emoji: "📱" },
   { value: "check",    label: "צ׳ק",                emoji: "📝" },
@@ -183,7 +183,7 @@ export function PaymentModal({
           <div>
             <label className="label">סטטוס</label>
             <div className="flex gap-2">
-              {(["paid", "pending", "partial"] as const).map((s) => {
+              {(["paid", "pending"] as const).map((s) => {
                 const cfg = PAYMENT_STATUS_MAP[s];
                 return (
                   <button

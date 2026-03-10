@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -71,13 +71,13 @@ const DOG_BREEDS = [
   "צ'או צ'או", "ניופאונדלנד", "ברנר זנן הר", "גרייהאונד", "וויפט",
   "אפגן האונד", "סלוקי", "דוג דה בורדו", "מונגרל", "כלב כנעני", "מעורב",
   "פינשר", "דוברמן פינשר", "ארגנטינה דוגו", "קאנה קורסו", "ספינוני",
-  "קאלי", "אוסטרלי שפרד", "קורגי", "פלוודה מוגת', שקסלנד שפדוג'",
+  "קאלי", "אוסטרלי שפרד", "קורגי", "פלוודה מוגת'", "שטלנד שפדוג'",
 ];
 
 const CAT_BREEDS = [
   "פרסי", "מיין קון", "בריטי שורטהייר", "בנגלי", "סיאמי", "אביסיני",
   "בירמן", "ספינקס", "רגדול", "סקוטיש פולד", "נורבגי יערות",
-  "מיקס", "כלב כנעני", "ללא גזע ידוע",
+  "מיקס", "ללא גזע ידוע",
 ];
 
 function BreedCombobox({
@@ -314,6 +314,7 @@ interface CustomerDetail {
   address: string | null;
   notes: string | null;
   tags: string;
+  source: string | null;
   documents: string;
   createdAt: string;
   pets: Pet[];
@@ -909,26 +910,49 @@ function PetDocumentsModal({
 // ─── Edit Customer Modal ─────────────────────────────────────────────────────
 
 function WhatsAppComposeModal({
+  customerId,
   customerName,
   customerPhone,
   onClose,
   onSent,
 }: {
+  customerId: string;
   customerName: string;
   customerPhone: string;
   onClose: () => void;
   onSent: () => void;
 }) {
   const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function handleSend() {
+  async function handleSend() {
     if (!message.trim()) return;
     if (!customerPhone) { setError("אין מספר טלפון ללקוח"); return; }
-    const phone = toWhatsAppPhone(customerPhone);
-    const url = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message.trim())}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-    onSent();
+    setSending(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/customers/${customerId}/whatsapp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: message.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "שגיאה בשליחה");
+        setSending(false);
+        return;
+      }
+      if (data.stub) {
+        toast.success("ההודעה תועדה (WhatsApp לא מחובר — שליחה בפועל בהמתנה לאימות)");
+      } else {
+        toast.success("ההודעה נשלחה בהצלחה");
+      }
+      onSent();
+    } catch {
+      setError("שגיאה בשליחה");
+      setSending(false);
+    }
   }
 
   return (
@@ -971,17 +995,14 @@ function WhatsAppComposeModal({
               {error}
             </div>
           )}
-          <p className="text-xs text-petra-muted">
-            לחיצה על &quot;שלח&quot; תפתח את WhatsApp עם ההודעה המוכנה לשליחה
-          </p>
           <div className="flex justify-end gap-3">
             <button onClick={onClose} className="btn-secondary">ביטול</button>
             <button
               onClick={handleSend}
-              disabled={!message.trim()}
+              disabled={!message.trim() || sending}
               className="btn-primary flex items-center gap-2"
             >
-              <Send className="w-4 h-4" /> שלח הודעה
+              <Send className="w-4 h-4" /> {sending ? "שולח..." : "שלח הודעה"}
             </button>
           </div>
         </div>
@@ -989,6 +1010,18 @@ function WhatsAppComposeModal({
     </div>
   );
 }
+
+const DEFAULT_CUSTOMER_TAGS = ["VIP", "קבוע", "מזדמן", "פוטנציאל", "לשעבר", "עסקי"];
+
+const REFERRAL_SOURCES = [
+  { value: "referral", label: "המלצה מלקוח" },
+  { value: "google", label: "גוגל" },
+  { value: "instagram", label: "אינסטגרם" },
+  { value: "facebook", label: "פייסבוק" },
+  { value: "tiktok", label: "טיקטוק" },
+  { value: "signage", label: "שלט / מעבר ברחוב" },
+  { value: "other", label: "אחר" },
+];
 
 function EditCustomerModal({
   customer,
@@ -1000,20 +1033,48 @@ function EditCustomerModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+
+  const { data: businessSettings } = useQuery<{ customerTags?: string }>({
+    queryKey: ["business-settings"],
+    queryFn: () => fetchJSON<{ customerTags?: string }>("/api/settings"),
+    staleTime: 60_000,
+  });
+
+  const presetTags = useMemo(() => {
+    if (!businessSettings?.customerTags) return DEFAULT_CUSTOMER_TAGS;
+    try {
+      const parsed = JSON.parse(businessSettings.customerTags);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_CUSTOMER_TAGS;
+    } catch {
+      return DEFAULT_CUSTOMER_TAGS;
+    }
+  }, [businessSettings?.customerTags]);
+
   const [form, setForm] = useState({
     name: customer.name,
     phone: customer.phone,
     email: customer.email || "",
     address: customer.address || "",
     notes: customer.notes || "",
-    tags: (() => {
+    source: customer.source || "",
+    selectedTags: (() => {
       try {
-        return JSON.parse(customer.tags).join(", ");
+        const parsed = JSON.parse(customer.tags);
+        return Array.isArray(parsed) ? parsed : [];
       } catch {
-        return "";
+        return [];
       }
-    })(),
+    })() as string[],
   });
+
+  const toggleTag = (tag: string) => {
+    setForm((prev) => ({
+      ...prev,
+      selectedTags: prev.selectedTags.includes(tag)
+        ? prev.selectedTags.filter((t) => t !== tag)
+        : [...prev.selectedTags, tag],
+    }));
+  };
 
   const mutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -1084,13 +1145,37 @@ function EditCustomerModal({
             />
           </div>
           <div>
-            <label className="label">תגיות (מופרדות בפסיקים)</label>
-            <input
+            <label className="label">תגיות לקוח</label>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {presetTags.map((tag: string) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleTag(tag)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${form.selectedTags.includes(tag)
+                    ? tag === "VIP"
+                      ? "bg-amber-500 text-white border-amber-500"
+                      : "bg-[#3D2E1F] text-white border-[#3D2E1F]"
+                    : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:border-[#C4956A]"
+                    }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="label">מקור הגעה</label>
+            <select
               className="input"
-              value={form.tags}
-              onChange={(e) => setForm({ ...form, tags: e.target.value })}
-              placeholder="VIP, בוקר, כלב גדול"
-            />
+              value={form.source}
+              onChange={(e) => setForm({ ...form, source: e.target.value })}
+            >
+              <option value="">— לא ידוע —</option>
+              {REFERRAL_SOURCES.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="label">הערות</label>
@@ -1112,12 +1197,8 @@ function EditCustomerModal({
                 email: form.email || null,
                 address: form.address || null,
                 notes: form.notes || null,
-                tags: JSON.stringify(
-                  form.tags
-                    .split(",")
-                    .map((t: string) => t.trim())
-                    .filter(Boolean)
-                ),
+                source: form.source || null,
+                tags: JSON.stringify(form.selectedTags),
               })
             }
           >
@@ -2854,11 +2935,12 @@ export default function CustomerProfilePage() {
   const [feedingModal, setFeedingModal] = useState<{ pet: Pet } | null>(null);
   const [noteModal, setNoteModal] = useState<{ petId: string; field: string; label: string; value: string } | null>(null);
   const [editPetModal, setEditPetModal] = useState<{ pet: Pet } | null>(null);
+  const [deletingPetId, setDeletingPetId] = useState<string | null>(null);
   const [showWaCompose, setShowWaCompose] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
   const { user } = useAuth();
 
-  const { data: customer, isLoading } = useQuery<CustomerDetail>({
+  const { data: customer, isLoading, isError } = useQuery<CustomerDetail>({
     queryKey: ["customer", customerId],
     queryFn: () =>
       fetch(`/api/customers/${customerId}`).then((r) => r.json()),
@@ -2906,6 +2988,20 @@ export default function CustomerProfilePage() {
     onError: () => setCompletingAptId(null),
   });
 
+  const deletePetMutation = useMutation({
+    mutationFn: (petId: string) =>
+      fetchJSON(`/api/pets/${petId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+      toast.success("חיית המחמד נמחקה");
+      setDeletingPetId(null);
+    },
+    onError: () => {
+      toast.error("שגיאה במחיקת חיית המחמד");
+      setDeletingPetId(null);
+    },
+  });
+
   const deleteCustomerMutation = useMutation({
     mutationFn: () =>
       fetchJSON(`/api/customers/${customerId}`, { method: "DELETE" }),
@@ -2927,6 +3023,11 @@ export default function CustomerProfilePage() {
       </div>
     );
   }
+
+  if (isError)
+    return (
+      <div className="text-center py-12 text-red-500">שגיאה בטעינת פרטי הלקוח. נסה לרענן את העמוד.</div>
+    );
 
   if (!customer)
     return (
@@ -3403,6 +3504,13 @@ export default function CustomerProfilePage() {
                               title="ערוך"
                             >
                               <Pencil className="w-3 h-3 text-amber-700" />
+                            </button>
+                            <button
+                              className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 transition-all"
+                              onClick={(e) => { e.stopPropagation(); setDeletingPetId(pet.id); }}
+                              title="מחק"
+                            >
+                              <Trash2 className="w-3 h-3 text-red-500" />
                             </button>
                             {isExpanded ? (
                               <ChevronUp className="w-4 h-4 text-stone-400" />
@@ -4225,24 +4333,20 @@ export default function CustomerProfilePage() {
                             </div>
                           </div>
 
-                          {/* Mock payment link */}
+                          {/* Payment request link */}
                           {showPayLink && (
-                            <div className="flex items-center gap-2 p-2.5 bg-brand-50 border border-brand-100 rounded-xl">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/payment-request?customerId=${customer.id}`);
+                              }}
+                              className="flex items-center gap-2 p-2.5 bg-brand-50 border border-brand-100 rounded-xl w-full text-start hover:bg-brand-100 transition-colors"
+                            >
                               <Link2 className="w-4 h-4 text-brand-500 flex-shrink-0" />
-                              <span className="text-xs text-brand-700 truncate flex-1 font-mono" dir="ltr">
-                                {typeof window !== "undefined" ? window.location.origin : ""}/pay/{order.id}
+                              <span className="text-xs text-brand-700 flex-1 font-medium">
+                                שלח בקשת תשלום
                               </span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const url = `${window.location.origin}/pay/${order.id}`;
-                                  navigator.clipboard.writeText(url);
-                                }}
-                                className="text-xs text-brand-600 hover:text-brand-700 font-medium flex-shrink-0 px-2 py-1 rounded-lg hover:bg-brand-50 transition-colors"
-                              >
-                                העתק
-                              </button>
-                            </div>
+                            </button>
                           )}
 
                           {/* Notes */}
@@ -4444,10 +4548,14 @@ export default function CustomerProfilePage() {
       />
       {showWaCompose && (
         <WhatsAppComposeModal
+          customerId={customer.id}
           customerName={customer.name}
           customerPhone={customer.phone}
           onClose={() => setShowWaCompose(false)}
-          onSent={() => setShowWaCompose(false)}
+          onSent={() => {
+            setShowWaCompose(false);
+            queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+          }}
         />
       )}
       {selectedPetDocs && (
@@ -4528,6 +4636,29 @@ export default function CustomerProfilePage() {
           customerId={customerId}
           onClose={() => setEditPetModal(null)}
         />
+      )}
+      {deletingPetId && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setDeletingPetId(null)} />
+          <div className="modal-content max-w-sm mx-4 p-6">
+            <h3 className="text-base font-bold text-petra-text mb-2">מחיקת חיית מחמד</h3>
+            <p className="text-sm text-petra-muted mb-5">
+              פעולה זו תמחק את חיית המחמד וכל הנתונים הרפואיים המשויכים. האם להמשיך?
+            </p>
+            <div className="flex gap-3">
+              <button
+                className="btn-primary flex-1 !bg-red-600 hover:!bg-red-700"
+                disabled={deletePetMutation.isPending}
+                onClick={() => deletePetMutation.mutate(deletingPetId)}
+              >
+                {deletePetMutation.isPending ? "מוחק..." : "מחק"}
+              </button>
+              <button className="btn-secondary flex-1" onClick={() => setDeletingPetId(null)}>
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {feedingModal && (
         <EditFeedingModal

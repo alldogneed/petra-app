@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
     const status = searchParams.get("status");
+    const excludeCompleted = searchParams.get("excludeCompleted") === "true";
     const from = searchParams.get("from");
     const to = searchParams.get("to");
     const relatedEntityType = searchParams.get("relatedEntityType");
@@ -28,6 +29,8 @@ export async function GET(request: NextRequest) {
 
     if (status) {
       where.status = status;
+    } else if (excludeCompleted) {
+      where.status = { not: "COMPLETED" };
     }
 
     if (relatedEntityType) {

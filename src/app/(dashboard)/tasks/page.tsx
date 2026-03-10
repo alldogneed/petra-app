@@ -201,12 +201,15 @@ export default function TasksPage() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Fetch ALL open tasks (we filter on client side for computed statuses)
+  // Fetch tasks — completed tab fetches only completed; otherwise fetch only non-completed
   const { data: allTasks = [], isLoading, isError, isFetching: tasksFetching, refetch: refetchTasks } = useQuery<Task[]>({
-    queryKey: ["tasks", activeCategory],
+    queryKey: ["tasks", activeCategory, activeFilter],
     queryFn: () => {
       const params = new URLSearchParams();
       if (activeCategory !== "ALL") params.set("category", activeCategory);
+      // Scope query to reduce data fetched: completed tab → only completed; else exclude completed
+      if (activeFilter === "COMPLETED") params.set("status", "COMPLETED");
+      else params.set("excludeCompleted", "true");
       return fetchJSON<Task[]>(`/api/tasks?${params}`);
     },
   });

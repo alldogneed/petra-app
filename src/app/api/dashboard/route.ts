@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
         take: 8,
       }),
       prisma.task.findMany({
-        where: { businessId, status: { not: "COMPLETED" } },
+        where: { businessId, status: "OPEN" },
         orderBy: { createdAt: "desc" },
         take: 5,
       }),

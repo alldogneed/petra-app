@@ -11,7 +11,7 @@ const DUMMY_HASH = "$2a$12$K4GzBqH5T5r5X5r5X5r5XuYJ5XZJXZJXZJXZJXZJXZJXZJXZJXZJX
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
+    const { email, password, rememberMe = false } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     // Create session
     const { token } = await createSession(user.id, request);
-    setSessionCookie(token);
+    setSessionCookie(token, !!rememberMe);
 
     // Track last login for Customer Success dashboard
     prisma.platformUser.update({

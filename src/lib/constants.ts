@@ -109,7 +109,7 @@ export const SERVICE_TYPES = [
 export const PAYMENT_METHODS = [
   { id: "cash", label: "מזומן" },
   { id: "credit_card", label: "אשראי" },
-  { id: "transfer", label: "העברה" },
+  { id: "bank_transfer", label: "העברה" },
   { id: "bit", label: "ביט" },
   { id: "paybox", label: "פייבוקס" },
   { id: "other", label: "אחר" },

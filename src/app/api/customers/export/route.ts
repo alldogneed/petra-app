@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   });
 
   const headers = [
-    "שם לקוח", "טלפון", "אימייל", "כתובת", "תגיות", "תורים", "תאריך הצטרפות",
+    "שם לקוח", "טלפון", "אימייל", "כתובת", "תגיות", "מקור הגעה", "הערות", "תורים", "תאריך הצטרפות",
     "שם חיית מחמד", "סוג", "גזע", "מין", "משקל (ק״ג)",
   ];
 
@@ -54,12 +54,19 @@ export async function GET(request: NextRequest) {
       year: "numeric",
     });
 
+    const SOURCE_LABELS: Record<string, string> = {
+      referral: "המלצה מלקוח", google: "גוגל", instagram: "אינסטגרם",
+      facebook: "פייסבוק", tiktok: "טיקטוק", signage: "שלט / מעבר ברחוב", other: "אחר",
+    };
+
     const customerBase = [
       c.name,
       c.phone,
       c.email ?? "",
       c.address ?? "",
       tags,
+      c.source ? (SOURCE_LABELS[c.source] ?? c.source) : "",
+      c.notes ?? "",
       String(c._count.appointments),
       joinedDate,
     ];
@@ -74,7 +81,7 @@ export async function GET(request: NextRequest) {
           pet.name,
           speciesLabel,
           pet.breed ?? "",
-          pet.gender ?? "",
+          pet.gender === "male" ? "זכר" : pet.gender === "female" ? "נקבה" : pet.gender ?? "",
           pet.weight != null ? String(pet.weight) : "",
         ]);
       }

@@ -25,7 +25,7 @@ export async function GET(
       bookingWelcomeText: true,
       depositInstructions: true,
       priceListItems: {
-        where: { isActive: true },
+        where: { isActive: true, isBookableOnline: true },
         select: {
           id: true,
           name: true,

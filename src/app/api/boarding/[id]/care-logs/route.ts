@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
@@ -30,7 +31,7 @@ export async function POST(
 ) {
   const auth = await requireBusinessAuth(request);
   if (isGuardError(auth)) return auth;
-  const { businessId } = auth;
+  const { businessId, session } = auth;
 
   // Verify stay belongs to business
   const stay = await prisma.boardingStay.findFirst({
@@ -58,6 +59,7 @@ export async function POST(
       type,
       title: title.trim(),
       notes: notes?.trim() ?? null,
+      doneByUserId: session.user.id || null,
     },
   });
 

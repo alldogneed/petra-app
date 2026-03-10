@@ -75,6 +75,7 @@ export async function PATCH(request: NextRequest) {
       cancellationPolicy,
       bookingWelcomeText,
       depositInstructions,
+      sdSettings,
     } = body;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,6 +98,7 @@ export async function PATCH(request: NextRequest) {
     if (cancellationPolicy !== undefined) data.cancellationPolicy = cancellationPolicy;
     if (bookingWelcomeText !== undefined) data.bookingWelcomeText = bookingWelcomeText;
     if (depositInstructions !== undefined) data.depositInstructions = depositInstructions;
+    if (sdSettings !== undefined) data.sdSettings = sdSettings;
 
     const business = await prisma.business.update({
       where: { id: authResult.businessId },

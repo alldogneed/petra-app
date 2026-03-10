@@ -47,6 +47,7 @@ import {
   Award,
   FileText as FileTextIcon,
   Paperclip,
+  Loader2,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import {
@@ -286,6 +287,17 @@ export default function ServiceDogProfilePage() {
       return r.json();
     }),
   });
+
+  const { data: bizData } = useQuery<{ sdSettings: { trackHours?: boolean; defaultTargetHours?: number; allowManualCert?: boolean } | null }>({
+    queryKey: ["settings"],
+    queryFn: () => fetch("/api/settings").then((r) => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+  const sdSettings = {
+    trackHours: bizData?.sdSettings?.trackHours ?? true,
+    defaultTargetHours: bizData?.sdSettings?.defaultTargetHours ?? 120,
+    allowManualCert: bizData?.sdSettings?.allowManualCert ?? true,
+  };
 
   const phaseChangeMutation = useMutation({
     mutationFn: (phase: string) =>
@@ -530,8 +542,9 @@ export default function ServiceDogProfilePage() {
           </div>
 
           {/* Stats Strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t">
-            {/* Training hours */}
+          <div className={cn("grid gap-3 mt-5 pt-5 border-t", sdSettings.trackHours ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2 sm:grid-cols-3")}>
+            {/* Training hours — shown only when trackHours is on */}
+            {sdSettings.trackHours && (
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
                 {tp.totalHours.toFixed(0)}
@@ -549,6 +562,7 @@ export default function ServiceDogProfilePage() {
               </div>
               <div className="text-xs text-petra-muted mt-1">{tp.percentComplete}%</div>
             </div>
+            )}
 
             {/* Medical compliance */}
             <div className="text-center">
@@ -642,7 +656,7 @@ export default function ServiceDogProfilePage() {
         {activeTab === "insurance" && <InsuranceTab dogId={dogId} />}
         {activeTab === "equipment" && <EquipmentTab dogId={dogId} />}
         {activeTab === "documents" && <DocumentsTab dog={dog} dogId={dogId} />}
-        {activeTab === "idcard" && <IDCardTab dog={dog} dogId={dogId} />}
+        {activeTab === "idcard" && <IDCardTab dog={dog} dogId={dogId} allowManualCert={sdSettings.allowManualCert} trackHours={sdSettings.trackHours} />}
         {activeTab === "dogfile" && <DogFileTab dog={dog} dogId={dogId} />}
       </div>
 
@@ -1490,6 +1504,35 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const activePlacement = dog.placements.find((p) => ["ACTIVE", "TRIAL"].includes(p.status));
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [recipientId, setRecipientId] = useState("");
+  const [placementDate, setPlacementDate] = useState(new Date().toISOString().split("T")[0]);
+  const [trialEndDate, setTrialEndDate] = useState("");
+
+  const { data: recipients = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["service-recipients-list"],
+    queryFn: () => fetch("/api/service-recipients").then((r) => r.json()),
+    enabled: showAddModal,
+    select: (data) => Array.isArray(data) ? data : (data as { recipients?: { id: string; name: string }[] }).recipients ?? [],
+  });
+
+  const createPlacementMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/service-placements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceDogId: dog.id, recipientId, placementDate, trialEndDate: trialEndDate || null }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["service-placements"] });
+      toast.success("שיבוץ נוצר בהצלחה");
+      setShowAddModal(false);
+      setRecipientId("");
+      setTrialEndDate("");
+    },
+    onError: () => toast.error("שגיאה ביצירת שיבוץ"),
+  });
 
   const completeProcessMutation = useMutation({
     mutationFn: (placementId: string) =>
@@ -1577,14 +1620,17 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
         <div className="empty-state py-10">
           <Activity className="empty-state-icon" />
           <p className="text-petra-muted">אין שיבוצים</p>
-          <Link href="/service-dogs/placements" className="btn-primary mt-3 inline-flex text-sm">
+          <button onClick={() => setShowAddModal(true)} className="btn-primary mt-3 inline-flex text-sm">
             צור שיבוץ חדש
-          </Link>
+          </button>
         </div>
       ) : (
         <div className="card p-0 overflow-hidden">
-          <div className="px-4 py-3 border-b bg-slate-50/40">
+          <div className="px-4 py-3 border-b bg-slate-50/40 flex items-center justify-between">
             <h4 className="text-sm font-semibold">היסטוריית שיבוצים</h4>
+            <button onClick={() => setShowAddModal(true)} className="btn-secondary text-xs flex items-center gap-1">
+              <Plus className="w-3.5 h-3.5" /> הוסף שיבוץ
+            </button>
           </div>
           <div className="divide-y">
             {dog.placements.map((placement) => {
@@ -1604,6 +1650,54 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Inline Add Placement Modal */}
+      {showAddModal && (
+        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+          <div className="modal-backdrop" />
+          <div className="modal-content max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold">שיבוץ חדש — {dog.pet.name}</h2>
+              <button onClick={() => setShowAddModal(false)} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="label">זכאי *</label>
+                <select
+                  className="input w-full"
+                  value={recipientId}
+                  onChange={(e) => setRecipientId(e.target.value)}
+                >
+                  <option value="">בחר זכאי...</option>
+                  {recipients.map((r) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">תאריך שיבוץ</label>
+                  <input type="date" value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
+                </div>
+                <div>
+                  <label className="label">סיום תקופת ניסיון</label>
+                  <input type="date" value={trialEndDate} onChange={(e) => setTrialEndDate(e.target.value)} className="input w-full" />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => createPlacementMutation.mutate()}
+                  disabled={!recipientId || createPlacementMutation.isPending}
+                  className="btn-primary flex-1"
+                >
+                  {createPlacementMutation.isPending ? "יוצר..." : "צור שיבוץ"}
+                </button>
+                <button onClick={() => setShowAddModal(false)} className="btn-secondary">ביטול</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -2497,7 +2591,7 @@ function DocumentsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) 
 
 // ─── ID Card Tab ───
 
-function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
+function IDCardTab({ dog, dogId, allowManualCert, trackHours }: { dog: ServiceDogDetail; dogId: string; allowManualCert: boolean; trackHours: boolean }) {
   const queryClient = useQueryClient();
   const [viewingCard, setViewingCard] = useState<IDCard | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -2539,6 +2633,33 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
       toast.success("תעודת הסמכה הונפקה");
     },
     onError: () => toast.error("שגיאה בהנפקת תעודה"),
+  });
+
+  const manualCertMutation = useMutation({
+    mutationFn: async () => {
+      const today = new Date().toISOString().split("T")[0];
+      // Set phase to CERTIFIED
+      await fetch(`/api/service-dogs/${dogId}/phase`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phase: "CERTIFIED" }),
+      });
+      // Set certificationDate to today if not already set
+      if (!certForm.certificationDate) {
+        await fetch(`/api/service-dogs/${dogId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ certificationDate: today }),
+        });
+        setCertForm((f) => ({ ...f, certificationDate: today }));
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+      queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
+      toast.success("הכלב הוסמך בהצלחה");
+    },
+    onError: () => toast.error("שגיאה בהסמכה"),
   });
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2669,11 +2790,33 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
       {dog.phase !== "CERTIFIED" && !activeCard && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-          <div>
+          <div className="flex-1">
             <p className="font-semibold text-amber-700">הכלב טרם הוסמך</p>
-            <p className="text-sm text-amber-600 mt-0.5">
-              ניתן להנפיק תעודת הסמכה רק לכלבים מוסמכים (שלב: מוסמך). שנה את השלב בראש הדף.
-            </p>
+            {allowManualCert ? (
+              <>
+                <p className="text-sm text-amber-600 mt-0.5">
+                  {trackHours
+                    ? "ניתן לשנות את השלב לידני או להשתמש בהסמכה ידנית על פי שיקול דעתך"
+                    : "הסמכה על פי שיקול דעת בעל העסק — ללא דרישת שעות"}
+                </p>
+                <button
+                  onClick={() => {
+                    if (window.confirm(`להסמיך את ${dog.pet.name} ידנית? הכלב יועבר לשלב "מוסמך".`)) {
+                      manualCertMutation.mutate();
+                    }
+                  }}
+                  disabled={manualCertMutation.isPending}
+                  className="mt-3 btn-primary text-sm inline-flex items-center gap-2"
+                >
+                  {manualCertMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Award className="w-4 h-4" />}
+                  הסמך ידנית
+                </button>
+              </>
+            ) : (
+              <p className="text-sm text-amber-600 mt-0.5">
+                ניתן להנפיק תעודת הסמכה רק לכלבים מוסמכים (שלב: מוסמך). שנה את השלב בראש הדף.
+              </p>
+            )}
           </div>
         </div>
       )}

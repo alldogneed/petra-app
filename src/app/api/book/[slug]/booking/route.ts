@@ -6,6 +6,7 @@ import { z } from "zod"
 import { rateLimit } from "@/lib/rate-limit"
 import { sendWhatsAppMessage } from "@/lib/whatsapp"
 import { toWhatsAppPhone } from "@/lib/utils"
+import { enqueueSyncJob } from "@/lib/sync-jobs"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://petra-app.vercel.app"
 
@@ -295,6 +296,11 @@ export async function POST(
     customer: { id: string, phone: string, name: string },
     status: string,
   }
+
+  // Enqueue Google Calendar sync (fire-and-forget)
+  enqueueSyncJob(booking.id, business.id, "create").catch((err) =>
+    console.error("Failed to enqueue GCal sync job:", err)
+  )
 
   // Build human-readable date/time labels for notifications
   const pad2 = (n: number) => n.toString().padStart(2, "0")

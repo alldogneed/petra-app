@@ -7,6 +7,12 @@ import { Toaster } from "sonner";
 export const metadata: Metadata = {
   title: "Petra - ניהול עסקי חיות מחמד",
   description: "מערכת ניהול מתקדמת לעסקי חיות מחמד - אילוף, פנסיון, טיפוח",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Petra",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", type: "image/x-icon", sizes: "32x32" },
@@ -23,6 +29,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#1e293b",
 };
 
 export default function RootLayout({
@@ -33,6 +40,12 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl">
       <body className="antialiased">
+        {/* Service Worker registration */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if ('serviceWorker' in navigator) { window.addEventListener('load', function() { navigator.serviceWorker.register('/sw.js').catch(function(){}); }); }`,
+          }}
+        />
         <QueryProvider>
           <AuthProvider>{children}</AuthProvider>
           <Toaster

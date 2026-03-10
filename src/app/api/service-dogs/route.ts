@@ -110,6 +110,14 @@ export async function POST(request: NextRequest) {
 
     const initialPhase = phase || "SELECTION";
 
+    // Pull business sdSettings to set default target hours
+    const biz = await prisma.business.findUnique({
+      where: { id: authResult.businessId },
+      select: { sdSettings: true },
+    });
+    const sdSettings = biz?.sdSettings as { trackHours?: boolean; defaultTargetHours?: number } | null;
+    const defaultTargetHours = sdSettings?.defaultTargetHours ?? 120;
+
     const profile = await prisma.$transaction(async (tx) => {
       const p = await tx.serviceDogProfile.create({
         data: {
@@ -118,6 +126,7 @@ export async function POST(request: NextRequest) {
           phase: initialPhase,
           serviceType: serviceType || null,
           notes: notes || null,
+          trainingTargetHours: defaultTargetHours,
         },
         include: { pet: true },
       });
