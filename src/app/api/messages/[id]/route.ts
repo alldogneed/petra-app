@@ -73,6 +73,8 @@ export async function DELETE(
       );
     }
 
+    // Delete linked automation rules first to prevent orphaned records
+    await prisma.automationRule.deleteMany({ where: { templateId: id, businessId: authResult.businessId } });
     await prisma.messageTemplate.deleteMany({ where: { id, businessId: authResult.businessId } });
 
     return NextResponse.json({ success: true });

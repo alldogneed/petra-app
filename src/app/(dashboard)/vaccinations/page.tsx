@@ -431,12 +431,16 @@ export default function VaccinationsPage() {
 
                     {/* Customer */}
                     <td className="table-cell">
-                      <Link
-                        href={`/customers/${v.customerId}`}
-                        className="text-brand-600 hover:underline"
-                      >
-                        {v.customerName}
-                      </Link>
+                      {v.customerId ? (
+                        <Link
+                          href={`/customers/${v.customerId}`}
+                          className="text-brand-600 hover:underline"
+                        >
+                          {v.customerName}
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-petra-muted">כלב שירות</span>
+                      )}
                     </td>
 
                     {/* Vaccine type */}
@@ -488,8 +492,7 @@ export default function VaccinationsPage() {
                     {/* Actions */}
                     <td className="table-cell">
                       <div className="flex items-center gap-2">
-                        {(v.status === "expired" ||
-                          v.status === "expiring_soon") && (
+                        {v.customerPhone && (v.status === "expired" || v.status === "expiring_soon") && (
                           <a
                             href={buildWhatsApp(
                               v.customerPhone,
@@ -506,12 +509,21 @@ export default function VaccinationsPage() {
                             תזכורת
                           </a>
                         )}
-                        <Link
-                          href={`/customers/${v.customerId}`}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 transition-colors border border-brand-200 text-xs font-medium"
-                        >
-                          פרופיל
-                        </Link>
+                        {v.customerId ? (
+                          <Link
+                            href={`/customers/${v.customerId}`}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 transition-colors border border-brand-200 text-xs font-medium"
+                          >
+                            פרופיל
+                          </Link>
+                        ) : (
+                          <Link
+                            href={`/service-dogs/${v.petId}`}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-violet-50 text-violet-700 hover:bg-violet-100 transition-colors border border-violet-200 text-xs font-medium"
+                          >
+                            תיק כלב
+                          </Link>
+                        )}
                       </div>
                     </td>
                   </tr>

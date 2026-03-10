@@ -89,7 +89,7 @@ const navEntries: NavEntry[] = [
   { name: "ניהול תהליכי אילוף", href: "/training", icon: Dog },
   { name: "חיות מחמד", href: "/pets", icon: PawPrint },
   { name: "יומן", href: "/calendar", icon: Calendar },
-  { name: "הודעות", href: "/messages", icon: MessageSquare, lockedFeature: "automations" },
+  { name: "הודעות", href: "/messages", icon: MessageSquare, lockedFeature: "custom_messages" },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner" },
   { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner", lockedFeature: "staff_management" },
   { name: "הגדרות", href: "/settings", icon: Settings, minRole: "user" },

@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +42,8 @@ import {
   Phone,
   Mail,
   Clock,
+  LifeBuoy,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -635,6 +640,31 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
   const [activeTab, setActiveTab] = useState<Tab>("faq");
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [bugDescription, setBugDescription] = useState("");
+  const pathname = usePathname();
+
+  const bugMutation = useMutation({
+    mutationFn: async (description: string) => {
+      const autoTitle = description.slice(0, 60).trim() || "פנייה ממרכז עזרה";
+      const res = await fetch("/api/support/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: autoTitle, description, pageUrl: pathname }),
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error ?? "שגיאה");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("הפנייה נשלחה — נחזור אליך בהקדם 🙏");
+      setBugDescription("");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "שגיאה בשליחת הפנייה");
+    },
+  });
 
   const filteredCategories = useMemo(() => {
     if (!search.trim() && !selectedCategory) return faqCategories;
@@ -881,6 +911,46 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                     אימייל — תוך 24 שעות.
                   </p>
                 </div>
+              </div>
+
+              {/* Bug report form */}
+              <div className="card overflow-hidden">
+                <div className="flex items-center gap-2.5 px-4 py-3 bg-orange-50/80 border-b border-petra-border">
+                  <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center">
+                    <LifeBuoy className="w-3.5 h-3.5 text-orange-600" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-petra-text">דווח על תקלה</h3>
+                </div>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (bugDescription.trim().length < 10) return;
+                    bugMutation.mutate(bugDescription.trim());
+                  }}
+                  className="p-4 space-y-3"
+                >
+                  <textarea
+                    className="input w-full resize-none text-sm"
+                    rows={4}
+                    placeholder="תאר מה קרה, מה ניסית לעשות, ומה הייתה השגיאה..."
+                    value={bugDescription}
+                    onChange={(e) => setBugDescription(e.target.value)}
+                    maxLength={1000}
+                  />
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs text-petra-muted">
+                      הפנייה תישלח לצוות הפיתוח עם פרטי הדף הנוכחי
+                    </p>
+                    <button
+                      type="submit"
+                      disabled={bugMutation.isPending || bugDescription.trim().length < 10}
+                      className="btn-primary gap-2 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      {bugMutation.isPending ? "שולח..." : "שלח"}
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}

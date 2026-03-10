@@ -263,6 +263,7 @@ function SessionLogModal({
   const [nextSessionGoals, setNextSessionGoals] = useState("");
   const [homeworkForCustomer, setHomeworkForCustomer] = useState("");
   const [trainerName, setTrainerName] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState(60);
   const [homeSession, setHomeSession] = useState(false);
 
   const isSameWeek = (dateStr: string) => {
@@ -345,6 +346,18 @@ function SessionLogModal({
               className="input"
               value={sessionDate}
               onChange={(e) => setSessionDate(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label">משך (דקות)</label>
+            <input
+              type="number"
+              className="input"
+              min={5}
+              max={480}
+              step={5}
+              value={durationMinutes}
+              onChange={(e) => setDurationMinutes(Math.max(5, parseInt(e.target.value) || 60))}
             />
           </div>
           <div>
@@ -444,7 +457,7 @@ function SessionLogModal({
           <button
             className="btn-primary flex-1"
             disabled={isPending || !sessionDate}
-            onClick={() => onSubmit(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer, trainerName || undefined)}
+            onClick={() => onSubmit(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer, trainerName || undefined, durationMinutes)}
           >
             <CheckCircle2 className="w-4 h-4" />
             {isPending ? "שומר..." : L.saveBtn}
@@ -496,17 +509,17 @@ function TrainingPageContent() {
 
   // ─── Data fetching ───
 
-  const { data: programs = [], isLoading: programsLoading, isFetching: programsFetching, refetch: refetchPrograms } = useQuery<TrainingProgram[]>({
+  const { data: programs = [], isLoading: programsLoading, isError: programsError, isFetching: programsFetching, refetch: refetchPrograms } = useQuery<TrainingProgram[]>({
     queryKey: ["training-programs"],
     queryFn: () => fetchJSON<TrainingProgram[]>("/api/training-programs?status=ACTIVE,PAUSED"),
   });
 
-  const { data: groups = [], isLoading: groupsLoading } = useQuery<TrainingGroup[]>({
+  const { data: groups = [], isLoading: groupsLoading, isError: groupsError } = useQuery<TrainingGroup[]>({
     queryKey: ["training-groups"],
     queryFn: () => fetchJSON<TrainingGroup[]>("/api/training-groups?active=true"),
   });
 
-  const { data: stays = [], isLoading: staysLoading } = useQuery<BoardingStay[]>({
+  const { data: stays = [], isLoading: staysLoading, isError: staysError } = useQuery<BoardingStay[]>({
     queryKey: ["boarding-stays"],
     queryFn: () => fetchJSON<BoardingStay[]>("/api/boarding"),
   });
@@ -534,6 +547,7 @@ function TrainingPageContent() {
   });
 
   const isLoading = programsLoading || groupsLoading || staysLoading;
+  const isError = programsError || groupsError || staysError;
 
   // ─── Derived data ───
 
@@ -642,7 +656,7 @@ function TrainingPageContent() {
   // ─── Mutations ───
 
   const markAttendanceMutation = useMutation({
-    mutationFn: async ({ programId, sessionNumber, summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer, trainerName, customerPhone: _cp, customerName: _cn, dogName: _dn }: { programId: string; sessionNumber: number; summary?: string; sessionDate?: string; rating?: number | null; practiceItems?: string; nextSessionGoals?: string; homeworkForCustomer?: string; trainerName?: string; customerPhone?: string; customerName?: string; dogName?: string }) => {
+    mutationFn: async ({ programId, sessionNumber, summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer, trainerName, durationMinutes, customerPhone: _cp, customerName: _cn, dogName: _dn }: { programId: string; sessionNumber: number; summary?: string; sessionDate?: string; rating?: number | null; practiceItems?: string; nextSessionGoals?: string; homeworkForCustomer?: string; trainerName?: string; durationMinutes?: number; customerPhone?: string; customerName?: string; dogName?: string }) => {
       const res = await fetch(`/api/training-programs/${programId}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -650,7 +664,7 @@ function TrainingPageContent() {
           sessionDate: sessionDate ? new Date(sessionDate).toISOString() : new Date().toISOString(),
           status: "COMPLETED",
           sessionNumber,
-          durationMinutes: 60,
+          durationMinutes: durationMinutes ?? 60,
           ...(summary ? { summary } : {}),
           ...(rating != null ? { rating } : {}),
           ...(practiceItems ? { practiceItems } : {}),
@@ -1012,8 +1026,14 @@ function TrainingPageContent() {
         ))}
       </div>
 
-      {/* Loading */}
-      {isLoading ? (
+      {/* Loading / Error */}
+      {isError ? (
+        <div className="card p-8 text-center">
+          <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />
+          <p className="text-red-600 font-medium mb-2">שגיאה בטעינת נתוני אילוף</p>
+          <button className="btn-secondary text-sm" onClick={() => refetchPrograms()}>נסה שוב</button>
+        </div>
+      ) : isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="card p-6 animate-pulse h-24" />
@@ -1320,7 +1340,7 @@ function TrainingPageContent() {
           programId={sessionLogTarget.programId}
           goals={sessionLogTarget.goals}
           onClose={() => setSessionLogTarget(null)}
-          onSubmit={(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer, trainerName) =>
+          onSubmit={(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer, trainerName, durationMinutes) =>
             markAttendanceMutation.mutate({
               programId: sessionLogTarget.programId,
               sessionNumber: sessionLogTarget.sessionNumber,
@@ -1331,6 +1351,7 @@ function TrainingPageContent() {
               nextSessionGoals,
               homeworkForCustomer,
               trainerName,
+              durationMinutes,
               customerPhone: sessionLogTarget.customerPhone,
               customerName: sessionLogTarget.customerName,
               dogName: sessionLogTarget.dogName,

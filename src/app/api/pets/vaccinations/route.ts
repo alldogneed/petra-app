@@ -173,7 +173,14 @@ function buildAllEntries(h: Awaited<ReturnType<typeof fetchHealths>>[number], no
 
 async function fetchHealths(businessId: string) {
   return prisma.dogHealth.findMany({
-    where: { pet: { customer: { businessId } } },
+    where: {
+      pet: {
+        OR: [
+          { customer: { businessId } },
+          { businessId },
+        ],
+      },
+    },
     select: HEALTH_SELECT,
   });
 }
@@ -213,7 +220,12 @@ export async function GET(request: NextRequest) {
 
     const healths = await prisma.dogHealth.findMany({
       where: {
-        pet: { customer: { businessId: authResult.businessId } },
+        pet: {
+          OR: [
+            { customer: { businessId: authResult.businessId } },
+            { businessId: authResult.businessId },
+          ],
+        },
         OR: [
           { rabiesValidUntil: { lte: cutoff }, rabiesUnknown: false },
           { dhppLastDate: { not: null, lte: dhppCutoff } },

@@ -19,13 +19,14 @@ export async function GET(request: NextRequest) {
     const now = new Date();
 
     // Build the where clause for DogMedication
-    // We need to filter medications by businessId via pet → customer → business
+    // Include both regular pets (via customer) and standalone service dogs (direct businessId)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const medWhere: any = {
       pet: {
-        customer: {
-          businessId: authResult.businessId,
-        },
+        OR: [
+          { customer: { businessId: authResult.businessId } },
+          { businessId: authResult.businessId },
+        ],
       },
     };
 
