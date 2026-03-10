@@ -68,6 +68,9 @@ export async function GET(request: NextRequest) {
               select: {
                 name: true,
                 phone: true,
+                email: true,
+                address: true,
+                idNumber: true,
                 customer: {
                   select: {
                     name: true,
@@ -145,12 +148,15 @@ export async function GET(request: NextRequest) {
       let ownerEmail = "";
       let ownerAddress = "";
 
-      if (placement?.recipient?.customer) {
-        const c = placement.recipient.customer;
-        ownerName = c.name;
-        ownerPhone = c.phone ?? "";
-        ownerEmail = c.email ?? "";
-        ownerAddress = c.address ?? "";
+      let ownerIdNumber = "";
+      if (placement?.recipient) {
+        const r = placement.recipient;
+        // Use recipient fields directly; fall back to linked customer if empty
+        ownerName = r.name || r.customer?.name || "";
+        ownerPhone = r.phone || r.customer?.phone || "";
+        ownerEmail = r.email || r.customer?.email || "";
+        ownerAddress = r.address || r.customer?.address || "";
+        ownerIdNumber = r.idNumber || "";
       } else {
         ownerName = business?.name ?? "";
         ownerPhone = business?.phone ?? "";
@@ -172,7 +178,7 @@ export async function GET(request: NextRequest) {
       const certDate = fmtDate(dog.certificationDate);
 
       dataRows.push([
-        "סימבה כלבי שירות",      // A — Training center name
+        business?.name ?? "",     // A — Training center name (from business settings)
         movementNumber,           // B — Movement number
         dog.pet.microchip ?? "",  // C — Microchip
         dog.licenseNumber ?? "",  // D — License number
@@ -189,7 +195,7 @@ export async function GET(request: NextRequest) {
         birthYear,                // O — Birth year
         birthMonth,               // P — Birth month
         dog.pet.isNeutered === true ? "כן" : dog.pet.isNeutered === false ? "לא" : "", // Q — Neutered
-        "",                       // R — Owner national ID (not stored)
+        ownerIdNumber,            // R — Owner national ID
         ownerName,                // S — Owner name
         ownerAddress,             // T — Address
         "",                       // U — Locality code (not stored)

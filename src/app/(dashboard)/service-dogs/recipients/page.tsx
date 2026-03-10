@@ -23,6 +23,7 @@ import {
   SortableContext,
   useSortable,
   horizontalListSortingStrategy,
+  verticalListSortingStrategy,
   arrayMove,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
@@ -204,7 +205,7 @@ function DroppableColumn({
       >
         <SortableContext
           items={recipients.map((r) => `card-${r.id}`)}
-          strategy={horizontalListSortingStrategy}
+          strategy={verticalListSortingStrategy}
         >
           {recipients.map((r) => (
             <DraggableRecipientCard key={r.id} recipient={r} stageKey={stage.key} />

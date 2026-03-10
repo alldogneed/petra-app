@@ -15,14 +15,21 @@ export async function GET(request: NextRequest) {
     const species = searchParams.get("species") || "";
 
     const where: Record<string, unknown> = {
-      customer: { businessId: authResult.businessId },
+      OR: [
+        { customer: { businessId: authResult.businessId } },
+        { businessId: authResult.businessId },
+      ],
     };
 
     if (search) {
-      where.OR = [
-        { name: { contains: search } },
-        { breed: { contains: search } },
-        { customer: { name: { contains: search } } },
+      where.AND = [
+        {
+          OR: [
+            { name: { contains: search } },
+            { breed: { contains: search } },
+            { customer: { name: { contains: search } } },
+          ],
+        },
       ];
     }
 

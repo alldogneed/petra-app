@@ -123,27 +123,27 @@ export async function PATCH(
       },
     });
 
-    // Handle checkout reminders and thank-you message
+    // Handle checkout reminders and thank-you message (skip for service dogs without customer)
     if (body.status === "checked_out") {
-      // Stay is over — cancel any pending reminders and send thank-you
       cancelBoardingCheckoutReminders(params.id).catch(console.error);
-      scheduleBoardingThankYou({
-        id: stay.id,
-        businessId: stay.businessId,
-        customerId: stay.customerId,
-        checkOut: stay.checkOut,
-        pet: { name: stay.pet.name },
-        customer: { name: stay.customer.name },
-      }).catch(console.error);
-    } else if (body.checkOut !== undefined) {
-      // Checkout date changed — reschedule
+      if (stay.customerId) {
+        scheduleBoardingThankYou({
+          id: stay.id,
+          businessId: stay.businessId,
+          customerId: stay.customerId,
+          checkOut: stay.checkOut,
+          pet: { name: stay.pet.name },
+          customer: { name: stay.customer?.name ?? stay.pet.name },
+        }).catch(console.error);
+      }
+    } else if (body.checkOut !== undefined && stay.customerId) {
       rescheduleBoardingCheckoutReminder({
         id: stay.id,
         businessId: stay.businessId,
         customerId: stay.customerId,
         checkOut: stay.checkOut,
         pet: { name: stay.pet.name },
-        customer: { name: stay.customer.name },
+        customer: { name: stay.customer?.name ?? stay.pet.name },
       }).catch(console.error);
     }
 

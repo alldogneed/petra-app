@@ -133,7 +133,7 @@ interface Pet {
   behaviorNotes: string | null;
   tags: string;
   attachments: string;
-  customer: { id: string; name: string; phone: string; email: string | null };
+  customer: { id: string; name: string; phone: string; email: string | null } | null;
   health: DogHealth | null;
   behavior: DogBehavior | null;
   medications: Medication[];
@@ -621,21 +621,27 @@ export default function PetProfilePage() {
             )}
           </div>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
-            <Link
-              href={`/customers/${pet.customer.id}`}
-              className="flex items-center gap-1 text-sm text-brand-600 hover:underline"
-            >
-              <User className="w-3.5 h-3.5" />
-              {pet.customer.name}
-            </Link>
-            {pet.customer.phone && (
-              <a
-                href={`tel:${pet.customer.phone}`}
-                className="flex items-center gap-1 text-sm text-petra-muted hover:text-petra-text"
-              >
-                <Phone className="w-3.5 h-3.5" />
-                {pet.customer.phone}
-              </a>
+            {pet.customer ? (
+              <>
+                <Link
+                  href={`/customers/${pet.customer.id}`}
+                  className="flex items-center gap-1 text-sm text-brand-600 hover:underline"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  {pet.customer.name}
+                </Link>
+                {pet.customer.phone && (
+                  <a
+                    href={`tel:${pet.customer.phone}`}
+                    className="flex items-center gap-1 text-sm text-petra-muted hover:text-petra-text"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    {pet.customer.phone}
+                  </a>
+                )}
+              </>
+            ) : (
+              <span className="text-sm text-petra-muted">ללא לקוח משויך</span>
             )}
           </div>
         </div>

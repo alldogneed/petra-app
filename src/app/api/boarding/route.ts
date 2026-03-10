@@ -78,26 +78,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check room availability if roomId provided
-    if (roomId) {
-      const conflicting = await prisma.boardingStay.findFirst({
-        where: {
-          businessId: authResult.businessId,
-          roomId,
-          status: { in: ["reserved", "checked_in"] },
-          checkIn: { lt: checkOut ? new Date(checkOut) : new Date("2099-12-31") },
-          OR: [
-            { checkOut: { gt: new Date(checkIn) } },
-            { checkOut: null },
-          ],
-        },
-      });
+    // Service dogs have no customer — accept null/empty customerId
+    const resolvedCustomerId = customerId || null;
 
-      if (conflicting) {
-        // Check capacity
-        const room = await prisma.room.findUnique({ where: { id: roomId } });
+    // Use transaction to prevent room overbooking race condition
+    const stay = await prisma.$transaction(async (tx) => {
+      // Check room availability if roomId provided
+      if (roomId) {
+        const room = await tx.room.findUnique({ where: { id: roomId } });
         if (room) {
-          const activeCount = await prisma.boardingStay.count({
+          const activeCount = await tx.boardingStay.count({
             where: {
               roomId,
               status: { in: ["reserved", "checked_in"] },
@@ -109,45 +99,43 @@ export async function POST(request: NextRequest) {
             },
           });
           if (activeCount >= room.capacity) {
-            return NextResponse.json(
-              { error: "החדר תפוס בתאריכים הנבחרים" },
-              { status: 409 }
-            );
+            throw new Error("ROOM_FULL");
           }
         }
       }
-    }
 
-    const stay = await prisma.boardingStay.create({
-      data: {
-        businessId: authResult.businessId,
-        checkIn: new Date(checkIn),
-        checkOut: checkOut ? new Date(checkOut) : undefined,
-        petId,
-        customerId,
-        roomId: roomId || null,
-        status: status || "reserved",
-        notes,
-      },
-      include: {
-        room: true,
-        pet: {
-          select: {
-            id: true, name: true, species: true, breed: true, foodNotes: true, foodBrand: true, foodGramsPerDay: true, foodFrequency: true, medicalNotes: true,
-            health: { select: { allergies: true, medicalConditions: true, activityLimitations: true } },
-            behavior: { select: { dogAggression: true, humanAggression: true, biteHistory: true, biteDetails: true, separationAnxiety: true, leashReactivity: true, resourceGuarding: true } },
-            medications: { select: { medName: true, dosage: true, frequency: true, times: true } },
-            serviceDogProfile: { select: { id: true } },
-          },
+      return tx.boardingStay.create({
+        data: {
+          businessId: authResult.businessId,
+          checkIn: new Date(checkIn),
+          checkOut: checkOut ? new Date(checkOut) : undefined,
+          petId,
+          customerId: resolvedCustomerId,
+          roomId: roomId || null,
+          status: status || "reserved",
+          notes,
         },
-        customer: { select: { id: true, name: true, phone: true } },
-      },
+        include: {
+          room: true,
+          pet: {
+            select: {
+              id: true, name: true, species: true, breed: true, foodNotes: true, foodBrand: true, foodGramsPerDay: true, foodFrequency: true, medicalNotes: true,
+              health: { select: { allergies: true, medicalConditions: true, activityLimitations: true } },
+              behavior: { select: { dogAggression: true, humanAggression: true, biteHistory: true, biteDetails: true, separationAnxiety: true, leashReactivity: true, resourceGuarding: true } },
+              medications: { select: { medName: true, dosage: true, frequency: true, times: true } },
+              serviceDogProfile: { select: { id: true } },
+            },
+          },
+          customer: { select: { id: true, name: true, phone: true } },
+        },
+      });
     });
 
     logCurrentUserActivity("CREATE_BOARDING_STAY");
 
     // Schedule WhatsApp reminder 24h before checkout (fire-and-forget)
-    if (stay.checkOut) {
+    // Skip for service dogs (no customer to message)
+    if (stay.checkOut && stay.customerId) {
       scheduleBoardingCheckoutReminder({
         id: stay.id,
         businessId: authResult.businessId,
@@ -162,6 +150,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof SyntaxError) {
       return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
+    }
+    if (error instanceof Error && error.message === "ROOM_FULL") {
+      return NextResponse.json({ error: "החדר תפוס בתאריכים הנבחרים" }, { status: 409 });
     }
     console.error("Error creating boarding stay:", error);
     return NextResponse.json(

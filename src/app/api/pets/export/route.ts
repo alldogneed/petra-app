@@ -12,7 +12,10 @@ export async function GET(request: NextRequest) {
 
   const pets = await prisma.pet.findMany({
     where: {
-      customer: { businessId },
+      OR: [
+        { customer: { businessId } },
+        { businessId },
+      ],
     },
     include: {
       customer: { select: { name: true, phone: true } },

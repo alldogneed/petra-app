@@ -172,7 +172,7 @@ interface DashboardStats {
     checkOut: string | null;
     status: string;
     pet: { id: string; name: string; species: string };
-    customer: { id: string; name: string; phone: string };
+    customer: { id: string; name: string; phone: string } | null;
     room: { name: string } | null;
   }[];
   todayDepartures: {
@@ -181,7 +181,7 @@ interface DashboardStats {
     checkOut: string | null;
     status: string;
     pet: { id: string; name: string; species: string };
-    customer: { id: string; name: string; phone: string };
+    customer: { id: string; name: string; phone: string } | null;
     room: { name: string } | null;
   }[];
   upcomingBirthdays: {
@@ -2325,9 +2325,6 @@ export default function DashboardPage() {
 
       {/* Tomorrow Reminders */}
       <TomorrowReminders appointments={data.tomorrowAppointments ?? []} />
-
-      {/* Birthday Widget */}
-      <BirthdayWidget />
 
       {/* Vaccination Expiry Alerts */}
       <VaccinationAlertWidget />

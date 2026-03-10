@@ -112,7 +112,7 @@ export async function rescheduleAppointmentReminder(appt: AppointmentForReminder
 interface BoardingStayForReminder {
   id: string;
   businessId: string;
-  customerId: string;
+  customerId: string | null;
   checkOut: Date | null;
   pet: { name: string };
   customer: { name: string };
@@ -123,7 +123,7 @@ interface BoardingStayForReminder {
  * Returns null if checkOut is null or send time is already in the past.
  */
 export async function scheduleBoardingCheckoutReminder(stay: BoardingStayForReminder) {
-  if (!stay.checkOut) return null;
+  if (!stay.checkOut || !stay.customerId) return null;
 
   const sendAt = new Date(stay.checkOut.getTime() - 24 * 60 * 60 * 1000);
   if (sendAt <= new Date()) return null;
@@ -179,6 +179,7 @@ export async function rescheduleBoardingCheckoutReminder(stay: BoardingStayForRe
  * Idempotent — uses relatedEntityId for deduplication.
  */
 export async function scheduleBoardingThankYou(stay: BoardingStayForReminder) {
+  if (!stay.customerId) return null;
   const relatedEntityId = `boarding-thankyou-${stay.id}`;
 
   const existing = await prisma.scheduledMessage.findFirst({

@@ -62,7 +62,7 @@ interface RoomStay {
   checkOut: string | null;
   status: string;
   pet: { id: string; name: string; breed: string | null; species: string };
-  customer: { id: string; name: string; phone: string };
+  customer: { id: string; name: string; phone: string } | null;
 }
 
 interface Room {
@@ -94,7 +94,7 @@ interface BoardingStay {
     medications?: { medName: string; dosage: string | null; frequency: string | null; times: string | null }[];
     serviceDogProfile?: { id: string } | null;
   };
-  customer: { id: string; name: string; phone: string };
+  customer: { id: string; name: string; phone: string } | null;
 }
 
 interface Customer {
@@ -309,7 +309,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-petra-text truncate">{stay.pet.name}</div>
                   {stay.pet.breed && <div className="text-xs text-petra-muted">{stay.pet.breed}</div>}
-                  <div className="text-[10px] text-petra-muted">{stay.customer.name}</div>
+                  <div className="text-[10px] text-petra-muted">{stay.customer?.name ?? "כלב שירות"}</div>
                 </div>
               </div>
               {stay.checkOut && (
@@ -330,7 +330,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
                 <PawPrint className="w-4 h-4 text-purple-500 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-petra-text truncate">{stay.pet.name}</div>
-                  <div className="text-xs text-petra-muted">{stay.customer.name}</div>
+                  <div className="text-xs text-petra-muted">{stay.customer?.name ?? "כלב שירות"}</div>
                 </div>
               </div>
               <div className="text-xs text-purple-600 font-medium mt-2 flex items-center gap-1">
@@ -712,7 +712,7 @@ function TimelineView({
                           width: pos.width,
                           backgroundColor: stayStatus.color,
                         }}
-                        title={`${stay.pet.name} — ${stay.customer.name}\n${formatDate(stay.checkIn)}${stay.checkOut ? ` → ${formatDate(stay.checkOut)}` : ""}`}
+                        title={`${stay.pet.name} — ${stay.customer?.name ?? "כלב שירות"}\n${formatDate(stay.checkIn)}${stay.checkOut ? ` → ${formatDate(stay.checkOut)}` : ""}`}
                       >
                         <PawPrint className="w-3 h-3 flex-shrink-0" />
                         {stay.pet.name}
@@ -838,7 +838,7 @@ const UnassignedGridCard = memo(function UnassignedGridCard({
                 <PawPrint className="w-4 h-4 text-slate-400 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-petra-text truncate">{stay.pet.name}</div>
-                  <div className="text-[10px] text-petra-muted">{stay.customer.name}</div>
+                  <div className="text-[10px] text-petra-muted">{stay.customer?.name ?? "כלב שירות"}</div>
                 </div>
               </div>
               <div className="text-[10px] text-petra-muted mt-1">
@@ -919,13 +919,17 @@ function StayRow({
             </Link>
           )}
           <span className="text-sm text-petra-muted">—</span>
-          <Link
-            href={`/customers/${stay.customer.id}`}
-            className="text-sm text-petra-muted hover:text-brand-600 transition-colors"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {stay.customer.name}
-          </Link>
+          {stay.customer ? (
+            <Link
+              href={`/customers/${stay.customer.id}`}
+              className="text-sm text-petra-muted hover:text-brand-600 transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {stay.customer.name}
+            </Link>
+          ) : (
+            <span className="text-sm text-blue-600 font-medium">כלב שירות</span>
+          )}
           {isCheckinToday && (
             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-brand-50 text-brand-600 border border-brand-100">
               <LogIn className="w-2.5 h-2.5" />צ׳ק-אין היום
@@ -971,10 +975,10 @@ function StayRow({
 
       {stay.status === "reserved" && (
         <div className="flex gap-1 flex-shrink-0">
-          {isCheckinToday && stay.customer.phone && (() => {
+          {isCheckinToday && stay.customer?.phone && (() => {
             const checkInTime = settings.boardingCheckInTime || "10:00";
             const lines = [
-              `שלום ${stay.customer.name} 👋`,
+              `שלום ${stay.customer!.name} 👋`,
               `תזכורת — היום ${stay.pet.name} מגיע/ה אלינו לפנסיון!`,
               `שעת צ׳ק-אין: ${checkInTime}`,
               stay.room ? `חדר: ${stay.room.name}` : "",
@@ -984,7 +988,7 @@ function StayRow({
             ].filter(Boolean).join("\n");
             return (
               <a
-                href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(stay.customer.phone)}&text=${encodeURIComponent(lines)}`}
+                href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(stay.customer!.phone)}&text=${encodeURIComponent(lines)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
@@ -1004,10 +1008,10 @@ function StayRow({
       )}
       {stay.status === "checked_in" && (
         <div className="flex gap-1 flex-shrink-0">
-          {isCheckoutToday && stay.customer.phone && (() => {
+          {isCheckoutToday && stay.customer?.phone && (() => {
             const checkOutTime = settings.boardingCheckOutTime || "11:00";
             const lines = [
-              `שלום ${stay.customer.name} 👋`,
+              `שלום ${stay.customer!.name} 👋`,
               `${stay.pet.name} מסיים/ת היום את השהות בפנסיון.`,
               `שעת צ׳ק-אאוט: ${checkOutTime}`,
               "",
@@ -1015,7 +1019,7 @@ function StayRow({
             ].join("\n");
             return (
               <a
-                href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(stay.customer.phone)}&text=${encodeURIComponent(lines)}`}
+                href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(stay.customer!.phone)}&text=${encodeURIComponent(lines)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
@@ -1027,7 +1031,7 @@ function StayRow({
               </a>
             );
           })()}
-          {stay.customer.phone && (stay.pet.foodNotes || stay.pet.medicalNotes || (stay.pet.medications && stay.pet.medications.length > 0)) && (() => {
+          {stay.customer?.phone && (stay.pet.foodNotes || stay.pet.medicalNotes || (stay.pet.medications && stay.pet.medications.length > 0)) && (() => {
             const lines = [
               `🐾 הוראות טיפול — ${stay.pet.name}`,
               stay.room ? `חדר: ${stay.room.name}` : "",
@@ -1056,7 +1060,7 @@ function StayRow({
             const waText = lines.filter((l, i) => !(l === "" && lines[i - 1] === "")).join("\n").trim();
             return (
               <a
-                href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(stay.customer.phone)}&text=${encodeURIComponent(waText)}`}
+                href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(stay.customer!.phone)}&text=${encodeURIComponent(waText)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors"
@@ -1158,7 +1162,7 @@ function CheckinDialog({
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-lg font-bold text-petra-text">צ׳ק-אין</h2>
-            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer.name}</p>
+            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? "כלב שירות"}</p>
           </div>
           <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -1265,7 +1269,7 @@ function CheckoutDialog({
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-lg font-bold text-petra-text">צ׳ק-אאוט</h2>
-            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer.name}</p>
+            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? "כלב שירות"}</p>
           </div>
           <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -1280,7 +1284,7 @@ function CheckoutDialog({
             </div>
             <div className="flex justify-between">
               <span className="text-petra-muted">לקוח:</span>
-              <span className="font-medium">{stay.customer.name}</span>
+              <span className="font-medium">{stay.customer?.name ?? "כלב שירות"}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-petra-muted">חדר:</span>
@@ -1317,13 +1321,13 @@ function CheckoutDialog({
           </div>
         </div>
 
-        {/* WhatsApp payment request */}
-        {settings.boardingPricePerNight && (
+        {/* WhatsApp payment request — only when customer exists */}
+        {settings.boardingPricePerNight && stay.customer?.phone && (
           <a
             href={(() => {
               const total = nights * (settings.boardingPricePerNight || 0);
-              const msg = `שלום ${stay.customer.name}! 😊\nתודה שהיה לנו את ${stay.pet.name} בפנסיון.\nסיכום השהייה: ${nights} ${calcMode === "nights" ? "לילות" : "ימים"} × ₪${settings.boardingPricePerNight} = ₪${total.toFixed(0)}.\n\nנשמח לקבל תשלום 🙏`;
-              return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(stay.customer.phone)}&text=${encodeURIComponent(msg)}`;
+              const msg = `שלום ${stay.customer!.name}! 😊\nתודה שהיה לנו את ${stay.pet.name} בפנסיון.\nסיכום השהייה: ${nights} ${calcMode === "nights" ? "לילות" : "ימים"} × ₪${settings.boardingPricePerNight} = ₪${total.toFixed(0)}.\n\nנשמח לקבל תשלום 🙏`;
+              return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(stay.customer!.phone)}&text=${encodeURIComponent(msg)}`;
             })()}
             target="_blank"
             rel="noopener noreferrer"
@@ -1380,7 +1384,7 @@ function ExtendStayDialog({
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-lg font-bold text-petra-text">הארכת שהות</h2>
-            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer.name}</p>
+            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? "כלב שירות"}</p>
           </div>
           <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -1843,7 +1847,7 @@ function BoardingPageContent() {
     enabled: showNewStay,
   });
 
-  const { data: serviceDogsList = [] } = useQuery<Array<{ id: string; pet: { id: string; name: string; breed?: string | null } }>>({
+  const { data: serviceDogsList = [] } = useQuery<Array<{ id: string; phase: string; pet: { id: string; name: string; breed?: string | null } }>>({
     queryKey: ["service-dogs-for-select"],
     queryFn: () => fetchJSON("/api/service-dogs"),
     enabled: showNewStay && serviceDogMode,
@@ -1860,6 +1864,9 @@ function BoardingPageContent() {
   const selectedServiceDog = serviceDogMode && form.petIds.length > 0
     ? serviceDogsList.find((sd) => sd.pet.id === form.petIds[0])
     : undefined;
+  // Service dogs in training don't need price calculation — they board for free during training
+  const isServiceDogInTraining = !!(selectedServiceDog && selectedServiceDog.phase !== "CERTIFIED");
+  const showPricing = !isServiceDogInTraining;
 
   const filteredCustomers = customers.filter(
     (c) =>
@@ -1879,7 +1886,7 @@ function BoardingPageContent() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            customerId: data.customerId,
+            customerId: data.customerId || null,
             petId,
             roomId: data.roomId || null,
             checkIn: checkInDT,
@@ -2257,7 +2264,7 @@ function BoardingPageContent() {
     return base.filter(
       (s) =>
         s.pet.name.toLowerCase().includes(q) ||
-        s.customer.name.toLowerCase().includes(q) ||
+        (s.customer?.name ?? "").toLowerCase().includes(q) ||
         (s.room?.name.toLowerCase().includes(q) ?? false)
     );
   }, [tabStays, activeTab, staySearch, selectedCalendarDate]);
@@ -2635,7 +2642,7 @@ function BoardingPageContent() {
                   </div>
                   <div>
                     <div className="text-xs font-semibold text-petra-text">{draggedStay.pet.name}</div>
-                    <div className="text-[10px] text-petra-muted">{draggedStay.customer.name}</div>
+                    <div className="text-[10px] text-petra-muted">{draggedStay.customer?.name ?? "כלב שירות"}</div>
                   </div>
                 </div>
               </div>
@@ -3096,7 +3103,12 @@ function BoardingPageContent() {
                         🐕
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-petra-text">{selectedServiceDog.pet.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-petra-text">{selectedServiceDog.pet.name}</p>
+                          <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium", selectedServiceDog.phase === "CERTIFIED" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700")}>
+                            {selectedServiceDog.phase === "CERTIFIED" ? "מוסמך" : "בהכשרה"}
+                          </span>
+                        </div>
                         {selectedServiceDog.pet.breed && <p className="text-[10px] text-petra-muted">{selectedServiceDog.pet.breed}</p>}
                       </div>
                     </div>
@@ -3176,7 +3188,7 @@ function BoardingPageContent() {
               )}
 
               {/* Price per night — display only, not saved to stay record */}
-              {selectedCustomer && (
+              {selectedCustomer && showPricing && (
                 <div>
                   <label className="label">מחיר ללילה (₪) — הערכת עלות בלבד</label>
                   <input
@@ -3329,8 +3341,15 @@ function BoardingPageContent() {
               </div>
             </div>
 
-            {/* Price summary */}
-            {form.checkIn && form.checkOut && form.petIds.length > 0 && form.pricePerNight > 0 && (() => {
+            {/* Training notice for service dogs in training */}
+            {isServiceDogInTraining && form.checkIn && form.petIds.length > 0 && (
+              <div className="mt-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-700">
+                כלב שירות בהכשרה — ללא חיוב
+              </div>
+            )}
+
+            {/* Price summary — hidden for service dogs in training */}
+            {showPricing && form.checkIn && form.checkOut && form.petIds.length > 0 && form.pricePerNight > 0 && (() => {
               const checkInDT = `${form.checkIn}T${form.checkInTime || "12:00"}`;
               const checkOutDT = `${form.checkOut}T${form.checkOutTime || "12:00"}`;
               const nights = calcNights(checkInDT, checkOutDT);

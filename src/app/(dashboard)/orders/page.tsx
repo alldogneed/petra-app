@@ -117,12 +117,21 @@ function shortId(id: string) { return id.slice(-8).toUpperCase(); }
 
 // ── Cancel Confirm Dialog ─────────────────────────────────────────────────────
 
-function CancelDialog({ orderId, onClose }: { orderId: string; onClose: () => void }) {
+function CancelDialog({ orderId, orderStatus, onClose }: { orderId: string; orderStatus?: string; onClose: () => void }) {
   const qc = useQueryClient();
 
   const cancelMutation = useMutation({
-    mutationFn: () =>
-      fetch(`/api/orders/${orderId}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בביטול"); return d; }),
+    mutationFn: () => {
+      // Draft orders can be deleted; confirmed orders are cancelled via PATCH
+      if (orderStatus === "draft") {
+        return fetch(`/api/orders/${orderId}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בביטול"); return d; });
+      }
+      return fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "cancelled" }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בביטול"); return d; });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       toast.success("ההזמנה בוטלה בהצלחה");
@@ -169,7 +178,7 @@ function OrdersPageContent() {
   const [paymentFilter, setPaymentFilter] = useState("ALL");
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
+  const [cancelOrder, setCancelOrder] = useState<{ id: string; status: string } | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
   const [fromDate, setFromDate] = useState(getTodayStr);
   const [toDate, setToDate] = useState("");
@@ -752,7 +761,7 @@ function OrdersPageContent() {
                         {isCancellable && (
                           <button
                             className="btn-danger text-xs py-1.5 px-3"
-                            onClick={(e) => { e.stopPropagation(); setCancelOrderId(order.id); }}
+                            onClick={(e) => { e.stopPropagation(); setCancelOrder({ id: order.id, status: order.status }); }}
                           >
                             <XCircle className="w-3 h-3" />
                             בטל
@@ -879,7 +888,7 @@ function OrdersPageContent() {
                           </Link>
                           {isCancellable && (
                             <button
-                              onClick={() => setCancelOrderId(order.id)}
+                              onClick={() => setCancelOrder({ id: order.id, status: order.status })}
                               className="p-1.5 rounded-lg text-petra-muted hover:text-red-500 hover:bg-red-50 transition-colors border border-transparent hover:border-red-100"
                               title="בטל הזמנה"
                             >
@@ -913,10 +922,11 @@ function OrdersPageContent() {
         }}
       />
 
-      {cancelOrderId && (
+      {cancelOrder && (
         <CancelDialog
-          orderId={cancelOrderId}
-          onClose={() => setCancelOrderId(null)}
+          orderId={cancelOrder.id}
+          orderStatus={cancelOrder.status}
+          onClose={() => setCancelOrder(null)}
         />
       )}
     </div>

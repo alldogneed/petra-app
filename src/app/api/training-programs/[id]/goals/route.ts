@@ -93,6 +93,14 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "goalId is required" }, { status: 400 });
     }
 
+    // Verify goal belongs to this business
+    const existing = await prisma.trainingGoal.findFirst({
+      where: { id: goalId, program: { businessId: authResult.businessId } },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+    }
+
     const data: any = {};
     if (title !== undefined) data.title = title;
     if (description !== undefined) data.description = description;

@@ -82,7 +82,7 @@ export async function PATCH(
             customerId: booking.customerId,
             checkOut: endAt,
             pet: { name: newStay.pet.name },
-            customer: { name: newStay.customer.name },
+            customer: { name: newStay.customer?.name ?? newStay.pet.name },
           }).catch(console.error);
         }
       } else if (booking.serviceId) {

@@ -180,7 +180,6 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "individual", label: "אילוף בבית הלקוח", icon: <Dog className="w-4 h-4" /> },
   { id: "boarding", label: "אילוף בתנאי פנסיון", icon: <Hotel className="w-4 h-4" /> },
   { id: "groups", label: "אילוף קבוצתי", icon: <Users className="w-4 h-4" /> },
-  { id: "service-dogs", label: "כלבי שירות", icon: <Shield className="w-4 h-4" /> },
   { id: "archive", label: "ארכיון", icon: <Archive className="w-4 h-4" /> },
 ];
 

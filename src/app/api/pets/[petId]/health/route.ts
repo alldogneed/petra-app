@@ -30,8 +30,9 @@ export async function PATCH(
     const data: Record<string, unknown> = {};
     const dateFields = [
       "rabiesLastDate", "rabiesValidUntil",
-      "dhppLastDate", "dhppPuppy1Date", "dhppPuppy2Date", "dhppPuppy3Date",
-      "bordatellaDate", "parkWormDate", "dewormingLastDate",
+      "dhppLastDate", "dhppValidUntil",
+      "dhppPuppy1Date", "dhppPuppy2Date", "dhppPuppy3Date",
+      "bordatellaDate", "bordatellaValidUntil", "parkWormDate", "dewormingLastDate",
       "fleaTickDate", "fleaTickExpiryDate",
     ];
     const stringFields = ["allergies", "medicalConditions", "surgeriesHistory", "activityLimitations", "vetName", "vetPhone", "originInfo", "timeWithOwner", "fleaTickType"];

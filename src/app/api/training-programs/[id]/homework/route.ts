@@ -59,6 +59,14 @@ export async function PATCH(
       return NextResponse.json({ error: "homeworkId is required" }, { status: 400 });
     }
 
+    // Verify homework belongs to this business
+    const existing = await prisma.trainingHomework.findFirst({
+      where: { id: homeworkId, program: { businessId: authResult.businessId } },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Homework not found" }, { status: 404 });
+    }
+
     const data: Record<string, unknown> = {};
     if (isCompleted !== undefined) {
       data.isCompleted = isCompleted;
@@ -91,6 +99,14 @@ export async function DELETE(
     const homeworkId = searchParams.get("homeworkId");
     if (!homeworkId) {
       return NextResponse.json({ error: "homeworkId is required" }, { status: 400 });
+    }
+
+    // Verify homework belongs to this business
+    const existing = await prisma.trainingHomework.findFirst({
+      where: { id: homeworkId, program: { businessId: authResult.businessId } },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Homework not found" }, { status: 404 });
     }
 
     await prisma.trainingHomework.delete({ where: { id: homeworkId } });

@@ -436,8 +436,8 @@ function ChangePasswordSection() {
       setError("יש למלא את כל השדות");
       return;
     }
-    if (newPassword.length < 8) {
-      setError("הסיסמה החדשה חייבת להכיל לפחות 8 תווים");
+    if (newPassword.length < 12) {
+      setError("הסיסמה החדשה חייבת להכיל לפחות 12 תווים");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -2574,7 +2574,7 @@ function AddEmployeeModal({
         <div className="flex gap-3 mt-6">
           <button
             className="btn-primary flex-1"
-            disabled={!name.trim() || !email.trim() || !password.trim() || password.length < 8 || mutation.isPending}
+            disabled={!name.trim() || !email.trim() || !password.trim() || password.length < 12 || mutation.isPending}
             onClick={() => { setError(null); mutation.mutate(); }}
           >
             {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}

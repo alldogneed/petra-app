@@ -24,6 +24,13 @@ export async function GET(request: NextRequest) {
     const sixMonthsStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
+    // Get open lead stage IDs (not won and not lost) for this business
+    const openStages = await prisma.leadStage.findMany({
+      where: { businessId, isWon: false, isLost: false },
+      select: { id: true },
+    });
+    const openStageIds = openStages.map(s => s.id);
+
     const [
       totalCustomers,
       totalPets,
@@ -89,7 +96,7 @@ export async function GET(request: NextRequest) {
         _sum: { amount: true },
       }),
       prisma.lead.count({
-        where: { businessId, stage: { in: ["new", "contacted", "qualified"] } },
+        where: { businessId, ...(openStageIds.length > 0 ? { stage: { in: openStageIds } } : {}) },
       }),
       prisma.order.count({
         where: { businessId, status: { in: ["draft", "confirmed"] } },

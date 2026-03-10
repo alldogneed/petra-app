@@ -66,7 +66,10 @@ export async function POST(request: NextRequest) {
         orderBy: { sortOrder: "asc" },
         select: { id: true },
       });
-      resolvedStage = defaultStage?.id ?? "new";
+      if (!defaultStage) {
+        return NextResponse.json({ error: "No lead stages configured for this business" }, { status: 400 });
+      }
+      resolvedStage = defaultStage.id;
     }
 
     const lead = await prisma.lead.create({

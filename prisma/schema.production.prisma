@@ -476,7 +476,7 @@ model BoardingStay {
   status                String    @default("reserved")
   roomId       String?
   petId        String
-  customerId   String
+  customerId   String?
   businessId   String
   bookingId    String?   @unique // optional link back to originating online booking
   createdAt    DateTime  @default(now())
@@ -484,7 +484,7 @@ model BoardingStay {
 
   room       Room?     @relation(fields: [roomId], references: [id])
   pet        Pet       @relation(fields: [petId], references: [id])
-  customer   Customer  @relation(fields: [customerId], references: [id])
+  customer   Customer? @relation(fields: [customerId], references: [id])
   business   Business  @relation(fields: [businessId], references: [id])
   booking    Booking?  @relation(fields: [bookingId], references: [id])
   payments   Payment[]
@@ -1465,10 +1465,12 @@ model DogHealth {
   rabiesValidUntil     DateTime?
   rabiesUnknown        Boolean   @default(false)
   dhppLastDate         DateTime?
+  dhppValidUntil       DateTime?
   dhppPuppy1Date       DateTime?
   dhppPuppy2Date       DateTime?
   dhppPuppy3Date       DateTime?
   bordatellaDate       DateTime?
+  bordatellaValidUntil DateTime?
   parkWormDate         DateTime?
   dewormingLastDate    DateTime?
   fleaTickType         String?

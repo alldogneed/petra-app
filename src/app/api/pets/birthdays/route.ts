@@ -15,7 +15,10 @@ export async function GET(request: NextRequest) {
 
     const pets = await prisma.pet.findMany({
       where: {
-        customer: { businessId: authResult.businessId },
+        OR: [
+          { customer: { businessId: authResult.businessId } },
+          { businessId: authResult.businessId },
+        ],
         birthDate: { not: null },
       },
       select: {

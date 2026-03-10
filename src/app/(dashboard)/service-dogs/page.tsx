@@ -841,7 +841,9 @@ function AlertsWidget({
   const overdueCount =
     alerts.medical.items.filter((i) => i.isOverdue && !dismissedIds.has(i.id)).length;
 
-  const activeTotal = alerts.medical.count + alerts.training.count - dismissedIds.size;
+  const activeTotal =
+    alerts.medical.items.filter((i) => !dismissedIds.has(i.id)).length +
+    alerts.training.items.filter((i) => !dismissedIds.has(i.id)).length;
 
   const sections = [
     {

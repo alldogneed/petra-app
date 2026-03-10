@@ -84,10 +84,12 @@ interface PetHealth {
   rabiesLastDate: string | null;
   rabiesValidUntil: string | null;
   dhppLastDate: string | null;
+  dhppValidUntil: string | null;
   dhppPuppy1Date: string | null;
   dhppPuppy2Date: string | null;
   dhppPuppy3Date: string | null;
   bordatellaDate: string | null;
+  bordatellaValidUntil: string | null;
   parkWormDate: string | null;
   dewormingLastDate: string | null;
   fleaTickType: string | null;
@@ -246,7 +248,7 @@ interface PlacementItem {
   trialEndDate: string | null;
   nextCheckInAt: string | null;
   notes: string | null;
-  recipient: { id: string; name: string; phone: string | null; disabilityType: string | null };
+  recipient: { id: string; name: string; phone: string | null; disabilityType: string | null; meetings?: unknown[] };
 }
 
 interface IDCard {
@@ -1473,6 +1475,10 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
                 <p className="text-sm font-medium">{formatDate(activePlacement.nextCheckInAt)}</p>
               </div>
             )}
+            <div>
+              <p className="text-xs text-emerald-600">מפגשים עם זכאי</p>
+              <p className="text-sm font-bold">{Array.isArray(activePlacement.recipient.meetings) ? activePlacement.recipient.meetings.length : 0}</p>
+            </div>
           </div>
 
           {/* Complete Process Button */}
@@ -2723,8 +2729,35 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
   const [showFeedingModal, setShowFeedingModal] = useState(false);
   const [medModal, setMedModal] = useState<{ med: PetMedication | null } | null>(null);
   const [deletingMed, setDeletingMed] = useState<string | null>(null);
+  const [editingMicrochip, setEditingMicrochip] = useState(false);
+  const [microchipInput, setMicrochipInput] = useState(pet.microchip ?? "");
+  const [editingHours, setEditingHours] = useState(false);
+  const [hoursInput, setHoursInput] = useState(String(dog.trainingTotalHours ?? 0));
+  const [targetHoursInput, setTargetHoursInput] = useState(String(dog.trainingTargetHours ?? 120));
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+
+  const saveMicrochipMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/pets/${pet.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ microchip: microchipInput || null }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => { invalidate(); setEditingMicrochip(false); toast.success("מספר שבב עודכן"); },
+    onError: () => toast.error("שגיאה בעדכון שבב"),
+  });
+
+  const saveHoursMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/service-dogs/${dogId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trainingTotalHours: Number(hoursInput) || 0, trainingTargetHours: Number(targetHoursInput) || null }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => { invalidate(); setEditingHours(false); toast.success("שעות אימון עודכנו"); },
+    onError: () => toast.error("שגיאה בעדכון שעות"),
+  });
 
   // ── Active behavior flags ──
   const behaviorFlags = BEHAVIOR_FLAGS.filter(({ key }) => {
@@ -2757,13 +2790,33 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
           פרטי כלב
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-          {/* Microchip first — most important ID */}
-          {pet.microchip && (
-            <div className="col-span-2 sm:col-span-1 bg-brand-50 rounded-lg p-2.5 border border-brand-200">
+          {/* Microchip — editable */}
+          <div className="col-span-2 sm:col-span-1 bg-brand-50 rounded-lg p-2.5 border border-brand-200">
+            <div className="flex items-center justify-between mb-1">
               <p className="text-xs text-brand-600 font-medium">מספר שבב</p>
-              <p className="font-bold font-mono">{pet.microchip}</p>
+              {!editingMicrochip && (
+                <button onClick={() => { setMicrochipInput(pet.microchip ?? ""); setEditingMicrochip(true); }} className="text-brand-500 hover:text-brand-700">
+                  <Pencil className="w-3 h-3" />
+                </button>
+              )}
             </div>
-          )}
+            {editingMicrochip ? (
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  value={microchipInput}
+                  onChange={(e) => setMicrochipInput(e.target.value)}
+                  className="input text-xs py-0.5 px-2 flex-1 font-mono"
+                  placeholder="מספר שבב..."
+                  autoFocus
+                />
+                <button onClick={() => saveMicrochipMutation.mutate()} disabled={saveMicrochipMutation.isPending} className="text-xs bg-brand-500 text-white px-2 rounded-lg">שמור</button>
+                <button onClick={() => setEditingMicrochip(false)} className="text-xs text-petra-muted px-1">✕</button>
+              </div>
+            ) : (
+              <p className="font-bold font-mono">{pet.microchip || <span className="text-petra-muted font-normal">לא הוזן</span>}</p>
+            )}
+          </div>
           {pet.birthDate && (
             <div>
               <p className="text-xs text-petra-muted">תאריך לידה</p>
@@ -2793,6 +2846,45 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
             <div>
               <p className="text-xs text-petra-muted">מקור הכלב</p>
               <p className="font-medium">{pet.health.originInfo}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Training hours — manual edit */}
+        <div className="mt-4 pt-4 border-t">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide">שעות אימון</p>
+            {!editingHours && (
+              <button onClick={() => { setHoursInput(String(dog.trainingTotalHours ?? 0)); setTargetHoursInput(String(dog.trainingTargetHours ?? 120)); setEditingHours(true); }} className="btn-ghost flex items-center gap-1 text-xs">
+                <Pencil className="w-3 h-3" /> ערוך
+              </button>
+            )}
+          </div>
+          {editingHours ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="label text-xs">שעות שבוצעו</label>
+                  <input type="number" min={0} step={0.5} value={hoursInput} onChange={(e) => setHoursInput(e.target.value)} className="input text-sm" />
+                </div>
+                <div>
+                  <label className="label text-xs">יעד שעות (ריק = ללא יעד)</label>
+                  <input type="number" min={0} step={10} value={targetHoursInput} onChange={(e) => setTargetHoursInput(e.target.value)} className="input text-sm" placeholder="ללא יעד" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => saveHoursMutation.mutate()} disabled={saveHoursMutation.isPending} className="btn-primary text-xs py-1.5">שמור</button>
+                <button onClick={() => setEditingHours(false)} className="btn-secondary text-xs py-1.5">ביטול</button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-4 text-sm">
+              <span className="font-bold text-lg">{dog.trainingTotalHours.toFixed(0)}</span>
+              {dog.trainingTargetHours ? (
+                <span className="text-petra-muted">/ {dog.trainingTargetHours} שעות יעד</span>
+              ) : (
+                <span className="text-petra-muted">שעות (ללא יעד)</span>
+              )}
             </div>
           )}
         </div>
@@ -2963,26 +3055,44 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
             <div>
               <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">חיסונים וטיפולים</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {[
-                  { label: "כלבת", date: pet.health.rabiesLastDate, until: pet.health.rabiesValidUntil },
-                  { label: "משושה בוגר (DHPP)", date: pet.health.dhppLastDate, until: null },
-                  { label: "שעלת מכלאות", date: pet.health.bordatellaDate, until: null },
-                  { label: "תולעת הפארק", date: pet.health.parkWormDate, until: null },
-                  { label: "תילוע", date: pet.health.dewormingLastDate, until: null },
-                  ...(pet.health.fleaTickDate ? [{ label: pet.health.fleaTickType || "קרציות ופרעושים", date: pet.health.fleaTickDate, until: pet.health.fleaTickExpiryDate }] : []),
-                ]
-                  .filter((v) => v.date)
-                  .map((v) => (
-                    <div key={v.label} className="flex items-center justify-between p-2.5 bg-emerald-50 rounded-lg text-sm">
-                      <span className="text-petra-text font-medium">{v.label}</span>
-                      <div className="text-right">
-                        <span className="text-petra-muted">{toDate(v.date)}</span>
-                        {v.until && (
-                          <p className="text-xs text-petra-muted">תוקף: {toDate(v.until)}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                {(() => {
+                  const now = new Date();
+                  const soon = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+                  const getStatus = (until: string | null | undefined) => {
+                    if (!until) return "ok";
+                    const d = new Date(until);
+                    if (d < now) return "expired";
+                    if (d < soon) return "expiring";
+                    return "ok";
+                  };
+                  const statusStyle = { ok: "bg-emerald-50", expiring: "bg-amber-50 border border-amber-200", expired: "bg-red-50 border border-red-200" };
+                  const untilStyle = { ok: "text-petra-muted", expiring: "text-amber-600 font-medium", expired: "text-red-600 font-medium" };
+                  return [
+                    { label: "כלבת", date: pet.health.rabiesLastDate, until: pet.health.rabiesValidUntil },
+                    { label: "משושה בוגר (DHPP)", date: pet.health.dhppLastDate, until: pet.health.dhppValidUntil },
+                    { label: "שעלת מכלאות", date: pet.health.bordatellaDate, until: pet.health.bordatellaValidUntil },
+                    { label: "תולעת הפארק", date: pet.health.parkWormDate, until: null },
+                    { label: "תילוע", date: pet.health.dewormingLastDate, until: null },
+                    ...(pet.health.fleaTickDate ? [{ label: pet.health.fleaTickType || "קרציות ופרעושים", date: pet.health.fleaTickDate, until: pet.health.fleaTickExpiryDate }] : []),
+                  ]
+                    .filter((v) => v.date)
+                    .map((v) => {
+                      const st = getStatus(v.until);
+                      return (
+                        <div key={v.label} className={`flex items-center justify-between p-2.5 rounded-lg text-sm ${statusStyle[st]}`}>
+                          <span className="text-petra-text font-medium">{v.label}</span>
+                          <div className="text-right">
+                            <span className="text-petra-muted">{toDate(v.date)}</span>
+                            {v.until && (
+                              <p className={`text-xs ${untilStyle[st]}`}>
+                                {st === "expired" ? "⚠️ פג תוקף: " : st === "expiring" ? "⏰ תוקף עד: " : "תוקף: "}{toDate(v.until)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    });
+                })()}
                 {[pet.health.rabiesLastDate, pet.health.dhppLastDate, pet.health.bordatellaDate, pet.health.parkWormDate, pet.health.dewormingLastDate, pet.health.fleaTickDate].every((d) => !d) && (
                   <p className="text-sm text-petra-muted col-span-2">אין חיסונים מתועדים</p>
                 )}
@@ -3766,10 +3876,12 @@ function SDHealthModal({
     rabiesLastDate: toDateInput(h?.rabiesLastDate ?? null),
     rabiesValidUntil: toDateInput(h?.rabiesValidUntil ?? null),
     dhppLastDate: toDateInput(h?.dhppLastDate ?? null),
+    dhppValidUntil: toDateInput(h?.dhppValidUntil ?? null),
     dhppPuppy1Date: toDateInput(h?.dhppPuppy1Date ?? null),
     dhppPuppy2Date: toDateInput(h?.dhppPuppy2Date ?? null),
     dhppPuppy3Date: toDateInput(h?.dhppPuppy3Date ?? null),
     bordatellaDate: toDateInput(h?.bordatellaDate ?? null),
+    bordatellaValidUntil: toDateInput(h?.bordatellaValidUntil ?? null),
     parkWormDate: toDateInput(h?.parkWormDate ?? null),
     dewormingLastDate: toDateInput(h?.dewormingLastDate ?? null),
     fleaTickType: h?.fleaTickType ?? "",
@@ -3831,11 +3943,17 @@ function SDHealthModal({
             </div>
             <div>
               <p className="text-xs font-medium mb-2">משושה בוגר (DHPP)</p>
-              <div><label className="label">תאריך חיסון</label><input className="input" type="date" value={form.dhppLastDate} onChange={(e) => setForm({ ...form, dhppLastDate: e.target.value })} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="label">תאריך חיסון</label><input className="input" type="date" value={form.dhppLastDate} onChange={(e) => setForm({ ...form, dhppLastDate: e.target.value })} /></div>
+                <div><label className="label">תוקף עד</label><input className="input" type="date" value={form.dhppValidUntil} onChange={(e) => setForm({ ...form, dhppValidUntil: e.target.value })} /></div>
+              </div>
             </div>
             <div>
               <p className="text-xs font-medium mb-2">שעלת מכלאות</p>
-              <div><label className="label">תאריך קבלה</label><input className="input" type="date" value={form.bordatellaDate} onChange={(e) => setForm({ ...form, bordatellaDate: e.target.value })} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="label">תאריך קבלה</label><input className="input" type="date" value={form.bordatellaDate} onChange={(e) => setForm({ ...form, bordatellaDate: e.target.value })} /></div>
+                <div><label className="label">תוקף עד</label><input className="input" type="date" value={form.bordatellaValidUntil} onChange={(e) => setForm({ ...form, bordatellaValidUntil: e.target.value })} /></div>
+              </div>
             </div>
             <div>
               <p className="text-xs font-medium mb-2">תולעת הפארק</p>
