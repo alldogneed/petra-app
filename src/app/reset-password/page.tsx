@@ -11,19 +11,20 @@ function PasswordStrength({ password }: { password: string }) {
   if (!password) return null;
 
   const checks = [
-    { label: "לפחות 8 תווים", ok: password.length >= 8 },
-    { label: "אות אחת לפחות", ok: /[A-Za-z]/.test(password) },
-    { label: "ספרה אחת לפחות", ok: /[0-9]/.test(password) },
+    { label: "12+ תווים", ok: password.length >= 12 },
+    { label: "אות גדולה", ok: /[A-Z]/.test(password) },
+    { label: "אות קטנה", ok: /[a-z]/.test(password) },
+    { label: "ספרה", ok: /[0-9]/.test(password) },
   ];
 
   const score = checks.filter((c) => c.ok).length;
-  const colors = ["#EF4444", "#F59E0B", "#10B981"];
-  const labels = ["חלשה", "בינונית", "חזקה"];
+  const colors = ["#EF4444", "#EF4444", "#F59E0B", "#F59E0B", "#10B981"];
+  const labels = ["חלשה", "חלשה", "בינונית", "בינונית", "חזקה"];
 
   return (
     <div className="mt-2 space-y-2">
       <div className="flex gap-1">
-        {[0, 1, 2].map((i) => (
+        {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
             className="h-1 flex-1 rounded-full transition-all duration-300"
@@ -74,8 +75,9 @@ function ResetPasswordForm() {
   }, [token]);
 
   const isValid =
-    password.length >= 8 &&
-    /[A-Za-z]/.test(password) &&
+    password.length >= 12 &&
+    /[A-Z]/.test(password) &&
+    /[a-z]/.test(password) &&
     /[0-9]/.test(password) &&
     password === confirm;
 
@@ -114,7 +116,7 @@ function ResetPasswordForm() {
       {/* Logo */}
       <div className="text-center mb-8">
         <div className="w-16 h-16 rounded-2xl mx-auto mb-4 overflow-hidden">
-          <Image src="/icon.svg" alt="Petra" width={64} height={64} className="w-full h-full" priority />
+          <Image src="/icon.png" alt="Petra" width={64} height={64} className="w-full h-full" priority />
         </div>
         <h1 className="text-2xl font-bold text-petra-text">Petra</h1>
         <p className="text-sm text-petra-muted mt-1">ניהול עסקי חיות מחמד</p>
@@ -173,7 +175,7 @@ function ResetPasswordForm() {
               <input
                 type={showPassword ? "text" : "password"}
                 className="input pr-10 pl-10"
-                placeholder="לפחות 8 תווים"
+                placeholder="לפחות 12 תווים"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -216,7 +218,7 @@ function ResetPasswordForm() {
             {confirm && password !== confirm && (
               <p className="text-xs text-red-500 mt-1">הסיסמאות אינן תואמות</p>
             )}
-            {confirm && password === confirm && password.length >= 8 && (
+            {confirm && password === confirm && password.length >= 12 && (
               <p className="text-xs text-green-600 mt-1">✓ הסיסמאות תואמות</p>
             )}
           </div>

@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-2xl mx-auto mb-4 overflow-hidden">
-            <Image src="/icon.svg" alt="Petra" width={64} height={64} className="w-full h-full" priority />
+            <Image src="/icon.png" alt="Petra" width={64} height={64} className="w-full h-full" priority />
           </div>
           <h1 className="text-2xl font-bold text-petra-text">Petra</h1>
           <p className="text-sm text-petra-muted mt-1">ניהול עסקי חיות מחמד</p>
