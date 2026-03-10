@@ -176,6 +176,15 @@ export default function ServiceDogsReportsPage() {
             <Download className="w-4 h-4" />
             ייצוא זכאים לאקסל
           </a>
+          <a
+            href="/api/service-dogs/export/care"
+            download
+            className="btn-outline flex items-center gap-2 text-sm px-3 py-2"
+            title="גיליון 1: האכלות | גיליון 2: תרופות — כלבי שירות בלבד"
+          >
+            <Download className="w-4 h-4" />
+            האכלות ותרופות
+          </a>
         </div>
       </div>
 
