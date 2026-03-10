@@ -24,6 +24,7 @@ import {
 import QRCode from "qrcode";
 import { cn, fetchJSON, formatCurrency, formatRelativeTime, toWhatsAppPhone } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
+import { TierGate } from "@/components/paywall/TierGate";
 
 interface BookingData {
   id: string;
@@ -69,6 +70,18 @@ const EMPTY_MESSAGES: Record<string, { title: string; description: string }> = {
 };
 
 export default function BookingsPage() {
+  return (
+    <TierGate
+      feature="online_bookings"
+      title="ניהול תורים אונליין"
+      description="קבל הזמנות מלקוחות, אשר או דחה תורים, ונהל את העמוד הציבורי שלך. שדרג כדי להפעיל."
+    >
+      <BookingsContent />
+    </TierGate>
+  );
+}
+
+function BookingsContent() {
   const [activeStatus, setActiveStatus] = useState("ALL");
   const [copiedLink, setCopiedLink] = useState(false);
   const [dateFrom, setDateFrom] = useState("");

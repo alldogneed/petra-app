@@ -14,6 +14,8 @@ import {
   X,
   Calendar,
 } from "lucide-react";
+import { toast } from "sonner";
+import { Toaster } from "sonner";
 import { cn } from "@/lib/utils";
 
 // ─── Steps ────────────────────────────────────────────────────────────────────
@@ -40,6 +42,7 @@ function OnboardingInner() {
     if (gcal === "connected") {
       setGcalConnected(true);
       setStep(4);
+      toast.success("יומן Google חובר בהצלחה!");
     }
   }, [searchParams]);
 
@@ -57,15 +60,15 @@ function OnboardingInner() {
   return (
     <div className="w-full max-w-2xl">
 
-      {/* Skip button */}
-      {step < 4 && (
+      {/* Skip button — only show from step 2 onward (after first client is added) */}
+      {step >= 2 && step < 4 && (
         <div className="text-right mb-4">
           <button
             onClick={handleSkip}
             className="text-sm text-petra-muted hover:text-petra-text flex items-center gap-1 ms-auto"
           >
             <X className="w-3.5 h-3.5" />
-            דלג לדשבורד
+            המשך לדשבורד
           </button>
         </div>
       )}
@@ -141,6 +144,7 @@ function OnboardingInner() {
 export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-50 to-slate-50 flex items-center justify-center p-4">
+      <Toaster position="top-center" dir="rtl" />
       <Suspense fallback={<div className="text-petra-muted">טוען...</div>}>
         <OnboardingInner />
       </Suspense>
@@ -162,7 +166,7 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
           נגדיר יחד את העסק שלך בכמה שלבים קצרים.
         </p>
       </div>
-      <div className="grid grid-cols-3 gap-3 text-right">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-right">
         {[
           { icon: UserPlus, text: "לקוח ראשון", desc: "הוסף לקוח ראשון לאנשי הקשר שלך" },
           { icon: Tag, text: "מחירון", desc: "הגדר שירות עם מחיר" },
@@ -212,6 +216,7 @@ function StepClient({ onNext, onBack }: { onNext: () => void; onBack: () => void
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stepCompleted1: true }),
       });
+      toast.success("לקוח ראשון נוסף בהצלחה!");
       onNext();
     } finally {
       setSaving(false);
@@ -298,6 +303,7 @@ function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => voi
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stepCompleted2: true }),
       });
+      toast.success("שירות נוסף בהצלחה!");
       onNext();
     } finally {
       setSaving(false);
@@ -440,7 +446,7 @@ function StepDone({ gcalConnected, onGoToDashboard }: { gcalConnected: boolean; 
           )}
         </p>
       </div>
-      <div className="grid grid-cols-3 gap-3 text-center">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
         {[
           { href: "/customers", label: "לקוחות" },
           { href: "/calendar", label: "יומן" },

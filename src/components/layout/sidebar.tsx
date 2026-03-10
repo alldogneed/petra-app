@@ -82,15 +82,15 @@ const navEntries: NavEntry[] = [
   { name: "לקוחות", href: "/customers", icon: Users },
   { name: "מערכת מכירות", href: "/leads", icon: Target, minRole: "user", lockedFeature: "leads" },
   { name: "ניהול משימות", href: "/tasks", icon: ListTodo },
-  { name: "ניהול תורים אונליין", href: "/bookings", icon: CalendarCheck },
+  { name: "ניהול תורים אונליין", href: "/bookings", icon: CalendarCheck, lockedFeature: "online_bookings" },
   { name: "פנסיון", href: "/boarding", icon: Hotel, lockedFeature: "boarding" },
   { name: "פיננסים", href: "/pricing", icon: Wallet, minRole: "user" },
   { name: "ניהול כלבי שירות", href: "/service-dogs", icon: Shield, lockedFeature: "service_dogs" },
   { name: "ניהול תהליכי אילוף", href: "/training", icon: Dog },
-  { name: "חיות מחמד", href: "/pets", icon: PawPrint },
+  { name: "חיות מחמד", href: "/pets", icon: PawPrint, lockedFeature: "pets_advanced" },
   { name: "יומן", href: "/calendar", icon: Calendar },
   { name: "הודעות", href: "/messages", icon: MessageSquare, lockedFeature: "custom_messages" },
-  { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner" },
+  { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner", lockedFeature: "analytics" },
   { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner", lockedFeature: "staff_management" },
   { name: "הגדרות", href: "/settings", icon: Settings, minRole: "user" },
 ];
@@ -171,6 +171,15 @@ export function Sidebar({
 
   function isItemLocked(item: NavItem): boolean {
     if (!item.lockedFeature) return false;
+    return !hasFeatureWithOverrides(userTier, item.lockedFeature, userOverrides);
+  }
+
+  /** Features that should be completely hidden (not just locked) when unavailable */
+  const HIDDEN_WHEN_LOCKED: FeatureKey[] = ["pets_advanced"];
+
+  function isItemHidden(item: NavItem): boolean {
+    if (!item.lockedFeature) return false;
+    if (!HIDDEN_WHEN_LOCKED.includes(item.lockedFeature)) return false;
     return !hasFeatureWithOverrides(userTier, item.lockedFeature, userOverrides);
   }
 

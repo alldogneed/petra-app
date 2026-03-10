@@ -17,6 +17,7 @@ import {
   Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TierGate } from "@/components/paywall/TierGate";
 
 interface Pet {
   id: string;
@@ -109,6 +110,18 @@ const VACCINE_FILTER_OPTIONS = [
 ];
 
 export default function PetsPage() {
+  return (
+    <TierGate
+      feature="pets_advanced"
+      title="ניהול חיות מחמד"
+      description="ניהול מתקדם של חיות מחמד — גרף משקל, גלריית תמונות, היסטוריה רפואית ועוד. שדרג כדי לגשת."
+    >
+      <PetsPageContent />
+    </TierGate>
+  );
+}
+
+function PetsPageContent() {
   const [search, setSearch] = useState("");
   const [species, setSpecies] = useState("");
   const [gender, setGender] = useState("");

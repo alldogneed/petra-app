@@ -7,14 +7,14 @@ export async function POST(request: NextRequest) {
     try {
         const currentUser = await getCurrentUser();
         if (!currentUser || !currentUser.businessId) {
-            return NextResponse.json({ error: "Unauthorized or no business" }, { status: 401 });
+            return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
         }
 
         const body = await request.json();
         const { clientName, clientPhone, dogName, dogBreed } = body;
 
         if (!clientName || !clientPhone) {
-            return NextResponse.json({ error: "Client name and phone are required" }, { status: 400 });
+            return NextResponse.json({ error: "שם וטלפון הם שדות חובה" }, { status: 400 });
         }
 
         // Create Customer
@@ -42,6 +42,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, customerId: customer.id });
     } catch (error) {
         console.error("Failed to create first client:", error);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: "שגיאה ביצירת לקוח" }, { status: 500 });
     }
 }

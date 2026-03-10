@@ -4,6 +4,8 @@ import { useAuth } from "@/providers/auth-provider";
 import {
   hasFeature,
   getMaxCustomers,
+  getMaxLeads,
+  getMaxTrainingPrograms,
   getUpgradeTier,
   getTierDisplay,
   normalizeTier,
@@ -24,6 +26,8 @@ export function useSubscription() {
       return hasFeature(tier, feature);
     },
     maxCustomers: getMaxCustomers(tier),
+    maxLeads: getMaxLeads(tier),
+    maxTrainingPrograms: getMaxTrainingPrograms(tier),
     upgradeTier: getUpgradeTier(tier),
   };
 }

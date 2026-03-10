@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn, formatCurrency, fetchJSON } from "@/lib/utils";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { TierGate } from "@/components/paywall/TierGate";
 
 interface AnalyticsData {
   period: string;
@@ -102,7 +103,13 @@ function ChangeIndicator({ value }: { value: number }) {
 export default function AnalyticsPage() {
   return (
     <ProtectedRoute requiredRole="owner">
-      <AnalyticsContent />
+      <TierGate
+        feature="analytics"
+        title="דוחות ואנליטיקס"
+        description="גרפים, סטטיסטיקות ומעקב ביצועים של העסק. שדרג כדי לגשת לדוחות מפורטים."
+      >
+        <AnalyticsContent />
+      </TierGate>
     </ProtectedRoute>
   );
 }

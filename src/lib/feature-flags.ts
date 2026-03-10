@@ -30,7 +30,11 @@ export type FeatureKey =
   | "orders"
   | "pricing"
   | "pets_advanced"
-  | "scheduled_messages";
+  | "scheduled_messages"
+  | "online_bookings"
+  | "analytics"
+  | "intake_forms"
+  | "payment_links";
 
 // ─── Feature access matrix ────────────────────────────────────────────────────
 // Columns match the Petra V2 pricing table (March 2026):
@@ -38,11 +42,12 @@ export type FeatureKey =
 
 const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
   // ── Free ─────────────────────────────────────────────────────────────────────
-  // Customers capped at 15 (FREE_CUSTOMER_LIMIT), basic calendar only.
+  // Customers capped at 50, leads capped at 20, training programs capped at 20.
+  // Basic calendar, finance, leads, and training included. Advanced features locked.
   free: {
-    leads:             false,
+    leads:             true,   // ✅ open, max 20 leads (FREE_LEAD_LIMIT)
     boarding:          false,
-    training:          false,
+    training:          true,   // ✅ open, max 20 programs (FREE_TRAINING_LIMIT)
     training_groups:   false,
     automations:       false,
     custom_messages:   false,
@@ -52,11 +57,15 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     staff_management:  false,
     excel_export:      false,
     gcal_sync:         false,
-    payments:          false,
-    orders:            false,
-    pricing:           false,
+    payments:          true,   // ✅ basic payments
+    orders:            true,   // ✅ basic orders
+    pricing:           true,   // ✅ price management
     pets_advanced:     false,
     scheduled_messages: false,
+    online_bookings:   false,
+    analytics:         false,
+    intake_forms:      false,
+    payment_links:     false,
   },
 
   // ── Basic (₪99) ──────────────────────────────────────────────────────────────
@@ -80,6 +89,10 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     pricing:           true,
     pets_advanced:     true,
     scheduled_messages: true,  // Basic WhatsApp appointment reminders ✅
+    online_bookings:   true,
+    analytics:         true,
+    intake_forms:      true,
+    payment_links:     true,
   },
 
   // ── Groomer+ (₪169) ──────────────────────────────────────────────────────────
@@ -103,6 +116,10 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     pricing:           true,
     pets_advanced:     true,
     scheduled_messages: true,  // WhatsApp reminders ✅
+    online_bookings:   true,
+    analytics:         true,
+    intake_forms:      true,
+    payment_links:     true,
   },
 
   // ── Groomer+ legacy alias (kept for DB backward-compat — same as groomer) ────
@@ -124,6 +141,10 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     pricing:           true,
     pets_advanced:     true,
     scheduled_messages: true,
+    online_bookings:   true,
+    analytics:         true,
+    intake_forms:      true,
+    payment_links:     true,
   },
 
   // ── Pro (₪199) ───────────────────────────────────────────────────────────────
@@ -147,6 +168,10 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     pricing:           true,
     pets_advanced:     true,
     scheduled_messages: true,
+    online_bookings:   true,
+    analytics:         true,
+    intake_forms:      true,
+    payment_links:     true,
   },
 
   // ── Service Dog (₪229) ───────────────────────────────────────────────────────
@@ -169,16 +194,44 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     pricing:           true,
     pets_advanced:     true,
     scheduled_messages: true,
+    online_bookings:   true,
+    analytics:         true,
+    intake_forms:      true,
+    payment_links:     true,
   },
 };
 
 /** Hard limit on customer count for the FREE tier. BASIC+ is unlimited. */
-export const FREE_CUSTOMER_LIMIT = 15;
+export const FREE_CUSTOMER_LIMIT = 50;
 
-// ─── Customer limits ──────────────────────────────────────────────────────────
+/** Hard limit on lead count for the FREE tier. BASIC+ is unlimited. */
+export const FREE_LEAD_LIMIT = 20;
+
+/** Hard limit on training programs for the FREE tier. BASIC+ is unlimited. */
+export const FREE_TRAINING_LIMIT = 20;
+
+// ─── Entity limits ───────────────────────────────────────────────────────────
 
 const MAX_CUSTOMERS: Record<TierKey, number | null> = {
-  free: 15,
+  free: 50,
+  basic: null,
+  pro: null,
+  groomer: null,
+  groomer_plus: null,
+  service_dog: null,
+};
+
+const MAX_LEADS: Record<TierKey, number | null> = {
+  free: 20,
+  basic: null,
+  pro: null,
+  groomer: null,
+  groomer_plus: null,
+  service_dog: null,
+};
+
+const MAX_TRAINING_PROGRAMS: Record<TierKey, number | null> = {
+  free: 20,
   basic: null,
   pro: null,
   groomer: null,
@@ -243,6 +296,16 @@ export function hasFeatureWithOverrides(
 /** Max number of customers for a tier. null = unlimited. */
 export function getMaxCustomers(tier: string | null | undefined): number | null {
   return MAX_CUSTOMERS[normalizeTier(tier)];
+}
+
+/** Max number of leads for a tier. null = unlimited. */
+export function getMaxLeads(tier: string | null | undefined): number | null {
+  return MAX_LEADS[normalizeTier(tier)];
+}
+
+/** Max number of training programs for a tier. null = unlimited. */
+export function getMaxTrainingPrograms(tier: string | null | undefined): number | null {
+  return MAX_TRAINING_PROGRAMS[normalizeTier(tier)];
 }
 
 /** The tier to suggest upgrading to when a feature is locked. */

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
+import { TierGate } from "@/components/paywall/TierGate";
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "טיוטה",
@@ -239,6 +240,18 @@ function NewIntakeModal({
 }
 
 export default function IntakeFormsPage() {
+  return (
+    <TierGate
+      feature="intake_forms"
+      title="טפסי קליטה"
+      description="שלח טפסי קליטה ללקוחות לפני ביקור ראשון — מידע רפואי, התנהגותי ועוד. שדרג כדי להפעיל."
+    >
+      <IntakeFormsContent />
+    </TierGate>
+  );
+}
+
+function IntakeFormsContent() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [showNewModal, setShowNewModal] = useState(false);
   const queryClient = useQueryClient();

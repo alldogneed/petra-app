@@ -36,6 +36,7 @@ import {
   Copy,
   ClipboardCheck,
   RefreshCw,
+  Tag,
 } from "lucide-react";
 import {
   isToday,
@@ -2028,42 +2029,108 @@ export default function DashboardPage() {
       {/* Welcome modal — shown once to new team members (non-owners) */}
       <TeamWelcomeModal />
 
-      {/* Onboarding Wizard card — shown when business has no customers and no appointments */}
-      {data.totalCustomers === 0 && data.todayAppointments === 0 && (
-        <div
-          className="card p-6 flex items-center gap-4 animate-slide-up"
-          style={{
-            background: "linear-gradient(135deg, rgba(249,115,22,0.05) 0%, rgba(251,146,60,0.03) 100%)",
-            borderColor: "rgba(249,115,22,0.18)",
-          }}
-        >
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 text-2xl"
-            style={{ background: "linear-gradient(135deg, #F97316, #FB923C)" }}
-          >
-            🐾
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-petra-text text-base">מוכנים להתחיל?</h3>
-            <p className="text-sm text-petra-muted mt-0.5">
-              הגדר את העסק שלך ב-2 דקות — הוסף שירות ראשון, לקוח ראשון, וסיימת!
-            </p>
-          </div>
-          <button
-            onClick={() => setShowOnboardingWizard(true)}
-            className="btn-primary flex items-center gap-2 flex-shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            התחל הגדרה
-          </button>
-        </div>
-      )}
-
       {/* Onboarding Wizard modal */}
       {showOnboardingWizard && (
         <OnboardingWizardModal onClose={() => setShowOnboardingWizard(false)} />
       )}
 
+      {data.totalCustomers === 0 ? (
+        /* ── New Business Welcome Section ── */
+        <div className="space-y-6">
+          <div
+            className="card p-8 text-center animate-slide-up"
+            style={{
+              background: "linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(59,130,246,0.04) 100%)",
+              borderColor: "rgba(249,115,22,0.15)",
+            }}
+          >
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl"
+              style={{ background: "linear-gradient(135deg, #F97316, #FB923C)" }}
+            >
+              🐾
+            </div>
+            <h2 className="text-xl font-bold text-petra-text mb-2">ברוכים הבאים ל-Petra!</h2>
+            <p className="text-sm text-petra-muted max-w-md mx-auto">
+              המערכת מוכנה — בואו נתחיל לבנות את העסק שלכם. הנה כמה צעדים ראשונים:
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <button
+              onClick={() => setShowNewCustomer(true)}
+              className="card p-5 text-right hover:border-brand-300 hover:shadow-md transition-all group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mb-3 group-hover:bg-blue-100 transition-colors">
+                <UserPlus className="w-5 h-5 text-blue-600" />
+              </div>
+              <h3 className="text-sm font-bold text-petra-text mb-1">הוסף לקוח ראשון</h3>
+              <p className="text-xs text-petra-muted leading-relaxed">הכנס את פרטי הלקוח הראשון שלך למערכת</p>
+            </button>
+
+            <Link
+              href="/scheduler"
+              className="card p-5 text-right hover:border-brand-300 hover:shadow-md transition-all group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center mb-3 group-hover:bg-violet-100 transition-colors">
+                <CalendarClock className="w-5 h-5 text-violet-600" />
+              </div>
+              <h3 className="text-sm font-bold text-petra-text mb-1">קבע תור ראשון</h3>
+              <p className="text-xs text-petra-muted leading-relaxed">תזמן פגישה ראשונה עם לקוח</p>
+            </Link>
+
+            <Link
+              href="/settings"
+              className="card p-5 text-right hover:border-brand-300 hover:shadow-md transition-all group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-3 group-hover:bg-emerald-100 transition-colors">
+                <Tag className="w-5 h-5 text-emerald-600" />
+              </div>
+              <h3 className="text-sm font-bold text-petra-text mb-1">הגדר שירותים ומחירון</h3>
+              <p className="text-xs text-petra-muted leading-relaxed">הוסף את השירותים שהעסק שלך מציע</p>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button
+              onClick={handleCopyIntakeForm}
+              disabled={intakeLoading}
+              className={cn(
+                "card p-4 flex items-center gap-3 hover:border-brand-300 transition-all text-right",
+                intakeCopied && "border-green-300 bg-green-50/50"
+              )}
+            >
+              <div className="w-9 h-9 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
+                {intakeCopied ? <ClipboardCheck className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-orange-600" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-petra-text">{intakeCopied ? "הועתק!" : "טופס קליטה"}</p>
+                <p className="text-xs text-petra-muted">העתק קישור לטופס קליטה ושלח ללקוח</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                const slug = user?.businessSlug || user?.businessId || "demo-business-001";
+                const url = `${window.location.origin}/book/${slug}`;
+                navigator.clipboard.writeText(url).then(() => {
+                  toast.success("קישור הזמנת תורים הועתק!", { description: url });
+                }).catch(() => toast.error("לא הצלחנו להעתיק"));
+              }}
+              className="card p-4 flex items-center gap-3 hover:border-brand-300 transition-all text-right"
+            >
+              <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <Copy className="w-4 h-4 text-blue-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-petra-text">תורים אונליין</p>
+                <p className="text-xs text-petra-muted">העתק קישור לדף ההזמנה לאתר שלך</p>
+              </div>
+            </button>
+          </div>
+        </div>
+      ) : (
+      <>
       {/* Daily Focus — Today's & Overdue Tasks */}
       <DailyFocusSection
         todayTasks={data.todayTasks || []}
@@ -2409,6 +2476,8 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* New Customer Modal */}
       <NewCustomerModal

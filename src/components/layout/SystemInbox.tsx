@@ -104,7 +104,7 @@ export function SystemInbox() {
 
       {open && (
         <div
-          className="absolute right-0 top-11 w-96 max-w-[calc(100vw-1rem)] rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50"
+          className="absolute left-0 top-11 w-96 max-w-[calc(100vw-1rem)] rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50"
           style={{ background: "#fff" }}
           dir="rtl"
         >

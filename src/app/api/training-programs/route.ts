@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { getMaxTrainingPrograms, normalizeTier } from "@/lib/feature-flags";
 
 export async function GET(request: NextRequest) {
   try {
@@ -62,6 +63,21 @@ export async function POST(request: NextRequest) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     const rl = rateLimit("api:training-programs:create", ip, RATE_LIMITS.API_WRITE);
     if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
+
+    // Enforce training program limit for free tier
+    const business = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true } });
+    const maxPrograms = getMaxTrainingPrograms(normalizeTier(business?.tier));
+    if (maxPrograms !== null) {
+      const currentCount = await prisma.trainingProgram.count({
+        where: { businessId: authResult.businessId, status: { in: ["ACTIVE", "IN_PROGRESS"] } },
+      });
+      if (currentCount >= maxPrograms) {
+        return NextResponse.json(
+          { error: `מסלול חינמי מוגבל ל-${maxPrograms} תוכניות אילוף פעילות. שדרג כדי להוסיף עוד.` },
+          { status: 403 }
+        );
+      }
+    }
 
     const body = await request.json();
 

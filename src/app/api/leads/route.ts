@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { getMaxLeads, normalizeTier } from "@/lib/feature-flags";
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,6 +41,19 @@ export async function POST(request: NextRequest) {
 
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    // Enforce lead limit for free tier
+    const business = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true } });
+    const maxLeads = getMaxLeads(normalizeTier(business?.tier));
+    if (maxLeads !== null) {
+      const currentCount = await prisma.lead.count({ where: { businessId: authResult.businessId } });
+      if (currentCount >= maxLeads) {
+        return NextResponse.json(
+          { error: `מסלול חינמי מוגבל ל-${maxLeads} לידים. שדרג כדי להוסיף עוד.` },
+          { status: 403 }
+        );
+      }
+    }
 
     const body = await request.json();
     const { name, phone, email, source, stage, notes, customerId } = body;

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
+import { TierGate } from "@/components/paywall/TierGate";
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -43,6 +44,18 @@ interface Customer {
 // ─── Component ────────────────────────────────────────────────────
 
 export default function PaymentRequestPage() {
+  return (
+    <TierGate
+      feature="payment_links"
+      title="בקשת תשלום"
+      description="שלח בקשות תשלום ללקוחות בוואטסאפ עם קישורי תשלום אוטומטיים. שדרג כדי להפעיל."
+    >
+      <PaymentRequestContent />
+    </TierGate>
+  );
+}
+
+function PaymentRequestContent() {
   const searchParams = useSearchParams();
   const prefilledCustomerId = searchParams.get("customerId");
   const prefilledName = searchParams.get("name");
