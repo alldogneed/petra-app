@@ -111,9 +111,33 @@ const TIER_ICONS = { basic: Star, pro: Zap, groomer: Crown };
 
 function BusinessTab() {
   const queryClient = useQueryClient();
+  const { user, refreshUser } = useAuth();
   const { data: biz, isLoading } = useQuery<Business>({
     queryKey: ["settings"],
     queryFn: () => fetchJSON<Business>("/api/settings"),
+  });
+
+  const [userName, setUserName] = useState("");
+  const [userNameSaved, setUserNameSaved] = useState(false);
+
+  // Initialize userName from auth once user is loaded
+  const [userNameInit, setUserNameInit] = useState(false);
+  if (user && !userNameInit) {
+    setUserName(user.name);
+    setUserNameInit(true);
+  }
+
+  const userNameMutation = useMutation({
+    mutationFn: (name: string) =>
+      fetch("/api/auth/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) })
+        .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
+    onSuccess: async () => {
+      await refreshUser();
+      setUserNameSaved(true);
+      setTimeout(() => setUserNameSaved(false), 2500);
+      toast.success("שם המשתמש עודכן בהצלחה");
+    },
+    onError: () => toast.error("שגיאה בעדכון השם"),
   });
 
   const [form, setForm] = useState<Partial<Business> | null>(null);
@@ -182,6 +206,29 @@ function BusinessTab() {
         <div>
           <p className="text-sm font-semibold text-petra-text">חבילה: {tierInfo?.name ?? editing.tier}</p>
           <p className="text-xs text-petra-muted">{biz?._count.customers} לקוחות · {biz?._count.appointments} פגישות</p>
+        </div>
+      </div>
+
+      {/* User Display Name */}
+      <div className="space-y-4">
+        <div>
+          <label className="label">שם המשתמש (מוצג בתוך המערכת)</label>
+          <div className="flex gap-2">
+            <input
+              className="input flex-1"
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              placeholder="שם מלא"
+            />
+            <button
+              onClick={() => { if (userName.trim()) userNameMutation.mutate(userName.trim()); }}
+              disabled={!userName.trim() || userNameMutation.isPending || userName === user?.name}
+              className="btn-primary flex items-center gap-1.5 px-4 flex-shrink-0"
+            >
+              {userNameSaved ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+              {userNameSaved ? "נשמר" : "עדכן"}
+            </button>
+          </div>
         </div>
       </div>
 

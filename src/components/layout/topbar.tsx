@@ -448,16 +448,18 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
         )}
 
         {/* Search */}
-        <div className="flex-1 max-w-xs md:max-w-sm">
+        <div className="flex-1 min-w-0 max-w-[160px] sm:max-w-xs md:max-w-sm">
           <GlobalSearch />
         </div>
 
         {/* Notifications & Messages */}
-        <div className="flex items-center gap-1 ms-auto">
-          {/* Report a bug — far right, before refresh */}
-          <ReportBugButton />
+        <div className="flex items-center gap-0.5 md:gap-1 ms-auto">
+          {/* Report a bug — hidden on mobile (accessible via profile menu) */}
+          <span className="hidden md:contents">
+            <ReportBugButton />
+          </span>
 
-          {/* Refresh Button */}
+          {/* Refresh Button — hidden on mobile */}
           <button
             onClick={async () => {
               setIsRefreshing(true);
@@ -465,7 +467,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
               setTimeout(() => setIsRefreshing(false), 600);
             }}
             disabled={isRefreshing}
-            className="flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            className="hidden md:flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
             title="רענן נתונים"
             aria-label="רענן נתונים"
           >
@@ -642,7 +644,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             )}
           </div>
 
-          <div className="w-px h-6 bg-slate-200 mx-2" />
+          <div className="w-px h-6 bg-slate-200 mx-1 md:mx-2" />
 
           {/* User avatar */}
           <button

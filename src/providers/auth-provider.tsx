@@ -31,6 +31,7 @@ interface AuthContextType {
   loading: boolean;
   logout: () => Promise<void>;
   exitImpersonation: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   hasPermission: (permission: TenantPermission) => boolean;
   isOwner: boolean;
   isManager: boolean;
@@ -43,6 +44,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   logout: async () => {},
   exitImpersonation: async () => {},
+  refreshUser: async () => {},
   hasPermission: () => false,
   isOwner: false,
   isManager: false,
@@ -78,6 +80,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [user?.businessRole]
   );
 
+  const refreshUser = useCallback(async () => {
+    const data = await fetch("/api/auth/me").then((r) => (r.ok ? r.json() : null));
+    setUser(data?.user || null);
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
@@ -102,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout, exitImpersonation, hasPermission, isOwner: !!isOwner, isManager: !!isManager, isStaff: !!isStaff, isVolunteer: !!isVolunteer }}>
+    <AuthContext.Provider value={{ user, loading, logout, exitImpersonation, refreshUser, hasPermission, isOwner: !!isOwner, isManager: !!isManager, isStaff: !!isStaff, isVolunteer: !!isVolunteer }}>
       {children}
     </AuthContext.Provider>
   );

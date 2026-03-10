@@ -1962,46 +1962,46 @@ export default function DashboardPage() {
           </div>
           <p className="text-sm text-petra-muted">{todayStr}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
           <button
             onClick={() => setShowNewCustomer(true)}
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary flex items-center justify-center gap-2 col-span-2 sm:col-span-1"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 shrink-0" />
             לקוח חדש
           </button>
           <Link
             href="/scheduler"
-            className="btn-secondary flex items-center gap-2"
+            className="btn-secondary flex items-center justify-center gap-2"
           >
-            <CalendarClock className="w-4 h-4" />
-            קביעת תור ידני
+            <CalendarClock className="w-4 h-4 shrink-0" />
+            קביעת תור
           </Link>
           <button
             onClick={() => setShowNewOrder(true)}
-            className="btn-secondary flex items-center gap-2"
+            className="btn-secondary flex items-center justify-center gap-2"
           >
-            <ShoppingCart className="w-4 h-4" />
+            <ShoppingCart className="w-4 h-4 shrink-0" />
             הזמנה חדשה
           </button>
           <button
             onClick={handleCopyIntakeForm}
             disabled={intakeLoading}
             className={cn(
-              "btn-secondary flex items-center gap-2 transition-colors",
+              "btn-secondary flex items-center justify-center gap-2 transition-colors",
               intakeCopied && "bg-green-50 text-green-700 border-green-300"
             )}
             title="יצירת טופס קליטה והעתקת קישור"
           >
             {intakeCopied ? (
               <>
-                <ClipboardCheck className="w-4 h-4" />
+                <ClipboardCheck className="w-4 h-4 shrink-0" />
                 הועתק!
               </>
             ) : (
               <>
-                <Copy className="w-4 h-4" />
-                טופס קליטה למערכת
+                <Copy className="w-4 h-4 shrink-0" />
+                <span>טופס קליטה</span>
               </>
             )}
           </button>
@@ -2013,10 +2013,10 @@ export default function DashboardPage() {
                 toast.success("קישור הזמנת תורים הועתק!", { description: url });
               }).catch(() => toast.error("לא הצלחנו להעתיק"));
             }}
-            className="btn-secondary flex items-center gap-2"
+            className="btn-secondary flex items-center justify-center gap-2"
             title="העתק קישור הזמנת תורים אונליין"
           >
-            <Copy className="w-4 h-4" />
+            <Copy className="w-4 h-4 shrink-0" />
             <span>תורים אונליין</span>
           </button>
         </div>
