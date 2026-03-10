@@ -16,12 +16,21 @@ import {
   X,
   Pencil,
   Plus,
+  Pill,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Medication {
+  medName: string;
+  dosage: string | null;
+  frequency: string | null;
+  times: string | null;
+}
 
 interface BoardingStay {
   id: string;
@@ -39,6 +48,8 @@ interface BoardingStay {
     foodBrand: string | null;
     foodGramsPerDay: number | null;
     foodFrequency: string | null;
+    medications: Medication[];
+    serviceDogProfile: { id: string } | null;
   };
   customer: {
     id: string;
@@ -340,12 +351,189 @@ function MealButton({
   );
 }
 
+// ─── Medications Board ────────────────────────────────────────────────────────
+
+const MED_TIME_LABELS: Record<string, string> = {
+  morning: "בוקר",
+  noon: "צהריים",
+  evening: "ערב",
+  night: "לילה",
+};
+
+function MedicationsBoard({
+  stays,
+  dateStr,
+}: {
+  stays: BoardingStay[];
+  dateStr: string;
+}) {
+  const [given, setGiven] = useState<Record<string, boolean>>({});
+
+  // Load given-state from localStorage on date/stays change
+  useEffect(() => {
+    const loaded: Record<string, boolean> = {};
+    for (const stay of stays) {
+      for (const med of stay.pet.medications) {
+        const key = `med:${dateStr}:${stay.petId}:${med.medName}`;
+        try {
+          loaded[key] = localStorage.getItem(key) === "1";
+        } catch {
+          loaded[key] = false;
+        }
+      }
+    }
+    setGiven(loaded);
+  }, [stays, dateStr]);
+
+  function toggleGiven(petId: string, medName: string) {
+    const key = `med:${dateStr}:${petId}:${medName}`;
+    const next = !given[key];
+    try {
+      if (next) localStorage.setItem(key, "1");
+      else localStorage.removeItem(key);
+    } catch { /* ignore */ }
+    setGiven((prev) => ({ ...prev, [key]: next }));
+  }
+
+  // Only show stays with medications
+  const staysWithMeds = stays.filter((s) => s.pet.medications.length > 0);
+
+  if (staysWithMeds.length === 0) {
+    return (
+      <div className="card p-12 text-center space-y-3">
+        <Pill className="w-10 h-10 mx-auto text-slate-300" />
+        <p className="text-petra-muted text-sm">אין כלבים עם תרופות פעילות בפנסיון</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {staysWithMeds.map((stay) => {
+        const allGiven = stay.pet.medications.every(
+          (m) => given[`med:${dateStr}:${stay.petId}:${m.medName}`]
+        );
+        return (
+          <div
+            key={stay.id}
+            className={cn(
+              "card overflow-hidden transition-all",
+              allGiven && "opacity-70"
+            )}
+          >
+            {/* Card header */}
+            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <div className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
+                  allGiven ? "bg-emerald-100" : "bg-purple-50"
+                )}>
+                  {allGiven
+                    ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    : <Pill className="w-4 h-4 text-purple-500" />
+                  }
+                </div>
+                <div>
+                  <p className={cn("font-medium text-sm", allGiven ? "line-through text-petra-muted" : "text-petra-text")}>
+                    {stay.pet.name}
+                    {stay.pet.breed && (
+                      <span className="text-xs text-petra-muted font-normal mr-1">({stay.pet.breed})</span>
+                    )}
+                    {stay.pet.serviceDogProfile && (
+                      <span className="mr-2 badge badge-blue text-[10px]">כלב שירות</span>
+                    )}
+                  </p>
+                  <Link
+                    href={`/customers/${stay.customer.id}`}
+                    className="flex items-center gap-1 text-xs text-brand-600 hover:underline"
+                  >
+                    <User className="w-3 h-3" />
+                    {stay.customer.name}
+                  </Link>
+                </div>
+              </div>
+              <span className="text-xs text-petra-muted">
+                {stay.pet.medications.length} תרופות
+              </span>
+            </div>
+
+            {/* Medications list */}
+            <div className="p-4 space-y-3">
+              {stay.pet.medications.map((med) => {
+                const key = `med:${dateStr}:${stay.petId}:${med.medName}`;
+                const isGiven = given[key] ?? false;
+                const times = med.times
+                  ? med.times.split(",").map((t) => MED_TIME_LABELS[t.trim()] ?? t.trim()).join(", ")
+                  : null;
+
+                return (
+                  <div
+                    key={med.medName}
+                    className={cn(
+                      "flex items-start justify-between gap-3 p-3 rounded-xl border transition-all",
+                      isGiven
+                        ? "bg-emerald-50 border-emerald-200"
+                        : "bg-white border-slate-200"
+                    )}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className={cn(
+                        "font-medium text-sm",
+                        isGiven ? "text-emerald-800 line-through" : "text-petra-text"
+                      )}>
+                        {med.medName}
+                      </p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                        {med.dosage && (
+                          <span className="text-xs text-petra-muted">{med.dosage}</span>
+                        )}
+                        {med.frequency && (
+                          <span className="text-xs text-petra-muted">{med.frequency}</span>
+                        )}
+                        {times && (
+                          <span className="flex items-center gap-1 text-xs text-petra-muted">
+                            <Clock className="w-3 h-3" />
+                            {times}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => toggleGiven(stay.petId, med.medName)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 flex-shrink-0",
+                        isGiven
+                          ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                          : "bg-slate-100 text-petra-text hover:bg-purple-100 hover:text-purple-700"
+                      )}
+                    >
+                      {isGiven ? (
+                        <><Check className="w-3.5 h-3.5" /> ניתן</>
+                      ) : (
+                        <><Pill className="w-3.5 h-3.5" /> סמן כניתן</>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+      <p className="text-xs text-petra-muted text-center">
+        סטטוס מתן תרופות נשמר מקומית בדפדפן
+      </p>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function FeedingPage() {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const dateStr = dateToISO(currentDate);
   const [editPlanStay, setEditPlanStay] = useState<BoardingStay | null>(null);
+  const [activeTab, setActiveTab] = useState<"feeding" | "medications">("feeding");
 
   const queryClient = useQueryClient();
 
@@ -415,6 +603,40 @@ export default function FeedingPage() {
   return (
     <div className="p-6 space-y-6 animate-fade-in">
       <BoardingTabs />
+
+      {/* Tab switcher */}
+      <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit">
+        <button
+          onClick={() => setActiveTab("feeding")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+            activeTab === "feeding"
+              ? "bg-white text-petra-text shadow-sm"
+              : "text-petra-muted hover:text-petra-text"
+          )}
+        >
+          <UtensilsCrossed className="w-4 h-4" />
+          לוח האכלה
+        </button>
+        <button
+          onClick={() => setActiveTab("medications")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+            activeTab === "medications"
+              ? "bg-white text-petra-text shadow-sm"
+              : "text-petra-muted hover:text-petra-text"
+          )}
+        >
+          <Pill className="w-4 h-4" />
+          לוח תרופות
+          {activePets.filter((s) => s.pet.medications.length > 0).length > 0 && (
+            <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-1.5 py-0.5 rounded-full">
+              {activePets.filter((s) => s.pet.medications.length > 0).length}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* Header */}
       <div className="page-header">
         <div>
@@ -482,6 +704,12 @@ export default function FeedingPage() {
           </button>
         </div>
       </div>
+
+      {activeTab === "medications" && !isLoading && !isError && (
+        <MedicationsBoard stays={activePets} dateStr={dateStr} />
+      )}
+
+      {activeTab === "feeding" && <>
 
       {/* Progress bar */}
       {!isLoading && totalMeals > 0 && (
@@ -729,6 +957,8 @@ export default function FeedingPage() {
           נתוני ההאכלה נשמרים מקומית בדפדפן (localStorage) לצרכי דמו
         </p>
       )}
+
+      </> /* end activeTab === "feeding" */}
 
       {/* Feeding plan modal */}
       {editPlanStay && (

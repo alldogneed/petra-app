@@ -467,10 +467,11 @@ model BoardingStay {
   id           String    @id @default(uuid())
   checkIn      DateTime
   checkOut     DateTime?
-  feedingPlan  String?
-  medicalNeeds String?
-  notes        String?
-  status       String    @default("reserved")
+  feedingPlan           String?
+  medicalNeeds          String?
+  notes                 String?
+  dailyTrainingMinutes  Int?
+  status                String    @default("reserved")
   roomId       String?
   petId        String
   customerId   String

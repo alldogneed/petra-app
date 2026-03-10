@@ -83,6 +83,7 @@ interface BoardingStay {
   checkOut: string | null;
   status: string;
   notes: string | null;
+  dailyTrainingMinutes: number | null;
   room: { id: string; name: string } | null;
   pet: {
     id: string; name: string; species: string; breed: string | null;
@@ -91,6 +92,7 @@ interface BoardingStay {
     health?: { allergies: string | null; medicalConditions: string | null; activityLimitations: string | null } | null;
     behavior?: { dogAggression: boolean; humanAggression: boolean; biteHistory: boolean; biteDetails: string | null; separationAnxiety: boolean; leashReactivity: boolean; resourceGuarding: boolean } | null;
     medications?: { medName: string; dosage: string | null; frequency: string | null; times: string | null }[];
+    serviceDogProfile?: { id: string } | null;
   };
   customer: { id: string; name: string; phone: string };
 }
@@ -906,6 +908,16 @@ function StayRow({
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-semibold text-petra-text">{stay.pet.name}</span>
           {stay.pet.breed && <span className="text-xs text-petra-muted">({stay.pet.breed})</span>}
+          {stay.pet.serviceDogProfile && (
+            <Link
+              href={`/service-dogs/${stay.pet.serviceDogProfile.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
+              title="עבור לפרופיל כלב שירות"
+            >
+              <Sparkles className="w-2.5 h-2.5" />כלב שירות
+            </Link>
+          )}
           <span className="text-sm text-petra-muted">—</span>
           <Link
             href={`/customers/${stay.customer.id}`}
@@ -1534,6 +1546,70 @@ function VaccinationAlertBanner() {
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Training Minutes Field ───────────────────────────────────────────────────
+
+function TrainingMinutesField({ stay }: { stay: BoardingStay }) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(String(stay.dailyTrainingMinutes ?? ""));
+
+  const mutation = useMutation({
+    mutationFn: (minutes: number | null) =>
+      fetch(`/api/boarding/${stay.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dailyTrainingMinutes: minutes }),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["boarding"] });
+      setEditing(false);
+    },
+    onError: () => toast.error("שגיאה בשמירת דקות אימון"),
+  });
+
+  if (editing) {
+    return (
+      <form
+        className="flex items-center gap-1"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const num = parseInt(value);
+          mutation.mutate(isNaN(num) || value === "" ? null : num);
+        }}
+      >
+        <input
+          type="number"
+          min={0}
+          max={480}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="0"
+          className="w-16 text-xs border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-400"
+          autoFocus
+        />
+        <span className="text-xs text-petra-muted">דק׳ אימון</span>
+        <button type="submit" className="text-brand-600 hover:text-brand-800 transition-colors">
+          <Check className="w-3.5 h-3.5" />
+        </button>
+        <button type="button" onClick={() => setEditing(false)} className="text-petra-muted hover:text-petra-text transition-colors">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => { setValue(String(stay.dailyTrainingMinutes ?? "")); setEditing(true); }}
+      className="flex items-center gap-1 text-xs text-petra-muted hover:text-blue-600 transition-colors"
+      title="ערוך דקות אימון יומי"
+    >
+      <Sparkles className="w-3 h-3" />
+      {stay.dailyTrainingMinutes ? `${stay.dailyTrainingMinutes} דק׳ אימון` : "הוסף דקות אימון"}
+    </button>
   );
 }
 
@@ -2339,6 +2415,15 @@ function BoardingPageContent() {
               </a>
             );
           })()}
+          <a
+            href="/api/boarding/export"
+            download
+            className="btn-secondary hidden sm:flex"
+            title="ייצוא יומי לאקסל"
+          >
+            <ClipboardList className="w-4 h-4" />
+            ייצוא יומי
+          </a>
           <button className="btn-secondary" onClick={() => setShowRoomsManager(true)}>
             <Settings2 className="w-4 h-4" />ניהול חדרים
           </button>
@@ -2681,7 +2766,7 @@ function BoardingPageContent() {
                   settings={settings}
                 />
                 {(stay.status === "checked_in" || stay.status === "reserved") && (
-                  <div className="mr-14 mt-1 mb-2">
+                  <div className="mr-14 mt-1 mb-2 flex items-center gap-4 flex-wrap">
                     <button
                       onClick={() => setCareLogStay({ id: stay.id, petName: stay.pet.name })}
                       className="text-xs text-petra-muted hover:text-brand-600 flex items-center gap-1 transition-colors"
@@ -2689,6 +2774,9 @@ function BoardingPageContent() {
                       <ClipboardList className="w-3 h-3" />
                       יומן טיפול
                     </button>
+                    {stay.pet.serviceDogProfile && (
+                      <TrainingMinutesField stay={stay} />
+                    )}
                   </div>
                 )}
               </div>
