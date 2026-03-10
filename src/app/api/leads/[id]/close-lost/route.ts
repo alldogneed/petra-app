@@ -40,7 +40,15 @@ export async function POST(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    if (existing.stage === "lost") {
+    // Find the lost stage for this business
+    const lostStage = await prisma.leadStage.findFirst({
+      where: { businessId: authResult.businessId, isLost: true },
+    });
+    if (!lostStage) {
+      return NextResponse.json({ error: "לא הוגדר שלב 'אבוד' לעסק" }, { status: 400 });
+    }
+
+    if (existing.stage === lostStage.id) {
       return NextResponse.json(
         { error: "Lead is already closed-lost" },
         { status: 400 }
@@ -50,7 +58,7 @@ export async function POST(
     const lead = await prisma.lead.update({
       where: { id },
       data: {
-        stage: "lost",
+        stage: lostStage.id,
         lostAt: new Date(),
         lostReasonCode: reasonCode,
         lostReasonText: reasonText || null,

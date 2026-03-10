@@ -28,7 +28,7 @@ interface Pet {
   birthDate: string | null;
   tags: string | null;
   createdAt: string;
-  customer: { id: string; name: string; phone: string };
+  customer: { id: string; name: string; phone: string | null } | null;
   health: {
     neuteredSpayed: boolean | null;
     rabiesValidUntil: string | null;
@@ -392,13 +392,21 @@ export default function PetsPage() {
                         )}
                       </td>
                       <td className="table-cell">
-                        <Link
-                          href={`/customers/${pet.customer.id}`}
-                          className="text-brand-600 hover:underline font-medium"
-                        >
-                          {pet.customer.name}
-                        </Link>
-                        <p className="text-[10px] text-petra-muted mt-0.5">{pet.customer.phone}</p>
+                        {pet.customer ? (
+                          <>
+                            <Link
+                              href={`/customers/${pet.customer.id}`}
+                              className="text-brand-600 hover:underline font-medium"
+                            >
+                              {pet.customer.name}
+                            </Link>
+                            {pet.customer.phone && (
+                              <p className="text-[10px] text-petra-muted mt-0.5">{pet.customer.phone}</p>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-petra-muted text-sm">כלב שירות</span>
+                        )}
                       </td>
                       <td className="table-cell">
                         {ageStr && <span className="text-petra-text">{ageStr}</span>}

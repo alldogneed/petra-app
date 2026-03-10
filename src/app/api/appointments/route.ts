@@ -87,6 +87,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate time format (HH:mm)
+    const timeRegex = /^\d{2}:\d{2}$/;
+    if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
+      return NextResponse.json(
+        { error: "startTime and endTime must be in HH:mm format" },
+        { status: 400 }
+      );
+    }
+    if (startTime >= endTime) {
+      return NextResponse.json(
+        { error: "startTime must be before endTime" },
+        { status: 400 }
+      );
+    }
+
     const appointment = await prisma.appointment.create({
       data: {
         date: new Date(date),

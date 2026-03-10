@@ -130,6 +130,7 @@ interface ProgramSession {
   practiceItems: string | null;
   nextSessionGoals: string | null;
   homeworkForCustomer: string | null;
+  trainerName: string | null;
 }
 
 interface BoardingStay {
@@ -173,7 +174,7 @@ interface UnifiedDog {
 
 const DAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
-type TabId = "overview" | "individual" | "boarding" | "groups" | "service-dogs" | "archive";
+type TabId = "overview" | "individual" | "boarding" | "groups" | "archive";
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "overview", label: "סקירה", icon: <GraduationCap className="w-4 h-4" /> },
@@ -249,7 +250,7 @@ function SessionLogModal({
   isServiceDog?: boolean;
   isPending: boolean;
   onClose: () => void;
-  onSubmit: (summary: string, sessionDate: string, rating: number | null, practiceItems: string, nextSessionGoals: string, homeworkForCustomer: string, trainerName?: string) => void;
+  onSubmit: (summary: string, sessionDate: string, rating: number | null, practiceItems: string, nextSessionGoals: string, homeworkForCustomer: string, trainerName?: string, durationMinutes?: number) => void;
   programId?: string;
   goals?: { id: string; title: string; status: string; progressPercent: number }[];
 }) {
@@ -690,6 +691,8 @@ function TrainingPageContent() {
           nextSessionGoals: variables.nextSessionGoals,
           rating: variables.rating,
         });
+      } else {
+        toast.success("מפגש נרשם בהצלחה");
       }
       setSessionLogTarget(null);
     },
@@ -1806,7 +1809,7 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
           <div
             key={hw.id}
             className={cn(
-              "flex items-center gap-2 p-2 rounded-lg transition-colors",
+              "flex items-center gap-2 p-2 rounded-lg transition-colors group",
               hw.isCompleted ? "bg-emerald-50" : "bg-slate-50"
             )}
           >
@@ -3518,7 +3521,7 @@ function SellPackageModal({
                 <div>
                   <label className="label">סוג תוכנית</label>
                   <select className="input" value={programType} onChange={(e) => setProgramType(e.target.value)}>
-                    {Object.entries(PROGRAM_TYPES_MAP).map(([k, v]) => (
+                    {Object.entries(PROGRAM_TYPES_MAP).filter(([k]) => !k.startsWith("SD_")).map(([k, v]) => (
                       <option key={k} value={k}>{v}</option>
                     ))}
                   </select>

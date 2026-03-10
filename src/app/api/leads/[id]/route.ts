@@ -44,6 +44,16 @@ export async function PATCH(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
+    // Validate stage belongs to this business
+    if (stage !== undefined) {
+      const validStage = await prisma.leadStage.findFirst({
+        where: { id: stage, businessId: authResult.businessId },
+      });
+      if (!validStage) {
+        return NextResponse.json({ error: "Invalid stage" }, { status: 400 });
+      }
+    }
+
     const lead = await prisma.lead.update({
       where: { id, businessId: authResult.businessId },
       data: {

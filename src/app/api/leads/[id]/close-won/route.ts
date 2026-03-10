@@ -22,18 +22,21 @@ export async function POST(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    if (existing.stage === "won") {
+    // Find the won stage for this business
+    const wonStage = await prisma.leadStage.findFirst({
+      where: { businessId: authResult.businessId, isWon: true },
+    });
+    if (!wonStage) {
+      return NextResponse.json({ error: "לא הוגדר שלב 'נסגר בהצלחה' לעסק" }, { status: 400 });
+    }
+    const wonStageId = wonStage.id;
+
+    if (existing.stage === wonStageId) {
       return NextResponse.json(
         { error: "Lead is already closed-won" },
         { status: 400 }
       );
     }
-
-    // Find the won stage for this business
-    const wonStage = await prisma.leadStage.findFirst({
-      where: { businessId: authResult.businessId, isWon: true },
-    });
-    const wonStageId = wonStage?.id ?? "won";
 
     // If lead already has a customer, just update the stage
     if (existing.customerId) {

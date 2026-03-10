@@ -200,11 +200,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (!body.phone || typeof body.phone !== "string" || !body.phone.trim()) {
+      return NextResponse.json(
+        { error: "Missing required field: phone" },
+        { status: 400 }
+      );
+    }
+
     // Compute phoneNorm for consistent lookups (same as booking wizard)
-    const _phoneDigits = (body.phone as string).replace(/\D/g, "")
+    const _phoneDigits = body.phone.replace(/\D/g, "");
     const phoneNorm = _phoneDigits.startsWith("0") && _phoneDigits.length >= 9
       ? "972" + _phoneDigits.slice(1)
-      : _phoneDigits || null
+      : _phoneDigits || null;
 
     const customer = await prisma.customer.create({
       data: {

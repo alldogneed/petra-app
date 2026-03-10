@@ -32,7 +32,13 @@ export async function POST(
     }
 
     const pet = await prisma.pet.findFirst({
-      where: { id: params.petId, customer: { businessId: authResult.businessId } },
+      where: {
+        id: params.petId,
+        OR: [
+          { customer: { businessId: authResult.businessId } },
+          { businessId: authResult.businessId },
+        ],
+      },
       select: { attachments: true },
     });
     if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
