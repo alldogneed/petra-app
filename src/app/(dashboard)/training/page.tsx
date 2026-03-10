@@ -483,19 +483,6 @@ function TrainingPageContent() {
   const [dropoutTarget, setDropoutTarget] = useState<{ programId: string; dogName: string } | null>(null);
   const queryClient = useQueryClient();
 
-  // Sync service dog training programs when tab is activated
-  useEffect(() => {
-    if (activeTab === "service-dogs") {
-      fetch("/api/service-dogs/sync-training", { method: "POST" })
-        .then((r) => r.json())
-        .then((d) => {
-          if (d.created > 0) {
-            queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
-          }
-        })
-        .catch(() => {});
-    }
-  }, [activeTab, queryClient]);
 
   // Auto-refresh every 30 seconds when enabled
   useEffect(() => {
@@ -1202,39 +1189,6 @@ function TrainingPageContent() {
                   }
                 />
               )}
-            </div>
-          )}
-
-          {/* ═══ SERVICE DOGS TAB ═══ */}
-          {activeTab === "service-dogs" && (
-            <div>
-              {/* Header with link to service dogs management */}
-              <div className="flex items-center justify-between mb-4 p-3 bg-brand-50 border border-brand-100 rounded-xl">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-brand-500" />
-                  <span className="text-sm font-medium text-brand-700">תוכניות אילוף לכלבי שירות</span>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button className="btn-primary text-xs" onClick={() => setShowCreateServiceDogProgram(true)}>
-                    <Plus className="w-3.5 h-3.5" /> הוסף תוכנית אימון
-                  </button>
-                  <a href="/service-dogs" className="btn-secondary text-xs flex items-center gap-1">
-                    <Shield className="w-3.5 h-3.5" /> ניהול כלבי שירות ←
-                  </a>
-                </div>
-              </div>
-              <ServiceDogSessionLog
-                programs={serviceDogPrograms}
-                searchQuery={searchQuery}
-                onMarkAttendance={(programId, sessionNumber, dogName, customerPhone, customerName) =>
-                  setSessionLogTarget({ programId, sessionNumber, dogName, customerPhone, customerName, isServiceDog: true })
-                }
-                onEditSettings={(program) => setEditingProgram(program)}
-                isMarkingAttendance={markAttendanceMutation.isPending}
-                onFinishProgram={(id) => updateStatusMutation.mutate({ id, status: "COMPLETED" })}
-                onDropoutProgram={(id, dogName) => setDropoutTarget({ programId: id, dogName })}
-                isUpdatingStatus={updateStatusMutation.isPending}
-              />
             </div>
           )}
 

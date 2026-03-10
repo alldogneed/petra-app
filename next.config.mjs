@@ -1,4 +1,5 @@
 // @ts-check
+import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -6,6 +7,7 @@ const nextConfig = {
   // Prevent webpack from bundling Prisma (it uses native binaries — must stay external)
   experimental: {
     serverComponentsExternalPackages: ["@prisma/client", "prisma"],
+    instrumentationHook: true,
   },
   productionBrowserSourceMaps: false,
   eslint: { ignoreDuringBuilds: true },
@@ -48,7 +50,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https:",
-              "connect-src 'self'",
+              "connect-src 'self' https://*.ingest.sentry.io",
               "frame-ancestors 'none'",
             ].join("; "),
           },
@@ -58,4 +60,12 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: "petra-app",
+  project: "petra-nextjs",
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  hideSourceMaps: true,
+  disableLogger: true,
+  automaticVercelMonitors: false,
+});
