@@ -1688,6 +1688,7 @@ function NewAppointmentModal({
       }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה ביצירת פגישה"); return d; }),
     onSuccess: () => {
       setForm({ customerId: "", petId: "", serviceId: "", date: today, startTime: "09:00", endTime: "10:00", notes: "" });
+      toast.success("הפגישה נוצרה בהצלחה!");
       onCreated();
     },
     onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת הפגישה. נסה שוב."),
@@ -1870,6 +1871,7 @@ export default function DashboardPage() {
         await navigator.clipboard.writeText(data.url);
         setIntakeCopied(true);
         setTimeout(() => setIntakeCopied(false), 3000);
+        toast.success("קישור טופס הקליטה הועתק ללוח!");
       }
     } catch {
       toast.error("שגיאה ביצירת קישור טופס הרישום");
@@ -2015,7 +2017,7 @@ export default function DashboardPage() {
             title="העתק קישור הזמנת תורים אונליין"
           >
             <Copy className="w-4 h-4" />
-            <span className="hidden sm:inline">תורים אונליין</span>
+            <span>תורים אונליין</span>
           </button>
         </div>
       </div>
