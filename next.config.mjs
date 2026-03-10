@@ -1,5 +1,4 @@
 // @ts-check
-import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -7,7 +6,6 @@ const nextConfig = {
   // Prevent webpack from bundling Prisma (it uses native binaries — must stay external)
   experimental: {
     serverComponentsExternalPackages: ["@prisma/client", "prisma"],
-    instrumentationHook: true,
   },
   productionBrowserSourceMaps: false,
   eslint: { ignoreDuringBuilds: true },
@@ -50,7 +48,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https:",
-              "connect-src 'self' https://*.ingest.sentry.io",
+              "connect-src 'self'",
               "frame-ancestors 'none'",
             ].join("; "),
           },
@@ -60,25 +58,4 @@ const nextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
-  // Sentry project settings
-  org: "petra-app",
-  project: "petra-nextjs",
-
-  // Only upload source maps in CI/production (not local dev)
-  silent: !process.env.CI,
-
-  // Upload source maps to Sentry so stack traces are readable
-  // Requires SENTRY_AUTH_TOKEN env var
-  widenClientFileUpload: true,
-
-  // Hide source maps from the client bundle
-  hideSourceMaps: true,
-
-  // Disable automatic instrumentation of Vercel Cron Monitors
-  // (we manage our own cron logging)
-  disableLogger: true,
-
-  // Automatically tree-shake Sentry logger statements
-  automaticVercelMonitors: false,
-});
+export default nextConfig;

@@ -52,6 +52,13 @@ export async function PATCH(
     },
   });
 
+  // When deactivating a user, immediately invalidate all their sessions
+  if (data.isActive === false) {
+    await prisma.adminSession.deleteMany({
+      where: { userId: existing.userId },
+    });
+  }
+
   return NextResponse.json(updated);
   } catch (error) {
     console.error("Business admin PATCH team member error:", error);
