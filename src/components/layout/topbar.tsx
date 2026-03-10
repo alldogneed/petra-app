@@ -494,7 +494,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
             {/* Petra Messages Dropdown */}
             {messagesOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
+              <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-[68px] sm:top-full sm:mt-2 sm:w-80 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                   <h3 className="text-sm font-bold text-petra-text">הודעות מפטרה</h3>
                   {unreadCount > 0 && (
@@ -506,7 +506,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                     </button>
                   )}
                 </div>
-                <div className="max-h-80 overflow-y-auto">
+                <div className="max-h-[60vh] sm:max-h-80 overflow-y-auto">
                   {systemMessages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-center">
                       <Mail className="w-7 h-7 text-slate-300 mb-1.5" />
@@ -570,14 +570,14 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
             {/* Business Notifications Dropdown */}
             {notificationsOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
+              <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-[68px] sm:top-full sm:mt-2 sm:w-80 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
                 <div className="px-4 py-3 border-b border-slate-100">
                   <h3 className="text-sm font-bold text-petra-text">התראות עסקיות</h3>
                   {criticalCount > 0 && (
                     <p className="text-[11px] text-red-500 mt-0.5">{criticalCount} פריטים דורשים טיפול</p>
                   )}
                 </div>
-                <div className="max-h-96 overflow-y-auto">
+                <div className="max-h-[60vh] sm:max-h-96 overflow-y-auto">
                   {bizNotifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-center">
                       <CheckCircle className="w-7 h-7 text-green-400 mb-1.5" />
