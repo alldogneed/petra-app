@@ -152,6 +152,15 @@ export default function ServiceDogsReportsPage() {
         </div>
         <div className="flex items-center gap-2">
           <a
+            href="/api/service-dogs/export/government"
+            download
+            className="btn-primary flex items-center gap-2 text-sm px-3 py-2"
+            title="דיווח ממשלתי — פורמט משרד החקלאות"
+          >
+            <Download className="w-4 h-4" />
+            דיווח ממשלתי
+          </a>
+          <a
             href="/api/service-dogs/export"
             download
             className="btn-outline flex items-center gap-2 text-sm px-3 py-2"

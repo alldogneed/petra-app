@@ -354,6 +354,8 @@ model Pet {
   weight         Float?
   gender         String?
   microchip      String?
+  color          String?
+  isNeutered     Boolean?
   medicalNotes   String?
   foodNotes      String?
   foodBrand      String?
@@ -1944,20 +1946,24 @@ model ServiceDogInsurance {
 
 /// Insurance claim for a service dog
 model ServiceDogClaim {
-  id              String    @id @default(uuid())
-  insuranceId     String
-  businessId      String
-  incidentDate    DateTime
-  description     String?
-  amount          Float?
-  deductiblePaid  Float?
-  invoiceAttached Boolean   @default(false)
-  submittedAt     DateTime?
-  resolvedAt      DateTime?
-  status          String    @default("PENDING") // PENDING | PAID | DENIED | WITHDRAWN
-  notes           String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                   String    @id @default(uuid())
+  insuranceId          String
+  businessId           String
+  incidentDate         DateTime
+  description          String?
+  amount               Float?
+  deductiblePaid       Float?
+  reimbursedAmount     Float?    // actual amount received from insurer
+  vetName              String?   // veterinarian name
+  claimNumber          String?   // insurer's claim reference number
+  invoiceAttached      Boolean   @default(false)
+  visitSummaryAttached Boolean   @default(false)
+  submittedAt          DateTime?
+  resolvedAt           DateTime?
+  status               String    @default("PENDING") // PENDING | PAID | DENIED | WITHDRAWN
+  notes                String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   insurance       ServiceDogInsurance @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
   business        Business            @relation(fields: [businessId], references: [id])

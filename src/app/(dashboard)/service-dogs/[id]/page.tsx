@@ -1537,6 +1537,7 @@ interface TrainingTest {
   examinerName: string;
   testType: string;
   categories: TestCategory[];
+  testItems?: TestItem[]; // Simba-specific test items
   overallResult: "PASS" | "FAIL" | "CONDITIONAL_PASS";
   notes: string;
 }
@@ -1547,6 +1548,12 @@ interface TestCategory {
   result: "PASS" | "FAIL" | "NOT_TESTED";
   score: number | null;
   improvementPoints: string;
+}
+
+interface TestItem {
+  taskId: string;
+  passed: boolean;
+  notes: string;
 }
 
 const ADI_TEST_CATEGORIES = [
@@ -1572,6 +1579,8 @@ const ADI_TEST_CATEGORIES = [
 const ADI_TEST_CATEGORY_MAP = Object.fromEntries(ADI_TEST_CATEGORIES.map((c) => [c.key, c.label]));
 
 const TEST_TYPES = [
+  { id: "SIMBA_PUBLIC_SPACE", label: "מבחן כשירות במרחב הציבורי (סימבה)" },
+  { id: "SIMBA_FUNCTIONAL_TASKS", label: "מבחן משימות תפקודיות (סימבה)" },
   { id: "INITIAL_EVAL", label: "הערכה ראשונית" },
   { id: "PROGRESS_TEST", label: "בחינת התקדמות" },
   { id: "PRE_CERT", label: "טרום הסמכה" },
@@ -1580,6 +1589,67 @@ const TEST_TYPES = [
   { id: "OTHER", label: "אחר" },
 ];
 const TEST_TYPE_MAP = Object.fromEntries(TEST_TYPES.map((t) => [t.id, t.label]));
+
+// ─── Simba Public Space Fitness Test tasks ────────────────────────────────────
+const SIMBA_PUBLIC_SPACE_TASKS = [
+  { id: "PS_01", label: "יצא מרכב בצורה מבוקרת ונאותה" },
+  { id: "PS_02", label: "התנהגות בטוחה ורגועה בצעידה מחניון לכניסה לבניין" },
+  { id: "PS_03", label: "נכנס למבנה בצורה רגועה וסבלנית" },
+  { id: "PS_04", label: "התנהל בבטחה וברוגע בתוך מבנה" },
+  { id: "PS_05", label: "יצא ממבנה בצורה רגועה ובטוחה — לא הוסח ממכוניות" },
+  { id: "PS_06", label: "נכנס לרכב בצורה מבוקרת ונאותה" },
+  { id: "PS_07", label: "הצגת התנהגות נאותה במסעדה — התעלמות ממסיחים" },
+  { id: "PS_08", label: "עלה/ירד מדרגות / מדרגות נעות / מעלית בצורה מבוקרת ובטוחה" },
+  { id: "PS_09", label: "התנהלות בטוחה ורגועה בתחבורה ציבורית" },
+  { id: "PS_10", label: "ציות לפקודת 'שב' — 4 תת-תרחישים" },
+  { id: "PS_11", label: "ציות לפקודת 'שכב'" },
+  { id: "PS_12", label: "תגובה רגועה לרעשי סביבה" },
+  { id: "PS_13", label: "חזרה אל הנעזר ממרחק תוך התעלמות מהפרעות" },
+  { id: "PS_14", label: "נשאר רגוע בהעברת הרצועה לאדם אחר" },
+  { id: "PS_15", label: "קשר רגוע ובטוח בין הכלב לנעזר" },
+  { id: "PS_16", label: "התעלמות מכלבים וחתולים אחרים במרחב הציבורי" },
+];
+
+const SIMBA_PUBLIC_SPACE_REQUIREMENTS = [
+  { id: "PS_R1", label: "לא נעשה שימוש בעזרים חיצוניים, ענישה או חיזוקים שליליים" },
+  { id: "PS_R2", label: "המבחן התבצע עם רצועה סטנדרטית שנותרה רפויה לאורך כל המבחן" },
+  { id: "PS_R3", label: "הכלב לא הציג התנהגויות בלתי הולמות (נהמה, נביחה, נשיכה, קפיצה, ריצה לעבר אנשים/כלבים)" },
+];
+
+// ─── Simba Functional Task Test items ────────────────────────────────────────
+const SIMBA_FUNCTIONAL_TASKS = [
+  { id: "FT_01", label: "מאתר ומביא תרופות במצב של התקף חרדה או כאב" },
+  { id: "FT_02", label: "מביא משקה להקלה על בליעת תרופות" },
+  { id: "FT_03", label: "לוחץ על לחצן מצוקה" },
+  { id: "FT_04", label: "מחפש ומזעיק את המטפל העיקרי" },
+  { id: "FT_05", label: "מעביר פתק מאדם לאדם" },
+  { id: "FT_06", label: "בודק אם חדר ריק ומסמן לנעזר" },
+  { id: "FT_07", label: "מדליק אור" },
+  { id: "FT_08", label: "מסייע בהתעוררות" },
+  { id: "FT_09", label: "מעיר מסיוטים" },
+  { id: "FT_10", label: "מבצע תרגיל 'שמיכה כבדה' להרגעת הנעזר" },
+  { id: "FT_11", label: "מבצע 'בלוק' — עמידה מאחורי/לפני/לצד הנעזר לשמירת מרחב" },
+  { id: "FT_12", label: "מבצע 'מעגל' מסביב לנעזר לשמירת מרחב" },
+  { id: "FT_13", label: "מפריע לפעולות של פגיעה עצמית קלה (כסיסת ציפורניים, גירוד)" },
+  { id: "FT_14", label: "מבצע גירוי חושי — ליקוק או היצמדות בעת התקף" },
+  { id: "FT_15", label: "מתריע על התקף חרדה לפי אימון ריח" },
+  { id: "FT_16", label: "מתריע על מיגרנה לפי אימון ריח" },
+  { id: "FT_17", label: "מוציא את הנעזר ממצב ניתוק על ידי התרעה" },
+  { id: "FT_18", label: "מתריע על התרגשות של הנעזר" },
+  { id: "FT_19", label: "מוביל ליציאה מבניין" },
+  { id: "FT_20", label: "מוביל לכיסא פנוי" },
+  { id: "FT_21", label: "מתריע על רעשים צפויים" },
+  { id: "FT_22", label: "מתריע על סכנה מתקרבת" },
+  { id: "FT_23", label: "מתזכר לקחת תרופות בזמן קבוע ביום" },
+  { id: "FT_24", label: "מוריד שמיכה מגוף הנעזר" },
+  { id: "FT_25", label: "מדליק טלוויזיה/רדיו לקשב בעת פלאשבק או ניתוק" },
+];
+const SIMBA_FUNCTIONAL_PASS_THRESHOLD = 3;
+
+const SIMBA_TASK_MAP_PUBLIC = Object.fromEntries(
+  [...SIMBA_PUBLIC_SPACE_TASKS, ...SIMBA_PUBLIC_SPACE_REQUIREMENTS].map((t) => [t.id, t.label])
+);
+const SIMBA_TASK_MAP_FUNCTIONAL = Object.fromEntries(SIMBA_FUNCTIONAL_TASKS.map((t) => [t.id, t.label]));
 
 const OVERALL_RESULT_MAP: Record<string, { label: string; color: string }> = {
   PASS: { label: "עבר ✓", color: "bg-emerald-100 text-emerald-700" },
@@ -1650,7 +1720,7 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold flex items-center gap-2">
             <GraduationCap className="w-4 h-4 text-brand-500" />
-            מבחני הכשרה ADI ({tests.length})
+            מבחני הכשרה ({tests.length})
           </h3>
         </div>
         <div className="space-y-3">
@@ -1683,7 +1753,11 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
                           {test.examinerName}
                         </span>
                       )}
-                      <span>{test.categories?.length || 0} קטגוריות</span>
+                      {(test.testType === "SIMBA_PUBLIC_SPACE" || test.testType === "SIMBA_FUNCTIONAL_TASKS") ? (
+                        <span>{(test.testItems || []).filter((i) => i.passed).length}/{test.testType === "SIMBA_PUBLIC_SPACE" ? SIMBA_PUBLIC_SPACE_TASKS.length : SIMBA_FUNCTIONAL_TASKS.length} משימות עברו</span>
+                      ) : (
+                        <span>{test.categories?.length || 0} קטגוריות</span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -1698,28 +1772,58 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
                 </div>
                 {isExpanded && (
                   <div className="px-4 pb-4 border-t bg-slate-50/30 pt-3 space-y-3">
-                    <div className="divide-y">
-                      {(test.categories || []).map((cat) => (
-                        <div key={cat.id} className="flex items-start justify-between py-1.5 gap-2">
-                          <div className="flex items-start gap-2 flex-1">
-                            <span className={cn("text-xs font-bold mt-0.5 shrink-0",
-                              cat.result === "PASS" ? "text-emerald-600" :
-                              cat.result === "FAIL" ? "text-red-600" : "text-stone-400")}>
-                              {cat.result === "PASS" ? "✓" : cat.result === "FAIL" ? "✗" : "—"}
-                            </span>
-                            <div>
-                              <p className="text-sm">{ADI_TEST_CATEGORY_MAP[cat.categoryKey] || cat.categoryKey}</p>
-                              {cat.improvementPoints && (
-                                <p className="text-xs text-amber-600 mt-0.5">{cat.improvementPoints}</p>
-                              )}
+                    {/* Simba test items display */}
+                    {(test.testType === "SIMBA_PUBLIC_SPACE" || test.testType === "SIMBA_FUNCTIONAL_TASKS") && test.testItems && (
+                      <div className="divide-y">
+                        {test.testItems.map((item) => {
+                          const taskMap = test.testType === "SIMBA_PUBLIC_SPACE"
+                            ? SIMBA_TASK_MAP_PUBLIC
+                            : SIMBA_TASK_MAP_FUNCTIONAL;
+                          const label = taskMap[item.taskId] || item.taskId;
+                          const isReq = item.taskId.startsWith("PS_R");
+                          return (
+                            <div key={item.taskId} className={cn(
+                              "flex items-start gap-2 py-1.5",
+                              isReq && "bg-orange-50/40"
+                            )}>
+                              <span className={cn("text-xs font-bold mt-0.5 shrink-0",
+                                item.passed ? "text-emerald-600" : "text-red-400")}>
+                                {item.passed ? "✓" : "✗"}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm">{label}</p>
+                                {item.notes && <p className="text-xs text-amber-600 mt-0.5">{item.notes}</p>}
+                              </div>
                             </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {/* ADI categories display */}
+                    {test.testType !== "SIMBA_PUBLIC_SPACE" && test.testType !== "SIMBA_FUNCTIONAL_TASKS" && (
+                      <div className="divide-y">
+                        {(test.categories || []).map((cat) => (
+                          <div key={cat.id} className="flex items-start justify-between py-1.5 gap-2">
+                            <div className="flex items-start gap-2 flex-1">
+                              <span className={cn("text-xs font-bold mt-0.5 shrink-0",
+                                cat.result === "PASS" ? "text-emerald-600" :
+                                cat.result === "FAIL" ? "text-red-600" : "text-stone-400")}>
+                                {cat.result === "PASS" ? "✓" : cat.result === "FAIL" ? "✗" : "—"}
+                              </span>
+                              <div>
+                                <p className="text-sm">{ADI_TEST_CATEGORY_MAP[cat.categoryKey] || cat.categoryKey}</p>
+                                {cat.improvementPoints && (
+                                  <p className="text-xs text-amber-600 mt-0.5">{cat.improvementPoints}</p>
+                                )}
+                              </div>
+                            </div>
+                            {cat.score != null && (
+                              <span className="text-xs font-mono bg-white border rounded px-1.5 py-0.5 shrink-0">{cat.score}/10</span>
+                            )}
                           </div>
-                          {cat.score != null && (
-                            <span className="text-xs font-mono bg-white border rounded px-1.5 py-0.5 shrink-0">{cat.score}/10</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                     {test.notes && (
                       <div className="bg-white rounded-lg p-3 border">
                         <p className="text-xs text-petra-muted mb-1">הערות כלליות</p>
@@ -1775,11 +1879,13 @@ function AddTrainingTestModal({
   allDogs: { id: string; pet: { name: string } }[];
 }) {
   const [selectedDogId, setSelectedDogId] = useState(currentDogId);
-  const [testType, setTestType] = useState("PROGRESS_TEST");
+  const [testType, setTestType] = useState("SIMBA_PUBLIC_SPACE");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [examinerName, setExaminerName] = useState("");
   const [overallResult, setOverallResult] = useState<"PASS" | "FAIL" | "CONDITIONAL_PASS">("PASS");
   const [notes, setNotes] = useState("");
+
+  // ADI categories state
   const [categories, setCategories] = useState<TestCategory[]>(
     ADI_TEST_CATEGORIES.map((c) => ({
       id: crypto.randomUUID(),
@@ -1790,20 +1896,64 @@ function AddTrainingTestModal({
     }))
   );
 
+  // Simba test items state
+  const [testItems, setTestItems] = useState<TestItem[]>([]);
+
+  // Initialize testItems when testType changes to a Simba type
+  const initSimbaItems = (type: string) => {
+    if (type === "SIMBA_PUBLIC_SPACE") {
+      setTestItems([
+        ...SIMBA_PUBLIC_SPACE_TASKS.map((t) => ({ taskId: t.id, passed: false, notes: "" })),
+        ...SIMBA_PUBLIC_SPACE_REQUIREMENTS.map((t) => ({ taskId: t.id, passed: false, notes: "" })),
+      ]);
+    } else if (type === "SIMBA_FUNCTIONAL_TASKS") {
+      setTestItems(SIMBA_FUNCTIONAL_TASKS.map((t) => ({ taskId: t.id, passed: false, notes: "" })));
+    }
+  };
+
+  // On mount, initialize Simba items for default type
+  useState(() => { initSimbaItems(testType); });
+
+  const handleTestTypeChange = (type: string) => {
+    setTestType(type);
+    initSimbaItems(type);
+  };
+
+  const toggleItem = (taskId: string) => {
+    setTestItems((prev) => prev.map((i) => i.taskId === taskId ? { ...i, passed: !i.passed } : i));
+  };
+
+  const updateItemNotes = (taskId: string, notes: string) => {
+    setTestItems((prev) => prev.map((i) => i.taskId === taskId ? { ...i, notes } : i));
+  };
+
   const updateCategory = (categoryKey: string, field: string, value: string | number | null) => {
     setCategories((prev) =>
       prev.map((c) => (c.categoryKey === categoryKey ? { ...c, [field]: value } : c))
     );
   };
 
+  const isSimbaTest = testType === "SIMBA_PUBLIC_SPACE" || testType === "SIMBA_FUNCTIONAL_TASKS";
+
+  // Auto-compute pass/fail for Simba tests
+  const simbaPassedCount = testItems.filter((i) => i.passed).length;
+  const simbaAutoResult: "PASS" | "FAIL" = testType === "SIMBA_FUNCTIONAL_TASKS"
+    ? (simbaPassedCount >= SIMBA_FUNCTIONAL_PASS_THRESHOLD ? "PASS" : "FAIL")
+    : (testType === "SIMBA_PUBLIC_SPACE"
+        ? (testItems.filter((i) => i.taskId.startsWith("PS_R")).every((i) => i.passed) &&
+           testItems.filter((i) => i.taskId.startsWith("PS_0")).every((i) => i.passed) ? "PASS" : "FAIL")
+        : "PASS");
+
   const handleSave = () => {
+    const finalResult = isSimbaTest ? simbaAutoResult : overallResult;
     onSave({
       id: crypto.randomUUID(),
       date,
       examinerName,
       testType,
-      categories: categories.filter((c) => c.result !== "NOT_TESTED"),
-      overallResult,
+      categories: isSimbaTest ? [] : categories.filter((c) => c.result !== "NOT_TESTED"),
+      testItems: isSimbaTest ? testItems : undefined,
+      overallResult: finalResult,
       notes,
     }, selectedDogId);
   };
@@ -1835,7 +1985,7 @@ function AddTrainingTestModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">סוג מבחן</label>
-              <select value={testType} onChange={(e) => setTestType(e.target.value)} className="input w-full">
+              <select value={testType} onChange={(e) => handleTestTypeChange(e.target.value)} className="input w-full">
                 {TEST_TYPES.map((t) => (<option key={t.id} value={t.id}>{t.label}</option>))}
               </select>
             </div>
@@ -1849,56 +1999,177 @@ function AddTrainingTestModal({
               <label className="label">שם הבוחן</label>
               <input value={examinerName} onChange={(e) => setExaminerName(e.target.value)} className="input w-full" placeholder="שם הבוחן / מעריך" />
             </div>
+            {!isSimbaTest && (
+              <div>
+                <label className="label">תוצאה כללית</label>
+                <select value={overallResult} onChange={(e) => setOverallResult(e.target.value as "PASS" | "FAIL" | "CONDITIONAL_PASS")} className="input w-full">
+                  <option value="PASS">עבר ✓</option>
+                  <option value="CONDITIONAL_PASS">עבר עם הערות</option>
+                  <option value="FAIL">נכשל ✗</option>
+                </select>
+              </div>
+            )}
+            {isSimbaTest && (
+              <div className="flex items-end pb-0.5">
+                <div className={cn(
+                  "w-full text-center text-sm font-semibold py-2 rounded-lg",
+                  simbaAutoResult === "PASS" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"
+                )}>
+                  {testType === "SIMBA_FUNCTIONAL_TASKS"
+                    ? `${simbaPassedCount}/${SIMBA_FUNCTIONAL_TASKS.length} משימות — ${simbaAutoResult === "PASS" ? "עבר ✓" : "נכשל ✗"} (ספי: ${SIMBA_FUNCTIONAL_PASS_THRESHOLD})`
+                    : `${simbaAutoResult === "PASS" ? "עבר ✓" : "נכשל ✗"}`
+                  }
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Simba Public Space tasks */}
+          {testType === "SIMBA_PUBLIC_SPACE" && (
             <div>
-              <label className="label">תוצאה כללית</label>
-              <select value={overallResult} onChange={(e) => setOverallResult(e.target.value as "PASS" | "FAIL" | "CONDITIONAL_PASS")} className="input w-full">
-                <option value="PASS">עבר ✓</option>
-                <option value="CONDITIONAL_PASS">עבר עם הערות</option>
-                <option value="FAIL">נכשל ✗</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="label mb-2">קטגוריות מבחן ADI</label>
-            <div className="border rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[2fr_80px_60px_1fr] gap-0 bg-slate-50 px-3 py-2 text-xs font-semibold text-petra-muted border-b">
-                <span>קטגוריה</span>
-                <span className="text-center">תוצאה</span>
-                <span className="text-center">ניקוד</span>
-                <span>נקודות לשיפור</span>
+              <label className="label mb-2">
+                משימות המבחן
+                <span className="text-xs text-petra-muted font-normal mr-2">({testItems.filter((i) => i.taskId.startsWith("PS_0")).filter((i) => i.passed).length}/{SIMBA_PUBLIC_SPACE_TASKS.length} עברו)</span>
+              </label>
+              <div className="border rounded-xl overflow-hidden">
+                <div className="divide-y max-h-72 overflow-y-auto">
+                  {SIMBA_PUBLIC_SPACE_TASKS.map((task) => {
+                    const item = testItems.find((i) => i.taskId === task.id);
+                    return (
+                      <div key={task.id} className={cn("flex items-center gap-3 px-3 py-2", item?.passed && "bg-emerald-50")}>
+                        <button
+                          type="button"
+                          onClick={() => toggleItem(task.id)}
+                          className={cn(
+                            "w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all",
+                            item?.passed ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-300 bg-white"
+                          )}
+                        >
+                          {item?.passed && <Check className="w-3 h-3" />}
+                        </button>
+                        <span className="text-sm flex-1">{task.label}</span>
+                        <input
+                          type="text"
+                          value={item?.notes ?? ""}
+                          onChange={(e) => updateItemNotes(task.id, e.target.value)}
+                          className="text-xs border rounded px-1.5 py-0.5 w-32 flex-shrink-0"
+                          placeholder="הערות..."
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="divide-y max-h-64 overflow-y-auto">
-                {categories.map((cat) => (
-                  <div key={cat.categoryKey} className="grid grid-cols-[2fr_80px_60px_1fr] gap-2 px-3 py-2 items-center">
-                    <span className="text-sm">{ADI_TEST_CATEGORY_MAP[cat.categoryKey]}</span>
-                    <select
-                      value={cat.result}
-                      onChange={(e) => updateCategory(cat.categoryKey, "result", e.target.value)}
-                      className="text-xs border rounded px-1 py-1 bg-white"
-                    >
-                      <option value="NOT_TESTED">—</option>
-                      <option value="PASS">עבר</option>
-                      <option value="FAIL">נכשל</option>
-                    </select>
-                    <input
-                      type="number" min="0" max="10"
-                      value={cat.score ?? ""}
-                      onChange={(e) => updateCategory(cat.categoryKey, "score", e.target.value ? Number(e.target.value) : null)}
-                      className="text-xs border rounded px-1 py-1 w-full text-center"
-                      placeholder="—"
-                    />
-                    <input
-                      type="text"
-                      value={cat.improvementPoints}
-                      onChange={(e) => updateCategory(cat.categoryKey, "improvementPoints", e.target.value)}
-                      className="text-xs border rounded px-1.5 py-1 w-full"
-                      placeholder="הערות..."
-                    />
-                  </div>
-                ))}
+              <div className="mt-3">
+                <label className="label mb-2 text-orange-700">דרישות נוספות</label>
+                <div className="border border-orange-200 rounded-xl overflow-hidden bg-orange-50">
+                  {SIMBA_PUBLIC_SPACE_REQUIREMENTS.map((req) => {
+                    const item = testItems.find((i) => i.taskId === req.id);
+                    return (
+                      <div key={req.id} className={cn("flex items-center gap-3 px-3 py-2 border-b border-orange-100 last:border-b-0", item?.passed && "bg-emerald-50")}>
+                        <button
+                          type="button"
+                          onClick={() => toggleItem(req.id)}
+                          className={cn(
+                            "w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all",
+                            item?.passed ? "bg-emerald-500 border-emerald-500 text-white" : "border-orange-300 bg-white"
+                          )}
+                        >
+                          {item?.passed && <Check className="w-3 h-3" />}
+                        </button>
+                        <span className="text-sm flex-1 text-orange-800">{req.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Simba Functional Tasks */}
+          {testType === "SIMBA_FUNCTIONAL_TASKS" && (
+            <div>
+              <label className="label mb-1">
+                משימות תפקודיות
+                <span className="text-xs text-petra-muted font-normal mr-2">(נדרשות {SIMBA_FUNCTIONAL_PASS_THRESHOLD} לפחות להעברה)</span>
+              </label>
+              <div className="border rounded-xl overflow-hidden">
+                <div className="divide-y max-h-72 overflow-y-auto">
+                  {SIMBA_FUNCTIONAL_TASKS.map((task) => {
+                    const item = testItems.find((i) => i.taskId === task.id);
+                    return (
+                      <div key={task.id} className={cn("flex items-center gap-3 px-3 py-2", item?.passed && "bg-emerald-50")}>
+                        <button
+                          type="button"
+                          onClick={() => toggleItem(task.id)}
+                          className={cn(
+                            "w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all",
+                            item?.passed ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-300 bg-white"
+                          )}
+                        >
+                          {item?.passed && <Check className="w-3 h-3" />}
+                        </button>
+                        <span className="text-sm flex-1">{task.label}</span>
+                        <input
+                          type="text"
+                          value={item?.notes ?? ""}
+                          onChange={(e) => updateItemNotes(task.id, e.target.value)}
+                          className="text-xs border rounded px-1.5 py-0.5 w-32 flex-shrink-0"
+                          placeholder="הערות..."
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ADI categories — only for non-Simba test types */}
+          {!isSimbaTest && (
+            <div>
+              <label className="label mb-2">קטגוריות מבחן ADI</label>
+              <div className="border rounded-xl overflow-hidden">
+                <div className="grid grid-cols-[2fr_80px_60px_1fr] gap-0 bg-slate-50 px-3 py-2 text-xs font-semibold text-petra-muted border-b">
+                  <span>קטגוריה</span>
+                  <span className="text-center">תוצאה</span>
+                  <span className="text-center">ניקוד</span>
+                  <span>נקודות לשיפור</span>
+                </div>
+                <div className="divide-y max-h-64 overflow-y-auto">
+                  {categories.map((cat) => (
+                    <div key={cat.categoryKey} className="grid grid-cols-[2fr_80px_60px_1fr] gap-2 px-3 py-2 items-center">
+                      <span className="text-sm">{ADI_TEST_CATEGORY_MAP[cat.categoryKey]}</span>
+                      <select
+                        value={cat.result}
+                        onChange={(e) => updateCategory(cat.categoryKey, "result", e.target.value)}
+                        className="text-xs border rounded px-1 py-1 bg-white"
+                      >
+                        <option value="NOT_TESTED">—</option>
+                        <option value="PASS">עבר</option>
+                        <option value="FAIL">נכשל</option>
+                      </select>
+                      <input
+                        type="number" min="0" max="10"
+                        value={cat.score ?? ""}
+                        onChange={(e) => updateCategory(cat.categoryKey, "score", e.target.value ? Number(e.target.value) : null)}
+                        className="text-xs border rounded px-1 py-1 w-full text-center"
+                        placeholder="—"
+                      />
+                      <input
+                        type="text"
+                        value={cat.improvementPoints}
+                        onChange={(e) => updateCategory(cat.categoryKey, "improvementPoints", e.target.value)}
+                        className="text-xs border rounded px-1.5 py-1 w-full"
+                        placeholder="הערות..."
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="label">הערות כלליות</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input w-full" rows={3} placeholder="סיכום המבחן, המלצות להמשך..." />
@@ -2988,7 +3259,11 @@ interface ClaimRecord {
   description: string | null;
   amount: number | null;
   deductiblePaid: number | null;
+  reimbursedAmount: number | null;
+  vetName: string | null;
+  claimNumber: string | null;
   invoiceAttached: boolean;
+  visitSummaryAttached: boolean;
   submittedAt: string | null;
   resolvedAt: string | null;
   status: string;
@@ -3164,15 +3439,19 @@ function InsuranceTab({ dogId }: { dogId: string }) {
                         return (
                           <div key={claim.id} className="bg-white rounded-lg border p-3 flex items-start justify-between gap-2">
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-0.5">
+                              <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                                 <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium", sc.color)}>{sc.label}</span>
                                 <span className="text-xs text-petra-muted">{formatDate(claim.incidentDate)}</span>
+                                {claim.claimNumber && <span className="text-xs font-medium text-petra-text">#{claim.claimNumber}</span>}
                                 {claim.invoiceAttached && <span className="text-xs text-emerald-600">✓ חשבונית</span>}
+                                {claim.visitSummaryAttached && <span className="text-xs text-emerald-600">✓ סיכום ביקור</span>}
                               </div>
+                              {claim.vetName && <p className="text-xs text-petra-muted">וטרינר: {claim.vetName}</p>}
                               {claim.description && <p className="text-sm">{claim.description}</p>}
-                              <div className="flex gap-3 text-xs text-petra-muted mt-0.5">
-                                {claim.amount && <span>סכום: ₪{claim.amount.toLocaleString("he-IL")}</span>}
+                              <div className="flex gap-3 text-xs text-petra-muted mt-0.5 flex-wrap">
+                                {claim.amount && <span>תביעה: ₪{claim.amount.toLocaleString("he-IL")}</span>}
                                 {claim.deductiblePaid && <span>ה״ע: ₪{claim.deductiblePaid.toLocaleString("he-IL")}</span>}
+                                {claim.reimbursedAmount && <span className="text-emerald-600 font-medium">הוחזר: ₪{claim.reimbursedAmount.toLocaleString("he-IL")}</span>}
                                 {claim.submittedAt && <span>הוגש: {formatDate(claim.submittedAt)}</span>}
                               </div>
                             </div>
@@ -3261,21 +3540,31 @@ function AddInsuranceForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<s
 }
 
 function AddClaimForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<string, unknown>) => void; onCancel: () => void; isSaving: boolean }) {
-  const [form, setForm] = useState({ incidentDate: new Date().toISOString().split("T")[0], description: "", amount: "", deductiblePaid: "", invoiceAttached: false, submittedAt: "", notes: "" });
+  const [form, setForm] = useState({ incidentDate: new Date().toISOString().split("T")[0], description: "", amount: "", deductiblePaid: "", reimbursedAmount: "", vetName: "", claimNumber: "", invoiceAttached: false, visitSummaryAttached: false, submittedAt: "", notes: "" });
   const f = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm((p) => ({ ...p, [k]: e.target.value }));
   return (
     <div className="bg-white border rounded-xl p-3 space-y-3 mb-2">
       <div className="grid grid-cols-2 gap-2">
         <div><label className="label text-xs">תאריך אירוע</label><input type="date" className="input w-full text-sm" value={form.incidentDate} onChange={f("incidentDate")} /></div>
+        <div><label className="label text-xs">מספר תביעה</label><input className="input w-full text-sm" value={form.claimNumber} onChange={f("claimNumber")} placeholder="מספר תביעה מחברת הביטוח" /></div>
+        <div><label className="label text-xs">וטרינר</label><input className="input w-full text-sm" value={form.vetName} onChange={f("vetName")} placeholder="שם הוטרינר" /></div>
         <div><label className="label text-xs">סכום תביעה (₪)</label><input type="number" className="input w-full text-sm" value={form.amount} onChange={f("amount")} /></div>
         <div><label className="label text-xs">השתתפות עצמית (₪)</label><input type="number" className="input w-full text-sm" value={form.deductiblePaid} onChange={f("deductiblePaid")} /></div>
+        <div><label className="label text-xs">סכום שהוחזר (₪)</label><input type="number" className="input w-full text-sm" value={form.reimbursedAmount} onChange={f("reimbursedAmount")} /></div>
         <div><label className="label text-xs">תאריך הגשה</label><input type="date" className="input w-full text-sm" value={form.submittedAt} onChange={f("submittedAt")} /></div>
       </div>
-      <div><label className="label text-xs">תיאור</label><textarea className="input w-full text-sm" rows={2} value={form.description} onChange={f("description")} /></div>
-      <label className="flex items-center gap-2 text-sm cursor-pointer">
-        <input type="checkbox" checked={form.invoiceAttached} onChange={(e) => setForm((p) => ({ ...p, invoiceAttached: e.target.checked }))} />
-        חשבונית מצורפת
-      </label>
+      <div><label className="label text-xs">תיאור האירוע</label><textarea className="input w-full text-sm" rows={2} value={form.description} onChange={f("description")} /></div>
+      <div><label className="label text-xs">הערות</label><textarea className="input w-full text-sm" rows={2} value={form.notes} onChange={f("notes")} /></div>
+      <div className="flex gap-4">
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" checked={form.invoiceAttached} onChange={(e) => setForm((p) => ({ ...p, invoiceAttached: e.target.checked }))} />
+          חשבונית מצורפת
+        </label>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" checked={form.visitSummaryAttached} onChange={(e) => setForm((p) => ({ ...p, visitSummaryAttached: e.target.checked }))} />
+          סיכום ביקור מצורף
+        </label>
+      </div>
       <div className="flex gap-2">
         <button className="btn-primary text-xs" onClick={() => onSave(form)} disabled={!form.incidentDate || isSaving}>{isSaving ? "שומר..." : "הגש תביעה"}</button>
         <button className="btn-ghost text-xs" onClick={onCancel}>ביטול</button>
