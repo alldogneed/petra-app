@@ -2570,6 +2570,16 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
               onChange={(e) => setCertForm({ ...certForm, registrationNumber: e.target.value })}
             />
           </div>
+          <div>
+            <label className="label">מספר שבב</label>
+            <div className="input bg-slate-50 text-petra-muted flex items-center gap-2">
+              {dog.pet.microchip ? (
+                <span className="font-mono">{dog.pet.microchip}</span>
+              ) : (
+                <span className="text-petra-muted/60 text-sm">לא הוזן — ניתן לעדכן בתיק הכלב</span>
+              )}
+            </div>
+          </div>
         </div>
         <button
           onClick={() => certMutation.mutate(certForm)}
@@ -2671,6 +2681,7 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
                   {[
                     { label: "שם הכלב", value: data.dogName },
                     { label: "גזע", value: data.breed },
+                    { label: "מספר שבב", value: data.microchip },
                     { label: "מספר רישום", value: data.registrationNumber },
                     { label: "גוף מסמיך", value: data.certifyingBody },
                     { label: "זכאי", value: data.recipientName },

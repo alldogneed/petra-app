@@ -81,6 +81,7 @@ export async function POST(
     const cardData = {
       dogName: dog.pet.name,
       breed: dog.pet.breed,
+      microchip: dog.pet.microchip || null,
       species: dog.pet.species,
       phase: dog.phase,
       serviceType: dog.serviceType,
