@@ -645,7 +645,7 @@ function EditRecipientModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-backdrop" />
-      <div className="modal-content max-w-lg" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold">עריכת פרטי זכאי</h2>
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
@@ -758,7 +758,7 @@ function MeetingModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-backdrop" />
-      <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold">{meeting ? "עריכת מפגש" : "הוספת מפגש"}</h2>
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
@@ -838,7 +838,7 @@ function AddDocModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-backdrop" />
-      <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold">הוספת מסמך</h2>
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
@@ -885,7 +885,7 @@ function LinkCustomerModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-backdrop" />
-      <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Link2 className="w-5 h-5 text-brand-500" />
@@ -954,7 +954,7 @@ function GovernmentReportModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-backdrop" />
-      <div className="modal-content max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5 print:hidden">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Printer className="w-5 h-5 text-brand-500" />

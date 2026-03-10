@@ -83,11 +83,11 @@ export async function processPendingReminders(): Promise<{
       let body: string;
 
       if (payload.body) {
-        // Direct body in payload (appointment reminders, group session reminders)
+        // Direct body in payload (appointment reminders, group session reminders, service-dog meeting reminders)
         body = payload.body;
       } else if (template) {
         body = interpolateTemplate(template.body, {
-          customerName: msg.customer.name,
+          customerName: msg.customer?.name ?? "",
           orderId: payload.orderId || "",
         });
         // Fetch order details for richer message
@@ -103,10 +103,16 @@ export async function processPendingReminders(): Promise<{
         }
       } else {
         // Generic Hebrew fallback
-        body = `שלום ${msg.customer.name}, תזכורת מ-Petra. אם יש שאלות, אנחנו כאן!`;
+        body = `שלום ${msg.customer?.name ?? "לקוח"}, תזכורת מ-Petra. אם יש שאלות, אנחנו כאן!`;
       }
 
-      const phone = toWhatsAppPhone(msg.customer.phone);
+      // Use explicit `to` from payload (service dog recipient reminders) or derive from customer
+      const phone = payload.to ?? (msg.customer ? toWhatsAppPhone(msg.customer.phone) : null);
+      if (!phone) {
+        await prisma.scheduledMessage.update({ where: { id: msg.id }, data: { status: "FAILED" } });
+        failed++;
+        continue;
+      }
       const result = await sendWhatsAppMessage({ to: phone, body });
 
       await prisma.scheduledMessage.update({

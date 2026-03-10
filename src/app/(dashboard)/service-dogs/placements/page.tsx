@@ -469,7 +469,7 @@ function AddPlacementModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-backdrop" />
-      <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold">שיבוץ חדש</h2>
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>

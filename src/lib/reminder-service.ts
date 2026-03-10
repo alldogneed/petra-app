@@ -457,3 +457,87 @@ function buildReminderMessages(
 
   return messages;
 }
+
+// ─── Service Dog Meeting reminder scheduling ──────────────────────────────────
+
+const MEETING_TYPE_LABELS: Record<string, string> = {
+  ASSESSMENT: "הערכה ראשונית",
+  INITIAL_TRAINING: "הדרכה ראשונית",
+  RECIPIENT_TRAINING: "אימון עם כלב השירות",
+  COMPATIBILITY_CHECK: "בדיקת התאמה",
+  FOLLOW_UP: "מעקב",
+  ANNUAL_REVIEW: "בדיקה שנתית",
+  OTHER: "פגישה",
+};
+
+interface ServiceDogMeetingForReminder {
+  meetingId: string;           // synthetic ID — use recipientId + meeting.date
+  recipientId: string;
+  businessId: string;
+  recipientName: string;
+  recipientPhone: string | null;
+  meetingDate: Date;
+  meetingType: string;
+  trainerName: string;
+}
+
+/**
+ * Schedule a WhatsApp reminder 24h before a joint training session with the service dog recipient.
+ * Idempotent — skips if a PENDING reminder already exists (keyed by recipientId+date).
+ * The WhatsApp message will fire as soon as Meta Business Verification is approved.
+ */
+export async function scheduleServiceDogMeetingReminder(meeting: ServiceDogMeetingForReminder) {
+  if (!meeting.recipientPhone) return null; // no phone → skip
+
+  const sendAt = new Date(meeting.meetingDate.getTime() - 24 * 60 * 60 * 1000);
+  if (sendAt <= new Date()) return null;
+
+  // Look up active automation rule for this trigger
+  const rule = await prisma.automationRule.findFirst({
+    where: { businessId: meeting.businessId, trigger: "service_dog_meeting_reminder", isActive: true },
+    include: {
+      template: { select: { body: true } },
+      business: { select: { phone: true } },
+    },
+  });
+
+  // Deduplicate by relatedEntityId (recipientId + ISO date)
+  const entityId = `${meeting.recipientId}__${meeting.meetingDate.toISOString()}`;
+  const existing = await prisma.scheduledMessage.findFirst({
+    where: { relatedEntityType: "SERVICE_DOG_MEETING", relatedEntityId: entityId, status: "PENDING" },
+  });
+  if (existing) return null;
+
+  const formattedDate = new Intl.DateTimeFormat("he-IL", {
+    weekday: "long", day: "numeric", month: "long",
+  }).format(meeting.meetingDate);
+  const formattedTime = meeting.meetingDate.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jerusalem" });
+  const typeLabel = MEETING_TYPE_LABELS[meeting.meetingType] ?? MEETING_TYPE_LABELS.OTHER;
+
+  let body: string;
+  if (rule?.template?.body) {
+    body = interpolateTemplate(rule.template.body, {
+      customerName: meeting.recipientName,
+      date: formattedDate,
+      time: formattedTime,
+      serviceName: typeLabel,
+      businessPhone: rule.business?.phone ?? "",
+    });
+  } else {
+    body = `שלום ${meeting.recipientName}! 🐾 תזכורת: מחר (${formattedDate}) בשעה ${formattedTime} יש לנו ${typeLabel} עם כלב השירות. מאמן: ${meeting.trainerName}. נתראה!`;
+  }
+
+  return prisma.scheduledMessage.create({
+    data: {
+      businessId: meeting.businessId,
+      customerId: null,
+      channel: "whatsapp",
+      templateKey: rule ? `automation-rule-${rule.id}` : "service_dog_meeting_reminder_24h",
+      payloadJson: JSON.stringify({ body, to: meeting.recipientPhone }),
+      sendAt,
+      status: "PENDING",
+      relatedEntityType: "SERVICE_DOG_MEETING",
+      relatedEntityId: entityId,
+    },
+  });
+}

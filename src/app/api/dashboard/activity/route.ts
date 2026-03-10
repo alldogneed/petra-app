@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
         type: "whatsapp" as const,
         userName: "מערכת",
         action: "WHATSAPP_SEND",
-        description: `תזכורת וואטסאפ ל${msg.customer.name}`,
+        description: `תזכורת וואטסאפ ל${msg.customer?.name ?? "נמען"}`,
         createdAt: msg.updatedAt.toISOString(),
         channel: msg.channel,
         status: msg.status,

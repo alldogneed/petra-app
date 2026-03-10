@@ -41,11 +41,11 @@ export async function POST(
         },
       });
       body = template
-        ? interpolateTemplate(template.body, { customerName: msg.customer.name })
-        : `שלום ${msg.customer.name}, תזכורת מ-Petra. אם יש שאלות, אנחנו כאן!`;
+        ? interpolateTemplate(template.body, { customerName: msg.customer?.name ?? "" })
+        : `שלום ${msg.customer?.name ?? "לקוח"}, תזכורת מ-Petra. אם יש שאלות, אנחנו כאן!`;
     }
 
-    const phone = toWhatsAppPhone(msg.customer.phone);
+    const phone = payload.to ?? (msg.customer ? toWhatsAppPhone(msg.customer.phone) : null);
     const result = await sendWhatsAppMessage({ to: phone, body });
 
     await prisma.scheduledMessage.update({

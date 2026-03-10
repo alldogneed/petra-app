@@ -1971,7 +1971,7 @@ function AddTrainingTestModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-backdrop" />
-      <div className="modal-content max-w-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold">הוספת מבחן הכשרה</h2>
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
@@ -2660,7 +2660,7 @@ function IDCardTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
       {viewingCard && (
         <div className="modal-overlay" onClick={() => setViewingCard(null)}>
           <div className="modal-backdrop" />
-          <div className="modal-content max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">תעודת כלב שירות</h2>
               <button onClick={() => setViewingCard(null)} className="btn-ghost p-1">
@@ -3281,7 +3281,7 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
       {deletingMed && (
         <div className="modal-overlay">
           <div className="modal-backdrop" onClick={() => setDeletingMed(null)} />
-          <div className="modal-content max-w-sm p-6">
+          <div className="modal-content max-w-sm mx-4 p-6">
             <p className="font-medium mb-4">למחוק תרופה זו?</p>
             <div className="flex gap-3">
               <button

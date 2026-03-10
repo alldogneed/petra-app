@@ -1358,7 +1358,7 @@ model TrainingGroupAttendance {
 model ScheduledMessage {
   id                String   @id @default(uuid())
   businessId        String
-  customerId        String
+  customerId        String?  // nullable — can be null for service dog recipient reminders
   channel           String   @default("whatsapp") // whatsapp | sms | email
   templateKey       String
   payloadJson       String   @default("{}")
@@ -1369,8 +1369,8 @@ model ScheduledMessage {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  business Business @relation(fields: [businessId], references: [id])
-  customer Customer @relation(fields: [customerId], references: [id])
+  business Business  @relation(fields: [businessId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
 
   @@index([businessId, status, sendAt])
   @@index([relatedEntityType, relatedEntityId])

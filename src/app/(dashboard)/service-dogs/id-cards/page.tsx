@@ -349,7 +349,7 @@ export default function IDCardsPage() {
         <div className="modal-overlay" onClick={() => setViewingCard(null)}>
           <div className="modal-backdrop" />
           <div
-            className="modal-content max-w-sm text-center"
+            className="modal-content max-w-sm mx-4 p-6 text-center"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
