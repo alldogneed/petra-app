@@ -156,8 +156,8 @@ function calcBoardingUnits(
 // ─── Category definitions ─────────────────────────────────────────────────────
 
 const CATEGORY_DEFS = [
-  { id: "boarding",  label: "פנסיון",      icon: Building2,     color: "from-purple-500 to-purple-600" },
   { id: "training",  label: "אילוף",        icon: GraduationCap, color: "from-blue-500 to-blue-600" },
+  { id: "boarding",  label: "פנסיון",      icon: Building2,     color: "from-purple-500 to-purple-600" },
   { id: "products",  label: "מוצרים",      icon: Package,       color: "from-emerald-500 to-emerald-600" },
   { id: "grooming",  label: "טיפוח",       icon: Scissors,      color: "from-pink-500 to-pink-600" },
 ] as const;
