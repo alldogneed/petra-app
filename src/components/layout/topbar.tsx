@@ -37,8 +37,6 @@ const GlobalSearch = dynamic(
   { ssr: false, loading: () => <div className="h-9 w-64 bg-slate-100 rounded-xl animate-pulse" /> }
 );
 import { cn, fetchJSON, formatCurrency, toWhatsAppPhone } from "@/lib/utils";
-import { InAppNotificationBell } from "@/components/layout/InAppNotificationBell";
-import { SystemInbox } from "@/components/layout/SystemInbox";
 import { ReportBugButton } from "@/components/layout/ReportBugButton";
 
 const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
@@ -643,12 +641,6 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
               </div>
             )}
           </div>
-
-          {/* System Inbox — broadcast messages from platform admin */}
-          <SystemInbox />
-
-          {/* In-App Notification Bell (milestones & engagement) */}
-          <InAppNotificationBell />
 
           <div className="w-px h-6 bg-slate-200 mx-2" />
 

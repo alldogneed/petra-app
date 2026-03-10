@@ -71,9 +71,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { checkIn, checkOut, petId, customerId, roomId, status, notes } = body;
 
-    if (!checkIn || !petId || !customerId) {
+    if (!checkIn || !petId) {
       return NextResponse.json(
-        { error: "Missing required fields: checkIn, petId, customerId" },
+        { error: "Missing required fields: checkIn, petId" },
         { status: 400 }
       );
     }
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
         customerId: stay.customerId,
         checkOut: stay.checkOut,
         pet: { name: stay.pet.name },
-        customer: { name: stay.customer.name },
+        customer: { name: stay.customer?.name ?? stay.pet.name },
       }).catch(console.error);
     }
 

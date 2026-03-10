@@ -1775,6 +1775,7 @@ function BoardingPageContent() {
   const [form, setForm] = useState({
     customerId: "", petIds: [] as string[], roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "", pricePerNight: 0,
   });
+  const [serviceDogMode, setServiceDogMode] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
   const [staySearch, setStaySearch] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("active");
@@ -1842,6 +1843,12 @@ function BoardingPageContent() {
     enabled: showNewStay,
   });
 
+  const { data: serviceDogsList = [] } = useQuery<Array<{ id: string; pet: { id: string; name: string; breed?: string | null } }>>({
+    queryKey: ["service-dogs-for-select"],
+    queryFn: () => fetchJSON("/api/service-dogs"),
+    enabled: showNewStay && serviceDogMode,
+  });
+
   const { data: occStays = [], isFetching: occLoading } = useQuery<BoardingStay[]>({
     queryKey: ["boarding-occupancy", occFrom, occTo],
     queryFn: () => fetchJSON<BoardingStay[]>(`/api/boarding?from=${occFrom}&to=${occTo}`),
@@ -1850,6 +1857,9 @@ function BoardingPageContent() {
   });
 
   const selectedCustomer = customers.find((c) => c.id === form.customerId);
+  const selectedServiceDog = serviceDogMode && form.petIds.length > 0
+    ? serviceDogsList.find((sd) => sd.pet.id === form.petIds[0])
+    : undefined;
 
   const filteredCustomers = customers.filter(
     (c) =>
@@ -1886,6 +1896,7 @@ function BoardingPageContent() {
       setShowNewStay(false);
       setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150 });
       setCustomerSearch("");
+      setServiceDogMode(false);
       toast.success("ההשמה נוצרה בהצלחה");
     },
     onError: () => toast.error("שגיאה ביצירת ההשמה. נסה שוב."),
@@ -2994,7 +3005,26 @@ function BoardingPageContent() {
             </div>
 
             <div className="space-y-4">
+              {/* Mode toggle: לקוח רגיל / כלב שירות */}
+              <div className="flex gap-1 p-0.5 bg-slate-100 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => { setServiceDogMode(false); setForm({ ...form, petIds: [], customerId: "" }); setCustomerSearch(""); }}
+                  className={cn("flex-1 text-xs py-1.5 rounded-md font-medium transition-colors", !serviceDogMode ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text")}
+                >
+                  לקוח רגיל
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setServiceDogMode(true); setForm({ ...form, petIds: [], customerId: "" }); setCustomerSearch(""); }}
+                  className={cn("flex-1 text-xs py-1.5 rounded-md font-medium transition-colors", serviceDogMode ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text")}
+                >
+                  כלב שירות
+                </button>
+              </div>
+
               {/* Customer selector */}
+              {!serviceDogMode && (
               <div>
                 <label className="label">לקוח *</label>
                 {form.customerId && selectedCustomer ? (
@@ -3053,6 +3083,55 @@ function BoardingPageContent() {
                   </div>
                 )}
               </div>
+              )}
+
+              {/* Service dog selector */}
+              {serviceDogMode && (
+              <div>
+                <label className="label">כלב שירות *</label>
+                {selectedServiceDog ? (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-brand-50 border border-brand-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center text-brand-600 font-bold text-sm flex-shrink-0">
+                        🐕
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-petra-text">{selectedServiceDog.pet.name}</p>
+                        {selectedServiceDog.pet.breed && <p className="text-[10px] text-petra-muted">{selectedServiceDog.pet.breed}</p>}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, petIds: [] })}
+                      className="text-xs text-brand-500 hover:text-brand-700 font-medium"
+                    >
+                      שנה
+                    </button>
+                  </div>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto border border-petra-border rounded-xl divide-y divide-petra-border">
+                    {serviceDogsList.length === 0 ? (
+                      <div className="py-4 text-center text-sm text-petra-muted">אין כלבי שירות פעילים</div>
+                    ) : (
+                      serviceDogsList.map((sd) => (
+                        <button
+                          key={sd.id}
+                          type="button"
+                          onClick={() => setForm({ ...form, petIds: [sd.pet.id], customerId: "", pricePerNight: settings.boardingPricePerNight || 150 })}
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors text-right"
+                        >
+                          <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-sm flex-shrink-0">🐕</div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-petra-text truncate">{sd.pet.name}</p>
+                            {sd.pet.breed && <p className="text-[10px] text-petra-muted truncate">{sd.pet.breed}</p>}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              )}
 
               {/* Pet selector — checkboxes for multi-select */}
               {selectedCustomer && (
@@ -3281,13 +3360,13 @@ function BoardingPageContent() {
             <div className="flex gap-3 mt-6">
               <button
                 className="btn-primary flex-1"
-                disabled={!form.customerId || form.petIds.length === 0 || !form.checkIn || createMutation.isPending}
+                disabled={(serviceDogMode ? false : !form.customerId) || form.petIds.length === 0 || !form.checkIn || createMutation.isPending}
                 onClick={() => createMutation.mutate(form)}
               >
                 <Plus className="w-4 h-4" />
                 {createMutation.isPending ? "שומר..." : form.petIds.length > 1 ? `צור ${form.petIds.length} שהיות` : "צור שהייה"}
               </button>
-              <button className="btn-secondary" onClick={() => setShowNewStay(false)}>
+              <button className="btn-secondary" onClick={() => { setShowNewStay(false); setServiceDogMode(false); }}>
                 ביטול
               </button>
             </div>
