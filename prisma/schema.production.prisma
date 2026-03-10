@@ -1471,6 +1471,9 @@ model DogHealth {
   dhppPuppy3Date       DateTime?
   bordatellaDate       DateTime?
   bordatellaValidUntil DateTime?
+  rabiesHistory        Json?
+  dhppHistory          Json?
+  bordatellaHistory    Json?
   parkWormDate         DateTime?
   dewormingLastDate    DateTime?
   fleaTickType         String?

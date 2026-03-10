@@ -90,6 +90,9 @@ interface PetHealth {
   dhppPuppy3Date: string | null;
   bordatellaDate: string | null;
   bordatellaValidUntil: string | null;
+  rabiesHistory: { date: string; validUntil: string | null; recordedAt: string }[] | null;
+  dhppHistory: { date: string; validUntil: string | null; recordedAt: string }[] | null;
+  bordatellaHistory: { date: string; validUntil: string | null; recordedAt: string }[] | null;
   parkWormDate: string | null;
   dewormingLastDate: string | null;
   fleaTickType: string | null;
@@ -2742,6 +2745,8 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
   const [deletingMed, setDeletingMed] = useState<string | null>(null);
   const [editingMicrochip, setEditingMicrochip] = useState(false);
   const [microchipInput, setMicrochipInput] = useState(pet.microchip ?? "");
+  const [renewingVaccine, setRenewingVaccine] = useState<{ type: "rabies" | "dhpp" | "bordetella"; label: string } | null>(null);
+  const [expandedVaccineHistory, setExpandedVaccineHistory] = useState<string | null>(null);
   const [editingHours, setEditingHours] = useState(false);
   const [hoursInput, setHoursInput] = useState(String(dog.trainingTotalHours ?? 0));
   const [targetHoursInput, setTargetHoursInput] = useState(String(dog.trainingTargetHours ?? 120));
@@ -3078,31 +3083,88 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
                   };
                   const statusStyle = { ok: "bg-emerald-50", expiring: "bg-amber-50 border border-amber-200", expired: "bg-red-50 border border-red-200" };
                   const untilStyle = { ok: "text-petra-muted", expiring: "text-amber-600 font-medium", expired: "text-red-600 font-medium" };
-                  return [
-                    { label: "כלבת", date: pet.health.rabiesLastDate, until: pet.health.rabiesValidUntil },
-                    { label: "משושה בוגר (DHPP)", date: pet.health.dhppLastDate, until: pet.health.dhppValidUntil },
-                    { label: "שעלת מכלאות", date: pet.health.bordatellaDate, until: pet.health.bordatellaValidUntil },
+                  const renewableVaccines: { label: string; date: string | null; until: string | null | undefined; vaccineType: "rabies" | "dhpp" | "bordetella"; history: typeof pet.health.dhppHistory }[] = [
+                    { label: "כלבת", date: pet.health.rabiesLastDate, until: pet.health.rabiesValidUntil, vaccineType: "rabies", history: pet.health.rabiesHistory },
+                    { label: "משושה בוגר (DHPP)", date: pet.health.dhppLastDate, until: pet.health.dhppValidUntil, vaccineType: "dhpp", history: pet.health.dhppHistory },
+                    { label: "שעלת מכלאות", date: pet.health.bordatellaDate, until: pet.health.bordatellaValidUntil, vaccineType: "bordetella", history: pet.health.bordatellaHistory },
+                  ];
+                  const simpleVaccines = [
                     { label: "תולעת הפארק", date: pet.health.parkWormDate, until: null },
                     { label: "תילוע", date: pet.health.dewormingLastDate, until: null },
                     ...(pet.health.fleaTickDate ? [{ label: pet.health.fleaTickType || "קרציות ופרעושים", date: pet.health.fleaTickDate, until: pet.health.fleaTickExpiryDate }] : []),
-                  ]
-                    .filter((v) => v.date)
-                    .map((v) => {
-                      const st = getStatus(v.until);
-                      return (
-                        <div key={v.label} className={`flex items-center justify-between p-2.5 rounded-lg text-sm ${statusStyle[st]}`}>
-                          <span className="text-petra-text font-medium">{v.label}</span>
-                          <div className="text-right">
-                            <span className="text-petra-muted">{toDate(v.date)}</span>
-                            {v.until && (
-                              <p className={`text-xs ${untilStyle[st]}`}>
-                                {st === "expired" ? "⚠️ פג תוקף: " : st === "expiring" ? "⏰ תוקף עד: " : "תוקף: "}{toDate(v.until)}
-                              </p>
+                  ];
+                  return [
+                    ...renewableVaccines
+                      .filter((v) => v.date)
+                      .map((v) => {
+                        const st = getStatus(v.until);
+                        const historyItems = Array.isArray(v.history) ? v.history : [];
+                        const historyKey = v.vaccineType;
+                        return (
+                          <div key={v.label} className={`rounded-lg text-sm ${statusStyle[st]}`}>
+                            <div className="flex items-center justify-between p-2.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-petra-text font-medium">{v.label}</span>
+                                {(st === "expired" || st === "expiring") && (
+                                  <button
+                                    onClick={() => setRenewingVaccine({ type: v.vaccineType, label: v.label })}
+                                    className="text-xs px-2 py-0.5 bg-white border border-current rounded-full font-medium text-amber-600 hover:bg-amber-50 transition-colors"
+                                  >
+                                    ↻ חדש חיסון
+                                  </button>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <span className="text-petra-muted">{toDate(v.date)}</span>
+                                {v.until && (
+                                  <p className={`text-xs ${untilStyle[st]}`}>
+                                    {st === "expired" ? "⚠️ פג תוקף: " : st === "expiring" ? "⏰ תוקף עד: " : "תוקף: "}{toDate(v.until)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            {historyItems.length > 0 && (
+                              <div className="px-2.5 pb-2">
+                                <button
+                                  onClick={() => setExpandedVaccineHistory(expandedVaccineHistory === historyKey ? null : historyKey)}
+                                  className="text-xs text-petra-muted hover:text-petra-text flex items-center gap-1 transition-colors"
+                                >
+                                  {expandedVaccineHistory === historyKey ? "▲" : "▼"} היסטוריה ({historyItems.length})
+                                </button>
+                                {expandedVaccineHistory === historyKey && (
+                                  <div className="mt-1.5 space-y-1 border-t pt-1.5">
+                                    {[...historyItems].reverse().map((h, i) => (
+                                      <div key={i} className="flex justify-between text-xs text-petra-muted bg-white/60 rounded px-2 py-1">
+                                        <span>חוסן: {toDate(h.date)}</span>
+                                        {h.validUntil && <span>תוקף: {toDate(h.validUntil)}</span>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
-                        </div>
-                      );
-                    });
+                        );
+                      }),
+                    ...simpleVaccines
+                      .filter((v) => v.date)
+                      .map((v) => {
+                        const st = getStatus(v.until);
+                        return (
+                          <div key={v.label} className={`flex items-center justify-between p-2.5 rounded-lg text-sm ${statusStyle[st]}`}>
+                            <span className="text-petra-text font-medium">{v.label}</span>
+                            <div className="text-right">
+                              <span className="text-petra-muted">{toDate(v.date)}</span>
+                              {v.until && (
+                                <p className={`text-xs ${untilStyle[st]}`}>
+                                  {st === "expired" ? "⚠️ פג תוקף: " : st === "expiring" ? "⏰ תוקף עד: " : "תוקף: "}{toDate(v.until)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }),
+                  ];
                 })()}
                 {[pet.health.rabiesLastDate, pet.health.dhppLastDate, pet.health.bordatellaDate, pet.health.parkWormDate, pet.health.dewormingLastDate, pet.health.fleaTickDate].every((d) => !d) && (
                   <p className="text-sm text-petra-muted col-span-2">אין חיסונים מתועדים</p>
@@ -3232,6 +3294,15 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
             </div>
           </div>
         </div>
+      )}
+      {renewingVaccine && (
+        <VaccineRenewalModal
+          petId={pet.id}
+          dogId={dogId}
+          vaccineType={renewingVaccine.type}
+          vaccineLabel={renewingVaccine.label}
+          onClose={() => setRenewingVaccine(null)}
+        />
       )}
     </div>
   );
@@ -3868,6 +3939,70 @@ function AddVestForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<string
       <div className="flex gap-2">
         <button className="btn-primary text-sm" onClick={() => onSave(form)} disabled={isSaving}>{isSaving ? "שומר..." : "שמור"}</button>
         <button className="btn-secondary text-sm" onClick={onCancel}>ביטול</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Vaccine Renewal Modal ───
+
+function VaccineRenewalModal({
+  petId, dogId, vaccineType, vaccineLabel, onClose,
+}: {
+  petId: string; dogId: string; vaccineType: "rabies" | "dhpp" | "bordetella"; vaccineLabel: string; onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [newDate, setNewDate] = useState("");
+  const [newValidUntil, setNewValidUntil] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/pets/${petId}/health/renew-vaccine`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vaccineType, newDate, newValidUntil: newValidUntil || undefined }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+      toast.success(`חיסון ${vaccineLabel} עודכן`);
+      onClose();
+    },
+    onError: (e: Error) => toast.error(e.message || "שגיאה בעדכון חיסון"),
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold">חידוש חיסון — {vaccineLabel}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="label">תאריך חיסון חדש *</label>
+            <input type="date" className="input" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">תוקף עד</label>
+            <input type="date" className="input" value={newValidUntil} onChange={(e) => setNewValidUntil(e.target.value)} />
+          </div>
+          <p className="text-xs text-petra-muted bg-slate-50 rounded-lg p-2.5">
+            החיסון הנוכחי יישמר בהיסטוריה ויוצג ניתן לצפייה תחת שורת החיסון.
+          </p>
+        </div>
+        <div className="flex gap-3 mt-5">
+          <button
+            className="btn-primary flex-1"
+            disabled={!newDate || mutation.isPending}
+            onClick={() => mutation.mutate()}
+          >
+            {mutation.isPending ? "שומר..." : "שמור חיסון חדש"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
       </div>
     </div>
   );
