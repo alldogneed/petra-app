@@ -1963,6 +1963,7 @@ model ServiceDogClaim {
   claimNumber          String?   // insurer's claim reference number
   invoiceAttached      Boolean   @default(false)
   visitSummaryAttached Boolean   @default(false)
+  documents            Json?     // [{name, type, data (base64), uploadedAt}]
   submittedAt          DateTime?
   resolvedAt           DateTime?
   status               String    @default("PENDING") // PENDING | PAID | DENIED | WITHDRAWN

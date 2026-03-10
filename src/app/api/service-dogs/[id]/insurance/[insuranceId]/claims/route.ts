@@ -32,6 +32,7 @@ export async function POST(
         claimNumber: body.claimNumber || null,
         invoiceAttached: body.invoiceAttached ?? false,
         visitSummaryAttached: body.visitSummaryAttached ?? false,
+        documents: body.documents ?? [],
         submittedAt: body.submittedAt ? new Date(body.submittedAt) : null,
         status: body.status || "PENDING",
         notes: body.notes || null,

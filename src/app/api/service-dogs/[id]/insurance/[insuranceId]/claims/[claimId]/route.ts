@@ -29,6 +29,7 @@ export async function PATCH(
         claimNumber: body.claimNumber ?? undefined,
         invoiceAttached: body.invoiceAttached ?? undefined,
         visitSummaryAttached: body.visitSummaryAttached ?? undefined,
+        documents: body.documents !== undefined ? body.documents : undefined,
         submittedAt: body.submittedAt ? new Date(body.submittedAt) : undefined,
         resolvedAt: body.resolvedAt ? new Date(body.resolvedAt) : undefined,
         status: body.status ?? undefined,

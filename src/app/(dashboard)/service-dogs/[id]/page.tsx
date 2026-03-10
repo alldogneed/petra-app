@@ -46,6 +46,7 @@ import {
   ImageIcon,
   Award,
   FileText as FileTextIcon,
+  Paperclip,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import {
@@ -3445,6 +3446,13 @@ interface InsuranceRecord {
   claims: ClaimRecord[];
 }
 
+interface ClaimDocument {
+  name: string;
+  type: "invoice" | "visit_summary" | "other";
+  data: string; // base64
+  uploadedAt: string;
+}
+
 interface ClaimRecord {
   id: string;
   incidentDate: string;
@@ -3456,6 +3464,7 @@ interface ClaimRecord {
   claimNumber: string | null;
   invoiceAttached: boolean;
   visitSummaryAttached: boolean;
+  documents: ClaimDocument[] | null;
   submittedAt: string | null;
   resolvedAt: string | null;
   status: string;
@@ -3467,6 +3476,7 @@ function InsuranceTab({ dogId }: { dogId: string }) {
   const [showAddInsurance, setShowAddInsurance] = useState(false);
   const [expandedInsId, setExpandedInsId] = useState<string | null>(null);
   const [showAddClaim, setShowAddClaim] = useState<string | null>(null); // insuranceId
+  const [expandedClaimId, setExpandedClaimId] = useState<string | null>(null); // for doc section
 
   const { data: insurances = [], isLoading } = useQuery<InsuranceRecord[]>({
     queryKey: ["sd-insurance", dogId],
@@ -3514,6 +3524,26 @@ function InsuranceTab({ dogId }: { dogId: string }) {
       queryClient.invalidateQueries({ queryKey: ["sd-insurance", dogId] });
       toast.success("תביעה עודכנה");
     },
+  });
+
+  const uploadClaimDocMutation = useMutation({
+    mutationFn: ({ insuranceId, claimId, claim, newDoc }: { insuranceId: string; claimId: string; claim: ClaimRecord; newDoc: ClaimDocument }) => {
+      const existingDocs: ClaimDocument[] = Array.isArray(claim.documents) ? claim.documents : [];
+      return fetch(`/api/service-dogs/${dogId}/insurance/${insuranceId}/claims/${claimId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          documents: [...existingDocs, newDoc],
+          invoiceAttached: newDoc.type === "invoice" ? true : claim.invoiceAttached,
+          visitSummaryAttached: newDoc.type === "visit_summary" ? true : claim.visitSummaryAttached,
+        }),
+      }).then((r) => r.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sd-insurance", dogId] });
+      toast.success("מסמך הועלה");
+    },
+    onError: () => toast.error("שגיאה בהעלאת מסמך"),
   });
 
   if (isLoading) return <div className="card h-40 animate-pulse" />;
@@ -3629,34 +3659,93 @@ function InsuranceTab({ dogId }: { dogId: string }) {
                       {ins.claims.map((claim) => {
                         const sc = CLAIM_STATUS_MAP[claim.status] || { label: claim.status, color: "bg-slate-100 text-slate-600" };
                         return (
-                          <div key={claim.id} className="bg-white rounded-lg border p-3 flex items-start justify-between gap-2">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                                <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium", sc.color)}>{sc.label}</span>
-                                <span className="text-xs text-petra-muted">{formatDate(claim.incidentDate)}</span>
-                                {claim.claimNumber && <span className="text-xs font-medium text-petra-text">#{claim.claimNumber}</span>}
-                                {claim.invoiceAttached && <span className="text-xs text-emerald-600">✓ חשבונית</span>}
-                                {claim.visitSummaryAttached && <span className="text-xs text-emerald-600">✓ סיכום ביקור</span>}
+                          <div key={claim.id} className="bg-white rounded-lg border overflow-hidden">
+                            <div className="p-3 flex items-start justify-between gap-2">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                  <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium", sc.color)}>{sc.label}</span>
+                                  <span className="text-xs text-petra-muted">{formatDate(claim.incidentDate)}</span>
+                                  {claim.claimNumber && <span className="text-xs font-medium text-petra-text">#{claim.claimNumber}</span>}
+                                  {claim.resolvedAt && <span className="text-xs text-petra-muted">סיים: {formatDate(claim.resolvedAt)}</span>}
+                                </div>
+                                {claim.vetName && <p className="text-xs text-petra-muted">וטרינר: {claim.vetName}</p>}
+                                {claim.description && <p className="text-sm mt-0.5">{claim.description}</p>}
+                                <div className="flex gap-3 text-xs text-petra-muted mt-0.5 flex-wrap">
+                                  {claim.amount && <span>תביעה: ₪{claim.amount.toLocaleString("he-IL")}</span>}
+                                  {claim.deductiblePaid && <span>ה״ע: ₪{claim.deductiblePaid.toLocaleString("he-IL")}</span>}
+                                  {claim.reimbursedAmount && <span className="text-emerald-600 font-medium">הוחזר: ₪{claim.reimbursedAmount.toLocaleString("he-IL")}</span>}
+                                  {claim.submittedAt && <span>הוגש: {formatDate(claim.submittedAt)}</span>}
+                                </div>
                               </div>
-                              {claim.vetName && <p className="text-xs text-petra-muted">וטרינר: {claim.vetName}</p>}
-                              {claim.description && <p className="text-sm">{claim.description}</p>}
-                              <div className="flex gap-3 text-xs text-petra-muted mt-0.5 flex-wrap">
-                                {claim.amount && <span>תביעה: ₪{claim.amount.toLocaleString("he-IL")}</span>}
-                                {claim.deductiblePaid && <span>ה״ע: ₪{claim.deductiblePaid.toLocaleString("he-IL")}</span>}
-                                {claim.reimbursedAmount && <span className="text-emerald-600 font-medium">הוחזר: ₪{claim.reimbursedAmount.toLocaleString("he-IL")}</span>}
-                                {claim.submittedAt && <span>הוגש: {formatDate(claim.submittedAt)}</span>}
+                              <div className="flex flex-col items-end gap-1 shrink-0">
+                                {claim.status === "PENDING" && (
+                                  <div className="flex gap-1">
+                                    <button onClick={() => updateClaimMutation.mutate({ insuranceId: ins.id, claimId: claim.id, status: "PAID" })} className="text-xs text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded border border-emerald-200">שולם</button>
+                                    <button onClick={() => updateClaimMutation.mutate({ insuranceId: ins.id, claimId: claim.id, status: "DENIED" })} className="text-xs text-red-600 hover:bg-red-50 px-2 py-1 rounded border border-red-200">נדחה</button>
+                                  </div>
+                                )}
+                                <button
+                                  onClick={() => setExpandedClaimId(expandedClaimId === claim.id ? null : claim.id)}
+                                  className="text-xs text-petra-muted hover:text-petra-text flex items-center gap-1"
+                                >
+                                  <Paperclip className="w-3 h-3" />
+                                  מסמכים {Array.isArray(claim.documents) && claim.documents.length > 0 ? `(${claim.documents.length})` : ""}
+                                </button>
                               </div>
                             </div>
-                            {claim.status === "PENDING" && (
-                              <div className="flex gap-1 shrink-0">
-                                <button
-                                  onClick={() => updateClaimMutation.mutate({ insuranceId: ins.id, claimId: claim.id, status: "PAID" })}
-                                  className="text-xs text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded border border-emerald-200"
-                                >שולם</button>
-                                <button
-                                  onClick={() => updateClaimMutation.mutate({ insuranceId: ins.id, claimId: claim.id, status: "DENIED" })}
-                                  className="text-xs text-red-600 hover:bg-red-50 px-2 py-1 rounded border border-red-200"
-                                >נדחה</button>
+                            {/* Documents section */}
+                            {expandedClaimId === claim.id && (
+                              <div className="border-t bg-slate-50 px-3 py-2.5 space-y-2">
+                                {Array.isArray(claim.documents) && claim.documents.length > 0 && (
+                                  <div className="space-y-1">
+                                    {(claim.documents as ClaimDocument[]).map((doc, di) => (
+                                      <a
+                                        key={di}
+                                        href={doc.data}
+                                        download={doc.name}
+                                        className="flex items-center gap-1.5 text-xs text-brand-500 hover:text-brand-700"
+                                      >
+                                        <FileTextIcon className="w-3.5 h-3.5 shrink-0" />
+                                        <span className="truncate">{doc.name}</span>
+                                        <span className="text-petra-muted shrink-0">
+                                          ({doc.type === "invoice" ? "חשבונית" : doc.type === "visit_summary" ? "סיכום ביקור" : "מסמך"})
+                                        </span>
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
+                                {/* Upload new doc */}
+                                <label className="flex items-center gap-2 cursor-pointer text-xs text-brand-500 hover:text-brand-700 w-fit">
+                                  <Upload className="w-3.5 h-3.5" />
+                                  הוסף מסמך
+                                  <input
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      if (file.size > 5 * 1024 * 1024) { toast.error("קובץ גדול מדי (מקסימום 5MB)"); return; }
+                                      const name = file.name.toLowerCase();
+                                      const docType: ClaimDocument["type"] =
+                                        name.includes("חשבונית") || name.includes("invoice") ? "invoice"
+                                        : name.includes("סיכום") || name.includes("summary") ? "visit_summary"
+                                        : "other";
+                                      const reader = new FileReader();
+                                      reader.onload = () => {
+                                        uploadClaimDocMutation.mutate({
+                                          insuranceId: ins.id,
+                                          claimId: claim.id,
+                                          claim,
+                                          newDoc: { name: file.name, type: docType, data: reader.result as string, uploadedAt: new Date().toISOString() },
+                                        });
+                                      };
+                                      reader.readAsDataURL(file);
+                                      e.target.value = "";
+                                    }}
+                                  />
+                                </label>
+                                {uploadClaimDocMutation.isPending && <p className="text-xs text-petra-muted">מעלה...</p>}
                               </div>
                             )}
                           </div>
@@ -3732,8 +3821,25 @@ function AddInsuranceForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<s
 }
 
 function AddClaimForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<string, unknown>) => void; onCancel: () => void; isSaving: boolean }) {
-  const [form, setForm] = useState({ incidentDate: new Date().toISOString().split("T")[0], description: "", amount: "", deductiblePaid: "", reimbursedAmount: "", vetName: "", claimNumber: "", invoiceAttached: false, visitSummaryAttached: false, submittedAt: "", notes: "" });
+  const [form, setForm] = useState({ incidentDate: new Date().toISOString().split("T")[0], description: "", amount: "", deductiblePaid: "", reimbursedAmount: "", vetName: "", claimNumber: "", submittedAt: "", notes: "" });
+  const [documents, setDocuments] = useState<ClaimDocument[]>([]);
   const f = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm((p) => ({ ...p, [k]: e.target.value }));
+
+  const handleDocUpload = (docType: ClaimDocument["type"]) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("קובץ גדול מדי (מקסימום 5MB)"); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setDocuments((prev) => [...prev.filter((d) => d.type !== docType), { name: file.name, type: docType, data: reader.result as string, uploadedAt: new Date().toISOString() }]);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const invoiceDoc = documents.find((d) => d.type === "invoice");
+  const summaryDoc = documents.find((d) => d.type === "visit_summary");
+
   return (
     <div className="bg-white border rounded-xl p-3 space-y-3 mb-2">
       <div className="grid grid-cols-2 gap-2">
@@ -3747,18 +3853,28 @@ function AddClaimForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<strin
       </div>
       <div><label className="label text-xs">תיאור האירוע</label><textarea className="input w-full text-sm" rows={2} value={form.description} onChange={f("description")} /></div>
       <div><label className="label text-xs">הערות</label><textarea className="input w-full text-sm" rows={2} value={form.notes} onChange={f("notes")} /></div>
-      <div className="flex gap-4">
-        <label className="flex items-center gap-2 text-sm cursor-pointer">
-          <input type="checkbox" checked={form.invoiceAttached} onChange={(e) => setForm((p) => ({ ...p, invoiceAttached: e.target.checked }))} />
-          חשבונית מצורפת
-        </label>
-        <label className="flex items-center gap-2 text-sm cursor-pointer">
-          <input type="checkbox" checked={form.visitSummaryAttached} onChange={(e) => setForm((p) => ({ ...p, visitSummaryAttached: e.target.checked }))} />
-          סיכום ביקור מצורף
-        </label>
+      {/* Document uploads */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-petra-muted">מסמכים</p>
+        <div className="grid grid-cols-2 gap-2">
+          <label className={cn("flex items-center gap-1.5 cursor-pointer border rounded-lg px-2.5 py-2 text-xs transition-colors", invoiceDoc ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-dashed border-slate-300 hover:border-brand-300 text-petra-muted")}>
+            {invoiceDoc ? <Check className="w-3.5 h-3.5 shrink-0" /> : <Upload className="w-3.5 h-3.5 shrink-0" />}
+            <span className="truncate">{invoiceDoc ? invoiceDoc.name : "העלה חשבונית"}</span>
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={handleDocUpload("invoice")} />
+          </label>
+          <label className={cn("flex items-center gap-1.5 cursor-pointer border rounded-lg px-2.5 py-2 text-xs transition-colors", summaryDoc ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-dashed border-slate-300 hover:border-brand-300 text-petra-muted")}>
+            {summaryDoc ? <Check className="w-3.5 h-3.5 shrink-0" /> : <Upload className="w-3.5 h-3.5 shrink-0" />}
+            <span className="truncate">{summaryDoc ? summaryDoc.name : "העלה סיכום ביקור"}</span>
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={handleDocUpload("visit_summary")} />
+          </label>
+        </div>
       </div>
       <div className="flex gap-2">
-        <button className="btn-primary text-xs" onClick={() => onSave(form)} disabled={!form.incidentDate || isSaving}>{isSaving ? "שומר..." : "הגש תביעה"}</button>
+        <button
+          className="btn-primary text-xs"
+          onClick={() => onSave({ ...form, documents, invoiceAttached: !!invoiceDoc, visitSummaryAttached: !!summaryDoc })}
+          disabled={!form.incidentDate || isSaving}
+        >{isSaving ? "שומר..." : "הגש תביעה"}</button>
         <button className="btn-ghost text-xs" onClick={onCancel}>ביטול</button>
       </div>
     </div>
