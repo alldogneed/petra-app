@@ -70,9 +70,9 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
 
   // ── Basic (₪99) ──────────────────────────────────────────────────────────────
   // Unlimited customers, Google Calendar, payment links, basic WhatsApp reminders,
-  // 1-on-1 training (Goals/Tasks). No CRM, no boarding, no groups, no invoicing.
+  // 1-on-1 training (Goals/Tasks). Unlimited leads. No boarding, no groups, no invoicing.
   basic: {
-    leads:             false,  // CRM — PRO+ only
+    leads:             true,   // ✅ leads unlimited (free is capped at 20)
     boarding:          false,  // Boarding rooms — PRO+ only
     training:          true,   // 1-on-1 training engine ✅
     training_groups:   false,  // Group workshops — PRO+ only

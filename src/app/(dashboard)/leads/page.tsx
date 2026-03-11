@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import {
   Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
   Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText,
-  CalendarClock, Clock, CheckCircle, RefreshCw,
+  CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles,
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -1262,18 +1262,25 @@ function LeadsPageContent() {
           </button>
         </div>
 
-        {activeTab === "kanban" && <button className="btn-primary" onClick={() => {
-          if (maxLeads !== null && leads.length >= maxLeads) {
-            toast.error(`מסלול ${tier === "free" ? "חינמי" : tier} מוגבל ל-${maxLeads} לידים. שדרג כדי להוסיף עוד.`);
-            return;
-          }
-          setShowModal(true);
-        }}>
-          <Plus className="w-4 h-4" />ליד חדש
-          {maxLeads !== null && (
-            <span className="mr-1 opacity-70 text-xs">({leads.length}/{maxLeads})</span>
-          )}
-        </button>}
+        {activeTab === "kanban" && (
+          maxLeads !== null && leads.length >= maxLeads ? (
+            <a
+              href="/settings?tab=billing"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors"
+            >
+              <Sparkles className="w-4 h-4" />
+              שדרג לבייסיק
+              <span className="opacity-80 text-xs font-normal">({leads.length}/{maxLeads})</span>
+            </a>
+          ) : (
+            <button className="btn-primary" onClick={() => setShowModal(true)}>
+              <Plus className="w-4 h-4" />ליד חדש
+              {maxLeads !== null && (
+                <span className="mr-1 opacity-70 text-xs">({leads.length}/{maxLeads})</span>
+              )}
+            </button>
+          )
+        )}
 
         {/* Refresh controls */}
         <div className="flex items-center gap-2 mr-auto">
@@ -1339,6 +1346,24 @@ function LeadsPageContent() {
 
       {/* Kanban Tab */}
       {activeTab === "kanban" && <>
+
+      {/* Limit banner — shown when free tier reaches 20 leads */}
+      {maxLeads !== null && leads.length >= maxLeads && (
+        <div className="flex items-center justify-between gap-3 mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" />
+            <p className="text-sm text-amber-800">
+              <span className="font-semibold">הגעת ל-{maxLeads} לידים</span> — המגבלה של המסלול החינמי.
+            </p>
+          </div>
+          <a
+            href="/settings?tab=billing"
+            className="flex-shrink-0 text-xs font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2 transition-colors"
+          >
+            שדרג לבייסיק ←
+          </a>
+        </div>
+      )}
 
       {/* Source Filter */}
       {!editMode && (
