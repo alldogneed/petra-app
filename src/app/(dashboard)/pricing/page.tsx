@@ -8,10 +8,12 @@ import {
   Plus, Pencil, Trash2, X,
   Loader2, PackageOpen,
   Copy, CheckCircle2, XCircle, CalendarCheck, CreditCard,
-  Clock, Package, Tag,
+  Clock, Package, Tag, Sparkles,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { usePlan } from "@/hooks/usePlan";
+import { getMaxPriceItems } from "@/lib/feature-flags";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -533,6 +535,8 @@ function ItemRow({
 // ─── Main Page ────────────────────────────────────────────────
 
 function PricingPageContent() {
+  const { isFree, tier } = usePlan();
+  const maxPriceItems = getMaxPriceItems(tier);
   const queryClient = useQueryClient();
   const [showAddItem, setShowAddItem] = useState(false);
   const [editItem, setEditItem] = useState<PriceListItem | null>(null);
@@ -722,17 +726,46 @@ function PricingPageContent() {
           </p>
         </div>
         {priceList && (
-          <button
-            type="button"
-            onClick={() => setShowAddItem(true)}
-            className="btn-primary gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">הוסף פריט</span>
-            <span className="sm:hidden">הוסף</span>
-          </button>
+          isFree && maxPriceItems !== null && activeItems.length >= maxPriceItems ? (
+            <a href="/settings?tab=billing" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500">
+              <Sparkles className="w-4 h-4" />
+              <span className="hidden sm:inline">שדרג לבייסיק</span>
+              <span className="sm:hidden">שדרג</span>
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowAddItem(true)}
+              className="btn-primary gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">הוסף פריט</span>
+              <span className="sm:hidden">הוסף</span>
+            </button>
+          )
         )}
       </div>
+
+      {/* Free tier item limit banner */}
+      {isFree && maxPriceItems !== null && (
+        <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border ${
+          activeItems.length >= maxPriceItems
+            ? "bg-amber-50 border-amber-200"
+            : "bg-slate-50 border-slate-200"
+        }`}>
+          <div className="flex items-center gap-2 text-sm">
+            <Sparkles className={`w-4 h-4 flex-shrink-0 ${activeItems.length >= maxPriceItems ? "text-amber-500" : "text-slate-400"}`} />
+            <span className={activeItems.length >= maxPriceItems ? "text-amber-800" : "text-slate-600"}>
+              {activeItems.length}/{maxPriceItems} פריטי מחירון — מגבלת המסלול החינמי
+            </span>
+          </div>
+          {activeItems.length >= maxPriceItems && (
+            <a href="/settings?tab=billing" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
+              שדרג לבייסיק ←
+            </a>
+          )}
+        </div>
+      )}
 
       {/* Content */}
       {isLoading ? (

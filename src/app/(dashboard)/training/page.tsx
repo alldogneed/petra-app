@@ -3,6 +3,8 @@
 import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
+import { usePlan } from "@/hooks/usePlan";
+import { getMaxTrainingPrograms } from "@/lib/feature-flags";
 import {
   GraduationCap,
   Plus,
@@ -33,6 +35,7 @@ import {
   Home,
   UserCheck,
   Printer,
+  Sparkles,
 } from "lucide-react";
 import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -474,6 +477,8 @@ function SessionLogModal({
 // ═══════════════════════════════════════════════════════
 
 function TrainingPageContent() {
+  const { isFree, tier } = usePlan();
+  const maxTrainingPrograms = getMaxTrainingPrograms(tier);
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [individualSubTab, setIndividualSubTab] = useState<"private" | "package" | "boarding-alt">("private");
   const [groupSubTab, setGroupSubTab] = useState<"groups" | "workshops">("groups");
@@ -714,6 +719,7 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
       setShowNewGroup(false);
       setShowNewWorkshop(false);
+      toast.success("הקבוצה נוצרה בהצלחה");
     },
     onError: () => toast.error("שגיאה ביצירת הקבוצה. נסה שוב."),
   });
@@ -734,6 +740,7 @@ function TrainingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
       setShowAssignDog(null);
+      toast.success("הכלב נוסף לקבוצה");
     },
     onError: (err: Error) => toast.error(err.message || "שגיאה בהוספת כלב לקבוצה"),
   });
@@ -748,7 +755,10 @@ function TrainingPageContent() {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["training-groups"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+      toast.success("הכלב הוסר מהקבוצה");
+    },
     onError: () => toast.error("שגיאה בהסרת הכלב מהקבוצה"),
   });
 
@@ -768,6 +778,7 @@ function TrainingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       setShowSellPackage(false);
+      toast.success("תוכנית אילוף נוצרה בהצלחה");
     },
     onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת תוכנית אימון. נסה שוב."),
   });
@@ -912,6 +923,7 @@ function TrainingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       setEditingProgram(null);
+      toast.success("הגדרות התוכנית עודכנו");
     },
     onError: () => { setEditingProgram(null); toast.error("שגיאה בעדכון הגדרות התוכנית. נסה שוב."); },
   });
@@ -998,6 +1010,27 @@ function TrainingPageContent() {
           </div>
         ))}
       </div>
+
+      {/* Free tier training limit banner */}
+      {isFree && maxTrainingPrograms !== null && (
+        <div className={`flex items-center justify-between gap-3 mb-4 px-4 py-3 rounded-xl border ${
+          programs.length >= maxTrainingPrograms
+            ? "bg-amber-50 border-amber-200"
+            : "bg-slate-50 border-slate-200"
+        }`}>
+          <div className="flex items-center gap-2 text-sm">
+            <Sparkles className={`w-4 h-4 flex-shrink-0 ${programs.length >= maxTrainingPrograms ? "text-amber-500" : "text-slate-400"}`} />
+            <span className={programs.length >= maxTrainingPrograms ? "text-amber-800" : "text-slate-600"}>
+              {programs.length}/{maxTrainingPrograms} תהליכי אילוף — מגבלת המסלול החינמי
+            </span>
+          </div>
+          {programs.length >= maxTrainingPrograms && (
+            <a href="/settings?tab=billing" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
+              שדרג לבייסיק ←
+            </a>
+          )}
+        </div>
+      )}
 
       {/* Global Search */}
       <div className="relative mb-4">

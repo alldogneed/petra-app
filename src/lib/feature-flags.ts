@@ -47,7 +47,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
   free: {
     leads:             true,   // ✅ open, max 20 leads (FREE_LEAD_LIMIT)
     boarding:          false,
-    training:          true,   // ✅ open, max 20 programs (FREE_TRAINING_LIMIT)
+    training:          true,   // ✅ open, max 50 programs (FREE_TRAINING_LIMIT)
     training_groups:   false,
     automations:       false,
     custom_messages:   false,
@@ -208,7 +208,10 @@ export const FREE_CUSTOMER_LIMIT = 50;
 export const FREE_LEAD_LIMIT = 20;
 
 /** Hard limit on training programs for the FREE tier. BASIC+ is unlimited. */
-export const FREE_TRAINING_LIMIT = 20;
+export const FREE_TRAINING_LIMIT = 50;
+
+/** Hard limit on price list items for the FREE tier. BASIC+ is unlimited. */
+export const FREE_PRICE_ITEM_LIMIT = 4;
 
 // ─── Entity limits ───────────────────────────────────────────────────────────
 
@@ -231,7 +234,16 @@ const MAX_LEADS: Record<TierKey, number | null> = {
 };
 
 const MAX_TRAINING_PROGRAMS: Record<TierKey, number | null> = {
-  free: 20,
+  free: 50,
+  basic: null,
+  pro: null,
+  groomer: null,
+  groomer_plus: null,
+  service_dog: null,
+};
+
+const MAX_PRICE_ITEMS: Record<TierKey, number | null> = {
+  free: 4,
   basic: null,
   pro: null,
   groomer: null,
@@ -306,6 +318,11 @@ export function getMaxLeads(tier: string | null | undefined): number | null {
 /** Max number of training programs for a tier. null = unlimited. */
 export function getMaxTrainingPrograms(tier: string | null | undefined): number | null {
   return MAX_TRAINING_PROGRAMS[normalizeTier(tier)];
+}
+
+/** Max number of price list items for a tier. null = unlimited. */
+export function getMaxPriceItems(tier: string | null | undefined): number | null {
+  return MAX_PRICE_ITEMS[normalizeTier(tier)];
 }
 
 /** The tier to suggest upgrading to when a feature is locked. */

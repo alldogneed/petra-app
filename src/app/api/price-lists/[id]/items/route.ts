@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { getMaxPriceItems, normalizeTier } from "@/lib/feature-flags";
 
 export async function GET(
   request: NextRequest,
@@ -40,6 +41,21 @@ export async function POST(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    // Enforce price item limit for free tier
+    const business = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true } });
+    const maxItems = getMaxPriceItems(normalizeTier(business?.tier));
+    if (maxItems !== null) {
+      const currentCount = await prisma.priceListItem.count({
+        where: { businessId: authResult.businessId, isActive: true },
+      });
+      if (currentCount >= maxItems) {
+        return NextResponse.json(
+          { error: `מסלול חינמי מוגבל ל-${maxItems} פריטי מחירון. שדרג לבייסיק כדי להוסיף עוד.` },
+          { status: 403 }
+        );
+      }
+    }
 
     const body = await request.json();
     const { name, basePrice } = body;
