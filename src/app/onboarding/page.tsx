@@ -12,29 +12,67 @@ import {
   CalendarDays,
   Sparkles,
   X,
+  MessageCircle,
   Calendar,
+  Users,
+  CreditCard,
+  Bell,
+  BarChart3,
+  ClipboardList,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "sonner";
 import { cn } from "@/lib/utils";
+import { hasFeature } from "@/lib/feature-flags";
+import type { TierKey } from "@/lib/feature-flags";
 
-// ─── Steps ────────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const STEPS = [
-  { label: "ברוך הבא", icon: Sparkles },
-  { label: "לקוח ראשון", icon: UserPlus },
-  { label: "מחירון", icon: Tag },
-  { label: "יומן Google", icon: CalendarDays },
-  { label: "סיום", icon: CheckCircle2 },
-];
+interface BusinessInfo {
+  name: string;
+  tier: TierKey;
+  trialActive: boolean;
+  trialEndsAt: string | null;
+}
 
-// ─── Inner page (uses useSearchParams — must be inside Suspense) ───────────────
+// ─── Step definitions (dynamic per tier) ─────────────────────────────────────
+
+function getSteps(tier: TierKey) {
+  const gcal = hasFeature(tier, "gcal_sync");
+  return [
+    { label: "ברוך הבא", icon: Sparkles },
+    { label: "לקוח ראשון", icon: UserPlus },
+    { label: "מחירון", icon: Tag },
+    gcal
+      ? { label: "יומן Google", icon: CalendarDays }
+      : { label: "תזכורות", icon: Bell },
+    { label: "סיום", icon: CheckCircle2 },
+  ];
+}
+
+// ─── Inner page ───────────────────────────────────────────────────────────────
 
 function OnboardingInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
   const [gcalConnected, setGcalConnected] = useState(false);
+  const [business, setBusiness] = useState<BusinessInfo | null>(null);
+
+  // Load business info (tier, name, trial)
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        setBusiness({
+          name: d.name ?? "",
+          tier: (d.effectiveTier ?? d.tier ?? "free") as TierKey,
+          trialActive: d.trialActive ?? false,
+          trialEndsAt: d.trialEndsAt ?? null,
+        });
+      })
+      .catch(() => setBusiness({ name: "", tier: "free", trialActive: false, trialEndsAt: null }));
+  }, []);
 
   // Detect return from Google OAuth
   useEffect(() => {
@@ -46,21 +84,43 @@ function OnboardingInner() {
     }
   }, [searchParams]);
 
+  const tier = business?.tier ?? "free";
+  const gcalAvailable = hasFeature(tier, "gcal_sync");
+  const STEPS = getSteps(tier);
+
   async function handleSkip() {
-    // Mark onboarding as skipped so dashboard doesn't redirect back
     await fetch("/api/onboarding/progress", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ completedAt: new Date().toISOString(), skipped: true }),
     });
-    // Full reload to bypass Next.js router cache (avoids layout re-redirecting to onboarding)
     window.location.href = "/dashboard";
   }
+
+  const trialDaysLeft = business?.trialEndsAt
+    ? Math.max(0, Math.ceil((new Date(business.trialEndsAt).getTime() - Date.now()) / 86400000))
+    : null;
 
   return (
     <div className="w-full max-w-2xl">
 
-      {/* Skip button — only show from step 2 onward (after first client is added) */}
+      {/* ── Logo — always visible ── */}
+      <div className="flex flex-col items-center gap-2 mb-8">
+        <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-md">
+          <Image src="/icon.png" alt="Petra" width={56} height={56} className="w-full h-full object-cover" />
+        </div>
+        <span className="text-lg font-bold text-petra-text tracking-tight">Petra</span>
+      </div>
+
+      {/* ── Trial badge ── */}
+      {business?.trialActive && trialDaysLeft !== null && step < 4 && (
+        <div className="flex items-center justify-center gap-2 mb-5 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 font-medium">
+          <Sparkles className="w-4 h-4 text-amber-500" />
+          תקופת ניסיון פרו פעילה — עוד {trialDaysLeft} ימים עם גישה לכל הפיצ׳רים
+        </div>
+      )}
+
+      {/* ── Skip button ── */}
       {step >= 2 && step < 4 && (
         <div className="text-right mb-4">
           <button
@@ -73,7 +133,7 @@ function OnboardingInner() {
         </div>
       )}
 
-      {/* Progress bar */}
+      {/* ── Progress bar ── */}
       {step < 4 && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
@@ -110,36 +170,48 @@ function OnboardingInner() {
         </div>
       )}
 
-      {/* Step content */}
+      {/* ── Step content ── */}
       <div className="card p-8 shadow-lg animate-fade-in">
         {step === 4 ? (
-          <StepDone gcalConnected={gcalConnected} onGoToDashboard={async () => {
-            await fetch("/api/onboarding/progress", {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ completedAt: new Date().toISOString() }),
-            });
-            window.location.href = "/dashboard";
-          }} />
+          <StepDone
+            gcalConnected={gcalConnected}
+            gcalAvailable={gcalAvailable}
+            tier={tier}
+            onGoToDashboard={async () => {
+              await fetch("/api/onboarding/progress", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ completedAt: new Date().toISOString() }),
+              });
+              window.location.href = "/dashboard";
+            }}
+          />
         ) : step === 0 ? (
-          <StepWelcome onNext={() => setStep(1)} />
+          <StepWelcome
+            businessName={business?.name ?? ""}
+            tier={tier}
+            trialActive={business?.trialActive ?? false}
+            onNext={() => setStep(1)}
+          />
         ) : step === 1 ? (
           <StepClient onNext={() => setStep(2)} onBack={() => setStep(0)} />
         ) : step === 2 ? (
           <StepPricing onNext={() => setStep(3)} onBack={() => setStep(1)} />
-        ) : (
+        ) : gcalAvailable ? (
           <StepGoogle
             gcalConnected={gcalConnected}
             onSkip={() => setStep(4)}
             onBack={() => setStep(2)}
           />
+        ) : (
+          <StepReminders onNext={() => setStep(4)} onBack={() => setStep(2)} />
         )}
       </div>
     </div>
   );
 }
 
-// ─── Page export (wraps inner in Suspense) ────────────────────────────────────
+// ─── Page export ──────────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
   return (
@@ -152,37 +224,91 @@ export default function OnboardingPage() {
   );
 }
 
-// ─── Step 0: Welcome ──────────────────────────────────────────────────────────
+// ─── Step 0: Welcome (rich intro) ─────────────────────────────────────────────
 
-function StepWelcome({ onNext }: { onNext: () => void }) {
+const FEATURES_BY_TIER: Record<string, { icon: React.ComponentType<{ className?: string }>; title: string; desc: string }[]> = {
+  free: [
+    { icon: Users,          title: "ניהול לקוחות",     desc: "כרטיסי לקוח, כלבים, היסטוריה" },
+    { icon: Calendar,       title: "יומן תורים",        desc: "תזמון פגישות בקליק" },
+    { icon: CreditCard,     title: "תשלומים בסיסיים",  desc: "מעקב הכנסות ותשלומים" },
+    { icon: ClipboardList,  title: "משימות",            desc: "ניהול רשימת מטלות" },
+  ],
+  basic: [
+    { icon: Users,          title: "לקוחות ללא הגבלה", desc: "כרטיסי לקוח, כלבים, היסטוריה" },
+    { icon: Calendar,       title: "יומן + Google",     desc: "סנכרון אוטומטי עם Google Calendar" },
+    { icon: Bell,           title: "תזכורות WhatsApp",  desc: "אוטומטיות 48 שעות לפני כל תור" },
+    { icon: CreditCard,     title: "תשלומים",           desc: "מעקב מלא + קישורי תשלום" },
+  ],
+  default: [
+    { icon: Users,          title: "לקוחות ולידים",    desc: "CRM מלא כולל משפך מכירות" },
+    { icon: Calendar,       title: "יומן + Google",     desc: "סנכרון אוטומטי עם Google Calendar" },
+    { icon: BarChart3,      title: "אנליטיקה",          desc: "גרפי הכנסות וביצועים" },
+    { icon: MessageCircle,  title: "אוטומציות WhatsApp","desc": "תזכורות, מעקבים, ימי הולדת" },
+  ],
+};
+
+function StepWelcome({
+  businessName,
+  tier,
+  trialActive,
+  onNext,
+}: {
+  businessName: string;
+  tier: TierKey;
+  trialActive: boolean;
+  onNext: () => void;
+}) {
+  const features = FEATURES_BY_TIER[tier] ?? FEATURES_BY_TIER.default;
+  const greeting = businessName ? `ברוך הבא, ${businessName}! 🎉` : "ברוך הבא ל-Petra! 🎉";
+
   return (
-    <div className="text-center space-y-6">
-      <div className="w-16 h-16 rounded-2xl overflow-hidden mx-auto">
-        <Image src="/logo.svg" alt="Petra" width={64} height={64} className="w-full h-full object-cover" />
-      </div>
-      <div>
-        <h1 className="text-2xl font-bold text-petra-text mb-2">ברוך הבא ל-Petra! 🎉</h1>
-        <p className="text-petra-muted leading-relaxed">
-          נגדיר יחד את העסק שלך בכמה שלבים קצרים.
+    <div className="space-y-6">
+      {/* Greeting */}
+      <div className="text-center">
+        <h1 className="text-2xl font-bold text-petra-text mb-2">{greeting}</h1>
+        <p className="text-petra-muted text-sm leading-relaxed max-w-md mx-auto">
+          Petra היא מערכת ניהול לעסקי חיות מחמד בישראל — מאלפים, פנסיון, וגרומרים.
+          כל הכלים שצריך במקום אחד: לקוחות, תורים, תשלומים ותקשורת.
         </p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-right">
-        {[
-          { icon: UserPlus, text: "לקוח ראשון", desc: "הוסף לקוח ראשון לאנשי הקשר שלך" },
-          { icon: Tag, text: "מחירון", desc: "הגדר שירות עם מחיר" },
-          { icon: Calendar, text: "יומן Google", desc: "סנכרן תורים אוטומטית" },
-        ].map(({ icon: Icon, text, desc }, i) => (
-          <div key={i} className="flex flex-col items-center gap-2 p-4 bg-slate-50 rounded-xl text-center">
-            <div className="w-9 h-9 rounded-xl bg-brand-100 flex items-center justify-center">
-              <Icon className="w-5 h-5 text-brand-600" />
+
+      {/* What you get */}
+      <div>
+        <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-3 text-center">
+          מה מחכה לך
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {features.map(({ icon: Icon, title, desc }, i) => (
+            <div key={i} className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Icon className="w-4 h-4 text-brand-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-petra-text leading-tight">{title}</p>
+                <p className="text-[11px] text-petra-muted mt-0.5 leading-snug">{desc}</p>
+              </div>
             </div>
-            <p className="text-sm font-semibold text-petra-text">{text}</p>
-            <p className="text-xs text-petra-muted leading-snug">{desc}</p>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
+
+      {/* Trial note */}
+      {trialActive && (
+        <div className="flex items-center gap-2 p-3 bg-brand-50 border border-brand-100 rounded-xl text-sm text-brand-700">
+          <Sparkles className="w-4 h-4 flex-shrink-0 text-brand-500" />
+          <span>תקופת הניסיון שלך פעילה — כל הפיצ׳רים פתוחים. תוכל לבחור מנוי בהמשך.</span>
+        </div>
+      )}
+
+      {/* Setup hint */}
+      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+        <p className="text-sm text-petra-muted text-center">
+          ⏱ ההגדרה לוקחת כ-3 דקות — בואו נתחיל
+        </p>
+      </div>
+
       <button onClick={onNext} className="btn-primary w-full justify-center flex items-center gap-2">
-        בואו נתחיל
+        בואו נגדיר את העסק
         <ChevronLeft className="w-4 h-4" />
       </button>
     </div>
@@ -274,7 +400,7 @@ function StepClient({ onNext, onBack }: { onNext: () => void; onBack: () => void
   );
 }
 
-// ─── Step 2: Pricing (first service) ─────────────────────────────────────────
+// ─── Step 2: Pricing ──────────────────────────────────────────────────────────
 
 const SERVICE_TYPES = ["אילוף", "פנסיון", "גריפינג", "ביקור בית", "טיפול", "אחר"];
 
@@ -367,7 +493,7 @@ function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => voi
   );
 }
 
-// ─── Step 3: Google Calendar ──────────────────────────────────────────────────
+// ─── Step 3a: Google Calendar (Basic+ only) ───────────────────────────────────
 
 function StepGoogle({
   gcalConnected,
@@ -429,9 +555,86 @@ function StepGoogle({
   );
 }
 
+// ─── Step 3b: Reminders (Free tier — replaces GCal) ──────────────────────────
+
+function StepReminders({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-petra-text mb-1">תזכורות אוטומטיות</h2>
+        <p className="text-sm text-petra-muted">
+          Petra שולחת ללקוחות שלך תזכורת WhatsApp אוטומטית לפני כל תור — בלי שתצטרך לעשות כלום
+        </p>
+      </div>
+
+      {/* How it works */}
+      <div className="space-y-3">
+        {[
+          { num: "1", text: "אתה קובע תור ללקוח" },
+          { num: "2", text: "Petra שולחת הודעת WhatsApp 48 שעות לפני" },
+          { num: "3", text: "הלקוח מאשר — אתה מקבל עדכון" },
+        ].map(({ num, text }) => (
+          <div key={num} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="w-7 h-7 rounded-full bg-brand-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+              {num}
+            </div>
+            <p className="text-sm text-petra-text">{text}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Mock message preview */}
+      <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+        <p className="text-[11px] font-semibold text-green-700 mb-2 flex items-center gap-1">
+          <MessageCircle className="w-3.5 h-3.5" />
+          דוגמה להודעה שיקבל הלקוח
+        </p>
+        <div className="bg-white rounded-lg p-3 text-sm text-slate-700 leading-relaxed border border-green-100 font-mono text-[12px]" dir="rtl">
+          שלום ישראל! 👋<br />
+          תזכורת לתור עם העסק שלנו<br />
+          📅 מחר, 14:00<br />
+          🐕 רקס — שיעור אילוף<br />
+          <span className="text-slate-400">– נשלח אוטומטית על ידי Petra</span>
+        </div>
+      </div>
+
+      {/* Upsell teaser */}
+      <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+        <CalendarDays className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-amber-800">רוצה גם סנכרון יומן Google?</p>
+          <p className="text-[12px] text-amber-700 mt-0.5">
+            זמין במנוי בייסיק ומעלה — שדרג בכל עת מהגדרות העסק.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <button onClick={onBack} className="btn-secondary flex items-center gap-1">
+          <ChevronRight className="w-4 h-4" />חזור
+        </button>
+        <button onClick={onNext} className="btn-primary flex-1 justify-center flex items-center gap-2">
+          הבנתי, נמשיך
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Step 4: Done ─────────────────────────────────────────────────────────────
 
-function StepDone({ gcalConnected, onGoToDashboard }: { gcalConnected: boolean; onGoToDashboard: () => void }) {
+function StepDone({
+  gcalConnected,
+  gcalAvailable,
+  tier,
+  onGoToDashboard,
+}: {
+  gcalConnected: boolean;
+  gcalAvailable: boolean;
+  tier: TierKey;
+  onGoToDashboard: () => void;
+}) {
   return (
     <div className="text-center space-y-6 py-4">
       <div className="w-20 h-20 rounded-full bg-emerald-50 flex items-center justify-center mx-auto">
@@ -439,10 +642,13 @@ function StepDone({ gcalConnected, onGoToDashboard }: { gcalConnected: boolean; 
       </div>
       <div>
         <h2 className="text-2xl font-bold text-petra-text mb-2">הכל מוכן! 🐾</h2>
-        <p className="text-petra-muted leading-relaxed">
+        <p className="text-petra-muted leading-relaxed text-sm">
           Petra מוכנה לשרת את העסק שלך.
-          {!gcalConnected && (
+          {gcalAvailable && !gcalConnected && (
             <> תוכל לחבר את יומן Google בכל עת תחת <a href="/settings" className="text-brand-600 underline">הגדרות</a>.</>
+          )}
+          {!gcalAvailable && (
+            <> שדרג ל<a href="/settings" className="text-brand-600 underline">בייסיק</a> כדי לחבר יומן Google.</>
           )}
         </p>
       </div>
