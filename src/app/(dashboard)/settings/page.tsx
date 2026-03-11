@@ -2814,7 +2814,7 @@ export default function SettingsPage() {
   const searchParams = useSearchParams();
   const gcalParam = searchParams.get("gcal");
   const { isOwner } = useAuth();
-  const { isFree, isBasic } = usePlan();
+  const { isFree, isBasic, isGroomer, can } = usePlan();
   const invoicingParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data" | "messages" | "service-dogs">(
     gcalParam ? "integrations" : invoicingParam === "invoicing" ? "invoicing" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : "business"
@@ -2831,7 +2831,8 @@ export default function SettingsPage() {
     ...(isOwner ? [{ id: "team" as const, label: "ניהול צוות", icon: Users2 }] : []),
     // { id: "invoicing" as const, label: "חשבוניות", icon: FileText }, // hidden — in development
     { id: "messages" as const, label: "הודעות ואוטומציות", icon: MessageCircle },
-    { id: "service-dogs" as const, label: "כלבי שירות", icon: PawPrint },
+    // Service dogs tab — hidden for groomer tier (irrelevant track)
+    ...(!isGroomer ? [{ id: "service-dogs" as const, label: "כלבי שירות", icon: PawPrint }] : []),
     { id: "data" as const, label: "נתונים", icon: Database },
     { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
   ];
@@ -2882,7 +2883,7 @@ export default function SettingsPage() {
           : <MessagesPanel />
       )}
       {activeTab === "service-dogs" && (
-        (isFree || isBasic)
+        !can("service_dogs")
           ? <PaywallCard title="הגדרות כלבי שירות" description="הגדרות תוכנית כלבי שירות — זמין במנוי Service Dog בלבד." requiredTier="service_dog" variant="page" />
           : <ServiceDogsSettingsTab />
       )}

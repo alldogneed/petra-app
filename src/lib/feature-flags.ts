@@ -105,7 +105,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
   // Groomer-specific track: portfolio, full invoicing, automations tuned for
   // groomers, staff management, Excel export, GCal. No training, no CRM, no boarding.
   groomer: {
-    leads:             false,  // CRM not relevant for groomers
+    leads:             true,   // ✅ CRM/leads included in groomer
     boarding:          false,
     training:          false,  // Training engine not relevant for groomers
     training_groups:   false,
@@ -132,7 +132,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
 
   // ── Groomer+ legacy alias (kept for DB backward-compat — same as groomer) ────
   groomer_plus: {
-    leads:             false,
+    leads:             true,
     boarding:          false,
     training:          false,
     training_groups:   false,

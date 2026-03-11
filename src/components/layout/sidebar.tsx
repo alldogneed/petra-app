@@ -36,7 +36,7 @@ import {
   MessageSquare,
   Lock,
 } from "lucide-react";
-import { hasFeatureWithOverrides, type FeatureKey } from "@/lib/feature-flags";
+import { hasFeatureWithOverrides, type FeatureKey, type TierKey } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -49,6 +49,8 @@ interface NavItem {
   minRole?: "owner" | "manager" | "user" | "volunteer";
   /** Feature that must be enabled for this item to be unlocked (shows lock badge if not). */
   lockedFeature?: FeatureKey;
+  /** Tiers for which this item is completely hidden (not shown at all). */
+  hiddenForTiers?: TierKey[];
 }
 
 interface NavGroup {
@@ -83,10 +85,10 @@ const navEntries: NavEntry[] = [
   { name: "מערכת מכירות", href: "/leads", icon: Target, minRole: "user", lockedFeature: "leads" },
   { name: "ניהול משימות", href: "/tasks", icon: ListTodo },
   { name: "ניהול תורים אונליין", href: "/bookings", icon: CalendarCheck, lockedFeature: "online_bookings" },
-  { name: "פנסיון", href: "/boarding", icon: Hotel, lockedFeature: "boarding" },
+  { name: "פנסיון", href: "/boarding", icon: Hotel, lockedFeature: "boarding", hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "פיננסים", href: "/pricing", icon: Wallet, minRole: "user" },
-  { name: "ניהול כלבי שירות", href: "/service-dogs", icon: Shield, lockedFeature: "service_dogs" },
-  { name: "ניהול תהליכי אילוף", href: "/training", icon: Dog },
+  { name: "ניהול כלבי שירות", href: "/service-dogs", icon: Shield, lockedFeature: "service_dogs", hiddenForTiers: ["groomer", "groomer_plus"] },
+  { name: "ניהול תהליכי אילוף", href: "/training", icon: Dog, hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "חיות מחמד", href: "/pets", icon: PawPrint, lockedFeature: "pets_advanced" },
   { name: "יומן", href: "/calendar", icon: Calendar },
   { name: "הודעות", href: "/messages", icon: MessageSquare, lockedFeature: "custom_messages" },
@@ -165,7 +167,7 @@ export function Sidebar({
     setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
   // Compute per-item lock status from current user's tier + overrides
-  const userTier = user?.businessTier ?? "free";
+  const userTier = (user?.businessEffectiveTier ?? user?.businessTier ?? "free") as TierKey;
   const userOverrides: Record<string, boolean> | null =
     (user as (typeof user & { businessFeatureOverrides?: Record<string, boolean> | null }))?.businessFeatureOverrides ?? null;
 
@@ -178,6 +180,9 @@ export function Sidebar({
   const HIDDEN_WHEN_LOCKED: FeatureKey[] = ["pets_advanced"];
 
   function isItemHidden(item: NavItem): boolean {
+    // Hidden if tier is in the item's hiddenForTiers list
+    if (item.hiddenForTiers?.includes(userTier)) return true;
+    // Hidden if in HIDDEN_WHEN_LOCKED and feature is disabled
     if (!item.lockedFeature) return false;
     if (!HIDDEN_WHEN_LOCKED.includes(item.lockedFeature)) return false;
     return !hasFeatureWithOverrides(userTier, item.lockedFeature, userOverrides);
