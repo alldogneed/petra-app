@@ -70,7 +70,19 @@ interface Customer {
   id: string;
   name: string;
   phone: string;
+  address: string | null;
   pets: { id: string; name: string; species: string }[];
+}
+
+/** Build a Google Calendar pre-fill URL for a home training appointment */
+function buildGCalUrl(title: string, location: string, date: string, startTime: string, endTime: string) {
+  const fmt = (d: string, t: string) => d.replace(/-/g, "") + "T" + t.replace(":", "") + "00";
+  const params = new URLSearchParams({
+    text: title,
+    dates: `${fmt(date, startTime)}/${fmt(date, endTime)}`,
+    ...(location ? { location } : {}),
+  });
+  return `https://calendar.google.com/calendar/r/eventedit?${params.toString()}`;
 }
 
 
@@ -433,6 +445,22 @@ function NewAppointmentModal({
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+
+      // Open Google Calendar for training (home-visit) appointments
+      const isTraining = selectedItem?.category === "אילוף" || result?.service?.type === "training";
+      if (isTraining && selectedCustomer && !recurring) {
+        const pet = form.petId ? selectedCustomer.pets.find((p) => p.id === form.petId) : null;
+        const titleParts = [selectedCustomer.name, selectedCustomer.phone, pet?.name].filter(Boolean);
+        const url = buildGCalUrl(
+          titleParts.join(" - "),
+          selectedCustomer.address ?? "",
+          form.date,
+          form.startTime,
+          endTime
+        );
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+
       if (recurring && result?.created) {
         toast.success(`נקבעו ${result.created} פגישות חוזרות בהצלחה`);
       } else {
