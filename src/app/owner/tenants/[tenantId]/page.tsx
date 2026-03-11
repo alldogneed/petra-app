@@ -40,6 +40,10 @@ const FEATURE_ROWS: { key: FeatureKey; label: string; description: string }[] = 
   { key: "excel_export",       label: "ייצוא לאקסל",         description: "ייצוא לקוחות וחיות ל-Excel" },
   { key: "groomer_portfolio",  label: "תיק עבודות גרומר",    description: "גלריית לפני/אחרי לגרומר" },
   { key: "service_dogs",       label: "מודול כלבי שירות",    description: "ניהול כלבי שירות, זכאים, שיבוצים ו-ADI" },
+  { key: "online_bookings",    label: "הזמנות אונליין",      description: "ניהול תורים אונליין ואישור הזמנות" },
+  { key: "analytics",          label: "דוחות ואנליטיקס",     description: "גרפים, סטטיסטיקות ומעקב ביצועים" },
+  { key: "intake_forms",       label: "טפסי קליטה",          description: "טפסי קליטה דיגיטליים ללקוחות" },
+  { key: "payment_links",      label: "קישורי תשלום",        description: "בקשות תשלום בוואטסאפ עם לינק" },
 ];
 
 type OverrideValue = true | false | null; // null = use tier default

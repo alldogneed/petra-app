@@ -1,6 +1,6 @@
 # Petra App — Complete AI Agent Reference
 
-> Last updated: March 2026 (Session 12). Written by reading actual code, not guessing.
+> Last updated: March 2026 (Session 13). Written by reading actual code, not guessing.
 
 ---
 
@@ -681,15 +681,21 @@ Sidebar group: **"ניהול כלבי שירות"** (6 sub-pages + recipient pro
 - RTL mobile layout partially handled (`mobile-bottom-nav.tsx` exists)
 - Not a native app, PWA not configured
 
-### ✅ Tier Enforcement (Session 9)
-- `src/lib/feature-flags.ts` — tier/feature matrix, `hasFeature()`, `FREE_CUSTOMER_LIMIT = 15`
+### ✅ Tier Enforcement (Session 9, overhauled Session 13)
+- `src/lib/feature-flags.ts` — tier/feature matrix, `hasFeature()`, `FREE_CUSTOMER_LIMIT = 50`, `FREE_LEAD_LIMIT = 20`, `FREE_TRAINING_LIMIT = 20`
 - `src/hooks/usePlan.ts` — `can(feature)`, `tier`, `isFree`, `isPro`, `trialActive`, `trialDaysLeft`, etc.
+- `src/hooks/useSubscription.ts` — `maxCustomers`, `maxLeads`, `maxTrainingPrograms`
 - `src/components/paywall/TierGate.tsx` + `PaywallCard.tsx` — gating UI components
 - `Business.featureOverrides Json?` — per-tenant override (admin-editable via `/api/owner/tenants/[id]/features`)
 - `businessEffectiveTier` — computed at login: expires trial → "free"
-- Applied to: leads, training, boarding, messages, automations, service-dogs, payments, orders, pricing
+- **FREE tier now includes:** leads (max 20), training (max 20 programs), payments, orders, pricing
+- **FREE tier locked:** boarding, messages, automations, service-dogs, staff, invoicing, gcal, online_bookings, analytics, intake_forms, payment_links, pets_advanced
+- Applied to: leads, training, boarding, messages, automations, service-dogs, payments, orders, pricing, analytics, bookings, intake-forms, payment-request, pets
+- Sidebar: pets hidden for free tier; bookings, analytics locked with badge
+- API enforcement: leads POST + training-programs POST check entity limits
 - Suspended business → 403 on all API routes (`requireBusinessAuth`)
 - Trial expiry banner on dashboard (amber ≤7 days, red when expired)
+- 4 new FeatureKeys: `online_bookings`, `analytics`, `intake_forms`, `payment_links`
 
 ---
 
@@ -709,42 +715,33 @@ Based on code comments, schema fields, and incomplete implementations:
 
 ---
 
-## 8. Current Status (March 2026 — Session 12)
+## 8. Current Status (March 2026 — Session 13)
 
-**Most active area:** Systematic bug scan + service dog boarding UX + favicon/branding.
+**Most active area:** FREE tier overhaul — making free tier a usable product with smart limits.
 
 Recent git history (most recent first):
-- `7e1bf92` — Fix: dashboard — add success toast on appointment create and intake link copy
-- `5a3ccdd` — Feat: service dogs — gov report, Simba tests, insurance claims, Pet color/neutered
-- `fab7b61` — Feat: boarding phase 1 — service dog integration + medication board + export
-- `73252af` — Fix: security and validation bugs in training-packages and leads APIs
+- `261680a` — Feat: ToS consents page in admin panel + various session fixes
+- `4b4b1b2` — Fix: icon paths (svg→png), reset-password improvements, owner consents API
+- `618fa24` — Fix: training duration, messages cleanup, session API, standalone dog fixes
 
-**Session 12 changes:**
-- ✅ Systematic bug scan across all modules — 10 bugs found and fixed (IDOR, hardcoded lead stages, standalone pets, null crashes, race conditions, UI/API mismatches)
-- ✅ IDOR fixes: training homework & goals APIs now verify business ownership before mutating
-- ✅ Dashboard openLeads count fixed: queries LeadStage table instead of hardcoded stage strings
-- ✅ Lead creation: returns 400 error instead of falling back to hardcoded "new" stage
-- ✅ Standalone pets (service dogs) now returned by pets API, birthdays API, and pets export
-- ✅ Pets/[id] profile: null customer crash fixed (Pet.customerId nullable)
-- ✅ Orders: confirmed order cancellation uses PATCH (not DELETE), draft orders use DELETE
-- ✅ Boarding: room capacity check wrapped in `prisma.$transaction()` to prevent race conditions
-- ✅ Service dog recipients: DnD sorting strategy fixed (verticalListSortingStrategy for cards)
-- ✅ Service dog overview: alert count now filters by dismissed IDs correctly
-- ✅ Dashboard: removed duplicate BirthdayWidget
-- ✅ Settings: password minimum length aligned to 12 (was 8, registration requires 12)
-- ✅ Training page: removed "כלבי שירות" tab (managed from dedicated sidebar section)
-- ✅ Boarding: service dogs in training → no pricing (ללא חיוב notice + phase badge)
-- ✅ Favicon: all icon files regenerated from Petra logo (colorful paw + "PETRA" text)
-  - Source file: `/Users/or-rabinovich/Downloads/עיצוב ללא שם (17).png` (1024x1024)
-  - Deleted conflicting `src/app/favicon.ico`, `src/app/icon.png`, `src/app/apple-icon.png`
-  - Generated: `public/favicon.ico` (32x32), `public/icon.png` (192x192), `public/icon-512.png` (512x512), `public/apple-icon.png` (180x180)
+**Session 13 changes:**
+- ✅ **FREE tier overhaul** — from "blocks everything" to usable product with smart limits:
+  - Customer limit: 15 → **50**
+  - Leads: locked → **open, max 20** (counter on button + API enforcement)
+  - Training: locked → **open, max 20 programs** (API enforcement + error surfacing)
+  - Finance (payments/orders/pricing): locked → **open**
+  - 4 new locked features for free: `online_bookings`, `analytics`, `intake_forms`, `payment_links`
+- ✅ `feature-flags.ts`: 4 new FeatureKeys, `FREE_LEAD_LIMIT=20`, `FREE_TRAINING_LIMIT=20`, `getMaxLeads()`, `getMaxTrainingPrograms()`
+- ✅ API enforcement: `leads/route.ts` POST + `training-programs/route.ts` POST check entity limits
+- ✅ TierGate wrappers on 5 pages: analytics, bookings, intake-forms, payment-request, pets
+- ✅ Sidebar: pets hidden (not just locked) for free tier; bookings + analytics show lock badge
+- ✅ Leads page: "(N/20)" counter on "ליד חדש" button for free tier + toast on limit
+- ✅ Training page: API error messages now surface in toasts (limit reached)
+- ✅ Upgrade page: added FREE tier plan card with features/limits, 5-column grid, "חינם" price
+- ✅ Owner admin: 4 new feature rows in tenant override grid
 
-**Previous session (Session 11) changes:**
-- ✅ Meta Cloud API WhatsApp: env vars set in Vercel. System User "petra API" created. Phone: +972 51-531-1435.
-- 🔄 Business Verification submitted to Meta (9.3.2026) — In Review
-- ✅ `RESEND_API_KEY` set in Vercel; email is LIVE
-- ✅ WhatsApp Automation Engine wired
-- ✅ `/messages` + `/automations` merged
+**Previous session (Session 12) changes:**
+- Bug scan (10 fixes), boarding UX, favicon regeneration
 
 **Pre-launch blockers remaining:**
 1. WhatsApp Business Verification at Meta — In Review (🔴 blocker for actual message delivery)

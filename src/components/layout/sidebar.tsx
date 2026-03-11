@@ -432,6 +432,7 @@ export function Sidebar({
           <div className="space-y-0.5">
             {navEntries
               .filter((entry) => canSee(entry, user?.businessRole ?? null, user?.platformRole))
+              .filter((entry) => !isGroup(entry) ? !isItemHidden(entry as NavItem) : true)
               .map((entry) =>
                 isGroup(entry)
                   ? renderGroup(entry, isMobile)

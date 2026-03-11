@@ -759,14 +759,17 @@ function TrainingPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed");
+      }
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       setShowSellPackage(false);
     },
-    onError: () => toast.error("שגיאה ביצירת תוכנית אימון. נסה שוב."),
+    onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת תוכנית אימון. נסה שוב."),
   });
 
   const createPackageMutation = useMutation({

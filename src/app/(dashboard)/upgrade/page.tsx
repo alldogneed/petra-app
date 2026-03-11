@@ -16,6 +16,28 @@ const PLANS: {
   notIncluded: string[];
 }[] = [
   {
+    key: "free",
+    name: "חינמי",
+    price: 0,
+    description: "התחל לנהל את העסק שלך — בחינם, עד 50 לקוחות",
+    features: [
+      "עד 50 לקוחות",
+      "יומן תורים",
+      "CRM / לידים (עד 20)",
+      "אילוף 1-על-1 (עד 20 תוכניות)",
+      "תשלומים וחיוב",
+      "ניהול משימות",
+    ],
+    notIncluded: [
+      "הזמנות אונליין",
+      "דוחות ואנליטיקס",
+      "טפסי קליטה",
+      "בקשת תשלום WhatsApp",
+      "פנסיון",
+      "תזכורות אוטומטיות",
+    ],
+  },
+  {
     key: "basic",
     name: "Basic",
     price: 99,
@@ -28,10 +50,12 @@ const PLANS: {
       "תשלומים וקבלות",
       "תזכורות WhatsApp",
       "הזמנות אונליין",
+      "דוחות ואנליטיקס",
+      "בקשת תשלום WhatsApp",
     ],
     notIncluded: [
       "פנסיון",
-      "CRM / לידים",
+      "CRM / לידים ללא הגבלה",
       "אוטומציות מתקדמות",
       "חשבוניות",
       "ניהול צוות",
@@ -120,7 +144,7 @@ export default function UpgradePage() {
       </div>
 
       {/* Plans grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-10">
         {PLANS.map((plan) => {
           const isCurrent = tier === plan.key;
           const isHighlight = plan.highlight;
@@ -155,8 +179,10 @@ export default function UpgradePage() {
               <div className="mb-5">
                 <h2 className="text-lg font-bold text-slate-900">{plan.name}</h2>
                 <div className="flex items-baseline gap-1 mt-1 mb-2">
-                  <span className="text-3xl font-extrabold text-slate-900">₪{plan.price}</span>
-                  <span className="text-slate-400 text-sm">/חודש</span>
+                  <span className="text-3xl font-extrabold text-slate-900">
+                    {plan.price === 0 ? "חינם" : `₪${plan.price}`}
+                  </span>
+                  {plan.price > 0 && <span className="text-slate-400 text-sm">/חודש</span>}
                 </div>
                 <p className="text-xs text-slate-500 leading-relaxed">{plan.description}</p>
               </div>

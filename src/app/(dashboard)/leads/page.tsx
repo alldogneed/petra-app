@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useSubscription } from "@/hooks/useSubscription";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { LeadTreatmentModal } from "@/components/leads/LeadTreatmentModal";
 import LeadDetailsModal from "@/components/leads/LeadDetailsModal";
@@ -986,6 +987,7 @@ function LeadsPageContent() {
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"kanban" | "reports">("kanban");
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const { maxLeads, tier } = useSubscription();
 
   // Edit mode state
   const [editMode, setEditMode] = useState(false);
@@ -1260,8 +1262,17 @@ function LeadsPageContent() {
           </button>
         </div>
 
-        {activeTab === "kanban" && <button className="btn-primary" onClick={() => setShowModal(true)}>
+        {activeTab === "kanban" && <button className="btn-primary" onClick={() => {
+          if (maxLeads !== null && leads.length >= maxLeads) {
+            toast.error(`מסלול ${tier === "free" ? "חינמי" : tier} מוגבל ל-${maxLeads} לידים. שדרג כדי להוסיף עוד.`);
+            return;
+          }
+          setShowModal(true);
+        }}>
           <Plus className="w-4 h-4" />ליד חדש
+          {maxLeads !== null && (
+            <span className="mr-1 opacity-70 text-xs">({leads.length}/{maxLeads})</span>
+          )}
         </button>}
 
         {/* Refresh controls */}
