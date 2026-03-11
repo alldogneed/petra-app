@@ -84,8 +84,8 @@ export async function GET(request: NextRequest) {
       user.name || profile.name || profile.email.split("@")[0]
     );
 
-    // Create session
-    const { token } = await createSession(user.id, request);
+    // Google OAuth always creates a 30-day persistent session (mobile-friendly)
+    const { token } = await createSession(user.id, request, true);
 
     // Check if user has accepted current ToS version
     const consent = await prisma.userConsent.findFirst({
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 8 * 60 * 60, // 8 hours — must match SESSION_TTL_REGULAR in session.ts
+      maxAge: 30 * 24 * 60 * 60, // 30 days — matches SESSION_TTL_REMEMBER_ME in session.ts
     });
     // Clear the OAuth state cookie
     response.cookies.delete("google_oauth_state");

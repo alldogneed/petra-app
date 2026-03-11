@@ -11,8 +11,10 @@ import type { SessionUser, SessionMembership } from "./permissions";
 import type { PlatformRole, TenantRole } from "./permissions";
 
 export const SESSION_COOKIE = "petra_session";
-/** Session timeout for regular users: 8 hours */
+/** Session timeout for regular users: 8 hours (no remember-me) */
 const SESSION_TTL_REGULAR = 8 * 60 * 60 * 1000;
+/** Session timeout when "remember me" is active: 30 days */
+const SESSION_TTL_REMEMBER_ME = 30 * 24 * 60 * 60 * 1000;
 /** Session timeout for platform admins: 30 minutes idle */
 const SESSION_TTL_ADMIN = 30 * 60 * 1000;
 
@@ -46,11 +48,16 @@ export async function createSession(
     ip?: string;
     userAgent?: string;
     isPlatformAdmin?: boolean;
+    rememberMe?: boolean;
   } = {}
 ): Promise<string> {
   const token = generateToken();
   const tokenHashed = hashToken(token);
-  const ttl = options.isPlatformAdmin ? SESSION_TTL_ADMIN : SESSION_TTL_REGULAR;
+  const ttl = options.isPlatformAdmin
+    ? SESSION_TTL_ADMIN
+    : options.rememberMe
+    ? SESSION_TTL_REMEMBER_ME
+    : SESSION_TTL_REGULAR;
   const expiresAt = new Date(Date.now() + ttl);
 
   await prisma.adminSession.create({

@@ -55,8 +55,8 @@ export async function POST(request: NextRequest) {
       await ensureUserHasBusiness(user.id, user.name);
     }
 
-    // Create session
-    const { token } = await createSession(user.id, request);
+    // Create session (rememberMe=true → 30-day DB session + cookie)
+    const { token } = await createSession(user.id, request, !!rememberMe);
     setSessionCookie(token, !!rememberMe);
 
     // Track last login for Customer Success dashboard

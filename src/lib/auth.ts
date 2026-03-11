@@ -24,10 +24,10 @@ export { SESSION_COOKIE };
 // ─── Session CRUD ─────────────────────────────────────────────────────────────
 
 /** Create a session. Returns { token } for backward compatibility. */
-export async function createSession(userId: string, req?: Request | null) {
+export async function createSession(userId: string, req?: Request | null, rememberMe = false) {
   const ip = req?.headers.get("x-forwarded-for") ?? undefined;
   const userAgent = req?.headers.get("user-agent") ?? undefined;
-  const token = await _createSession(userId, { ip, userAgent });
+  const token = await _createSession(userId, { ip, userAgent, rememberMe });
   return { token };
 }
 
