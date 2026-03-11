@@ -301,24 +301,22 @@ export default function TasksPage() {
         body: JSON.stringify({ status }),
       }),
     onMutate: async ({ id, status }) => {
-      await queryClient.cancelQueries({ queryKey: ["tasks", activeCategory] });
-      const prev = queryClient.getQueryData<Task[]>(["tasks", activeCategory]);
-      queryClient.setQueryData<Task[]>(["tasks", activeCategory], (old) =>
+      const key = ["tasks", activeCategory, activeFilter];
+      await queryClient.cancelQueries({ queryKey: key });
+      const prev = queryClient.getQueryData<Task[]>(key);
+      queryClient.setQueryData<Task[]>(key, (old) =>
         old?.map((t) => t.id === id
           ? { ...t, status, completedAt: status === "COMPLETED" ? new Date().toISOString() : null }
           : t) ?? []
       );
       return { prev };
     },
-    onSuccess: (updatedTask: Task) => {
-      // Replace with authoritative server response — no refetch needed
-      queryClient.setQueryData<Task[]>(["tasks", activeCategory], (old) =>
-        old?.map((t) => t.id === updatedTask.id ? updatedTask : t) ?? []
-      );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(["tasks", activeCategory], ctx.prev);
+      if (ctx?.prev) queryClient.setQueryData(["tasks", activeCategory, activeFilter], ctx.prev);
       toast.error("שגיאה בעדכון המשימה. נסה שוב.");
     },
   });
@@ -327,20 +325,22 @@ export default function TasksPage() {
     mutationFn: (id: string) =>
       fetchJSON(`/api/tasks/${id}`, { method: "DELETE" }),
     onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: ["tasks", activeCategory] });
-      const prev = queryClient.getQueryData<Task[]>(["tasks", activeCategory]);
-      queryClient.setQueryData<Task[]>(["tasks", activeCategory], (old) =>
+      const key = ["tasks", activeCategory, activeFilter];
+      await queryClient.cancelQueries({ queryKey: key });
+      const prev = queryClient.getQueryData<Task[]>(key);
+      queryClient.setQueryData<Task[]>(key, (old) =>
         old?.filter((t) => t.id !== id) ?? []
       );
       return { prev };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(["tasks", activeCategory], ctx.prev);
+      if (ctx?.prev) queryClient.setQueryData(["tasks", activeCategory, activeFilter], ctx.prev);
       toast.error("שגיאה במחיקת המשימה. נסה שוב.");
     },
     onSuccess: () => {
       setDeleteConfirm(null);
       toast.success("המשימה נמחקה");
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
