@@ -747,10 +747,18 @@ function DraggableLeadCard({
 
 // ─── Add Stage Inline ────────────────────────────────────────────────────────
 
-function AddStageInline({ onAdd }: { onAdd: (name: string) => void }) {
+function AddStageInline({ onAdd, triggerOpen = 0 }: { onAdd: (name: string) => void; triggerOpen?: number }) {
   const [isAdding, setIsAdding] = useState(false);
   const [name, setName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // When the header "הוסף שלב" button is clicked, open the inline input
+  useEffect(() => {
+    if (triggerOpen > 0) {
+      setIsAdding(true);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [triggerOpen]);
 
   const handleSubmit = () => {
     if (name.trim()) {
@@ -991,6 +999,8 @@ function LeadsPageContent() {
 
   // Edit mode state
   const [editMode, setEditMode] = useState(false);
+  const [addStageTrigger, setAddStageTrigger] = useState(0);
+  const kanbanScrollRef = useRef<HTMLDivElement>(null);
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ stage: LeadStage; leadCount: number } | null>(null);
@@ -1282,7 +1292,27 @@ function LeadsPageContent() {
           )
         )}
 
-        {/* Refresh controls */}
+        {/* Search — right side */}
+        <div className="relative w-full sm:w-auto">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
+          <input
+            type="text"
+            placeholder="חפש ליד..."
+            className="input pr-9 pl-3 text-sm w-full sm:w-52"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              className="absolute left-2 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
+              onClick={() => setSearchQuery("")}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Refresh controls — pushed to the left */}
         <div className="flex items-center gap-2 mr-auto">
           <button
             onClick={() => refetchLeads()}
@@ -1307,36 +1337,33 @@ function LeadsPageContent() {
           </button>
         </div>
         {activeTab === "kanban" && (
-          <button
-            className={`btn-secondary flex items-center gap-1.5 ${editMode ? "!bg-brand-50 !text-brand-700 !border-brand-300" : ""}`}
-            onClick={() => {
-              setEditMode(!editMode);
-              setEditingStageId(null);
-              setEditingName("");
-            }}
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            {editMode ? "סיום עריכה" : "עריכת שלבים"}
-          </button>
-        )}
-        <div className="relative w-full sm:w-auto sm:ms-auto">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
-          <input
-            type="text"
-            placeholder="חפש ליד..."
-            className="input pr-9 pl-3 text-sm w-full sm:w-56"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
+          <>
             <button
-              className="absolute left-2 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
-              onClick={() => setSearchQuery("")}
+              className="btn-secondary flex items-center gap-1.5"
+              onClick={() => {
+                setAddStageTrigger((t) => t + 1);
+                // Scroll kanban to the end so user sees the new input
+                setTimeout(() => {
+                  kanbanScrollRef.current?.scrollTo({ left: kanbanScrollRef.current.scrollWidth, behavior: "smooth" });
+                }, 50);
+              }}
             >
-              <X className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5" />
+              הוסף שלב
             </button>
-          )}
-        </div>
+            <button
+              className={`btn-secondary flex items-center gap-1.5 ${editMode ? "!bg-brand-50 !text-brand-700 !border-brand-300" : ""}`}
+              onClick={() => {
+                setEditMode(!editMode);
+                setEditingStageId(null);
+                setEditingName("");
+              }}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              {editMode ? "סיום עריכה" : "עריכת שלבים"}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Reports Tab */}
@@ -1499,7 +1526,7 @@ function LeadsPageContent() {
             onDragEnd={handleColumnDragEnd}
           >
             <SortableContext items={activeStages.map((s) => s.id)} strategy={horizontalListSortingStrategy}>
-              <div className="flex gap-4 overflow-x-auto pb-6 items-stretch mb-8 snap-x snap-mandatory scrollbar-hide" style={{ minHeight: "500px" }}>
+              <div ref={kanbanScrollRef} className="flex gap-4 overflow-x-auto pb-6 items-stretch mb-8 snap-x snap-mandatory scrollbar-hide" style={{ minHeight: "500px" }}>
                 {activeStages.map((stage) => {
                   const stageLeads = filteredLeads.filter((l) => l.stage === stage.id);
                   return (
@@ -1523,7 +1550,7 @@ function LeadsPageContent() {
                     />
                   );
                 })}
-                <AddStageInline onAdd={handleAddStage} />
+                <AddStageInline onAdd={handleAddStage} triggerOpen={addStageTrigger} />
               </div>
             </SortableContext>
           </DndContext>
