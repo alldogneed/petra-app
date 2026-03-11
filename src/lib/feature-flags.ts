@@ -34,7 +34,8 @@ export type FeatureKey =
   | "online_bookings"
   | "analytics"
   | "intake_forms"
-  | "payment_links";
+  | "payment_links"
+  | "webhook_leads";
 
 // ─── Feature access matrix ────────────────────────────────────────────────────
 // Columns match the Petra V2 pricing table (March 2026):
@@ -66,6 +67,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     analytics:         false,
     intake_forms:      false,
     payment_links:     false,
+    webhook_leads:     false,
   },
 
   // ── Basic (₪99) ──────────────────────────────────────────────────────────────
@@ -89,10 +91,11 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     pricing:           true,
     pets_advanced:     true,
     scheduled_messages: true,  // Basic WhatsApp appointment reminders ✅
-    online_bookings:   true,
+    online_bookings:   false,  // Online booking management — PRO+ only
     analytics:         true,
     intake_forms:      true,
     payment_links:     true,
+    webhook_leads:     false,  // Make.com/API webhook for leads — PRO+ only
   },
 
   // ── Groomer+ (₪169) ──────────────────────────────────────────────────────────
@@ -120,6 +123,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     analytics:         true,
     intake_forms:      true,
     payment_links:     true,
+    webhook_leads:     false,  // CRM webhook not relevant for groomers
   },
 
   // ── Groomer+ legacy alias (kept for DB backward-compat — same as groomer) ────
@@ -145,6 +149,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     analytics:         true,
     intake_forms:      true,
     payment_links:     true,
+    webhook_leads:     false,
   },
 
   // ── Pro (₪199) ───────────────────────────────────────────────────────────────
@@ -172,6 +177,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     analytics:         true,
     intake_forms:      true,
     payment_links:     true,
+    webhook_leads:     true,   // API webhook for leads ✅
   },
 
   // ── Service Dog (₪229) ───────────────────────────────────────────────────────
@@ -198,6 +204,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     analytics:         true,
     intake_forms:      true,
     payment_links:     true,
+    webhook_leads:     true,   // API webhook for leads ✅
   },
 };
 

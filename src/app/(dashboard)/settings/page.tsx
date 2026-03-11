@@ -127,7 +127,7 @@ const TIER_ICONS = { basic: Star, pro: Zap, groomer: Crown };
 function BusinessTab() {
   const queryClient = useQueryClient();
   const { user, refreshUser } = useAuth();
-  const { isFree } = usePlan();
+  const { isFree, can } = usePlan();
   const { data: biz, isLoading } = useQuery<Business>({
     queryKey: ["settings"],
     queryFn: () => fetchJSON<Business>("/api/settings"),
@@ -354,11 +354,11 @@ function BusinessTab() {
             <CalendarRange className="w-4 h-4 text-brand-500" />
             <h3 className="text-sm font-semibold text-petra-text">הגדרות הזמנה אונליין</h3>
           </div>
-          {isFree && <span className="text-xs text-slate-400">🔒 זמין במנוי בייסיק</span>}
+          {!can('online_bookings') && <span className="text-xs text-slate-400">🔒 זמין במנוי פרו</span>}
         </div>
-        {isFree ? (
+        {!can('online_bookings') ? (
           <p className="text-sm text-petra-muted bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
-            <a href="/settings?tab=billing" className="text-brand-600 hover:underline font-medium">שדרג לבייסיק</a> כדי להפעיל הזמנות אונליין, להגדיר קישור הזמנה ומדיניות ביטול.
+            <a href="/settings?tab=billing" className="text-brand-600 hover:underline font-medium">שדרג לפרו</a> כדי להפעיל הזמנות אונליין, להגדיר קישור הזמנה ומדיניות ביטול.
           </p>
         ) : (
         <div className="space-y-4">
@@ -709,6 +709,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
 function IntegrationsTab() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+  const { can } = usePlan();
   const gcalStatus = searchParams.get("gcal");
   const [showInvoicingModal, setShowInvoicingModal] = useState(false);
   const [showMappingModal, setShowMappingModal] = useState(false);
@@ -966,7 +967,16 @@ function IntegrationsTab() {
       )}
 
       {/* ── Make.com Webhook ── */}
-      <MakeWebhookCard />
+      {can('webhook_leads') ? (
+        <MakeWebhookCard />
+      ) : (
+        <PaywallCard
+          title="אינטגרציית Webhook ללידים"
+          description="קבל לידים אוטומטית מטפסי Make.com ואתר האינטרנט שלך — זמין במנוי פרו וכלבי שירות."
+          requiredTier="pro"
+          variant="inline"
+        />
+      )}
     </div>
   );
 }
