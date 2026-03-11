@@ -130,7 +130,7 @@ export default function TenantsPage() {
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="table-header-cell">עסק</th>
-                <th className="table-header-cell">חבילה</th>
+                <th className="table-header-cell">מנוי</th>
                 <th className="table-header-cell">חברי צוות</th>
                 <th className="table-header-cell">סטטוס</th>
                 <th className="table-header-cell">נוצר</th>
@@ -318,7 +318,7 @@ function CreateTenantModal({ onClose, onCreated }: { onClose: () => void; onCrea
             />
           </div>
           <div>
-            <label className="label">חבילה</label>
+            <label className="label">מנוי</label>
             <select value={tier} onChange={(e) => setTier(e.target.value)} className="input w-full">
               {TIERS.map((t) => (
                 <option key={t.value} value={t.value}>

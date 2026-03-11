@@ -1587,22 +1587,20 @@ export default function CustomersPage() {
       {/* ─── Page Header ─── */}
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            className="btn-primary"
-            onClick={() => {
-              if (maxCustomers !== null && stats.total >= maxCustomers) {
-                toast.error(`מסלול ${tier === "free" ? "חינמי" : tier} מוגבל ל-${maxCustomers} לקוחות. שדרג כדי להוסיף עוד.`);
-                return;
-              }
-              setShowNewModal(true);
-            }}
-          >
-            <Plus className="w-4 h-4" />
-            לקוח חדש
-            {maxCustomers !== null && (
-              <span className="mr-1 opacity-70 text-xs">({stats.total}/{maxCustomers})</span>
-            )}
-          </button>
+          {tier === "free" && maxCustomers !== null && stats.total >= maxCustomers ? (
+            <a href="/settings?tab=billing" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500 text-white rounded-xl px-4 py-2.5 text-sm font-semibold flex items-center">
+              <Sparkles className="w-4 h-4" />
+              שדרג לבייסיק
+            </a>
+          ) : (
+            <button
+              className="btn-primary"
+              onClick={() => setShowNewModal(true)}
+            >
+              <Plus className="w-4 h-4" />
+              לקוח חדש
+            </button>
+          )}
           <button
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white text-sm shadow-sm transition-all hover:shadow-md"
             style={{ background: "linear-gradient(135deg, #f38d49, #FB923C)" }}
@@ -1635,6 +1633,25 @@ export default function CustomersPage() {
           </button>
         </div>
       </div>
+
+      {/* Free tier customer limit banner */}
+      {tier === "free" && maxCustomers !== null && (
+        <div className={`flex items-center justify-between gap-3 mb-4 px-4 py-3 rounded-xl border ${
+          stats.total >= maxCustomers ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"
+        }`}>
+          <div className="flex items-center gap-2 text-sm">
+            <Sparkles className={`w-4 h-4 flex-shrink-0 ${stats.total >= maxCustomers ? "text-amber-500" : "text-slate-400"}`} />
+            <span className={stats.total >= maxCustomers ? "text-amber-800" : "text-slate-600"}>
+              {stats.total}/{maxCustomers} לקוחות — מגבלת המנוי החינמי
+            </span>
+          </div>
+          {stats.total >= maxCustomers && (
+            <a href="/settings?tab=billing" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
+              שדרג לבייסיק ←
+            </a>
+          )}
+        </div>
+      )}
 
       {/* ─── Search & Filters Card ─── */}
       <div className="card p-4 mb-4 space-y-3 bg-gradient-to-b from-[#FDFBF8] to-white border-[#E8DFD5]">

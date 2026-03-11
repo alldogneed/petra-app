@@ -1672,6 +1672,7 @@ function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: s
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["care-logs", stayId] });
     },
+    onError: () => toast.error("שגיאה במחיקת הרישום"),
   });
 
   const typeConfig = Object.fromEntries(CARE_LOG_TYPES.map((t) => [t.value, t]));

@@ -1353,7 +1353,7 @@ function LeadsPageContent() {
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" />
             <p className="text-sm text-amber-800">
-              <span className="font-semibold">הגעת ל-{maxLeads} לידים</span> — המגבלה של המסלול החינמי.
+              <span className="font-semibold">הגעת ל-{maxLeads} לידים</span> — מגבלת המנוי החינמי.
             </p>
           </div>
           <a

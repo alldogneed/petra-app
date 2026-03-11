@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
       });
       if (totalCount >= maxAppts) {
         return NextResponse.json(
-          { error: `מסלול חינמי מוגבל ל-${maxAppts} פגישות. שדרג לבייסיק כדי להוסיף עוד.` },
+          { error: `מנוי חינמי מוגבל ל-${maxAppts} פגישות. שדרג לבייסיק כדי להוסיף עוד.` },
           { status: 403 }
         );
       }

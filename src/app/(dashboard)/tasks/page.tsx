@@ -508,7 +508,7 @@ export default function TasksPage() {
           <div className="flex items-center gap-2 text-sm">
             <Sparkles className={`w-4 h-4 flex-shrink-0 ${allTasks.length >= maxTasks ? "text-amber-500" : "text-slate-400"}`} />
             <span className={allTasks.length >= maxTasks ? "text-amber-800" : "text-slate-600"}>
-              {allTasks.length}/{maxTasks} משימות פתוחות — מגבלת המסלול החינמי
+              {allTasks.length}/{maxTasks} משימות פתוחות — מגבלת המנוי החינמי
             </span>
           </div>
           {allTasks.length >= maxTasks && (

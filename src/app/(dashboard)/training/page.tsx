@@ -1021,7 +1021,7 @@ function TrainingPageContent() {
           <div className="flex items-center gap-2 text-sm">
             <Sparkles className={`w-4 h-4 flex-shrink-0 ${programs.length >= maxTrainingPrograms ? "text-amber-500" : "text-slate-400"}`} />
             <span className={programs.length >= maxTrainingPrograms ? "text-amber-800" : "text-slate-600"}>
-              {programs.length}/{maxTrainingPrograms} תהליכי אילוף — מגבלת המסלול החינמי
+              {programs.length}/{maxTrainingPrograms} תהליכי אילוף — מגבלת המנוי החינמי
             </span>
           </div>
           {programs.length >= maxTrainingPrograms && (

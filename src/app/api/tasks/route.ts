@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
       });
       if (openCount >= maxTasks) {
         return NextResponse.json(
-          { error: `מסלול חינמי מוגבל ל-${maxTasks} משימות פתוחות. שדרג לבייסיק כדי להוסיף עוד.` },
+          { error: `מנוי חינמי מוגבל ל-${maxTasks} משימות פתוחות. שדרג לבייסיק כדי להוסיף עוד.` },
           { status: 403 }
         );
       }

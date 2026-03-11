@@ -117,7 +117,7 @@ const PLANS: {
   },
 ];
 
-const WHATSAPP_UPGRADE_PHONE = "972501234567"; // Replace with actual support number
+const WHATSAPP_UPGRADE_PHONE = "972515311435";
 
 export default function UpgradePage() {
   const { tier } = usePlan();
@@ -144,7 +144,7 @@ export default function UpgradePage() {
       </div>
 
       {/* Plans grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-10">
         {PLANS.map((plan) => {
           const isCurrent = tier === plan.key;
           const isHighlight = plan.highlight;

@@ -220,7 +220,7 @@ function BusinessTab() {
           <TierIcon className="w-5 h-5 text-brand-500" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-petra-text">חבילה: {tierInfo?.name ?? editing.tier}</p>
+          <p className="text-sm font-semibold text-petra-text">מנוי: {tierInfo?.name ?? editing.tier}</p>
           <p className="text-xs text-petra-muted">{biz?._count.customers} לקוחות · {biz?._count.appointments} פגישות</p>
         </div>
       </div>

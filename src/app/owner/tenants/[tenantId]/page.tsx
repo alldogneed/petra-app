@@ -44,6 +44,9 @@ const FEATURE_ROWS: { key: FeatureKey; label: string; description: string }[] = 
   { key: "analytics",          label: "דוחות ואנליטיקס",     description: "גרפים, סטטיסטיקות ומעקב ביצועים" },
   { key: "intake_forms",       label: "טפסי קליטה",          description: "טפסי קליטה דיגיטליים ללקוחות" },
   { key: "payment_links",      label: "קישורי תשלום",        description: "בקשות תשלום בוואטסאפ עם לינק" },
+  { key: "orders",             label: "הזמנות",              description: "ניהול הזמנות ופרטי עסקה" },
+  { key: "pricing",            label: "מחירון",              description: "שירותים ופריטי חיוב" },
+  { key: "pets_advanced",      label: "חיות מחמד מתקדם",    description: "ניהול חיות מחמד ותיקים מורחבים" },
 ];
 
 type OverrideValue = true | false | null; // null = use tier default

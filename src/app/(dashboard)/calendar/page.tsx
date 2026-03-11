@@ -21,6 +21,7 @@ import {
   CreditCard,
   AlertCircle,
   Share2,
+  Sparkles,
 } from "lucide-react";
 import {
   cn,
@@ -30,6 +31,8 @@ import {
   toWhatsAppPhone,
 } from "@/lib/utils";
 import { toast } from "sonner";
+import { usePlan } from "@/hooks/usePlan";
+import { getMaxAppointments } from "@/lib/feature-flags";
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -762,6 +765,8 @@ function QuickPaymentModal({
 
 export default function CalendarPage() {
   const queryClient = useQueryClient();
+  const { isFree, tier } = usePlan();
+  const maxAppts = getMaxAppointments(tier);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── State ──
@@ -845,6 +850,14 @@ export default function CalendarPage() {
     queryKey: ["appointments", from, to],
     queryFn: () =>
       fetchJSON(`/api/appointments?from=${from}&to=${to}`),
+  });
+
+  // Total appointment count — only fetched for free tier to show limit banner
+  const { data: totalApptCount = 0 } = useQuery<number>({
+    queryKey: ["appointments-total-count"],
+    queryFn: () => fetchJSON<AppointmentEvent[]>("/api/appointments").then((r) => r.length),
+    enabled: isFree && maxAppts !== null,
+    staleTime: 60_000,
   });
 
   const SERVICE_TYPE_TO_CATEGORY: Record<string, string> = {
@@ -1312,19 +1325,46 @@ export default function CalendarPage() {
                 </a>
               );
             })()}
-            <button
-              className="btn-primary text-sm"
-              onClick={() => {
-                setModalDefaults({ date: today, time: "09:00" });
-                setShowNewModal(true);
-              }}
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">פגישה חדשה</span>
-              <span className="sm:hidden">חדש</span>
-            </button>
+            {isFree && maxAppts !== null && totalApptCount >= maxAppts ? (
+              <a href="/settings?tab=billing" className="btn-primary text-sm gap-1.5 bg-amber-500 hover:bg-amber-600 border-amber-500 text-white rounded-xl px-3 py-2 font-semibold flex items-center">
+                <Sparkles className="w-4 h-4" />
+                <span className="hidden sm:inline">שדרג לבייסיק</span>
+                <span className="sm:hidden">שדרג</span>
+              </a>
+            ) : (
+              <button
+                className="btn-primary text-sm"
+                onClick={() => {
+                  setModalDefaults({ date: today, time: "09:00" });
+                  setShowNewModal(true);
+                }}
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">פגישה חדשה</span>
+                <span className="sm:hidden">חדש</span>
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Free tier appointment limit banner */}
+        {isFree && maxAppts !== null && (
+          <div className={`flex items-center justify-between gap-3 mb-3 px-4 py-2.5 rounded-xl border ${
+            totalApptCount >= maxAppts ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"
+          }`}>
+            <div className="flex items-center gap-2 text-sm">
+              <Sparkles className={`w-4 h-4 flex-shrink-0 ${totalApptCount >= maxAppts ? "text-amber-500" : "text-slate-400"}`} />
+              <span className={totalApptCount >= maxAppts ? "text-amber-800" : "text-slate-600"}>
+                {totalApptCount}/{maxAppts} פגישות — מגבלת המנוי החינמי
+              </span>
+            </div>
+            {totalApptCount >= maxAppts && (
+              <a href="/settings?tab=billing" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
+                שדרג לבייסיק ←
+              </a>
+            )}
+          </div>
+        )}
 
         {/* Controls row: view toggle + navigation */}
         <div className="flex items-center gap-2">

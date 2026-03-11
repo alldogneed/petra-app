@@ -69,11 +69,11 @@ export async function POST(request: NextRequest) {
     const maxPrograms = getMaxTrainingPrograms(normalizeTier(business?.tier));
     if (maxPrograms !== null) {
       const currentCount = await prisma.trainingProgram.count({
-        where: { businessId: authResult.businessId, status: { in: ["ACTIVE", "IN_PROGRESS"] } },
+        where: { businessId: authResult.businessId },
       });
       if (currentCount >= maxPrograms) {
         return NextResponse.json(
-          { error: `מסלול חינמי מוגבל ל-${maxPrograms} תוכניות אילוף פעילות. שדרג כדי להוסיף עוד.` },
+          { error: `מנוי חינמי מוגבל ל-${maxPrograms} תוכניות אילוף. שדרג כדי להוסיף עוד.` },
           { status: 403 }
         );
       }

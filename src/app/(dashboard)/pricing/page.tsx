@@ -756,7 +756,7 @@ function PricingPageContent() {
           <div className="flex items-center gap-2 text-sm">
             <Sparkles className={`w-4 h-4 flex-shrink-0 ${activeItems.length >= maxPriceItems ? "text-amber-500" : "text-slate-400"}`} />
             <span className={activeItems.length >= maxPriceItems ? "text-amber-800" : "text-slate-600"}>
-              {activeItems.length}/{maxPriceItems} פריטי מחירון — מגבלת המסלול החינמי
+              {activeItems.length}/{maxPriceItems} פריטי מחירון — מגבלת המנוי החינמי
             </span>
           </div>
           {activeItems.length >= maxPriceItems && (

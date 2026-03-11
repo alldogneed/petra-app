@@ -51,7 +51,7 @@ export async function POST(
       });
       if (currentCount >= maxItems) {
         return NextResponse.json(
-          { error: `מסלול חינמי מוגבל ל-${maxItems} פריטי מחירון. שדרג לבייסיק כדי להוסיף עוד.` },
+          { error: `מנוי חינמי מוגבל ל-${maxItems} פריטי מחירון. שדרג לבייסיק כדי להוסיף עוד.` },
           { status: 403 }
         );
       }
