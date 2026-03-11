@@ -2814,14 +2814,16 @@ export default function SettingsPage() {
   const searchParams = useSearchParams();
   const gcalParam = searchParams.get("gcal");
   const { isOwner } = useAuth();
-  const { isFree } = usePlan();
+  const { isFree, isBasic } = usePlan();
   const invoicingParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data" | "messages" | "service-dogs">(
     gcalParam ? "integrations" : invoicingParam === "invoicing" ? "invoicing" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : "business"
   );
 
-  // Tabs locked for free tier (business details always open)
+  // Tabs locked per tier
   const FREE_LOCKED_TABS = new Set(["availability", "team", "messages", "service-dogs", "data", "integrations"]);
+  // Basic: open business, availability, data, integrations — lock team, messages, service-dogs
+  const BASIC_LOCKED_TABS = new Set(["team", "messages", "service-dogs"]);
 
   const tabs = [
     { id: "business" as const, label: "פרטי העסק", icon: Building2 },
@@ -2844,7 +2846,7 @@ export default function SettingsPage() {
       <div className="flex gap-1 mb-6 p-1 bg-slate-100 rounded-xl overflow-x-auto scrollbar-hide">
         {tabs.map((tab) => {
           const Icon = tab.icon;
-          const locked = isFree && FREE_LOCKED_TABS.has(tab.id);
+          const locked = (isFree && FREE_LOCKED_TABS.has(tab.id)) || (isBasic && BASIC_LOCKED_TABS.has(tab.id));
           return (
             <button
               key={tab.id}
@@ -2869,19 +2871,19 @@ export default function SettingsPage() {
           : <AvailabilityTab />
       )}
       {activeTab === "team" && isOwner && (
-        isFree
-          ? <PaywallCard title="ניהול צוות" description="הוסף חברי צוות ונהל הרשאות — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
+        (isFree || isBasic)
+          ? <PaywallCard title="ניהול צוות" description="הוסף חברי צוות ונהל הרשאות — זמין במנוי פרו ומעלה." requiredTier="pro" variant="page" />
           : <TeamTab />
       )}
       {activeTab === "invoicing" && <InvoicingTab />}
       {activeTab === "messages" && (
-        isFree
-          ? <PaywallCard title="הודעות ואוטומציות" description="תבניות WhatsApp, תזכורות אוטומטיות ואוטומציות — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
+        (isFree || isBasic)
+          ? <PaywallCard title="הודעות ואוטומציות" description="תבניות WhatsApp, תזכורות אוטומטיות ואוטומציות — זמין במנוי פרו ומעלה." requiredTier="pro" variant="page" />
           : <MessagesPanel />
       )}
       {activeTab === "service-dogs" && (
-        isFree
-          ? <PaywallCard title="הגדרות כלבי שירות" description="הגדרות תוכנית כלבי שירות — זמין במנוי מתקדם." requiredTier="pro" variant="page" />
+        (isFree || isBasic)
+          ? <PaywallCard title="הגדרות כלבי שירות" description="הגדרות תוכנית כלבי שירות — זמין במנוי פרו ומעלה." requiredTier="pro" variant="page" />
           : <ServiceDogsSettingsTab />
       )}
       {activeTab === "data" && (
