@@ -213,6 +213,12 @@ export const FREE_TRAINING_LIMIT = 50;
 /** Hard limit on price list items for the FREE tier. BASIC+ is unlimited. */
 export const FREE_PRICE_ITEM_LIMIT = 4;
 
+/** Hard limit on open tasks for the FREE tier. BASIC+ is unlimited. */
+export const FREE_TASK_LIMIT = 20;
+
+/** Hard limit on appointments for the FREE tier. BASIC+ is unlimited. */
+export const FREE_APPOINTMENT_LIMIT = 50;
+
 // ─── Entity limits ───────────────────────────────────────────────────────────
 
 const MAX_CUSTOMERS: Record<TierKey, number | null> = {
@@ -323,6 +329,22 @@ export function getMaxTrainingPrograms(tier: string | null | undefined): number 
 /** Max number of price list items for a tier. null = unlimited. */
 export function getMaxPriceItems(tier: string | null | undefined): number | null {
   return MAX_PRICE_ITEMS[normalizeTier(tier)];
+}
+
+/** Max number of open tasks for a tier. null = unlimited. */
+export function getMaxTasks(tier: string | null | undefined): number | null {
+  const map: Record<TierKey, number | null> = {
+    free: 20, basic: null, pro: null, groomer: null, groomer_plus: null, service_dog: null,
+  };
+  return map[normalizeTier(tier)];
+}
+
+/** Max number of appointments for a tier. null = unlimited. */
+export function getMaxAppointments(tier: string | null | undefined): number | null {
+  const map: Record<TierKey, number | null> = {
+    free: 50, basic: null, pro: null, groomer: null, groomer_plus: null, service_dog: null,
+  };
+  return map[normalizeTier(tier)];
 }
 
 /** The tier to suggest upgrading to when a feature is locked. */

@@ -127,6 +127,7 @@ const TIER_ICONS = { basic: Star, pro: Zap, groomer: Crown };
 function BusinessTab() {
   const queryClient = useQueryClient();
   const { user, refreshUser } = useAuth();
+  const { isFree } = usePlan();
   const { data: biz, isLoading } = useQuery<Business>({
     queryKey: ["settings"],
     queryFn: () => fetchJSON<Business>("/api/settings"),
@@ -287,44 +288,54 @@ function BusinessTab() {
 
       {/* Boarding Settings */}
       <div className="border-t border-slate-100 pt-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Hotel className="w-4 h-4 text-brand-500" />
-          <h3 className="text-sm font-semibold text-petra-text">הגדרות פנסיון</h3>
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <Hotel className="w-4 h-4 text-brand-500" />
+            <h3 className="text-sm font-semibold text-petra-text">הגדרות פנסיון</h3>
+          </div>
+          {isFree && <span className="text-xs text-slate-400">🔒 זמין במנוי בייסיק</span>}
         </div>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" />
-                שעת צ׳ק-אין
-              </label>
-              <input type="time" className="input" value={editing.boardingCheckInTime ?? "14:00"} onChange={(e) => setForm({ ...editing, boardingCheckInTime: e.target.value })} />
+        {isFree && (
+          <p className="text-sm text-petra-muted bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
+            <a href="/settings?tab=billing" className="text-brand-600 hover:underline font-medium">שדרג לבייסיק</a> כדי להגדיר שעות צ׳ק-אין/אאוט ופנסיון.
+          </p>
+        )}
+        {!isFree && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
+                  שעת צ׳ק-אין
+                </label>
+                <input type="time" className="input" value={editing.boardingCheckInTime ?? "14:00"} onChange={(e) => setForm({ ...editing, boardingCheckInTime: e.target.value })} />
+              </div>
+              <div>
+                <label className="label flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
+                  שעת צ׳ק-אאוט
+                </label>
+                <input type="time" className="input" value={editing.boardingCheckOutTime ?? "11:00"} onChange={(e) => setForm({ ...editing, boardingCheckOutTime: e.target.value })} />
+              </div>
             </div>
-            <div>
-              <label className="label flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" />
-                שעת צ׳ק-אאוט
-              </label>
-              <input type="time" className="input" value={editing.boardingCheckOutTime ?? "11:00"} onChange={(e) => setForm({ ...editing, boardingCheckOutTime: e.target.value })} />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label flex items-center gap-1.5">
+                  <Moon className="w-3.5 h-3.5" />
+                  חישוב לפי
+                </label>
+                <select className="input" value={editing.boardingCalcMode ?? "nights"} onChange={(e) => setForm({ ...editing, boardingCalcMode: e.target.value })}>
+                  <option value="nights">לילות</option>
+                  <option value="days">ימים</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">מינימום לילות</label>
+                <input type="number" min={0} className="input" value={editing.boardingMinNights ?? 1} onChange={(e) => setForm({ ...editing, boardingMinNights: Number(e.target.value) })} />
+              </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label flex items-center gap-1.5">
-                <Moon className="w-3.5 h-3.5" />
-                חישוב לפי
-              </label>
-              <select className="input" value={editing.boardingCalcMode ?? "nights"} onChange={(e) => setForm({ ...editing, boardingCalcMode: e.target.value })}>
-                <option value="nights">לילות</option>
-                <option value="days">ימים</option>
-              </select>
-            </div>
-            <div>
-              <label className="label">מינימום לילות</label>
-              <input type="number" min={0} className="input" value={editing.boardingMinNights ?? 1} onChange={(e) => setForm({ ...editing, boardingMinNights: Number(e.target.value) })} />
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
       <button
@@ -338,10 +349,18 @@ function BusinessTab() {
 
       {/* Online Booking Settings */}
       <div className="border-t border-slate-100 pt-6">
-        <div className="flex items-center gap-2 mb-4">
-          <CalendarRange className="w-4 h-4 text-brand-500" />
-          <h3 className="text-sm font-semibold text-petra-text">הגדרות הזמנה אונליין</h3>
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <CalendarRange className="w-4 h-4 text-brand-500" />
+            <h3 className="text-sm font-semibold text-petra-text">הגדרות הזמנה אונליין</h3>
+          </div>
+          {isFree && <span className="text-xs text-slate-400">🔒 זמין במנוי בייסיק</span>}
         </div>
+        {isFree ? (
+          <p className="text-sm text-petra-muted bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
+            <a href="/settings?tab=billing" className="text-brand-600 hover:underline font-medium">שדרג לבייסיק</a> כדי להפעיל הזמנות אונליין, להגדיר קישור הזמנה ומדיניות ביטול.
+          </p>
+        ) : (
         <div className="space-y-4">
           {/* Booking page URL */}
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
@@ -426,6 +445,7 @@ function BusinessTab() {
             <p className="text-xs text-petra-muted mt-1">מוצג כשלשירות יש מקדמה אך אין קישור תשלום</p>
           </div>
         </div>
+        )}
       </div>
 
       {/* Password Change Section */}

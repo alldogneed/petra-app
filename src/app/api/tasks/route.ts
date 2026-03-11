@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { getMaxTasks, normalizeTier } from "@/lib/feature-flags";
 
 export async function GET(request: NextRequest) {
   try {
@@ -129,6 +130,21 @@ export async function POST(request: NextRequest) {
     const rl = rateLimit("api:tasks:write", ip, RATE_LIMITS.API_WRITE);
     if (!rl.allowed) {
       return NextResponse.json({ error: "יותר מדי בקשות" }, { status: 429 });
+    }
+
+    // Enforce task limit for free tier
+    const business = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true } });
+    const maxTasks = getMaxTasks(normalizeTier(business?.tier));
+    if (maxTasks !== null) {
+      const openCount = await prisma.task.count({
+        where: { businessId: authResult.businessId, status: { notIn: ["COMPLETED", "CANCELED"] } },
+      });
+      if (openCount >= maxTasks) {
+        return NextResponse.json(
+          { error: `מסלול חינמי מוגבל ל-${maxTasks} משימות פתוחות. שדרג לבייסיק כדי להוסיף עוד.` },
+          { status: 403 }
+        );
+      }
     }
 
     const body = await request.json();

@@ -40,9 +40,12 @@ import {
   Users,
   PawPrint,
   Target,
+  Sparkles,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
+import { usePlan } from "@/hooks/usePlan";
+import { getMaxTasks } from "@/lib/feature-flags";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -162,6 +165,8 @@ function formatShortDate(task: Task): string {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function TasksPage() {
+  const { isFree, tier } = usePlan();
+  const maxTasks = getMaxTasks(tier);
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab") ?? "tasks";
 
@@ -290,7 +295,13 @@ export default function TasksPage() {
       setShowNewTask(false);
       toast.success("המשימה נוצרה בהצלחה");
     },
-    onError: () => toast.error("שגיאה ביצירת המשימה. נסה שוב."),
+    onError: (err: Error) => {
+      if (err.message?.includes("מוגבל") || err.message?.includes("403")) {
+        toast.error("הגעת למגבלת המשימות — שדרג לבייסיק כדי להוסיף עוד");
+      } else {
+        toast.error("שגיאה ביצירת המשימה. נסה שוב.");
+      }
+    },
   });
 
   const toggleMutation = useMutation({
@@ -449,10 +460,17 @@ export default function TasksPage() {
         {tab !== "automation" && (
           <>
             <p className="text-sm text-petra-muted">{allTasks.length} משימות</p>
-            <button className="btn-primary" onClick={() => setShowNewTask(true)}>
-              <Plus className="w-4 h-4" />
-              משימה חדשה
-            </button>
+            {isFree && maxTasks !== null && activeFilter !== "COMPLETED" && allTasks.length >= maxTasks ? (
+              <a href="/settings?tab=billing" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500 text-white rounded-xl px-4 py-2 text-sm font-medium flex items-center">
+                <Sparkles className="w-4 h-4" />
+                שדרג לבייסיק
+              </a>
+            ) : (
+              <button className="btn-primary" onClick={() => setShowNewTask(true)}>
+                <Plus className="w-4 h-4" />
+                משימה חדשה
+              </button>
+            )}
           </>
         )}
 
@@ -481,6 +499,25 @@ export default function TasksPage() {
           </button>
         </div>
       </div>
+
+      {/* Free tier task limit banner */}
+      {isFree && maxTasks !== null && activeFilter !== "COMPLETED" && (
+        <div className={`flex items-center justify-between gap-3 mb-4 px-4 py-3 rounded-xl border ${
+          allTasks.length >= maxTasks ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"
+        }`}>
+          <div className="flex items-center gap-2 text-sm">
+            <Sparkles className={`w-4 h-4 flex-shrink-0 ${allTasks.length >= maxTasks ? "text-amber-500" : "text-slate-400"}`} />
+            <span className={allTasks.length >= maxTasks ? "text-amber-800" : "text-slate-600"}>
+              {allTasks.length}/{maxTasks} משימות פתוחות — מגבלת המסלול החינמי
+            </span>
+          </div>
+          {allTasks.length >= maxTasks && (
+            <a href="/settings?tab=billing" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
+              שדרג לבייסיק ←
+            </a>
+          )}
+        </div>
+      )}
 
       {/* Tab switcher */}
       <div className="flex gap-1 mb-6 bg-slate-100 rounded-xl p-1 w-fit">

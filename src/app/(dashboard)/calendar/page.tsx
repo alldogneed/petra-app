@@ -444,7 +444,13 @@ function NewAppointmentModal({
         notes: "",
       });
     },
-    onError: () => toast.error("שגיאה בקביעת התור. נסה שוב."),
+    onError: (err: Error) => {
+      if (err.message?.includes("מוגבל") || err.message?.includes("50")) {
+        toast.error("הגעת למגבלת הפגישות — שדרג לבייסיק כדי להוסיף עוד");
+      } else {
+        toast.error("שגיאה בקביעת התור. נסה שוב.");
+      }
+    },
   });
 
   // Conflict detection

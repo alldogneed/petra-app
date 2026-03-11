@@ -6,6 +6,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { scheduleAppointmentReminder } from "@/lib/reminder-service";
 import { syncAppointmentToGcal } from "@/lib/google-calendar";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { getMaxAppointments, normalizeTier } from "@/lib/feature-flags";
 
 export async function GET(request: NextRequest) {
   try {
@@ -68,6 +69,21 @@ export async function POST(request: NextRequest) {
     const rl = rateLimit("api:appointments:write", ip, RATE_LIMITS.API_WRITE);
     if (!rl.allowed) {
       return NextResponse.json({ error: "יותר מדי בקשות" }, { status: 429 });
+    }
+
+    // Enforce appointment limit for free tier
+    const business = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true } });
+    const maxAppts = getMaxAppointments(normalizeTier(business?.tier));
+    if (maxAppts !== null) {
+      const totalCount = await prisma.appointment.count({
+        where: { businessId: authResult.businessId, status: { notIn: ["CANCELED"] } },
+      });
+      if (totalCount >= maxAppts) {
+        return NextResponse.json(
+          { error: `מסלול חינמי מוגבל ל-${maxAppts} פגישות. שדרג לבייסיק כדי להוסיף עוד.` },
+          { status: 403 }
+        );
+      }
     }
 
     const body = await request.json();
