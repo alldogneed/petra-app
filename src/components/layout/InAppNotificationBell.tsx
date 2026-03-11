@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { BellRing, Check, ExternalLink } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { BellRing, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface UserNotification {
@@ -30,6 +30,7 @@ export function InAppNotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const { data } = useQuery<{ notifications: UserNotification[]; unreadCount: number }>({
     queryKey: ["user-notifications"],
@@ -105,10 +106,13 @@ export function InAppNotificationBell() {
               notifications.map((n) => (
                 <div
                   key={n.id}
-                  onClick={() => !n.isRead && markRead.mutate(n.id)}
+                  onClick={() => {
+                    if (!n.isRead) markRead.mutate(n.id);
+                    if (n.actionUrl) { router.push(n.actionUrl); setOpen(false); }
+                  }}
                   className={cn(
-                    "flex items-start gap-3 px-4 py-3 border-b border-slate-50 last:border-b-0 transition-colors",
-                    n.isRead ? "hover:bg-slate-50/60" : "bg-amber-50/30 hover:bg-amber-50/60 cursor-pointer"
+                    "flex items-start gap-3 px-4 py-3 border-b border-slate-50 last:border-b-0 transition-colors cursor-pointer",
+                    n.isRead ? "hover:bg-slate-50/60" : "bg-amber-50/30 hover:bg-amber-50/60"
                   )}
                 >
                   {/* Unread dot */}
@@ -118,19 +122,7 @@ export function InAppNotificationBell() {
                       {n.title}
                     </p>
                     <p className="text-[12px] text-petra-muted mt-0.5 leading-snug">{n.message}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[11px] text-slate-400">{timeAgo(n.createdAt)}</span>
-                      {n.actionUrl && (
-                        <Link
-                          href={n.actionUrl}
-                          onClick={() => { setOpen(false); !n.isRead && markRead.mutate(n.id); }}
-                          className="flex items-center gap-0.5 text-[11px] text-brand-600 hover:text-brand-700 font-medium"
-                        >
-                          <ExternalLink className="w-2.5 h-2.5" />
-                          פתח
-                        </Link>
-                      )}
-                    </div>
+                    <span className="text-[11px] text-slate-400 mt-1 block">{timeAgo(n.createdAt)}</span>
                   </div>
                 </div>
               ))

@@ -1,8 +1,9 @@
 "use client";
 
-import { Mail, X, Trash2, ExternalLink } from "lucide-react";
+import { Mail, X, Trash2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { AlertCircle, Bell, Trophy, Info, CheckCircle } from "lucide-react";
 
 interface SystemMessage {
@@ -42,6 +43,7 @@ function getTypeColor(type: string) {
 export function SystemInbox() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   const { data: messages = [], refetch } = useQuery<SystemMessage[]>({
     queryKey: ["systemMessages"],
@@ -142,10 +144,13 @@ export function SystemInbox() {
                 return (
                   <div
                     key={msg.id}
-                    className={`px-4 py-3 border-b border-slate-100 transition-colors cursor-default ${
+                    className={`px-4 py-3 border-b border-slate-100 transition-colors cursor-pointer ${
                       msg.isRead ? "bg-white" : "bg-slate-50"
                     } hover:bg-slate-100`}
-                    onClick={() => !msg.isRead && markAsRead(msg.id)}
+                    onClick={() => {
+                      if (!msg.isRead) markAsRead(msg.id);
+                      if (msg.actionUrl && !isExpired) { router.push(msg.actionUrl); setOpen(false); }
+                    }}
                   >
                     <div className="flex gap-3">
                       {/* Icon */}
@@ -179,19 +184,11 @@ export function SystemInbox() {
                           })}
                         </p>
 
-                        {/* Action button */}
+                        {/* Action hint */}
                         {msg.actionUrl && !isExpired && (
-                          <a
-                            href={msg.actionUrl}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpen(false);
-                            }}
-                            className="inline-flex items-center gap-1 mt-2 text-[11px] font-medium text-brand-600 hover:text-brand-700 transition-colors"
-                          >
-                            {msg.actionLabel || "בצע פעולה"}
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
+                          <p className="text-[11px] text-brand-500 mt-1.5">
+                            {msg.actionLabel || "לחץ לפתיחה →"}
+                          </p>
                         )}
                       </div>
 
