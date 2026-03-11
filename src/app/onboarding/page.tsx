@@ -402,7 +402,7 @@ function StepClient({ onNext, onBack }: { onNext: () => void; onBack: () => void
 
 // ─── Step 2: Pricing ──────────────────────────────────────────────────────────
 
-const SERVICE_TYPES = ["אילוף", "פנסיון", "גריפינג", "ביקור בית", "טיפול", "אחר"];
+const SERVICE_TYPES = ["אילוף", "פנסיון", "טיפוח", "מוצרים"];
 
 function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const [name, setName] = useState("");
