@@ -24,6 +24,7 @@ import {
   formatDate,
   toWhatsAppPhone,
 } from "@/lib/utils";
+import { TierGate } from "@/components/paywall/TierGate";
 
 /* ─────────────── Types ─────────────── */
 
@@ -128,6 +129,18 @@ function formatHebDate(dateString: string): string {
 /* ─────────────── Main Page ─────────────── */
 
 export default function SchedulerPage() {
+  return (
+    <TierGate
+      feature="appointments"
+      title="יומן פגישות"
+      description="קבע וניהל פגישות עם לקוחות — זמין במנוי בייסיק ומעלה."
+    >
+      <SchedulerContent />
+    </TierGate>
+  );
+}
+
+function SchedulerContent() {
   const queryClient = useQueryClient();
   const today = todayStr();
   const searchParams = useSearchParams();

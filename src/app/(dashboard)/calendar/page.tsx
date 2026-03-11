@@ -33,6 +33,7 @@ import {
 import { toast } from "sonner";
 import { usePlan } from "@/hooks/usePlan";
 import { getMaxAppointments } from "@/lib/feature-flags";
+import { TierGate } from "@/components/paywall/TierGate";
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -764,6 +765,18 @@ function QuickPaymentModal({
 // ─── Main Calendar Page ──────────────────────────────────────────────────────
 
 export default function CalendarPage() {
+  return (
+    <TierGate
+      feature="appointments"
+      title="יומן פגישות"
+      description="קבע וניהל פגישות עם לקוחות — זמין במנוי בייסיק ומעלה."
+    >
+      <CalendarContent />
+    </TierGate>
+  );
+}
+
+function CalendarContent() {
   const queryClient = useQueryClient();
   const { isFree, tier } = usePlan();
   const maxAppts = getMaxAppointments(tier);
