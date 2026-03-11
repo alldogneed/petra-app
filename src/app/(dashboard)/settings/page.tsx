@@ -56,6 +56,8 @@ import { MessagesPanel } from "@/components/messages/messages-panel";
 import { toast } from "sonner";
 import { TIERS, SERVICE_TYPES } from "@/lib/constants";
 import { useAuth } from "@/providers/auth-provider";
+import { usePlan } from "@/hooks/usePlan";
+import { PaywallCard } from "@/components/paywall/PaywallCard";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -2782,10 +2784,14 @@ export default function SettingsPage() {
   const searchParams = useSearchParams();
   const gcalParam = searchParams.get("gcal");
   const { isOwner } = useAuth();
+  const { isFree } = usePlan();
   const invoicingParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data" | "messages" | "service-dogs">(
     gcalParam ? "integrations" : invoicingParam === "invoicing" ? "invoicing" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : "business"
   );
+
+  // Tabs locked for free tier (business details always open)
+  const FREE_LOCKED_TABS = new Set(["availability", "team", "messages", "service-dogs", "data", "integrations"]);
 
   const tabs = [
     { id: "business" as const, label: "פרטי העסק", icon: Building2 },
@@ -2808,6 +2814,7 @@ export default function SettingsPage() {
       <div className="flex gap-1 mb-6 p-1 bg-slate-100 rounded-xl overflow-x-auto scrollbar-hide">
         {tabs.map((tab) => {
           const Icon = tab.icon;
+          const locked = isFree && FREE_LOCKED_TABS.has(tab.id);
           return (
             <button
               key={tab.id}
@@ -2819,19 +2826,44 @@ export default function SettingsPage() {
             >
               <Icon className="w-4 h-4" />
               {tab.label}
+              {locked && <span className="text-[10px]">🔒</span>}
             </button>
           );
         })}
       </div>
 
       {activeTab === "business" && <BusinessTab />}
-      {activeTab === "availability" && <AvailabilityTab />}
-      {activeTab === "team" && isOwner && <TeamTab />}
+      {activeTab === "availability" && (
+        isFree
+          ? <PaywallCard title="הגדרות זמינות" description="הגדר שעות פעילות, חסימות ופסקי זמן — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
+          : <AvailabilityTab />
+      )}
+      {activeTab === "team" && isOwner && (
+        isFree
+          ? <PaywallCard title="ניהול צוות" description="הוסף חברי צוות ונהל הרשאות — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
+          : <TeamTab />
+      )}
       {activeTab === "invoicing" && <InvoicingTab />}
-      {activeTab === "messages" && <MessagesPanel />}
-      {activeTab === "service-dogs" && <ServiceDogsSettingsTab />}
-      {activeTab === "data" && <DataTab />}
-      {activeTab === "integrations" && <IntegrationsTab />}
+      {activeTab === "messages" && (
+        isFree
+          ? <PaywallCard title="הודעות ואוטומציות" description="תבניות WhatsApp, תזכורות אוטומטיות ואוטומציות — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
+          : <MessagesPanel />
+      )}
+      {activeTab === "service-dogs" && (
+        isFree
+          ? <PaywallCard title="הגדרות כלבי שירות" description="הגדרות תוכנית כלבי שירות — זמין במנוי מתקדם." requiredTier="pro" variant="page" />
+          : <ServiceDogsSettingsTab />
+      )}
+      {activeTab === "data" && (
+        isFree
+          ? <PaywallCard title="ייצוא נתונים" description="ייצוא לקוחות ובעלי חיים ל-Excel/CSV — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
+          : <DataTab />
+      )}
+      {activeTab === "integrations" && (
+        isFree
+          ? <PaywallCard title="אינטגרציות" description="חבר יומן Google, WhatsApp ועוד — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
+          : <IntegrationsTab />
+      )}
     </div>
   );
 }
