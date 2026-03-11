@@ -17,6 +17,7 @@ import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import { COMPLIANCE_EVENT_MAP } from "@/lib/service-dogs";
 import { toast } from "sonner";
+import { TierGate } from "@/components/paywall/TierGate";
 
 interface ComplianceEvent {
   id: string;
@@ -40,7 +41,7 @@ const NOTIFICATION_STATUS_CONFIG: Record<string, { label: string; className: str
   FAILED: { label: "נכשל", className: "bg-red-100 text-red-600" },
 };
 
-export default function CompliancePage() {
+function CompliancePageContent() {
   const [filter, setFilter] = useState<"all" | "pending" | "overdue" | "sent">("pending");
   const queryClient = useQueryClient();
 
@@ -305,5 +306,18 @@ export default function CompliancePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CompliancePage() {
+  return (
+    <TierGate
+      feature="service_dogs"
+      title="מודול כלבי שירות"
+      description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      upgradeTier="service_dog"
+    >
+      <CompliancePageContent />
+    </TierGate>
   );
 }

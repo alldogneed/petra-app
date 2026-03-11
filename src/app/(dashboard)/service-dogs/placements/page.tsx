@@ -26,6 +26,7 @@ import {
   FUNDING_SOURCE_MAP,
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
+import { TierGate } from "@/components/paywall/TierGate";
 
 interface Placement {
   id: string;
@@ -62,7 +63,7 @@ interface RecipientOption {
   status: string;
 }
 
-export default function PlacementsPage() {
+function PlacementsPageContent() {
   const [statusFilter, setStatusFilter] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const queryClient = useQueryClient();
@@ -340,6 +341,19 @@ export default function PlacementsPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function PlacementsPage() {
+  return (
+    <TierGate
+      feature="service_dogs"
+      title="מודול כלבי שירות"
+      description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      upgradeTier="service_dog"
+    >
+      <PlacementsPageContent />
+    </TierGate>
   );
 }
 

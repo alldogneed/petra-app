@@ -16,6 +16,7 @@ import {
   PLACEMENT_STATUS_MAP, SERVICE_DOG_PHASE_MAP, RECIPIENT_FUNDING_SOURCES, FUNDING_SOURCE_MAP,
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
+import { TierGate } from "@/components/paywall/TierGate";
 
 // ─── Types ───
 
@@ -104,7 +105,7 @@ type Tab = "details" | "documents" | "meetings";
 
 // ─── Main Page ───
 
-export default function RecipientDetailPage() {
+function RecipientDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
@@ -618,6 +619,19 @@ export default function RecipientDetailPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function RecipientDetailPage() {
+  return (
+    <TierGate
+      feature="service_dogs"
+      title="מודול כלבי שירות"
+      description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      upgradeTier="service_dog"
+    >
+      <RecipientDetailPageContent />
+    </TierGate>
   );
 }
 

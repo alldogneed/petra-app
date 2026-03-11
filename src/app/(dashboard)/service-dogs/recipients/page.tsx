@@ -37,6 +37,7 @@ import {
   FUNDING_SOURCE_MAP,
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
+import { TierGate } from "@/components/paywall/TierGate";
 
 interface Stage {
   id: string;
@@ -236,7 +237,7 @@ function SortableColumn({ stage, children }: { stage: Stage; children: React.Rea
 }
 
 // ─── Main Page ───
-export default function RecipientsPage() {
+function RecipientsPageContent() {
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -597,6 +598,19 @@ export default function RecipientsPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function RecipientsPage() {
+  return (
+    <TierGate
+      feature="service_dogs"
+      title="מודול כלבי שירות"
+      description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      upgradeTier="service_dog"
+    >
+      <RecipientsPageContent />
+    </TierGate>
   );
 }
 

@@ -28,6 +28,7 @@ import {
   LOCATION_MAP,
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
+import { TierGate } from "@/components/paywall/TierGate";
 
 interface ServiceDogCard {
   id: string;
@@ -57,7 +58,7 @@ const TRAINING_STATUS_LABELS: Record<string, { label: string; color: string }> =
   FAILED: { label: "לא עבר", color: "bg-red-100 text-red-600" },
 };
 
-export default function ServiceDogsListPage() {
+function ServiceDogsListPageContent() {
   const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [phaseFilter, setPhaseFilter] = useState(searchParams.get("phase") || "");
@@ -432,6 +433,19 @@ export default function ServiceDogsListPage() {
 
       {showAddModal && <AddDogModal dogs={dogs} onClose={() => setShowAddModal(false)} />}
     </div>
+  );
+}
+
+export default function ServiceDogsListPage() {
+  return (
+    <TierGate
+      feature="service_dogs"
+      title="מודול כלבי שירות"
+      description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      upgradeTier="service_dog"
+    >
+      <ServiceDogsListPageContent />
+    </TierGate>
   );
 }
 

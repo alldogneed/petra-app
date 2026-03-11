@@ -19,6 +19,7 @@ import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import { SERVICE_DOG_PHASE_COLORS, SERVICE_DOG_PHASE_MAP } from "@/lib/service-dogs";
 import { toast } from "sonner";
+import { TierGate } from "@/components/paywall/TierGate";
 
 interface ServiceDogSummary {
   id: string;
@@ -40,7 +41,7 @@ interface IDCard {
   generatedAt: string;
 }
 
-export default function IDCardsPage() {
+function IDCardsPageContent() {
   const [viewingCard, setViewingCard] = useState<{ card: IDCard; dogName: string } | null>(null);
   const queryClient = useQueryClient();
 
@@ -418,5 +419,18 @@ export default function IDCardsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function IDCardsPage() {
+  return (
+    <TierGate
+      feature="service_dogs"
+      title="מודול כלבי שירות"
+      description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      upgradeTier="service_dog"
+    >
+      <IDCardsPageContent />
+    </TierGate>
   );
 }

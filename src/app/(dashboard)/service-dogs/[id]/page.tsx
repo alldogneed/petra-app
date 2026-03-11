@@ -74,6 +74,7 @@ import {
   LOCATION_MAP,
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
+import { TierGate } from "@/components/paywall/TierGate";
 
 // ─── Types ───
 
@@ -271,7 +272,7 @@ interface IDCard {
 
 // ─── Main Page ───
 
-export default function ServiceDogProfilePage() {
+function ServiceDogProfilePageContent() {
   const params = useParams();
   const router = useRouter();
   const dogId = params.id as string;
@@ -673,6 +674,19 @@ export default function ServiceDogProfilePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function ServiceDogProfilePage() {
+  return (
+    <TierGate
+      feature="service_dogs"
+      title="מודול כלבי שירות"
+      description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      upgradeTier="service_dog"
+    >
+      <ServiceDogProfilePageContent />
+    </TierGate>
   );
 }
 

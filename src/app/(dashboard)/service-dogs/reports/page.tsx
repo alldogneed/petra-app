@@ -26,6 +26,7 @@ import {
   RECIPIENT_STATUSES, FUNDING_SOURCE_MAP,
   LOCATION_OPTIONS, LOCATION_MAP,
 } from "@/lib/service-dogs";
+import { TierGate } from "@/components/paywall/TierGate";
 
 interface ServiceDogSummary {
   id: string;
@@ -52,7 +53,7 @@ interface TrainingProgram {
   sessions: { id: string; sessionDate: string; status: string }[];
 }
 
-export default function ServiceDogsReportsPage() {
+function ServiceDogsReportsPageContent() {
   const { data: dogs = [], isLoading: dogsLoading } = useQuery<ServiceDogSummary[]>({
     queryKey: ["service-dogs"],
     queryFn: () => fetch("/api/service-dogs").then((r) => r.json()),
@@ -549,5 +550,18 @@ export default function ServiceDogsReportsPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function ServiceDogsReportsPage() {
+  return (
+    <TierGate
+      feature="service_dogs"
+      title="מודול כלבי שירות"
+      description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      upgradeTier="service_dog"
+    >
+      <ServiceDogsReportsPageContent />
+    </TierGate>
   );
 }
