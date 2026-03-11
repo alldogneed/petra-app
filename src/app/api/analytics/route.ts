@@ -11,21 +11,31 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const period = searchParams.get("period") || "month"; // week | month | quarter | year
+    const fromParam = searchParams.get("from");
+    const toParam = searchParams.get("to");
 
     const now = new Date();
     let fromDate: Date;
-    switch (period) {
-      case "week":
-        fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case "quarter":
-        fromDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case "year":
-        fromDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        break;
-      default: // month
-        fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    let toDate: Date = now;
+
+    if (fromParam && toParam) {
+      fromDate = new Date(fromParam);
+      toDate = new Date(toParam);
+      toDate.setHours(23, 59, 59, 999);
+    } else {
+      switch (period) {
+        case "week":
+          fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case "quarter":
+          fromDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        case "year":
+          fromDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          break;
+        default: // month
+          fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      }
     }
 
     // Previous period for comparison
@@ -238,7 +248,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       period,
       from: fromDate.toISOString(),
-      to: now.toISOString(),
+      to: toDate.toISOString(),
       overview: {
         totalCustomers,
         newCustomers,

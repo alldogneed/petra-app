@@ -2883,7 +2883,7 @@ export default function SettingsPage() {
       )}
       {activeTab === "service-dogs" && (
         (isFree || isBasic)
-          ? <PaywallCard title="הגדרות כלבי שירות" description="הגדרות תוכנית כלבי שירות — זמין במנוי פרו ומעלה." requiredTier="pro" variant="page" />
+          ? <PaywallCard title="הגדרות כלבי שירות" description="הגדרות תוכנית כלבי שירות — זמין במנוי Service Dog בלבד." requiredTier="service_dog" variant="page" />
           : <ServiceDogsSettingsTab />
       )}
       {activeTab === "data" && (

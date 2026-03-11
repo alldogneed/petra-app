@@ -41,6 +41,8 @@ import {
   PawPrint,
   Target,
   Sparkles,
+  Download,
+  FileSpreadsheet,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -180,6 +182,9 @@ export default function TasksPage() {
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [tick, setTick] = useState(0);
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [showExportModal, setShowExportModal] = useState(false);
   const queryClient = useQueryClient();
 
   // Auto-refresh every 30 seconds when enabled
@@ -208,13 +213,15 @@ export default function TasksPage() {
 
   // Fetch tasks — completed tab fetches only completed; otherwise fetch only non-completed
   const { data: allTasks = [], isLoading, isError, isFetching: tasksFetching, refetch: refetchTasks } = useQuery<Task[]>({
-    queryKey: ["tasks", activeCategory, activeFilter],
+    queryKey: ["tasks", activeCategory, activeFilter, dateFrom, dateTo],
     queryFn: () => {
       const params = new URLSearchParams();
       if (activeCategory !== "ALL") params.set("category", activeCategory);
       // Scope query to reduce data fetched: completed tab → only completed; else exclude completed
       if (activeFilter === "COMPLETED") params.set("status", "COMPLETED");
       else params.set("excludeCompleted", "true");
+      if (dateFrom) params.set("from", dateFrom);
+      if (dateTo) params.set("to", dateTo);
       return fetchJSON<Task[]>(`/api/tasks?${params}`);
     },
   });
@@ -649,7 +656,7 @@ export default function TasksPage() {
       </div>
 
       {/* Category Filter */}
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex items-center gap-2 mb-4">
         <Filter className="w-3.5 h-3.5 text-petra-muted flex-shrink-0" />
         <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1 flex-nowrap">
           {CATEGORIES.map((c) => (
@@ -667,6 +674,44 @@ export default function TasksPage() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Date Range + Export */}
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-3.5 h-3.5 text-petra-muted flex-shrink-0" />
+          <input
+            type="date"
+            className="input text-xs py-1.5 px-2 w-[130px]"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            placeholder="מתאריך"
+          />
+          <span className="text-xs text-petra-muted">עד</span>
+          <input
+            type="date"
+            className="input text-xs py-1.5 px-2 w-[130px]"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            placeholder="עד תאריך"
+          />
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={() => { setDateFrom(""); setDateTo(""); }}
+              className="text-xs text-petra-muted hover:text-red-500 transition-colors"
+              title="נקה תאריכים"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => setShowExportModal(true)}
+          className="btn-secondary gap-2 text-xs py-1.5 px-3 mr-auto"
+        >
+          <Download className="w-3.5 h-3.5" />
+          ייצוא לאקסל
+        </button>
       </div>
 
       {/* Bulk Action Bar */}
@@ -781,6 +826,14 @@ export default function TasksPage() {
           onClose={() => setPostponeTask(null)}
           onSubmit={(data) => postponeMutation.mutate(data)}
           isPending={postponeMutation.isPending}
+        />
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <ExportTasksModal
+          tasks={sortedTasks}
+          onClose={() => setShowExportModal(false)}
         />
       )}
 
@@ -1948,6 +2001,222 @@ function PostponeModal({
           >
             <CalendarClock className="w-4 h-4" />
             {isPending ? "מעדכן..." : "דחה משימה"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>
+            ביטול
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Export Tasks Modal ────────────────────────────────────────────────────────
+
+const EXPORT_COLUMNS = [
+  { key: "title", label: "כותרת", default: true },
+  { key: "description", label: "תיאור", default: true },
+  { key: "category", label: "קטגוריה", default: true },
+  { key: "priority", label: "עדיפות", default: true },
+  { key: "status", label: "סטטוס", default: true },
+  { key: "dueDate", label: "תאריך יעד", default: true },
+  { key: "dueAt", label: "שעת יעד", default: false },
+  { key: "createdAt", label: "תאריך יצירה", default: true },
+  { key: "completedAt", label: "תאריך השלמה", default: false },
+  { key: "relatedEntityName", label: "שיוך (לקוח/חיה)", default: true },
+] as const;
+
+const STATUS_LABEL: Record<string, string> = {
+  OPEN: "פתוח",
+  COMPLETED: "הושלם",
+  CANCELED: "בוטל",
+};
+
+const PRIORITY_LABEL: Record<string, string> = {
+  LOW: "נמוכה",
+  MEDIUM: "בינונית",
+  HIGH: "גבוהה",
+  URGENT: "דחופה",
+};
+
+function ExportTasksModal({
+  tasks,
+  onClose,
+}: {
+  tasks: Task[];
+  onClose: () => void;
+}) {
+  const [selectedCols, setSelectedCols] = useState<Set<string>>(
+    () => new Set(EXPORT_COLUMNS.filter((c) => c.default).map((c) => c.key))
+  );
+  const [exporting, setExporting] = useState(false);
+
+  const toggleCol = (key: string) => {
+    setSelectedCols((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const selectAll = () =>
+    setSelectedCols(new Set(EXPORT_COLUMNS.map((c) => c.key)));
+  const selectNone = () => setSelectedCols(new Set());
+
+  const handleExport = async () => {
+    if (selectedCols.size === 0) {
+      toast.error("בחר לפחות עמודה אחת לייצוא");
+      return;
+    }
+    setExporting(true);
+    try {
+      const XLSX = await import("xlsx");
+      const cols = EXPORT_COLUMNS.filter((c) => selectedCols.has(c.key));
+
+      const rows = tasks.map((task) => {
+        const row: Record<string, string> = {};
+        for (const col of cols) {
+          switch (col.key) {
+            case "title":
+              row[col.label] = task.title;
+              break;
+            case "description":
+              row[col.label] = task.description ?? "";
+              break;
+            case "category":
+              row[col.label] = CATEGORY_LABEL[task.category] ?? task.category;
+              break;
+            case "priority":
+              row[col.label] = PRIORITY_LABEL[task.priority] ?? task.priority;
+              break;
+            case "status":
+              row[col.label] = STATUS_LABEL[task.status] ?? task.status;
+              break;
+            case "dueDate":
+              row[col.label] = task.dueDate
+                ? format(new Date(task.dueDate), "dd/MM/yyyy")
+                : task.dueAt
+                ? format(new Date(task.dueAt), "dd/MM/yyyy")
+                : "";
+              break;
+            case "dueAt":
+              row[col.label] = task.dueAt
+                ? format(new Date(task.dueAt), "HH:mm")
+                : "";
+              break;
+            case "createdAt":
+              row[col.label] = format(new Date(task.createdAt), "dd/MM/yyyy HH:mm");
+              break;
+            case "completedAt":
+              row[col.label] = task.completedAt
+                ? format(new Date(task.completedAt), "dd/MM/yyyy HH:mm")
+                : "";
+              break;
+            case "relatedEntityName":
+              row[col.label] = task.relatedEntityName ?? "";
+              break;
+          }
+        }
+        return row;
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      // Auto-size columns
+      const maxWidths = cols.map((col) => {
+        const headerLen = col.label.length;
+        const maxData = Math.max(...rows.map((r) => (r[col.label] ?? "").length), 0);
+        return Math.min(Math.max(headerLen, maxData) + 2, 40);
+      });
+      ws["!cols"] = maxWidths.map((w) => ({ wch: w }));
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "משימות");
+
+      const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const blob = new Blob([buf], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `משימות_${format(new Date(), "yyyy-MM-dd")}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast.success(`יוצאו ${tasks.length} משימות לאקסל`);
+      onClose();
+    } catch {
+      toast.error("שגיאה בייצוא");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
+            <FileSpreadsheet className="w-5 h-5 text-emerald-500" />
+            ייצוא משימות לאקסל
+          </h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <p className="text-sm text-petra-muted mb-4">
+          {tasks.length} משימות ייצאו (לפי הסינון הנוכחי). בחר אילו עמודות לכלול:
+        </p>
+
+        {/* Select all / none */}
+        <div className="flex gap-2 mb-3">
+          <button
+            onClick={selectAll}
+            className="text-xs text-brand-600 hover:text-brand-800 font-medium"
+          >
+            בחר הכל
+          </button>
+          <span className="text-xs text-petra-muted">|</span>
+          <button
+            onClick={selectNone}
+            className="text-xs text-petra-muted hover:text-petra-text font-medium"
+          >
+            נקה הכל
+          </button>
+        </div>
+
+        {/* Column checkboxes */}
+        <div className="space-y-1.5 mb-6 max-h-[280px] overflow-y-auto">
+          {EXPORT_COLUMNS.map((col) => (
+            <label
+              key={col.key}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+            >
+              <input
+                type="checkbox"
+                checked={selectedCols.has(col.key)}
+                onChange={() => toggleCol(col.key)}
+                className="w-4 h-4 rounded accent-brand-500"
+              />
+              <span className="text-sm text-petra-text">{col.label}</span>
+            </label>
+          ))}
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            className="btn-primary flex-1 gap-2"
+            disabled={selectedCols.size === 0 || exporting}
+            onClick={handleExport}
+          >
+            <Download className="w-4 h-4" />
+            {exporting ? "מייצא..." : `ייצא (${selectedCols.size} עמודות)`}
           </button>
           <button className="btn-secondary" onClick={onClose}>
             ביטול

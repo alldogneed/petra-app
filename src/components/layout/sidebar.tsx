@@ -183,6 +183,15 @@ export function Sidebar({
     return !hasFeatureWithOverrides(userTier, item.lockedFeature, userOverrides);
   }
 
+  // Split nav into main (unlocked) and locked sections for cleaner sidebar
+  const [lockedSectionOpen, setLockedSectionOpen] = useState(false);
+
+  const visibleEntries = navEntries
+    .filter((entry) => canSee(entry, user?.businessRole ?? null, user?.platformRole))
+    .filter((entry) => !isGroup(entry) ? !isItemHidden(entry as NavItem) : true);
+  const mainNavEntries = visibleEntries.filter(e => isGroup(e) || !isItemLocked(e as NavItem));
+  const lockedNavEntries = visibleEntries.filter(e => !isGroup(e) && isItemLocked(e as NavItem)) as NavItem[];
+
   const { data: counters } = useQuery<{ openTasks: number; overdueFollowUps: number; pendingBookings: number }>({
     queryKey: ["sidebar-counters"],
     queryFn: () => fetch("/api/dashboard/counters").then((r) => {
@@ -239,7 +248,7 @@ export function Sidebar({
           "flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
           isChild && isExpanded && "pr-8",
           locked
-            ? "text-slate-500 hover:text-slate-400 hover:bg-white/[0.04] opacity-75"
+            ? "text-slate-500 hover:text-slate-400 hover:bg-white/[0.04]"
             : isActive
             ? "text-white"
             : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
@@ -430,14 +439,33 @@ export function Sidebar({
         {/* Navigation */}
         <nav ref={!isMobile ? navRef : undefined} className="sidebar-nav flex-1 px-3 py-2 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.3) transparent", overflowAnchor: "none" }}>
           <div className="space-y-0.5">
-            {navEntries
-              .filter((entry) => canSee(entry, user?.businessRole ?? null, user?.platformRole))
-              .filter((entry) => !isGroup(entry) ? !isItemHidden(entry as NavItem) : true)
-              .map((entry) =>
-                isGroup(entry)
-                  ? renderGroup(entry, isMobile)
-                  : renderNavItem(entry as NavItem, isMobile)
-              )}
+            {/* Main nav — unlocked items (expanded) or all items (collapsed) */}
+            {(isExpanded ? mainNavEntries : visibleEntries).map((entry) =>
+              isGroup(entry)
+                ? renderGroup(entry, isMobile)
+                : renderNavItem(entry as NavItem, isMobile)
+            )}
+
+            {/* Locked features — collapsible section (expanded sidebar only) */}
+            {lockedNavEntries.length > 0 && isExpanded && (
+              <>
+                <div className="mt-2 mb-1 mx-2 border-t border-white/[0.06]" />
+                <button
+                  onClick={() => setLockedSectionOpen(v => !v)}
+                  className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-500 hover:text-slate-400 transition-colors"
+                >
+                  <Lock className="w-3 h-3 flex-shrink-0" />
+                  <span className="flex-1 text-right">תכונות נוספות</span>
+                  <span className="text-[10px] bg-white/[0.08] text-slate-500 px-1.5 py-0.5 rounded-full">{lockedNavEntries.length}</span>
+                  <ChevronDown className={cn("w-3 h-3 transition-transform duration-200 text-slate-600", lockedSectionOpen && "rotate-180")} />
+                </button>
+                {lockedSectionOpen && (
+                  <div className="space-y-0.5">
+                    {lockedNavEntries.map(item => renderNavItem(item, isMobile))}
+                  </div>
+                )}
+              </>
+            )}
 
             {/* Help button */}
             <button
@@ -451,8 +479,8 @@ export function Sidebar({
               {isExpanded && <span>עזרה</span>}
             </button>
 
-            {/* Upgrade banner — shown for free/basic users */}
-            {(userTier === "free" || userTier === "basic") && (
+            {/* Upgrade banner — shown when there are locked features or user is on free/basic */}
+            {(lockedNavEntries.length > 0 || userTier === "free" || userTier === "basic") && (
               <Link
                 href="/upgrade"
                 onClick={isMobile ? onMobileClose : undefined}

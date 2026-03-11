@@ -18,6 +18,7 @@ import {
   Share2,
   PawPrint,
   AlertCircle,
+  Download,
 } from "lucide-react";
 import { cn, formatCurrency, fetchJSON } from "@/lib/utils";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -116,11 +117,31 @@ export default function AnalyticsPage() {
 
 function AnalyticsContent() {
   const [period, setPeriod] = useState("month");
+  const [dateMode, setDateMode] = useState<"preset" | "custom">("preset");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+
+  const queryUrl =
+    dateMode === "custom" && customFrom && customTo
+      ? `/api/analytics?from=${customFrom}&to=${customTo}`
+      : `/api/analytics?period=${period}`;
 
   const { data, isLoading, isError } = useQuery<AnalyticsData>({
-    queryKey: ["analytics", period],
-    queryFn: () => fetchJSON<AnalyticsData>(`/api/analytics?period=${period}`),
+    queryKey: ["analytics", dateMode === "custom" ? `custom-${customFrom}-${customTo}` : period],
+    queryFn: () => fetchJSON<AnalyticsData>(queryUrl),
+    enabled: dateMode === "preset" || (!!customFrom && !!customTo),
   });
+
+  const exportFrom = dateMode === "custom" && customFrom ? customFrom : data?.from?.slice(0, 10) ?? "";
+  const exportTo = dateMode === "custom" && customTo ? customTo : data?.to?.slice(0, 10) ?? "";
+
+  const handleExport = () => {
+    if (!exportFrom || !exportTo) return;
+    setIsExporting(true);
+    window.location.href = `/api/analytics/export?from=${exportFrom}&to=${exportTo}`;
+    setTimeout(() => setIsExporting(false), 3000);
+  };
 
   const maxChartValue = data
     ? Math.max(...data.charts.appointmentsByDate.map((d) => d.count), 1)
@@ -135,14 +156,14 @@ function AnalyticsContent() {
           אנליטיקס
         </h1>
         <p className="text-sm text-petra-muted">סקירה כללית של ביצועי העסק</p>
-        <div className="flex gap-1.5 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap items-center">
           {PERIODS.map((p) => (
             <button
               key={p.id}
-              onClick={() => setPeriod(p.id)}
+              onClick={() => { setPeriod(p.id); setDateMode("preset"); }}
               className={cn(
                 "px-4 py-2 rounded-xl text-sm font-medium transition-all",
-                period === p.id
+                dateMode === "preset" && period === p.id
                   ? "bg-brand-500 text-white shadow-sm"
                   : "bg-white text-petra-muted hover:bg-slate-50 border border-slate-200"
               )}
@@ -150,10 +171,49 @@ function AnalyticsContent() {
               {p.label}
             </button>
           ))}
+          <button
+            onClick={() => setDateMode("custom")}
+            className={cn(
+              "px-4 py-2 rounded-xl text-sm font-medium transition-all",
+              dateMode === "custom"
+                ? "bg-brand-500 text-white shadow-sm"
+                : "bg-white text-petra-muted hover:bg-slate-50 border border-slate-200"
+            )}
+          >
+            מותאם אישית
+          </button>
+          {dateMode === "custom" && (
+            <>
+              <input
+                type="date"
+                value={customFrom}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="input px-3 py-1.5 text-sm w-36"
+              />
+              <span className="text-xs text-petra-muted">עד</span>
+              <input
+                type="date"
+                value={customTo}
+                onChange={(e) => setCustomTo(e.target.value)}
+                className="input px-3 py-1.5 text-sm w-36"
+              />
+            </>
+          )}
+          {data && (
+            <button
+              onClick={handleExport}
+              disabled={isExporting || !exportFrom || !exportTo}
+              className="btn-secondary flex items-center gap-1.5 hidden sm:flex disabled:opacity-50"
+              title="ייצוא דוח לאקסל"
+            >
+              <Download className="w-4 h-4" />
+              {isExporting ? "מייצא..." : "ייצוא Excel"}
+            </button>
+          )}
           {data && (
             <a
               href={(() => {
-                const periodLabel = PERIODS.find((p) => p.id === period)?.label ?? period;
+                const periodLabel = dateMode === "custom" ? "מותאם אישית" : (PERIODS.find((p) => p.id === period)?.label ?? period);
                 const from = new Date(data.from).toLocaleDateString("he-IL");
                 const to = new Date(data.to).toLocaleDateString("he-IL");
                 const lines = [

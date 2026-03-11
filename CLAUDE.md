@@ -1,6 +1,6 @@
 # Petra App — Complete AI Agent Reference
 
-> Last updated: March 2026 (Session 13). Written by reading actual code, not guessing.
+> Last updated: March 2026 (Session 14). Written by reading actual code, not guessing.
 
 ---
 
@@ -309,7 +309,7 @@ petra-app/
 ### Service Dogs
 | Model | Purpose |
 |-------|---------|
-| `ServiceDogProfile` | 1:1 extension of Pet. phase (SELECTION→TRAINING→ADVANCED→PLACEMENT→CERTIFIED→RETIRED), certificationDate, trainingHours, `documents Json`, `trainingTests Json` (ADI results), `dogPhoto` (base64), `milestones Json` |
+| `ServiceDogProfile` | 1:1 extension of Pet. phase (SELECTION→TRAINING→ADVANCED→PLACEMENT→CERTIFIED→RETIRED), certificationDate, trainingHours, `currentLocation String @default("TRAINER")` (TRAINER/FOSTER/BOARDING/FIELD), `documents Json`, `trainingTests Json` (ADI results), `dogPhoto` (base64), `milestones Json` |
 | `ServiceDogInsurance` | Insurance policy per dog (policyNumber, insurer, expiry, `policyDocument` base64) |
 | `ServiceDogRecipient` | Person receiving a service dog (disability info, fundingSource, waitlist status), `attachments Json`, `meetings Json` |
 | `ServiceRecipientStage` | Custom kanban stages for the recipient pipeline (name, color, sortOrder, per-business). Auto-seeded with 8 defaults |
@@ -504,6 +504,7 @@ Sidebar group: **"ניהול כלבי שירות"** (6 sub-pages + recipient pro
 - **Alerts system**: sidebar badge shows count of urgent alerts. Overview widget lists overdue protocols, unvaccinated, missing tests. `POST /api/cron/service-dog-alerts` runs daily
 - **Smart protocol auto-generation**: health data (vaccines, conditions) auto-generates relevant `ServiceDogMedicalProtocol` records with due dates. Israeli-specific protocols included (national registry, ADI certification)
 - **Dog photo**: `ServiceDogProfile.dogPhoto` — base64 upload from תיק כלב tab
+- **Current location**: `ServiceDogProfile.currentLocation` — TRAINER (default) / FOSTER / BOARDING / FIELD. `LOCATION_OPTIONS` constant in `src/lib/service-dogs.ts`. Location badge on dog profile header + dog cards (hidden when TRAINER). "מיקום כלבים" section on reports page. BOARDING dogs appear in boarding page under "כלבי שירות בפנסיון" section. XLSX export includes "מיקום נוכחי" column. API supports `?location=` filter param.
 - **Insurance**: `ServiceDogInsurance` records with policy document file upload (PDF/image → base64). Shown in ביטוח tab
 - **Milestones**: JSON field on `ServiceDogProfile`. Shown in אבני דרך tab
 - **Vests/equipment**: tracked in ציוד tab
@@ -715,38 +716,30 @@ Based on code comments, schema fields, and incomplete implementations:
 
 ---
 
-## 8. Current Status (March 2026 — Session 13)
+## 8. Current Status (March 2026 — Session 14)
 
-**Most active area:** FREE tier overhaul — making free tier a usable product with smart limits.
+**Most active area:** Service dog location tracking, session persistence, leads UX improvements.
 
 Recent git history (most recent first):
+- `(Session 14)` — Service dog currentLocation, session persistence, leads toolbar, business-admin fixes
 - `261680a` — Feat: ToS consents page in admin panel + various session fixes
 - `4b4b1b2` — Fix: icon paths (svg→png), reset-password improvements, owner consents API
-- `618fa24` — Fix: training duration, messages cleanup, session API, standalone dog fixes
 
-**Session 13 changes:**
-- ✅ **FREE tier overhaul** — from "blocks everything" to usable product with smart limits:
-  - Customer limit: 15 → **50**
-  - Leads: locked → **open, max 20** (counter on button + API enforcement)
-  - Training: locked → **open, max 20 programs** (API enforcement + error surfacing)
-  - Finance (payments/orders/pricing): locked → **open**
-  - 4 new locked features for free: `online_bookings`, `analytics`, `intake_forms`, `payment_links`
-- ✅ `feature-flags.ts`: 4 new FeatureKeys, `FREE_LEAD_LIMIT=20`, `FREE_TRAINING_LIMIT=20`, `getMaxLeads()`, `getMaxTrainingPrograms()`
-- ✅ API enforcement: `leads/route.ts` POST + `training-programs/route.ts` POST check entity limits
-- ✅ TierGate wrappers on 5 pages: analytics, bookings, intake-forms, payment-request, pets
-- ✅ Sidebar: pets hidden (not just locked) for free tier; bookings + analytics show lock badge
-- ✅ Leads page: "(N/20)" counter on "ליד חדש" button for free tier + toast on limit
-- ✅ Training page: API error messages now surface in toasts (limit reached)
-- ✅ Upgrade page: added FREE tier plan card with features/limits, 5-column grid, "חינם" price
-- ✅ Owner admin: 4 new feature rows in tenant override grid
+**Session 14 changes:**
+- ✅ **Service dog `currentLocation`** — new field on `ServiceDogProfile` (`TRAINER`/`FOSTER`/`BOARDING`/`FIELD`). Location badge on dog profile + dog cards. "מיקום כלבים" section on reports page. Boarding page shows BOARDING dogs in separate section. XLSX export has "מיקום נוכחי" column. API supports `?location=` filter.
+- ✅ **30-day persistent sessions** — fixed two-layer bug: cookie AND DB session now both use 30-day TTL when `rememberMe=true`. `SESSION_TTL_REMEMBER_ME` constant in `session.ts`. `rememberMe` option threaded through `createSession()`. Google OAuth always creates 30-day session (mobile-friendly).
+- ✅ **Business-admin session invalidation** — deactivating a team member now calls `adminSession.deleteMany` to invalidate their active sessions immediately.
+- ✅ **Leads toolbar UX** — "הוסף שלב" button added next to "עריכת שלבים". Clicking it triggers `AddStageInline` (via `triggerOpen` counter prop) and auto-scrolls kanban to end. Search box moved to right side (RTL-natural position).
+- ✅ **`next.config.mjs` Sentry removed** — `withSentryConfig` was crashing dev server (`@sentry/nextjs` not installed). Removed all Sentry references. Sentry still on pre-launch blockers list.
 
-**Previous session (Session 12) changes:**
-- Bug scan (10 fixes), boarding UX, favicon regeneration
+**Previous session (Session 13) changes:**
+- FREE tier overhaul (customer limit 50, leads/training open with limits, finance open)
 
 **Pre-launch blockers remaining:**
 1. WhatsApp Business Verification at Meta — In Review (🔴 blocker for actual message delivery)
 2. Stripe Checkout API routes missing → no online payments
-3. No error monitoring (Sentry)
+3. No error monitoring (Sentry — was removed from `next.config.mjs`; needs proper install + config)
+4. `CRON_SECRET` must be set in both Vercel env AND GitHub repo secrets
 
 **Production deployment:** Vercel, auto-deploys from `main` branch push. Schema at `prisma/schema.production.prisma` (must stay in sync with `prisma/schema.prisma`).
 
