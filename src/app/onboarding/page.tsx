@@ -560,62 +560,72 @@ function StepGoogle({
 function StepReminders({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-petra-text mb-1">תזכורות אוטומטיות</h2>
+      {/* Header */}
+      <div className="text-center">
+        <div className="w-14 h-14 rounded-2xl bg-amber-50 border-2 border-amber-200 flex items-center justify-center mx-auto mb-3">
+          <MessageCircle className="w-7 h-7 text-amber-500" />
+        </div>
+        <h2 className="text-xl font-bold text-petra-text mb-1">תזכורות WhatsApp אוטומטיות</h2>
         <p className="text-sm text-petra-muted">
-          Petra שולחת ללקוחות שלך תזכורת WhatsApp אוטומטית לפני כל תור — בלי שתצטרך לעשות כלום
+          הלקוחות שלך יקבלו תזכורת לפני כל תור — בלי שתצטרך לשלוח ידנית
         </p>
       </div>
 
-      {/* How it works */}
-      <div className="space-y-3">
-        {[
-          { num: "1", text: "אתה קובע תור ללקוח" },
-          { num: "2", text: "Petra שולחת הודעת WhatsApp 48 שעות לפני" },
-          { num: "3", text: "הלקוח מאשר — אתה מקבל עדכון" },
-        ].map(({ num, text }) => (
-          <div key={num} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-            <div className="w-7 h-7 rounded-full bg-brand-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
-              {num}
+      {/* Blurred preview */}
+      <div className="relative rounded-xl overflow-hidden border border-slate-200">
+        {/* Fake message rows — blurred */}
+        <div className="p-4 space-y-2 blur-[3px] select-none pointer-events-none bg-green-50" aria-hidden>
+          <div className="bg-white rounded-lg p-3 text-[12px] text-slate-700 border border-green-100 font-mono" dir="rtl">
+            שלום ישראל! 👋<br />
+            תזכורת לתור עם העסק שלנו<br />
+            📅 מחר, 14:00 — רקס — שיעור אילוף
+          </div>
+          <div className="bg-white rounded-lg p-3 text-[12px] text-slate-700 border border-green-100 font-mono" dir="rtl">
+            שלום שרה! תזכורת לתור מחר בשעה 10:00 🐕
+          </div>
+        </div>
+        {/* Lock overlay */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70 backdrop-blur-[1px]">
+          <div className="text-center px-4">
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-2">
+              <span className="text-xl">🔒</span>
             </div>
-            <p className="text-sm text-petra-text">{text}</p>
+            <p className="text-sm font-bold text-petra-text">זמין במנוי בייסיק ומעלה</p>
+            <p className="text-[12px] text-petra-muted mt-1">שדרג ותפעיל תזכורות אוטומטיות</p>
+          </div>
+        </div>
+      </div>
+
+      {/* What you get on upgrade */}
+      <div className="space-y-2">
+        {[
+          { icon: "✅", text: "תזכורת WhatsApp אוטומטית 48 שעות לפני כל תור" },
+          { icon: "✅", text: "הלקוח מאשר — אתה מקבל עדכון בזמן אמת" },
+          { icon: "✅", text: "תזכורות ימי הולדת לכלבים" },
+          { icon: "✅", text: "יומן Google מסונכרן" },
+        ].map(({ icon, text }, i) => (
+          <div key={i} className="flex items-center gap-2 text-sm text-petra-muted">
+            <span>{icon}</span>
+            <span>{text}</span>
           </div>
         ))}
       </div>
 
-      {/* Mock message preview */}
-      <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
-        <p className="text-[11px] font-semibold text-green-700 mb-2 flex items-center gap-1">
-          <MessageCircle className="w-3.5 h-3.5" />
-          דוגמה להודעה שיקבל הלקוח
-        </p>
-        <div className="bg-white rounded-lg p-3 text-sm text-slate-700 leading-relaxed border border-green-100 font-mono text-[12px]" dir="rtl">
-          שלום ישראל! 👋<br />
-          תזכורת לתור עם העסק שלנו<br />
-          📅 מחר, 14:00<br />
-          🐕 רקס — שיעור אילוף<br />
-          <span className="text-slate-400">– נשלח אוטומטית על ידי Petra</span>
-        </div>
-      </div>
-
-      {/* Upsell teaser */}
-      <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-        <CalendarDays className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-semibold text-amber-800">רוצה גם סנכרון יומן Google?</p>
-          <p className="text-[12px] text-amber-700 mt-0.5">
-            זמין במנוי בייסיק ומעלה — שדרג בכל עת מהגדרות העסק.
-          </p>
-        </div>
-      </div>
+      {/* CTA */}
+      <a
+        href="/settings?tab=billing"
+        className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors"
+      >
+        <Sparkles className="w-4 h-4" />
+        שדרג לבייסיק — ₪99 לחודש
+      </a>
 
       <div className="flex gap-3">
         <button onClick={onBack} className="btn-secondary flex items-center gap-1">
           <ChevronRight className="w-4 h-4" />חזור
         </button>
-        <button onClick={onNext} className="btn-primary flex-1 justify-center flex items-center gap-2">
-          הבנתי, נמשיך
-          <ChevronLeft className="w-4 h-4" />
+        <button onClick={onNext} className="flex-1 text-sm text-petra-muted hover:text-petra-text transition-colors text-center py-2">
+          דלג לעת עתה
         </button>
       </div>
     </div>
