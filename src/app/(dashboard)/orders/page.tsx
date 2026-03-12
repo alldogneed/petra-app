@@ -169,9 +169,14 @@ function CancelDialog({ orderId, orderStatus, onClose }: { orderId: string; orde
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-function getTodayStr() {
-  const d = new Date();
+function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function getTodayStr() { return toDateStr(new Date()); }
+function get30DaysAgoStr() {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  return toDateStr(d);
 }
 
 function OrdersPageContent() {
@@ -181,7 +186,7 @@ function OrdersPageContent() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [cancelOrder, setCancelOrder] = useState<{ id: string; status: string } | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
-  const [fromDate, setFromDate] = useState(getTodayStr);
+  const [fromDate, setFromDate] = useState(get30DaysAgoStr);
   const [toDate, setToDate] = useState("");
   const queryClient = useQueryClient();
 
@@ -524,6 +529,20 @@ function OrdersPageContent() {
             </div>
           </div>
 
+          {/* Date presets */}
+          <div className="flex gap-1.5 items-center flex-wrap">
+            {[
+              { label: "היום", fn: () => { setFromDate(getTodayStr()); setToDate(getTodayStr()); } },
+              { label: "השבוע", fn: () => { const d = new Date(); const day = d.getDay(); const start = new Date(d); start.setDate(d.getDate() - day); setFromDate(toDateStr(start)); setToDate(getTodayStr()); } },
+              { label: "החודש", fn: () => { const d = new Date(); setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`); setToDate(getTodayStr()); } },
+              { label: "הכל", fn: () => { setFromDate(""); setToDate(""); } },
+            ].map(({ label, fn }) => (
+              <button key={label} onClick={fn} className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-petra-muted hover:text-petra-text transition-colors">
+                {label}
+              </button>
+            ))}
+          </div>
+
           {/* Date range */}
           <div className="flex gap-2 items-end">
             <div>
@@ -576,10 +595,14 @@ function OrdersPageContent() {
             <p className="text-petra-text font-semibold mb-1">אין הזמנות</p>
             <p className="text-sm text-petra-muted mb-4">
               {hasActiveFilters
-                ? "לא נמצאו הזמנות התואמות את הסינון"
+                ? "לא נמצאו הזמנות בטווח הנבחר"
                 : "עדיין לא נוצרה אף הזמנה"}
             </p>
-            {!hasActiveFilters && (
+            {hasActiveFilters ? (
+              <button className="btn-secondary text-sm" onClick={clearFilters}>
+                הצג את כל ההזמנות
+              </button>
+            ) : (
               <button className="btn-primary text-sm" onClick={() => setShowNewOrder(true)}>
                 <Plus className="w-4 h-4" />
                 הזמנה חדשה
