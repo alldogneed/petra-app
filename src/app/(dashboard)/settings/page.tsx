@@ -127,7 +127,7 @@ const TIER_ICONS = { basic: Star, pro: Zap, groomer: Crown };
 function BusinessTab() {
   const queryClient = useQueryClient();
   const { user, refreshUser } = useAuth();
-  const { isFree, can } = usePlan();
+  const { isFree, can, isGroomer } = usePlan();
   const { data: biz, isLoading } = useQuery<Business>({
     queryKey: ["settings"],
     queryFn: () => fetchJSON<Business>("/api/settings"),
@@ -286,8 +286,8 @@ function BusinessTab() {
         </div>
       </div>
 
-      {/* Boarding Settings */}
-      <div className="border-t border-slate-100 pt-6">
+      {/* Boarding Settings — hidden for groomer tier */}
+      {!isGroomer && <div className="border-t border-slate-100 pt-6">
         <div className="flex items-center justify-between gap-2 mb-4">
           <div className="flex items-center gap-2">
             <Hotel className="w-4 h-4 text-brand-500" />
@@ -297,7 +297,7 @@ function BusinessTab() {
         </div>
         {isFree && (
           <p className="text-sm text-petra-muted bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
-            <a href="/settings?tab=billing" className="text-brand-600 hover:underline font-medium">שדרג לבייסיק</a> כדי להגדיר שעות צ׳ק-אין/אאוט ופנסיון.
+            <a href="/upgrade" className="text-brand-600 hover:underline font-medium">שדרג לבייסיק</a> כדי להגדיר שעות צ׳ק-אין/אאוט ופנסיון.
           </p>
         )}
         {!isFree && (
@@ -336,7 +336,7 @@ function BusinessTab() {
             </div>
           </div>
         )}
-      </div>
+      </div>}
 
       <button
         className={cn("btn-primary flex items-center gap-2 transition-all", saved && "bg-emerald-500 hover:brightness-100")}
@@ -358,7 +358,7 @@ function BusinessTab() {
         </div>
         {!can('online_bookings') ? (
           <p className="text-sm text-petra-muted bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
-            <a href="/settings?tab=billing" className="text-brand-600 hover:underline font-medium">שדרג לפרו</a> כדי להפעיל הזמנות אונליין, להגדיר קישור הזמנה ומדיניות ביטול.
+            <a href="/upgrade" className="text-brand-600 hover:underline font-medium">שדרג לפרו</a> כדי להפעיל הזמנות אונליין, להגדיר קישור הזמנה ומדיניות ביטול.
           </p>
         ) : (
         <div className="space-y-4">
@@ -2822,8 +2822,8 @@ export default function SettingsPage() {
 
   // Tabs locked per tier
   const FREE_LOCKED_TABS = new Set(["availability", "team", "messages", "service-dogs", "data", "integrations"]);
-  // Basic: open business, availability, data, integrations — lock team, messages, service-dogs
-  const BASIC_LOCKED_TABS = new Set(["team", "messages", "service-dogs"]);
+  // Basic: open business, data, integrations — lock availability, team, messages, service-dogs
+  const BASIC_LOCKED_TABS = new Set(["availability", "team", "messages", "service-dogs"]);
 
   const tabs = [
     { id: "business" as const, label: "פרטי העסק", icon: Building2 },
@@ -2867,8 +2867,8 @@ export default function SettingsPage() {
 
       {activeTab === "business" && <BusinessTab />}
       {activeTab === "availability" && (
-        isFree
-          ? <PaywallCard title="הגדרות זמינות" description="הגדר שעות פעילות, חסימות ופסקי זמן — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
+        (isFree || isBasic)
+          ? <PaywallCard title="הגדרות זמינות" description="הגדר שעות פעילות, חסימות ופסקי זמן — זמין במנוי פרו ומעלה." requiredTier="pro" variant="page" />
           : <AvailabilityTab />
       )}
       {activeTab === "team" && isOwner && (
