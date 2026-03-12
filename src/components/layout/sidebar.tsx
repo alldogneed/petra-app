@@ -255,6 +255,7 @@ export function Sidebar({
       <Link
         key={item.href}
         href={item.href}
+        prefetch={false}
         onClick={isMobile ? onMobileClose : undefined}
         className={cn(
           "flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
@@ -326,6 +327,7 @@ export function Sidebar({
         <Link
           key={`${group.key}-collapsed`}
           href={group.defaultHref}
+          prefetch={false}
           title={group.name}
           className={cn(
             "flex items-center justify-center px-3 py-1.5 rounded-xl transition-all duration-150 group",

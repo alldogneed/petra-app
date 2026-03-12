@@ -33,7 +33,8 @@ import {
   FileDown,
   RefreshCw,
 } from "lucide-react";
-import { toWhatsAppPhone, fetchJSON, formatCurrency } from "@/lib/utils";
+import { cn, toWhatsAppPhone, fetchJSON, formatCurrency } from "@/lib/utils";
+import { validateIsraeliPhone, validateEmail, sanitizeName, validateName } from "@/lib/validation";
 import { SERVICE_TYPES } from "@/lib/constants";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PaywallCard } from "@/components/paywall/PaywallCard";
@@ -806,6 +807,7 @@ function EditCustomerModal({
     selectedTags: [] as string[],
     source: "",
   });
+  const [editFieldErrors, setEditFieldErrors] = useState<{ name?: string; phone?: string; email?: string }>({});
 
   // Sync form when customer changes
   useEffect(() => {
@@ -819,6 +821,7 @@ function EditCustomerModal({
         selectedTags: parseTags(customer.tags),
         source: customer.source || "",
       });
+      setEditFieldErrors({});
     }
   }, [customer?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -857,6 +860,19 @@ function EditCustomerModal({
     onError: () => toast.error("שגיאה בעדכון הלקוח. נסה שוב."),
   });
 
+  function validateAndSubmitEdit() {
+    const errors: typeof editFieldErrors = {};
+    const nameErr = validateName(form.name);
+    if (nameErr) errors.name = nameErr;
+    const phoneErr = validateIsraeliPhone(form.phone);
+    if (phoneErr) errors.phone = phoneErr;
+    const emailErr = validateEmail(form.email);
+    if (emailErr) errors.email = emailErr;
+    setEditFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    mutation.mutate({ ...form, name: sanitizeName(form.name) });
+  }
+
   if (!isOpen || !customer) return null;
 
   return (
@@ -880,28 +896,31 @@ function EditCustomerModal({
           <div>
             <label className="label">שם מלא *</label>
             <input
-              className="input"
+              className={cn("input", editFieldErrors.name && "border-red-300 focus:ring-red-200")}
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => { setForm({ ...form, name: e.target.value }); if (editFieldErrors.name) setEditFieldErrors({ ...editFieldErrors, name: undefined }); }}
             />
+            {editFieldErrors.name && <p className="text-xs text-red-500 mt-1">{editFieldErrors.name}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">טלפון *</label>
               <input
-                className="input"
+                className={cn("input", editFieldErrors.phone && "border-red-300 focus:ring-red-200")}
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (editFieldErrors.phone) setEditFieldErrors({ ...editFieldErrors, phone: undefined }); }}
+                inputMode="tel"
               />
+              {editFieldErrors.phone && <p className="text-xs text-red-500 mt-1">{editFieldErrors.phone}</p>}
             </div>
             <div>
               <label className="label">אימייל</label>
               <input
-                className="input"
-                type="email"
+                className={cn("input", editFieldErrors.email && "border-red-300 focus:ring-red-200")}
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                onChange={(e) => { setForm({ ...form, email: e.target.value }); if (editFieldErrors.email) setEditFieldErrors({ ...editFieldErrors, email: undefined }); }}
               />
+              {editFieldErrors.email && <p className="text-xs text-red-500 mt-1">{editFieldErrors.email}</p>}
             </div>
           </div>
           <div>
@@ -959,8 +978,8 @@ function EditCustomerModal({
         <div className="flex gap-3 mt-6">
           <button
             className="btn-primary flex-1"
-            disabled={!form.name || !form.phone || mutation.isPending}
-            onClick={() => mutation.mutate(form)}
+            disabled={mutation.isPending}
+            onClick={validateAndSubmitEdit}
           >
             {mutation.isPending ? "שומר..." : "שמור שינויים"}
           </button>
@@ -1206,6 +1225,8 @@ function NewCustomerModal({
     selectedTags: [] as string[],
     source: "",
   });
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; phone?: string; email?: string }>({});
+  const [phoneWarning, setPhoneWarning] = useState<string | null>(null);
 
   const toggleNewTag = (tag: string) => {
     setForm((f) => ({
@@ -1239,17 +1260,45 @@ function NewCustomerModal({
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       onClose();
       setForm({ name: "", phone: "", email: "", address: "", notes: "", selectedTags: [], source: "" });
+      setFieldErrors({});
       toast.success("הלקוח נוצר בהצלחה");
     },
     onError: () => toast.error("שגיאה ביצירת הלקוח. נסה שוב."),
   });
+
+  function checkPhoneDuplicate(phone: string) {
+    const cleaned = phone.replace(/[\s\-(). ]/g, "");
+    if (cleaned.length < 9) return;
+    fetch(`/api/customers?search=${encodeURIComponent(phone)}&take=5`)
+      .then((r) => r.json())
+      .then((data) => {
+        const list: Array<{ id: string; name: string; phone: string }> =
+          data?.customers ?? (Array.isArray(data) ? data : []);
+        const exact = list.find((c) => c.phone.replace(/[\s\-(). ]/g, "") === cleaned);
+        setPhoneWarning(exact ? `⚠️ מספר טלפון זה כבר קיים עבור הלקוח ${exact.name}` : null);
+      })
+      .catch(() => {});
+  }
+
+  function validateAndSubmit() {
+    const errors: typeof fieldErrors = {};
+    const nameErr = validateName(form.name);
+    if (nameErr) errors.name = nameErr;
+    const phoneErr = validateIsraeliPhone(form.phone);
+    if (phoneErr) errors.phone = phoneErr;
+    const emailErr = validateEmail(form.email);
+    if (emailErr) errors.email = emailErr;
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    mutation.mutate({ ...form, name: sanitizeName(form.name) });
+  }
 
   if (!isOpen) return null;
 
   return (
     <div className="modal-overlay">
       <div className="modal-backdrop" onClick={onClose} />
-      <div className="modal-content max-w-lg mx-4 p-6">
+      <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-bold text-petra-text">לקוח חדש</h2>
@@ -1267,30 +1316,35 @@ function NewCustomerModal({
           <div>
             <label className="label">שם מלא *</label>
             <input
-              className="input"
+              className={cn("input", fieldErrors.name && "border-red-300 focus:ring-red-200")}
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => { setForm({ ...form, name: e.target.value }); if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: undefined }); }}
               placeholder="שם הלקוח"
             />
+            {fieldErrors.name && <p className="text-xs text-red-500 mt-1">{fieldErrors.name}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
               <label className="label">טלפון *</label>
               <input
-                className="input"
+                className={cn("input", fieldErrors.phone && "border-red-300 focus:ring-red-200")}
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: undefined }); setPhoneWarning(null); }}
+                onBlur={(e) => checkPhoneDuplicate(e.target.value)}
                 placeholder="050-0000000"
+                inputMode="tel"
               />
+              {fieldErrors.phone && <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>}
+              {!fieldErrors.phone && phoneWarning && <p className="text-xs text-amber-600 mt-1">{phoneWarning}. האם ברצונך להמשיך?</p>}
             </div>
-            <div>
+            <div className="flex-1">
               <label className="label">אימייל</label>
               <input
-                className="input"
-                type="email"
+                className={cn("input", fieldErrors.email && "border-red-300 focus:ring-red-200")}
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                onChange={(e) => { setForm({ ...form, email: e.target.value }); if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined }); }}
               />
+              {fieldErrors.email && <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
             </div>
           </div>
           <div>
@@ -1349,8 +1403,8 @@ function NewCustomerModal({
         <div className="flex gap-3 mt-6">
           <button
             className="btn-primary flex-1"
-            disabled={!form.name || !form.phone || mutation.isPending}
-            onClick={() => mutation.mutate(form)}
+            disabled={mutation.isPending}
+            onClick={validateAndSubmit}
           >
             <Plus className="w-4 h-4" />
             {mutation.isPending ? "שומר..." : "הוסף לקוח"}
@@ -1395,6 +1449,7 @@ export default function CustomersPage() {
   const [serviceTypeFilter, setServiceTypeFilter] = useState("");
   const [financialFilter, setFinancialFilter] = useState<"all" | "debt" | "balanced">("all");
   const [lastVisitFilter, setLastVisitFilter] = useState<"" | "30" | "60" | "90" | "never">("");
+  const [filtersCollapsed, setFiltersCollapsed] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showNewModal, setShowNewModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -1622,7 +1677,7 @@ export default function CustomersPage() {
         <div className="flex items-center gap-2">
           <div>
             <h1 className="page-title">לקוחות</h1>
-            <p className="text-sm text-petra-muted">{stats.total} לקוחות במערכת</p>
+            <p className="text-sm text-petra-muted">{stats.total} {stats.total === 1 ? "לקוח" : "לקוחות"} במערכת</p>
           </div>
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ["customers"] })}
@@ -1667,11 +1722,28 @@ export default function CustomersPage() {
           />
         </div>
 
+        {/* Mobile filter toggle */}
+        {(() => {
+          const activeFilterCount = [statusFilter !== "all", !!serviceTypeFilter, financialFilter !== "all", !!lastVisitFilter, !!tagFilter].filter(Boolean).length;
+          return (
+            <button
+              className="sm:hidden flex items-center justify-between w-full text-sm font-medium text-[#8B7355] py-0.5"
+              onClick={() => setFiltersCollapsed(!filtersCollapsed)}
+            >
+              <div className="flex items-center gap-1.5">
+                <Filter className="w-3.5 h-3.5" />
+                <span>סינון{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
+              </div>
+              <ChevronDown className={cn("w-4 h-4 transition-transform text-[#A0845C]", !filtersCollapsed && "rotate-180")} />
+            </button>
+          );
+        })()}
+
         {/* Filter row */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className={cn("flex flex-wrap items-center gap-3", filtersCollapsed ? "hidden sm:flex" : "flex")}>
           <div className="flex items-center gap-1.5 text-xs text-[#8B7355] font-medium">
-            <Filter className="w-3.5 h-3.5" />
-            <span>סינון:</span>
+            <Filter className="w-3.5 h-3.5 hidden sm:block" />
+            <span className="hidden sm:inline">סינון:</span>
           </div>
 
           {/* Status pills */}
@@ -1778,7 +1850,7 @@ export default function CustomersPage() {
 
         {/* Tag filter pills — shown only when there are preset tags */}
         {customerPresetTags.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 border-t border-[#F0E8DD] pt-2">
+          <div className={cn("flex flex-wrap items-center gap-1.5 border-t border-[#F0E8DD] pt-2", filtersCollapsed ? "hidden sm:flex" : "flex")}>
             <span className="text-[10px] text-[#8B7355] font-medium flex items-center gap-1">
               <Tag className="w-3 h-3" />
               תגיות:
@@ -1892,17 +1964,25 @@ export default function CustomersPage() {
       ) : customers.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">
-            <Users className="w-6 h-6 text-slate-400" />
+            {debouncedSearch ? <Search className="w-6 h-6 text-slate-400" /> : <Users className="w-6 h-6 text-slate-400" />}
           </div>
           <h3 className="text-base font-semibold text-petra-text mb-1">
-            {rawCustomers.length === 0 ? "אין לקוחות" : "אין תוצאות"}
+            {debouncedSearch
+              ? `לא נמצאו תוצאות עבור "${debouncedSearch}"`
+              : rawCustomers.length === 0 ? "אין לקוחות" : "אין תוצאות"}
           </h3>
           <p className="text-sm text-petra-muted mb-4">
-            {rawCustomers.length === 0
-              ? "התחל על ידי הוספת הלקוח הראשון"
-              : "נסה לשנות את הסינון או מילת החיפוש"}
+            {debouncedSearch
+              ? "נסה מילות חיפוש אחרות"
+              : rawCustomers.length === 0
+                ? "התחל על ידי הוספת הלקוח הראשון"
+                : "נסה לשנות את הסינון"}
           </p>
-          {rawCustomers.length === 0 && (
+          {debouncedSearch ? (
+            <button className="btn-secondary text-sm" onClick={() => setSearch("")}>
+              נקה חיפוש
+            </button>
+          ) : rawCustomers.length === 0 && (
             <button
               className="btn-primary"
               onClick={() => setShowNewModal(true)}
@@ -1966,12 +2046,13 @@ export default function CustomersPage() {
                         <div className="flex-1 min-w-0">
                           <Link
                             href={`/customers/${customer.id}`}
-                            className="text-sm font-semibold text-petra-text hover:text-brand-600 transition-colors"
+                            prefetch={false}
+                            className="text-sm font-semibold text-petra-text hover:text-brand-600 transition-colors block leading-snug"
                           >
                             {customer.name}
                           </Link>
-                          <div className="text-[11px] text-petra-muted flex items-center gap-1 mt-0.5">
-                            <Phone className="w-3 h-3" />
+                          <div className="text-[11px] text-petra-muted flex items-center gap-1 mt-0.5 whitespace-nowrap">
+                            <Phone className="w-3 h-3 flex-shrink-0" />
                             {customer.phone}
                           </div>
                         </div>
@@ -2058,6 +2139,7 @@ export default function CustomersPage() {
                       <td className="table-cell">
                         <Link
                           href={`/customers/${customer.id}`}
+                          prefetch={false}
                           className="flex items-center gap-3 group"
                         >
                           <div
