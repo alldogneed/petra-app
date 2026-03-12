@@ -1,4 +1,5 @@
 "use client";
+import { PageTitle } from "@/components/ui/PageTitle";
 
 import dynamic from "next/dynamic";
 import { TierGate } from "@/components/paywall/TierGate";
@@ -1671,12 +1672,15 @@ function LeadsPageContent() {
 
 export default function LeadsPage() {
   return (
-    <TierGate
+    <>
+      <PageTitle title="לידים" />
+      <TierGate
       feature="leads"
       title="מערכת לידים ומכירות"
       description="ניהול לידים, CRM ועוקב מכירות. עקוב אחרי לקוחות פוטנציאליים, שלח הודעות ועקוב אחרי המרות."
     >
       <LeadsPageContent />
     </TierGate>
+    </>
   );
 }

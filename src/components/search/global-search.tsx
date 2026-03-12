@@ -23,6 +23,7 @@ interface SearchResults {
     startTime: string;
     customer: { name: string };
     service: { name: string } | null;
+    priceListItem: { name: string } | null;
   }[];
   boarding: {
     id: string;
@@ -166,16 +167,19 @@ export function GlobalSearch() {
             {loading ? (
               <Loader2 className="w-5 h-5 text-brand-500 animate-spin flex-shrink-0" />
             ) : (
-              <Search className="w-5 h-5 text-slate-400 flex-shrink-0" />
+              <Search className="w-5 h-5 text-slate-400 flex-shrink-0" aria-hidden="true" />
             )}
+            <label htmlFor="global-search" className="sr-only">חיפוש</label>
             <input
               ref={inputRef}
-              type="text"
+              id="global-search"
+              type="search"
               value={query}
               onChange={(e) => handleInput(e.target.value)}
               placeholder="חפש לקוח, חיית מחמד, תור, ליד, משימה..."
               className="flex-1 text-sm text-petra-text bg-transparent border-none outline-none placeholder-slate-400"
               dir="rtl"
+              aria-label="חיפוש"
             />
             {query && (
               <button
@@ -228,13 +232,13 @@ export function GlobalSearch() {
               />
             )}
 
-            {results && results.appointments.filter((a) => a.customer != null && a.service != null).length > 0 && (
+            {results && results.appointments.filter((a) => a.customer != null && (a.service != null || a.priceListItem != null)).length > 0 && (
               <ResultSection
                 title="תורים"
                 icon={Calendar}
-                items={results.appointments.filter((a) => a.customer != null && a.service != null).map((a) => ({
+                items={results.appointments.filter((a) => a.customer != null && (a.service != null || a.priceListItem != null)).map((a) => ({
                   id: a.id,
-                  title: `${a.customer!.name} – ${a.service!.name}`,
+                  title: `${a.customer!.name} – ${a.service?.name ?? a.priceListItem?.name ?? "תור"}`,
                   subtitle: `${new Date(a.date).toLocaleDateString("he-IL")} ${a.startTime}`,
                   onClick: () => navigate(`/calendar`),
                 }))}

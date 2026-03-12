@@ -1,4 +1,5 @@
 "use client";
+import { PageTitle } from "@/components/ui/PageTitle";
 
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -437,6 +438,7 @@ function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
 function DashboardSkeleton() {
   return (
     <div className="space-y-6">
+      <PageTitle title="לוח בקרה" />
       {/* Header skeleton */}
       <div className="flex items-center justify-between">
         <div>

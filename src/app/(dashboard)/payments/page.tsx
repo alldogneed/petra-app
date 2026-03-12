@@ -1,4 +1,5 @@
 "use client";
+import { PageTitle } from "@/components/ui/PageTitle";
 
 import { TierGate } from "@/components/paywall/TierGate";
 import { FinanceTabs } from "@/components/finance/FinanceTabs";
@@ -667,15 +668,16 @@ function PaymentsPageContent() {
           {/* Desktop table */}
           <div className="overflow-x-auto hidden md:block">
             <table className="w-full">
+              <caption className="sr-only">רשימת תשלומים</caption>
               <thead>
                 <tr className="border-b border-petra-border">
-                  <th className="table-header-cell">לקוח</th>
-                  <th className="table-header-cell">סכום</th>
-                  <th className="table-header-cell">אמצעי תשלום</th>
-                  <th className="table-header-cell">שיוך</th>
-                  <th className="table-header-cell">סטטוס</th>
-                  <th className="table-header-cell">מסמך</th>
-                  <th className="table-header-cell">תאריך</th>
+                  <th scope="col" className="table-header-cell">לקוח</th>
+                  <th scope="col" className="table-header-cell">סכום</th>
+                  <th scope="col" className="table-header-cell">אמצעי תשלום</th>
+                  <th scope="col" className="table-header-cell">שיוך</th>
+                  <th scope="col" className="table-header-cell">סטטוס</th>
+                  <th scope="col" className="table-header-cell">מסמך</th>
+                  <th scope="col" className="table-header-cell">תאריך</th>
                 </tr>
               </thead>
               <tbody>
@@ -1063,12 +1065,15 @@ function NewPaymentModal({
 
 export default function PaymentsPage() {
   return (
-    <TierGate
+    <>
+      <PageTitle title="תשלומים" />
+      <TierGate
       feature="payments"
       title="ניהול תשלומים"
       description="מעקב אחרי תשלומים, הנפקת קבלות וחשבוניות, וסקירת מצב פיננסי מלא."
     >
       <PaymentsPageContent />
     </TierGate>
+    </>
   );
 }

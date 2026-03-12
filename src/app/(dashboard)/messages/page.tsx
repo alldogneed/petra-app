@@ -1,4 +1,5 @@
 "use client";
+import { PageTitle } from "@/components/ui/PageTitle";
 
 import { MessagesPanel } from "@/components/messages/messages-panel";
 import { TierGate } from "@/components/paywall/TierGate";
@@ -12,6 +13,7 @@ export default function MessagesPage() {
       description="צור ועורך תבניות WhatsApp, SMS ואימייל מותאמות אישית. שלח הודעות בזמן הנכון לכל לקוח."
     >
       <div>
+        <PageTitle title="הודעות" />
         <DesktopBanner />
         <div className="flex items-center gap-3 mb-6 flex-wrap">
           <h1 className="page-title">הודעות</h1>

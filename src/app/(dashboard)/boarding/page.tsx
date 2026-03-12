@@ -1,4 +1,5 @@
 "use client";
+import { PageTitle } from "@/components/ui/PageTitle";
 
 import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -3480,12 +3481,15 @@ function BoardingPageContent() {
 
 export default function BoardingPage() {
   return (
-    <TierGate
+    <>
+      <PageTitle title="פנסיון" />
+      <TierGate
       feature="boarding"
       title="ניהול פנסיון"
       description="ניהול חדרים, לינות ותפוסה. עקוב אחרי כל כלב שנמצא בפנסיון בזמן אמת."
     >
       <BoardingPageContent />
     </TierGate>
+    </>
   );
 }

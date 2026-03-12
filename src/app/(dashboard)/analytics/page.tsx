@@ -1,4 +1,5 @@
 "use client";
+import { PageTitle } from "@/components/ui/PageTitle";
 
 import { useQuery } from "@tanstack/react-query";
 import { DesktopBanner } from "@/components/ui/DesktopBanner";
@@ -152,6 +153,7 @@ function AnalyticsContent() {
 
   return (
     <div className="animate-fade-in">
+      <PageTitle title="אנליטיקס" />
       {/* Header */}
       <DesktopBanner />
       <div className="flex items-center gap-3 mb-6 flex-wrap">
@@ -336,7 +338,7 @@ function AnalyticsContent() {
                   אין נתונים לתקופה זו
                 </div>
               ) : (
-                <div className="flex items-end gap-1 h-40">
+                <div role="img" aria-label="גרף תורים לפי תאריך" className="flex items-end gap-1 h-40">
                   {data.charts.appointmentsByDate.map((d, i) => {
                     const height = Math.max((d.count / maxChartValue) * 100, 4);
                     const dateStr = new Date(d.date).toLocaleDateString("he-IL", {

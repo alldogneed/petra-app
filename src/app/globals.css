@@ -265,3 +265,27 @@
     background: rgba(255, 255, 255, 0.4);
   }
 }
+
+/* ─── Accessibility utilities ─────────────────────────── */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0;
+  margin: -1px; overflow: hidden; clip: rect(0,0,0,0);
+  white-space: nowrap; border-width: 0;
+}
+.skip-link {
+  position: absolute; top: -9999px; right: 0; z-index: 9999;
+  background: #1e293b; color: #fff; padding: 0.75rem 1.5rem;
+  border-radius: 0 0 0.5rem 0.5rem; font-size: 1rem; text-decoration: none;
+}
+.skip-link:focus { top: 0; }
+*:focus-visible { outline: 3px solid #3b82f6; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+/* Content-area links underline (item 14) */
+.prose a, .content-link { text-decoration: underline; }
+/* Contrast fix: placeholder text (item 5) */
+input::placeholder, textarea::placeholder { color: #64748b; }

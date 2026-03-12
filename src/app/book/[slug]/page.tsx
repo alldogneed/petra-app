@@ -164,26 +164,28 @@ function StepIndicator({ current, isBoarding }: { current: Step; isBoarding: boo
         />
       </div>
       {/* Desktop: step circles */}
-      <div className="hidden sm:flex items-center justify-center gap-1 overflow-x-auto pb-1">
+      <ol className="hidden sm:flex items-center justify-center gap-1 overflow-x-auto pb-1" aria-label="שלבי הזמנה">
         {STEPS.map((step, i) => (
-          <div key={step.key} className="flex items-center">
+          <li key={step.key} className="flex items-center">
             <div
+              aria-current={i === currentIdx ? "step" : undefined}
               className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-colors ${i < currentIdx
                 ? "bg-emerald-500 text-white"
                 : i === currentIdx
                   ? "bg-brand-500 text-white"
-                  : "bg-slate-200 text-slate-500"
+                  : "bg-slate-200 text-slate-600"
                 }`}
             >
-              {i < currentIdx ? <Check className="w-3.5 h-3.5" /> : i + 1}
+              {i < currentIdx ? <Check className="w-3.5 h-3.5" aria-hidden="true" /> : i + 1}
+              {i === currentIdx && <span className="sr-only">שלב נוכחי: {step.label}</span>}
             </div>
             <span className={`ml-1 mr-2 text-xs ${i === currentIdx ? "text-brand-700 font-medium" : "text-slate-400"}`}>
               {step.label}
             </span>
-            {i < STEPS.length - 1 && <div className="w-4 h-px bg-slate-300 mx-1" />}
-          </div>
+            {i < STEPS.length - 1 && <div className="w-4 h-px bg-slate-300 mx-1" aria-hidden="true" />}
+          </li>
         ))}
-      </div>
+      </ol>
     </div>
   )
 }
@@ -234,6 +236,30 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
   const [submitting, setSubmitting] = useState(false)
   const [bookingResult, setBookingResult] = useState<{ bookingId: string; status: string; message: string } | null>(null)
   const [submitError, setSubmitError] = useState("")
+
+  // Validation errors
+  const [phoneError, setPhoneError] = useState("")
+  const [nameError, setNameError] = useState("")
+  const [emailError, setEmailError] = useState("")
+
+  const validatePhone = (raw: string) => /^0[2-9]\d{7,8}$/.test(raw.replace(/\D/g, ""))
+  const validateEmail = (email: string) => !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
+  // ── Dynamic page title ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!business) return
+    const labels: Partial<Record<Step, string>> = {
+      service: `${business.name} — בחר שירות`,
+      date: `${business.name} — בחר תאריך`,
+      time: `${business.name} — בחר שעה`,
+      "boarding-dates": `${business.name} — תאריכי פנסיון`,
+      customer: `${business.name} — פרטי לקוח`,
+      dogs: `${business.name} — בחירת כלב`,
+      confirm: `${business.name} — אישור הזמנה`,
+      done: `${business.name} — הזמנה אושרה`,
+    }
+    document.title = labels[step] ?? `${business.name} — קביעת תור אונליין`
+  }, [step, business])
 
   // ── Load business ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -324,7 +350,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
   // ── Phone Lookup ──────────────────────────────────────────────────────────
   const lookupPhone = useCallback(async (phoneNumber: string) => {
-    if (phoneNumber.length < 9) {
+    if (phoneNumber.replace(/\D/g, "").length < 9) {
       setIsNewCustomer(null)
       return
     }
@@ -369,7 +395,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
   // Debounce phone changes for lookup
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (phone.length >= 9) {
+      if (phone.replace(/\D/g, "").length >= 9) {
         lookupPhone(phone)
       }
     }, 500)
@@ -382,13 +408,20 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-petra-bg flex items-center justify-center p-4">
-        <div className="text-center">
+      <div className="min-h-screen bg-petra-bg flex items-center justify-center p-4" dir="rtl">
+        <div className="text-center max-w-sm">
           <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
             <PawPrint className="w-7 h-7 text-slate-400" />
           </div>
           <h1 className="text-xl font-bold text-petra-text mb-2">העסק לא נמצא</h1>
-          <p className="text-petra-muted">{loadError}</p>
+          <p className="text-petra-muted mb-1">{loadError}</p>
+          <p className="text-sm text-petra-muted mb-5">ייתכן שהקישור שגוי או שהעסק כבר לא פעיל</p>
+          <a
+            href="https://petra-app.com"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition-colors"
+          >
+            חזרה לדף הבית
+          </a>
         </div>
       </div>
     )
@@ -418,9 +451,9 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
   // ─── Render card ──────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-petra-bg" dir="rtl">
+    <main id="main-content" className="min-h-screen bg-petra-bg" dir="rtl">
       {/* Header */}
-      <div className="bg-white/95 backdrop-blur-sm border-b border-petra-border sticky top-0 z-10">
+      <header className="bg-white/95 backdrop-blur-sm border-b border-petra-border sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
           {business.logo ? (
             <Image src={business.logo} alt={business.name} width={40} height={40} className="w-10 h-10 rounded-xl object-cover" />
@@ -445,11 +478,15 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
             </a>
           )}
         </div>
-      </div>
+      </header>
 
       {/* Main card */}
       <div className="max-w-lg mx-auto px-4 py-6">
-        {step !== "done" && step !== "deposit" && <StepIndicator current={step} isBoarding={selectedService?.type === "boarding"} />}
+        {step !== "done" && step !== "deposit" && (
+          <nav aria-label="שלבי הזמנה">
+            <StepIndicator current={step} isBoarding={selectedService?.type === "boarding"} />
+          </nav>
+        )}
 
         <div className="bg-white rounded-2xl shadow-card border border-petra-border overflow-hidden">
 
@@ -502,8 +539,8 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className="font-semibold text-petra-text group-hover:text-brand-700 truncate">{svc.name}</span>
+                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                            <span className="font-semibold text-petra-text group-hover:text-brand-700 leading-tight">{svc.name}</span>
                             {svc.depositRequired && svc.depositAmount && (
                               <span className="text-[10px] bg-brand-50 text-brand-600 border border-brand-100 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">מקדמה</span>
                             )}
@@ -607,8 +644,8 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
               </div>
 
               {/* Days grid */}
-              <div className="grid grid-cols-7 gap-1">
-                {Array.from({ length: firstDow }).map((_, i) => <div key={`e-${i}`} />)}
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+                {Array.from({ length: firstDow }).map((_, i) => <div key={`e-${i}`} className="aspect-square" />)}
                 {calDates.map((date) => {
                   const ds = toDateStr(date)
                   const isPast = ds < today
@@ -621,7 +658,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       disabled={isPast || !open}
                       onClick={() => { setSelectedDate(ds); setSelectedSlot(null); setStep("time") }}
                       className={`
-                        aspect-square rounded-lg text-sm font-medium transition-colors relative
+                        aspect-square w-full rounded-lg text-xs sm:text-sm font-medium transition-colors relative
                         ${isPast ? "text-slate-200 cursor-not-allowed" :
                           !open ? "text-slate-300 cursor-not-allowed line-through" : "cursor-pointer"}
                         ${isSelected ? "bg-brand-500 text-white shadow-sm" :
@@ -843,9 +880,10 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                     <input
                       type="tel"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => { setPhone(e.target.value); if (phoneError) setPhoneError("") }}
+                      onBlur={() => { if (phone && !validatePhone(phone)) setPhoneError("מספר טלפון לא תקין (לדוגמה: 050-1234567)") }}
                       placeholder="050-0000000"
-                      className="input flex-1"
+                      className={`input flex-1 ${phoneError ? "border-red-400 focus:ring-red-300" : ""}`}
                       autoComplete="tel"
                     />
                     {isLookingUpPhone && (
@@ -854,9 +892,10 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       </div>
                     )}
                   </div>
+                  {phoneError && <p className="text-xs text-red-600 mt-1">{phoneError}</p>}
                 </div>
 
-                {isNewCustomer === null && phone.length >= 9 && !isLookingUpPhone && (
+                {isNewCustomer === null && phone.replace(/\D/g, "").length >= 9 && !isLookingUpPhone && (
                   <div className="flex gap-2">
                     <button
                       onClick={() => setIsNewCustomer(false)}
@@ -880,23 +919,26 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       <input
                         type="text"
                         value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
+                        onChange={(e) => { setCustomerName(e.target.value); if (nameError) setNameError("") }}
                         placeholder="ישראל ישראלי"
-                        className="input"
+                        className={`input ${nameError ? "border-red-400 focus:ring-red-300" : ""}`}
                         autoComplete="name"
                       />
+                      {nameError && <p className="text-xs text-red-600 mt-1">{nameError}</p>}
                     </div>
                     <div>
                       <label className="label">אימייל</label>
                       <input
                         type="email"
                         value={customerEmail}
-                        onChange={(e) => setCustomerEmail(e.target.value)}
+                        onChange={(e) => { setCustomerEmail(e.target.value); if (emailError) setEmailError("") }}
+                        onBlur={() => { if (customerEmail && !validateEmail(customerEmail)) setEmailError("כתובת אימייל לא תקינה") }}
                         placeholder="example@email.com"
-                        className="input"
+                        className={`input ${emailError ? "border-red-400 focus:ring-red-300" : ""}`}
                         dir="ltr"
                         autoComplete="email"
                       />
+                      {emailError && <p className="text-xs text-red-600 mt-1">{emailError}</p>}
                     </div>
                     <div>
                       <label className="label">כתובת</label>
@@ -937,8 +979,13 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 )}
 
                 <button
-                  disabled={!phone || phone.length < 9 || isNewCustomer === null || isLookingUpPhone || (isNewCustomer === true && !customerName)}
-                  onClick={() => setStep("dogs")}
+                  disabled={!phone || !validatePhone(phone) || isNewCustomer === null || isLookingUpPhone || (isNewCustomer === true && customerName.trim().length < 2)}
+                  onClick={() => {
+                    if (!validatePhone(phone)) { setPhoneError("מספר טלפון לא תקין (לדוגמה: 050-1234567)"); return }
+                    if (isNewCustomer === true && customerName.trim().length < 2) { setNameError("שם חייב להכיל לפחות 2 תווים"); return }
+                    if (isNewCustomer === true && !validateEmail(customerEmail)) { setEmailError("כתובת אימייל לא תקינה"); return }
+                    setStep("dogs")
+                  }}
                   className="btn-primary w-full py-3 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   המשך
@@ -1065,6 +1112,9 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   <Plus className="w-4 h-4" /> הוסף כלב נוסף
                 </button>
 
+                {dogs.every((d) => !d.name.trim()) && (
+                  <p className="text-xs text-amber-600 text-center">יש להזין שם כלב אחד לפחות</p>
+                )}
                 <button
                   disabled={dogs.every((d) => !d.name.trim())}
                   onClick={() => setStep("confirm")}
@@ -1397,9 +1447,12 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
         {/* Footer */}
         <p className="text-center text-xs text-petra-muted mt-6">
-          מופעל על ידי <span className="font-semibold text-brand-600">Petra</span>
+          מופעל על ידי{" "}
+          <a href="https://petra-app.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-600 hover:underline">
+            Petra
+          </a>
         </p>
       </div>
-    </div>
+    </main>
   )
 }

@@ -1,4 +1,5 @@
 "use client";
+import { PageTitle } from "@/components/ui/PageTitle";
 
 import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -5077,12 +5078,15 @@ function AddRecipientInlineModal({ onClose }: { onClose: () => void }) {
 
 export default function TrainingPage() {
   return (
-    <TierGate
+    <>
+      <PageTitle title="אילוף" />
+      <TierGate
       feature="training"
       title="מנוע תהליכי אילוף"
       description="ניהול תוכניות אילוף, מטרות ומפגשים. עקוב אחרי ההתקדמות של כל כלב בכל תוכנית אילוף."
     >
       <TrainingPageContent />
     </TierGate>
+    </>
   );
 }

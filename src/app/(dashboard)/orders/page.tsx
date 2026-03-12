@@ -1,4 +1,5 @@
 "use client";
+import { PageTitle } from "@/components/ui/PageTitle";
 
 import { TierGate } from "@/components/paywall/TierGate";
 import { FinanceTabs } from "@/components/finance/FinanceTabs";
@@ -329,6 +330,7 @@ function OrdersPageContent() {
 <h1>דוח הזמנות</h1>
 <p class="meta">הופק: ${today} · סה"כ: ${filteredOrders.length} הזמנות</p>
 <table>
+              <caption className="sr-only">רשימת הזמנות</caption>
   <thead>
     <tr>
       <th>מס' הזמנה</th>
@@ -805,14 +807,14 @@ function OrdersPageContent() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-petra-border bg-slate-50/60">
-                  <th className="table-header-cell">מס&apos; הזמנה</th>
-                  <th className="table-header-cell">לקוח</th>
-                  <th className="table-header-cell hidden lg:table-cell">סוג</th>
-                  <th className="table-header-cell">סטטוס</th>
-                  <th className="table-header-cell">סה&quot;כ לתשלום</th>
-                  <th className="table-header-cell">תשלום</th>
-                  <th className="table-header-cell">תאריך יצירה</th>
-                  <th className="table-header-cell">פעולות</th>
+                  <th scope="col" className="table-header-cell">מס&apos; הזמנה</th>
+                  <th scope="col" className="table-header-cell">לקוח</th>
+                  <th scope="col" className="table-header-cell hidden lg:table-cell">סוג</th>
+                  <th scope="col" className="table-header-cell">סטטוס</th>
+                  <th scope="col" className="table-header-cell">סה&quot;כ לתשלום</th>
+                  <th scope="col" className="table-header-cell">תשלום</th>
+                  <th scope="col" className="table-header-cell">תאריך יצירה</th>
+                  <th scope="col" className="table-header-cell">פעולות</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-petra-border">
@@ -960,12 +962,15 @@ function OrdersPageContent() {
 
 export default function OrdersPage() {
   return (
-    <TierGate
+    <>
+      <PageTitle title="הזמנות" />
+      <TierGate
       feature="orders"
       title="ניהול הזמנות"
       description="צור ונהל הזמנות עם פריטי שורה, הנחות ותחשיב מע׳׳מ אוטומטי."
     >
       <OrdersPageContent />
     </TierGate>
+    </>
   );
 }

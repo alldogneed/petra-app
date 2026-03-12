@@ -1,4 +1,5 @@
 "use client";
+import { PageTitle } from "@/components/ui/PageTitle";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -433,16 +434,17 @@ function InvoicesPageContent() {
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
+              <caption className="sr-only">רשימת חשבוניות</caption>
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="table-header-cell">#</th>
-                  <th className="table-header-cell">סוג</th>
-                  <th className="table-header-cell">לקוח</th>
-                  <th className="table-header-cell">סכום</th>
-                  <th className="table-header-cell">סטטוס</th>
-                  <th className="table-header-cell">תאריך</th>
-                  <th className="table-header-cell">מס׳ מסמך</th>
-                  <th className="table-header-cell">פעולות</th>
+                  <th scope="col" className="table-header-cell">#</th>
+                  <th scope="col" className="table-header-cell">סוג</th>
+                  <th scope="col" className="table-header-cell">לקוח</th>
+                  <th scope="col" className="table-header-cell">סכום</th>
+                  <th scope="col" className="table-header-cell">סטטוס</th>
+                  <th scope="col" className="table-header-cell">תאריך</th>
+                  <th scope="col" className="table-header-cell">מס׳ מסמך</th>
+                  <th scope="col" className="table-header-cell">פעולות</th>
                 </tr>
               </thead>
               <tbody>
@@ -570,7 +572,9 @@ function InvoicesPageContent() {
 
 export default function InvoicesPage() {
   return (
-    <TierGate
+    <>
+      <PageTitle title="חשבוניות" />
+      <TierGate
       feature="invoicing"
       title="חשבוניות ומסמכים פיננסיים"
       description="הפקת חשבוניות, קבלות ומסמכי חיוב מקצועיים עם אינטגרציה ל-Morning (Green Invoice). זמין במסלול Pro ומעלה."
@@ -578,5 +582,6 @@ export default function InvoicesPage() {
     >
       <InvoicesPageContent />
     </TierGate>
+    </>
   );
 }

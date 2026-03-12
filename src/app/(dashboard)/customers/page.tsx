@@ -1,4 +1,6 @@
 "use client";
+import { PageTitle } from "@/components/ui/PageTitle";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useCallback, useEffect, useRef, DragEvent } from "react";
@@ -1266,6 +1268,15 @@ function NewCustomerModal({
     onError: () => toast.error("שגיאה ביצירת הלקוח. נסה שוב."),
   });
 
+  const modalRef = useFocusTrap(isOpen);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isOpen, onClose]);
+
   function checkPhoneDuplicate(phone: string) {
     const cleaned = phone.replace(/[\s\-(). ]/g, "");
     if (cleaned.length < 9) return;
@@ -1296,60 +1307,72 @@ function NewCustomerModal({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-backdrop" onClick={onClose} />
-      <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="new-customer-modal-title">
+      <div className="modal-backdrop" onClick={onClose} aria-hidden="true" />
+      <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto" ref={modalRef}>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-petra-text">לקוח חדש</h2>
+            <h2 id="new-customer-modal-title" className="text-xl font-bold text-petra-text">לקוח חדש</h2>
             <p className="text-sm text-petra-muted mt-0.5">הוסף לקוח למערכת</p>
           </div>
           <button
             onClick={onClose}
+            aria-label="סגור"
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="label">שם מלא *</label>
+            <label htmlFor="nc-name" className="label">שם מלא *</label>
             <input
+              id="nc-name"
               className={cn("input", fieldErrors.name && "border-red-300 focus:ring-red-200")}
               value={form.name}
               onChange={(e) => { setForm({ ...form, name: e.target.value }); if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: undefined }); }}
               placeholder="שם הלקוח"
+              required
+              aria-required="true"
+              aria-describedby={fieldErrors.name ? "nc-name-error" : undefined}
             />
-            {fieldErrors.name && <p className="text-xs text-red-500 mt-1">{fieldErrors.name}</p>}
+            {fieldErrors.name && <p id="nc-name-error" role="alert" className="text-xs text-red-500 mt-1">{fieldErrors.name}</p>}
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
-              <label className="label">טלפון *</label>
+              <label htmlFor="nc-phone" className="label">טלפון *</label>
               <input
+                id="nc-phone"
                 className={cn("input", fieldErrors.phone && "border-red-300 focus:ring-red-200")}
                 value={form.phone}
                 onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: undefined }); setPhoneWarning(null); }}
                 onBlur={(e) => checkPhoneDuplicate(e.target.value)}
                 placeholder="050-0000000"
                 inputMode="tel"
+                required
+                aria-required="true"
+                aria-describedby={fieldErrors.phone ? "nc-phone-error" : undefined}
               />
-              {fieldErrors.phone && <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>}
+              {fieldErrors.phone && <p id="nc-phone-error" role="alert" className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>}
               {!fieldErrors.phone && phoneWarning && <p className="text-xs text-amber-600 mt-1">{phoneWarning}. האם ברצונך להמשיך?</p>}
             </div>
             <div className="flex-1">
-              <label className="label">אימייל</label>
+              <label htmlFor="nc-email" className="label">אימייל</label>
               <input
+                id="nc-email"
                 className={cn("input", fieldErrors.email && "border-red-300 focus:ring-red-200")}
                 value={form.email}
                 onChange={(e) => { setForm({ ...form, email: e.target.value }); if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined }); }}
+                aria-describedby={fieldErrors.email ? "nc-email-error" : undefined}
               />
-              {fieldErrors.email && <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
+              {fieldErrors.email && <p id="nc-email-error" role="alert" className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
             </div>
           </div>
           <div>
-            <label className="label">כתובת</label>
+            <label htmlFor="nc-address" className="label">כתובת</label>
             <input
+              id="nc-address"
               className="input"
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
@@ -1377,8 +1400,9 @@ function NewCustomerModal({
             </div>
           </div>
           <div>
-            <label className="label">מקור הגעה</label>
+            <label htmlFor="nc-source" className="label">מקור הגעה</label>
             <select
+              id="nc-source"
               className="input"
               value={form.source}
               onChange={(e) => setForm({ ...form, source: e.target.value })}
@@ -1390,8 +1414,9 @@ function NewCustomerModal({
             </select>
           </div>
           <div>
-            <label className="label">הערות</label>
+            <label htmlFor="nc-notes" className="label">הערות</label>
             <textarea
+              id="nc-notes"
               className="input"
               rows={3}
               value={form.notes}
@@ -1639,6 +1664,7 @@ export default function CustomersPage() {
 
   return (
     <div>
+      <PageTitle title="לקוחות" />
       {/* ─── Page Header ─── */}
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
@@ -2088,28 +2114,30 @@ export default function CustomersPage() {
           {/* ── Desktop table (≥ md) ── */}
           <div className="overflow-x-auto hidden md:block">
             <table className="w-full">
+              <caption className="sr-only">רשימת לקוחות</caption>
               <thead>
                 <tr className="bg-[#FAF7F3] border-b border-[#E8DFD5]">
-                  <th className="text-right px-3 py-3 w-10">
+                  <th scope="col" className="text-right px-3 py-3 w-10">
                     <button
                       onClick={toggleSelectAll}
                       className="text-slate-400 hover:text-petra-text transition-colors"
+                      aria-label="בחר הכל"
                     >
                       {allSelected ? (
-                        <CheckSquare className="w-4 h-4 text-brand-500" />
+                        <CheckSquare className="w-4 h-4 text-brand-500" aria-hidden="true" />
                       ) : someSelected ? (
-                        <MinusSquare className="w-4 h-4 text-brand-400" />
+                        <MinusSquare className="w-4 h-4 text-brand-400" aria-hidden="true" />
                       ) : (
-                        <Square className="w-4 h-4" />
+                        <Square className="w-4 h-4" aria-hidden="true" />
                       )}
                     </button>
                   </th>
-                  <th className="table-header-cell">שם</th>
-                  <th className="table-header-cell">סטטוס</th>
-                  <th className="table-header-cell hidden md:table-cell">חיות</th>
-                  <th className="table-header-cell hidden lg:table-cell">פגישות</th>
-                  <th className="table-header-cell hidden lg:table-cell">כספי</th>
-                  <th className="table-header-cell w-36">פעולות</th>
+                  <th scope="col" className="table-header-cell">שם</th>
+                  <th scope="col" className="table-header-cell">סטטוס</th>
+                  <th scope="col" className="table-header-cell hidden md:table-cell">חיות</th>
+                  <th scope="col" className="table-header-cell hidden lg:table-cell">פגישות</th>
+                  <th scope="col" className="table-header-cell hidden lg:table-cell">כספי</th>
+                  <th scope="col" className="table-header-cell w-36">פעולות</th>
                 </tr>
               </thead>
               <tbody>

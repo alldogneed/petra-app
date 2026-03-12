@@ -400,9 +400,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const displayName = user?.name || "משתמש";
   const initials = displayName.charAt(0);
   const roleLabel =
-    user?.platformRole === "super_admin"
-      ? "מנהל על"
-      : user?.platformRole === "admin"
+    user?.isAdmin
       ? "מנהל מערכת"
       : user?.businessRole === "owner"
       ? "בעל עסק"
@@ -645,9 +643,11 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
           {/* User avatar */}
           <button
             onClick={() => setProfileOpen(true)}
+            aria-label={`תפריט משתמש — ${displayName}`}
             className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition-all duration-150 group"
           >
             <div
+              aria-hidden="true"
               className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
               style={{
                 background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",

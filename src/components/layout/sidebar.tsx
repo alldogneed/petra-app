@@ -70,9 +70,9 @@ function isGroup(entry: NavEntry): entry is NavGroup {
 
 const ROLE_LEVEL: Record<string, number> = { owner: 0, admin: 0, manager: 1, user: 2, volunteer: 3 };
 
-function canSee(item: { minRole?: string }, role: string | null, platformRole?: string | null): boolean {
+function canSee(item: { minRole?: string }, role: string | null, isAdmin?: boolean): boolean {
   if (!item.minRole) return true;
-  if (platformRole === "super_admin" || platformRole === "admin") return true;
+  if (isAdmin) return true;
   // If role is unknown (null): still loading or DB inconsistency — show the item.
   // Real authorization is enforced server-side; sidebar visibility is just UX.
   if (!role) return true;
@@ -114,7 +114,7 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
-  const isMaster = user?.platformRole === "super_admin" || user?.platformRole === "admin";
+  const isMaster = user?.isAdmin === true;
 
   // Ref to the desktop nav element for scroll management
   const navRef = useRef<HTMLElement>(null);
@@ -192,7 +192,7 @@ export function Sidebar({
   const [lockedSectionOpen, setLockedSectionOpen] = useState(false);
 
   const visibleEntries = navEntries
-    .filter((entry) => canSee(entry, user?.businessRole ?? null, user?.platformRole))
+    .filter((entry) => canSee(entry, user?.businessRole ?? null, user?.isAdmin))
     .filter((entry) => !isGroup(entry) ? !isItemHidden(entry as NavItem) : true);
   const mainNavEntries = visibleEntries.filter(e => isGroup(e) || !isItemLocked(e as NavItem));
   const lockedNavEntries = visibleEntries.filter(e => !isGroup(e) && isItemLocked(e as NavItem)) as NavItem[];
@@ -256,6 +256,7 @@ export function Sidebar({
         key={item.href}
         href={item.href}
         prefetch={false}
+        aria-current={isActive ? "page" : undefined}
         onClick={isMobile ? onMobileClose : undefined}
         className={cn(
           "flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
@@ -288,7 +289,7 @@ export function Sidebar({
         >
           <Icon className="w-[18px] h-[18px]" />
           {badge > 0 && !locked && collapsed && !isMobile && (
-            <span title={badgeTooltip} className="absolute -top-1 -left-1 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
+            <span title={badgeTooltip} aria-label={badgeTooltip} className="absolute -top-1 -left-1 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
               {badge > 99 ? "99+" : badge}
             </span>
           )}
@@ -301,7 +302,7 @@ export function Sidebar({
           <Lock className="w-3 h-3 text-slate-600 flex-shrink-0" />
         )}
         {badge > 0 && !locked && isExpanded && (
-          <span title={badgeTooltip} className="min-w-[20px] h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none flex-shrink-0">
+          <span title={badgeTooltip} aria-label={badgeTooltip} className="min-w-[20px] h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none flex-shrink-0">
             {badge > 99 ? "99+" : badge}
           </span>
         )}
@@ -356,6 +357,8 @@ export function Sidebar({
       <div key={group.key}>
         <button
           onClick={() => toggleGroup(group.key)}
+          aria-expanded={isOpen}
+          aria-controls={`sidebar-group-${group.key}`}
           className={cn(
             "w-full flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group",
             anyChildActive ? "text-white" : "text-slate-400 hover:text-white",
@@ -386,13 +389,13 @@ export function Sidebar({
         </button>
 
         {isOpen && (
-          <div className="mt-0.5 space-y-0.5 relative">
+          <div id={`sidebar-group-${group.key}`} className="mt-0.5 space-y-0.5 relative">
             <div
               className="absolute top-0 bottom-0 right-[26px] w-px"
               style={{ background: "rgba(255,255,255,0.08)" }}
             />
             {group.children
-              .filter((c) => canSee(c, user?.businessRole ?? null, user?.platformRole))
+              .filter((c) => canSee(c, user?.businessRole ?? null, user?.isAdmin))
               .map((child) => renderNavItem(child, isMobile, true))}
           </div>
         )}
@@ -410,6 +413,7 @@ export function Sidebar({
 
     return (
       <aside
+        aria-label="סרגל ניווט"
         className={cn(
           "flex flex-col h-full transition-all duration-300",
           !isMobile && (collapsed ? "w-[72px]" : "w-[240px]"),
@@ -451,7 +455,7 @@ export function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav ref={!isMobile ? navRef : undefined} className="sidebar-nav flex-1 px-3 py-2 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.3) transparent", overflowAnchor: "none" }}>
+        <nav ref={!isMobile ? navRef : undefined} aria-label="ניווט ראשי" className="sidebar-nav flex-1 px-3 py-2 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.3) transparent", overflowAnchor: "none" }}>
           <div className="space-y-0.5">
             {/* Main nav — unlocked items (expanded) or all items (collapsed) */}
             {(isExpanded ? mainNavEntries : visibleEntries).map((entry) =>

@@ -38,46 +38,51 @@ export default function RevenueChart({
           יעד
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-          <XAxis
-            dataKey="month"
-            axisLine={false}
-            tickLine={false}
-            tick={{ fontSize: 12, fill: "#64748B" }}
-          />
-          <YAxis
-            axisLine={false}
-            tickLine={false}
-            tick={{ fontSize: 11, fill: "#94A3B8" }}
-            tickFormatter={(v) => v === 0 ? "" : v >= 1000 ? `₪${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : `₪${v}`}
-            width={50}
-            mirror
-          />
-          <Tooltip
-            formatter={(value: number | undefined) => [formatCurrency(value || 0), "הכנסות"]}
-            labelFormatter={(label) => label}
-            contentStyle={{
-              borderRadius: 12,
-              border: "1px solid #E2E8F0",
-              fontSize: 13,
-              direction: "rtl",
-            }}
-          />
-          <ReferenceLine
-            y={target}
-            stroke="#94A3B8"
-            strokeDasharray="6 4"
-            label={{
-              value: `יעד ${formatCurrency(target)}`,
-              position: "insideTopRight",
-              fontSize: 11,
-              fill: "#94A3B8",
-            }}
-          />
-          <Bar dataKey="amount" fill="#F97316" radius={[6, 6, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
+      <div
+        role="img"
+        aria-label={`גרף הכנסות חודשי. סה"כ ${formatCurrency(data.reduce((s, d) => s + d.amount, 0))} בתקופה הנבחרת`}
+      >
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+            <XAxis
+              dataKey="month"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 12, fill: "#64748B" }}
+            />
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 11, fill: "#94A3B8" }}
+              tickFormatter={(v) => v === 0 ? "" : v >= 1000 ? `₪${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : `₪${v}`}
+              width={50}
+              mirror
+            />
+            <Tooltip
+              formatter={(value: number | undefined) => [formatCurrency(value || 0), "הכנסות"]}
+              labelFormatter={(label) => label}
+              contentStyle={{
+                borderRadius: 12,
+                border: "1px solid #E2E8F0",
+                fontSize: 13,
+                direction: "rtl",
+              }}
+            />
+            <ReferenceLine
+              y={target}
+              stroke="#94A3B8"
+              strokeDasharray="6 4"
+              label={{
+                value: `יעד ${formatCurrency(target)}`,
+                position: "insideTopRight",
+                fontSize: 11,
+                fill: "#94A3B8",
+              }}
+            />
+            <Bar dataKey="amount" fill="#F97316" radius={[6, 6, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }

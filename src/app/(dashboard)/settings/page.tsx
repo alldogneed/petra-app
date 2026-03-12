@@ -1,4 +1,5 @@
 "use client";
+import { PageTitle } from "@/components/ui/PageTitle";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
@@ -3125,6 +3126,7 @@ export default function SettingsPage() {
 
   return (
     <div>
+      <PageTitle title="הגדרות" />
       <DesktopBanner />
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <h1 className="page-title">הגדרות</h1>

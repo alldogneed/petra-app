@@ -47,6 +47,7 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl" className={heebo.variable}>
       <body className={`${heebo.className} antialiased`}>
+        <a href="#main-content" className="skip-link">דלג לתוכן הראשי</a>
         {/* Service Worker registration */}
         <script
           dangerouslySetInnerHTML={{
@@ -67,6 +68,9 @@ export default function RootLayout({
             }}
             richColors
           />
+          {/* Accessible live regions for screen readers */}
+          <div id="a11y-polite" role="status" aria-live="polite" aria-atomic="true" className="sr-only" />
+          <div id="a11y-assertive" role="alert" aria-live="assertive" aria-atomic="true" className="sr-only" />
         </QueryProvider>
       </body>
     </html>

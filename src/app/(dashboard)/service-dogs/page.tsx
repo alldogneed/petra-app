@@ -1,4 +1,5 @@
 "use client";
+import { PageTitle } from "@/components/ui/PageTitle";
 
 import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1000,7 +1001,9 @@ function AlertsWidget({
 
 export default function ServiceDogsOverviewPage() {
   return (
-    <TierGate
+    <>
+      <PageTitle title="כלבי שירות" />
+      <TierGate
       feature="service_dogs"
       title="מודול כלבי שירות"
       description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה. מעקב 120 שעות אימון לפי תקן ADI."
@@ -1009,5 +1012,6 @@ export default function ServiceDogsOverviewPage() {
     >
       <ServiceDogsOverviewPageContent />
     </TierGate>
+    </>
   );
 }

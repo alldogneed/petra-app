@@ -1,4 +1,5 @@
 "use client";
+import { PageTitle } from "@/components/ui/PageTitle";
 
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -187,6 +188,7 @@ function PetsPageContent() {
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
+      <PageTitle title="חיות מחמד" />
       {/* Header */}
       <div className="page-header">
         <div>
@@ -350,15 +352,16 @@ function PetsPageContent() {
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
+              <caption className="sr-only">רשימת חיות מחמד</caption>
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="table-header-cell">שם</th>
-                  <th className="table-header-cell">גזע / סוג</th>
-                  <th className="table-header-cell">בעלים</th>
-                  <th className="table-header-cell">גיל / משקל</th>
-                  <th className="table-header-cell">חיסון</th>
-                  <th className="table-header-cell">תרופות</th>
-                  <th className="table-header-cell">תורים</th>
+                  <th scope="col" className="table-header-cell">שם</th>
+                  <th scope="col" className="table-header-cell">גזע / סוג</th>
+                  <th scope="col" className="table-header-cell">בעלים</th>
+                  <th scope="col" className="table-header-cell">גיל / משקל</th>
+                  <th scope="col" className="table-header-cell">חיסון</th>
+                  <th scope="col" className="table-header-cell">תרופות</th>
+                  <th scope="col" className="table-header-cell">תורים</th>
                 </tr>
               </thead>
               <tbody>
