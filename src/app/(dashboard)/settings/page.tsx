@@ -2,7 +2,7 @@
 import { PageTitle } from "@/components/ui/PageTitle";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Building2,
   Save,
@@ -2925,22 +2925,76 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [signaturePage, setSignaturePage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
   const [sigX, setSigX] = useState(0.1);
   const [sigY, setSigY] = useState(0.8);
   const [sigW, setSigW] = useState(0.35);
   const [sigH, setSigH] = useState(0.07);
   const [saving, setSaving] = useState(false);
-  const [pdfPreview, setPdfPreview] = useState<string | null>(null);
   const [sigPlaced, setSigPlaced] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfDocRef = useRef<any>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
+
+  const renderPage = useCallback(async (doc: NonNullable<typeof pdfDocRef.current>, pageNum: number) => {
+    if (!canvasRef.current) return;
+    // Cancel any in-progress render
+    if (renderTaskRef.current) { renderTaskRef.current.cancel(); renderTaskRef.current = null; }
+    const page = await doc.getPage(pageNum);
+    const containerWidth = canvasRef.current.parentElement?.clientWidth ?? 600;
+    const unscaled = page.getViewport({ scale: 1 });
+    const scale = containerWidth / unscaled.width;
+    const viewport = page.getViewport({ scale });
+    canvasRef.current.width = viewport.width;
+    canvasRef.current.height = viewport.height;
+    const ctx = canvasRef.current.getContext("2d");
+    if (!ctx) return;
+    const task = page.render({ canvasContext: ctx, viewport });
+    renderTaskRef.current = task;
+    try { await task.promise; } catch { /* cancelled */ }
+  }, []);
+
+  // Load PDF when file changes
+  useEffect(() => {
+    if (!file) return;
+    setPdfLoading(true);
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
+        GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        const ab = await file.arrayBuffer();
+        const doc = await getDocument({ data: ab }).promise;
+        if (cancelled) return;
+        pdfDocRef.current = doc;
+        setTotalPages(doc.numPages);
+        setSignaturePage(1);
+        await renderPage(doc, 1);
+      } catch (e) {
+        console.error("PDF load error", e);
+      } finally {
+        if (!cancelled) setPdfLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [file, renderPage]);
+
+  // Re-render when page changes
+  useEffect(() => {
+    if (!pdfDocRef.current || signaturePage < 1) return;
+    renderPage(pdfDocRef.current, signaturePage);
+  }, [signaturePage, renderPage]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     setFile(f);
-    const url = URL.createObjectURL(f);
-    setPdfPreview(url);
     setSigPlaced(false);
+    pdfDocRef.current = null;
+    setTotalPages(0);
   };
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -2997,26 +3051,42 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
             <input type="file" accept="application/pdf" onChange={handleFileChange} className="input" />
           </div>
 
-          {pdfPreview && (
+          {file && (
             <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div>
-                  <label className="label">עמוד חתימה</label>
-                  <input type="number" min={1} className="input w-24" value={signaturePage} onChange={(e) => setSignaturePage(Math.max(1, Number(e.target.value)))} />
+              {/* Page navigation */}
+              {totalPages > 0 && (
+                <div className="flex items-center gap-3">
+                  <label className="label mb-0">עמוד לחתימה:</label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 disabled:opacity-40"
+                      disabled={signaturePage <= 1}
+                      onClick={() => setSignaturePage((p) => Math.max(1, p - 1))}
+                    >‹</button>
+                    <span className="text-sm font-medium text-petra-text min-w-[60px] text-center">
+                      {signaturePage} / {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 disabled:opacity-40"
+                      disabled={signaturePage >= totalPages}
+                      onClick={() => setSignaturePage((p) => Math.min(totalPages, p + 1))}
+                    >›</button>
+                  </div>
                 </div>
-              </div>
+              )}
 
+              {/* Canvas PDF viewer */}
               <div>
-                <p className="text-sm font-medium text-petra-text mb-2">
-                  לחץ על המסמך להצבת אזור החתימה
-                </p>
-                <div className="relative border border-slate-200 rounded-xl overflow-hidden" style={{ height: 420 }}>
-                  <embed
-                    src={`${pdfPreview}#page=${signaturePage}`}
-                    type="application/pdf"
-                    className="w-full h-full"
-                    style={{ border: "none", pointerEvents: "none" }}
-                  />
+                <p className="text-sm font-medium text-petra-text mb-2">לחץ על המסמך להצבת אזור החתימה</p>
+                <div className="relative border border-slate-200 rounded-xl overflow-hidden bg-slate-100" style={{ minHeight: 300 }}>
+                  {pdfLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+                    </div>
+                  )}
+                  <canvas ref={canvasRef} className="w-full block" style={{ display: pdfLoading ? "none" : "block" }} />
                   <div
                     ref={overlayRef}
                     className="absolute inset-0 cursor-crosshair"
