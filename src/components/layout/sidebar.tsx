@@ -223,6 +223,12 @@ export function Sidebar({
     "/bookings": counters?.pendingBookings || 0,
     "/service-dogs": sdAlerts?.total || 0,
   };
+  const BADGE_TOOLTIPS: Record<string, string> = {
+    "/tasks": `${counters?.openTasks || 0} משימות פתוחות`,
+    "/leads": `${counters?.overdueFollowUps || 0} לידים עם מעקב באיחור`,
+    "/bookings": `${counters?.pendingBookings || 0} הזמנות ממתינות לאישור`,
+    "/service-dogs": `${sdAlerts?.total || 0} התראות פעילות`,
+  };
 
   const renderNavItem = (item: NavItem, isMobile: boolean, isChild = false) => {
     const isActive =
@@ -241,6 +247,7 @@ export function Sidebar({
         : pathname.startsWith(item.href);
     const Icon = item.icon;
     const badge = BADGES[item.href] || 0;
+    const badgeTooltip = BADGE_TOOLTIPS[item.href];
     const isExpanded = isMobile || !collapsed;
     const locked = isItemLocked(item);
 
@@ -280,7 +287,7 @@ export function Sidebar({
         >
           <Icon className="w-[18px] h-[18px]" />
           {badge > 0 && !locked && collapsed && !isMobile && (
-            <span className="absolute -top-1 -left-1 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
+            <span title={badgeTooltip} className="absolute -top-1 -left-1 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
               {badge > 99 ? "99+" : badge}
             </span>
           )}
@@ -293,7 +300,7 @@ export function Sidebar({
           <Lock className="w-3 h-3 text-slate-600 flex-shrink-0" />
         )}
         {badge > 0 && !locked && isExpanded && (
-          <span className="min-w-[20px] h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none flex-shrink-0">
+          <span title={badgeTooltip} className="min-w-[20px] h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none flex-shrink-0">
             {badge > 99 ? "99+" : badge}
           </span>
         )}
