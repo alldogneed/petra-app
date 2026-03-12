@@ -1827,7 +1827,7 @@ function NewAppointmentModal({
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { trialActive, trialExpired, trialDaysLeft, subscriptionActive, subscriptionExpired, subscriptionDaysLeft, isFree } = usePlan();
+  const { trialActive, trialExpired, trialDaysLeft, subscriptionActive, subscriptionExpired, subscriptionDaysLeft, isFree, isGroomer } = usePlan();
   const queryClient = useQueryClient();
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [showNewAppointment, setShowNewAppointment] = useState(false);
@@ -2289,7 +2289,7 @@ export default function DashboardPage() {
 
           {/* Service type tabs */}
           <div className="flex gap-1 mb-3 overflow-x-auto">
-            {SERVICE_TYPE_TABS.map((tab) => (
+            {SERVICE_TYPE_TABS.filter((tab) => !(isGroomer && (tab.key === "training" || tab.key === "boarding"))).map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setServiceFilter(tab.key)}

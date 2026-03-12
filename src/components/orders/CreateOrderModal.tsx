@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
+import { usePlan } from "@/hooks/usePlan";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -185,6 +186,7 @@ export function CreateOrderModal({
 }) {
   const qc = useQueryClient();
   const router = useRouter();
+  const { isGroomer } = usePlan();
 
   // Step state: "category" → "customer" → "items" → "review" → "payment"
   const [step, setStep] = useState<"category" | "customer" | "items" | "review" | "payment">("category");
@@ -627,7 +629,7 @@ export function CreateOrderModal({
     <div>
       <p className="text-sm text-petra-muted mb-4">בחר את סוג ההזמנה:</p>
       <div className="grid grid-cols-2 gap-3">
-        {CATEGORY_DEFS.map((cat) => {
+        {CATEGORY_DEFS.filter((cat) => !(isGroomer && (cat.id === "training" || cat.id === "boarding"))).map((cat) => {
           const Icon = cat.icon;
           return (
             <button

@@ -49,6 +49,7 @@ const CreateOrderModal = dynamic(
   { ssr: false }
 );
 import { useAuth } from "@/providers/auth-provider";
+import { usePlan } from "@/hooks/usePlan";
 import {
   cn,
   formatDate,
@@ -2939,6 +2940,7 @@ export default function CustomerProfilePage() {
   const [showWaCompose, setShowWaCompose] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
   const { user } = useAuth();
+  const { isGroomer } = usePlan();
 
   const { data: customer, isLoading, isError } = useQuery<CustomerDetail>({
     queryKey: ["customer", customerId],
@@ -3924,8 +3926,8 @@ export default function CustomerProfilePage() {
                             )}
                           </div>
 
-                          {/* Training Programs */}
-                          {petPrograms.length > 0 && (
+                          {/* Training Programs — hidden for groomer tier */}
+                          {!isGroomer && petPrograms.length > 0 && (
                             <div>
                               <div
                                 className="flex items-center justify-between mb-1.5 cursor-pointer select-none"
@@ -4364,8 +4366,8 @@ export default function CustomerProfilePage() {
             )}
           </div>
 
-          {/* Training Programs */}
-          {(customer.trainingPrograms || []).length > 0 && (
+          {/* Training Programs — hidden for groomer tier */}
+          {!isGroomer && (customer.trainingPrograms || []).length > 0 && (
             <div className="card p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
