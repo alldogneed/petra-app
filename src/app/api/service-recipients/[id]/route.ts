@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { createPendingApproval } from "@/lib/pending-approvals";
 
 export async function GET(
   request: NextRequest,
@@ -10,9 +12,10 @@ export async function GET(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { businessId, session } = authResult;
 
     const recipient = await prisma.serviceDogRecipient.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
+      where: { id: params.id, businessId },
       include: {
         customer: { select: { id: true, name: true, phone: true, email: true } },
         placements: {
@@ -30,7 +33,23 @@ export async function GET(
       return NextResponse.json({ error: "זכאי לא נמצא" }, { status: 404 });
     }
 
-    return NextResponse.json(recipient);
+    // Mask sensitive fields for staff
+    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const callerRole = (membership?.role ?? "user") as TenantRole;
+    const canSeeSensitive = hasTenantPermission(callerRole, TENANT_PERMS.RECIPIENTS_SENSITIVE);
+
+    const data = canSeeSensitive
+      ? recipient
+      : {
+          ...recipient,
+          idNumber:        null,
+          address:         null,
+          disabilityType:  null,
+          disabilityNotes: null,
+          fundingSource:   null,
+        };
+
+    return NextResponse.json(data);
   } catch (error) {
     console.error("GET /api/service-recipients/[id] error:", error);
     return NextResponse.json({ error: "שגיאה בטעינת זכאי" }, { status: 500 });
@@ -44,9 +63,10 @@ export async function PATCH(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { businessId } = authResult;
 
     const existing = await prisma.serviceDogRecipient.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
+      where: { id: params.id, businessId },
     });
 
     if (!existing) {
@@ -90,13 +110,45 @@ export async function DELETE(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { businessId, session } = authResult;
 
     const existing = await prisma.serviceDogRecipient.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
+      where: { id: params.id, businessId },
+      select: { id: true, name: true },
     });
 
     if (!existing) {
       return NextResponse.json({ error: "זכאי לא נמצא" }, { status: 404 });
+    }
+
+    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const callerRole = (membership?.role ?? "user") as TenantRole;
+
+    if (callerRole === "user" || callerRole === "volunteer") {
+      return NextResponse.json({ error: "אין הרשאה למחיקה" }, { status: 403 });
+    }
+
+    if (callerRole === "manager") {
+      const approval = await createPendingApproval({
+        businessId,
+        requestedByUserId: session.user.id,
+        action: "DELETE_CUSTOMER",
+        description: `מחיקת זכאי: ${existing.name}`,
+        payload: { recipientId: params.id, recipientName: existing.name },
+      });
+      return NextResponse.json(
+        { pendingApproval: true, approvalId: approval.id, message: "הבקשה נשלחה לאישור הבעלים" },
+        { status: 202 }
+      );
+    }
+
+    // Owner — require confirmation header
+    const confirmHeader = request.headers.get("x-confirm-action");
+    if (confirmHeader !== `DELETE_RECIPIENT_${params.id}`) {
+      return NextResponse.json(
+        { error: "נדרש אישור מפורש למחיקה", requireConfirmation: true },
+        { status: 428 }
+      );
     }
 
     await prisma.serviceDogRecipient.delete({ where: { id: params.id } });

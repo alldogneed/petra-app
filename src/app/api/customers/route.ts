@@ -6,6 +6,12 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxCustomers } from "@/lib/feature-flags";
 import { checkFirstCustomer } from "@/lib/engagement-service";
+import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+
+/** Strip PII from a customer object for callers who cannot see sensitive data */
+function maskCustomerPii<T extends { address?: string | null }>(c: T): T {
+  return { ...c, address: null };
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -122,7 +128,13 @@ export async function GET(request: NextRequest) {
           serviceTypes,
         };
       });
-      return NextResponse.json({ customers: enrichedPage, nextCursor, hasMore });
+      // PII masking
+      const membership2 = authResult.session.memberships.find((m) => m.businessId === businessId);
+      const callerRole2 = (membership2?.role ?? "user") as TenantRole;
+      const canSeePii2 = hasTenantPermission(callerRole2, TENANT_PERMS.CUSTOMERS_PII);
+      const maskedPage = canSeePii2 ? enrichedPage : enrichedPage.map(maskCustomerPii);
+
+      return NextResponse.json({ customers: maskedPage, nextCursor, hasMore });
     }
 
     // ─── Original mode (backward compatible) ───
@@ -138,7 +150,13 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(customers);
+    // PII masking for original mode too
+    const membership3 = authResult.session.memberships.find((m) => m.businessId === businessId);
+    const callerRole3 = (membership3?.role ?? "user") as TenantRole;
+    const canSeePii3 = hasTenantPermission(callerRole3, TENANT_PERMS.CUSTOMERS_PII);
+    const result = canSeePii3 ? customers : customers.map(maskCustomerPii);
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Customers GET error:", error);
     return NextResponse.json(

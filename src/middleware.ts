@@ -41,6 +41,11 @@ export function middleware(request: NextRequest) {
   // Allow public intake API: /api/intake/[token] and /api/intake/[token]/submit
   if (/^\/api\/intake\/[^/]+/.test(pathname)) return NextResponse.next();
 
+  // Allow public contract sign pages: /sign/[token]
+  if (/^\/sign\/[^/]+/.test(pathname)) return NextResponse.next();
+  // Allow public sign API: /api/sign/[token]
+  if (/^\/api\/sign\/[^/]+/.test(pathname)) return NextResponse.next();
+
   // Allow other public paths
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();

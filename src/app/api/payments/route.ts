@@ -7,11 +7,20 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { InvoicingService } from "@/lib/invoicing/invoicing-service";
 import { enqueueInvoiceJob } from "@/lib/invoicing/invoicing-jobs";
 import { notifyPaymentReceived } from "@/lib/engagement-service";
+import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { businessId, session } = authResult;
+
+    // Staff (user/volunteer) cannot access financial data
+    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const callerRole = (membership?.role ?? "user") as TenantRole;
+    if (!hasTenantPermission(callerRole, TENANT_PERMS.FINANCE_READ)) {
+      return NextResponse.json({ error: "אין הרשאה לצפייה בנתונים פיננסיים" }, { status: 403 });
+    }
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");

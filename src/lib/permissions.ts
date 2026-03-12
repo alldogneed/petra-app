@@ -42,20 +42,62 @@ export const PLATFORM_PERMS = {
 
 /** Tenant-level permissions */
 export const TENANT_PERMS = {
-  USERS_READ: "tenant.users.read",
-  USERS_WRITE: "tenant.users.write",
-  CONTENT_READ: "tenant.content.read",
-  CONTENT_WRITE: "tenant.content.write",
-  ANALYTICS_READ: "tenant.analytics.read",
-  SETTINGS_WRITE: "tenant.settings.write",
-  AUDIT_READ: "tenant.audit.read",
+  // ── Basic access ──────────────────────────────────────────────────────────
+  USERS_READ:           "tenant.users.read",
+  USERS_WRITE:          "tenant.users.write",
+  CONTENT_READ:         "tenant.content.read",
+  CONTENT_WRITE:        "tenant.content.write",
+  ANALYTICS_READ:       "tenant.analytics.read",
+  SETTINGS_WRITE:       "tenant.settings.write",
+  AUDIT_READ:           "tenant.audit.read",
+
+  // ── Finance ───────────────────────────────────────────────────────────────
+  /** View individual payment records and amounts */
+  FINANCE_READ:         "tenant.finance.read",
+  /** View aggregate revenue summaries and financial analytics totals */
+  FINANCE_SUMMARY:      "tenant.finance.summary",
+
+  // ── PII — Personally Identifiable Information ─────────────────────────────
+  /** View customer sensitive fields: address, ID number (ת.ז.) */
+  CUSTOMERS_PII:        "tenant.customers.pii",
+  /** View service-dog recipient sensitive fields: disability type, funding source */
+  RECIPIENTS_SENSITIVE: "tenant.recipients.sensitive",
+
+  // ── Destructive / Critical actions ────────────────────────────────────────
+  /** Delete customers, pets, training programs (owner: double-confirm; manager: pending approval) */
+  CRITICAL_DELETE:      "tenant.critical.delete",
+  /** Modify business settings, pricing — critical structural changes */
+  SETTINGS_CRITICAL:    "tenant.settings.critical",
+
+  // ── Approval ──────────────────────────────────────────────────────────────
+  /** Approve or reject pending manager action requests */
+  APPROVE_ACTIONS:      "tenant.approve.actions",
 } as const;
 
 export type PlatformPermission = (typeof PLATFORM_PERMS)[keyof typeof PLATFORM_PERMS];
 export type TenantPermission = (typeof TENANT_PERMS)[keyof typeof TENANT_PERMS];
 
 // ─── Role → Permission Mappings ────────────────────────────────────────────────
-
+//
+// Permission matrix (March 2026):
+//
+// Permission              | Owner | Manager | Staff | Volunteer
+// ─────────────────────────────────────────────────────────────
+// content.read            |  ✅   |   ✅    |  ✅   |    ✅
+// content.write           |  ✅   |   ✅    |  ✅   |    ❌
+// analytics.read          |  ✅   |   ✅    |  ❌   |    ❌
+// settings.write          |  ✅   |   ✅    |  ❌   |    ❌  (non-critical settings)
+// users.read              |  ✅   |   ✅    |  ❌   |    ❌
+// users.write             |  ✅   |   ❌    |  ❌   |    ❌
+// audit.read              |  ✅   |   ✅    |  ❌   |    ❌
+// finance.read            |  ✅   |   ✅    |  ❌   |    ❌
+// finance.summary         |  ✅   |   ❌    |  ❌   |    ❌  ← owner-only
+// customers.pii           |  ✅   |   ✅    |  ❌   |    ❌
+// recipients.sensitive    |  ✅   |   ✅    |  ❌   |    ❌
+// critical.delete         |  ✅   |   ❌    |  ❌   |    ❌  ← manager→pending approval
+// settings.critical       |  ✅   |   ❌    |  ❌   |    ❌  ← manager→pending approval
+// approve.actions         |  ✅   |   ❌    |  ❌   |    ❌
+//
 const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, PlatformPermission[]> = {
   super_admin: Object.values(PLATFORM_PERMS) as PlatformPermission[],
   admin: [
@@ -76,20 +118,32 @@ const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, PlatformPermission[]> = {
 
 const TENANT_ROLE_PERMISSIONS: Record<TenantRole, TenantPermission[]> = {
   owner: Object.values(TENANT_PERMS) as TenantPermission[],
+
   manager: [
     TENANT_PERMS.USERS_READ,
-    TENANT_PERMS.USERS_WRITE,
+    // USERS_WRITE removed — only owner can add/remove team members
     TENANT_PERMS.CONTENT_READ,
     TENANT_PERMS.CONTENT_WRITE,
     TENANT_PERMS.ANALYTICS_READ,
-    TENANT_PERMS.SETTINGS_WRITE,
+    TENANT_PERMS.SETTINGS_WRITE,   // non-critical settings (e.g. boarding times, profile)
     TENANT_PERMS.AUDIT_READ,
+    TENANT_PERMS.FINANCE_READ,     // individual payments ✅
+    // FINANCE_SUMMARY removed — manager cannot see total revenue
+    TENANT_PERMS.CUSTOMERS_PII,    // address + ID number ✅
+    TENANT_PERMS.RECIPIENTS_SENSITIVE, // recipient disability + funding ✅
+    // CRITICAL_DELETE removed — goes through pending approval
+    // SETTINGS_CRITICAL removed — goes through pending approval
+    // APPROVE_ACTIONS removed — owner only
   ],
+
+  // Staff (user) — day-to-day operational access, no financial or PII
   user: [
     TENANT_PERMS.CONTENT_READ,
     TENANT_PERMS.CONTENT_WRITE,
+    // No FINANCE_READ, no CUSTOMERS_PII, no RECIPIENTS_SENSITIVE
   ],
-  // Volunteer: read-only access to day-to-day content. No payments, leads, analytics or settings.
+
+  // Volunteer — read-only, no editing
   volunteer: [
     TENANT_PERMS.CONTENT_READ,
   ],
@@ -135,6 +189,35 @@ export function canModifyTenantRole(
   const targetIdx = TENANT_ROLE_ORDER.indexOf(targetRole);
   return actorIdx !== -1 && actorIdx <= targetIdx;
 }
+
+/**
+ * Returns the set of fine-grained booleans for client-side use.
+ * Pass the role string from the session membership.
+ * Security note: this is for UI display only — always enforce on the server.
+ */
+export function getClientPermissions(role: string | null | undefined) {
+  const r = (role ?? "user") as TenantRole;
+  return {
+    canSeeFinance:          hasTenantPermission(r, TENANT_PERMS.FINANCE_READ),
+    canSeeRevenueSummary:   hasTenantPermission(r, TENANT_PERMS.FINANCE_SUMMARY),
+    canSeePii:              hasTenantPermission(r, TENANT_PERMS.CUSTOMERS_PII),
+    canSeeRecipientsSensitive: hasTenantPermission(r, TENANT_PERMS.RECIPIENTS_SENSITIVE),
+    canCriticalDelete:      hasTenantPermission(r, TENANT_PERMS.CRITICAL_DELETE),
+    canCriticalSettings:    hasTenantPermission(r, TENANT_PERMS.SETTINGS_CRITICAL),
+    canApproveActions:      hasTenantPermission(r, TENANT_PERMS.APPROVE_ACTIONS),
+    canManageTeam:          hasTenantPermission(r, TENANT_PERMS.USERS_WRITE),
+    canViewTeam:            hasTenantPermission(r, TENANT_PERMS.USERS_READ),
+    canViewAnalytics:       hasTenantPermission(r, TENANT_PERMS.ANALYTICS_READ),
+    canViewAudit:           hasTenantPermission(r, TENANT_PERMS.AUDIT_READ),
+    isOwner:                r === "owner",
+    isManager:              r === "manager",
+    isStaff:                r === "user",
+    isVolunteer:            r === "volunteer",
+    role:                   r,
+  };
+}
+
+export type ClientPermissions = ReturnType<typeof getClientPermissions>;
 
 // ─── Session-based user shape ──────────────────────────────────────────────────
 

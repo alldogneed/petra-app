@@ -48,6 +48,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlan } from "@/hooks/usePlan";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, fetchJSON, cn, toWhatsAppPhone } from "@/lib/utils";
 import dynamic from "next/dynamic";
 const SetupChecklist = dynamic(
@@ -1828,6 +1829,7 @@ function NewAppointmentModal({
 export default function DashboardPage() {
   const { user } = useAuth();
   const { trialActive, trialExpired, trialDaysLeft, subscriptionActive, subscriptionExpired, subscriptionDaysLeft, isFree, isGroomer } = usePlan();
+  const perms = usePermissions();
   const queryClient = useQueryClient();
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [showNewAppointment, setShowNewAppointment] = useState(false);
@@ -2149,7 +2151,7 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {(data.todayRevenue ?? 0) > 0 && (
+        {perms.canSeeRevenueSummary && (data.todayRevenue ?? 0) > 0 && (
           <StatCard
             title="הכנסות היום"
             value={formatCurrency(data.todayRevenue)}
@@ -2164,13 +2166,15 @@ export default function DashboardPage() {
           icon={ShoppingCart}
           color="#F97316"
         />
-        <StatCard
-          title="תשלומים ממתינים"
-          value={data.pendingPayments}
-          subtitle={formatCurrency(data.pendingPaymentsAmount)}
-          icon={CreditCard}
-          color="#F59E0B"
-        />
+        {perms.canSeeFinance && (
+          <StatCard
+            title="תשלומים ממתינים"
+            value={data.pendingPayments}
+            subtitle={perms.canSeeRevenueSummary ? formatCurrency(data.pendingPaymentsAmount) : undefined}
+            icon={CreditCard}
+            color="#F59E0B"
+          />
+        )}
         <StatCard
           title="תורים היום"
           value={data.todayAppointments}
@@ -2268,11 +2272,13 @@ export default function DashboardPage() {
 
       {/* Revenue Chart + Upcoming Appointments */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RevenueChart
-          data={data.revenueByMonth}
-          target={data.revenueTarget}
-          topService={data.topService}
-        />
+        {perms.canSeeRevenueSummary && (
+          <RevenueChart
+            data={data.revenueByMonth}
+            target={data.revenueTarget}
+            topService={data.topService}
+          />
+        )}
 
         {/* Upcoming Appointments with filter */}
         <div className="card p-5">

@@ -41,6 +41,7 @@ import {
   ListTodo,
   Loader2,
   MoreVertical,
+  PenLine,
 } from "lucide-react";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
@@ -50,6 +51,8 @@ const CreateOrderModal = dynamic(
 );
 import { useAuth } from "@/providers/auth-provider";
 import { usePlan } from "@/hooks/usePlan";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import {
   cn,
   formatDate,
@@ -1558,6 +1561,143 @@ function MedicationModal({
   );
 }
 
+// ─── Send Contract Section ────────────────────────────────────────────────────
+
+interface ContractTemplate {
+  id: string;
+  name: string;
+}
+
+interface ContractReq {
+  id: string;
+  status: string;
+  createdAt: string;
+  signedAt: string | null;
+  signedFileUrl: string | null;
+  template: { name: string };
+}
+
+function SendContractSection({ customerId, customerName }: { customerId: string; customerName: string }) {
+  const queryClient = useQueryClient();
+  const [showModal, setShowModal] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+
+  const { data: templates = [] } = useQuery<ContractTemplate[]>({
+    queryKey: ["contract-templates"],
+    queryFn: () => fetch("/api/contracts/templates").then((r) => r.json()),
+  });
+
+  const { data: requests = [] } = useQuery<ContractReq[]>({
+    queryKey: ["contract-requests", customerId],
+    queryFn: () => fetch(`/api/contracts/requests?customerId=${customerId}`).then((r) => r.json()),
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/contracts/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId, templateId: selectedTemplateId }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contract-requests", customerId] });
+      toast.success("החוזה נשלח לחתימה!");
+      setShowModal(false);
+      setSelectedTemplateId("");
+    },
+    onError: (e: Error) => toast.error(e.message || "שגיאה בשליחה"),
+  });
+
+  const statusLabel: Record<string, string> = { PENDING: "ממתין", SIGNED: "נחתם", EXPIRED: "פג תוקף" };
+  const statusColor: Record<string, string> = {
+    PENDING: "bg-amber-100 text-amber-700",
+    SIGNED: "bg-emerald-100 text-emerald-700",
+    EXPIRED: "bg-slate-100 text-slate-500",
+  };
+
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
+          <PenLine className="w-4 h-4 text-petra-muted" />
+          חוזים ({requests.length})
+        </h2>
+        <button
+          onClick={() => setShowModal(true)}
+          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl btn-ghost text-petra-muted"
+          disabled={templates.length === 0}
+          title={templates.length === 0 ? "הוסף תבניות חוזים בהגדרות → חוזים" : undefined}
+        >
+          <Send className="w-3.5 h-3.5" />
+          שלח לחתימה
+        </button>
+      </div>
+
+      {requests.length === 0 ? (
+        <p className="text-sm text-petra-muted text-center py-4">לא נשלחו חוזים</p>
+      ) : (
+        <div className="space-y-2">
+          {requests.map((req) => (
+            <div key={req.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+              <FileText className="w-4 h-4 text-petra-muted flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-petra-text">{req.template.name}</p>
+                <p className="text-xs text-petra-muted">
+                  {new Date(req.createdAt).toLocaleDateString("he-IL")}
+                  {req.signedAt && ` · נחתם ${new Date(req.signedAt).toLocaleDateString("he-IL")}`}
+                </p>
+              </div>
+              <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", statusColor[req.status] ?? "bg-slate-100 text-slate-500")}>
+                {statusLabel[req.status] ?? req.status}
+              </span>
+              {req.signedFileUrl && (
+                <a href={req.signedFileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-500 hover:underline flex items-center gap-1">
+                  <Download className="w-3.5 h-3.5" />
+                  הורד
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showModal && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setShowModal(false)} />
+          <div className="modal-content max-w-sm mx-4 p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-petra-text">שלח חוזה לחתימה</h2>
+              <button onClick={() => setShowModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="label">בחר תבנית חוזה</label>
+                <select className="input w-full" value={selectedTemplateId} onChange={(e) => setSelectedTemplateId(e.target.value)}>
+                  <option value="">בחר תבנית...</option>
+                  {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+              <div className="text-sm text-petra-muted bg-slate-50 rounded-xl p-3">
+                ישלח ל: <span className="font-medium text-petra-text">{customerName}</span> ב-WhatsApp
+              </div>
+              <div className="flex gap-3">
+                <button
+                  className="btn-primary flex-1"
+                  disabled={!selectedTemplateId || sendMutation.isPending}
+                  onClick={() => sendMutation.mutate()}
+                >
+                  {sendMutation.isPending ? <><Loader2 className="w-4 h-4 animate-spin" />שולח...</> : <><Send className="w-4 h-4" />שלח</>}
+                </button>
+                <button className="btn-secondary" onClick={() => setShowModal(false)}>ביטול</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Customer Documents Section ──────────────────────────────────────────────
 
 const DOC_CATEGORY_LABELS: Record<string, string> = {
@@ -2941,6 +3081,8 @@ export default function CustomerProfilePage() {
   const [showMobileActions, setShowMobileActions] = useState(false);
   const { user } = useAuth();
   const { isGroomer } = usePlan();
+  const perms = usePermissions();
+  const [showConfirmDeleteModal, setShowConfirmDeleteModal] = useState(false);
 
   const { data: customer, isLoading, isError } = useQuery<CustomerDetail>({
     queryKey: ["customer", customerId],
@@ -3004,14 +3146,25 @@ export default function CustomerProfilePage() {
     },
   });
 
-  const deleteCustomerMutation = useMutation({
+  const deleteCustomerMutation = useMutation<Record<string, unknown>>({
     mutationFn: () =>
-      fetchJSON(`/api/customers/${customerId}`, { method: "DELETE" }),
-    onSuccess: () => {
+      fetchJSON(`/api/customers/${customerId}`, {
+        method: "DELETE",
+        headers: { "x-confirm-action": `DELETE_CUSTOMER_${customerId}` },
+      }) as Promise<Record<string, unknown>>,
+    onSuccess: (data) => {
+      if (data?.pendingApproval) {
+        toast.success("הבקשה נשלחה לאישור הבעלים");
+        setShowConfirmDeleteModal(false);
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       router.push("/customers");
     },
-    onError: () => setConfirmDelete(false),
+    onError: () => {
+      setConfirmDelete(false);
+      setShowConfirmDeleteModal(false);
+    },
   });
 
   if (isLoading) {
@@ -3187,28 +3340,21 @@ export default function CustomerProfilePage() {
               קישור הזמנה
             </a>
           )}
-          {confirmDelete ? (
-            <span className="flex items-center gap-2 text-sm">
-              <span className="text-red-600 font-medium">מחק לקוח?</span>
-              <button
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
-                onClick={() => deleteCustomerMutation.mutate()}
-                disabled={deleteCustomerMutation.isPending}
-              >
-                {deleteCustomerMutation.isPending ? "מוחק..." : "כן, מחק"}
-              </button>
-              <button
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-                onClick={() => setConfirmDelete(false)}
-              >
-                ביטול
-              </button>
-            </span>
-          ) : (
+          {/* Delete button — hidden for staff, "send for approval" for manager, confirm modal for owner */}
+          {!perms.isStaff && !perms.isVolunteer && (
             <button
-              onClick={() => setConfirmDelete(true)}
-              className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors"
-              title="מחק לקוח"
+              onClick={() => {
+                if (perms.isManager) {
+                  // Manager: trigger direct delete which routes to pending approval
+                  deleteCustomerMutation.mutate();
+                } else {
+                  // Owner: open typed confirmation modal
+                  setShowConfirmDeleteModal(true);
+                }
+              }}
+              disabled={deleteCustomerMutation.isPending}
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors disabled:opacity-50"
+              title={perms.isManager ? "שלח בקשת מחיקה לאישור" : "מחק לקוח"}
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -3276,12 +3422,17 @@ export default function CustomerProfilePage() {
                   </span>
                 </a>
               )}
-              {customer.address && (
-                <div className="flex items-center gap-2.5">
-                  <MapPin className="w-4 h-4 text-petra-muted flex-shrink-0" />
-                  <span className="text-sm">{customer.address}</span>
-                </div>
-              )}
+              {/* Address — masked for staff */}
+              <div className="flex items-center gap-2.5">
+                <MapPin className="w-4 h-4 text-petra-muted flex-shrink-0" />
+                {perms.canSeePii ? (
+                  customer.address
+                    ? <span className="text-sm">{customer.address}</span>
+                    : <span className="text-sm text-slate-300">—</span>
+                ) : (
+                  <span className="text-sm text-slate-300 tracking-widest select-none" title="אין הרשאה לצפייה בכתובת">●●●●●</span>
+                )}
+              </div>
             </div>
 
             {customerTags.length > 0 && (
@@ -3314,21 +3465,23 @@ export default function CustomerProfilePage() {
                 </p>
                 <p className="text-[10px] text-petra-muted">חיות</p>
               </div>
-              <div className="text-center p-2 rounded-xl bg-slate-50">
-                <p
-                  className={cn(
-                    "text-base font-bold leading-tight",
-                    pendingTotal > 0 ? "text-red-500" : "text-emerald-600"
-                  )}
-                >
-                  {pendingTotal > 0
-                    ? `−${formatCurrency(pendingTotal)}`
-                    : formatCurrency(paidTotal)}
-                </p>
-                <p className="text-[10px] text-petra-muted">
-                  {pendingTotal > 0 ? "יתרה" : "שולם"}
-                </p>
-              </div>
+              {perms.canSeeFinance && (
+                <div className="text-center p-2 rounded-xl bg-slate-50">
+                  <p
+                    className={cn(
+                      "text-base font-bold leading-tight",
+                      pendingTotal > 0 ? "text-red-500" : "text-emerald-600"
+                    )}
+                  >
+                    {pendingTotal > 0
+                      ? `−${formatCurrency(pendingTotal)}`
+                      : formatCurrency(paidTotal)}
+                  </p>
+                  <p className="text-[10px] text-petra-muted">
+                    {pendingTotal > 0 ? "יתרה" : "שולם"}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -4171,8 +4324,8 @@ export default function CustomerProfilePage() {
             )}
           </div>
 
-          {/* Payments */}
-          {(customer.payments || []).length > 0 && (
+          {/* Payments — hidden for staff (user/volunteer) */}
+          {perms.canSeeFinance && (customer.payments || []).length > 0 && (
             <div className="card p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
@@ -4451,6 +4604,9 @@ export default function CustomerProfilePage() {
             </div>
           )}
 
+          {/* Contracts */}
+          <SendContractSection customerId={customerId} customerName={customer.name} />
+
           {/* Customer Documents */}
           <CustomerDocumentsSection
             customerId={customerId}
@@ -4692,6 +4848,17 @@ export default function CustomerProfilePage() {
           </div>
         </div>
       )}
+
+      {/* Owner double-confirm delete modal */}
+      <ConfirmDeleteModal
+        open={showConfirmDeleteModal}
+        onClose={() => setShowConfirmDeleteModal(false)}
+        onConfirm={() => deleteCustomerMutation.mutate()}
+        title="מחיקת לקוח"
+        confirmText={customer?.name ?? ""}
+        description="מחיקת הלקוח תסיר את כל הפגישות, התשלומים ותוכניות האימון המשויכות. פעולה זו אינה ניתנת לביטול."
+        loading={deleteCustomerMutation.isPending}
+      />
     </div>
   );
 }

@@ -2,12 +2,19 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 
 // GET /api/analytics – aggregated analytics data for dashboard
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { businessId: analyticsBusinessId, session: analyticsSession } = authResult;
+
+    // Check revenue summary permission (owner-only)
+    const analyticsMembership = analyticsSession.memberships.find((m) => m.businessId === analyticsBusinessId);
+    const analyticsRole = (analyticsMembership?.role ?? "user") as TenantRole;
+    const canSeeRevenue = hasTenantPermission(analyticsRole, TENANT_PERMS.FINANCE_SUMMARY);
 
     const { searchParams } = new URL(request.url);
     const period = searchParams.get("period") || "month"; // week | month | quarter | year
@@ -258,9 +265,9 @@ export async function GET(request: NextRequest) {
         completedAppointments,
         canceledAppointments,
         completionRate: totalAppointments > 0 ? Math.round((completedAppointments / totalAppointments) * 100) : 0,
-        revenue: currentRevenue,
-        revenueChange: calcChange(currentRevenue, previousRevenue),
-        paymentCount: totalPayments._count,
+        revenue: canSeeRevenue ? currentRevenue : null,
+        revenueChange: canSeeRevenue ? calcChange(currentRevenue, previousRevenue) : null,
+        paymentCount: canSeeRevenue ? totalPayments._count : null,
       },
       tasks: {
         open: openTasks,
@@ -283,17 +290,17 @@ export async function GET(request: NextRequest) {
           date: a.date,
           count: a._count,
         })),
-        revenueByService,
+        revenueByService: canSeeRevenue ? revenueByService : [],
         appointmentsByDayOfWeek: byDayOfWeek,
         appointmentsByHour,
       },
-      topCustomers,
+      topCustomers: canSeeRevenue ? topCustomers : [],
       petDemographics,
       retention: {
         returningCustomers,
         customersWithAppointments,
         retentionRate,
-        avgRevenuePerCustomer,
+        avgRevenuePerCustomer: canSeeRevenue ? avgRevenuePerCustomer : null,
       },
     });
   } catch (error) {

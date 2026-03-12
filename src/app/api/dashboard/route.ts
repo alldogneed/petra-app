@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 
 const HEBREW_MONTHS = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
@@ -13,7 +14,13 @@ export async function GET(request: NextRequest) {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const { businessId } = authResult;
+    const { businessId, session } = authResult;
+
+    // Check if caller can see revenue summary (owner-only)
+    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const callerRole = (membership?.role ?? "user") as TenantRole;
+    const canSeeRevenueSummary = hasTenantPermission(callerRole, TENANT_PERMS.FINANCE_SUMMARY);
+
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
@@ -379,21 +386,21 @@ export async function GET(request: NextRequest) {
       totalCustomers,
       totalPets,
       todayAppointments,
-      monthRevenue: monthPayments._sum.amount || 0,
-      todayRevenue,
+      monthRevenue: canSeeRevenueSummary ? (monthPayments._sum.amount || 0) : null,
+      todayRevenue: canSeeRevenueSummary ? todayRevenue : null,
       upcomingAppointments,
       recentTasks,
       pendingPayments,
       openLeads,
       activeOrders,
-      pendingPaymentsAmount: pendingPaymentsAmount._sum.amount || 0,
+      pendingPaymentsAmount: canSeeRevenueSummary ? (pendingPaymentsAmount._sum.amount || 0) : null,
       upcomingByType: {
         training: upcomingTraining,
         grooming: upcomingGrooming,
         boarding: activeBoardingStays,
       },
-      revenueByMonth,
-      revenueTarget: 10000,
+      revenueByMonth: canSeeRevenueSummary ? revenueByMonth : [],
+      revenueTarget: canSeeRevenueSummary ? 10000 : null,
       topService,
       recentOrders: recentOrders.map((o) => ({
         id: o.id,

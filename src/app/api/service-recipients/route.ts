@@ -3,18 +3,33 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+
+type Recipient = Record<string, unknown>;
+
+function maskRecipientSensitive(r: Recipient): Recipient {
+  return {
+    ...r,
+    idNumber:         null,
+    address:          null,
+    disabilityType:   null,
+    disabilityNotes:  null,
+    fundingSource:    null,
+  };
+}
 
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { businessId, session } = authResult;
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
 
     const recipients = await prisma.serviceDogRecipient.findMany({
       where: {
-        businessId: authResult.businessId,
+        businessId,
         ...(status && { status }),
       },
       include: {
@@ -28,7 +43,16 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(recipients);
+    // Mask sensitive fields for staff (user/volunteer)
+    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const callerRole = (membership?.role ?? "user") as TenantRole;
+    const canSeeSensitive = hasTenantPermission(callerRole, TENANT_PERMS.RECIPIENTS_SENSITIVE);
+
+    const data = canSeeSensitive
+      ? recipients
+      : recipients.map((r) => maskRecipientSensitive(r as Recipient));
+
+    return NextResponse.json(data);
   } catch (error) {
     console.error("GET /api/service-recipients error:", error);
     return NextResponse.json({ error: "שגיאה בטעינת זכאים" }, { status: 500 });

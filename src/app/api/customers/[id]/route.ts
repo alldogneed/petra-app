@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { createPendingApproval } from "@/lib/pending-approvals";
 
 const PatchCustomerSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -106,7 +108,18 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    return NextResponse.json(customer);
+    // ── PII masking: staff cannot see address ──────────────────────────────
+    const membership = authResult.session.memberships.find(
+      (m) => m.businessId === authResult.businessId
+    );
+    const callerRole = (membership?.role ?? "user") as TenantRole;
+    const canSeePii = hasTenantPermission(callerRole, TENANT_PERMS.CUSTOMERS_PII);
+
+    const responseData = canSeePii
+      ? customer
+      : { ...customer, address: null };
+
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error("Customer GET error:", error);
     return NextResponse.json(
@@ -168,18 +181,51 @@ export async function DELETE(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { session, businessId } = authResult;
 
-    // Verify customer belongs to this business before deleting
+    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const callerRole = (membership?.role ?? "user") as TenantRole;
+
+    // Staff cannot delete at all
+    if (!hasTenantPermission(callerRole, TENANT_PERMS.CONTENT_WRITE) ||
+        callerRole === "user" || callerRole === "volunteer") {
+      return NextResponse.json({ error: "אין הרשאה למחיקת לקוח" }, { status: 403 });
+    }
+
+    // Verify customer belongs to this business
     const customer = await prisma.customer.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
+      where: { id: params.id, businessId },
+      select: { id: true, name: true },
     });
     if (!customer) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    await prisma.customer.delete({ where: { id: params.id, businessId: authResult.businessId } });
+    // Manager → route to pending approval instead of deleting
+    if (callerRole === "manager") {
+      const approval = await createPendingApproval({
+        businessId,
+        requestedByUserId: session.user.id,
+        action: "DELETE_CUSTOMER",
+        description: `מחיקת לקוח: ${customer.name}`,
+        payload: { customerId: params.id, customerName: customer.name },
+      });
+      return NextResponse.json(
+        { pendingApproval: true, approvalId: approval.id, message: "הבקשה נשלחה לאישור הבעלים" },
+        { status: 202 }
+      );
+    }
 
-    const { session } = authResult;
+    // Owner → require typed confirmation header to prevent human error
+    const confirmHeader = request.headers.get("x-confirm-action");
+    if (confirmHeader !== `DELETE_CUSTOMER_${params.id}`) {
+      return NextResponse.json(
+        { error: "נדרש אישור מפורש למחיקה", requireConfirmation: true },
+        { status: 428 }
+      );
+    }
+
+    await prisma.customer.delete({ where: { id: params.id, businessId } });
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_CUSTOMER);
 
     return NextResponse.json({ success: true });

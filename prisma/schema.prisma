@@ -59,6 +59,8 @@ model PlatformUser {
   consents       UserConsent[]
   notifications  Notification[]
   supportTickets SupportTicket[]
+  pendingApprovalsRequested PendingApproval[] @relation("PendingApprovalRequester")
+  pendingApprovalsResolved  PendingApproval[] @relation("PendingApprovalResolver")
 
   @@index([email])
   @@index([googleId])
@@ -287,6 +289,9 @@ model Business {
   careLogs               BoardingCareLog[]
   standalonePets         Pet[]            @relation("StandalonePets")
   petWeightEntries       PetWeightEntry[]
+  contractTemplates      ContractTemplate[]
+  contractRequests       ContractRequest[]
+  pendingApprovals       PendingApproval[]
 
   @@index([slug])
 }
@@ -341,6 +346,7 @@ model Customer {
   invoiceJobs      InvoiceJob[]
   invoiceDocuments InvoiceDocument[]
   serviceRecipients ServiceDogRecipient[]
+  contractRequests  ContractRequest[]
 
   @@index([businessId])
   @@index([businessId, createdAt])
@@ -2046,4 +2052,90 @@ model StripeSettings {
   business Business @relation(fields: [businessId], references: [id])
 
   @@index([businessId])
+}
+
+// ─────────────────────────────────────────────
+// DIGITAL CONTRACTS
+// ─────────────────────────────────────────────
+
+model ContractTemplate {
+  id              String   @id @default(uuid())
+  businessId      String
+  name            String
+  fileUrl         String   // Vercel Blob — original PDF
+  fileName        String
+  fileSize        Int
+  signaturePage   Int      @default(1)
+  signatureX      Float    @default(0.1)   // fraction of page width (0-1)
+  signatureY      Float    @default(0.8)   // fraction of page height from top (0-1)
+  signatureWidth  Float    @default(0.35)
+  signatureHeight Float    @default(0.07)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  business  Business          @relation(fields: [businessId], references: [id])
+  requests  ContractRequest[]
+
+  @@index([businessId])
+}
+
+model ContractRequest {
+  id            String    @id @default(uuid())
+  businessId    String
+  customerId    String
+  templateId    String
+  tokenHash     String    @unique  // SHA-256 of plain token — never store plain
+  status        String    @default("PENDING")  // PENDING | SIGNED | EXPIRED
+  expiresAt     DateTime
+  sentAt        DateTime?
+  openedAt      DateTime?
+  signedAt      DateTime?
+  signedFileUrl String?   // Vercel Blob — signed PDF
+  ipAddress     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  business  Business         @relation(fields: [businessId], references: [id])
+  customer  Customer         @relation(fields: [customerId], references: [id])
+  template  ContractTemplate @relation(fields: [templateId], references: [id])
+
+  @@index([businessId])
+  @@index([customerId])
+  @@index([tokenHash])
+}
+
+// ─── Pending Approval Queue ────────────────────────────────────────────────────
+// When a manager attempts a critical action, instead of executing it directly,
+// a PendingApproval record is created. The business owner must approve/reject it.
+// Approved actions are executed automatically by the API.
+model PendingApproval {
+  id                 String    @id @default(uuid())
+  businessId         String
+  /// User ID of the manager who requested the action
+  requestedByUserId  String
+  /// User ID of the owner who approved/rejected (null while PENDING)
+  resolvedByUserId   String?
+  /// Type of critical action requested
+  /// DELETE_CUSTOMER | DELETE_PET | DELETE_TRAINING | EDIT_PRICING | EDIT_SETTINGS | DELETE_APPOINTMENT
+  action             String
+  /// Human-readable description shown in the approval UI (Hebrew)
+  description        String
+  /// Serialized payload needed to re-execute the action on approval
+  payload            Json
+  /// PENDING | APPROVED | REJECTED | EXPIRED | CANCELLED
+  status             String    @default("PENDING")
+  rejectionReason    String?
+  /// Auto-expire after 48 hours if not resolved
+  expiresAt          DateTime
+  resolvedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  business           Business     @relation(fields: [businessId], references: [id])
+  requestedBy        PlatformUser @relation("PendingApprovalRequester", fields: [requestedByUserId], references: [id])
+  resolvedBy         PlatformUser? @relation("PendingApprovalResolver", fields: [resolvedByUserId], references: [id])
+
+  @@index([businessId])
+  @@index([requestedByUserId])
+  @@index([status])
 }
