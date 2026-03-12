@@ -22,7 +22,7 @@ interface SearchResults {
     date: string;
     startTime: string;
     customer: { name: string };
-    service: { name: string };
+    service: { name: string } | null;
   }[];
   boarding: {
     id: string;
@@ -215,39 +215,39 @@ export function GlobalSearch() {
               />
             )}
 
-            {results && results.pets.length > 0 && (
+            {results && results.pets.filter((p) => p.customer != null).length > 0 && (
               <ResultSection
                 title="חיות מחמד"
                 icon={PawPrint}
-                items={results.pets.map((p) => ({
+                items={results.pets.filter((p) => p.customer != null).map((p) => ({
                   id: p.id,
                   title: `${p.name} (${p.species === "dog" ? "כלב" : p.species === "cat" ? "חתול" : p.species})`,
-                  subtitle: `${p.customer.name}${p.breed ? ` · ${p.breed}` : ""}`,
-                  onClick: () => navigate(`/customers/${p.customer.id}`),
+                  subtitle: `${p.customer!.name}${p.breed ? ` · ${p.breed}` : ""}`,
+                  onClick: () => navigate(`/customers/${p.customer!.id}`),
                 }))}
               />
             )}
 
-            {results && results.appointments.length > 0 && (
+            {results && results.appointments.filter((a) => a.customer != null && a.service != null).length > 0 && (
               <ResultSection
                 title="תורים"
                 icon={Calendar}
-                items={results.appointments.map((a) => ({
+                items={results.appointments.filter((a) => a.customer != null && a.service != null).map((a) => ({
                   id: a.id,
-                  title: `${a.customer.name} – ${a.service.name}`,
+                  title: `${a.customer!.name} – ${a.service!.name}`,
                   subtitle: `${new Date(a.date).toLocaleDateString("he-IL")} ${a.startTime}`,
                   onClick: () => navigate(`/calendar`),
                 }))}
               />
             )}
 
-            {results && results.boarding.length > 0 && (
+            {results && results.boarding.filter((b) => b.customer != null && b.pet != null).length > 0 && (
               <ResultSection
                 title="פנסיון"
                 icon={Hotel}
-                items={results.boarding.map((b) => ({
+                items={results.boarding.filter((b) => b.customer != null && b.pet != null).map((b) => ({
                   id: b.id,
-                  title: `${b.customer.name} – ${b.pet.name}`,
+                  title: `${b.customer!.name} – ${b.pet!.name}`,
                   subtitle: `${new Date(b.checkIn).toLocaleDateString("he-IL")}${b.room ? ` · ${b.room.name}` : ""}`,
                   onClick: () => navigate(`/boarding`),
                 }))}

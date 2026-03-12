@@ -38,7 +38,7 @@ interface Payment {
   paidAt: string | null;
   createdAt: string;
   customer: { id: string; name: string; phone: string };
-  appointment: { service: { name: string } } | null;
+  appointment: { service: { name: string } | null } | null;
   boardingStay: { pet: { name: string }; room: { name: string } } | null;
 }
 
@@ -248,7 +248,7 @@ function PaymentsPageContent() {
   }, [allPayments]);
 
   function buildReminderText(payment: Payment) {
-    const association = payment.appointment?.service.name
+    const association = payment.appointment?.service?.name
       || (payment.boardingStay ? `פנסיון — ${payment.boardingStay.pet.name}` : "");
     return `שלום ${payment.customer.name}! 😊\nתזכורת לגבי תשלום ממתין בסך ${formatCurrency(payment.amount)}${association ? ` עבור ${association}` : ""}.\nנשמח לקבל את התשלום בהקדם 🙏`;
   }
@@ -284,7 +284,7 @@ function PaymentsPageContent() {
         p.amount.toString(),
         METHOD_LABELS[p.method] || p.method,
         STATUS_INFO[p.status]?.label || p.status,
-        p.appointment?.service.name || (p.boardingStay ? `פנסיון — ${p.boardingStay.pet.name}` : ""),
+        p.appointment?.service?.name || (p.boardingStay ? `פנסיון — ${p.boardingStay.pet.name}` : ""),
         p.invoiceNumber || "",
       ]),
     ];
@@ -513,7 +513,7 @@ function PaymentsPageContent() {
               const statusInfo = STATUS_INFO[payment.status] || STATUS_INFO.pending;
               const StatusIcon = statusInfo.icon;
               const association = payment.appointment
-                ? `תור: ${payment.appointment.service.name}`
+                ? `תור: ${payment.appointment.service?.name ?? "ללא שירות"}`
                 : payment.boardingStay
                 ? `פנסיון: ${payment.boardingStay.pet.name}`
                 : null;
@@ -683,7 +683,7 @@ function PaymentsPageContent() {
                   const statusInfo = STATUS_INFO[payment.status] || STATUS_INFO.pending;
                   const StatusIcon = statusInfo.icon;
                   const association = payment.appointment
-                    ? `תור: ${payment.appointment.service.name}`
+                    ? `תור: ${payment.appointment.service?.name ?? "ללא שירות"}`
                     : payment.boardingStay
                     ? `פנסיון: ${payment.boardingStay.pet.name}`
                     : "—";
