@@ -234,7 +234,7 @@ function appointmentStyle(startTime: string, endTime: string) {
   const start = timeToMinutes(startTime) - DAY_START;
   const end = timeToMinutes(endTime) - DAY_START;
   const top = (start / 60) * SLOT_HEIGHT;
-  const height = Math.max(((end - start) / 60) * SLOT_HEIGHT, 24);
+  const height = Math.max(((end - start) / 60) * SLOT_HEIGHT, 40);
   return { top, height };
 }
 
@@ -1470,7 +1470,7 @@ function CalendarContent() {
                 className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                 style={{ background: color }}
               />
-              <span className={isDimmed ? "text-petra-muted" : isActive ? "" : "text-petra-muted"}>
+              <span className={isDimmed ? "text-petra-muted line-through" : isActive ? "" : "text-petra-muted"}>
                 {SERVICE_TYPE_LABELS[type]}
               </span>
             </button>
