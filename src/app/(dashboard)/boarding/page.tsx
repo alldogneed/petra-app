@@ -2502,18 +2502,30 @@ function BoardingPageContent() {
 
       {/* Overdue Banner */}
       {overdueStays.length > 0 && (
-        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-            <AlertTriangle className="w-4 h-4 text-red-600" />
+        <div className="mb-4 p-4 rounded-xl bg-red-50 border-2 border-red-300 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-red-700">
+            <p className="text-sm font-bold text-red-700">
               {overdueStays.length} שהיות עם איחור בצ׳ק-אאוט
             </p>
             <p className="text-xs text-red-600 mt-0.5">
-              {overdueStays.map((s) => s.pet.name).join(", ")}
+              {overdueStays.map((s) => {
+                const checkOutDate = new Date(s.checkOut!);
+                const [h, m] = (settings.boardingCheckOutTime || "11:00").split(":").map(Number);
+                checkOutDate.setHours(h, m, 0, 0);
+                const hoursOverdue = Math.floor((Date.now() - checkOutDate.getTime()) / (1000 * 60 * 60));
+                return `${s.pet.name} (באיחור ${hoursOverdue}${hoursOverdue === 1 ? " שעה" : " שעות"})`;
+              }).join(" · ")}
             </p>
           </div>
+          <button
+            onClick={() => setActiveTab("active")}
+            className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors"
+          >
+            טפל עכשיו
+          </button>
         </div>
       )}
 
