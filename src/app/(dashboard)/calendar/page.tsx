@@ -1151,6 +1151,7 @@ function CalendarContent() {
           background: color,
           boxShadow: isCanceled ? "none" : `0 1px 3px ${color}40`,
           zIndex: 10,
+          minHeight: compact ? undefined : 60,
         }}
         onClick={(e) => {
           e.stopPropagation();
@@ -1167,13 +1168,13 @@ function CalendarContent() {
           <div className="absolute top-1 left-1 w-2 h-2 rounded-full bg-gray-300 border border-gray-400" />
         )}
 
-        <div className={cn("font-medium truncate", isCanceled && "line-through")}>
+        <div className={cn("font-medium", compact ? "truncate" : "line-clamp-2 break-words", isCanceled && "line-through")}>
           {apt.pet ? apt.pet.name : apt.customer.name}
         </div>
         {apt.pet && (
-          <div className="opacity-80 truncate">{apt.customer.name}</div>
+          <div className={cn("opacity-80", compact ? "truncate" : "line-clamp-1")}>{apt.customer.name}</div>
         )}
-        <div className="opacity-80 truncate">{getAppointmentLabel(apt)}</div>
+        <div className={cn("opacity-80", compact ? "truncate" : "line-clamp-1")}>{getAppointmentLabel(apt)}</div>
         <div className="opacity-80">{apt.startTime}</div>
       </div>
     );

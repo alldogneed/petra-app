@@ -521,14 +521,18 @@ function SchedulerContent() {
               value={selectedServiceId}
               onChange={(e) => handleServiceChange(e.target.value)}
               className="input w-full"
+              disabled={activeServices.length === 0}
             >
-              <option value="">בחר שירות...</option>
+              <option value="">{activeServices.length === 0 ? "אין שירותים פעילים — הוסף שירות בדף שירותים" : "בחר שירות..."}</option>
               {activeServices.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name} — {s.duration} דק׳ — {formatCurrency(s.price)}
                 </option>
               ))}
             </select>
+            {activeServices.length === 0 && services.length > 0 && (
+              <p className="text-xs text-amber-600 mt-1">יש שירותים לא פעילים — הפעל אותם בדף שירותים</p>
+            )}
           </div>
 
           {/* Month Calendar */}

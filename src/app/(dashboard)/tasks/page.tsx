@@ -329,9 +329,10 @@ export default function TasksPage() {
       );
       return { prev };
     },
-    onSuccess: () => {
+    onSuccess: (_data, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      if (status === "COMPLETED") toast.success("המשימה הושלמה ✓");
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(["tasks", activeCategory, activeFilter], ctx.prev);

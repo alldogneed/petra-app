@@ -83,6 +83,7 @@ const config: Config = {
   		},
   		fontFamily: {
   			sans: [
+  				'var(--font-heebo)',
   				'Heebo',
   				'system-ui',
   				'-apple-system',

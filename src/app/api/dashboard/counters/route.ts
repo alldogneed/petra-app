@@ -38,7 +38,10 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    return NextResponse.json({ openTasks, overdueFollowUps, pendingBookings });
+    return NextResponse.json(
+      { openTasks, overdueFollowUps, pendingBookings },
+      { headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=30" } }
+    );
   } catch (error) {
     console.error("Error fetching counters:", error);
     return NextResponse.json({ openTasks: 0, overdueFollowUps: 0, pendingBookings: 0 });

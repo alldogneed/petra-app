@@ -446,7 +446,7 @@ function DashboardSkeleton() {
         <div className="h-10 w-32 bg-slate-100 rounded-xl animate-pulse" />
       </div>
       {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="card p-5 animate-pulse">
             <div className="w-11 h-11 bg-slate-100 rounded-xl mb-4" />
@@ -2079,10 +2079,10 @@ export default function DashboardPage() {
           </div>
           <p className="text-sm text-petra-muted">{todayStr}</p>
         </div>
-        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+        <div className="flex flex-col sm:grid sm:grid-cols-2 lg:flex lg:flex-row gap-2">
           <button
             onClick={() => setShowNewCustomer(true)}
-            className="btn-primary flex items-center justify-center gap-2 col-span-2 sm:col-span-1"
+            className="btn-primary flex items-center justify-center gap-2"
           >
             <Plus className="w-4 h-4 shrink-0" />
             לקוח חדש
@@ -2264,7 +2264,7 @@ export default function DashboardPage() {
       <TopDebtorsWidget debtors={data.topDebtors || []} />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {perms.canSeeRevenueSummary && (data.todayRevenue ?? 0) > 0 && (
           <StatCard
             title="הכנסות היום"

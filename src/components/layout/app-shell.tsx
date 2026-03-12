@@ -3,7 +3,7 @@
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useState, useEffect } from "react";
 import { HelpCircle } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/providers/auth-provider";
@@ -16,6 +16,16 @@ const HelpCenter = dynamic(
 export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Fix #5: Auto-collapse sidebar on tablet (768px–1024px)
+  useEffect(() => {
+    const check = () => {
+      if (window.innerWidth >= 768 && window.innerWidth < 1024) setCollapsed(true);
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
   const [helpOpen, setHelpOpen] = useState(false);
   const { user, exitImpersonation } = useAuth();
 
@@ -57,7 +67,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Floating help button */}
       <button
         onClick={() => setHelpOpen(true)}
-        className="fixed bottom-24 left-4 md:bottom-6 md:left-6 z-40 w-11 h-11 rounded-full bg-brand-500 text-white shadow-lg hover:bg-brand-600 transition-all flex items-center justify-center"
+        className="fixed bottom-20 left-4 sm:bottom-6 sm:left-6 z-40 w-11 h-11 rounded-full bg-brand-500 text-white shadow-lg hover:bg-brand-600 transition-all flex items-center justify-center"
         aria-label="מרכז עזרה"
       >
         <HelpCircle className="w-5 h-5" />

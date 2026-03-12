@@ -1460,7 +1460,7 @@ export default function CustomersPage() {
 
   // ── Business settings (for customer tags) ──
   const { data: businessSettings } = useQuery<{ customerTags?: string }>({
-    queryKey: ["business-settings"],
+    queryKey: ["settings"],
     queryFn: () => fetchJSON<{ customerTags?: string }>("/api/settings"),
     staleTime: 0, // always fresh so tag changes are reflected immediately
   });
@@ -1486,7 +1486,7 @@ export default function CustomersPage() {
         return r.json();
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["business-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       toast.success("התגיות נשמרו");
     },

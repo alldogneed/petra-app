@@ -276,7 +276,7 @@ export function CreateOrderModal({
   });
 
   const { data: business } = useQuery<Business>({
-    queryKey: ["business-settings"],
+    queryKey: ["settings"],
     queryFn: () => fetch("/api/settings").then((r) => r.json()),
     staleTime: 300_000,
   });

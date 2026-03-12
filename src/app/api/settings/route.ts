@@ -28,7 +28,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(business);
+    return NextResponse.json(
+      business,
+      { headers: { "Cache-Control": "private, max-age=600, stale-while-revalidate=60" } }
+    );
   } catch (error) {
     console.error("Failed to fetch settings:", error);
     return NextResponse.json(

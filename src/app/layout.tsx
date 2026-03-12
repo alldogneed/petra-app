@@ -1,8 +1,16 @@
 import type { Metadata, Viewport } from "next";
+import { Heebo } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { Toaster } from "sonner";
+
+const heebo = Heebo({
+  subsets: ["latin", "hebrew"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  display: "swap",
+  variable: "--font-heebo",
+});
 
 export const metadata: Metadata = {
   title: "Petra - ניהול עסקי חיות מחמד",
@@ -37,8 +45,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="he" dir="rtl">
-      <body className="antialiased">
+    <html lang="he" dir="rtl" className={heebo.variable}>
+      <body className={`${heebo.className} antialiased`}>
         {/* Service Worker registration */}
         <script
           dangerouslySetInnerHTML={{

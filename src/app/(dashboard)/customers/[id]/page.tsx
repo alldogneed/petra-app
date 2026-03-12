@@ -1039,7 +1039,7 @@ function EditCustomerModal({
   const queryClient = useQueryClient();
 
   const { data: businessSettings } = useQuery<{ customerTags?: string }>({
-    queryKey: ["business-settings"],
+    queryKey: ["settings"],
     queryFn: () => fetchJSON<{ customerTags?: string }>("/api/settings"),
     staleTime: 60_000,
   });

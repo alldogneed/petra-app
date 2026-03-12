@@ -109,7 +109,9 @@ export async function GET(request: NextRequest) {
       training: { count: training.length, items: training },
       compliance: { count: compliance.length, items: compliance },
       total: medical.length + training.length + compliance.length,
-    });
+    },
+    { headers: { "Cache-Control": "private, max-age=180, stale-while-revalidate=60" } }
+    );
   } catch (error) {
     console.error("GET /api/service-dogs/alerts error:", error);
     return NextResponse.json({ error: "שגיאה בטעינת התראות" }, { status: 500 });

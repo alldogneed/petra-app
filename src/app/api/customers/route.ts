@@ -109,7 +109,9 @@ export async function GET(request: NextRequest) {
         const isInBoarding = c.boardingStays.length > 0;
         const hasActiveTraining = c.trainingPrograms.length > 0;
         const hasFutureAppointment = futureAppts.length > 0;
-        const isActive = isInBoarding || hasActiveTraining || hasFutureAppointment;
+        const sevenDaysAgo = new Date(now2.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const isNewCustomer = new Date(c.createdAt) >= sevenDaysAgo;
+        const isActive = isInBoarding || hasActiveTraining || hasFutureAppointment || isNewCustomer;
         const status = isVip ? "vip" : isActive ? "active" : "dormant";
         const lastAppt = pastAppts[0] || null;
         const nextAppt = futureAppts[0] || null;

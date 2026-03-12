@@ -30,7 +30,10 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    return NextResponse.json({ messages, unreadCount });
+    return NextResponse.json(
+      { messages, unreadCount },
+      { headers: { "Cache-Control": "private, max-age=300, stale-while-revalidate=60" } }
+    );
   } catch (error) {
     console.error("System messages API error:", error);
     return NextResponse.json({ messages: [], unreadCount: 0 });

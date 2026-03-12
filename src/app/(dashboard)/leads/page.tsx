@@ -11,6 +11,7 @@ import {
   CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles,
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
+import { validateIsraeliPhone, validateEmail, sanitizeName, validateName } from "@/lib/validation";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
@@ -103,8 +104,22 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
     onError: () => toast.error("שגיאה ביצירת הליד. נסה שוב."),
   });
 
-  const phoneDigits = form.phone.replace(/\D/g, "");
-  const phoneInvalid = form.phone.length > 0 && phoneDigits.length < 9;
+  const [leadFieldErrors, setLeadFieldErrors] = useState<{ name?: string; phone?: string; email?: string }>({});
+
+  function validateAndSubmitLead() {
+    const errors: typeof leadFieldErrors = {};
+    const nameErr = validateName(form.name);
+    if (nameErr) errors.name = nameErr;
+    if (form.phone.trim()) {
+      const phoneErr = validateIsraeliPhone(form.phone);
+      if (phoneErr) errors.phone = phoneErr;
+    }
+    const emailErr = validateEmail(form.email);
+    if (emailErr) errors.email = emailErr;
+    setLeadFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    mutation.mutate({ ...form, name: sanitizeName(form.name) });
+  }
 
   if (!isOpen) return null;
 
@@ -119,23 +134,33 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
         <div className="space-y-4">
           <div>
             <label className="label">שם *</label>
-            <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <input
+              className={cn("input", leadFieldErrors.name && "border-red-300 focus:ring-red-200")}
+              value={form.name}
+              onChange={(e) => { setForm({ ...form, name: e.target.value }); if (leadFieldErrors.name) setLeadFieldErrors({ ...leadFieldErrors, name: undefined }); }}
+            />
+            {leadFieldErrors.name && <p className="text-xs text-red-500 mt-1">{leadFieldErrors.name}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">טלפון</label>
               <input
-                className={`input ${phoneInvalid ? "border-red-400 focus:ring-red-300" : ""}`}
+                className={cn("input", leadFieldErrors.phone && "border-red-300 focus:ring-red-200")}
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (leadFieldErrors.phone) setLeadFieldErrors({ ...leadFieldErrors, phone: undefined }); }}
                 placeholder="050-0000000"
                 inputMode="tel"
               />
-              {phoneInvalid && <p className="text-xs text-red-600 mt-1">מספר טלפון לא תקין</p>}
+              {leadFieldErrors.phone && <p className="text-xs text-red-500 mt-1">{leadFieldErrors.phone}</p>}
             </div>
             <div>
               <label className="label">אימייל</label>
-              <input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <input
+                className={cn("input", leadFieldErrors.email && "border-red-300 focus:ring-red-200")}
+                value={form.email}
+                onChange={(e) => { setForm({ ...form, email: e.target.value }); if (leadFieldErrors.email) setLeadFieldErrors({ ...leadFieldErrors, email: undefined }); }}
+              />
+              {leadFieldErrors.email && <p className="text-xs text-red-500 mt-1">{leadFieldErrors.email}</p>}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -160,7 +185,7 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
           </div>
         </div>
         <div className="flex gap-3 mt-6">
-          <button className="btn-primary flex-1" disabled={!form.name || phoneInvalid || mutation.isPending} onClick={() => mutation.mutate(form)}>
+          <button className="btn-primary flex-1" disabled={mutation.isPending} onClick={validateAndSubmitLead}>
             <Plus className="w-4 h-4" />{mutation.isPending ? "שומר..." : "הוסף ליד"}
           </button>
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
