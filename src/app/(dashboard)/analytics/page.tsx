@@ -32,14 +32,14 @@ interface AnalyticsData {
   overview: {
     totalCustomers: number;
     newCustomers: number;
-    newCustomersChange: number;
+    newCustomersChange: number | null;
     totalAppointments: number;
-    appointmentsChange: number;
+    appointmentsChange: number | null;
     completedAppointments: number;
     canceledAppointments: number;
     completionRate: number;
     revenue: number;
-    revenueChange: number;
+    revenueChange: number | null;
     paymentCount: number;
   };
   tasks: {
@@ -85,7 +85,9 @@ const PERIODS = [
   { id: "year", label: "שנה" },
 ];
 
-function ChangeIndicator({ value }: { value: number }) {
+function ChangeIndicator({ value }: { value: number | null }) {
+  if (value === null)
+    return <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md">חדש</span>;
   if (value === 0) return <span className="flex items-center gap-0.5 text-xs text-slate-400"><Minus className="w-3 h-3" /> 0%</span>;
   if (value > 0)
     return (

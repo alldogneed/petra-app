@@ -50,12 +50,13 @@ export default function RevenueChart({
             axisLine={false}
             tickLine={false}
             tick={{ fontSize: 11, fill: "#94A3B8" }}
-            tickFormatter={(v) => `₪${(v / 1000).toFixed(0)}k`}
+            tickFormatter={(v) => v === 0 ? "" : v >= 1000 ? `₪${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : `₪${v}`}
             width={50}
             mirror
           />
           <Tooltip
             formatter={(value: number | undefined) => [formatCurrency(value || 0), "הכנסות"]}
+            labelFormatter={(label) => label}
             contentStyle={{
               borderRadius: 12,
               border: "1px solid #E2E8F0",

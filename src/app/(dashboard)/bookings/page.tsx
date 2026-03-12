@@ -180,10 +180,10 @@ function BookingsContent() {
         <button
           onClick={openQR}
           className="btn-secondary flex items-center gap-2"
-          title="הצג QR Code לקישור ההזמנה"
+          title="הצג קוד QR לקישור ההזמנה"
         >
           <QrCode className="w-4 h-4" />
-          <span className="hidden sm:inline">QR Code</span>
+          <span className="hidden sm:inline">קוד QR</span>
         </button>
       </div>
 
