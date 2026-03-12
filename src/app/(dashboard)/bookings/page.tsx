@@ -1,6 +1,7 @@
 "use client";
 
 import { BookingsTabs } from "@/components/bookings/BookingsTabs";
+import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -161,6 +162,7 @@ function BookingsContent() {
 
   return (
     <div>
+      <DesktopBanner />
       <BookingsTabs />
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <h1 className="page-title">ניהול תורים</h1>

@@ -2,6 +2,7 @@
 
 import { TierGate } from "@/components/paywall/TierGate";
 import { FinanceTabs } from "@/components/finance/FinanceTabs";
+import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
@@ -718,6 +719,7 @@ function PricingPageContent() {
       <FinanceTabs />
 
       {/* Header */}
+      <DesktopBanner />
       <div className="page-header">
         <div>
           <h1 className="page-title">מחירון</h1>

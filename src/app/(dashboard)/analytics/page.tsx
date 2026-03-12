@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { useState } from "react";
 import {
   BarChart3,
@@ -150,6 +151,7 @@ function AnalyticsContent() {
   return (
     <div className="animate-fade-in">
       {/* Header */}
+      <DesktopBanner />
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <h1 className="page-title flex items-center gap-2">
           <BarChart3 className="w-6 h-6 text-brand-500" />

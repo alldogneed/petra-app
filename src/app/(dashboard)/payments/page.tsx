@@ -2,6 +2,7 @@
 
 import { TierGate } from "@/components/paywall/TierGate";
 import { FinanceTabs } from "@/components/finance/FinanceTabs";
+import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
@@ -299,6 +300,7 @@ function PaymentsPageContent() {
 
   return (
     <div>
+      <DesktopBanner />
       <FinanceTabs />
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <h1 className="page-title">תשלומים</h1>

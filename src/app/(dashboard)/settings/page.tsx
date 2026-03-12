@@ -53,10 +53,12 @@ const RepeatIcon = Repeat;
 import { useSearchParams } from "next/navigation";
 import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
 import { MessagesPanel } from "@/components/messages/messages-panel";
+import { PendingApprovalsPanel } from "@/components/settings/PendingApprovalsPanel";
 import { toast } from "sonner";
 import { TIERS, SERVICE_TYPES } from "@/lib/constants";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlan } from "@/hooks/usePlan";
+import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { PaywallCard } from "@/components/paywall/PaywallCard";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -2576,6 +2578,9 @@ function TeamTab() {
           }}
         />
       )}
+
+      {/* Pending approvals panel — visible to all team members (owner sees full controls, manager sees own requests) */}
+      <PendingApprovalsPanel />
     </div>
   );
 }
@@ -2806,6 +2811,286 @@ function ServiceDogsSettingsTab() {
   );
 }
 
+// ─── Contracts Tab ────────────────────────────────────────────────────────────
+
+interface ContractTemplate {
+  id: string;
+  name: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize: number;
+  signaturePage: number;
+  signatureX: number;
+  signatureY: number;
+  signatureWidth: number;
+  signatureHeight: number;
+  createdAt: string;
+}
+
+function ContractsTab() {
+  const queryClient = useQueryClient();
+  const [showModal, setShowModal] = useState(false);
+
+  const { data: templates = [], isLoading } = useQuery<ContractTemplate[]>({
+    queryKey: ["contract-templates"],
+    queryFn: () => fetch("/api/contracts/templates").then((r) => r.json()),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/contracts/templates/${id}`, { method: "DELETE" }).then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "שגיאה");
+        return d;
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
+      toast.success("תבנית נמחקה");
+    },
+    onError: () => toast.error("שגיאה במחיקת התבנית"),
+  });
+
+  if (isLoading) {
+    return <div className="space-y-3 animate-pulse">{[1,2].map((i) => <div key={i} className="h-16 bg-slate-100 rounded-xl" />)}</div>;
+  }
+
+  return (
+    <div className="space-y-5 max-w-2xl">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-petra-text">תבניות חוזים</h2>
+          <p className="text-sm text-petra-muted mt-0.5">העלה תבניות PDF להחתמת לקוחות</p>
+        </div>
+        <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
+          <Plus className="w-4 h-4" />
+          תבנית חדשה
+        </button>
+      </div>
+
+      {templates.length === 0 ? (
+        <div className="border-2 border-dashed border-slate-200 rounded-2xl p-10 text-center space-y-3">
+          <FileText className="w-10 h-10 text-slate-300 mx-auto" />
+          <p className="text-sm text-petra-muted">אין תבניות חוזים עדיין</p>
+          <button onClick={() => setShowModal(true)} className="btn-primary text-sm">
+            <Plus className="w-4 h-4" />
+            העלה תבנית ראשונה
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {templates.map((t) => (
+            <div key={t.id} className="card p-4 flex items-center gap-4">
+              <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <FileText className="w-5 h-5 text-orange-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-petra-text text-sm">{t.name}</p>
+                <p className="text-xs text-petra-muted mt-0.5">
+                  {t.fileName} · עמוד {t.signaturePage} · {(t.fileSize / 1024).toFixed(0)} KB
+                </p>
+                <p className="text-xs text-petra-muted">
+                  נוצר: {new Date(t.createdAt).toLocaleDateString("he-IL")}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <a
+                  href={t.fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-ghost text-xs py-1.5 px-3"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  תצוגה
+                </a>
+                <button
+                  onClick={() => { if (confirm(`למחוק את "${t.name}"?`)) deleteMutation.mutate(t.id); }}
+                  className="p-2 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showModal && <AddContractTemplateModal onClose={() => setShowModal(false)} onSaved={() => { setShowModal(false); queryClient.invalidateQueries({ queryKey: ["contract-templates"] }); }} />}
+    </div>
+  );
+}
+
+function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [name, setName] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [signaturePage, setSignaturePage] = useState(1);
+  const [sigX, setSigX] = useState(0.1);
+  const [sigY, setSigY] = useState(0.8);
+  const [sigW, setSigW] = useState(0.35);
+  const [sigH, setSigH] = useState(0.07);
+  const [saving, setSaving] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<string | null>(null);
+  const [sigPlaced, setSigPlaced] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+    const url = URL.createObjectURL(f);
+    setPdfPreview(url);
+    setSigPlaced(false);
+  };
+
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!overlayRef.current) return;
+    const rect = overlayRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    setSigX(Math.max(0, Math.min(x - sigW / 2, 1 - sigW)));
+    setSigY(Math.max(0, Math.min(y - sigH / 2, 1 - sigH)));
+    setSigPlaced(true);
+  };
+
+  const handleSave = async () => {
+    if (!file || !name.trim()) return;
+    setSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("name", name.trim());
+      fd.append("signaturePage", String(signaturePage));
+      fd.append("signatureX", String(sigX));
+      fd.append("signatureY", String(sigY));
+      fd.append("signatureWidth", String(sigW));
+      fd.append("signatureHeight", String(sigH));
+      const r = await fetch("/api/contracts/templates", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!r.ok) { toast.error(d.error || "שגיאה בשמירה"); return; }
+      toast.success("תבנית נשמרה!");
+      onSaved();
+    } catch {
+      toast.error("שגיאת רשת");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text">תבנית חוזה חדשה</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"><X className="w-4 h-4" /></button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="label">שם התבנית *</label>
+            <input className="input" placeholder="לדוג׳: חוזה פנסיון, הסכם אילוף..." value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+
+          <div>
+            <label className="label">קובץ PDF *</label>
+            <input type="file" accept="application/pdf" onChange={handleFileChange} className="input" />
+          </div>
+
+          {pdfPreview && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div>
+                  <label className="label">עמוד חתימה</label>
+                  <input type="number" min={1} className="input w-24" value={signaturePage} onChange={(e) => setSignaturePage(Math.max(1, Number(e.target.value)))} />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-petra-text mb-2">
+                  לחץ על המסמך להצבת אזור החתימה
+                </p>
+                <div className="relative border border-slate-200 rounded-xl overflow-hidden" style={{ height: 420 }}>
+                  <iframe
+                    src={`${pdfPreview}#page=${signaturePage}`}
+                    className="w-full h-full"
+                    style={{ border: "none", pointerEvents: "none" }}
+                    title="תצוגת PDF"
+                  />
+                  <div
+                    ref={overlayRef}
+                    className="absolute inset-0 cursor-crosshair"
+                    style={{ zIndex: 10 }}
+                    onClick={handleOverlayClick}
+                  >
+                    {sigPlaced && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: `${sigX * 100}%`,
+                          top: `${sigY * 100}%`,
+                          width: `${sigW * 100}%`,
+                          height: `${sigH * 100}%`,
+                          border: "2px dashed #F97316",
+                          background: "rgba(249,115,22,0.1)",
+                          borderRadius: 4,
+                          pointerEvents: "none",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <span className="text-xs text-orange-600 font-medium whitespace-nowrap">✍ חתימה</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {sigPlaced && (
+                  <p className="text-xs text-petra-muted mt-1">
+                    מיקום: X={Math.round(sigX * 100)}% Y={Math.round(sigY * 100)}% · לחץ שוב לשינוי
+                  </p>
+                )}
+              </div>
+
+              {/* Manual coordinate inputs */}
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                {[
+                  { label: "X% (מימין)", val: Math.round(sigX * 100), set: (v: number) => setSigX(v / 100) },
+                  { label: "Y% (מלמעלה)", val: Math.round(sigY * 100), set: (v: number) => setSigY(v / 100) },
+                  { label: "רוחב%", val: Math.round(sigW * 100), set: (v: number) => setSigW(v / 100) },
+                  { label: "גובה%", val: Math.round(sigH * 100), set: (v: number) => setSigH(v / 100) },
+                ].map(({ label, val, set }) => (
+                  <div key={label}>
+                    <label className="label text-xs">{label}</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={99}
+                      className="input text-xs py-1"
+                      value={val}
+                      onChange={(e) => { setSigPlaced(true); set(Math.max(1, Math.min(99, Number(e.target.value)))); }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 pt-5 mt-2 border-t border-slate-100">
+          <button
+            className="btn-primary flex-1"
+            disabled={!file || !name.trim() || saving}
+            onClick={handleSave}
+          >
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" />שומר...</> : <><Save className="w-4 h-4" />שמור תבנית</>}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Settings Page ──────────────────────────────────────────────────────
 
 import AvailabilityTab from "./availability-tab";
@@ -2816,12 +3101,12 @@ export default function SettingsPage() {
   const { isOwner } = useAuth();
   const { isFree, isBasic, isGroomer, can } = usePlan();
   const invoicingParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data" | "messages" | "service-dogs">(
-    gcalParam ? "integrations" : invoicingParam === "invoicing" ? "invoicing" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : "business"
+  const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data" | "messages" | "service-dogs" | "contracts">(
+    gcalParam ? "integrations" : invoicingParam === "invoicing" ? "invoicing" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : invoicingParam === "contracts" ? "contracts" : "business"
   );
 
   // Tabs locked per tier
-  const FREE_LOCKED_TABS = new Set(["availability", "team", "messages", "service-dogs", "data", "integrations"]);
+  const FREE_LOCKED_TABS = new Set(["availability", "team", "messages", "service-dogs", "data", "integrations", "contracts"]);
   // Basic: open business, data, integrations — lock availability, team, messages, service-dogs
   const BASIC_LOCKED_TABS = new Set(["availability", "team", "messages", "service-dogs"]);
 
@@ -2833,12 +3118,14 @@ export default function SettingsPage() {
     { id: "messages" as const, label: "הודעות ואוטומציות", icon: MessageCircle },
     // Service dogs tab — hidden for groomer tier (irrelevant track)
     ...(!isGroomer ? [{ id: "service-dogs" as const, label: "כלבי שירות", icon: PawPrint }] : []),
+    { id: "contracts" as const, label: "חוזים", icon: FileText },
     { id: "data" as const, label: "נתונים", icon: Database },
     { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
   ];
 
   return (
     <div>
+      <DesktopBanner />
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <h1 className="page-title">הגדרות</h1>
       </div>
@@ -2896,6 +3183,11 @@ export default function SettingsPage() {
         isFree
           ? <PaywallCard title="אינטגרציות" description="חבר יומן Google, WhatsApp ועוד — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
           : <IntegrationsTab />
+      )}
+      {activeTab === "contracts" && (
+        isFree
+          ? <PaywallCard title="חוזים דיגיטליים" description="שלח חוזים לחתימה דיגיטלית — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
+          : <ContractsTab />
       )}
     </div>
   );

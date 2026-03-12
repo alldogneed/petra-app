@@ -2,6 +2,7 @@
 
 import { TierGate } from "@/components/paywall/TierGate";
 import { FinanceTabs } from "@/components/finance/FinanceTabs";
+import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
@@ -360,6 +361,7 @@ function OrdersPageContent() {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <DesktopBanner />
       <FinanceTabs />
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="page-header">

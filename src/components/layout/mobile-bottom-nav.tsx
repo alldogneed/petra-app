@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Home,
-  Hotel,
+  Target,
   UserPlus,
   ClipboardList,
   Link2,
@@ -187,12 +187,12 @@ export function MobileBottomNav() {
       isCenter: false,
     },
     {
-      key: "boarding",
-      icon: Hotel,
-      label: "פנסיון",
-      onClick: () => router.push("/boarding"),
+      key: "leads",
+      icon: Target,
+      label: "לידים",
+      onClick: () => router.push("/leads"),
       isCenter: false,
-      active: pathname.startsWith("/boarding"),
+      active: pathname.startsWith("/leads"),
     },
     {
       key: "home",
