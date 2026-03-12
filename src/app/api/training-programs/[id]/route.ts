@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { type TenantRole } from "@/lib/permissions";
+import { createPendingApproval } from "@/lib/pending-approvals";
 
 export async function GET(
   request: NextRequest,
@@ -89,5 +91,71 @@ export async function PATCH(
   } catch (error) {
     console.error("PATCH training program error:", error);
     return NextResponse.json({ error: "שגיאה בעדכון תוכנית" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const authResult = await requireBusinessAuth(request);
+    if (isGuardError(authResult)) return authResult;
+    const { session, businessId } = authResult;
+
+    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const callerRole = (membership?.role ?? "user") as TenantRole;
+
+    // Staff cannot delete at all
+    if (callerRole === "user" || callerRole === "volunteer") {
+      return NextResponse.json({ error: "אין הרשאה למחיקת תוכנית אימון" }, { status: 403 });
+    }
+
+    const existing = await prisma.trainingProgram.findFirst({
+      where: { id: params.id, businessId },
+      select: { id: true, name: true, dogId: true, dog: { select: { name: true } } },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "תוכנית לא נמצאה" }, { status: 404 });
+    }
+
+    const programLabel = existing.name ?? (existing.dog ? `אימון: ${existing.dog.name}` : "תוכנית אימון");
+
+    // Manager → route to pending approval
+    if (callerRole === "manager") {
+      const approval = await createPendingApproval({
+        businessId,
+        requestedByUserId: session.user.id,
+        action: "DELETE_TRAINING",
+        description: `מחיקת תוכנית אימון: ${programLabel}`,
+        payload: { trainingProgramId: params.id, programName: programLabel },
+      });
+      return NextResponse.json(
+        { pendingApproval: true, approvalId: approval.id, message: "הבקשה נשלחה לאישור הבעלים" },
+        { status: 202 }
+      );
+    }
+
+    // Owner → require typed confirmation header
+    const confirmHeader = request.headers.get("x-confirm-action");
+    if (confirmHeader !== `DELETE_TRAINING_${params.id}`) {
+      return NextResponse.json(
+        { error: "נדרש אישור מפורש למחיקה", requireConfirmation: true },
+        { status: 428 }
+      );
+    }
+
+    // Delete child records then the program
+    await prisma.$transaction([
+      prisma.trainingGoal.deleteMany({ where: { trainingProgramId: params.id } }),
+      prisma.trainingProgramSession.deleteMany({ where: { trainingProgramId: params.id } }),
+      prisma.trainingHomework.deleteMany({ where: { trainingProgramId: params.id } }),
+      prisma.trainingProgram.delete({ where: { id: params.id, businessId } }),
+    ]);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("DELETE training program error:", error);
+    return NextResponse.json({ error: "שגיאה במחיקת תוכנית" }, { status: 500 });
   }
 }

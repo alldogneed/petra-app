@@ -3077,6 +3077,7 @@ export default function CustomerProfilePage() {
   const [noteModal, setNoteModal] = useState<{ petId: string; field: string; label: string; value: string } | null>(null);
   const [editPetModal, setEditPetModal] = useState<{ pet: Pet } | null>(null);
   const [deletingPetId, setDeletingPetId] = useState<string | null>(null);
+  const [deletingPetOwner, setDeletingPetOwner] = useState<{ id: string; name: string } | null>(null);
   const [showWaCompose, setShowWaCompose] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
   const { user } = useAuth();
@@ -3132,17 +3133,28 @@ export default function CustomerProfilePage() {
     onError: () => setCompletingAptId(null),
   });
 
-  const deletePetMutation = useMutation({
-    mutationFn: (petId: string) =>
-      fetchJSON(`/api/pets/${petId}`, { method: "DELETE" }),
-    onSuccess: () => {
+  const deletePetMutation = useMutation<Record<string, unknown>, Error, { petId: string; confirmAction?: string }>({
+    mutationFn: ({ petId, confirmAction }) =>
+      fetchJSON(`/api/pets/${petId}`, {
+        method: "DELETE",
+        ...(confirmAction ? { headers: { "x-confirm-action": confirmAction } } : {}),
+      }) as Promise<Record<string, unknown>>,
+    onSuccess: (data) => {
+      if (data.pendingApproval) {
+        toast.success("הבקשה נשלחה לאישור הבעלים");
+        setDeletingPetId(null);
+        setDeletingPetOwner(null);
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       toast.success("חיית המחמד נמחקה");
       setDeletingPetId(null);
+      setDeletingPetOwner(null);
     },
     onError: () => {
       toast.error("שגיאה במחיקת חיית המחמד");
       setDeletingPetId(null);
+      setDeletingPetOwner(null);
     },
   });
 
@@ -3660,13 +3672,22 @@ export default function CustomerProfilePage() {
                             >
                               <Pencil className="w-3 h-3 text-amber-700" />
                             </button>
-                            <button
-                              className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 transition-all"
-                              onClick={(e) => { e.stopPropagation(); setDeletingPetId(pet.id); }}
-                              title="מחק"
-                            >
-                              <Trash2 className="w-3 h-3 text-red-500" />
-                            </button>
+                            {!perms.isStaff && !perms.isVolunteer && (
+                              <button
+                                className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 transition-all"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (perms.isOwner) {
+                                    setDeletingPetOwner({ id: pet.id, name: pet.name });
+                                  } else {
+                                    setDeletingPetId(pet.id);
+                                  }
+                                }}
+                                title={perms.isOwner ? "מחק" : "שלח בקשת מחיקה לאישור"}
+                              >
+                                <Trash2 className="w-3 h-3 text-red-500" />
+                              </button>
+                            )}
                             {isExpanded ? (
                               <ChevronUp className="w-4 h-4 text-stone-400" />
                             ) : (
@@ -4799,17 +4820,17 @@ export default function CustomerProfilePage() {
         <div className="modal-overlay">
           <div className="modal-backdrop" onClick={() => setDeletingPetId(null)} />
           <div className="modal-content max-w-sm mx-4 p-6">
-            <h3 className="text-base font-bold text-petra-text mb-2">מחיקת חיית מחמד</h3>
+            <h3 className="text-base font-bold text-petra-text mb-2">בקשת מחיקת חיית מחמד</h3>
             <p className="text-sm text-petra-muted mb-5">
-              פעולה זו תמחק את חיית המחמד וכל הנתונים הרפואיים המשויכים. האם להמשיך?
+              הבקשה תישלח לאישור הבעלים לפני ביצוע המחיקה. האם להמשיך?
             </p>
             <div className="flex gap-3">
               <button
                 className="btn-primary flex-1 !bg-red-600 hover:!bg-red-700"
                 disabled={deletePetMutation.isPending}
-                onClick={() => deletePetMutation.mutate(deletingPetId)}
+                onClick={() => deletePetMutation.mutate({ petId: deletingPetId })}
               >
-                {deletePetMutation.isPending ? "מוחק..." : "מחק"}
+                {deletePetMutation.isPending ? "שולח..." : "שלח לאישור"}
               </button>
               <button className="btn-secondary flex-1" onClick={() => setDeletingPetId(null)}>
                 ביטול
@@ -4859,6 +4880,24 @@ export default function CustomerProfilePage() {
         description="מחיקת הלקוח תסיר את כל הפגישות, התשלומים ותוכניות האימון המשויכות. פעולה זו אינה ניתנת לביטול."
         loading={deleteCustomerMutation.isPending}
       />
+
+      {/* Owner double-confirm pet delete modal */}
+      {deletingPetOwner && (
+        <ConfirmDeleteModal
+          open
+          onClose={() => setDeletingPetOwner(null)}
+          onConfirm={() =>
+            deletePetMutation.mutate({
+              petId: deletingPetOwner.id,
+              confirmAction: `DELETE_PET_${deletingPetOwner.id}`,
+            })
+          }
+          title="מחיקת חיית מחמד"
+          confirmText={deletingPetOwner.name}
+          description={`מחיקת ${deletingPetOwner.name} תסיר את כל הנתונים הרפואיים, המשקל וההיסטוריה המשויכים. פעולה זו אינה ניתנת לביטול.`}
+          loading={deletePetMutation.isPending}
+        />
+      )}
     </div>
   );
 }

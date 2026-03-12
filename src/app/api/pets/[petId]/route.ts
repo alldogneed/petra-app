@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { type TenantRole } from "@/lib/permissions";
+import { createPendingApproval } from "@/lib/pending-approvals";
 
 export async function GET(
   request: NextRequest,
@@ -124,34 +126,52 @@ export async function DELETE(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { session, businessId } = authResult;
+
+    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const callerRole = (membership?.role ?? "user") as TenantRole;
+
+    // Staff cannot delete at all
+    if (callerRole === "user" || callerRole === "volunteer") {
+      return NextResponse.json({ error: "אין הרשאה למחיקת חיית מחמד" }, { status: 403 });
+    }
 
     const existing = await prisma.pet.findFirst({
       where: {
         id: params.petId,
         OR: [
-          { customer: { businessId: authResult.businessId } },
-          { businessId: authResult.businessId },
+          { customer: { businessId } },
+          { businessId },
         ],
       },
-      include: {
-        _count: {
-          select: {
-            appointments: true,
-            boardingStays: true,
-            trainingPrograms: true,
-          },
-        },
-      },
+      select: { id: true, name: true },
     });
     if (!existing) {
       return NextResponse.json({ error: "Pet not found" }, { status: 404 });
     }
 
-    // Prevent deletion if pet has active appointments, stays, or training
-    const activeCount = existing._count.appointments + existing._count.boardingStays + existing._count.trainingPrograms;
-    if (activeCount > 0) {
-      // Soft-delete: disconnect relations won't cascade properly, so we allow deletion
-      // but warn in the UI. Prisma cascade will handle cleanup.
+    // Manager → route to pending approval
+    if (callerRole === "manager") {
+      const approval = await createPendingApproval({
+        businessId,
+        requestedByUserId: session.user.id,
+        action: "DELETE_PET",
+        description: `מחיקת חיית מחמד: ${existing.name}`,
+        payload: { petId: params.petId, petName: existing.name },
+      });
+      return NextResponse.json(
+        { pendingApproval: true, approvalId: approval.id, message: "הבקשה נשלחה לאישור הבעלים" },
+        { status: 202 }
+      );
+    }
+
+    // Owner → require typed confirmation header
+    const confirmHeader = request.headers.get("x-confirm-action");
+    if (confirmHeader !== `DELETE_PET_${params.petId}`) {
+      return NextResponse.json(
+        { error: "נדרש אישור מפורש למחיקה", requireConfirmation: true },
+        { status: 428 }
+      );
     }
 
     // Delete related records first (no cascade in schema)

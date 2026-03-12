@@ -4,6 +4,8 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { type TenantRole } from "@/lib/permissions";
+import { createPendingApproval } from "@/lib/pending-approvals";
 import { cancelAppointmentReminders, rescheduleAppointmentReminder } from "@/lib/reminder-service";
 import { syncAppointmentToGcal, deleteAppointmentFromGcal } from "@/lib/google-calendar";
 
@@ -122,36 +124,68 @@ export async function DELETE(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { session, businessId } = authResult;
+
+    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const callerRole = (membership?.role ?? "user") as TenantRole;
+
+    // Staff cannot delete at all
+    if (callerRole === "user" || callerRole === "volunteer") {
+      return NextResponse.json({ error: "אין הרשאה למחיקת פגישה" }, { status: 403 });
+    }
 
     const { id } = params;
 
     const existing = await prisma.appointment.findFirst({
-      where: { id, businessId: authResult.businessId },
+      where: { id, businessId },
+      include: {
+        customer: { select: { name: true } },
+        service: { select: { name: true } },
+      },
     });
 
     if (!existing) {
+      return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
+    }
+
+    // Manager → route to pending approval
+    if (callerRole === "manager") {
+      const dateStr = existing.date instanceof Date
+        ? existing.date.toLocaleDateString("he-IL")
+        : String(existing.date).split("T")[0];
+      const approval = await createPendingApproval({
+        businessId,
+        requestedByUserId: session.user.id,
+        action: "DELETE_APPOINTMENT",
+        description: `מחיקת פגישה: ${existing.customer.name} — ${dateStr} ${existing.startTime}`,
+        payload: { appointmentId: id, customerId: existing.customerId ?? "" },
+      });
       return NextResponse.json(
-        { error: "Appointment not found" },
-        { status: 404 }
+        { pendingApproval: true, approvalId: approval.id, message: "הבקשה נשלחה לאישור הבעלים" },
+        { status: 202 }
+      );
+    }
+
+    // Owner → require typed confirmation header
+    const confirmHeader = request.headers.get("x-confirm-action");
+    if (confirmHeader !== `DELETE_APPOINTMENT_${id}`) {
+      return NextResponse.json(
+        { error: "נדרש אישור מפורש למחיקה", requireConfirmation: true },
+        { status: 428 }
       );
     }
 
     await cancelAppointmentReminders(id);
-    // Remove from GCal before deleting from DB
-    await deleteAppointmentFromGcal(id, authResult.businessId).catch((err) =>
+    await deleteAppointmentFromGcal(id, businessId).catch((err) =>
       console.error("Failed to delete appointment from GCal:", err)
     );
-    await prisma.appointment.delete({ where: { id, businessId: authResult.businessId } });
+    await prisma.appointment.delete({ where: { id, businessId } });
 
-    const { session } = authResult;
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_APPOINTMENT);
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to delete appointment:", error);
-    return NextResponse.json(
-      { error: "Failed to delete appointment" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to delete appointment" }, { status: 500 });
   }
 }
