@@ -495,12 +495,12 @@ function DraggableLeadCard({
 
   // Lead aging
   const daysSinceCreation = Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / (1000 * 60 * 60 * 24));
-  const showStaleness = !isWon && !isLost && daysSinceCreation > 7;
-  const stalenessColor = daysSinceCreation > 30
+  const showStaleness = !isWon && !isLost;
+  const stalenessColor = daysSinceCreation >= 8
     ? "bg-red-50 text-red-600 border border-red-100"
-    : daysSinceCreation > 14
+    : daysSinceCreation >= 4
       ? "bg-orange-50 text-orange-600 border border-orange-100"
-      : "bg-amber-50 text-amber-600 border border-amber-100";
+      : "bg-emerald-50 text-emerald-600 border border-emerald-100";
 
   // Follow-up date logic
   const followUpDate = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
@@ -545,7 +545,10 @@ function DraggableLeadCard({
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-bold text-petra-text">{lead.name}</div>
+          <div className="flex items-center gap-1">
+            <GripVertical className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 cursor-grab" />
+            <span className="text-sm font-bold text-petra-text">{lead.name}</span>
+          </div>
           {lead.phone && (
             <div className="text-xs text-petra-muted flex items-center gap-1.5 mt-2">
               <Phone className="w-3.5 h-3.5" />{lead.phone}
@@ -636,7 +639,7 @@ function DraggableLeadCard({
           {showStaleness && (
             <span className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${stalenessColor}`}>
               <Clock className="w-2.5 h-2.5" />
-              {daysSinceCreation}י׳
+              {daysSinceCreation === 0 ? "היום" : `${daysSinceCreation} י׳`}
             </span>
           )}
         </div>
