@@ -532,7 +532,8 @@ function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
   onComplete: (taskId: string) => void;
 }) {
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
-  const allFocusTasks = [...overdueTasks, ...todayTasks];
+  const [focusFilter, setFocusFilter] = useState<"overdue" | "today" | null>(null);
+  const allFocusTasks = focusFilter === "overdue" ? overdueTasks : focusFilter === "today" ? todayTasks : [...overdueTasks, ...todayTasks];
   const visibleTasks = allFocusTasks.filter((t) => !completingIds.has(t.id));
   if (visibleTasks.length === 0 && allFocusTasks.length === 0) return null;
 
@@ -553,12 +554,25 @@ function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
           </div>
           <div>
             <h2 className="text-sm font-bold text-petra-text">מיקוד יומי</h2>
-            <p className="text-[11px] text-petra-muted">
+            <p className="text-[11px] text-petra-muted flex items-center gap-1">
               {overdueTasks.length > 0 && (
-                <span className="text-red-500 font-medium">{overdueTasks.length} באיחור</span>
+                <button
+                  onClick={() => setFocusFilter(focusFilter === "overdue" ? null : "overdue")}
+                  className={cn("font-medium transition-colors", focusFilter === "overdue" ? "text-red-600 underline" : "text-red-500 hover:text-red-600")}
+                >
+                  {overdueTasks.length} באיחור
+                </button>
               )}
-              {overdueTasks.length > 0 && todayTasks.length > 0 && " · "}
-              {todayTasks.length > 0 && `${todayTasks.length} להיום`}
+              {overdueTasks.length > 0 && todayTasks.length > 0 && <span>·</span>}
+              {todayTasks.length > 0 && (
+                <button
+                  onClick={() => setFocusFilter(focusFilter === "today" ? null : "today")}
+                  className={cn("transition-colors", focusFilter === "today" ? "text-blue-600 underline" : "hover:text-petra-text")}
+                >
+                  {todayTasks.length} להיום
+                </button>
+              )}
+              {focusFilter && <button onClick={() => setFocusFilter(null)} className="text-slate-400 hover:text-slate-600 mr-1">× הכל</button>}
             </p>
           </div>
         </div>
@@ -572,7 +586,7 @@ function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
       </div>
 
       <div className="divide-y divide-slate-50">
-        {allFocusTasks.slice(0, 6).map((task) => {
+        {allFocusTasks.slice(0, 5).map((task) => {
           const isCompleting = completingIds.has(task.id);
           const focusStatus = computeFocusStatus(task);
           const config = FOCUS_CONFIG[focusStatus];
@@ -639,6 +653,13 @@ function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
             </div>
           );
         })}
+        {allFocusTasks.length > 5 && (
+          <div className="px-5 py-2.5 border-t border-slate-100">
+            <Link href="/tasks" className="text-xs text-brand-500 hover:text-brand-600 font-medium">
+              הצג {allFocusTasks.length - 5} נוספות ←
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
