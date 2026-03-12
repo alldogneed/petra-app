@@ -12,7 +12,7 @@ interface FormState {
   description: string;
 }
 
-export function ReportBugButton() {
+export function ReportBugButton({ menuMode = false }: { menuMode?: boolean }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>({ title: "", description: "" });
   const pathname = usePathname();
@@ -52,11 +52,13 @@ export function ReportBugButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all duration-150 text-xs font-medium"
+        className={menuMode
+          ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-amber-700 hover:bg-amber-50 transition-colors"
+          : "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all duration-150 text-xs font-medium"}
         title="דווח על תקלה"
       >
-        <LifeBuoy className="w-4 h-4 flex-shrink-0" />
-        <span>תקלה?</span>
+        <LifeBuoy className={menuMode ? "w-4 h-4 text-amber-500" : "w-4 h-4 flex-shrink-0"} />
+        <span>{menuMode ? "דווח על תקלה" : "תקלה?"}</span>
       </button>
 
       {open && typeof window !== "undefined" && createPortal(

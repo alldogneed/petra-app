@@ -454,10 +454,6 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
         {/* Notifications & Messages */}
         <div className="flex items-center gap-0.5 md:gap-1 ms-auto">
-          {/* Report a bug — hidden on mobile (accessible via profile menu) */}
-          <span className="hidden md:contents">
-            <ReportBugButton />
-          </span>
 
           {/* Refresh Button — hidden on mobile */}
           <button
@@ -845,6 +841,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       <Settings className="w-4 h-4 text-slate-500" />
                       הגדרות
                     </Link>
+                    <ReportBugButton menuMode />
                     <button
                       onClick={() => {
                         setProfileOpen(false);
