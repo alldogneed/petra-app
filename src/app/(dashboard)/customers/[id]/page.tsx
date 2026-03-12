@@ -3498,14 +3498,14 @@ export default function CustomerProfilePage() {
           </div>
 
           {/* Package tracking */}
-          {activePrograms.length > 0 && (
+          {activePrograms.some((p) => (p.totalSessions ?? 0) > 0) && (
             <div className="card p-5">
               <h3 className="text-sm font-bold text-petra-text mb-3 flex items-center gap-2">
                 <GraduationCap className="w-4 h-4 text-amber-500" />
                 מעקב חבילות
               </h3>
               <div className="space-y-4">
-                {activePrograms.map((program) => {
+                {activePrograms.filter((p) => (p.totalSessions ?? 0) > 0).map((program) => {
                   const completed = program.sessions?.length ?? 0;
                   const total = program.totalSessions || 1;
                   const pct = Math.min(
