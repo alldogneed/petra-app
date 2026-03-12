@@ -37,6 +37,8 @@ import {
   ClipboardCheck,
   RefreshCw,
   Tag,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   isToday,
@@ -1492,11 +1494,14 @@ function NewCustomerModal({
     address: "",
     notes: "",
     source: "",
+    requestedService: "",
   });
+  const [showPetForm, setShowPetForm] = useState(false);
+  const [petForm, setPetForm] = useState({ name: "", species: "", breed: "", age: "" });
 
   const mutation = useMutation({
-    mutationFn: (data: typeof form) =>
-      fetch("/api/customers", {
+    mutationFn: async (data: typeof form) => {
+      const res = await fetch("/api/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1508,14 +1513,31 @@ function NewCustomerModal({
           source: data.source || null,
           tags: "[]",
         }),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Failed");
-        return r.json();
-      }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const customer = await res.json();
+      // Optionally create pet
+      if (petForm.name.trim()) {
+        await fetch("/api/pets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customerId: customer.id,
+            name: petForm.name,
+            species: petForm.species || "dog",
+            breed: petForm.breed || null,
+            age: petForm.age ? parseInt(petForm.age) : null,
+          }),
+        });
+      }
+      return customer;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      setForm({ name: "", phone: "", email: "", address: "", notes: "", source: "" });
+      setForm({ name: "", phone: "", email: "", address: "", notes: "", source: "", requestedService: "" });
+      setPetForm({ name: "", species: "", breed: "", age: "" });
+      setShowPetForm(false);
       onCreated();
     },
   });
@@ -1578,11 +1600,82 @@ function NewCustomerModal({
               placeholder="עיר, רחוב"
             />
           </div>
+          {/* Optional fields */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">סוג שירות מבוקש</label>
+              <select className="input" value={form.requestedService} onChange={(e) => setForm({ ...form, requestedService: e.target.value })}>
+                <option value="">בחר...</option>
+                <option value="training">אילוף</option>
+                <option value="grooming">טיפוח</option>
+                <option value="boarding">פנסיון</option>
+                <option value="other">אחר</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">מקור הפנייה</label>
+              <select className="input" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
+                <option value="">בחר...</option>
+                <option value="website">אתר</option>
+                <option value="facebook">פייסבוק</option>
+                <option value="recommendation">המלצה</option>
+                <option value="google">Google</option>
+                <option value="other">אחר</option>
+              </select>
+            </div>
+          </div>
+          <p className="text-[11px] text-petra-muted -mt-2">ניתן להשלים מאוחר יותר</p>
+
+          {/* Optional pet */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowPetForm((p) => !p)}
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-petra-text hover:bg-slate-50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <PawPrint className="w-4 h-4 text-petra-muted" />
+                הוספת חיה
+                <span className="text-[11px] text-petra-muted font-normal">(אופציונלי)</span>
+              </span>
+              {showPetForm ? <ChevronUp className="w-4 h-4 text-petra-muted" /> : <ChevronDown className="w-4 h-4 text-petra-muted" />}
+            </button>
+            {showPetForm && (
+              <div className="px-4 pb-4 pt-1 border-t border-slate-100 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">שם החיה</label>
+                    <input className="input" value={petForm.name} onChange={(e) => setPetForm({ ...petForm, name: e.target.value })} placeholder="בוקי" />
+                  </div>
+                  <div>
+                    <label className="label">סוג</label>
+                    <select className="input" value={petForm.species} onChange={(e) => setPetForm({ ...petForm, species: e.target.value })}>
+                      <option value="">בחר...</option>
+                      <option value="dog">כלב</option>
+                      <option value="cat">חתול</option>
+                      <option value="other">אחר</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">גזע</label>
+                    <input className="input" value={petForm.breed} onChange={(e) => setPetForm({ ...petForm, breed: e.target.value })} placeholder="לברדור" />
+                  </div>
+                  <div>
+                    <label className="label">גיל</label>
+                    <input className="input" value={petForm.age} onChange={(e) => setPetForm({ ...petForm, age: e.target.value })} placeholder="2" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="label">הערות</label>
             <textarea
               className="input"
-              rows={3}
+              rows={2}
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
             />
