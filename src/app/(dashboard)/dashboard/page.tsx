@@ -1975,14 +1975,14 @@ export default function DashboardPage() {
           </button>
           <Link
             href="/scheduler"
-            className="btn-secondary flex items-center justify-center gap-2"
+            className="btn-secondary flex items-center justify-center gap-2 border-brand-500 text-brand-600 hover:bg-brand-50"
           >
             <CalendarClock className="w-4 h-4 shrink-0" />
             קביעת תור
           </Link>
           <button
             onClick={() => setShowNewOrder(true)}
-            className="btn-secondary flex items-center justify-center gap-2"
+            className="btn-secondary flex items-center justify-center gap-2 text-slate-500 border-slate-200"
           >
             <ShoppingCart className="w-4 h-4 shrink-0" />
             הזמנה חדשה
@@ -1991,7 +1991,7 @@ export default function DashboardPage() {
             onClick={handleCopyIntakeForm}
             disabled={intakeLoading}
             className={cn(
-              "btn-secondary flex items-center justify-center gap-2 transition-colors",
+              "btn-secondary flex items-center justify-center gap-2 text-slate-500 border-slate-200 transition-colors",
               intakeCopied && "bg-green-50 text-green-700 border-green-300"
             )}
             title="יצירת טופס קליטה והעתקת קישור"
@@ -2016,7 +2016,7 @@ export default function DashboardPage() {
                 toast.success("קישור הזמנת תורים הועתק!", { description: url });
               }).catch(() => toast.error("לא הצלחנו להעתיק"));
             }}
-            className="btn-secondary flex items-center justify-center gap-2"
+            className="btn-secondary flex items-center justify-center gap-2 text-slate-500 border-slate-200"
             title="העתק קישור הזמנת תורים אונליין"
           >
             <Copy className="w-4 h-4 shrink-0" />
@@ -2165,14 +2165,16 @@ export default function DashboardPage() {
           value={data.activeOrders}
           icon={ShoppingCart}
           color="#F97316"
+          href="/orders"
         />
         {perms.canSeeFinance && (
           <StatCard
             title="תשלומים ממתינים"
             value={data.pendingPayments}
-            subtitle={perms.canSeeRevenueSummary ? formatCurrency(data.pendingPaymentsAmount) : undefined}
+            subtitle={perms.canSeeRevenueSummary && data.pendingPaymentsAmount > 0 ? formatCurrency(data.pendingPaymentsAmount) : undefined}
             icon={CreditCard}
             color="#F59E0B"
+            href="/payments"
           />
         )}
         <StatCard
