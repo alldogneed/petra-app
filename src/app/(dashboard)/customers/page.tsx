@@ -1588,7 +1588,7 @@ export default function CustomersPage() {
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
           {tier === "free" && maxCustomers !== null && stats.total >= maxCustomers ? (
-            <a href="/settings?tab=billing" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500 text-white rounded-xl px-4 py-2.5 text-sm font-semibold flex items-center">
+            <a href="/upgrade" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500 text-white rounded-xl px-4 py-2.5 text-sm font-semibold flex items-center">
               <Sparkles className="w-4 h-4" />
               שדרג לבייסיק
             </a>
@@ -1646,7 +1646,7 @@ export default function CustomersPage() {
             </span>
           </div>
           {stats.total >= maxCustomers && (
-            <a href="/settings?tab=billing" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
+            <a href="/upgrade" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
               שדרג לבייסיק ←
             </a>
           )}

@@ -1367,7 +1367,7 @@ function CalendarContent() {
               );
             })()}
             {isFree && maxAppts !== null && totalApptCount >= maxAppts ? (
-              <a href="/settings?tab=billing" className="btn-primary text-sm gap-1.5 bg-amber-500 hover:bg-amber-600 border-amber-500 text-white rounded-xl px-3 py-2 font-semibold flex items-center">
+              <a href="/upgrade" className="btn-primary text-sm gap-1.5 bg-amber-500 hover:bg-amber-600 border-amber-500 text-white rounded-xl px-3 py-2 font-semibold flex items-center">
                 <Sparkles className="w-4 h-4" />
                 <span className="hidden sm:inline">שדרג לבייסיק</span>
                 <span className="sm:hidden">שדרג</span>
@@ -1400,7 +1400,7 @@ function CalendarContent() {
               </span>
             </div>
             {totalApptCount >= maxAppts && (
-              <a href="/settings?tab=billing" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
+              <a href="/upgrade" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
                 שדרג לבייסיק ←
               </a>
             )}

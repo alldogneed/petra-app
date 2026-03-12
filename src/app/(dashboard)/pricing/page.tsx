@@ -727,7 +727,7 @@ function PricingPageContent() {
         </div>
         {priceList && (
           isFree && maxPriceItems !== null && activeItems.length >= maxPriceItems ? (
-            <a href="/settings?tab=billing" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500">
+            <a href="/upgrade" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500">
               <Sparkles className="w-4 h-4" />
               <span className="hidden sm:inline">שדרג לבייסיק</span>
               <span className="sm:hidden">שדרג</span>
@@ -760,7 +760,7 @@ function PricingPageContent() {
             </span>
           </div>
           {activeItems.length >= maxPriceItems && (
-            <a href="/settings?tab=billing" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
+            <a href="/upgrade" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
               שדרג לבייסיק ←
             </a>
           )}

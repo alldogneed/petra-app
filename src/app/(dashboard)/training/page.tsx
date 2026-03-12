@@ -1025,7 +1025,7 @@ function TrainingPageContent() {
             </span>
           </div>
           {programs.length >= maxTrainingPrograms && (
-            <a href="/settings?tab=billing" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
+            <a href="/upgrade" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
               שדרג לבייסיק ←
             </a>
           )}

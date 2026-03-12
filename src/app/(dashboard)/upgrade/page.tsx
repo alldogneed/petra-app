@@ -28,13 +28,11 @@ const PLANS: {
       "מחירון שירותים",
     ],
     notIncluded: [
-      "יומן תורים ופגישות",
-      "תשלומים וחיוב",
-      "תזכורות WhatsApp",
-      "הזמנות אונליין",
-      "דוחות ואנליטיקס",
-      "טפסי קליטה",
-      "פנסיון",
+      "מערכת קביעת תורים",
+      "תזכורות WhatsApp ללקוחות",
+      "ניהול פנסיון",
+      "שליחת טפסי קליטה ללקוח",
+      "ניהול צוות",
     ],
   },
   {
@@ -45,9 +43,10 @@ const PLANS: {
     features: [
       "לקוחות ללא הגבלה",
       "יומן תורים ופגישות",
+      "מערכת ניהול תורים",
       "CRM / לידים ללא הגבלה",
-      "מערכת ניהול תהליכי אילוף",
-      "תשלומים וחיוב",
+      "ניהול תהליכי אילוף ללא הגבלה",
+      "שליחת בקשת תשלום",
       "בקשת תשלום WhatsApp",
       "תזכורות WhatsApp",
       "דוחות ואנליטיקס",
@@ -55,10 +54,8 @@ const PLANS: {
       "סנכרון Google Calendar",
     ],
     notIncluded: [
-      "הזמנות אונליין",
       "פנסיון",
       "אוטומציות WhatsApp מתקדמות",
-      "חשבוניות",
       "ניהול צוות",
     ],
   },
@@ -75,7 +72,6 @@ const PLANS: {
       "פנסיון + ניהול חדרים",
       "ניהול קבוצות וסדנאות אילוף",
       "אוטומציות WhatsApp מתקדמות",
-      "חשבוניות (Morning)",
       "ניהול צוות ומשתמשים",
       "ייצוא Excel",
       "הודעות מותאמות אישית",
@@ -88,17 +84,8 @@ const PLANS: {
     price: 169,
     description: "מסלול ייעודי לגרומרים",
     features: [
-      "לקוחות ללא הגבלה",
-      "יומן תורים",
-      "CRM / לידים",
-      "ניהול משימות",
+      "הכל ב-Pro",
       "תיק עבודות לפני/אחרי",
-      "הזמנות אונליין",
-      "אוטומציות WhatsApp",
-      "חשבוניות",
-      "ניהול צוות",
-      "ייצוא Excel",
-      "דוחות ואנליטיקס",
     ],
     notIncluded: ["פנסיון", "אילוף", "כלבי שירות"],
   },
@@ -106,16 +93,19 @@ const PLANS: {
     key: "service_dog",
     name: "Service Dog",
     price: 229,
-    description: "הכל ב-Pro + מודול כלבי שירות מלא",
-    badge: "מתקדם",
+    description: "המערכת המתקדמת הראשונה בישראל לניהול כלבי שירות, המפותחת ע״י מומחים מתוך התחום",
+    badge: "חדש",
     features: [
       "הכל ב-Pro",
-      "120+ שעות מעקב אילוף",
-      "שיבוצים ומקבלים",
+      "ניהול כלבי שירות בתהליך",
+      "ניהול תיק זכאים",
+      "ניהול כלבייה",
+      "ניהול משימות",
+      "מבחני הסמכה",
+      "דיווח למשרד החקלאות",
       "כרטיסי זיהוי + QR",
       "פרוטוקולים רפואיים",
-      "דיווח ממשלתי",
-      "תעודות הסמכה",
+      "120+ שעות מעקב אילוף",
     ],
     notIncluded: ["תיק עבודות גרומר"],
   },
@@ -123,12 +113,21 @@ const PLANS: {
 
 const WHATSAPP_UPGRADE_PHONE = "972515311435";
 
+const TIER_RANK: Record<string, number> = {
+  free: 0,
+  basic: 1,
+  groomer: 2,
+  pro: 3,
+  service_dog: 4,
+};
+
 export default function UpgradePage() {
   const { tier } = usePlan();
 
-  function openWhatsApp(planName: string, price: number) {
+  function openWhatsApp(planName: string, price: number, isDowngrade: boolean) {
+    const action = isDowngrade ? "לשנמך" : "לשדרג";
     const msg = encodeURIComponent(
-      `שלום, אני רוצה לשדרג את המנוי שלי ב-Petra למסלול ${planName} (₪${price}/חודש). תוכלו לעזור לי?`
+      `שלום, אני רוצה ${action} את המנוי שלי ב-Petra למסלול ${planName} (₪${price}/חודש). תוכלו לעזור לי?`
     );
     window.open(`https://wa.me/${WHATSAPP_UPGRADE_PHONE}?text=${msg}`, "_blank");
   }
@@ -152,6 +151,7 @@ export default function UpgradePage() {
         {PLANS.map((plan) => {
           const isCurrent = tier === plan.key;
           const isHighlight = plan.highlight;
+          const isDowngrade = TIER_RANK[plan.key] < TIER_RANK[tier ?? "free"];
 
           return (
             <div
@@ -214,16 +214,18 @@ export default function UpgradePage() {
                 </div>
               ) : (
                 <button
-                  onClick={() => openWhatsApp(plan.name, plan.price)}
+                  onClick={() => openWhatsApp(plan.name, plan.price, isDowngrade)}
                   className={cn(
                     "w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors",
-                    isHighlight
+                    isDowngrade
+                      ? "bg-slate-200 hover:bg-slate-300 text-slate-700"
+                      : isHighlight
                       ? "bg-brand-500 hover:bg-brand-600 text-white"
                       : "bg-slate-900 hover:bg-slate-800 text-white"
                   )}
                 >
                   <MessageCircle className="w-4 h-4" />
-                  שדרג ל-{plan.name}
+                  {isDowngrade ? `שנמך ל-${plan.name}` : `שדרג ל-${plan.name}`}
                 </button>
               )}
             </div>

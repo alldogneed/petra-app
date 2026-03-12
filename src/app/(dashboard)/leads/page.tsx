@@ -1275,7 +1275,7 @@ function LeadsPageContent() {
         {activeTab === "kanban" && (
           maxLeads !== null && leads.length >= maxLeads ? (
             <a
-              href="/settings?tab=billing"
+              href="/upgrade"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors"
             >
               <Sparkles className="w-4 h-4" />
@@ -1384,7 +1384,7 @@ function LeadsPageContent() {
             </p>
           </div>
           <a
-            href="/settings?tab=billing"
+            href="/upgrade"
             className="flex-shrink-0 text-xs font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2 transition-colors"
           >
             שדרג לבייסיק ←

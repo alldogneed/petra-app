@@ -468,7 +468,7 @@ export default function TasksPage() {
           <>
             <p className="text-sm text-petra-muted">{allTasks.length} משימות</p>
             {isFree && maxTasks !== null && activeFilter !== "COMPLETED" && allTasks.length >= maxTasks ? (
-              <a href="/settings?tab=billing" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500 text-white rounded-xl px-4 py-2 text-sm font-medium flex items-center">
+              <a href="/upgrade" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500 text-white rounded-xl px-4 py-2 text-sm font-medium flex items-center">
                 <Sparkles className="w-4 h-4" />
                 שדרג לבייסיק
               </a>
@@ -519,7 +519,7 @@ export default function TasksPage() {
             </span>
           </div>
           {allTasks.length >= maxTasks && (
-            <a href="/settings?tab=billing" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
+            <a href="/upgrade" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
               שדרג לבייסיק ←
             </a>
           )}

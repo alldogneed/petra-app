@@ -613,7 +613,7 @@ function StepReminders({ onNext, onBack }: { onNext: () => void; onBack: () => v
 
       {/* CTA */}
       <a
-        href="/settings?tab=billing"
+        href="/upgrade"
         className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors"
       >
         <Sparkles className="w-4 h-4" />
