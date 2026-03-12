@@ -11,7 +11,6 @@ export async function GET(
   const business = await prisma.business.findUnique({
     where: { slug: params.slug },
     select: {
-      id: true,
       name: true,
       phone: true,
       email: true,
@@ -19,8 +18,6 @@ export async function GET(
       logo: true,
       timezone: true,
       status: true,
-      boardingCheckInTime: true,
-      boardingCheckOutTime: true,
       cancellationPolicy: true,
       bookingWelcomeText: true,
       depositInstructions: true,
@@ -75,6 +72,6 @@ export async function GET(
     paymentUrl: item.paymentUrl ?? null,
   }))
 
-  const { priceListItems: _unused, ...businessData } = business
-  return NextResponse.json({ business: { ...businessData, services } })
+  const { priceListItems: _unused, status: _status, availabilityRules, ...businessData } = business
+  return NextResponse.json({ business: { ...businessData, availabilityRules, services } })
 }

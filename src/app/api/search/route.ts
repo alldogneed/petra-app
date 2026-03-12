@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
             { notes: { contains: q } },
             { customer: { name: { contains: q } } },
             { service: { name: { contains: q } } },
+            { priceListItem: { name: { contains: q } } },
           ],
         },
         include: {
@@ -69,6 +70,9 @@ export async function GET(request: NextRequest) {
             select: { name: true },
           },
           service: {
+            select: { name: true },
+          },
+          priceListItem: {
             select: { name: true },
           },
         },

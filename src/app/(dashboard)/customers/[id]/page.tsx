@@ -2290,8 +2290,8 @@ function QuickTaskModal({
 interface ServiceBasic {
   id: string;
   name: string;
-  duration: number;
-  color: string | null;
+  durationMinutes: number | null;
+  category: string | null;
 }
 
 function NewAppointmentModal({
@@ -2305,17 +2305,18 @@ function NewAppointmentModal({
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
-    serviceId: "",
+    priceListItemId: "",
     petId: "",
     date: today,
     startTime: "09:00",
     endTime: "10:00",
     notes: "",
   });
+  const [fieldError, setFieldError] = useState("");
 
   const { data: services = [] } = useQuery<ServiceBasic[]>({
-    queryKey: ["services"],
-    queryFn: () => fetchJSON<ServiceBasic[]>("/api/services"),
+    queryKey: ["price-list-items-all-active"],
+    queryFn: () => fetch("/api/price-list-items").then((r) => r.json()),
   });
 
   const mutation = useMutation({
@@ -2325,7 +2326,7 @@ function NewAppointmentModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customerId: customer.id,
-          serviceId: data.serviceId,
+          priceListItemId: data.priceListItemId,
           petId: data.petId || null,
           date: data.date + "T00:00:00",
           startTime: data.startTime,
@@ -2341,18 +2342,19 @@ function NewAppointmentModal({
   });
 
   // Auto-update endTime when service changes
-  const handleServiceChange = (serviceId: string) => {
-    const svc = services.find((s) => s.id === serviceId);
+  const handleServiceChange = (priceListItemId: string) => {
+    const svc = services.find((s) => s.id === priceListItemId);
     if (svc) {
       const [h, m] = form.startTime.split(":").map(Number);
-      const endMinutes = h * 60 + m + svc.duration;
+      const endMinutes = h * 60 + m + (svc.durationMinutes ?? 60);
       const endH = Math.floor(endMinutes / 60) % 24;
       const endM = endMinutes % 60;
       const endTime = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
-      setForm((f) => ({ ...f, serviceId, endTime }));
+      setForm((f) => ({ ...f, priceListItemId, endTime }));
     } else {
-      setForm((f) => ({ ...f, serviceId }));
+      setForm((f) => ({ ...f, priceListItemId }));
     }
+    setFieldError("");
   };
 
   return (
@@ -2370,7 +2372,7 @@ function NewAppointmentModal({
             <label className="label">שירות *</label>
             <select
               className="input w-full"
-              value={form.serviceId}
+              value={form.priceListItemId}
               onChange={(e) => handleServiceChange(e.target.value)}
             >
               <option value="">בחר שירות...</option>
@@ -2437,13 +2439,17 @@ function NewAppointmentModal({
           <div className="flex gap-3 pt-2">
             <button
               className="btn-primary flex-1"
-              disabled={!form.serviceId || !form.date || !form.startTime || !form.endTime || mutation.isPending}
-              onClick={() => mutation.mutate(form)}
+              disabled={!form.priceListItemId || !form.date || !form.startTime || !form.endTime || mutation.isPending}
+              onClick={() => {
+                if (!form.priceListItemId) { setFieldError("יש לבחור שירות"); return; }
+                mutation.mutate(form);
+              }}
             >
               {mutation.isPending ? "שומר..." : "קבע תור"}
             </button>
             <button className="btn-secondary" onClick={onClose}>ביטול</button>
           </div>
+          {fieldError && <p className="text-xs text-red-600">{fieldError}</p>}
           {mutation.isError && (
             <p className="text-xs text-red-600 text-center">שגיאה ביצירת התור. נסה שוב.</p>
           )}
@@ -3085,11 +3091,19 @@ export default function CustomerProfilePage() {
   const perms = usePermissions();
   const [showConfirmDeleteModal, setShowConfirmDeleteModal] = useState(false);
 
-  const { data: customer, isLoading, isError } = useQuery<CustomerDetail>({
+  const { data: customer, isLoading, isError, error } = useQuery<CustomerDetail>({
     queryKey: ["customer", customerId],
     queryFn: () =>
-      fetch(`/api/customers/${customerId}`).then((r) => r.json()),
+      fetch(`/api/customers/${customerId}`).then(async (r) => {
+        if (r.status === 404) throw new Error("CUSTOMER_NOT_FOUND");
+        if (!r.ok) throw new Error("FETCH_ERROR");
+        return r.json();
+      }),
     refetchInterval: 60000,
+    retry: (failureCount, err) => {
+      if ((err as Error)?.message === "CUSTOMER_NOT_FOUND") return false;
+      return failureCount < 2;
+    },
   });
 
   const logMutation = useMutation({
@@ -3191,15 +3205,25 @@ export default function CustomerProfilePage() {
     );
   }
 
-  if (isError)
+  if (isError || !customer) {
+    const isNotFound = (error as Error)?.message === "CUSTOMER_NOT_FOUND" || (!isLoading && !customer);
     return (
-      <div className="text-center py-12 text-red-500">שגיאה בטעינת פרטי הלקוח. נסה לרענן את העמוד.</div>
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center" dir="rtl">
+        <div className="text-6xl">{isNotFound ? "🔍" : "⚠️"}</div>
+        <h2 className="text-xl font-bold text-petra-text">
+          {isNotFound ? "לקוח לא נמצא" : "שגיאה בטעינת הדף"}
+        </h2>
+        <p className="text-sm text-petra-muted max-w-xs">
+          {isNotFound
+            ? "הלקוח שחיפשת לא קיים או שהקישור שגוי"
+            : "משהו השתבש. אנא נסה לרענן את הדף."}
+        </p>
+        <Link href="/customers" className="btn-primary mt-2">
+          חזרה לרשימת הלקוחות
+        </Link>
+      </div>
     );
-
-  if (!customer)
-    return (
-      <div className="text-center py-12 text-petra-muted">לקוח לא נמצא</div>
-    );
+  }
 
   const customerTags: string[] = (() => {
     try {

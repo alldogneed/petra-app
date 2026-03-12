@@ -3011,11 +3011,11 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
                   לחץ על המסמך להצבת אזור החתימה
                 </p>
                 <div className="relative border border-slate-200 rounded-xl overflow-hidden" style={{ height: 420 }}>
-                  <iframe
+                  <embed
                     src={`${pdfPreview}#page=${signaturePage}`}
+                    type="application/pdf"
                     className="w-full h-full"
                     style={{ border: "none", pointerEvents: "none" }}
-                    title="תצוגת PDF"
                   />
                   <div
                     ref={overlayRef}

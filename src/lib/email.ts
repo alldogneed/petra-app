@@ -51,16 +51,20 @@ export async function sendWelcomeEmail(params: WelcomeEmailParams): Promise<void
 export interface PasswordResetEmailParams {
   to: string;
   name: string;
-  resetUrl: string;
+  resetUrl: string | null;
+  isGoogleAccount?: boolean;
 }
 
 export async function sendPasswordResetEmail(
   params: PasswordResetEmailParams
 ): Promise<void> {
+  const subject = params.isGoogleAccount
+    ? "בקשת איפוס סיסמה — חשבון Google"
+    : "איפוס סיסמה ל-Petra 🔑";
   const { error } = await getResend().emails.send({
     from: getFromEmail(),
     to: params.to,
-    subject: "איפוס סיסמה ל-Petra 🔑",
+    subject,
     html: buildPasswordResetHtml(params),
   });
 
@@ -70,6 +74,33 @@ export async function sendPasswordResetEmail(
 }
 
 function buildPasswordResetHtml(params: PasswordResetEmailParams): string {
+  const appUrl = process.env.APP_URL || "http://localhost:3000";
+
+  if (params.isGoogleAccount) {
+    return `<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head><meta charset="utf-8" /></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 40px 20px; direction: rtl;">
+  <div style="max-width: 520px; margin: 0 auto; background: white; border-radius: 16px; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+    <h1 style="font-size: 20px; color: #1e293b; margin: 0 0 16px;">שלום ${params.name},</h1>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px;">
+      קיבלנו בקשה לאיפוס סיסמה עבור החשבון שלך, אך החשבון שלך מחובר דרך Google ואין לו סיסמה עצמאית.
+    </p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
+      על מנת להתחבר, השתמש בכפתור "התחברות עם Google" בדף הכניסה.
+    </p>
+    <a href="${appUrl}/login"
+       style="display: inline-block; background: linear-gradient(135deg, #F97316, #FB923C); color: white; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 600; font-size: 14px;">
+      לדף הכניסה
+    </a>
+    <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; margin-top: 32px; text-align: center;">
+      <p style="margin: 0; font-size: 12px; color: #94a3b8;">Petra — ניהול עסקי חיות מחמד</p>
+    </div>
+  </div>
+</body>
+</html>`;
+  }
+
   return `<!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head><meta charset="utf-8" /></head>

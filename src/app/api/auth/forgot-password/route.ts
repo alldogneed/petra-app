@@ -35,12 +35,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Google-only account — tell the user to sign in with Google instead
+    // Google-only account — send an explanatory email silently (prevents user enumeration)
     if (!user.passwordHash) {
-      return NextResponse.json(
-        { error: "החשבון שלך מחובר דרך Google. לחץ על 'התחברות עם Google' בדף הכניסה." },
-        { status: 400 }
-      );
+      sendPasswordResetEmail({
+        to: user.email,
+        name: user.name,
+        resetUrl: null,
+        isGoogleAccount: true,
+      }).catch((err) => {
+        console.error("Failed to send Google account notice email:", err);
+      });
+      return NextResponse.json({ ok: true });
     }
 
     // Invalidate any previous unused tokens for this user

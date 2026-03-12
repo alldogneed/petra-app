@@ -67,7 +67,10 @@ const stages = await prisma.leadStage.findMany({ where: { businessId } });
 ### 10. IDOR security
 All authenticated API routes derive `businessId` from session — never from request body/params.
 
-### 11. `shadcn init` destroys utils.ts
+### 11. `platformRole` is server-only — use `isAdmin` client-side
+`getCurrentUser()` returns `isAdmin: boolean` (not `platformRole`). The raw `platformRole` string is only available in server-side session objects (`auth-guards.ts`, `session.ts`). Never add `platformRole` back to client-facing API responses.
+
+### 12. `shadcn init` destroys utils.ts
 Restore: `DEMO_BUSINESS_ID`, `formatCurrency`, `formatDate`, `formatTime`, `getStatusColor`, `getStatusLabel`, `toWhatsAppPhone`, `getTimelineIcon`
 
 ---
@@ -116,8 +119,10 @@ import { prisma } from "@/lib/prisma"
 | `usePlan()` hook | `src/hooks/usePlan.ts` |
 | `TierGate` component | `src/components/paywall/TierGate.tsx` |
 | WhatsApp send | `src/lib/whatsapp.ts` — `sendWhatsAppMessage()` |
+| Form validation utils | `src/lib/validation.ts` — `validateIsraeliPhone`, `validateEmail`, `sanitizeName`, `validateName` |
 | Service dog location options | `src/lib/service-dogs.ts` — `LOCATION_OPTIONS` |
 | Sidebar | `src/components/layout/sidebar.tsx` |
 | App shell | `src/components/layout/app-shell.tsx` |
 | Auth guards | `src/lib/auth-guards.ts` |
 | Session | `src/lib/session.ts` — `SESSION_TTL_REMEMBER_ME` for 30-day sessions |
+| Current user (client) | `useAuth().user` — has `isAdmin: boolean`, NOT `platformRole` |

@@ -1,0 +1,27 @@
+User-agent: *
+# Block authenticated/admin areas
+Disallow: /dashboard
+Disallow: /customers
+Disallow: /scheduler
+Disallow: /calendar
+Disallow: /leads
+Disallow: /boarding
+Disallow: /training
+Disallow: /payments
+Disallow: /orders
+Disallow: /settings
+Disallow: /tasks
+Disallow: /messages
+Disallow: /analytics
+Disallow: /pets
+Disallow: /upgrade
+Disallow: /owner
+Disallow: /api/
+
+# Allow public pages
+Allow: /book/
+Allow: /sign/
+Allow: /intake/
+Allow: /login
+Allow: /register
+Allow: /

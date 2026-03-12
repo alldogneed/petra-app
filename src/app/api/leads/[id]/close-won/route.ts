@@ -22,12 +22,22 @@ export async function POST(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // Find the won stage for this business
-    const wonStage = await prisma.leadStage.findFirst({
+    // Find the won stage for this business, auto-create if missing
+    let wonStage = await prisma.leadStage.findFirst({
       where: { businessId: authResult.businessId, isWon: true },
     });
     if (!wonStage) {
-      return NextResponse.json({ error: "לא הוגדר שלב 'נסגר בהצלחה' לעסק" }, { status: 400 });
+      const maxOrder = await prisma.leadStage.count({ where: { businessId: authResult.businessId } });
+      wonStage = await prisma.leadStage.create({
+        data: {
+          businessId: authResult.businessId,
+          name: "נסגר בהצלחה",
+          color: "#10b981",
+          sortOrder: maxOrder + 1,
+          isWon: true,
+          isLost: false,
+        },
+      });
     }
     const wonStageId = wonStage.id;
 

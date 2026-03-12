@@ -10,7 +10,7 @@ interface AuthUser {
   name: string;
   avatarUrl: string | null;
   role: string;
-  platformRole: string | null;
+  isAdmin: boolean;
   businessId: string | null;
   businessName: string | null;
   businessSlug: string | null;
@@ -23,7 +23,6 @@ interface AuthUser {
   authProvider: string;
   hasPassword: boolean;
   isImpersonating: boolean;
-  impersonatedBusinessId: string | null;
 }
 
 interface AuthContextType {

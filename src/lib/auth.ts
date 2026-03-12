@@ -181,13 +181,14 @@ export async function getCurrentUser() {
   const subscriptionExpired = subscriptionEndsAt && subscriptionEndsAt < new Date();
   const businessEffectiveTier = (trialExpired || subscriptionExpired) ? "free" : storedTier;
 
+  const platformRole = session.user.platformRole;
   return {
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
     avatarUrl: platformUser?.avatarUrl ?? null,
     role: session.user.role || "USER",
-    platformRole: session.user.platformRole,
+    isAdmin: platformRole === "super_admin" || platformRole === "admin",
     businessId: effectiveBusinessId,
     businessName: business?.name ?? null,
     businessSlug: business?.slug ?? null,
@@ -206,6 +207,5 @@ export async function getCurrentUser() {
     authProvider: platformUser?.authProvider ?? "local",
     hasPassword: !!platformUser?.passwordHash,
     isImpersonating,
-    impersonatedBusinessId: session.impersonatedBusinessId ?? null,
   };
 }

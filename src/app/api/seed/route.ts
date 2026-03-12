@@ -6,6 +6,10 @@ import { PLATFORM_PERMS } from "@/lib/permissions";
 // GET /api/seed – info about seeding (dev helper, platform admins only)
 // Actual seeding is done via CLI: npx ts-node prisma/seed.ts
 export async function GET(req: NextRequest) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const guard = await requirePlatformPermission(req, PLATFORM_PERMS.SETTINGS_WRITE);
   if (isGuardError(guard)) return guard;
 

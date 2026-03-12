@@ -52,6 +52,8 @@ const nextConfig = {
               "img-src 'self' data: https:",
               "connect-src 'self' https://*.ingest.sentry.io",
               "frame-ancestors 'none'",
+              "frame-src 'self' blob: https:",
+              "object-src 'self' blob:",
             ].join("; "),
           },
         ],

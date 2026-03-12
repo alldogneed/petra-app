@@ -17,10 +17,7 @@ export default function DashboardError({
     console.error("[DashboardError] full error:", error);
   }, [error]);
 
-  const errorName = error.name || "";
-  const errorMsg = error.message || "";
-  const errorDigest = error.digest || "";
-  const errorStack = error.stack ? error.stack.slice(0, 600) : "";
+  const isDev = process.env.NODE_ENV === "development";
 
   return (
     <div
@@ -30,22 +27,19 @@ export default function DashboardError({
       <div className="text-center space-y-4 max-w-lg">
         <div className="text-5xl">⚠️</div>
         <h2 className="text-xl font-bold text-slate-800">אירעה שגיאה</h2>
-        <p className="text-slate-500 text-sm">
-          {errorMsg.includes("מסד הנתונים")
-            ? errorMsg
-            : "משהו השתבש בטעינת הדף. אנא נסה שוב."}
-        </p>
-        <div className="text-right bg-slate-50 rounded-lg p-3 text-xs text-slate-500 space-y-1 break-all">
-          {errorName && <p><strong>Type:</strong> {errorName}</p>}
-          {errorMsg && <p><strong>Message:</strong> {errorMsg}</p>}
-          {errorDigest && <p><strong>Digest:</strong> {errorDigest}</p>}
-          {errorStack && <p className="whitespace-pre-wrap font-mono text-[10px]">{errorStack}</p>}
-        </div>
+        <p className="text-slate-500 text-sm">משהו השתבש בטעינת הדף. אנא נסה שוב.</p>
+        {error.digest && (
+          <p className="text-xs text-slate-400">קוד שגיאה: {error.digest}</p>
+        )}
+        {isDev && (
+          <div className="text-right bg-slate-50 rounded-lg p-3 text-xs text-slate-500 space-y-1 break-all">
+            {error.name && <p><strong>Type:</strong> {error.name}</p>}
+            {error.message && <p><strong>Message:</strong> {error.message}</p>}
+            {error.stack && <p className="whitespace-pre-wrap font-mono text-[10px]">{error.stack.slice(0, 600)}</p>}
+          </div>
+        )}
         <div className="flex gap-3 justify-center">
-          <button
-            onClick={reset}
-            className="btn-primary"
-          >
+          <button onClick={reset} className="btn-primary">
             נסה שוב
           </button>
           <a

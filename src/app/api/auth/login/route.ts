@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
         name: user.name,
         avatarUrl: user.avatarUrl,
         role: (user as any).role || "USER",
-        platformRole: user.platformRole,
+        isAdmin: user.platformRole === "super_admin" || user.platformRole === "admin",
         businessId: membership?.businessId || null,
         businessName: membership?.business?.name || null,
         businessRole: membership?.role || null,
