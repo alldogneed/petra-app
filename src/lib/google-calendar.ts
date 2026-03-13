@@ -663,7 +663,9 @@ function getJerusalemOffset(date: Date): string {
 }
 
 export function buildAppointmentEventPayload(appt: AppointmentForGcal, appBaseUrl: string) {
-  const serviceName = appt.service?.name ?? appt.priceListItem?.name ?? "תור";
+  // Try service → priceListItem → [type] tag in notes → fallback
+  const notesTag = appt.notes?.match(/^\[([^\]]+)\]/)?.[1] ?? null;
+  const serviceName = appt.service?.name ?? appt.priceListItem?.name ?? notesTag ?? "תור";
   const summaryParts = [serviceName, appt.customer.name, appt.customer.phone];
   if (appt.pet) summaryParts.push(appt.pet.name);
   const summary = summaryParts.join(" – ");
