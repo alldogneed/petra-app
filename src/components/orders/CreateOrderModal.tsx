@@ -733,7 +733,12 @@ export function CreateOrderModal({
                 type="date"
                 className="input text-sm"
                 value={boardingCheckInDate}
-                onChange={(e) => setBoardingCheckInDate(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setBoardingCheckInDate(v);
+                  // Reset check-out to same day so user always picks explicitly
+                  if (v) setBoardingCheckOutDate(v);
+                }}
               />
               <div className="relative">
                 <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
