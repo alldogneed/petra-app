@@ -99,22 +99,40 @@ function applyPreview(body: string): string {
   return body.replace(/\{(\w+)\}/g, (match, key) => SAMPLE_VARS[key] ?? match);
 }
 
+const AUTOMATED_FOOTER = "\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: {businessPhone}_";
+
 const STARTER_TEMPLATES = [
   {
-    label: "📅 תזכורת פגישה",
-    body: "שלום {customerName}! 🐾\nתזכורת – מחר בשעה {time} יש לנו פגישת {serviceName} עם {petName}.\nמחפשים אותנו? {businessPhone}",
+    label: "📅 תזכורת לפני תור",
+    body: "שלום {customerName}! 🐾\n\nתזכורת לתור שלך ב-{date} בשעה {time}.\nשירות: {serviceName}" + " עם {petName}." + "\n\nמחכים לראות אתכם! 😊" + AUTOMATED_FOOTER,
   },
   {
-    label: "🎂 יום הולדת + הנחה",
-    body: "יום הולדת שמח ל-{petName}! 🎂🐾\n{petName} מלא/ה {petAge} היום – כל הכבוד! 🎉\n\nבתור מתנת יום הולדת נשמח לפנק אתכם ב-10% הנחה על הטיפול הבא 🎁\nליצירת קשר: {businessPhone}",
+    label: "✅ אישור קביעת תור",
+    body: "שלום {customerName}! ✅\n\nהתור שלך נקבע בהצלחה!\n📅 תאריך: {date}\n🕐 שעה: {time}\nשירות: {serviceName}\n\nמחכים לראות את {petName}! 🐾" + AUTOMATED_FOOTER,
   },
   {
     label: "🌟 מעקב אחרי טיפול",
-    body: "שלום {customerName}! 🌟\nרצינו לדעת איך {petName} מסתדר/ת לאחר הטיפול האחרון.\nיש שאלות? אנחנו כאן: {businessPhone}",
+    body: "שלום {customerName}! 🌟\n\nרצינו לדעת איך {petName} מרגיש/ת לאחר הטיפול האחרון.\nאם הכל בסדר – נשמח לשמוע! ואם יש משהו שלא כשורה, חשוב לנו לדעת.\n\nתודה שבחרתם בנו 💛" + AUTOMATED_FOOTER,
+  },
+  {
+    label: "🎂 יום הולדת לחיית המחמד",
+    body: "יום הולדת שמח ל-{petName}! 🎂🐾\n\n{petName} מלא/ה {petAge} היום – כל הכבוד! 🎉\n\nכמתנה קטנה, נשמח להעניק לכם 10% הנחה על הטיפול הבא 🎁\n(ציינו שקיבלתם הודעה זו בעת קביעת התור)" + AUTOMATED_FOOTER,
   },
   {
     label: "👋 ברוכים הבאים",
-    body: "שלום {customerName}! 😊\nברוכים הבאים! שמחים לקבל את {petName} ואתכם.\n\nלכל שאלה אנחנו זמינים: {businessPhone}",
+    body: "שלום {customerName}! 😊\n\nברוכים הבאים! שמחים לקבל אתכם ואת {petName} אלינו.\n\nיש לנו הרבה מה לחגוג ביחד – מחכים לראות אתכם בביקור הראשון! 🐾" + AUTOMATED_FOOTER,
+  },
+  {
+    label: "🏨 תזכורת איסוף מפנסיון",
+    body: "שלום {customerName}! 🏨\n\nתזכורת – מחר ({date}) הוא יום האיסוף של {petName} מהפנסיון.\n\n{petName} נהנה/נהנתה מאוד ומחכה לכם! 🐕" + AUTOMATED_FOOTER,
+  },
+  {
+    label: "⭐ בקשת ביקורת",
+    body: "שלום {customerName}! ⭐\n\nתודה שסמכתם עלינו לטפל ב-{petName}.\n\nאם אהבתם, נשמח מאוד לביקורת קצרה – זה עוזר לנו ולבעלי חיות אחרים בחיפוש שירות מקצועי 🙏\n\nתודה מהלב!" + AUTOMATED_FOOTER,
+  },
+  {
+    label: "💌 מעקב ליד חדש",
+    body: "שלום {customerName}! 😊\n\nתודה על פנייתך! קיבלנו את הפרטים ונשמח לעזור.\nניצור איתך קשר בהקדם האפשרי לתיאום." + AUTOMATED_FOOTER,
   },
 ];
 

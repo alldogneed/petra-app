@@ -17,14 +17,20 @@ export async function POST(
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
 
-  const appt = await prisma.appointment.findUnique({
-    where: { id: params.id },
-    include: {
-      customer: { select: { name: true, phone: true } },
-      service: { select: { name: true } },
-      pet: { select: { name: true } },
-    },
-  });
+  const [appt, biz] = await Promise.all([
+    prisma.appointment.findUnique({
+      where: { id: params.id },
+      include: {
+        customer: { select: { name: true, phone: true } },
+        service: { select: { name: true } },
+        pet: { select: { name: true } },
+      },
+    }),
+    prisma.business.findUnique({
+      where: { id: authResult.businessId },
+      select: { phone: true },
+    }),
+  ]);
 
   if (!appt || appt.businessId !== authResult.businessId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -53,17 +59,25 @@ export async function POST(
   });
 
   const serviceName = appt.service?.name ?? "התור";
+  const bizPhone = biz?.phone ?? "";
+  const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${bizPhone}_`;
+
   let body: string;
   if (template?.body) {
+    // Support both {customerName}/{petName}/{serviceName} and legacy {name}/{pet}/{service}
     body = template.body
+      .replace(/\{customerName\}/g, appt.customer.name)
       .replace(/\{name\}/g, appt.customer.name)
       .replace(/\{date\}/g, formattedDate)
       .replace(/\{time\}/g, appt.startTime)
+      .replace(/\{serviceName\}/g, serviceName)
       .replace(/\{service\}/g, serviceName)
-      .replace(/\{pet\}/g, appt.pet?.name ?? "");
+      .replace(/\{petName\}/g, appt.pet?.name ?? "")
+      .replace(/\{pet\}/g, appt.pet?.name ?? "")
+      .replace(/\{businessPhone\}/g, bizPhone);
   } else {
     const petPart = appt.pet ? ` עם ${appt.pet.name}` : "";
-    body = `שלום ${appt.customer.name}! תזכורת לתור שלך ב-${formattedDate} בשעה ${appt.startTime} — ${serviceName}${petPart}. נתראה! 🐾`;
+    body = `שלום ${appt.customer.name}! 🐾\n\nתזכורת לתור שלך ב-${formattedDate} בשעה ${appt.startTime}.\nשירות: ${serviceName}${petPart}.\n\nנתראה! 😊${footer}`;
   }
 
   const to = toWhatsAppNum(appt.customer.phone);

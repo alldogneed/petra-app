@@ -24,7 +24,7 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
   // Check business WhatsApp reminder settings
   const bizSettings = await prisma.business.findUnique({
     where: { id: appt.businessId },
-    select: { whatsappRemindersEnabled: true, whatsappReminderLeadHours: true },
+    select: { whatsappRemindersEnabled: true, whatsappReminderLeadHours: true, phone: true },
   });
   if (!bizSettings?.whatsappRemindersEnabled) return null;
 
@@ -74,7 +74,9 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
     });
   } else {
     const petPart = appt.pet ? ` עם ${appt.pet.name}` : "";
-    body = `שלום ${appt.customer.name}! 🐾 תזכורת לפגישה שלנו בעוד יומיים (${formattedDate}) – ${appt.service.name}${petPart} בשעה ${appt.startTime}. נתראה!`;
+    const bizPhone = rule?.business?.phone ?? bizSettings.phone ?? "";
+    const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${bizPhone}_`;
+    body = `שלום ${appt.customer.name}! 🐾\n\nתזכורת לתור שלך ב-${formattedDate} בשעה ${appt.startTime}.\nשירות: ${appt.service.name}${petPart}.\n\nנתראה! 😊${footer}`;
   }
 
   return prisma.scheduledMessage.create({
