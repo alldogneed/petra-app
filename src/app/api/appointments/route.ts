@@ -157,8 +157,8 @@ export async function POST(request: NextRequest) {
       pet: appointment.pet ? { name: appointment.pet.name } : null,
     }).catch((err) => console.error("Failed to schedule appointment reminder:", err));
 
-    // Sync to Google Calendar (fire-and-forget)
-    syncAppointmentToGcal(appointment.id, authResult.businessId).catch((err) =>
+    // Sync to Google Calendar (awaited — fire-and-forget kills on Vercel)
+    await syncAppointmentToGcal(appointment.id, authResult.businessId).catch((err) =>
       console.error("Failed to sync appointment to GCal:", err)
     );
 

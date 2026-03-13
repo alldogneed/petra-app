@@ -96,13 +96,13 @@ export async function PATCH(
       );
     }
 
-    // Sync to Google Calendar (fire-and-forget)
+    // Sync to Google Calendar (awaited — fire-and-forget kills on Vercel)
     if (status === "canceled") {
-      deleteAppointmentFromGcal(id, authResult.businessId).catch((err) =>
+      await deleteAppointmentFromGcal(id, authResult.businessId).catch((err) =>
         console.error("Failed to delete appointment from GCal:", err)
       );
     } else {
-      syncAppointmentToGcal(id, authResult.businessId).catch((err) =>
+      await syncAppointmentToGcal(id, authResult.businessId).catch((err) =>
         console.error("Failed to sync appointment to GCal:", err)
       );
     }
