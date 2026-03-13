@@ -286,20 +286,11 @@ export function buildEventPayload(
   const serviceName = booking.service?.name ?? booking.priceListItem?.name ?? "—";
   const servicePrice = booking.service?.price ?? booking.priceListItem?.basePrice ?? 0;
 
-  const summary = petNames
-    ? `${serviceName} – ${booking.customer.name} – ${petNames}`
-    : `${serviceName} – ${booking.customer.name}`;
+  const summaryParts = [serviceName, booking.customer.name, booking.customer.phone];
+  if (petNames) summaryParts.push(petNames);
+  const summary = summaryParts.join(" – ");
 
-  // Location: use customer address for "home visit" services, else business address
-  const serviceNameLower = serviceName.toLowerCase();
-  const isHomeVisit =
-    serviceNameLower.includes("ביקור") ||
-    serviceNameLower.includes("בית") ||
-    serviceNameLower.includes("home");
-  const location =
-    isHomeVisit && booking.customer.address
-      ? booking.customer.address
-      : booking.business?.address ?? undefined;
+  const location = booking.customer.address ?? booking.business?.address ?? undefined;
 
   const deepLink = `${appBaseUrl}/bookings/${booking.id}`;
 
@@ -673,9 +664,9 @@ function getJerusalemOffset(date: Date): string {
 
 function buildAppointmentEventPayload(appt: AppointmentForGcal, appBaseUrl: string) {
   const serviceName = appt.service?.name ?? appt.priceListItem?.name ?? "תור";
-  const summary = appt.pet
-    ? `${serviceName} – ${appt.customer.name} – ${appt.pet.name}`
-    : `${serviceName} – ${appt.customer.name}`;
+  const summaryParts = [serviceName, appt.customer.name, appt.customer.phone];
+  if (appt.pet) summaryParts.push(appt.pet.name);
+  const summary = summaryParts.join(" – ");
 
   // Get date in Israel timezone (avoids UTC midnight date-shift bug)
   const israelDateStr = new Intl.DateTimeFormat("en-CA", {
@@ -686,12 +677,7 @@ function buildAppointmentEventPayload(appt: AppointmentForGcal, appBaseUrl: stri
   const startDateTime = `${israelDateStr}T${appt.startTime}:00${offset}`;
   const endDateTime = `${israelDateStr}T${appt.endTime}:00${offset}`;
 
-  const serviceNameLower = serviceName.toLowerCase();
-  const isHomeVisit =
-    serviceNameLower.includes("ביקור") ||
-    serviceNameLower.includes("בית") ||
-    serviceNameLower.includes("home");
-  const location = isHomeVisit && appt.customer.address ? appt.customer.address : undefined;
+  const location = appt.customer.address ?? undefined;
 
   const deepLink = `${appBaseUrl}/calendar`;
   const description = [
