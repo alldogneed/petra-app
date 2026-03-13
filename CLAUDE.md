@@ -119,6 +119,9 @@ import { prisma } from "@/lib/prisma"
 | `usePlan()` hook | `src/hooks/usePlan.ts` |
 | `TierGate` component | `src/components/paywall/TierGate.tsx` |
 | WhatsApp send | `src/lib/whatsapp.ts` — `sendWhatsAppMessage()` |
+| WhatsApp reminder (manual) | `POST /api/appointments/[id]/remind` — requires `whatsapp_reminders` tier (PRO+) |
+| WhatsApp reminder (auto) | `src/lib/reminder-service.ts` — `scheduleAppointmentReminder()` checks `whatsappRemindersEnabled` + tier |
+| Message template defaults | `STARTER_TEMPLATES` in `src/components/messages/messages-panel.tsx` — 8 templates with automated footer |
 | Form validation utils | `src/lib/validation.ts` — `validateIsraeliPhone`, `validateEmail`, `sanitizeName`, `validateName` |
 | Service dog location options | `src/lib/service-dogs.ts` — `LOCATION_OPTIONS` |
 | Sidebar | `src/components/layout/sidebar.tsx` |
