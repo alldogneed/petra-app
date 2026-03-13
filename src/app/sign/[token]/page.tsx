@@ -124,7 +124,8 @@ export default function SignContractPage() {
       try {
         const pdfjsLib = await import("pdfjs-dist");
         pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-        const resp = await fetch(contract.pdfUrl);
+        // Fetch PDF through our own API proxy to avoid CSP/CORS issues
+        const resp = await fetch(`/api/sign/${token}/pdf`);
         if (!resp.ok) throw new Error(`PDF fetch failed: ${resp.status}`);
         const ab = await resp.arrayBuffer();
         const doc = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
