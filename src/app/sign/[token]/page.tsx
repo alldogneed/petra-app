@@ -100,7 +100,7 @@ export default function SignContractPage() {
     if (!pdfCanvasRef.current) return;
     if (renderTaskRef.current) { renderTaskRef.current.cancel(); renderTaskRef.current = null; }
     const page = await doc.getPage(pageNum);
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.max(2, window.devicePixelRatio || 2);
     const containerWidth = Math.max(300, pdfCanvasRef.current.parentElement?.clientWidth ?? 600);
     const unscaled = page.getViewport({ scale: 1 });
     const scale = (containerWidth / unscaled.width) * dpr;
@@ -128,7 +128,12 @@ export default function SignContractPage() {
         const resp = await fetch(`/api/sign/${token}/pdf`);
         if (!resp.ok) throw new Error(`PDF fetch failed: ${resp.status}`);
         const ab = await resp.arrayBuffer();
-        const doc = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
+        const doc = await pdfjsLib.getDocument({
+          data: new Uint8Array(ab),
+          cMapUrl: "/cmaps/",
+          cMapPacked: true,
+          standardFontDataUrl: "/standard_fonts/",
+        }).promise;
         if (cancelled) return;
         pdfDocRef.current = doc;
         setTotalPages(doc.numPages);

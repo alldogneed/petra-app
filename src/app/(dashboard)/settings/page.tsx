@@ -2996,7 +2996,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
         const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
         GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
         const ab = await file.arrayBuffer();
-        const doc = await getDocument({ data: ab }).promise;
+        const doc = await getDocument({ data: ab, cMapUrl: "/cmaps/", cMapPacked: true, standardFontDataUrl: "/standard_fonts/" }).promise;
         if (cancelled) return;
         pdfDocRef.current = doc;
         setTotalPages(doc.numPages);
@@ -3267,7 +3267,7 @@ function EditContractTemplateModal({
         GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
         const resp = await fetch(template.fileUrl);
         const ab = await resp.arrayBuffer();
-        const doc = await getDocument({ data: ab }).promise;
+        const doc = await getDocument({ data: ab, cMapUrl: "/cmaps/", cMapPacked: true, standardFontDataUrl: "/standard_fonts/" }).promise;
         if (cancelled) return;
         pdfDocRef.current = doc;
         setTotalPages(doc.numPages);
