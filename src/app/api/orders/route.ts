@@ -107,6 +107,12 @@ export async function POST(request: NextRequest) {
       grooming: "טיפוח",
       service_dog: "כלב שירות",
     };
+    const TRAINING_SUBTYPE_LABELS: Record<string, string> = {
+      individual: "פרטי",
+      group: "קבוצתי",
+      boarding: "פנסיון",
+      package: "חבילה",
+    };
 
     // Capture linked IDs for post-transaction GCal sync
     let linkedAppointmentId: string | null = null;
@@ -155,7 +161,11 @@ export async function POST(request: NextRequest) {
       // Create linked Appointment for service-based order types
       if (appointmentData && APPT_ORDER_TYPES.includes(orderType)) {
         const typeLabel = APPT_TYPE_LABELS[orderType] || orderType;
-        const apptNotes = `[${typeLabel}] ${notes || ""}`.trim();
+        const subtypeLabel = orderType === "training" && trainingSubType
+          ? TRAINING_SUBTYPE_LABELS[trainingSubType] ?? trainingSubType
+          : null;
+        const fullLabel = subtypeLabel ? `${typeLabel} (${subtypeLabel})` : typeLabel;
+        const apptNotes = `[${fullLabel}] ${notes || ""}`.trim();
         const appt = await tx.appointment.create({
           data: {
             date: new Date(appointmentData.date),
