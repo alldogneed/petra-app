@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { Loader2, CheckCircle2, AlertCircle, RotateCcw, PenLine, User, Phone, MapPin, CreditCard, FileText, Download } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, RotateCcw, PenLine, ChevronLeft, ChevronRight, User, Phone, MapPin, CreditCard, FileText, Download } from "lucide-react";
 
 interface ContractField {
   id: string;
@@ -49,7 +49,21 @@ export default function SignContractPage() {
   const [readConfirmed, setReadConfirmed] = useState(false);
   const [pdfLoaded, setPdfLoaded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [pdfOpened, setPdfOpened] = useState(false);
+
+  // Mobile PDF canvas state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfDocRef = useRef<any>(null);
+  const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
+  const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
+
+  // Signature pad
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const signatureSectionRef = useRef<HTMLDivElement>(null);
+  const isDrawing = useRef(false);
+  const lastPos = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -57,12 +71,6 @@ export default function SignContractPage() {
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
-
-  // Signature pad
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const signatureSectionRef = useRef<HTMLDivElement>(null);
-  const isDrawing = useRef(false);
-  const lastPos = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -76,7 +84,66 @@ export default function SignContractPage() {
       .finally(() => setLoading(false));
   }, [token]);
 
-  // Signature pad handlers
+  // ── Mobile PDF canvas renderer ──────────────────────────────────────────────
+  const renderPdfPage = useCallback(async (doc: NonNullable<typeof pdfDocRef.current>, pageNum: number) => {
+    if (!pdfCanvasRef.current) return;
+    if (renderTaskRef.current) { renderTaskRef.current.cancel(); renderTaskRef.current = null; }
+    const page = await doc.getPage(pageNum);
+    const dpr = Math.max(2, window.devicePixelRatio || 2);
+    const containerWidth = Math.max(300, pdfCanvasRef.current.parentElement?.clientWidth ?? 400);
+    const unscaled = page.getViewport({ scale: 1 });
+    const scale = (containerWidth / unscaled.width) * dpr;
+    const viewport = page.getViewport({ scale });
+    pdfCanvasRef.current.width = viewport.width;
+    pdfCanvasRef.current.height = viewport.height;
+    pdfCanvasRef.current.style.width = `${containerWidth}px`;
+    pdfCanvasRef.current.style.height = `${Math.round(viewport.height / dpr)}px`;
+    const ctx = pdfCanvasRef.current.getContext("2d");
+    if (!ctx) return;
+    const task = page.render({ canvasContext: ctx, viewport });
+    renderTaskRef.current = task;
+    try { await task.promise; } catch { /* cancelled */ }
+  }, []);
+
+  // Load PDF for mobile canvas
+  useEffect(() => {
+    if (!isMobile || !contract || !token) return;
+    setPdfLoading(true);
+    let cancelled = false;
+    (async () => {
+      try {
+        const pdfjsLib = await import("pdfjs-dist");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        const resp = await fetch(`/api/sign/${token}/pdf`);
+        if (!resp.ok) throw new Error(`PDF fetch failed: ${resp.status}`);
+        const ab = await resp.arrayBuffer();
+        const doc = await pdfjsLib.getDocument({
+          data: new Uint8Array(ab),
+          cMapUrl: "/cmaps/",
+          cMapPacked: true,
+          standardFontDataUrl: "/standard_fonts/",
+        }).promise;
+        if (cancelled) return;
+        pdfDocRef.current = doc;
+        setTotalPages(doc.numPages);
+        setCurrentPage(1);
+        await renderPdfPage(doc, 1);
+      } catch (e) {
+        console.error("PDF load error", e);
+      } finally {
+        if (!cancelled) setPdfLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isMobile, contract, token, renderPdfPage]);
+
+  // Re-render on page change (mobile)
+  useEffect(() => {
+    if (!pdfDocRef.current || !isMobile) return;
+    renderPdfPage(pdfDocRef.current, currentPage);
+  }, [currentPage, renderPdfPage, isMobile]);
+
+  // ── Signature pad handlers ──────────────────────────────────────────────────
   const getPos = (canvas: HTMLCanvasElement, e: MouseEvent | Touch) => {
     const rect = canvas.getBoundingClientRect();
     return {
@@ -168,12 +235,9 @@ export default function SignContractPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-orange-50 via-white to-white p-6" dir="rtl">
         <div className="space-y-6 max-w-sm w-full">
-          {/* Icon - centered */}
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-10 h-10 text-emerald-500" />
           </div>
-
-          {/* Title + subtitle - RTL aligned */}
           <div className="space-y-2 text-right">
             <h2 className="text-2xl font-bold text-slate-800">החוזה נחתם בהצלחה!</h2>
             <p className="text-sm text-slate-500 leading-relaxed">
@@ -181,8 +245,6 @@ export default function SignContractPage() {
               החתימה שלך התקבלה אצל <strong className="text-slate-700">{contract?.businessName}</strong>.
             </p>
           </div>
-
-          {/* Contract summary card - RTL */}
           <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700">{contract?.templateName}</span>
@@ -195,10 +257,7 @@ export default function SignContractPage() {
               <span className="text-xs text-slate-400">סטטוס</span>
             </div>
           </div>
-
           <p className="text-xs text-slate-400 text-center">ניתן לסגור את הדף</p>
-
-          {/* Petra branding */}
           <div className="pt-6 border-t border-slate-100 text-center">
             <div className="flex items-center justify-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -214,7 +273,6 @@ export default function SignContractPage() {
 
   if (!contract) return null;
 
-  // Derive data fields for summary
   const dataFields = (contract.fields ?? []).filter(
     (f) => f.type !== "signature" && contract.customerData?.[f.type]
   );
@@ -224,6 +282,7 @@ export default function SignContractPage() {
   }));
 
   const pdfProxyUrl = `/api/sign/${token}/pdf`;
+  const isLastPage = currentPage >= totalPages;
 
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
@@ -278,43 +337,41 @@ export default function SignContractPage() {
               <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center">1</span>
               <span className="text-sm font-semibold text-slate-700">קרא את החוזה</span>
             </div>
-            <a
-              href={pdfProxyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-              פתח בחלון חדש
-            </a>
+            {/* Page nav for mobile / open-in-new-tab for desktop */}
+            {isMobile && totalPages > 1 ? (
+              <div className="flex items-center gap-1.5">
+                <button type="button" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-30 bg-white">
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <span className="text-xs font-medium text-slate-600 min-w-[44px] text-center" dir="ltr">{currentPage} / {totalPages}</span>
+                <button type="button" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-30 bg-white">
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <a href={pdfProxyUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors">
+                <Download className="w-3.5 h-3.5" />
+                פתח בחלון חדש
+              </a>
+            )}
           </div>
 
           {isMobile ? (
-            /* ── Mobile: open PDF in new tab (full native viewer) ───────────── */
-            <div className="px-4 py-8 text-center space-y-4">
-              <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto">
-                <FileText className="w-8 h-8 text-orange-400" />
-              </div>
-              <div className="space-y-1.5">
-                <p className="text-sm font-semibold text-slate-700">{contract.templateName}</p>
-                <p className="text-xs text-slate-400">לחץ לפתיחת המסמך וקריאת כל העמודים</p>
-              </div>
-              <a
-                href={pdfProxyUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setPdfOpened(true)}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-xl transition-colors"
-              >
-                <FileText className="w-4 h-4" />
-                פתח וקרא את החוזה
-              </a>
-              {pdfOpened && (
-                <p className="text-xs text-emerald-600 flex items-center justify-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  המסמך נפתח — סיימת לקרוא? המשך לחתום למטה
-                </p>
+            /* ── Mobile: pdfjs canvas with page navigation ─────────────────── */
+            <div className="relative bg-white">
+              {pdfLoading && (
+                <div className="flex items-center justify-center bg-white" style={{ minHeight: 400 }}>
+                  <div className="text-center space-y-2">
+                    <Loader2 className="w-7 h-7 animate-spin text-orange-400 mx-auto" />
+                    <p className="text-xs text-slate-400">טוען מסמך...</p>
+                  </div>
+                </div>
               )}
+              <canvas
+                ref={pdfCanvasRef}
+                className="block w-full"
+                style={{ display: pdfLoading ? "none" : "block" }}
+              />
             </div>
           ) : (
             /* ── Desktop: iframe with native PDF viewer ────────────────────── */
@@ -337,22 +394,33 @@ export default function SignContractPage() {
             </div>
           )}
 
-          {/* Confirm read button */}
-          <button
-            type="button"
-            onClick={() => {
-              setReadConfirmed(true);
-              signatureSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-            }}
-            className={`w-full py-3.5 text-sm font-semibold border-t border-slate-100 flex items-center justify-center gap-2 transition-colors ${
-              readConfirmed
-                ? "bg-emerald-50 text-emerald-600"
-                : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700"
-            }`}
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            {readConfirmed ? "קראתי את החוזה ✓" : "קראתי את החוזה — המשך לחתימה"}
-          </button>
+          {/* Bottom bar: next page (mobile) / confirm read */}
+          {isMobile && !pdfLoading && totalPages > 0 && !isLastPage ? (
+            <button
+              type="button"
+              onClick={() => { setCurrentPage((p) => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+              className="w-full py-3.5 text-sm font-semibold border-t border-slate-100 flex items-center justify-center gap-2 transition-colors bg-slate-50 hover:bg-slate-100 text-slate-700"
+            >
+              עמוד הבא ({currentPage + 1} מתוך {totalPages})
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setReadConfirmed(true);
+                signatureSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className={`w-full py-3.5 text-sm font-semibold border-t border-slate-100 flex items-center justify-center gap-2 transition-colors ${
+                readConfirmed
+                  ? "bg-emerald-50 text-emerald-600"
+                  : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700"
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              {readConfirmed ? "קראתי את החוזה ✓" : "קראתי את החוזה — המשך לחתימה"}
+            </button>
+          )}
         </div>
 
         {/* ── Step 2: Signature ────────────────────────────────────────────────── */}
@@ -398,7 +466,6 @@ export default function SignContractPage() {
             )}
           </div>
 
-          {/* Confirmation checkbox */}
           <div className="px-4 pb-4">
             <label className="flex items-start gap-3 cursor-pointer group">
               <input
