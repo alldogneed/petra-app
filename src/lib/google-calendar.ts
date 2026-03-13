@@ -662,7 +662,7 @@ function getJerusalemOffset(date: Date): string {
   return `${sign}${h}:${m}`;
 }
 
-function buildAppointmentEventPayload(appt: AppointmentForGcal, appBaseUrl: string) {
+export function buildAppointmentEventPayload(appt: AppointmentForGcal, appBaseUrl: string) {
   const serviceName = appt.service?.name ?? appt.priceListItem?.name ?? "תור";
   const summaryParts = [serviceName, appt.customer.name, appt.customer.phone];
   if (appt.pet) summaryParts.push(appt.pet.name);
