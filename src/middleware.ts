@@ -25,6 +25,7 @@ const PUBLIC_PATHS = [
   "/api/service-dogs/id-card",
   "/api/integrations/google/callback", // Google Calendar OAuth callback
   "/privacy",
+  "/terms",
   "/tos-accept",
 ];
 
