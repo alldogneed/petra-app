@@ -48,6 +48,7 @@ import {
   PawPrint,
   RefreshCw,
   CalendarRange,
+  AlertTriangle,
 } from "lucide-react";
 
 const RepeatIcon = Repeat;
@@ -3010,6 +3011,47 @@ const FIELD_DEFAULTS: Record<ContractField["type"], { width: number; height: num
   signature:     { width: 0.35, height: 0.07 },
 };
 
+const FIELD_SHORT_LABELS: Record<ContractField["type"], string> = {
+  customer_name: "שם לקוח",
+  id_number: "ת.ז.",
+  address: "כתובת",
+  phone: "טלפון",
+  signature: "חתימה",
+};
+
+function FieldsSummary({ fields, onClear }: { fields: ContractField[]; onClear: () => void }) {
+  if (fields.length === 0) return null;
+  const hasSignature = fields.some((f) => f.type === "signature");
+  const byPage = fields.reduce<Record<number, ContractField[]>>((acc, f) => {
+    (acc[f.page] ||= []).push(f);
+    return acc;
+  }, {});
+  const pages = Object.keys(byPage).map(Number).sort((a, b) => a - b);
+
+  return (
+    <div className="mt-1.5 space-y-1">
+      <div className="text-xs text-petra-muted space-y-0.5">
+        {pages.map((p) => {
+          const labels = byPage[p].map((f) => FIELD_SHORT_LABELS[f.type]);
+          return (
+            <p key={p}>עמוד {p}: <span className="font-medium text-petra-text">{labels.join(", ")}</span></p>
+          );
+        })}
+      </div>
+      <p className="text-xs text-petra-muted">
+        {fields.length} שד{fields.length === 1 ? "ה" : "ות"} בסך הכל ·{" "}
+        <button type="button" className="underline" onClick={onClear}>נקה הכל</button>
+      </p>
+      {!hasSignature && (
+        <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <p className="text-xs">לא הוצב שדה חתימה – הלקוח לא יוכל לחתום על המסמך</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -3100,8 +3142,15 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
 
   const removeField = (id: string) => setFields((prev) => prev.filter((f) => f.id !== id));
 
+  const [sigWarningShown, setSigWarningShown] = useState(false);
+
   const handleSave = async () => {
     if (!file || !name.trim()) return;
+    if (!fields.some((f) => f.type === "signature") && !sigWarningShown) {
+      setSigWarningShown(true);
+      toast.error("לא הוצב שדה חתימה – הלקוח לא יוכל לחתום. לחץ שוב לשמור בכל זאת.");
+      return;
+    }
     setSaving(true);
     try {
       const fd = new FormData();
@@ -3243,12 +3292,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
                     })}
                   </div>
                 </div>
-                {fields.length > 0 && (
-                  <p className="text-xs text-petra-muted mt-1">
-                    {fields.length} שד{fields.length === 1 ? "ה" : "ות"} הוצבו בסך הכל ·{" "}
-                    <button type="button" className="underline" onClick={() => setFields([])}>נקה הכל</button>
-                  </p>
-                )}
+                <FieldsSummary fields={fields} onClear={() => setFields([])} />
               </div>
             </div>
           )}
@@ -3367,8 +3411,15 @@ function EditContractTemplateModal({
 
   const removeField = (id: string) => setFields((prev) => prev.filter((f) => f.id !== id));
 
+  const [sigWarningShown, setSigWarningShown] = useState(false);
+
   const handleSave = async () => {
     if (!name.trim()) return;
+    if (!fields.some((f) => f.type === "signature") && !sigWarningShown) {
+      setSigWarningShown(true);
+      toast.error("לא הוצב שדה חתימה – הלקוח לא יוכל לחתום. לחץ שוב לשמור בכל זאת.");
+      return;
+    }
     setSaving(true);
     try {
       const r = await fetch(`/api/contracts/templates/${template.id}`, {
@@ -3457,12 +3508,7 @@ function EditContractTemplateModal({
                   </div>
                 )}
               </div>
-              {fields.length > 0 && (
-                <p className="text-xs text-petra-muted mt-1">
-                  {fields.length} שד{fields.length === 1 ? "ה" : "ות"} בסך הכל ·{" "}
-                  <button type="button" className="underline" onClick={() => setFields([])}>נקה הכל</button>
-                </p>
-              )}
+              <FieldsSummary fields={fields} onClear={() => setFields([])} />
             </div>
           </div>
         </div>
