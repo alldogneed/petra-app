@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { cancelBoardingCheckoutReminders, rescheduleBoardingCheckoutReminder, scheduleBoardingThankYou } from "@/lib/reminder-service";
+import { syncBoardingToGcal, deleteBoardingFromGcal } from "@/lib/google-calendar";
 
 const PatchBoardingSchema = z.object({
   checkIn: z.string().datetime().optional(),
@@ -185,6 +186,17 @@ export async function PATCH(
       body.status === "checked_out" ? ACTIVITY_ACTIONS.CHECKOUT_BOARDING :
       undefined;
     if (action) logActivity(session.user.id, session.user.name, action);
+
+    // Sync to Google Calendar
+    if (body.status === "canceled") {
+      await deleteBoardingFromGcal(params.id, authResult.businessId).catch((err) =>
+        console.error("Failed to delete boarding from GCal:", err)
+      );
+    } else {
+      await syncBoardingToGcal(params.id, authResult.businessId).catch((err) =>
+        console.error("Failed to sync boarding to GCal:", err)
+      );
+    }
 
     return NextResponse.json(stay);
   } catch (error) {

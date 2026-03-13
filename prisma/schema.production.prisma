@@ -489,6 +489,7 @@ model BoardingStay {
   customerId   String?
   businessId   String
   bookingId    String?   @unique // optional link back to originating online booking
+  gcalEventId  String?   // Google Calendar event ID
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 

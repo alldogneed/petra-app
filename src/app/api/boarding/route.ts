@@ -5,6 +5,7 @@ import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { scheduleBoardingCheckoutReminder } from "@/lib/reminder-service";
+import { syncBoardingToGcal } from "@/lib/google-calendar";
 
 export async function GET(request: NextRequest) {
   try {
@@ -145,6 +146,11 @@ export async function POST(request: NextRequest) {
         customer: { name: stay.customer?.name ?? stay.pet.name },
       }).catch(console.error);
     }
+
+    // Sync to Google Calendar
+    await syncBoardingToGcal(stay.id, authResult.businessId).catch((err) =>
+      console.error("Failed to sync boarding to GCal:", err)
+    );
 
     return NextResponse.json(stay, { status: 201 });
   } catch (error) {

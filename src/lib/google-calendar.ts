@@ -843,6 +843,125 @@ export async function deleteAppointmentFromGcal(
   });
 }
 
+// ─── Boarding Stay sync ──────────────────────────────────────────────────────
+
+/**
+ * Sync a boarding stay to Google Calendar for all connected business users.
+ * Summary: "פנסיון – customer – phone – pet"
+ * Start: checkIn, End: checkOut (or checkIn + 1 day if null)
+ */
+export async function syncBoardingToGcal(
+  stayId: string,
+  businessId: string
+): Promise<void> {
+  const connectedUsers = await findConnectedUsersForBusiness(businessId);
+  const syncableUsers = connectedUsers.filter((u) => u.gcalSyncEnabled);
+  if (syncableUsers.length === 0) return;
+
+  const stay = await prisma.boardingStay.findUnique({
+    where: { id: stayId },
+    select: {
+      id: true, businessId: true, checkIn: true, checkOut: true,
+      status: true, notes: true, gcalEventId: true,
+      pet: { select: { name: true } },
+      customer: { select: { name: true, phone: true } },
+    },
+  });
+  if (!stay || stay.status === "cancelled") return;
+
+  const customerName = stay.customer?.name ?? stay.pet.name;
+  const customerPhone = stay.customer?.phone ?? "";
+  const summaryParts = ["פנסיון", customerName];
+  if (customerPhone) summaryParts.push(customerPhone);
+  summaryParts.push(stay.pet.name);
+  const summary = summaryParts.join(" – ");
+
+  const startDateTime = stay.checkIn.toISOString();
+  const endDate = stay.checkOut ?? new Date(stay.checkIn.getTime() + 24 * 60 * 60 * 1000);
+  const endDateTime = endDate.toISOString();
+
+  const payload = {
+    summary,
+    start: { dateTime: startDateTime, timeZone: BOOKING_TIMEZONE },
+    end: { dateTime: endDateTime, timeZone: BOOKING_TIMEZONE },
+    description: [
+      `🏠 פנסיון`,
+      ``,
+      `🐾 כלב: ${stay.pet.name}`,
+      `👤 בעלים: ${customerName}`,
+      customerPhone ? `📞 טלפון: ${customerPhone}` : null,
+      ``,
+      `📅 צ׳ק-אין: ${stay.checkIn.toLocaleDateString("he-IL")}`,
+      stay.checkOut ? `📅 צ׳ק-אאוט: ${endDate.toLocaleDateString("he-IL")}` : `📅 צ׳ק-אאוט: טרם נקבע`,
+      stay.notes ? `📝 הערות: ${stay.notes}` : null,
+      ``,
+      `⚙️ מנוהל על ידי Petra`,
+    ].filter(Boolean).join("\n"),
+    extendedProperties: {
+      private: { petraBoardingId: stay.id, businessId, source: "petra" },
+    },
+  };
+
+  let storedEventId = stay.gcalEventId;
+
+  for (const user of syncableUsers) {
+    try {
+      const [accessToken, calendarId] = await Promise.all([
+        getValidAccessToken(user.id),
+        ensureUserCalendar(user.id),
+      ]);
+
+      let eventId: string;
+
+      if (storedEventId) {
+        const updateRes = await fetch(
+          `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${storedEventId}`,
+          { method: "PUT", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) }
+        );
+        eventId = updateRes.ok ? storedEventId : await (async () => {
+          const r = await fetch(`${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`,
+            { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+          return (await r.json()).id;
+        })();
+      } else {
+        const createRes = await fetch(
+          `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`,
+          { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) }
+        );
+        const data = await createRes.json();
+        eventId = data.id;
+      }
+
+      if (!storedEventId && eventId) {
+        await prisma.boardingStay.update({ where: { id: stayId }, data: { gcalEventId: eventId } });
+        storedEventId = eventId;
+      }
+    } catch (err) {
+      console.error(`GCal boarding sync error (user ${user.id}):`, err);
+    }
+  }
+}
+
+/**
+ * Delete a boarding stay event from Google Calendar.
+ */
+export async function deleteBoardingFromGcal(stayId: string, businessId: string): Promise<void> {
+  const stay = await prisma.boardingStay.findUnique({ where: { id: stayId }, select: { gcalEventId: true } });
+  if (!stay?.gcalEventId) return;
+
+  const connectedUsers = await findConnectedUsersForBusiness(businessId);
+  for (const user of connectedUsers.filter((u) => u.gcalSyncEnabled)) {
+    try {
+      const [accessToken, calendarId] = await Promise.all([getValidAccessToken(user.id), ensureUserCalendar(user.id)]);
+      await fetch(`${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${stay.gcalEventId}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } });
+    } catch (err) {
+      console.error(`GCal boarding delete error (user ${user.id}):`, err);
+    }
+  }
+  await prisma.boardingStay.update({ where: { id: stayId }, data: { gcalEventId: null } });
+}
+
 /**
  * Build the Google OAuth URL for Calendar scope (separate from auth login).
  */
