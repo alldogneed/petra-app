@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
     recentAuditLogs,
     tierGroups,
     trialCount,
+    gcalConnectedCount,
   ] = await Promise.all([
     prisma.business.count(),
     prisma.business.count({ where: { status: "active" } }),
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest) {
       _count: { id: true },
     }),
     prisma.business.count({ where: { status: "active", trialEndsAt: { gte: now } } }),
+    prisma.businessUser.count({ where: { user: { gcalConnected: true }, isActive: true } }),
   ]);
 
   // Compute MRR: sum(count × price) for active businesses
@@ -74,5 +76,6 @@ export async function GET(request: NextRequest) {
     mrr,
     trialCount,
     tierBreakdown,
+    gcalConnectedCount,
   });
 }

@@ -6,6 +6,8 @@ import { createOrderReminder } from "@/lib/scheduled-messages";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { syncAppointmentToGcal, syncBoardingToGcal } from "@/lib/google-calendar";
+import { sendWhatsAppTemplate } from "@/lib/whatsapp";
+import { toWhatsAppPhone } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -296,6 +298,35 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         console.error("Failed to schedule reminder:", err);
         // Non-blocking — order was already created
+      }
+    }
+
+    // Send immediate WhatsApp confirmation for linked appointment (fire-and-forget)
+    if (linkedAppointmentId && appointmentData) {
+      const customer = await prisma.customer.findUnique({
+        where: { id: customerId },
+        select: { name: true, phone: true },
+      }).catch(() => null);
+      if (customer?.phone) {
+        const phone = toWhatsAppPhone(customer.phone);
+        if (phone) {
+          const apptDate = new Date(appointmentData.date);
+          const [h, m] = (appointmentData.startTime as string).split(":").map(Number);
+          apptDate.setHours(h, m, 0, 0);
+          const formattedDate = new Intl.DateTimeFormat("he-IL", {
+            weekday: "long", day: "numeric", month: "long",
+          }).format(apptDate);
+          const APPT_TYPE_LABELS_CONFIRM: Record<string, string> = { training: "אילוף", grooming: "טיפוח", service_dog: "כלב שירות" };
+          const TRAINING_SUBTYPE_LABELS_CONFIRM: Record<string, string> = { individual: "פרטי", group: "קבוצתי", boarding: "פנסיון", package: "חבילה" };
+          const typeLabel = APPT_TYPE_LABELS_CONFIRM[orderType] ?? orderType;
+          const subtypeLabel = orderType === "training" && trainingSubType ? TRAINING_SUBTYPE_LABELS_CONFIRM[trainingSubType] ?? "" : "";
+          const serviceName = subtypeLabel ? `${typeLabel} (${subtypeLabel})` : typeLabel;
+          sendWhatsAppTemplate({
+            to: phone,
+            templateName: "petra_appointment_confirmation",
+            bodyParams: [customer.name, formattedDate, appointmentData.startTime as string, serviceName],
+          }).catch((err) => console.error("Order appointment confirmation WA failed:", err));
+        }
       }
     }
 

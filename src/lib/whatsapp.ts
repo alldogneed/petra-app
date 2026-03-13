@@ -19,6 +19,13 @@ interface SendParams {
   templateSid?: string;
 }
 
+export interface MetaTemplateMessage {
+  to: string;          // WhatsApp-ready digits e.g. "972501234567"
+  templateName: string; // Approved Meta template name e.g. "petra_appointment_reminder"
+  languageCode?: string; // default "he"
+  bodyParams: string[]; // positional {{1}}, {{2}} … body component variables
+}
+
 // ---------------------------------------------------------------------------
 // Meta Cloud API
 // ---------------------------------------------------------------------------
@@ -64,6 +71,62 @@ async function sendViaMetaCloudApi(params: SendParams): Promise<SendResult | nul
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
     console.error("[WhatsApp Meta] Send error:", errorMessage);
+    return { success: false, error: errorMessage };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Meta Cloud API — Template messages (proactive / outside 24h window)
+// ---------------------------------------------------------------------------
+
+async function sendViaMetaCloudApiTemplate(params: MetaTemplateMessage): Promise<SendResult | null> {
+  const token = process.env.META_WHATSAPP_TOKEN;
+  const phoneNumberId = process.env.META_PHONE_NUMBER_ID;
+  if (!token || !phoneNumberId) return null;
+
+  const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
+
+  const payload = {
+    messaging_product: "whatsapp",
+    to: params.to,
+    type: "template",
+    template: {
+      name: params.templateName,
+      language: { code: params.languageCode ?? "he" },
+      ...(params.bodyParams.length > 0 && {
+        components: [
+          {
+            type: "body",
+            parameters: params.bodyParams.map((text) => ({ type: "text", text })),
+          },
+        ],
+      }),
+    },
+  };
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json() as {
+      messages?: Array<{ id: string }>;
+      error?: { message: string };
+    };
+
+    if (!res.ok || data.error) {
+      const errMsg = data.error?.message ?? `HTTP ${res.status}`;
+      console.error("[WhatsApp Meta Template] Send failed:", errMsg);
+      return { success: false, error: errMsg };
+    }
+
+    const msgId = data.messages?.[0]?.id ?? `META_TMPL_${Date.now()}`;
+    return { success: true, messageSid: msgId };
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    console.error("[WhatsApp Meta Template] Send error:", errorMessage);
     return { success: false, error: errorMessage };
   }
 }
@@ -135,6 +198,21 @@ export async function sendWhatsAppMessage(params: SendParams): Promise<SendResul
   // 3. Stub mode
   console.log(`[WhatsApp STUB] To: ${to} | Body: ${body.slice(0, 100)}...`);
   return { success: true, messageSid: `STUB_${Date.now()}` };
+}
+
+/**
+ * Send a WhatsApp message using an approved Meta template.
+ * Works outside the 24-hour customer service window (proactive outbound).
+ * Falls back to text message if Meta credentials are not configured.
+ */
+export async function sendWhatsAppTemplate(params: MetaTemplateMessage): Promise<SendResult> {
+  // 1. Try Meta template API
+  const metaResult = await sendViaMetaCloudApiTemplate(params);
+  if (metaResult !== null) return metaResult;
+
+  // 2. Fallback: send as plain text (Twilio / stub) so something always goes out
+  const body = params.bodyParams.join(" | ");
+  return sendWhatsAppMessage({ to: params.to, body });
 }
 
 /**

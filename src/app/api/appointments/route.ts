@@ -5,6 +5,8 @@ import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { scheduleAppointmentReminder } from "@/lib/reminder-service";
 import { syncAppointmentToGcal } from "@/lib/google-calendar";
+import { sendWhatsAppTemplate } from "@/lib/whatsapp";
+import { toWhatsAppPhone } from "@/lib/utils";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxAppointments, normalizeTier } from "@/lib/feature-flags";
 
@@ -144,6 +146,25 @@ export async function POST(request: NextRequest) {
     });
 
     logCurrentUserActivity("CREATE_APPOINTMENT");
+
+    // Send immediate WhatsApp confirmation (fire-and-forget)
+    if (appointment.customer?.phone) {
+      const phone = toWhatsAppPhone(appointment.customer.phone);
+      if (phone) {
+        const [h, m] = appointment.startTime.split(":").map(Number);
+        const apptDate = new Date(appointment.date);
+        apptDate.setHours(h, m, 0, 0);
+        const formattedDate = new Intl.DateTimeFormat("he-IL", {
+          weekday: "long", day: "numeric", month: "long",
+        }).format(apptDate);
+        const serviceName = appointment.service?.name ?? appointment.priceListItem?.name ?? "תור";
+        sendWhatsAppTemplate({
+          to: phone,
+          templateName: "petra_appointment_confirmation",
+          bodyParams: [appointment.customer.name, formattedDate, appointment.startTime, serviceName],
+        }).catch((err) => console.error("Appointment confirmation WA failed:", err));
+      }
+    }
 
     // Schedule WhatsApp reminder (fire-and-forget)
     scheduleAppointmentReminder({
