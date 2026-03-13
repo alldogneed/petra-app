@@ -860,7 +860,7 @@ function IntegrationsTab() {
               {integ.id === "whatsapp" && integ.connected && integ.fromNumber && (
                 <p className="text-xs text-emerald-600 mt-1">מספר שולח: {integ.fromNumber}</p>
               )}
-              {isWhatsApp && integ.connected && biz && (
+              {isWhatsApp && integ.connected && biz && can("whatsapp_reminders") && (
                 <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm text-petra-text">תזכורות אוטומטיות לתורים</span>

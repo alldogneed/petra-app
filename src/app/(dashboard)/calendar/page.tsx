@@ -377,6 +377,7 @@ function NewAppointmentModal({
   existingAppointments?: AppointmentEvent[];
 }) {
   const queryClient = useQueryClient();
+  const { can: canPlan } = usePlan();
   const [form, setForm] = useState({
     customerId: "",
     priceListItemId: "",
@@ -466,7 +467,7 @@ function NewAppointmentModal({
         toast.success(`נקבעו ${result.created} פגישות חוזרות בהצלחה`);
       } else {
         const newId = result?.id as string | undefined;
-        toast.success("התור נקבע בהצלחה", newId && selectedCustomer?.phone ? {
+        toast.success("התור נקבע בהצלחה", newId && selectedCustomer?.phone && canPlan("whatsapp_reminders") ? {
           action: {
             label: "שלח תזכורת WhatsApp",
             onClick: () => fetch(`/api/appointments/${newId}/remind`, { method: "POST" })
@@ -816,7 +817,7 @@ export default function CalendarPage() {
 
 function CalendarContent() {
   const queryClient = useQueryClient();
-  const { isFree, tier } = usePlan();
+  const { isFree, tier, can } = usePlan();
   const maxAppts = getMaxAppointments(tier);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -2406,7 +2407,7 @@ function CalendarContent() {
                 </div>
               ) : (
                 <>
-                  {selectedAppointment.status === "scheduled" && selectedAppointment.customer.phone && (
+                  {selectedAppointment.status === "scheduled" && selectedAppointment.customer.phone && can("whatsapp_reminders") && (
                     <button
                       className="w-9 h-9 flex items-center justify-center rounded-xl bg-green-50 text-green-600 hover:bg-green-100 border border-transparent hover:border-green-200 transition-colors flex-shrink-0"
                       disabled={remindMutation.isPending}

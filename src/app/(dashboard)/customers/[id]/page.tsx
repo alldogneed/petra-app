@@ -1598,6 +1598,7 @@ function SendContractSection({ customerId, customerName }: { customerId: string;
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [deletingContract, setDeletingContract] = useState<ContractReq | null>(null);
 
   const { data: templates = [] } = useQuery<ContractTemplate[]>({
     queryKey: ["contract-templates"],
@@ -1623,6 +1624,20 @@ function SendContractSection({ customerId, customerName }: { customerId: string;
       setSelectedTemplateId("");
     },
     onError: (e: Error) => toast.error(e.message || "שגיאה בשליחה"),
+  });
+
+  const deleteContractMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/contracts/requests/${id}`, { method: "DELETE" }).then(async (r) => {
+        if (!r.ok) { const d = await r.json(); throw new Error(d.error || "שגיאה במחיקה"); }
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contract-requests", customerId] });
+      toast.success("החוזה נמחק");
+      setDeletingContract(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const statusLabel: Record<string, string> = { PENDING: "ממתין", SIGNED: "נחתם", EXPIRED: "פג תוקף" };
@@ -1684,6 +1699,13 @@ function SendContractSection({ customerId, customerName }: { customerId: string;
                     הורד
                   </a>
                 )}
+                <button
+                  onClick={() => setDeletingContract(req)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-600 transition-colors flex-shrink-0"
+                  title="מחק חוזה"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
               {/* Audit trail */}
               <div className="px-3 pb-3 space-y-0.5">
@@ -1742,6 +1764,16 @@ function SendContractSection({ customerId, customerName }: { customerId: string;
           </div>
         </div>
       )}
+
+      <ConfirmDeleteModal
+        open={!!deletingContract}
+        onClose={() => setDeletingContract(null)}
+        onConfirm={() => deletingContract && deleteContractMutation.mutate(deletingContract.id)}
+        title="מחיקת חוזה"
+        confirmText={deletingContract?.template.name ?? ""}
+        description="מחיקת החוזה תסיר אותו לצמיתות. פעולה זו אינה ניתנת לביטול."
+        loading={deleteContractMutation.isPending}
+      />
     </div>
   );
 }
@@ -1789,6 +1821,7 @@ function CustomerDocumentsSection({
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [deletingDoc, setDeletingDoc] = useState<{ id: string; name: string } | null>(null);
 
   // Parse docs from customer data (initial), then use react-query for fresh data
   const { data: docs = [] } = useQuery<CustomerDoc[]>({
@@ -2092,7 +2125,7 @@ function CustomerDocumentsSection({
                     <Download className="w-3.5 h-3.5" />
                   </a>
                   <button
-                    onClick={() => deleteMutation.mutate(doc.id)}
+                    onClick={() => setDeletingDoc({ id: doc.id, name: doc.name })}
                     className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-600 transition-colors"
                     title="מחק"
                   >
@@ -2104,6 +2137,22 @@ function CustomerDocumentsSection({
           })}
         </div>
       )}
+
+      <ConfirmDeleteModal
+        open={!!deletingDoc}
+        onClose={() => setDeletingDoc(null)}
+        onConfirm={() => {
+          if (deletingDoc) {
+            deleteMutation.mutate(deletingDoc.id, {
+              onSuccess: () => setDeletingDoc(null),
+            });
+          }
+        }}
+        title="מחיקת מסמך"
+        confirmText={deletingDoc?.name ?? ""}
+        description="מחיקת המסמך תסיר אותו לצמיתות. פעולה זו אינה ניתנת לביטול."
+        loading={deleteMutation.isPending}
+      />
     </div>
   );
 }
@@ -3135,7 +3184,7 @@ export default function CustomerProfilePage() {
   const [showWaCompose, setShowWaCompose] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
   const { user } = useAuth();
-  const { isGroomer } = usePlan();
+  const { isGroomer, can } = usePlan();
   const perms = usePermissions();
   const [showConfirmDeleteModal, setShowConfirmDeleteModal] = useState(false);
 
@@ -4387,7 +4436,7 @@ export default function CustomerProfilePage() {
                         >
                           {getStatusLabel(apt.status)}
                         </span>
-                        {apt.status === "scheduled" && customer.phone && (
+                        {apt.status === "scheduled" && customer.phone && can("whatsapp_reminders") && (
                           <button
                             className="w-6 h-6 flex items-center justify-center rounded-full bg-green-50 hover:bg-green-100 text-green-600 transition-colors flex-shrink-0"
                             title="שלח תזכורת WhatsApp"

@@ -31,6 +31,7 @@ export type FeatureKey =
   | "pricing"
   | "pets_advanced"
   | "scheduled_messages"
+  | "whatsapp_reminders"
   | "online_bookings"
   | "analytics"
   | "intake_forms"
@@ -64,6 +65,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     pricing:           true,   // ✅ price management (free tier only finance feature)
     pets_advanced:     false,
     scheduled_messages: false,
+    whatsapp_reminders: false, // WhatsApp API reminders — PRO+ only
     online_bookings:   false,
     analytics:         false,
     intake_forms:      false,
@@ -92,7 +94,8 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     orders:            true,
     pricing:           true,
     pets_advanced:     true,
-    scheduled_messages: true,  // Basic WhatsApp appointment reminders ✅
+    scheduled_messages: false, // Dashboard reminders only — WhatsApp API sending requires PRO+
+    whatsapp_reminders: false, // WhatsApp API reminders — PRO+ only
     online_bookings:   false,  // Online booking management — PRO+ only
     analytics:         true,
     intake_forms:      true,
@@ -122,6 +125,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     pricing:           true,
     pets_advanced:     true,
     scheduled_messages: true,  // WhatsApp reminders ✅
+    whatsapp_reminders: true,  // WhatsApp API reminders ✅
     online_bookings:   true,
     analytics:         true,
     intake_forms:      true,
@@ -149,6 +153,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     pricing:           true,
     pets_advanced:     true,
     scheduled_messages: true,
+    whatsapp_reminders: true,
     online_bookings:   true,
     analytics:         true,
     intake_forms:      true,
@@ -178,6 +183,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     pricing:           true,
     pets_advanced:     true,
     scheduled_messages: true,
+    whatsapp_reminders: true,  // WhatsApp API reminders ✅
     online_bookings:   true,
     analytics:         true,
     intake_forms:      true,
@@ -206,6 +212,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     pricing:           true,
     pets_advanced:     true,
     scheduled_messages: true,
+    whatsapp_reminders: true,  // WhatsApp API reminders ✅
     online_bookings:   true,
     analytics:         true,
     intake_forms:      true,

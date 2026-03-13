@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { interpolateTemplate } from "@/lib/whatsapp";
 import { REMINDER_TEMPLATES } from "@/lib/training-groups";
+import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 
 // ─── Appointment reminder scheduling ─────────────────────────────────────────
 
@@ -24,9 +25,12 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
   // Check business WhatsApp reminder settings
   const bizSettings = await prisma.business.findUnique({
     where: { id: appt.businessId },
-    select: { whatsappRemindersEnabled: true, whatsappReminderLeadHours: true, phone: true },
+    select: { whatsappRemindersEnabled: true, whatsappReminderLeadHours: true, phone: true, tier: true, featureOverrides: true },
   });
   if (!bizSettings?.whatsappRemindersEnabled) return null;
+  // Enforce tier gate: WhatsApp reminders require PRO+ (groomer/service_dog)
+  const overrides = (bizSettings.featureOverrides as Record<string, boolean> | null) ?? null;
+  if (!hasFeatureWithOverrides(bizSettings.tier, "whatsapp_reminders", overrides)) return null;
 
   const [h, m] = appt.startTime.split(":").map(Number);
   const apptDatetime = new Date(appt.date);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 
 function toWhatsAppNum(phone: string): string {
   const digits = phone.replace(/\D/g, "");
@@ -28,9 +29,18 @@ export async function POST(
     }),
     prisma.business.findUnique({
       where: { id: authResult.businessId },
-      select: { phone: true },
+      select: { phone: true, tier: true, featureOverrides: true },
     }),
   ]);
+
+  // Enforce tier gate
+  const overrides = (biz?.featureOverrides as Record<string, boolean> | null) ?? null;
+  if (!hasFeatureWithOverrides(biz?.tier, "whatsapp_reminders", overrides)) {
+    return NextResponse.json(
+      { error: "שליחת תזכורות WhatsApp זמינה במנוי פרו ומעלה" },
+      { status: 403 }
+    );
+  }
 
   if (!appt || appt.businessId !== authResult.businessId) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

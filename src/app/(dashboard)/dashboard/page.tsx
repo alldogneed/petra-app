@@ -40,6 +40,7 @@ import {
   Tag,
   ChevronDown,
   ChevronUp,
+  Zap,
 } from "lucide-react";
 import {
   isToday,
@@ -902,6 +903,8 @@ function TomorrowReminders({
   appointments: DashboardStats["tomorrowAppointments"];
 }) {
   const [sent, setSent] = useState<Set<string>>(new Set());
+  const { can } = usePlan();
+  const canWhatsApp = can("whatsapp_reminders");
 
   if (!appointments || appointments.length === 0) return null;
 
@@ -933,15 +936,17 @@ function TomorrowReminders({
     <div className="card p-5 mb-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
-            <MessageCircle className="w-4 h-4 text-green-600" />
+          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", canWhatsApp ? "bg-green-50" : "bg-amber-50")}>
+            <MessageCircle className={cn("w-4 h-4", canWhatsApp ? "text-green-600" : "text-amber-600")} />
           </div>
           <div>
-            <h2 className="text-base font-bold text-petra-text">תזכורות למחר</h2>
-            <p className="text-xs text-petra-muted">{appointments.length} תורים מתוכננים</p>
+            <h2 className="text-base font-bold text-petra-text">{canWhatsApp ? "תזכורות למחר" : "תורים מחר"}</h2>
+            <p className="text-xs text-petra-muted">
+              {canWhatsApp ? `${appointments.length} תורים מתוכננים` : `${appointments.length} תורים — זכור ליצור קשר עם הלקוחות`}
+            </p>
           </div>
         </div>
-        {withPhone.length > 1 && (
+        {canWhatsApp && withPhone.length > 1 && (
           <button
             onClick={sendAll}
             className="btn-secondary text-xs flex items-center gap-1.5"
@@ -949,6 +954,12 @@ function TomorrowReminders({
             <MessageCircle className="w-3.5 h-3.5 text-green-600" />
             שלח הכל ({withPhone.length})
           </button>
+        )}
+        {!canWhatsApp && (
+          <Link href="/upgrade" className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1 flex-shrink-0">
+            <Zap className="w-3 h-3" />
+            שדרג לשליחת WhatsApp
+          </Link>
         )}
       </div>
 
@@ -973,26 +984,38 @@ function TomorrowReminders({
                   {a.petName ? `${a.petName} • ` : ""}{a.serviceName}
                 </p>
               </div>
-              {a.customerPhone ? (
-                <button
-                  onClick={() => sendOne(a)}
-                  className={cn(
-                    "flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors",
-                    hasSent
-                      ? "bg-green-100 text-green-700 cursor-default"
-                      : "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
-                  )}
-                >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                  {hasSent ? "נשלח ✓" : "שלח"}
-                </button>
+              {canWhatsApp ? (
+                a.customerPhone ? (
+                  <button
+                    onClick={() => sendOne(a)}
+                    className={cn(
+                      "flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors",
+                      hasSent
+                        ? "bg-green-100 text-green-700 cursor-default"
+                        : "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                    )}
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    {hasSent ? "נשלח ✓" : "שלח"}
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-petra-muted">אין טלפון</span>
+                )
               ) : (
-                <span className="text-[10px] text-petra-muted">אין טלפון</span>
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-100 flex-shrink-0">
+                  📞 {a.customerPhone || "אין טלפון"}
+                </span>
               )}
             </div>
           );
         })}
       </div>
+
+      {!canWhatsApp && (
+        <p className="mt-3 text-[11px] text-petra-muted text-center">
+          שדרג ל<Link href="/upgrade" className="text-brand-500 hover:underline">פרו</Link> כדי לשלוח תזכורות WhatsApp אוטומטיות
+        </p>
+      )}
     </div>
   );
 }
