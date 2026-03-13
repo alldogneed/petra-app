@@ -716,6 +716,7 @@ function IntegrationsTab() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { can } = usePlan();
+  const { user } = useAuth();
   const gcalStatus = searchParams.get("gcal");
   const [showInvoicingModal, setShowInvoicingModal] = useState(false);
   const [showMappingModal, setShowMappingModal] = useState(false);
@@ -829,7 +830,8 @@ function IntegrationsTab() {
       )}
 
       {integrations?.filter((integ) =>
-        integ.id !== "invoicing" && integ.id !== "stripe"
+        integ.id !== "invoicing" && integ.id !== "stripe" &&
+        (integ.id !== "resend" || user?.isAdmin === true)
       ).map((integ) => {
         const Icon = ICON_MAP[integ.icon] ?? Plug;
         const isInvoicing = integ.id === "invoicing";
