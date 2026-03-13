@@ -98,6 +98,9 @@ export async function POST(request: NextRequest) {
       service_dog: "כלב שירות",
     };
 
+    // Capture linked IDs for post-transaction GCal sync
+    let linkedAppointmentId: string | null = null;
+
     // Create order + lines + optional appointment atomically
     const order = await prisma.$transaction(async (tx) => {
       const created = await tx.order.create({
@@ -156,6 +159,7 @@ export async function POST(request: NextRequest) {
             notes: apptNotes || null,
           },
         });
+        linkedAppointmentId = appt.id;
         await tx.order.update({
           where: { id: created.id },
           data: { relatedEntityType: "Appointment", relatedEntityId: appt.id },
@@ -276,8 +280,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Sync linked appointment / boarding stay to Google Calendar
-    if (order.relatedEntityType === "Appointment" && order.relatedEntityId) {
-      await syncAppointmentToGcal(order.relatedEntityId, authResult.businessId).catch((err) =>
+    if (linkedAppointmentId) {
+      await syncAppointmentToGcal(linkedAppointmentId, authResult.businessId).catch((err) =>
         console.error("Failed to sync order appointment to GCal:", err)
       );
     }
