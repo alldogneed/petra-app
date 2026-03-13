@@ -64,6 +64,7 @@ export default function SignContractPage() {
 
   // Signature pad
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const signatureSectionRef = useRef<HTMLDivElement>(null);
   const isDrawing = useRef(false);
   const lastPos = useRef<{ x: number; y: number } | null>(null);
 
@@ -262,11 +263,21 @@ export default function SignContractPage() {
     <div className="min-h-screen bg-slate-50" dir="rtl">
       {/* Sticky header */}
       <div className="sticky top-0 z-20 bg-white border-b border-slate-100 px-4 py-3">
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-base font-bold text-petra-text leading-tight">{contract.templateName}</h1>
-          <p className="text-xs text-petra-muted mt-0.5">
-            {contract.businessName} · {contract.customerName}
-          </p>
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-base font-bold text-petra-text leading-tight truncate">{contract.templateName}</h1>
+            <p className="text-xs text-petra-muted mt-0.5">{contract.businessName} · {contract.customerName}</p>
+          </div>
+          {!pdfLoading && totalPages > 0 && (
+            <button
+              type="button"
+              onClick={() => signatureSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-xl transition-colors"
+            >
+              <PenLine className="w-3.5 h-3.5" />
+              חתום ↓
+            </button>
+          )}
         </div>
       </div>
 
@@ -313,38 +324,48 @@ export default function SignContractPage() {
               style={{ display: pdfLoading ? "none" : "block", maxWidth: "100%" }}
             />
             {/* Field overlays */}
-            {!pdfLoading && currentPageFields.map((f) => (
-              <div
-                key={f.id}
-                style={{
-                  position: "absolute",
-                  left: `${f.x * 100}%`,
-                  top: `${f.y * 100}%`,
-                  width: `${f.width * 100}%`,
-                  height: `${f.height * 100}%`,
-                  background: FIELD_BG[f.type] ?? "rgba(0,0,0,0.05)",
-                  border: `1px dashed ${FIELD_COLORS[f.type] ?? "#94a3b8"}`,
-                  borderRadius: 3,
-                  display: "flex",
-                  alignItems: "center",
-                  overflow: "hidden",
-                  pointerEvents: "none",
-                }}
-              >
-                <span style={{
-                  fontSize: 11,
-                  direction: "rtl",
-                  padding: "0 4px",
-                  color: FIELD_COLORS[f.type] ?? "#334155",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  fontWeight: 500,
-                }}>
-                  {contract.customerData?.[f.type] ?? ""}
-                </span>
-              </div>
-            ))}
+            {!pdfLoading && currentPageFields.map((f) => {
+              const isSignature = f.type === "signature";
+              return (
+                <div
+                  key={f.id}
+                  style={{
+                    position: "absolute",
+                    left: `${f.x * 100}%`,
+                    top: `${f.y * 100}%`,
+                    width: `${f.width * 100}%`,
+                    height: `${f.height * 100}%`,
+                    background: isSignature ? "rgba(234,88,12,0.06)" : (FIELD_BG[f.type] ?? "rgba(0,0,0,0.05)"),
+                    border: `${isSignature ? "2px" : "1px"} dashed ${FIELD_COLORS[f.type] ?? "#94a3b8"}`,
+                    borderRadius: 4,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: isSignature ? "center" : "flex-start",
+                    overflow: "hidden",
+                    pointerEvents: "none",
+                  }}
+                >
+                  {isSignature ? (
+                    <span style={{ fontSize: 12, color: "#ea580c", fontWeight: 600, direction: "rtl" }}>
+                      ✍️ כאן תופיע חתימתך
+                    </span>
+                  ) : (
+                    <span style={{
+                      fontSize: 11,
+                      direction: "rtl",
+                      padding: "0 4px",
+                      color: FIELD_COLORS[f.type] ?? "#334155",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      fontWeight: 500,
+                    }}>
+                      {contract.customerData?.[f.type] ?? ""}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Next page hint if there are more pages */}
@@ -366,7 +387,7 @@ export default function SignContractPage() {
         </div>
 
         {/* Signature pad */}
-        <div className="bg-white sm:rounded-2xl sm:border sm:border-slate-200 px-4 pt-5 pb-6 space-y-4 shadow-sm">
+        <div ref={signatureSectionRef} className="bg-white sm:rounded-2xl sm:border sm:border-slate-200 px-4 pt-5 pb-6 space-y-4 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-petra-text flex items-center gap-2">
               <PenLine className="w-4 h-4 text-orange-500" />

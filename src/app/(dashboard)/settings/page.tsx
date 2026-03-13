@@ -2825,12 +2825,14 @@ interface ContractTemplate {
   signatureY: number;
   signatureWidth: number;
   signatureHeight: number;
+  fields: string; // JSON
   createdAt: string;
 }
 
 function ContractsTab() {
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<ContractTemplate | null>(null);
 
   const { data: templates = [], isLoading } = useQuery<ContractTemplate[]>({
     queryKey: ["contract-templates"],
@@ -2879,44 +2881,48 @@ function ContractsTab() {
         </div>
       ) : (
         <div className="space-y-3">
-          {templates.map((t) => (
-            <div key={t.id} className="card p-4 flex items-center gap-4">
-              <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                <FileText className="w-5 h-5 text-orange-500" />
+          {templates.map((t) => {
+            let fieldCount = 0;
+            try { fieldCount = JSON.parse(t.fields || "[]").length; } catch { fieldCount = 0; }
+            return (
+              <div key={t.id} className="card p-4 flex items-center gap-4">
+                <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-5 h-5 text-orange-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-petra-text text-sm">{t.name}</p>
+                  <p className="text-xs text-petra-muted mt-0.5">
+                    {t.fileName} · {(t.fileSize / 1024).toFixed(0)} KB
+                    {fieldCount > 0 ? ` · ${fieldCount} שדות` : " · ללא שדות"}
+                  </p>
+                  <p className="text-xs text-petra-muted">
+                    נוצר: {new Date(t.createdAt).toLocaleDateString("he-IL")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => setEditingTemplate(t)}
+                    className="btn-ghost text-xs py-1.5 px-3"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    ערוך
+                  </button>
+                  <button
+                    onClick={() => { if (confirm(`למחוק את "${t.name}"?`)) deleteMutation.mutate(t.id); }}
+                    className="p-2 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-petra-text text-sm">{t.name}</p>
-                <p className="text-xs text-petra-muted mt-0.5">
-                  {t.fileName} · עמוד {t.signaturePage} · {(t.fileSize / 1024).toFixed(0)} KB
-                </p>
-                <p className="text-xs text-petra-muted">
-                  נוצר: {new Date(t.createdAt).toLocaleDateString("he-IL")}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <a
-                  href={t.fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-ghost text-xs py-1.5 px-3"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  תצוגה
-                </a>
-                <button
-                  onClick={() => { if (confirm(`למחוק את "${t.name}"?`)) deleteMutation.mutate(t.id); }}
-                  className="p-2 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
-                  disabled={deleteMutation.isPending}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {showModal && <AddContractTemplateModal onClose={() => setShowModal(false)} onSaved={() => { setShowModal(false); queryClient.invalidateQueries({ queryKey: ["contract-templates"] }); }} />}
+      {editingTemplate && <EditContractTemplateModal template={editingTemplate} onClose={() => setEditingTemplate(null)} onSaved={() => { setEditingTemplate(null); queryClient.invalidateQueries({ queryKey: ["contract-templates"] }); }} />}
     </div>
   );
 }
@@ -3200,6 +3206,201 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
             onClick={handleSave}
           >
             {saving ? <><Loader2 className="w-4 h-4 animate-spin" />שומר...</> : <><Save className="w-4 h-4" />שמור תבנית</>}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Edit Contract Template Modal ────────────────────────────────────────────
+
+function EditContractTemplateModal({
+  template,
+  onClose,
+  onSaved,
+}: {
+  template: ContractTemplate;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(template.name);
+  const [signaturePage, setSignaturePage] = useState(template.signaturePage);
+  const [totalPages, setTotalPages] = useState(0);
+  const [fields, setFields] = useState<ContractField[]>(() => {
+    try { return JSON.parse(template.fields || "[]"); } catch { return []; }
+  });
+  const [selectedType, setSelectedType] = useState<ContractField["type"]>("signature");
+  const [saving, setSaving] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfDocRef = useRef<any>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
+
+  const renderPage = useCallback(async (doc: NonNullable<typeof pdfDocRef.current>, pageNum: number) => {
+    if (!canvasRef.current) return;
+    if (renderTaskRef.current) { renderTaskRef.current.cancel(); renderTaskRef.current = null; }
+    const page = await doc.getPage(pageNum);
+    const containerWidth = Math.max(400, canvasRef.current.parentElement?.clientWidth ?? 600);
+    const unscaled = page.getViewport({ scale: 1 });
+    const scale = containerWidth / unscaled.width;
+    const viewport = page.getViewport({ scale });
+    canvasRef.current.width = viewport.width;
+    canvasRef.current.height = viewport.height;
+    const ctx = canvasRef.current.getContext("2d");
+    if (!ctx) return;
+    const task = page.render({ canvasContext: ctx, viewport });
+    renderTaskRef.current = task;
+    try { await task.promise; } catch { /* cancelled */ }
+  }, []);
+
+  // Load PDF from existing URL
+  useEffect(() => {
+    setPdfLoading(true);
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
+        GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        const resp = await fetch(template.fileUrl);
+        const ab = await resp.arrayBuffer();
+        const doc = await getDocument({ data: ab }).promise;
+        if (cancelled) return;
+        pdfDocRef.current = doc;
+        setTotalPages(doc.numPages);
+        await renderPage(doc, signaturePage);
+      } catch (e) {
+        console.error("PDF load error", e);
+      } finally {
+        if (!cancelled) setPdfLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template.fileUrl]);
+
+  useEffect(() => {
+    if (!pdfDocRef.current || signaturePage < 1) return;
+    renderPage(pdfDocRef.current, signaturePage);
+  }, [signaturePage, renderPage]);
+
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!overlayRef.current) return;
+    const rect = overlayRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    const def = FIELD_DEFAULTS[selectedType];
+    const newField: ContractField = {
+      id: crypto.randomUUID(),
+      type: selectedType,
+      page: signaturePage,
+      x: Math.max(0, Math.min(x - def.width / 2, 1 - def.width)),
+      y: Math.max(0, Math.min(y - def.height / 2, 1 - def.height)),
+      width: def.width,
+      height: def.height,
+    };
+    setFields((prev) => [...prev, newField]);
+  };
+
+  const removeField = (id: string) => setFields((prev) => prev.filter((f) => f.id !== id));
+
+  const handleSave = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/contracts/templates/${template.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), fields: JSON.stringify(fields) }),
+      });
+      const d = await r.json();
+      if (!r.ok) { toast.error(d.error || "שגיאה בשמירה"); return; }
+      toast.success("תבנית עודכנה!");
+      onSaved();
+    } catch {
+      toast.error("שגיאת רשת");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const currentPageFields = fields.filter((f) => f.page === signaturePage);
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-petra-text">עריכת תבנית: {template.name}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"><X className="w-4 h-4" /></button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="label">שם התבנית</label>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+
+          <div className="space-y-3">
+            {/* Page navigation */}
+            {totalPages > 0 && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-petra-muted">עמוד:</span>
+                <div className="flex items-center gap-2">
+                  <button type="button" className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 disabled:opacity-40" disabled={signaturePage <= 1} onClick={() => setSignaturePage((p) => Math.max(1, p - 1))}>‹</button>
+                  <span className="text-sm font-medium text-petra-text min-w-[60px] text-center">{signaturePage} / {totalPages}</span>
+                  <button type="button" className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 disabled:opacity-40" disabled={signaturePage >= totalPages} onClick={() => setSignaturePage((p) => Math.min(totalPages, p + 1))}>›</button>
+                </div>
+              </div>
+            )}
+
+            {/* Field type toolbar */}
+            <div>
+              <p className="text-xs text-petra-muted mb-2">בחר סוג שדה ולחץ על המסמך למיקומו:</p>
+              <div className="flex flex-wrap gap-2">
+                {FIELD_TYPES.map((ft) => (
+                  <button key={ft.type} type="button" onClick={() => setSelectedType(ft.type)}
+                    className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border transition-all", selectedType === ft.type ? "ring-2 ring-orange-500 border-transparent" : "border-slate-200 hover:border-slate-300")}
+                    style={selectedType === ft.type ? { background: ft.bgColor, color: ft.color } : {}}>
+                    {ft.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Canvas + overlays */}
+            <div>
+              <div className="relative border border-slate-200 rounded-xl overflow-hidden bg-slate-100" style={{ minHeight: 300 }}>
+                {pdfLoading && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>}
+                <canvas ref={canvasRef} className="w-full block" style={{ display: pdfLoading ? "none" : "block" }} />
+                <div ref={overlayRef} className="absolute inset-0 cursor-crosshair" style={{ zIndex: 10 }} onClick={handleOverlayClick}>
+                  {currentPageFields.map((f) => {
+                    const ft = FIELD_TYPES.find((t) => t.type === f.type)!;
+                    return (
+                      <div key={f.id} style={{ position: "absolute", left: `${f.x * 100}%`, top: `${f.y * 100}%`, width: `${f.width * 100}%`, height: `${f.height * 100}%`, border: `2px dashed ${ft.color}`, background: ft.bgColor, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px" }} onClick={(e) => e.stopPropagation()}>
+                        <span style={{ fontSize: 10, color: ft.color, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden" }}>{ft.label}</span>
+                        <button type="button" style={{ color: ft.color, lineHeight: 1, flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={() => removeField(f.id)}>×</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              {fields.length > 0 && (
+                <p className="text-xs text-petra-muted mt-1">
+                  {fields.length} שד{fields.length === 1 ? "ה" : "ות"} בסך הכל ·{" "}
+                  <button type="button" className="underline" onClick={() => setFields([])}>נקה הכל</button>
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-5 mt-2 border-t border-slate-100">
+          <button className="btn-primary flex-1" disabled={!name.trim() || saving} onClick={handleSave}>
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" />שומר...</> : <><Save className="w-4 h-4" />שמור שינויים</>}
           </button>
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>
