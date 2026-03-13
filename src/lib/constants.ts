@@ -123,6 +123,8 @@ export const TEMPLATE_VARIABLES = [
   "{time}",
   "{serviceName}",
   "{businessPhone}",
+  "{paymentUrl}",
+  "{orderTotal}",
 ] as const;
 
 export const WEEK_DAYS_HE = [

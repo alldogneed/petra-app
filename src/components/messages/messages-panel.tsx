@@ -60,23 +60,25 @@ const CHANNELS = [
 ];
 
 const AUTOMATION_TRIGGERS = [
-  { id: "appointment_confirmation", label: "אישור קביעת תור", description: "שלח מיד כשנקבע תור חדש" },
-  { id: "appointment_reminder", label: "תזכורת לפני תור", description: "שלח הודעה X שעות לפני התור" },
-  { id: "appointment_followup", label: "מעקב אחרי תור", description: "שלח הודעה X שעות אחרי התור" },
+  { id: "appointment_confirmation", label: "אישור קביעת פגישה", description: "שלח מיד כשנקבעת פגישה חדשה" },
+  { id: "appointment_reminder", label: "תזכורת לפני פגישה", description: "שלח הודעה X שעות לפני הפגישה" },
+  { id: "appointment_followup", label: "מעקב אחרי פגישה", description: "שלח הודעה X שעות אחרי הפגישה" },
+  { id: "payment_request", label: "דרישת תשלום", description: "שלח מיד כשנוצרת הזמנה חדשה" },
   { id: "new_customer", label: "לקוח חדש", description: "שלח מיד כשנוסף לקוח חדש" },
   { id: "lead_followup", label: "ליד חדש", description: "שלח הודעה X שעות אחרי יצירת ליד" },
   { id: "birthday_reminder", label: "יום הולדת לכלב", description: "שלח ביום ההולדת בשעה 08:00" },
   { id: "boarding_pickup", label: "תזכורת איסוף מפנסיון", description: "שלח הודעה X שעות לפני יום האיסוף" },
 ];
 
-const IMMEDIATE_TRIGGERS = new Set(["appointment_confirmation", "new_customer", "birthday_reminder"]);
+const IMMEDIATE_TRIGGERS = new Set(["appointment_confirmation", "payment_request", "new_customer", "birthday_reminder"]);
 
 const TRIGGER_LABEL: Record<string, string> = Object.fromEntries(
   AUTOMATION_TRIGGERS.map((t) => [t.id, t.label])
 );
 
 function triggerOffsetLabel(trigger: string, offset: number): string {
-  if (trigger === "appointment_confirmation") return "מיידי בקביעת תור";
+  if (trigger === "appointment_confirmation") return "מיידי בקביעת פגישה";
+  if (trigger === "payment_request") return "מיידי ביצירת הזמנה";
   if (trigger === "new_customer") return "מיידי בהוספת לקוח";
   if (trigger === "birthday_reminder") return "ביום ההולדת ב-08:00";
   if (trigger === "appointment_reminder") return `${offset} שעות לפני`;
@@ -101,6 +103,8 @@ const SAMPLE_VARS: Record<string, string> = {
   time: "14:00",
   serviceName: "אילוף פרטני",
   businessPhone: "050-1234567",
+  paymentUrl: "https://bit.ly/example",
+  orderTotal: "₪350",
 };
 
 function applyPreview(body: string): string {
@@ -111,28 +115,33 @@ const AUTOMATED_FOOTER = "\n\n_הודעה אוטומטית – אין להשיב
 
 const STARTER_TEMPLATES = [
   {
-    label: "📅 תזכורת לפני תור",
-    body: "שלום {customerName}! 🐾\n\nתזכורת לתור שלך ב-{date} בשעה {time}.\nשירות: {serviceName}" + " עם {petName}." + "\n\nמחכים לראות אתכם! 😊" + AUTOMATED_FOOTER,
+    label: "📅 תזכורת לפני פגישה",
+    body: "שלום {customerName}! 🐾\n\nתזכורת לפגישה שלנו ב-{date} בשעה {time}.\nשירות: {serviceName} עם {petName}.\n\nמחכים לראות אתכם! 😊" + AUTOMATED_FOOTER,
     trigger: "appointment_reminder", offset: 24,
   },
   {
-    label: "✅ אישור קביעת תור",
-    body: "שלום {customerName}! ✅\n\nהתור שלך נקבע בהצלחה!\n📅 תאריך: {date}\n🕐 שעה: {time}\nשירות: {serviceName}\n\nמחכים לראות את {petName}! 🐾" + AUTOMATED_FOOTER,
+    label: "✅ אישור קביעת פגישה",
+    body: "שלום {customerName}! ✅\n\nהפגישה שלך נקבעה בהצלחה!\n📅 תאריך: {date}\n🕐 שעה: {time}\nשירות: {serviceName}\n\nמחכים לראות את {petName}! 🐾" + AUTOMATED_FOOTER,
     trigger: "appointment_confirmation", offset: 0,
   },
   {
-    label: "🌟 מעקב אחרי טיפול",
-    body: "שלום {customerName}! 🌟\n\nרצינו לדעת איך {petName} מרגיש/ת לאחר הטיפול האחרון.\nאם הכל בסדר – נשמח לשמוע! ואם יש משהו שלא כשורה, חשוב לנו לדעת.\n\nתודה שבחרתם בנו 💛" + AUTOMATED_FOOTER,
+    label: "💳 דרישת תשלום",
+    body: "שלום {customerName}! 🐾\n\n*דרישת תשלום*\nעבור: {serviceName} – {petName}\n\n💰 סה\"כ לתשלום: *{orderTotal}*\n\n💳 לתשלום מאובטח לחצו כאן:\n{paymentUrl}\n\nתודה שבחרתם בנו! 😊\n_לפניות ושאלות: {businessPhone}_",
+    trigger: "payment_request", offset: 0,
+  },
+  {
+    label: "🌟 מעקב אחרי פגישה",
+    body: "שלום {customerName}! 🌟\n\nרצינו לדעת איך {petName} מרגיש/ת לאחר הפגישה האחרונה.\nאם הכל בסדר – נשמח לשמוע! ואם יש משהו שלא כשורה, חשוב לנו לדעת.\n\nתודה שבחרתם בנו 💛" + AUTOMATED_FOOTER,
     trigger: "appointment_followup", offset: 24,
   },
   {
     label: "🎂 יום הולדת לחיית המחמד",
-    body: "יום הולדת שמח ל-{petName}! 🎂🐾\n\n{petName} מלא/ה {petAge} היום – כל הכבוד! 🎉\n\nכמתנה קטנה, נשמח להעניק לכם 10% הנחה על הטיפול הבא 🎁\n(ציינו שקיבלתם הודעה זו בעת קביעת התור)" + AUTOMATED_FOOTER,
+    body: "יום הולדת שמח ל-{petName}! 🎂🐾\n\n{petName} מלא/ה {petAge} היום – כל הכבוד! 🎉\n\nכמתנה קטנה, נשמח להעניק לכם 10% הנחה על הפגישה הבאה 🎁\n(ציינו שקיבלתם הודעה זו בעת קביעת הפגישה)" + AUTOMATED_FOOTER,
     trigger: "birthday_reminder", offset: 0,
   },
   {
     label: "👋 ברוכים הבאים",
-    body: "שלום {customerName}! 😊\n\nברוכים הבאים! שמחים לקבל אתכם ואת {petName} אלינו.\n\nיש לנו הרבה מה לחגוג ביחד – מחכים לראות אתכם בביקור הראשון! 🐾" + AUTOMATED_FOOTER,
+    body: "שלום {customerName}! 😊\n\nברוכים הבאים! שמחים לקבל אתכם ואת {petName} אלינו.\n\nיש לנו הרבה מה לחגוג ביחד – מחכים לראות אתכם בפגישה הראשונה! 🐾" + AUTOMATED_FOOTER,
     trigger: "new_customer", offset: 0,
   },
   {

@@ -1462,36 +1462,31 @@ export function CreateOrderModal({
     window.open(`https://wa.me/${waPhone}?text=${msg}`, "_blank");
   };
 
-  // Payment-request–focused WhatsApp message (always includes landing page URLs)
+  // Payment-request–focused WhatsApp message — consistent with messages-panel template style
+  const paymentRequestUrls = Array.from(
+    new Set(
+      lines
+        .map((l) => allItems.find((i) => i.id === l.priceListItemId)?.paymentUrl)
+        .filter(Boolean) as string[]
+    )
+  );
+
   const buildPaymentRequestMessage = () => {
     const name = selectedCustomer?.name ?? "לקוח";
+    const serviceNames = Array.from(new Set(calc.lines.map((l) => l.name))).join(", ");
+    // Build items summary
     const itemLines = calc.lines
       .map((l) => `• ${l.name}${l.quantity > 1 ? ` ×${l.quantity}` : ""} — ${fmt(l.lineSubtotal)}`)
       .join("\n");
     const discountLine = calc.discountAmount > 0 ? `\nהנחה: −${fmt(calc.discountAmount)}` : "";
     const taxLine = calc.taxTotal > 0 ? `\nמע"מ: ${fmt(calc.taxTotal)}` : "";
-
-    const paymentUrls = Array.from(
-      new Set(
-        lines
-          .map((l) => allItems.find((i) => i.id === l.priceListItemId)?.paymentUrl)
-          .filter(Boolean) as string[]
-      )
-    );
-    const linkBlock = paymentUrls.length > 0
-      ? `\n\n💳 לתשלום:\n${paymentUrls.join("\n")}`
+    const linkBlock = paymentRequestUrls.length > 0
+      ? `\n\n💳 לתשלום מאובטח לחצו כאן:\n${paymentRequestUrls.join("\n")}`
       : "";
+    const footer = `\n\n_לפניות ושאלות: ${selectedCustomer?.phone ?? ""}_`;
 
-    return `שלום ${name} 👋\nדרישת תשלום עבור הזמנתך:\n\n${itemLines}${discountLine}${taxLine}\n\n*סה"כ לתשלום: ${fmt(calc.total)}*${linkBlock}`;
+    return `שלום ${name}! 🐾\n\n*דרישת תשלום*\nעבור: ${serviceNames}\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(calc.total)}*${linkBlock}\n\nתודה שבחרתם בנו! 😊${footer}`;
   };
-
-  const paymentRequestUrls = Array.from(
-    new Set(
-      lines
-        .map((l) => allItems.find((i) => i.id === l.priceListItemId)?.paymentUrl)
-        .filter(Boolean)
-    )
-  );
 
   const openWhatsAppPaymentRequest = (phone: string) => {
     const msg = encodeURIComponent(buildPaymentRequestMessage());
@@ -1609,15 +1604,15 @@ export function CreateOrderModal({
         </button>
       </div>
 
-      {/* Payment request button — only shown when items have a landing page URL */}
-      {paymentRequestUrls.length > 0 && selectedCustomer?.phone && (
+      {/* Payment request button — shown for all service types */}
+      {selectedCustomer?.phone && (
         <button
           className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 border-2"
           style={{ borderColor: "#25D366", color: "#16a34a", background: "#f0fdf4" }}
           onClick={() => openWhatsAppPaymentRequest(selectedCustomer.phone!)}
         >
           <Send className="w-4 h-4" />
-          שלח דרישת תשלום עם קישור לדף הנחיתה
+          {paymentRequestUrls.length > 0 ? "שלח דרישת תשלום עם קישור לדף הנחיתה" : "שלח דרישת תשלום בוואטסאפ"}
         </button>
       )}
     </div>
