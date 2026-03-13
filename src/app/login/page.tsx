@@ -198,6 +198,15 @@ function LoginForm() {
       <p className="text-center text-xs text-petra-muted mt-1">
         כל הזכויות שמורות all-dog - המרכז הישראלי להתנהגות הכלב
       </p>
+      <p className="text-center text-xs text-petra-muted mt-2 flex items-center justify-center gap-2">
+        <Link href="/privacy" className="hover:text-brand-500 transition-colors underline underline-offset-2">
+          מדיניות פרטיות
+        </Link>
+        <span>·</span>
+        <Link href="/terms" className="hover:text-brand-500 transition-colors underline underline-offset-2">
+          תנאי שימוש
+        </Link>
+      </p>
     </div>
   );
 }
