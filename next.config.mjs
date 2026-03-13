@@ -50,7 +50,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https:",
-              "connect-src 'self' https://*.ingest.sentry.io",
+              "connect-src 'self' https://*.public.blob.vercel-storage.com https://*.ingest.sentry.io",
               "frame-ancestors 'none'",
               "frame-src 'self' blob: https:",
               "object-src 'self' blob:",
