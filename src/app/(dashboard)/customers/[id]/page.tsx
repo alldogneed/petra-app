@@ -3181,6 +3181,17 @@ export default function CustomerProfilePage() {
   });
 
   const [completingAptId, setCompletingAptId] = useState<string | null>(null);
+  const [remindingAptId, setRemindingAptId] = useState<string | null>(null);
+  const remindAptMutation = useMutation({
+    mutationFn: (aptId: string) =>
+      fetch(`/api/appointments/${aptId}/remind`, { method: "POST" }).then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error ?? "שגיאה");
+        return data;
+      }),
+    onSuccess: () => { setRemindingAptId(null); toast.success("תזכורת WhatsApp נשלחה"); },
+    onError: (err: Error) => { setRemindingAptId(null); toast.error(err.message || "שגיאה בשליחת תזכורת"); },
+  });
   const completeAptMutation = useMutation({
     mutationFn: (aptId: string) =>
       fetchJSON(`/api/appointments/${aptId}`, {
@@ -4376,6 +4387,19 @@ export default function CustomerProfilePage() {
                         >
                           {getStatusLabel(apt.status)}
                         </span>
+                        {apt.status === "scheduled" && customer.phone && (
+                          <button
+                            className="w-6 h-6 flex items-center justify-center rounded-full bg-green-50 hover:bg-green-100 text-green-600 transition-colors flex-shrink-0"
+                            title="שלח תזכורת WhatsApp"
+                            disabled={remindingAptId === apt.id}
+                            onClick={() => {
+                              setRemindingAptId(apt.id);
+                              remindAptMutation.mutate(apt.id);
+                            }}
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         {apt.status === "scheduled" && (
                           <button
                             className="w-6 h-6 flex items-center justify-center rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 transition-colors flex-shrink-0"

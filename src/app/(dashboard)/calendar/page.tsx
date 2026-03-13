@@ -465,7 +465,16 @@ function NewAppointmentModal({
       if (recurring && result?.created) {
         toast.success(`נקבעו ${result.created} פגישות חוזרות בהצלחה`);
       } else {
-        toast.success("התור נקבע בהצלחה");
+        const newId = result?.id as string | undefined;
+        toast.success("התור נקבע בהצלחה", newId && selectedCustomer?.phone ? {
+          action: {
+            label: "שלח תזכורת WhatsApp",
+            onClick: () => fetch(`/api/appointments/${newId}/remind`, { method: "POST" })
+              .then((r) => r.json())
+              .then((d) => { if (d.success) toast.success("תזכורת נשלחה"); else toast.error(d.error ?? "שגיאה"); })
+              .catch(() => toast.error("שגיאה בשליחה")),
+          },
+        } : undefined);
       }
       onClose();
       setForm({
@@ -1011,6 +1020,17 @@ function CalendarContent() {
       toast.success("ההערות עודכנו");
     },
     onError: () => toast.error("שגיאה בעדכון ההערות. נסה שוב."),
+  });
+
+  const remindMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/appointments/${id}/remind`, { method: "POST" }).then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error ?? "שגיאה");
+        return data;
+      }),
+    onSuccess: () => toast.success("תזכורת WhatsApp נשלחה"),
+    onError: (err: Error) => toast.error(err.message || "שגיאה בשליחת תזכורת"),
   });
 
   // ── Navigation ──
@@ -2386,6 +2406,16 @@ function CalendarContent() {
                 </div>
               ) : (
                 <>
+                  {selectedAppointment.status === "scheduled" && selectedAppointment.customer.phone && (
+                    <button
+                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-green-50 text-green-600 hover:bg-green-100 border border-transparent hover:border-green-200 transition-colors flex-shrink-0"
+                      disabled={remindMutation.isPending}
+                      onClick={() => remindMutation.mutate(selectedAppointment.id)}
+                      title="שלח תזכורת WhatsApp"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                    </button>
+                  )}
                   {selectedAppointment.status === "scheduled" && (
                     <button
                       className="btn-primary flex-1 text-xs"

@@ -94,6 +94,8 @@ interface Business {
   bookingWelcomeText: string | null;
   depositInstructions: string | null;
   sdSettings: SdSettings | null;
+  whatsappRemindersEnabled: boolean;
+  whatsappReminderLeadHours: number;
   _count: { customers: number; appointments: number };
 }
 
@@ -724,6 +726,25 @@ function IntegrationsTab() {
     queryFn: () => fetchJSON<Integration[]>("/api/integrations"),
   });
 
+  const { data: biz } = useQuery<Business>({
+    queryKey: ["settings"],
+    queryFn: () => fetchJSON<Business>("/api/settings"),
+  });
+
+  const updateReminderMutation = useMutation({
+    mutationFn: (data: { whatsappRemindersEnabled?: boolean; whatsappReminderLeadHours?: number }) =>
+      fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      toast.success("הגדרות תזכורת עודכנו");
+    },
+    onError: () => toast.error("שגיאה בשמירה"),
+  });
+
   const disconnectGcalMutation = useMutation({
     mutationFn: () =>
       fetch("/api/integrations/google/disconnect", { method: "POST" }).then((r) => {
@@ -838,6 +859,40 @@ function IntegrationsTab() {
               )}
               {integ.id === "whatsapp" && integ.connected && integ.fromNumber && (
                 <p className="text-xs text-emerald-600 mt-1">מספר שולח: {integ.fromNumber}</p>
+              )}
+              {isWhatsApp && integ.connected && biz && (
+                <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-petra-text">תזכורות אוטומטיות לתורים</span>
+                    <button
+                      onClick={() => updateReminderMutation.mutate({ whatsappRemindersEnabled: !biz.whatsappRemindersEnabled })}
+                      disabled={updateReminderMutation.isPending}
+                      className={cn(
+                        "relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0",
+                        biz.whatsappRemindersEnabled ? "bg-emerald-500" : "bg-slate-300"
+                      )}
+                      title={biz.whatsappRemindersEnabled ? "כבה תזכורות" : "הפעל תזכורות"}
+                    >
+                      <span className={cn("inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform", biz.whatsappRemindersEnabled ? "translate-x-4" : "translate-x-0.5")} />
+                    </button>
+                  </div>
+                  {biz.whatsappRemindersEnabled && (
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm text-petra-muted">שלח שעות לפני התור</span>
+                      <select
+                        className="text-sm border border-slate-200 rounded-lg px-2 py-1 bg-white text-petra-text"
+                        value={biz.whatsappReminderLeadHours}
+                        onChange={(e) => updateReminderMutation.mutate({ whatsappReminderLeadHours: Number(e.target.value) })}
+                        disabled={updateReminderMutation.isPending}
+                      >
+                        <option value={24}>24 שעות</option>
+                        <option value={48}>48 שעות</option>
+                        <option value={72}>72 שעות</option>
+                        <option value={96}>96 שעות</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
             <div className="flex-shrink-0 flex items-center gap-2">

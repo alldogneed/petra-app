@@ -21,6 +21,13 @@ interface AppointmentForReminder {
  * Idempotent — skips creation if a PENDING reminder already exists for this appointment.
  */
 export async function scheduleAppointmentReminder(appt: AppointmentForReminder) {
+  // Check business WhatsApp reminder settings
+  const bizSettings = await prisma.business.findUnique({
+    where: { id: appt.businessId },
+    select: { whatsappRemindersEnabled: true, whatsappReminderLeadHours: true },
+  });
+  if (!bizSettings?.whatsappRemindersEnabled) return null;
+
   const [h, m] = appt.startTime.split(":").map(Number);
   const apptDatetime = new Date(appt.date);
   apptDatetime.setHours(h, m, 0, 0);
@@ -34,8 +41,8 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
     },
   });
 
-  // Compute sendAt using rule offset (hours) or 48h default
-  const offsetHours = rule?.triggerOffset ?? 48;
+  // Compute sendAt using rule offset (hours) or business setting
+  const offsetHours = rule?.triggerOffset ?? bizSettings.whatsappReminderLeadHours ?? 48;
   const sendAt = new Date(apptDatetime.getTime() - offsetHours * 60 * 60 * 1000);
   if (sendAt <= new Date()) return null;
 

@@ -79,6 +79,8 @@ export async function PATCH(request: NextRequest) {
       bookingWelcomeText,
       depositInstructions,
       sdSettings,
+      whatsappRemindersEnabled,
+      whatsappReminderLeadHours,
     } = body;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,6 +104,8 @@ export async function PATCH(request: NextRequest) {
     if (bookingWelcomeText !== undefined) data.bookingWelcomeText = bookingWelcomeText;
     if (depositInstructions !== undefined) data.depositInstructions = depositInstructions;
     if (sdSettings !== undefined) data.sdSettings = sdSettings;
+    if (whatsappRemindersEnabled !== undefined) data.whatsappRemindersEnabled = whatsappRemindersEnabled;
+    if (whatsappReminderLeadHours !== undefined) data.whatsappReminderLeadHours = whatsappReminderLeadHours;
 
     const business = await prisma.business.update({
       where: { id: authResult.businessId },
