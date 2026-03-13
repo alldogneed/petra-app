@@ -48,6 +48,15 @@ export default function SignContractPage() {
   const [hasSignature, setHasSignature] = useState(false);
   const [readConfirmed, setReadConfirmed] = useState(false);
   const [pdfLoaded, setPdfLoaded] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [pdfOpened, setPdfOpened] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   // Signature pad
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -158,12 +167,14 @@ export default function SignContractPage() {
   if (signed) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-orange-50 via-white to-white p-6" dir="rtl">
-        <div className="text-center space-y-6 max-w-sm w-full">
+        <div className="space-y-6 max-w-sm w-full">
+          {/* Icon - centered */}
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-10 h-10 text-emerald-500" />
           </div>
 
-          <div className="space-y-2">
+          {/* Title + subtitle - RTL aligned */}
+          <div className="space-y-2 text-right">
             <h2 className="text-2xl font-bold text-slate-800">החוזה נחתם בהצלחה!</h2>
             <p className="text-sm text-slate-500 leading-relaxed">
               תודה, {contract?.customerName}.<br />
@@ -171,22 +182,24 @@ export default function SignContractPage() {
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm text-right space-y-2">
+          {/* Contract summary card - RTL */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400">מסמך</span>
               <span className="text-sm font-medium text-slate-700">{contract?.templateName}</span>
+              <span className="text-xs text-slate-400">מסמך</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400">סטטוס</span>
-              <span className="text-sm font-semibold text-emerald-600 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" /> נחתם
+              <span className="text-sm font-semibold text-emerald-600 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4" /> נחתם
               </span>
+              <span className="text-xs text-slate-400">סטטוס</span>
             </div>
           </div>
 
-          <p className="text-xs text-slate-400">ניתן לסגור את הדף</p>
+          <p className="text-xs text-slate-400 text-center">ניתן לסגור את הדף</p>
 
-          <div className="pt-6 border-t border-slate-100">
+          {/* Petra branding */}
+          <div className="pt-6 border-t border-slate-100 text-center">
             <div className="flex items-center justify-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo.svg" alt="Petra" className="w-7 h-7 rounded-lg" />
@@ -258,7 +271,7 @@ export default function SignContractPage() {
           </div>
         )}
 
-        {/* ── Step 1: Read the document (native PDF viewer) ──────────────────── */}
+        {/* ── Step 1: Read the document ────────────────────────────────────── */}
         <div className="bg-white sm:rounded-2xl sm:border sm:border-slate-200 overflow-hidden shadow-sm">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
             <div className="flex items-center gap-2">
@@ -276,24 +289,53 @@ export default function SignContractPage() {
             </a>
           </div>
 
-          {/* PDF iframe — browser native renderer = perfect font quality */}
-          <div className="relative" style={{ minHeight: 500 }}>
-            {!pdfLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
-                <div className="text-center space-y-2">
-                  <Loader2 className="w-7 h-7 animate-spin text-orange-400 mx-auto" />
-                  <p className="text-xs text-slate-400">טוען מסמך...</p>
-                </div>
+          {isMobile ? (
+            /* ── Mobile: open PDF in new tab (full native viewer) ───────────── */
+            <div className="px-4 py-8 text-center space-y-4">
+              <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto">
+                <FileText className="w-8 h-8 text-orange-400" />
               </div>
-            )}
-            <iframe
-              src={pdfProxyUrl}
-              className="w-full border-0"
-              style={{ height: "70vh", minHeight: 500 }}
-              onLoad={() => setPdfLoaded(true)}
-              title="חוזה"
-            />
-          </div>
+              <div className="space-y-1.5">
+                <p className="text-sm font-semibold text-slate-700">{contract.templateName}</p>
+                <p className="text-xs text-slate-400">לחץ לפתיחת המסמך וקריאת כל העמודים</p>
+              </div>
+              <a
+                href={pdfProxyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setPdfOpened(true)}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-xl transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                פתח וקרא את החוזה
+              </a>
+              {pdfOpened && (
+                <p className="text-xs text-emerald-600 flex items-center justify-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  המסמך נפתח — סיימת לקרוא? המשך לחתום למטה
+                </p>
+              )}
+            </div>
+          ) : (
+            /* ── Desktop: iframe with native PDF viewer ────────────────────── */
+            <div className="relative" style={{ minHeight: 500 }}>
+              {!pdfLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
+                  <div className="text-center space-y-2">
+                    <Loader2 className="w-7 h-7 animate-spin text-orange-400 mx-auto" />
+                    <p className="text-xs text-slate-400">טוען מסמך...</p>
+                  </div>
+                </div>
+              )}
+              <iframe
+                src={pdfProxyUrl}
+                className="w-full border-0"
+                style={{ height: "70vh", minHeight: 500 }}
+                onLoad={() => setPdfLoaded(true)}
+                title="חוזה"
+              />
+            </div>
+          )}
 
           {/* Confirm read button */}
           <button
