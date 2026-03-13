@@ -156,7 +156,7 @@ export default function PrivacyPage() {
         {/* Footer */}
         <p className="text-xs text-slate-400 text-center">
           © {new Date().getFullYear()} Petra. כל הזכויות שמורות.{" "}
-          <a href="/tos-accept" className="underline hover:text-slate-600">
+          <a href="/terms" className="underline hover:text-slate-600">
             תנאי שימוש
           </a>
         </p>
