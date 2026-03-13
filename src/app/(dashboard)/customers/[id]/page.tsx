@@ -42,6 +42,7 @@ import {
   Loader2,
   MoreVertical,
   PenLine,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
@@ -1588,6 +1589,7 @@ interface ContractReq {
   openedAt: string | null;
   signedAt: string | null;
   signedFileUrl: string | null;
+  signUrl: string | null;
   ipAddress: string | null;
   template: { name: string };
 }
@@ -1665,6 +1667,17 @@ function SendContractSection({ customerId, customerName }: { customerId: string;
                 <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0", statusColor[req.status] ?? "bg-slate-100 text-slate-500")}>
                   {statusLabel[req.status] ?? req.status}
                 </span>
+                {req.signUrl && req.status === "PENDING" && (
+                  <button
+                    type="button"
+                    className="text-xs text-petra-muted hover:text-petra-text px-2 py-0.5 rounded hover:bg-slate-100 transition-colors flex items-center gap-1 flex-shrink-0"
+                    title={req.signUrl}
+                    onClick={() => { navigator.clipboard.writeText(req.signUrl!); toast.success("הקישור הועתק!"); }}
+                  >
+                    <Copy className="w-3 h-3" />
+                    העתק קישור
+                  </button>
+                )}
                 {req.signedFileUrl && (
                   <a href={req.signedFileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-500 hover:underline flex items-center gap-1 flex-shrink-0">
                     <Download className="w-3.5 h-3.5" />

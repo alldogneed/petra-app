@@ -87,12 +87,17 @@ export default function SignContractPage() {
     if (!pdfCanvasRef.current) return;
     if (renderTaskRef.current) { renderTaskRef.current.cancel(); renderTaskRef.current = null; }
     const page = await doc.getPage(pageNum);
+    const dpr = window.devicePixelRatio || 1;
     const containerWidth = Math.max(300, pdfCanvasRef.current.parentElement?.clientWidth ?? 600);
     const unscaled = page.getViewport({ scale: 1 });
-    const scale = containerWidth / unscaled.width;
+    // Render at higher resolution for crisp text on retina/mobile screens
+    const scale = (containerWidth / unscaled.width) * dpr;
     const viewport = page.getViewport({ scale });
     pdfCanvasRef.current.width = viewport.width;
     pdfCanvasRef.current.height = viewport.height;
+    // CSS keeps it at the container width
+    pdfCanvasRef.current.style.width = `${containerWidth}px`;
+    pdfCanvasRef.current.style.height = `${Math.round(viewport.height / dpr)}px`;
     const ctx = pdfCanvasRef.current.getContext("2d");
     if (!ctx) return;
     const task = page.render({ canvasContext: ctx, viewport });
@@ -233,13 +238,16 @@ export default function SignContractPage() {
 
   if (signed) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-        <div className="card p-8 max-w-sm w-full text-center space-y-4">
-          <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto" />
-          <h2 className="text-xl font-bold text-petra-text">החוזה נחתם בהצלחה!</h2>
-          <p className="text-sm text-petra-muted">
-            {contract?.businessName} קיבלו את חתימתך. החוזה החתום נשמר בתיקייה שלך.
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-emerald-50 to-white p-6" dir="rtl">
+        <div className="text-center space-y-4 max-w-sm w-full">
+          <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-petra-text">החוזה נחתם!</h2>
+          <p className="text-sm text-petra-muted leading-relaxed">
+            תודה, {contract?.customerName}. החתימה שלך התקבלה אצל {contract?.businessName}.
           </p>
+          <p className="text-xs text-petra-muted/70">ניתן לסגור את הדף</p>
         </div>
       </div>
     );
@@ -251,33 +259,37 @@ export default function SignContractPage() {
   const hasFields = contract.fields && contract.fields.length > 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 py-6 px-4" dir="rtl">
-      <div className="max-w-2xl mx-auto space-y-5">
-        {/* Header */}
-        <div className="text-center space-y-1">
-          <h1 className="text-xl font-bold text-petra-text">{contract.templateName}</h1>
-          <p className="text-sm text-petra-muted">
-            {contract.businessName} מבקשים את חתימתך, {contract.customerName}
+    <div className="min-h-screen bg-slate-50" dir="rtl">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-20 bg-white border-b border-slate-100 px-4 py-3">
+        <div className="max-w-2xl mx-auto">
+          <h1 className="text-base font-bold text-petra-text leading-tight">{contract.templateName}</h1>
+          <p className="text-xs text-petra-muted mt-0.5">
+            {contract.businessName} · {contract.customerName}
           </p>
         </div>
+      </div>
 
-        {/* PDF viewer */}
-        <div className="card overflow-hidden">
+      <div className="max-w-2xl mx-auto px-0 sm:px-4 pb-8 space-y-0 sm:space-y-4 sm:pt-4">
+        {/* PDF viewer — no horizontal padding on mobile (full width) */}
+        <div className="bg-white sm:rounded-2xl sm:border sm:border-slate-200 overflow-hidden shadow-sm">
           {/* Page navigation bar */}
-          <div className="p-3 border-b border-slate-100 flex items-center justify-between">
-            <span className="text-xs font-medium text-petra-muted">תצוגת מסמך</span>
+          <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between">
+            <span className="text-xs text-petra-muted">
+              {pdfLoading ? "טוען מסמך..." : totalPages > 0 ? `קרא את המסמך לפני החתימה` : ""}
+            </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  className="w-6 h-6 rounded border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 disabled:opacity-40 text-sm"
+                  className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 disabled:opacity-40"
                   disabled={currentPage <= 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 >‹</button>
-                <span className="text-xs text-petra-muted min-w-[50px] text-center">{currentPage} / {totalPages}</span>
+                <span className="text-xs font-medium text-petra-text min-w-[50px] text-center">{currentPage} / {totalPages}</span>
                 <button
                   type="button"
-                  className="w-6 h-6 rounded border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 disabled:opacity-40 text-sm"
+                  className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 disabled:opacity-40"
                   disabled={currentPage >= totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 >›</button>
@@ -288,14 +300,17 @@ export default function SignContractPage() {
           {/* Canvas + field overlays */}
           <div className="relative bg-white" style={{ minHeight: 300 }}>
             {pdfLoading && (
-              <div className="absolute inset-0 flex items-center justify-center z-10">
-                <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+              <div className="absolute inset-0 flex items-center justify-center z-10 bg-white" style={{ minHeight: 300 }}>
+                <div className="text-center space-y-2">
+                  <Loader2 className="w-7 h-7 animate-spin text-orange-400 mx-auto" />
+                  <p className="text-xs text-petra-muted">טוען מסמך...</p>
+                </div>
               </div>
             )}
             <canvas
               ref={pdfCanvasRef}
-              className="w-full block"
-              style={{ display: pdfLoading ? "none" : "block" }}
+              className="block"
+              style={{ display: pdfLoading ? "none" : "block", maxWidth: "100%" }}
             />
             {/* Field overlays */}
             {!pdfLoading && currentPageFields.map((f) => (
@@ -332,15 +347,26 @@ export default function SignContractPage() {
             ))}
           </div>
 
+          {/* Next page hint if there are more pages */}
+          {totalPages > 1 && currentPage < totalPages && (
+            <button
+              type="button"
+              className="w-full py-3 text-sm text-petra-muted hover:text-petra-text hover:bg-slate-50 border-t border-slate-100 transition-colors flex items-center justify-center gap-2"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            >
+              עמוד הבא ›
+            </button>
+          )}
+
           {hasFields && (
-            <div className="px-3 py-2 bg-slate-50 border-t border-slate-100 text-xs text-petra-muted text-center">
+            <div className="px-4 py-2.5 bg-blue-50 border-t border-blue-100 text-xs text-blue-600 text-center">
               הנתונים שלך ימולאו אוטומטית בחוזה הסופי
             </div>
           )}
         </div>
 
         {/* Signature pad */}
-        <div className="card p-5 space-y-4">
+        <div className="bg-white sm:rounded-2xl sm:border sm:border-slate-200 px-4 pt-5 pb-6 space-y-4 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-petra-text flex items-center gap-2">
               <PenLine className="w-4 h-4 text-orange-500" />
@@ -355,12 +381,12 @@ export default function SignContractPage() {
             </button>
           </div>
 
-          <div className="relative rounded-xl border-2 border-dashed border-slate-300 bg-white overflow-hidden touch-none">
+          <div className="relative rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 overflow-hidden touch-none" style={{ minHeight: 160 }}>
             <canvas
               ref={canvasRef}
               width={600}
-              height={180}
-              className="w-full cursor-crosshair"
+              height={200}
+              className="w-full cursor-crosshair block"
               style={{ touchAction: "none" }}
               onMouseDown={startDraw}
               onMouseMove={draw}
@@ -372,7 +398,7 @@ export default function SignContractPage() {
             />
             {!hasSignature && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <p className="text-slate-300 text-sm">חתום בתיבה זו...</p>
+                <p className="text-slate-300 text-base">חתום כאן...</p>
               </div>
             )}
           </div>
@@ -380,16 +406,16 @@ export default function SignContractPage() {
           <button
             onClick={handleSubmit}
             disabled={!hasSignature || submitting}
-            className="w-full py-3 px-6 bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+            className="w-full py-4 px-6 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold text-base rounded-2xl transition-colors flex items-center justify-center gap-2"
           >
             {submitting ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> שולח...</>
+              <><Loader2 className="w-5 h-5 animate-spin" /> שולח...</>
             ) : (
-              <><CheckCircle2 className="w-4 h-4" /> חתום ואשר</>
+              <><CheckCircle2 className="w-5 h-5" /> חתום ואשר</>
             )}
           </button>
 
-          <p className="text-[11px] text-petra-muted text-center">
+          <p className="text-[11px] text-petra-muted text-center leading-relaxed">
             בלחיצה על &quot;חתום ואשר&quot; אתה מאשר את קריאת המסמך ומסכים לתנאיו.
             החתימה תישמר כראיה משפטית.
           </p>

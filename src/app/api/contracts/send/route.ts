@@ -42,6 +42,8 @@ export async function POST(request: NextRequest) {
 
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
+    const signUrl = `${env.APP_URL}/sign/${plainToken}`;
+
     const contractRequest = await prisma.contractRequest.create({
       data: {
         businessId: authResult.businessId,
@@ -50,10 +52,9 @@ export async function POST(request: NextRequest) {
         tokenHash,
         expiresAt,
         sentAt: new Date(),
+        signUrl,
       },
     });
-
-    const signUrl = `${env.APP_URL}/sign/${plainToken}`;
 
     // Send WhatsApp if customer has phone
     if (customer.phone) {

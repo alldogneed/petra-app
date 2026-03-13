@@ -2093,6 +2093,7 @@ model ContractRequest {
   openedAt      DateTime?
   signedAt      DateTime?
   signedFileUrl String?   // Vercel Blob — signed PDF
+  signUrl       String?   // Full sign URL (for copy-link / resend)
   ipAddress     String?
   userAgent     String?   // HTTP User-Agent at signing time (audit trail)
   createdAt     DateTime  @default(now())
