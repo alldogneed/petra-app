@@ -686,7 +686,15 @@ export function CreateOrderModal({
                   type="time"
                   className="input text-sm pr-9"
                   value={apptStartTime}
-                  onChange={(e) => setApptStartTime(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setApptStartTime(v);
+                    // Auto-advance end time by 1 hour
+                    const [h, m] = v.split(":").map(Number);
+                    if (!isNaN(h) && !isNaN(m)) {
+                      setApptEndTime(`${String((h + 1) % 24).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+                    }
+                  }}
                 />
               </div>
             </div>
