@@ -5,6 +5,7 @@ import { calcOrder, CalcLineInput } from "@/lib/order-calc";
 import { createOrderReminder } from "@/lib/scheduled-messages";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { syncAppointmentToGcal, syncBoardingToGcal } from "@/lib/google-calendar";
 
 export async function GET(request: NextRequest) {
   try {
@@ -271,6 +272,25 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         console.error("Failed to schedule reminder:", err);
         // Non-blocking — order was already created
+      }
+    }
+
+    // Sync linked appointment / boarding stay to Google Calendar
+    if (order.relatedEntityType === "Appointment" && order.relatedEntityId) {
+      await syncAppointmentToGcal(order.relatedEntityId, authResult.businessId).catch((err) =>
+        console.error("Failed to sync order appointment to GCal:", err)
+      );
+    }
+    // Boarding training: also sync the boarding stay (linked via TrainingProgram)
+    if (body.orderType === "training" && body.trainingSubType === "boarding") {
+      const prog = await prisma.trainingProgram.findFirst({
+        where: { businessId: authResult.businessId, orderId: order.id },
+        select: { boardingStayId: true },
+      }).catch(() => null);
+      if (prog?.boardingStayId) {
+        await syncBoardingToGcal(prog.boardingStayId, authResult.businessId).catch((err) =>
+          console.error("Failed to sync boarding stay to GCal:", err)
+        );
       }
     }
 
