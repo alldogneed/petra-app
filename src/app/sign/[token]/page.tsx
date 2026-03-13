@@ -4,6 +4,16 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Loader2, CheckCircle2, AlertCircle, RotateCcw, PenLine } from "lucide-react";
 
+interface ContractField {
+  id: string;
+  type: "customer_name" | "id_number" | "address" | "phone" | "signature";
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface ContractData {
   customerName: string;
   businessName: string;
@@ -15,7 +25,24 @@ interface ContractData {
   signatureWidth: number;
   signatureHeight: number;
   status: string;
+  fields: ContractField[];
+  customerData: Record<string, string>;
 }
+
+const FIELD_COLORS: Record<string, string> = {
+  customer_name: "#2563eb",
+  id_number: "#7c3aed",
+  address: "#16a34a",
+  phone: "#0891b2",
+  signature: "#ea580c",
+};
+const FIELD_BG: Record<string, string> = {
+  customer_name: "rgba(37,99,235,0.08)",
+  id_number: "rgba(124,58,237,0.08)",
+  address: "rgba(22,163,74,0.08)",
+  phone: "rgba(8,145,178,0.08)",
+  signature: "rgba(234,88,12,0.08)",
+};
 
 export default function SignContractPage() {
   const { token } = useParams<{ token: string }>();
@@ -26,6 +53,16 @@ export default function SignContractPage() {
   const [signed, setSigned] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
 
+  // PDF viewer state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfDocRef = useRef<any>(null);
+  const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
+  const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
+
+  // Signature pad
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
   const lastPos = useRef<{ x: number; y: number } | null>(null);
@@ -45,6 +82,55 @@ export default function SignContractPage() {
       .finally(() => setLoading(false));
   }, [token]);
 
+  // Load PDF with PDF.js once we have the URL
+  const renderPdfPage = useCallback(async (doc: NonNullable<typeof pdfDocRef.current>, pageNum: number) => {
+    if (!pdfCanvasRef.current) return;
+    if (renderTaskRef.current) { renderTaskRef.current.cancel(); renderTaskRef.current = null; }
+    const page = await doc.getPage(pageNum);
+    const containerWidth = Math.max(300, pdfCanvasRef.current.parentElement?.clientWidth ?? 600);
+    const unscaled = page.getViewport({ scale: 1 });
+    const scale = containerWidth / unscaled.width;
+    const viewport = page.getViewport({ scale });
+    pdfCanvasRef.current.width = viewport.width;
+    pdfCanvasRef.current.height = viewport.height;
+    const ctx = pdfCanvasRef.current.getContext("2d");
+    if (!ctx) return;
+    const task = page.render({ canvasContext: ctx, viewport });
+    renderTaskRef.current = task;
+    try { await task.promise; } catch { /* cancelled */ }
+  }, []);
+
+  useEffect(() => {
+    if (!contract?.pdfUrl) return;
+    setPdfLoading(true);
+    let cancelled = false;
+    (async () => {
+      try {
+        const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
+        GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        const resp = await fetch(contract.pdfUrl);
+        const ab = await resp.arrayBuffer();
+        const doc = await getDocument({ data: ab }).promise;
+        if (cancelled) return;
+        pdfDocRef.current = doc;
+        setTotalPages(doc.numPages);
+        setCurrentPage(1);
+        await renderPdfPage(doc, 1);
+      } catch (e) {
+        console.error("PDF load error", e);
+      } finally {
+        if (!cancelled) setPdfLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [contract?.pdfUrl, renderPdfPage]);
+
+  useEffect(() => {
+    if (!pdfDocRef.current) return;
+    renderPdfPage(pdfDocRef.current, currentPage);
+  }, [currentPage, renderPdfPage]);
+
+  // Signature pad drawing
   const getPos = (canvas: HTMLCanvasElement, e: MouseEvent | Touch) => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
@@ -161,6 +247,9 @@ export default function SignContractPage() {
 
   if (!contract) return null;
 
+  const currentPageFields = (contract.fields ?? []).filter((f) => f.page === currentPage);
+  const hasFields = contract.fields && contract.fields.length > 0;
+
   return (
     <div className="min-h-screen bg-slate-50 py-6 px-4" dir="rtl">
       <div className="max-w-2xl mx-auto space-y-5">
@@ -174,16 +263,80 @@ export default function SignContractPage() {
 
         {/* PDF viewer */}
         <div className="card overflow-hidden">
-          <div className="p-3 border-b border-slate-100 flex items-center gap-2">
+          {/* Page navigation bar */}
+          <div className="p-3 border-b border-slate-100 flex items-center justify-between">
             <span className="text-xs font-medium text-petra-muted">תצוגת מסמך</span>
-            <span className="text-xs text-petra-muted">· עמוד {contract.signaturePage}</span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="w-6 h-6 rounded border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 disabled:opacity-40 text-sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >‹</button>
+                <span className="text-xs text-petra-muted min-w-[50px] text-center">{currentPage} / {totalPages}</span>
+                <button
+                  type="button"
+                  className="w-6 h-6 rounded border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 disabled:opacity-40 text-sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                >›</button>
+              </div>
+            )}
           </div>
-          <iframe
-            src={`${contract.pdfUrl}#page=${contract.signaturePage}`}
-            className="w-full"
-            style={{ height: "500px", border: "none" }}
-            title="חוזה לחתימה"
-          />
+
+          {/* Canvas + field overlays */}
+          <div className="relative bg-white" style={{ minHeight: 300 }}>
+            {pdfLoading && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+              </div>
+            )}
+            <canvas
+              ref={pdfCanvasRef}
+              className="w-full block"
+              style={{ display: pdfLoading ? "none" : "block" }}
+            />
+            {/* Field overlays */}
+            {!pdfLoading && currentPageFields.map((f) => (
+              <div
+                key={f.id}
+                style={{
+                  position: "absolute",
+                  left: `${f.x * 100}%`,
+                  top: `${f.y * 100}%`,
+                  width: `${f.width * 100}%`,
+                  height: `${f.height * 100}%`,
+                  background: FIELD_BG[f.type] ?? "rgba(0,0,0,0.05)",
+                  border: `1px dashed ${FIELD_COLORS[f.type] ?? "#94a3b8"}`,
+                  borderRadius: 3,
+                  display: "flex",
+                  alignItems: "center",
+                  overflow: "hidden",
+                  pointerEvents: "none",
+                }}
+              >
+                <span style={{
+                  fontSize: 11,
+                  direction: "rtl",
+                  padding: "0 4px",
+                  color: FIELD_COLORS[f.type] ?? "#334155",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  fontWeight: 500,
+                }}>
+                  {contract.customerData?.[f.type] ?? ""}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {hasFields && (
+            <div className="px-3 py-2 bg-slate-50 border-t border-slate-100 text-xs text-petra-muted text-center">
+              הנתונים שלך ימולאו אוטומטית בחוזה הסופי
+            </div>
+          )}
         </div>
 
         {/* Signature pad */}

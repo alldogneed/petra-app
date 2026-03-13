@@ -2921,17 +2921,42 @@ function ContractsTab() {
   );
 }
 
+// ─── Contract field types ────────────────────────────────────────────────────
+
+interface ContractField {
+  id: string;
+  type: "customer_name" | "id_number" | "address" | "phone" | "signature";
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+const FIELD_TYPES: { type: ContractField["type"]; label: string; color: string; bgColor: string }[] = [
+  { type: "customer_name", label: "👤 שם לקוח", color: "#2563eb", bgColor: "rgba(37,99,235,0.12)" },
+  { type: "id_number",     label: "🆔 ת.ז.",     color: "#7c3aed", bgColor: "rgba(124,58,237,0.12)" },
+  { type: "address",       label: "🏠 כתובת",    color: "#16a34a", bgColor: "rgba(22,163,74,0.12)" },
+  { type: "phone",         label: "📞 טלפון",    color: "#0891b2", bgColor: "rgba(8,145,178,0.12)" },
+  { type: "signature",     label: "✍️ חתימה",    color: "#ea580c", bgColor: "rgba(234,88,12,0.12)" },
+];
+
+const FIELD_DEFAULTS: Record<ContractField["type"], { width: number; height: number }> = {
+  customer_name: { width: 0.3,  height: 0.04 },
+  id_number:     { width: 0.2,  height: 0.04 },
+  address:       { width: 0.4,  height: 0.04 },
+  phone:         { width: 0.2,  height: 0.04 },
+  signature:     { width: 0.35, height: 0.07 },
+};
+
 function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [signaturePage, setSignaturePage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const [sigX, setSigX] = useState(0.1);
-  const [sigY, setSigY] = useState(0.8);
-  const [sigW, setSigW] = useState(0.35);
-  const [sigH, setSigH] = useState(0.07);
+  const [fields, setFields] = useState<ContractField[]>([]);
+  const [selectedType, setSelectedType] = useState<ContractField["type"]>("signature");
   const [saving, setSaving] = useState(false);
-  const [sigPlaced, setSigPlaced] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfDocRef = useRef<any>(null);
@@ -2941,10 +2966,9 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
 
   const renderPage = useCallback(async (doc: NonNullable<typeof pdfDocRef.current>, pageNum: number) => {
     if (!canvasRef.current) return;
-    // Cancel any in-progress render
     if (renderTaskRef.current) { renderTaskRef.current.cancel(); renderTaskRef.current = null; }
     const page = await doc.getPage(pageNum);
-    const containerWidth = canvasRef.current.parentElement?.clientWidth ?? 600;
+    const containerWidth = Math.max(400, canvasRef.current.parentElement?.clientWidth ?? 600);
     const unscaled = page.getViewport({ scale: 1 });
     const scale = containerWidth / unscaled.width;
     const viewport = page.getViewport({ scale });
@@ -2957,7 +2981,6 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
     try { await task.promise; } catch { /* cancelled */ }
   }, []);
 
-  // Load PDF when file changes
   useEffect(() => {
     if (!file) return;
     setPdfLoading(true);
@@ -2982,7 +3005,6 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
     return () => { cancelled = true; };
   }, [file, renderPage]);
 
-  // Re-render when page changes
   useEffect(() => {
     if (!pdfDocRef.current || signaturePage < 1) return;
     renderPage(pdfDocRef.current, signaturePage);
@@ -2992,7 +3014,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
     const f = e.target.files?.[0];
     if (!f) return;
     setFile(f);
-    setSigPlaced(false);
+    setFields([]);
     pdfDocRef.current = null;
     setTotalPages(0);
   };
@@ -3002,10 +3024,20 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
     const rect = overlayRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
-    setSigX(Math.max(0, Math.min(x - sigW / 2, 1 - sigW)));
-    setSigY(Math.max(0, Math.min(y - sigH / 2, 1 - sigH)));
-    setSigPlaced(true);
+    const def = FIELD_DEFAULTS[selectedType];
+    const newField: ContractField = {
+      id: crypto.randomUUID(),
+      type: selectedType,
+      page: signaturePage,
+      x: Math.max(0, Math.min(x - def.width / 2, 1 - def.width)),
+      y: Math.max(0, Math.min(y - def.height / 2, 1 - def.height)),
+      width: def.width,
+      height: def.height,
+    };
+    setFields((prev) => [...prev, newField]);
   };
+
+  const removeField = (id: string) => setFields((prev) => prev.filter((f) => f.id !== id));
 
   const handleSave = async () => {
     if (!file || !name.trim()) return;
@@ -3015,10 +3047,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
       fd.append("file", file);
       fd.append("name", name.trim());
       fd.append("signaturePage", String(signaturePage));
-      fd.append("signatureX", String(sigX));
-      fd.append("signatureY", String(sigY));
-      fd.append("signatureWidth", String(sigW));
-      fd.append("signatureHeight", String(sigH));
+      fd.append("fields", JSON.stringify(fields));
       const r = await fetch("/api/contracts/templates", { method: "POST", body: fd });
       const d = await r.json();
       if (!r.ok) { toast.error(d.error || "שגיאה בשמירה"); return; }
@@ -3030,6 +3059,8 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
       setSaving(false);
     }
   };
+
+  const currentPageFields = fields.filter((f) => f.page === signaturePage);
 
   return (
     <div className="modal-overlay">
@@ -3056,7 +3087,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
               {/* Page navigation */}
               {totalPages > 0 && (
                 <div className="flex items-center gap-3">
-                  <label className="label mb-0">עמוד לחתימה:</label>
+                  <span className="text-sm text-petra-muted">עמוד:</span>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -3077,9 +3108,31 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
                 </div>
               )}
 
-              {/* Canvas PDF viewer */}
+              {/* Field type toolbar */}
               <div>
-                <p className="text-sm font-medium text-petra-text mb-2">לחץ על המסמך להצבת אזור החתימה</p>
+                <p className="text-xs text-petra-muted mb-2">בחר סוג שדה ולחץ על המסמך למיקומו:</p>
+                <div className="flex flex-wrap gap-2">
+                  {FIELD_TYPES.map((ft) => (
+                    <button
+                      key={ft.type}
+                      type="button"
+                      onClick={() => setSelectedType(ft.type)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                        selectedType === ft.type
+                          ? "ring-2 ring-orange-500 border-transparent"
+                          : "border-slate-200 hover:border-slate-300"
+                      )}
+                      style={selectedType === ft.type ? { background: ft.bgColor, color: ft.color } : {}}
+                    >
+                      {ft.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Canvas PDF viewer with field overlays */}
+              <div>
                 <div className="relative border border-slate-200 rounded-xl overflow-hidden bg-slate-100" style={{ minHeight: 300 }}>
                   {pdfLoading && (
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -3093,55 +3146,48 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
                     style={{ zIndex: 10 }}
                     onClick={handleOverlayClick}
                   >
-                    {sigPlaced && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          left: `${sigX * 100}%`,
-                          top: `${sigY * 100}%`,
-                          width: `${sigW * 100}%`,
-                          height: `${sigH * 100}%`,
-                          border: "2px dashed #F97316",
-                          background: "rgba(249,115,22,0.1)",
-                          borderRadius: 4,
-                          pointerEvents: "none",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <span className="text-xs text-orange-600 font-medium whitespace-nowrap">✍ חתימה</span>
-                      </div>
-                    )}
+                    {currentPageFields.map((f) => {
+                      const ft = FIELD_TYPES.find((t) => t.type === f.type)!;
+                      return (
+                        <div
+                          key={f.id}
+                          style={{
+                            position: "absolute",
+                            left: `${f.x * 100}%`,
+                            top: `${f.y * 100}%`,
+                            width: `${f.width * 100}%`,
+                            height: `${f.height * 100}%`,
+                            border: `2px dashed ${ft.color}`,
+                            background: ft.bgColor,
+                            borderRadius: 4,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "0 4px",
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span style={{ fontSize: 10, color: ft.color, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden" }}>
+                            {ft.label}
+                          </span>
+                          <button
+                            type="button"
+                            style={{ color: ft.color, lineHeight: 1, flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                            onClick={() => removeField(f.id)}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-                {sigPlaced && (
+                {fields.length > 0 && (
                   <p className="text-xs text-petra-muted mt-1">
-                    מיקום: X={Math.round(sigX * 100)}% Y={Math.round(sigY * 100)}% · לחץ שוב לשינוי
+                    {fields.length} שד{fields.length === 1 ? "ה" : "ות"} הוצבו בסך הכל ·{" "}
+                    <button type="button" className="underline" onClick={() => setFields([])}>נקה הכל</button>
                   </p>
                 )}
-              </div>
-
-              {/* Manual coordinate inputs */}
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                {[
-                  { label: "X% (מימין)", val: Math.round(sigX * 100), set: (v: number) => setSigX(v / 100) },
-                  { label: "Y% (מלמעלה)", val: Math.round(sigY * 100), set: (v: number) => setSigY(v / 100) },
-                  { label: "רוחב%", val: Math.round(sigW * 100), set: (v: number) => setSigW(v / 100) },
-                  { label: "גובה%", val: Math.round(sigH * 100), set: (v: number) => setSigH(v / 100) },
-                ].map(({ label, val, set }) => (
-                  <div key={label}>
-                    <label className="label text-xs">{label}</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={99}
-                      className="input text-xs py-1"
-                      value={val}
-                      onChange={(e) => { setSigPlaced(true); set(Math.max(1, Math.min(99, Number(e.target.value)))); }}
-                    />
-                  </div>
-                ))}
               </div>
             </div>
           )}

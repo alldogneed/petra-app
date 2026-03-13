@@ -316,6 +316,7 @@ interface CustomerDetail {
   phone: string;
   email: string | null;
   address: string | null;
+  idNumber: string | null;
   notes: string | null;
   tags: string;
   source: string | null;
@@ -1059,6 +1060,7 @@ function EditCustomerModal({
     phone: customer.phone,
     email: customer.email || "",
     address: customer.address || "",
+    idNumber: customer.idNumber || "",
     notes: customer.notes || "",
     source: customer.source || "",
     selectedTags: (() => {
@@ -1149,6 +1151,15 @@ function EditCustomerModal({
             />
           </div>
           <div>
+            <label className="label">תעודת זהות</label>
+            <input
+              className="input"
+              placeholder="מספר ת.ז."
+              value={form.idNumber}
+              onChange={(e) => setForm({ ...form, idNumber: e.target.value })}
+            />
+          </div>
+          <div>
             <label className="label">תגיות לקוח</label>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {presetTags.map((tag: string) => (
@@ -1200,6 +1211,7 @@ function EditCustomerModal({
                 phone: form.phone,
                 email: form.email || null,
                 address: form.address || null,
+                idNumber: form.idNumber || null,
                 notes: form.notes || null,
                 source: form.source || null,
                 tags: JSON.stringify(form.selectedTags),
@@ -1572,8 +1584,11 @@ interface ContractReq {
   id: string;
   status: string;
   createdAt: string;
+  sentAt: string | null;
+  openedAt: string | null;
   signedAt: string | null;
   signedFileUrl: string | null;
+  ipAddress: string | null;
   template: { name: string };
 }
 
@@ -1638,24 +1653,44 @@ function SendContractSection({ customerId, customerName }: { customerId: string;
       ) : (
         <div className="space-y-2">
           {requests.map((req) => (
-            <div key={req.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors">
-              <FileText className="w-4 h-4 text-petra-muted flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-petra-text">{req.template.name}</p>
-                <p className="text-xs text-petra-muted">
-                  {new Date(req.createdAt).toLocaleDateString("he-IL")}
-                  {req.signedAt && ` · נחתם ${new Date(req.signedAt).toLocaleDateString("he-IL")}`}
-                </p>
+            <div key={req.id} className="rounded-xl border border-slate-100 hover:border-slate-200 transition-colors overflow-hidden">
+              <div className="flex items-center gap-3 p-3">
+                <FileText className="w-4 h-4 text-petra-muted flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-petra-text">{req.template.name}</p>
+                  <p className="text-xs text-petra-muted">
+                    {new Date(req.createdAt).toLocaleDateString("he-IL")}
+                  </p>
+                </div>
+                <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0", statusColor[req.status] ?? "bg-slate-100 text-slate-500")}>
+                  {statusLabel[req.status] ?? req.status}
+                </span>
+                {req.signedFileUrl && (
+                  <a href={req.signedFileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-500 hover:underline flex items-center gap-1 flex-shrink-0">
+                    <Download className="w-3.5 h-3.5" />
+                    הורד
+                  </a>
+                )}
               </div>
-              <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", statusColor[req.status] ?? "bg-slate-100 text-slate-500")}>
-                {statusLabel[req.status] ?? req.status}
-              </span>
-              {req.signedFileUrl && (
-                <a href={req.signedFileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-500 hover:underline flex items-center gap-1">
-                  <Download className="w-3.5 h-3.5" />
-                  הורד
-                </a>
-              )}
+              {/* Audit trail */}
+              <div className="px-3 pb-3 space-y-0.5">
+                {req.sentAt && (
+                  <p className="text-xs text-petra-muted flex items-center gap-1.5">
+                    <span>✉️</span> נשלח: {new Date(req.sentAt).toLocaleString("he-IL", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" })}
+                  </p>
+                )}
+                {req.openedAt && (
+                  <p className="text-xs text-petra-muted flex items-center gap-1.5">
+                    <span>👁</span> נפתח: {new Date(req.openedAt).toLocaleString("he-IL", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" })}
+                  </p>
+                )}
+                {req.signedAt && (
+                  <p className="text-xs text-petra-muted flex items-center gap-1.5">
+                    <span>✍️</span> נחתם: {new Date(req.signedAt).toLocaleString("he-IL", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" })}
+                    {req.ipAddress && <span className="text-petra-muted/70">· IP: {req.ipAddress}</span>}
+                  </p>
+                )}
+              </div>
             </div>
           ))}
         </div>

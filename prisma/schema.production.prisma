@@ -322,6 +322,7 @@ model Customer {
   phoneNorm String?
   email     String?
   address   String?
+  idNumber  String?  // תעודת זהות
   notes     String?
   tags      String   @default("[]")
   documents String   @default("[]")
@@ -2070,6 +2071,7 @@ model ContractTemplate {
   signatureY      Float    @default(0.8)   // fraction of page height from top (0-1)
   signatureWidth  Float    @default(0.35)
   signatureHeight Float    @default(0.07)
+  fields          String   @default("[]")  // JSON: ContractField[] — {id,type,page,x,y,width,height}
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -2092,6 +2094,7 @@ model ContractRequest {
   signedAt      DateTime?
   signedFileUrl String?   // Vercel Blob — signed PDF
   ipAddress     String?
+  userAgent     String?   // HTTP User-Agent at signing time (audit trail)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

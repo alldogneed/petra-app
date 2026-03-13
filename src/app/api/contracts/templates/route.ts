@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     const signatureY = parseFloat((formData.get("signatureY") as string) || "0.8");
     const signatureWidth = parseFloat((formData.get("signatureWidth") as string) || "0.35");
     const signatureHeight = parseFloat((formData.get("signatureHeight") as string) || "0.07");
+    const fields = (formData.get("fields") as string) || "[]";
 
     if (!file) return NextResponse.json({ error: "לא צורף קובץ" }, { status: 400 });
     if (!name) return NextResponse.json({ error: "שם התבנית חסר" }, { status: 400 });
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
         signatureY: Math.max(0, Math.min(1, signatureY)),
         signatureWidth: Math.max(0.01, Math.min(1, signatureWidth)),
         signatureHeight: Math.max(0.01, Math.min(1, signatureHeight)),
+        fields,
       },
     });
 

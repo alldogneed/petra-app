@@ -28,6 +28,7 @@ export async function PATCH(
         ...(body.signatureY !== undefined && { signatureY: Math.max(0, Math.min(1, Number(body.signatureY))) }),
         ...(body.signatureWidth !== undefined && { signatureWidth: Math.max(0.01, Math.min(1, Number(body.signatureWidth))) }),
         ...(body.signatureHeight !== undefined && { signatureHeight: Math.max(0.01, Math.min(1, Number(body.signatureHeight))) }),
+        ...(body.fields !== undefined && { fields: String(body.fields) }),
       },
     });
 
