@@ -247,14 +247,23 @@ export default function RegisterPage() {
             <span className="text-xs text-petra-muted leading-relaxed">
               קראתי ואני מסכים/ה{" "}
               <Link
-                href="/tos-accept"
+                href="/terms"
                 target="_blank"
                 className="text-brand-500 hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
-                לתנאי השימוש של Petra
+                לתנאי השימוש
               </Link>
-              {" "}(גרסה 1.0)
+              {" "}ול
+              <Link
+                href="/privacy"
+                target="_blank"
+                className="text-brand-500 hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                מדיניות הפרטיות
+              </Link>
+              {" "}של Petra
             </span>
           </button>
 
