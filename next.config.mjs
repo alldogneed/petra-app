@@ -31,7 +31,7 @@ const nextConfig = {
         source: "/:path*",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-DNS-Prefetch-Control", value: "on" },
           {
@@ -51,7 +51,7 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https:",
               "connect-src 'self' https://*.public.blob.vercel-storage.com https://*.ingest.sentry.io",
-              "frame-ancestors 'none'",
+              "frame-ancestors 'self'",
               "frame-src 'self' blob: https:",
               "object-src 'self' blob:",
             ].join("; "),
