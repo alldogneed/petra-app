@@ -72,6 +72,7 @@ export default function SignContractPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfDocRef = useRef<any>(null);
   const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -121,11 +122,12 @@ export default function SignContractPage() {
     let cancelled = false;
     (async () => {
       try {
-        const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
-        GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        const pdfjsLib = await import("pdfjs-dist");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
         const resp = await fetch(contract.pdfUrl);
+        if (!resp.ok) throw new Error(`PDF fetch failed: ${resp.status}`);
         const ab = await resp.arrayBuffer();
-        const doc = await getDocument({ data: ab }).promise;
+        const doc = await pdfjsLib.getDocument({ data: new Uint8Array(ab) }).promise;
         if (cancelled) return;
         pdfDocRef.current = doc;
         setTotalPages(doc.numPages);
@@ -133,6 +135,7 @@ export default function SignContractPage() {
         await renderPdfPage(doc, 1);
       } catch (e) {
         console.error("PDF load error", e);
+        if (!cancelled) setPdfError(e instanceof Error ? e.message : "שגיאה בטעינת המסמך");
       } finally {
         if (!cancelled) setPdfLoading(false);
       }
@@ -344,7 +347,17 @@ export default function SignContractPage() {
                 </div>
               </div>
             )}
-            <canvas ref={pdfCanvasRef} className="block" style={{ display: pdfLoading ? "none" : "block", maxWidth: "100%" }} />
+            {pdfError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-red-50" style={{ minHeight: 300 }}>
+                <div className="text-center space-y-2 px-6">
+                  <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
+                  <p className="text-sm text-red-600">שגיאה בטעינת המסמך</p>
+                  <p className="text-xs text-red-400 break-all" dir="ltr">{pdfError}</p>
+                  <button onClick={() => { setPdfError(null); setPdfLoading(true); }} className="text-xs text-orange-600 underline mt-2">נסה שוב</button>
+                </div>
+              </div>
+            )}
+            <canvas ref={pdfCanvasRef} className="block" style={{ display: (pdfLoading || pdfError) ? "none" : "block", maxWidth: "100%" }} />
 
             {/* Field overlays */}
             {!pdfLoading && currentPageFields.map((f) => {
