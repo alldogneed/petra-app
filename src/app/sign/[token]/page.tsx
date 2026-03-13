@@ -244,17 +244,45 @@ export default function SignContractPage() {
   // ── Signed ───────────────────────────────────────────────────────────────────
   if (signed) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-emerald-50 to-white p-6" dir="rtl">
-        <div className="text-center space-y-4 max-w-sm w-full">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-orange-50 via-white to-white p-6" dir="rtl">
+        <div className="text-center space-y-6 max-w-sm w-full">
+          {/* Success icon */}
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-10 h-10 text-emerald-500" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-800">החוזה נחתם!</h2>
-          <p className="text-sm text-slate-500 leading-relaxed">
-            תודה, {contract?.customerName}.<br />
-            החתימה שלך התקבלה אצל {contract?.businessName}.
-          </p>
+
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-slate-800">החוזה נחתם בהצלחה!</h2>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              תודה, {contract?.customerName}.<br />
+              החתימה שלך התקבלה אצל <strong className="text-slate-700">{contract?.businessName}</strong>.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm text-right space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-400">מסמך</span>
+              <span className="text-sm font-medium text-slate-700">{contract?.templateName}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-400">סטטוס</span>
+              <span className="text-sm font-semibold text-emerald-600 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" /> נחתם
+              </span>
+            </div>
+          </div>
+
           <p className="text-xs text-slate-400">ניתן לסגור את הדף</p>
+
+          {/* Petra branding */}
+          <div className="pt-6 border-t border-slate-100">
+            <div className="flex items-center justify-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.svg" alt="Petra" className="w-7 h-7 rounded-lg" />
+              <span className="text-sm font-bold text-slate-600">Petra</span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1.5">חתימה דיגיטלית מאובטחת</p>
+          </div>
         </div>
       </div>
     );
@@ -499,6 +527,16 @@ export default function SignContractPage() {
               </p>
             )}
           </div>
+        </div>
+
+        {/* Petra branding footer */}
+        <div className="py-6 flex flex-col items-center gap-1.5">
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="Petra" className="w-6 h-6 rounded-lg" />
+            <span className="text-sm font-bold text-slate-400">Petra</span>
+          </div>
+          <p className="text-[11px] text-slate-400">חתימה דיגיטלית מאובטחת</p>
         </div>
       </div>
     </div>
