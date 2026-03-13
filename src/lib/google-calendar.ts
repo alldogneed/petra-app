@@ -656,16 +656,35 @@ type AppointmentForGcal = {
   pet: { name: string } | null;
 };
 
+/** Returns the UTC offset string for Asia/Jerusalem on the given date, e.g. "+02:00" or "+03:00" */
+function getJerusalemOffset(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: "Asia/Jerusalem",
+    timeZoneName: "shortOffset",
+  }).formatToParts(date);
+  const tzPart = parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT+2";
+  const match = tzPart.match(/GMT([+-])(\d+)(?::(\d+))?/);
+  if (!match) return "+02:00";
+  const sign = match[1];
+  const h = String(match[2]).padStart(2, "0");
+  const m = String(match[3] ?? "0").padStart(2, "0");
+  return `${sign}${h}:${m}`;
+}
+
 function buildAppointmentEventPayload(appt: AppointmentForGcal, appBaseUrl: string) {
   const serviceName = appt.service?.name ?? appt.priceListItem?.name ?? "תור";
   const summary = appt.pet
     ? `${serviceName} – ${appt.customer.name} – ${appt.pet.name}`
     : `${serviceName} – ${appt.customer.name}`;
 
-  // Build ISO datetime strings in Israel timezone by treating date as local
-  const dateStr = appt.date.toISOString().split("T")[0]; // YYYY-MM-DD UTC
-  const startDateTime = `${dateStr}T${appt.startTime}:00`;
-  const endDateTime = `${dateStr}T${appt.endTime}:00`;
+  // Get date in Israel timezone (avoids UTC midnight date-shift bug)
+  const israelDateStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(appt.date); // "YYYY-MM-DD"
+  const offset = getJerusalemOffset(appt.date); // "+02:00" or "+03:00"
+  const startDateTime = `${israelDateStr}T${appt.startTime}:00${offset}`;
+  const endDateTime = `${israelDateStr}T${appt.endTime}:00${offset}`;
 
   const serviceNameLower = serviceName.toLowerCase();
   const isHomeVisit =
