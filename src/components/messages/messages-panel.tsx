@@ -60,21 +60,29 @@ const CHANNELS = [
 ];
 
 const AUTOMATION_TRIGGERS = [
+  { id: "appointment_confirmation", label: "אישור קביעת תור", description: "שלח מיד כשנקבע תור חדש" },
   { id: "appointment_reminder", label: "תזכורת לפני תור", description: "שלח הודעה X שעות לפני התור" },
   { id: "appointment_followup", label: "מעקב אחרי תור", description: "שלח הודעה X שעות אחרי התור" },
+  { id: "new_customer", label: "לקוח חדש", description: "שלח מיד כשנוסף לקוח חדש" },
   { id: "lead_followup", label: "ליד חדש", description: "שלח הודעה X שעות אחרי יצירת ליד" },
-  { id: "birthday_reminder", label: "יום הולדת לכלב", description: "שלח הודעה X ימים לפני יום ההולדת" },
+  { id: "birthday_reminder", label: "יום הולדת לכלב", description: "שלח ביום ההולדת בשעה 08:00" },
+  { id: "boarding_pickup", label: "תזכורת איסוף מפנסיון", description: "שלח הודעה X שעות לפני יום האיסוף" },
 ];
+
+const IMMEDIATE_TRIGGERS = new Set(["appointment_confirmation", "new_customer", "birthday_reminder"]);
 
 const TRIGGER_LABEL: Record<string, string> = Object.fromEntries(
   AUTOMATION_TRIGGERS.map((t) => [t.id, t.label])
 );
 
 function triggerOffsetLabel(trigger: string, offset: number): string {
+  if (trigger === "appointment_confirmation") return "מיידי בקביעת תור";
+  if (trigger === "new_customer") return "מיידי בהוספת לקוח";
+  if (trigger === "birthday_reminder") return "ביום ההולדת ב-08:00";
   if (trigger === "appointment_reminder") return `${offset} שעות לפני`;
   if (trigger === "appointment_followup") return `${offset} שעות אחרי`;
   if (trigger === "lead_followup") return `${offset} שעות אחרי יצירה`;
-  if (trigger === "birthday_reminder") return `${offset} ימים לפני`;
+  if (trigger === "boarding_pickup") return `${offset} שעות לפני האיסוף`;
   return `${offset} שעות`;
 }
 
@@ -105,34 +113,42 @@ const STARTER_TEMPLATES = [
   {
     label: "📅 תזכורת לפני תור",
     body: "שלום {customerName}! 🐾\n\nתזכורת לתור שלך ב-{date} בשעה {time}.\nשירות: {serviceName}" + " עם {petName}." + "\n\nמחכים לראות אתכם! 😊" + AUTOMATED_FOOTER,
+    trigger: "appointment_reminder", offset: 24,
   },
   {
     label: "✅ אישור קביעת תור",
     body: "שלום {customerName}! ✅\n\nהתור שלך נקבע בהצלחה!\n📅 תאריך: {date}\n🕐 שעה: {time}\nשירות: {serviceName}\n\nמחכים לראות את {petName}! 🐾" + AUTOMATED_FOOTER,
+    trigger: "appointment_confirmation", offset: 0,
   },
   {
     label: "🌟 מעקב אחרי טיפול",
     body: "שלום {customerName}! 🌟\n\nרצינו לדעת איך {petName} מרגיש/ת לאחר הטיפול האחרון.\nאם הכל בסדר – נשמח לשמוע! ואם יש משהו שלא כשורה, חשוב לנו לדעת.\n\nתודה שבחרתם בנו 💛" + AUTOMATED_FOOTER,
+    trigger: "appointment_followup", offset: 24,
   },
   {
     label: "🎂 יום הולדת לחיית המחמד",
     body: "יום הולדת שמח ל-{petName}! 🎂🐾\n\n{petName} מלא/ה {petAge} היום – כל הכבוד! 🎉\n\nכמתנה קטנה, נשמח להעניק לכם 10% הנחה על הטיפול הבא 🎁\n(ציינו שקיבלתם הודעה זו בעת קביעת התור)" + AUTOMATED_FOOTER,
+    trigger: "birthday_reminder", offset: 0,
   },
   {
     label: "👋 ברוכים הבאים",
     body: "שלום {customerName}! 😊\n\nברוכים הבאים! שמחים לקבל אתכם ואת {petName} אלינו.\n\nיש לנו הרבה מה לחגוג ביחד – מחכים לראות אתכם בביקור הראשון! 🐾" + AUTOMATED_FOOTER,
+    trigger: "new_customer", offset: 0,
   },
   {
     label: "🏨 תזכורת איסוף מפנסיון",
     body: "שלום {customerName}! 🏨\n\nתזכורת – מחר ({date}) הוא יום האיסוף של {petName} מהפנסיון.\n\n{petName} נהנה/נהנתה מאוד ומחכה לכם! 🐕" + AUTOMATED_FOOTER,
+    trigger: "boarding_pickup", offset: 24,
   },
   {
     label: "⭐ בקשת ביקורת",
     body: "שלום {customerName}! ⭐\n\nתודה שסמכתם עלינו לטפל ב-{petName}.\n\nאם אהבתם, נשמח מאוד לביקורת קצרה – זה עוזר לנו ולבעלי חיות אחרים בחיפוש שירות מקצועי 🙏\n\nתודה מהלב!" + AUTOMATED_FOOTER,
+    trigger: "appointment_followup", offset: 48,
   },
   {
     label: "💌 מעקב ליד חדש",
     body: "שלום {customerName}! 😊\n\nתודה על פנייתך! קיבלנו את הפרטים ונשמח לעזור.\nניצור איתך קשר בהקדם האפשרי לתיאום." + AUTOMATED_FOOTER,
+    trigger: "lead_followup", offset: 1,
   },
 ];
 
@@ -678,7 +694,13 @@ function TemplatesTab() {
                               key={s.label}
                               type="button"
                               onClick={() => {
-                                setForm((f) => ({ ...f, body: s.body }));
+                                setForm((f) => ({
+                                  ...f,
+                                  body: s.body,
+                                  autoEnabled: true,
+                                  autoTrigger: s.trigger,
+                                  autoOffset: s.offset,
+                                }));
                                 setShowStarters(false);
                               }}
                               className="w-full text-right px-3 py-2 text-xs rounded-lg hover:bg-slate-50 text-petra-text transition-colors"
@@ -768,24 +790,20 @@ function TemplatesTab() {
                       {AUTOMATION_TRIGGERS.find(t => t.id === form.autoTrigger)?.description}
                     </p>
                   </div>
-                  {["appointment_reminder", "appointment_followup", "lead_followup", "birthday_reminder"].includes(form.autoTrigger) && (
+                  {!IMMEDIATE_TRIGGERS.has(form.autoTrigger) && (
                     <div>
-                      <label className="label">
-                        {form.autoTrigger === "birthday_reminder" ? "ימים לפני" : "שעות"}
-                      </label>
+                      <label className="label">שעות</label>
                       <input
                         type="number"
                         className="input"
                         min={1}
-                        max={form.autoTrigger === "birthday_reminder" ? 30 : 168}
+                        max={168}
                         value={form.autoOffset}
                         onChange={e => setForm(f => ({ ...f, autoOffset: parseInt(e.target.value) || 1 }))}
                         dir="ltr"
                       />
                       <p className="text-xs text-petra-muted mt-1">
-                        {form.autoTrigger === "birthday_reminder"
-                          ? `שלח ${form.autoOffset} ימים לפני יום ההולדת`
-                          : `שלח ${form.autoOffset} שעות ${form.autoTrigger === "appointment_reminder" ? "לפני" : "אחרי"} התור`}
+                        {triggerOffsetLabel(form.autoTrigger, form.autoOffset)}
                       </p>
                     </div>
                   )}
