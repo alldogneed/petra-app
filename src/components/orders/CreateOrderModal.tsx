@@ -1470,7 +1470,7 @@ export function CreateOrderModal({
             {createdOrder?.paid ? "ההזמנה אושרה ותשלום נרשם!" : "ההזמנה אושרה בהצלחה!"}
           </p>
           <p className="text-xs text-emerald-600">
-            {createdOrder?.paid ? "התשלום קושר להזמנה אוטומטית" : "שלח ללקוח בקשת תשלום בוואטסאפ"}
+            {createdOrder?.paid ? "התשלום קושר להזמנה אוטומטית" : "ניתן לשלוח דרישת תשלום ללקוח בוואטסאפ"}
           </p>
         </div>
       </div>

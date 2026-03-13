@@ -264,8 +264,8 @@ export async function POST(request: NextRequest) {
       return created;
     });
 
-    // Schedule WhatsApp reminder if startAt is set and sendReminder is requested
-    if (body.sendReminder !== false && startAt) {
+    // Schedule WhatsApp reminder only if explicitly requested
+    if (body.sendReminder === true && startAt) {
       try {
         await createOrderReminder(order.id, customerId, new Date(startAt), authResult.businessId);
       } catch (err) {
