@@ -17,7 +17,7 @@
     },
     {
       "path": "/api/integrations/google/process-jobs",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/generate-tasks",
