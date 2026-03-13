@@ -3051,7 +3051,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
         const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
         GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
         const ab = await file.arrayBuffer();
-        const doc = await getDocument({ data: ab, cMapUrl: "/cmaps/", cMapPacked: true, standardFontDataUrl: "/standard_fonts/" }).promise;
+        const doc = await getDocument({ data: new Uint8Array(ab), cMapUrl: "/cmaps/", cMapPacked: true, standardFontDataUrl: "/standard_fonts/" }).promise;
         if (cancelled) return;
         pdfDocRef.current = doc;
         setTotalPages(doc.numPages);
@@ -3288,18 +3288,20 @@ function EditContractTemplateModal({
   });
   const [selectedType, setSelectedType] = useState<ContractField["type"]>("signature");
   const [saving, setSaving] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(true);
+  const [pdfError, setPdfError] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfDocRef = useRef<any>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
 
   const renderPage = useCallback(async (doc: NonNullable<typeof pdfDocRef.current>, pageNum: number) => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !containerRef.current) return;
     if (renderTaskRef.current) { renderTaskRef.current.cancel(); renderTaskRef.current = null; }
     const page = await doc.getPage(pageNum);
-    const containerWidth = Math.max(400, canvasRef.current.parentElement?.clientWidth ?? 600);
+    const containerWidth = Math.max(400, containerRef.current.clientWidth || 600);
     const unscaled = page.getViewport({ scale: 1 });
     const scale = containerWidth / unscaled.width;
     const viewport = page.getViewport({ scale });
@@ -3312,28 +3314,31 @@ function EditContractTemplateModal({
     try { await task.promise; } catch { /* cancelled */ }
   }, []);
 
-  // Load PDF from existing URL
+  // Load PDF from existing URL — delay slightly so container has width
   useEffect(() => {
     setPdfLoading(true);
+    setPdfError(false);
     let cancelled = false;
-    (async () => {
+    const timer = setTimeout(async () => {
       try {
         const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
         GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
         const resp = await fetch(template.fileUrl);
+        if (!resp.ok) throw new Error(`PDF fetch failed: ${resp.status}`);
         const ab = await resp.arrayBuffer();
-        const doc = await getDocument({ data: ab, cMapUrl: "/cmaps/", cMapPacked: true, standardFontDataUrl: "/standard_fonts/" }).promise;
+        const doc = await getDocument({ data: new Uint8Array(ab), cMapUrl: "/cmaps/", cMapPacked: true, standardFontDataUrl: "/standard_fonts/" }).promise;
         if (cancelled) return;
         pdfDocRef.current = doc;
         setTotalPages(doc.numPages);
         await renderPage(doc, signaturePage);
       } catch (e) {
         console.error("PDF load error", e);
+        if (!cancelled) setPdfError(true);
       } finally {
         if (!cancelled) setPdfLoading(false);
       }
-    })();
-    return () => { cancelled = true; };
+    }, 100);
+    return () => { cancelled = true; clearTimeout(timer); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template.fileUrl]);
 
@@ -3428,20 +3433,29 @@ function EditContractTemplateModal({
 
             {/* Canvas + overlays */}
             <div>
-              <div className="relative border border-slate-200 rounded-xl overflow-hidden bg-slate-100" style={{ minHeight: 300 }}>
+              <div ref={containerRef} className="relative border border-slate-200 rounded-xl overflow-hidden bg-slate-100" style={{ minHeight: 300 }}>
                 {pdfLoading && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>}
-                <canvas ref={canvasRef} className="w-full block" style={{ display: pdfLoading ? "none" : "block" }} />
-                <div ref={overlayRef} className="absolute inset-0 cursor-crosshair" style={{ zIndex: 10 }} onClick={handleOverlayClick}>
-                  {currentPageFields.map((f) => {
-                    const ft = FIELD_TYPES.find((t) => t.type === f.type)!;
-                    return (
-                      <div key={f.id} style={{ position: "absolute", left: `${f.x * 100}%`, top: `${f.y * 100}%`, width: `${f.width * 100}%`, height: `${f.height * 100}%`, border: `2px dashed ${ft.color}`, background: ft.bgColor, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px" }} onClick={(e) => e.stopPropagation()}>
-                        <span style={{ fontSize: 10, color: ft.color, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden" }}>{ft.label}</span>
-                        <button type="button" style={{ color: ft.color, lineHeight: 1, flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={() => removeField(f.id)}>×</button>
-                      </div>
-                    );
-                  })}
-                </div>
+                {pdfError && !pdfLoading && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-red-500">
+                    <FileText className="w-8 h-8" />
+                    <p className="text-sm">שגיאה בטעינת המסמך</p>
+                    <button type="button" className="text-xs underline" onClick={() => { setPdfLoading(true); setPdfError(false); setTimeout(async () => { try { const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist"); GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"; const resp = await fetch(template.fileUrl); const ab = await resp.arrayBuffer(); const doc = await getDocument({ data: new Uint8Array(ab), cMapUrl: "/cmaps/", cMapPacked: true, standardFontDataUrl: "/standard_fonts/" }).promise; pdfDocRef.current = doc; setTotalPages(doc.numPages); await renderPage(doc, signaturePage); setPdfError(false); } catch { setPdfError(true); } finally { setPdfLoading(false); } }, 100); }}>נסה שוב</button>
+                  </div>
+                )}
+                <canvas ref={canvasRef} className="w-full block" style={{ display: pdfLoading || pdfError ? "none" : "block" }} />
+                {!pdfLoading && !pdfError && (
+                  <div ref={overlayRef} className="absolute inset-0 cursor-crosshair" style={{ zIndex: 10 }} onClick={handleOverlayClick}>
+                    {currentPageFields.map((f) => {
+                      const ft = FIELD_TYPES.find((t) => t.type === f.type)!;
+                      return (
+                        <div key={f.id} style={{ position: "absolute", left: `${f.x * 100}%`, top: `${f.y * 100}%`, width: `${f.width * 100}%`, height: `${f.height * 100}%`, border: `2px dashed ${ft.color}`, background: ft.bgColor, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px" }} onClick={(e) => e.stopPropagation()}>
+                          <span style={{ fontSize: 10, color: ft.color, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden" }}>{ft.label}</span>
+                          <button type="button" style={{ color: ft.color, lineHeight: 1, flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={() => removeField(f.id)}>×</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               {fields.length > 0 && (
                 <p className="text-xs text-petra-muted mt-1">

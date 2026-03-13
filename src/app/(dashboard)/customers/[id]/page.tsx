@@ -43,6 +43,8 @@ import {
   MoreVertical,
   PenLine,
   Copy,
+  RefreshCw,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
@@ -1591,7 +1593,20 @@ interface ContractReq {
   signedFileUrl: string | null;
   signUrl: string | null;
   ipAddress: string | null;
+  expiresAt: string;
+  templateId: string;
   template: { name: string };
+}
+
+function getEffectiveStatus(req: ContractReq): "SIGNED" | "EXPIRED" | "VIEWED" | "PENDING" {
+  if (req.status === "SIGNED") return "SIGNED";
+  if (req.status === "EXPIRED" || new Date(req.expiresAt) < new Date()) return "EXPIRED";
+  if (req.openedAt) return "VIEWED";
+  return "PENDING";
+}
+
+function getDaysUntilExpiry(expiresAt: string): number {
+  return Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
 function SendContractSection({ customerId, customerName }: { customerId: string; customerName: string }) {
@@ -1640,9 +1655,24 @@ function SendContractSection({ customerId, customerName }: { customerId: string;
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const statusLabel: Record<string, string> = { PENDING: "ממתין", SIGNED: "נחתם", EXPIRED: "פג תוקף" };
+  const resendMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/contracts/requests/${id}/resend`, { method: "POST" }).then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "שגיאה");
+        return d;
+      }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["contract-requests", customerId] });
+      toast.success(data.renewed ? "חוזה חדש נשלח!" : "תזכורת נשלחה!");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const statusLabel: Record<string, string> = { PENDING: "ממתין", VIEWED: "נצפה", SIGNED: "נחתם", EXPIRED: "פג תוקף" };
   const statusColor: Record<string, string> = {
     PENDING: "bg-amber-100 text-amber-700",
+    VIEWED: "bg-blue-100 text-blue-700",
     SIGNED: "bg-emerald-100 text-emerald-700",
     EXPIRED: "bg-slate-100 text-slate-500",
   };
@@ -1669,7 +1699,10 @@ function SendContractSection({ customerId, customerName }: { customerId: string;
         <p className="text-sm text-petra-muted text-center py-4">לא נשלחו חוזים</p>
       ) : (
         <div className="space-y-2">
-          {requests.map((req) => (
+          {requests.map((req) => {
+            const effective = getEffectiveStatus(req);
+            const daysLeft = getDaysUntilExpiry(req.expiresAt);
+            return (
             <div key={req.id} className="rounded-xl border border-slate-100 hover:border-slate-200 transition-colors overflow-hidden">
               <div className="flex items-center gap-3 p-3">
                 <FileText className="w-4 h-4 text-petra-muted flex-shrink-0" />
@@ -1679,10 +1712,10 @@ function SendContractSection({ customerId, customerName }: { customerId: string;
                     {new Date(req.createdAt).toLocaleDateString("he-IL")}
                   </p>
                 </div>
-                <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0", statusColor[req.status] ?? "bg-slate-100 text-slate-500")}>
-                  {statusLabel[req.status] ?? req.status}
+                <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0", statusColor[effective] ?? "bg-slate-100 text-slate-500")}>
+                  {statusLabel[effective] ?? effective}
                 </span>
-                {req.signUrl && req.status === "PENDING" && (
+                {req.signUrl && (effective === "PENDING" || effective === "VIEWED") && (
                   <button
                     type="button"
                     className="text-xs text-petra-muted hover:text-petra-text px-2 py-0.5 rounded hover:bg-slate-100 transition-colors flex items-center gap-1 flex-shrink-0"
@@ -1691,6 +1724,30 @@ function SendContractSection({ customerId, customerName }: { customerId: string;
                   >
                     <Copy className="w-3 h-3" />
                     העתק קישור
+                  </button>
+                )}
+                {(effective === "PENDING" || effective === "VIEWED") && (
+                  <button
+                    type="button"
+                    className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded hover:bg-blue-50 transition-colors flex items-center gap-1 flex-shrink-0"
+                    title="שלח תזכורת WhatsApp"
+                    disabled={resendMutation.isPending}
+                    onClick={() => resendMutation.mutate(req.id)}
+                  >
+                    <RefreshCw className={cn("w-3 h-3", resendMutation.isPending && "animate-spin")} />
+                    תזכורת
+                  </button>
+                )}
+                {effective === "EXPIRED" && (
+                  <button
+                    type="button"
+                    className="text-xs text-amber-600 hover:text-amber-800 px-2 py-0.5 rounded hover:bg-amber-50 transition-colors flex items-center gap-1 flex-shrink-0"
+                    title="שלח חוזה חדש"
+                    disabled={resendMutation.isPending}
+                    onClick={() => resendMutation.mutate(req.id)}
+                  >
+                    <RotateCcw className={cn("w-3 h-3", resendMutation.isPending && "animate-spin")} />
+                    שלח מחדש
                   </button>
                 )}
                 {req.signedFileUrl && (
@@ -1725,9 +1782,15 @@ function SendContractSection({ customerId, customerName }: { customerId: string;
                     {req.ipAddress && <span className="text-petra-muted/70">· IP: {req.ipAddress}</span>}
                   </p>
                 )}
+                {(effective === "PENDING" || effective === "VIEWED") && daysLeft > 0 && (
+                  <p className={cn("text-xs flex items-center gap-1.5", daysLeft <= 3 ? "text-red-500" : "text-emerald-600")}>
+                    <span>⏳</span> יפוג בעוד {daysLeft} ימים
+                  </p>
+                )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

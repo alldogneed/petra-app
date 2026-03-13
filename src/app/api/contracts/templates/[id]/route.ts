@@ -52,7 +52,24 @@ export async function DELETE(
     });
     if (!template) return NextResponse.json({ error: "תבנית לא נמצאה" }, { status: 404 });
 
-    // Delete blob
+    // Delete related contract requests first (FK constraint)
+    const relatedRequests = await prisma.contractRequest.findMany({
+      where: { templateId: params.id },
+      select: { id: true, signedFileUrl: true },
+    });
+
+    // Clean up signed PDF blobs
+    for (const req of relatedRequests) {
+      if (req.signedFileUrl && (req.signedFileUrl.includes("vercel-storage.com") || req.signedFileUrl.includes("blob.vercel"))) {
+        try { await del(req.signedFileUrl); } catch { /* ignore */ }
+      }
+    }
+
+    if (relatedRequests.length > 0) {
+      await prisma.contractRequest.deleteMany({ where: { templateId: params.id } });
+    }
+
+    // Delete template blob
     try {
       if (template.fileUrl.includes("vercel-storage.com") || template.fileUrl.includes("blob.vercel")) {
         await del(template.fileUrl);
