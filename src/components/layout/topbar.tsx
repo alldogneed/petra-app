@@ -27,6 +27,8 @@ import {
   Hotel,
   ListTodo,
   RefreshCw,
+  FileText,
+  ShieldCheck,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
@@ -842,6 +844,24 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       הגדרות
                     </Link>
                     <ReportBugButton menuMode />
+                    <Link
+                      href="/terms"
+                      target="_blank"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-petra-text hover:bg-slate-50 transition-colors"
+                    >
+                      <FileText className="w-4 h-4 text-slate-500" />
+                      תנאי שימוש
+                    </Link>
+                    <Link
+                      href="/privacy"
+                      target="_blank"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-petra-text hover:bg-slate-50 transition-colors"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-slate-500" />
+                      מדיניות פרטיות
+                    </Link>
                     <button
                       onClick={() => {
                         setProfileOpen(false);
