@@ -5,9 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowRight, CheckCircle2, Clock, XCircle, ShoppingCart,
-  Trash2, User, FileText, Calendar, Tag, CreditCard, Plus,
+  Trash2, User, FileText, Calendar, Tag, CreditCard, Plus, Send,
 } from "lucide-react";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, toWhatsAppPhone } from "@/lib/utils";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -239,6 +239,17 @@ export default function OrderDetailPage() {
   const s = STATUS_MAP[order.status] ?? STATUS_MAP.draft;
   const StatusIcon = s.icon;
 
+  const sendWhatsAppPaymentRequest = () => {
+    const name = order.customer.name;
+    const itemLines = order.lines
+      .map((l) => `• ${l.name}${l.quantity > 1 ? ` ×${l.quantity}` : ""} — ${fmt(l.lineTotal)}`)
+      .join("\n");
+    const discountLine = order.discountAmount > 0 ? `\nהנחה: −${fmt(order.discountAmount)}` : "";
+    const taxLine = order.taxTotal > 0 ? `\nמע"מ: ${fmt(order.taxTotal)}` : "";
+    const msg = `שלום ${name}! 🐾\n\n*דרישת תשלום*\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(order.total)}*\n\nתודה שבחרתם בנו! 😊\n_לפניות ושאלות: ${order.customer.phone}_`;
+    window.open(`https://wa.me/${toWhatsAppPhone(order.customer.phone)}?text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
   return (
     <div className="space-y-5 animate-fade-in">
       {/* Breadcrumb */}
@@ -452,15 +463,28 @@ export default function OrderDetailPage() {
                   </span>
                 )}
               </h2>
-              {!fullyPaid && order.status !== "cancelled" && (
-                <button
-                  className="btn-primary text-xs py-1.5 px-3"
-                  onClick={() => setShowAddPayment(true)}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  רשום תשלום
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {order.status !== "cancelled" && (
+                  <button
+                    className="text-xs py-1.5 px-3 rounded-xl font-semibold flex items-center gap-1.5 border-2 transition-all"
+                    style={{ borderColor: "#25D366", color: "#16a34a", background: "#f0fdf4" }}
+                    onClick={sendWhatsAppPaymentRequest}
+                    title="שלח דרישת תשלום בוואטסאפ"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    דרישת תשלום
+                  </button>
+                )}
+                {!fullyPaid && order.status !== "cancelled" && (
+                  <button
+                    className="btn-primary text-xs py-1.5 px-3"
+                    onClick={() => setShowAddPayment(true)}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    רשום תשלום
+                  </button>
+                )}
+              </div>
             </div>
 
             {payments.length === 0 ? (
