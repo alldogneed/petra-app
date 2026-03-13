@@ -683,7 +683,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             className={cn(
               "absolute top-0 left-0 h-full w-[320px] max-w-full bg-white shadow-2xl",
               "transition-transform duration-300 ease-out",
-              "flex flex-col overflow-y-auto"
+              "flex flex-col overflow-hidden"
             )}
           >
             {/* Close button */}
@@ -758,6 +758,8 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             {/* Profile Tab Content */}
             {activeTab === "profile" && (
               <>
+                {/* Scrollable content area */}
+                <div className="flex-1 overflow-y-auto">
                 {/* System Health */}
                 <div className="p-5 border-b border-slate-100">
                   <h3 className="text-xs font-bold text-petra-muted uppercase tracking-wider mb-3">
@@ -832,8 +834,10 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                   </div>
                 </div>
 
-                {/* Quick Actions */}
-                <div className="p-5 mt-auto">
+                </div>{/* end scrollable content */}
+
+                {/* Quick Actions — fixed at bottom, always visible */}
+                <div className="p-5 border-t border-slate-100 flex-shrink-0">
                   <div className="space-y-1">
                     <Link
                       href="/settings"
