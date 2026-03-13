@@ -145,11 +145,6 @@ const STARTER_TEMPLATES = [
     body: "שלום {customerName}! ⭐\n\nתודה שסמכתם עלינו לטפל ב-{petName}.\n\nאם אהבתם, נשמח מאוד לביקורת קצרה – זה עוזר לנו ולבעלי חיות אחרים בחיפוש שירות מקצועי 🙏\n\nתודה מהלב!" + AUTOMATED_FOOTER,
     trigger: "appointment_followup", offset: 48,
   },
-  {
-    label: "💌 מעקב ליד חדש",
-    body: "שלום {customerName}! 😊\n\nתודה על פנייתך! קיבלנו את הפרטים ונשמח לעזור.\nניצור איתך קשר בהקדם האפשרי לתיאום." + AUTOMATED_FOOTER,
-    trigger: "lead_followup", offset: 1,
-  },
 ];
 
 // ─── Send Modal ───────────────────────────────────────────────────────────────
