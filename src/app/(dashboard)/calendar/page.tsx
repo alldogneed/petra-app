@@ -912,7 +912,7 @@ function CalendarContent() {
   const { data: orders = [] } = useQuery<OrderEvent[]>({
     queryKey: ["orders-calendar", from, to],
     queryFn: () =>
-      fetchJSON(`/api/orders?from=${from}&to=${to}`),
+      fetchJSON(`/api/orders?startFrom=${from}&startTo=${to}`),
   });
 
   const { data: tasks = [] } = useQuery<TaskEvent[]>({

@@ -17,6 +17,10 @@ export async function GET(request: NextRequest) {
     const customerId = searchParams.get("customerId");
     const from = searchParams.get("from");
     const to = searchParams.get("to");
+    // Calendar uses startFrom/startTo to filter by startAt (appointment date)
+    // Orders list uses from/to to filter by createdAt
+    const startFrom = searchParams.get("startFrom");
+    const startTo = searchParams.get("startTo");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { businessId: authResult.businessId };
@@ -26,6 +30,12 @@ export async function GET(request: NextRequest) {
       where.createdAt = {
         ...(from ? { gte: new Date(from + "T00:00:00") } : {}),
         ...(to ? { lte: new Date(to + "T23:59:59") } : {}),
+      };
+    }
+    if (startFrom || startTo) {
+      where.startAt = {
+        ...(startFrom ? { gte: new Date(startFrom + "T00:00:00") } : {}),
+        ...(startTo ? { lte: new Date(startTo + "T23:59:59") } : {}),
       };
     }
 
