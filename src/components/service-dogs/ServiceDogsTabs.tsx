@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Dog, UserCheck, Activity, CreditCard, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const TABS = [
   { name: "סקירה",          href: "/service-dogs",              icon: LayoutDashboard },
   { name: "כלבים",          href: "/service-dogs/dogs",         icon: Dog             },
-  { name: "זכאים",          href: "/service-dogs/recipients",   icon: UserCheck       },
+  { name: "זכאים",          href: "/service-dogs/recipients",   icon: UserCheck,      requirePerm: "canSeeRecipientsSensitive" as const },
   { name: "שיבוצים",        href: "/service-dogs/placements",   icon: Activity        },
   { name: "תעודות הסמכה",  href: "/service-dogs/id-cards",     icon: CreditCard      },
   { name: "דוחות פנימיים", href: "/service-dogs/reports",      icon: BarChart2       },
@@ -16,10 +17,11 @@ const TABS = [
 
 export function ServiceDogsTabs() {
   const pathname = usePathname();
+  const perms = usePermissions();
 
   return (
     <div className="flex gap-1 p-1 bg-slate-100 rounded-xl mb-6 overflow-x-auto scrollbar-hide">
-      {TABS.map((tab) => {
+      {TABS.filter((tab) => !tab.requirePerm || perms[tab.requirePerm]).map((tab) => {
         const isActive =
           tab.href === "/service-dogs"
             ? pathname === "/service-dogs"

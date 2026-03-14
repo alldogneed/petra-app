@@ -24,6 +24,12 @@ export async function GET(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
     const { businessId, session } = authResult;
 
+    // Staff cannot access recipients at all
+    const callerMembership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
+    if (callerMembership && !hasTenantPermission(callerMembership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE)) {
+      return NextResponse.json({ error: "אין הרשאה לצפות בזכאים" }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
 
@@ -63,6 +69,12 @@ export async function POST(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    // Staff cannot manage recipients
+    const postMembership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);
+    if (postMembership && !hasTenantPermission(postMembership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE)) {
+      return NextResponse.json({ error: "אין הרשאה לנהל זכאים" }, { status: 403 });
+    }
 
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     const rl = rateLimit("api:service-recipients:create", ip, RATE_LIMITS.API_WRITE);

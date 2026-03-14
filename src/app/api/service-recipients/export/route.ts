@@ -3,9 +3,10 @@ export const dynamic = "force-dynamic";
  * GET /api/service-recipients/export
  * Downloads an XLSX file with all service dog recipients and their key details.
  */
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import * as XLSX from "xlsx";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -55,6 +56,12 @@ export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    // Staff cannot export recipients
+    const membership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);
+    if (membership && !hasTenantPermission(membership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE)) {
+      return NextResponse.json({ error: "אין הרשאה לייצא זכאים" }, { status: 403 });
+    }
 
     const recipients = await prisma.serviceDogRecipient.findMany({
       where: { businessId: authResult.businessId },

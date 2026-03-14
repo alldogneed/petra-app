@@ -3021,6 +3021,106 @@ const FIELD_SHORT_LABELS: Record<ContractField["type"], string> = {
   signature: "חתימה",
 };
 
+function ContractFieldOverlay({
+  field,
+  overlayRef,
+  onUpdate,
+  onRemove,
+}: {
+  field: ContractField;
+  overlayRef: React.RefObject<HTMLDivElement | null>;
+  onUpdate: (id: string, updates: Partial<ContractField>) => void;
+  onRemove: (id: string) => void;
+}) {
+  const ft = FIELD_TYPES.find((t) => t.type === field.type)!;
+
+  const startInteraction = (e: React.PointerEvent, mode: "drag" | "resize") => {
+    e.stopPropagation();
+    e.preventDefault();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const rect = overlayRef.current!.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const { x, y, width, height } = field;
+
+    const onMove = (ev: PointerEvent) => {
+      const dx = (ev.clientX - startX) / rect.width;
+      const dy = (ev.clientY - startY) / rect.height;
+      if (mode === "drag") {
+        onUpdate(field.id, {
+          x: Math.max(0, Math.min(1 - width, x + dx)),
+          y: Math.max(0, Math.min(1 - height, y + dy)),
+        });
+      } else {
+        onUpdate(field.id, {
+          width: Math.max(0.05, Math.min(1 - x, width + dx)),
+          height: Math.max(0.02, Math.min(1 - y, height + dy)),
+        });
+      }
+    };
+    const onUp = () => {
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+    };
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+  };
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: `${field.x * 100}%`,
+        top: `${field.y * 100}%`,
+        width: `${field.width * 100}%`,
+        height: `${field.height * 100}%`,
+        border: `2px dashed ${ft.color}`,
+        background: ft.bgColor,
+        borderRadius: 4,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "0 4px",
+        cursor: "move",
+        touchAction: "none",
+      }}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => {
+        if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).dataset.resize) return;
+        startInteraction(e, "drag");
+      }}
+    >
+      <span style={{ fontSize: 10, color: ft.color, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", pointerEvents: "none" }}>
+        {ft.label}
+      </span>
+      <button
+        type="button"
+        style={{ color: ft.color, lineHeight: 1, flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: "0 2px" }}
+        onClick={(e) => { e.stopPropagation(); onRemove(field.id); }}
+      >
+        ×
+      </button>
+      {/* Resize handle — bottom-right */}
+      <div
+        data-resize="true"
+        style={{
+          position: "absolute",
+          bottom: -4,
+          right: -4,
+          width: 8,
+          height: 8,
+          background: ft.color,
+          borderRadius: 2,
+          cursor: "nwse-resize",
+          touchAction: "none",
+        }}
+        onPointerDown={(e) => startInteraction(e, "resize")}
+      />
+    </div>
+  );
+}
+
 function FieldsSummary({ fields, onClear }: { fields: ContractField[]; onClear: () => void }) {
   if (fields.length === 0) return null;
   const hasSignature = fields.some((f) => f.type === "signature");
@@ -3143,6 +3243,8 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
   };
 
   const removeField = (id: string) => setFields((prev) => prev.filter((f) => f.id !== id));
+  const updateField = (id: string, updates: Partial<ContractField>) =>
+    setFields((prev) => prev.map((f) => (f.id === id ? { ...f, ...updates } : f)));
 
   const [sigWarningShown, setSigWarningShown] = useState(false);
 
@@ -3258,40 +3360,15 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
                     style={{ zIndex: 10 }}
                     onClick={handleOverlayClick}
                   >
-                    {currentPageFields.map((f) => {
-                      const ft = FIELD_TYPES.find((t) => t.type === f.type)!;
-                      return (
-                        <div
-                          key={f.id}
-                          style={{
-                            position: "absolute",
-                            left: `${f.x * 100}%`,
-                            top: `${f.y * 100}%`,
-                            width: `${f.width * 100}%`,
-                            height: `${f.height * 100}%`,
-                            border: `2px dashed ${ft.color}`,
-                            background: ft.bgColor,
-                            borderRadius: 4,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "0 4px",
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <span style={{ fontSize: 10, color: ft.color, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden" }}>
-                            {ft.label}
-                          </span>
-                          <button
-                            type="button"
-                            style={{ color: ft.color, lineHeight: 1, flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                            onClick={() => removeField(f.id)}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      );
-                    })}
+                    {currentPageFields.map((f) => (
+                      <ContractFieldOverlay
+                        key={f.id}
+                        field={f}
+                        overlayRef={overlayRef}
+                        onUpdate={updateField}
+                        onRemove={removeField}
+                      />
+                    ))}
                   </div>
                 </div>
                 <FieldsSummary fields={fields} onClear={() => setFields([])} />
@@ -3412,6 +3489,8 @@ function EditContractTemplateModal({
   };
 
   const removeField = (id: string) => setFields((prev) => prev.filter((f) => f.id !== id));
+  const updateField = (id: string, updates: Partial<ContractField>) =>
+    setFields((prev) => prev.map((f) => (f.id === id ? { ...f, ...updates } : f)));
 
   const [sigWarningShown, setSigWarningShown] = useState(false);
 
@@ -3498,15 +3577,15 @@ function EditContractTemplateModal({
                 <canvas ref={canvasRef} className="w-full block" style={{ display: pdfLoading || pdfError ? "none" : "block" }} />
                 {!pdfLoading && !pdfError && (
                   <div ref={overlayRef} className="absolute inset-0 cursor-crosshair" style={{ zIndex: 10 }} onClick={handleOverlayClick}>
-                    {currentPageFields.map((f) => {
-                      const ft = FIELD_TYPES.find((t) => t.type === f.type)!;
-                      return (
-                        <div key={f.id} style={{ position: "absolute", left: `${f.x * 100}%`, top: `${f.y * 100}%`, width: `${f.width * 100}%`, height: `${f.height * 100}%`, border: `2px dashed ${ft.color}`, background: ft.bgColor, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px" }} onClick={(e) => e.stopPropagation()}>
-                          <span style={{ fontSize: 10, color: ft.color, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden" }}>{ft.label}</span>
-                          <button type="button" style={{ color: ft.color, lineHeight: 1, flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: 0 }} onClick={() => removeField(f.id)}>×</button>
-                        </div>
-                      );
-                    })}
+                    {currentPageFields.map((f) => (
+                      <ContractFieldOverlay
+                        key={f.id}
+                        field={f}
+                        overlayRef={overlayRef}
+                        onUpdate={updateField}
+                        onRemove={removeField}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
@@ -3533,7 +3612,7 @@ import AvailabilityTab from "./availability-tab";
 export default function SettingsPage() {
   const searchParams = useSearchParams();
   const gcalParam = searchParams.get("gcal");
-  const { isOwner } = useAuth();
+  const { isOwner, isManager } = useAuth();
   const { isFree, isBasic, isGroomer, can } = usePlan();
   const invoicingParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data" | "messages" | "service-dogs" | "contracts">(
@@ -3553,7 +3632,7 @@ export default function SettingsPage() {
     { id: "messages" as const, label: "הודעות ואוטומציות", icon: MessageCircle },
     // Service dogs tab — hidden for groomer tier (irrelevant track)
     ...(!isGroomer ? [{ id: "service-dogs" as const, label: "כלבי שירות", icon: PawPrint }] : []),
-    { id: "contracts" as const, label: "חוזים", icon: FileText },
+    ...(isOwner || isManager ? [{ id: "contracts" as const, label: "חוזים", icon: FileText }] : []),
     { id: "data" as const, label: "נתונים", icon: Database },
     { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
   ];

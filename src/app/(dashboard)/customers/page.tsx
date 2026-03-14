@@ -1,6 +1,7 @@
 "use client";
 import { PageTitle } from "@/components/ui/PageTitle";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { usePermissions } from "@/hooks/usePermissions";
 
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useCallback, useEffect, useRef, DragEvent } from "react";
@@ -1477,6 +1478,20 @@ interface PriceListItemOption {
 
 // ─── Main Page ──────────────────────────────────────────────────
 
+function CustomersPermGate({ children }: { children: React.ReactNode }) {
+  const perms = usePermissions();
+  if (!perms.canSeePii) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <Users className="w-12 h-12 text-slate-300 mb-4" />
+        <h2 className="text-lg font-semibold text-petra-text mb-2">אין הרשאה</h2>
+        <p className="text-sm text-petra-muted">אין לך הרשאה לצפות בלקוחות. פנה למנהל העסק.</p>
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
 export default function CustomersPage() {
   const queryClient = useQueryClient();
   const { maxCustomers, tier } = useSubscription();
@@ -1683,6 +1698,7 @@ export default function CustomersPage() {
   const someSelected = selectedIds.size > 0 && !allSelected;
 
   return (
+    <CustomersPermGate>
     <div>
       <PageTitle title="לקוחות" />
       {/* ─── Page Header ─── */}
@@ -2436,5 +2452,6 @@ export default function CustomersPage() {
         );
       })()}
     </div>
+    </CustomersPermGate>
   );
 }

@@ -81,12 +81,12 @@ function canSee(item: { minRole?: string }, role: string | null, isAdmin?: boole
 
 const navEntries: NavEntry[] = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
-  { name: "לקוחות", href: "/customers", icon: Users },
+  { name: "לקוחות", href: "/customers", icon: Users, minRole: "manager" },
   { name: "מערכת מכירות", href: "/leads", icon: Target, minRole: "user", lockedFeature: "leads" },
   { name: "ניהול משימות", href: "/tasks", icon: ListTodo },
   { name: "ניהול תורים אונליין", href: "/bookings", icon: CalendarCheck, lockedFeature: "online_bookings" },
   { name: "פנסיון", href: "/boarding", icon: Hotel, lockedFeature: "boarding", hiddenForTiers: ["groomer", "groomer_plus"] },
-  { name: "פיננסים", href: "/pricing", icon: Wallet, minRole: "user" },
+  { name: "פיננסים", href: "/pricing", icon: Wallet, minRole: "manager" },
   { name: "ניהול כלבי שירות", href: "/service-dogs", icon: Shield, lockedFeature: "service_dogs", hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "ניהול תהליכי אילוף", href: "/training", icon: Dog, hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "חיות מחמד", href: "/pets", icon: PawPrint, lockedFeature: "pets_advanced" },
@@ -94,7 +94,7 @@ const navEntries: NavEntry[] = [
   { name: "הודעות", href: "/messages", icon: MessageSquare, lockedFeature: "custom_messages" },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner", lockedFeature: "analytics" },
   { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner", lockedFeature: "staff_management" },
-  { name: "הגדרות", href: "/settings", icon: Settings, minRole: "user" },
+  { name: "הגדרות", href: "/settings", icon: Settings, minRole: "manager" },
 ];
 
 interface SidebarProps {

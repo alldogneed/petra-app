@@ -38,6 +38,7 @@ import {
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
 import { TierGate } from "@/components/paywall/TierGate";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface Stage {
   id: string;
@@ -612,6 +613,18 @@ function RecipientsPageContent() {
 }
 
 export default function RecipientsPage() {
+  const perms = usePermissions();
+
+  if (!perms.canSeeRecipientsSensitive) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <UserCheck className="w-12 h-12 text-slate-300 mb-4" />
+        <h2 className="text-lg font-semibold text-petra-text mb-2">אין הרשאה</h2>
+        <p className="text-sm text-petra-muted">אין לך הרשאה לצפות בזכאים. פנה למנהל העסק.</p>
+      </div>
+    );
+  }
+
   return (
     <TierGate
       feature="service_dogs"

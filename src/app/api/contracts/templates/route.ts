@@ -3,12 +3,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { put } from "@vercel/blob";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
+
+/** Staff cannot access contract templates */
+function staffGuard(authResult: { session: { memberships: Array<{ businessId: string; role: string; isActive: boolean }> }; businessId: string }) {
+  const m = authResult.session.memberships.find((mb) => mb.businessId === authResult.businessId && mb.isActive);
+  if (m && !hasTenantPermission(m.role as TenantRole, TENANT_PERMS.SETTINGS_WRITE)) {
+    return NextResponse.json({ error: "אין הרשאה לצפות בחוזים" }, { status: 403 });
+  }
+  return null;
+}
 
 export async function GET(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  const blocked = staffGuard(authResult);
+  if (blocked) return blocked;
 
   try {
     const templates = await prisma.contractTemplate.findMany({
@@ -25,6 +37,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  const blockedPost = staffGuard(authResult);
+  if (blockedPost) return blockedPost;
 
   try {
     const formData = await request.formData();

@@ -3198,6 +3198,20 @@ function EditBehaviorModal({
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
+function CustomerPermGate({ children }: { children: React.ReactNode }) {
+  const permsGate = usePermissions();
+  if (!permsGate.canSeePii) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <ArrowRight className="w-12 h-12 text-slate-300 mb-4" />
+        <h2 className="text-lg font-semibold text-petra-text mb-2">אין הרשאה</h2>
+        <p className="text-sm text-petra-muted">אין לך הרשאה לצפות בפרטי לקוחות. פנה למנהל העסק.</p>
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
 export default function CustomerProfilePage() {
   const params = useParams();
   const customerId = params.id as string;
@@ -3421,6 +3435,7 @@ export default function CustomerProfilePage() {
     : customer.appointments.slice(0, 6);
 
   return (
+    <CustomerPermGate>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
@@ -5107,5 +5122,6 @@ export default function CustomerProfilePage() {
         />
       )}
     </div>
+    </CustomerPermGate>
   );
 }

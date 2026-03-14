@@ -4,11 +4,18 @@ import { prisma } from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { DOCUMENT_TYPE_LABELS } from "@/lib/invoicing/types";
 import { VAT_RATE } from "@/lib/constants";
+import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 
 // GET /api/invoicing/documents — list documents with filters
 export async function GET(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+
+  // Staff cannot access invoicing documents
+  const membership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);
+  if (membership && !hasTenantPermission(membership.role as TenantRole, TENANT_PERMS.FINANCE_READ)) {
+    return NextResponse.json({ error: "אין הרשאה לצפות במסמכים" }, { status: 403 });
+  }
 
   try {
     const url = new URL(request.url);

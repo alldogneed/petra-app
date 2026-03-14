@@ -144,6 +144,89 @@ function buildPasswordResetHtml(params: PasswordResetEmailParams): string {
 </html>`;
 }
 
+// ─── Team Invitation Email ───────────────────────────────────────────────────
+
+export interface TeamInvitationEmailParams {
+  to: string;
+  name: string;
+  tempPassword: string;
+  businessName: string;
+  role: string;
+  inviterName: string;
+}
+
+const ROLE_LABELS_HE: Record<string, string> = {
+  owner: "בעלים",
+  manager: "מנהל",
+  user: "עובד",
+  volunteer: "מתנדב",
+};
+
+export async function sendTeamInvitationEmail(params: TeamInvitationEmailParams): Promise<void> {
+  const loginUrl = `${process.env.APP_URL || "http://localhost:3000"}/login`;
+  const roleLabel = ROLE_LABELS_HE[params.role] || params.role;
+
+  const { error } = await getResend().emails.send({
+    from: getFromEmail(),
+    to: params.to,
+    subject: `הוזמנת להצטרף ל-${params.businessName} ב-Petra 🐾`,
+    html: `<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head><meta charset="utf-8" /></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 40px 20px; direction: rtl;">
+  <div style="max-width: 520px; margin: 0 auto; background: white; border-radius: 16px; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+    <div style="text-align: center; margin-bottom: 32px;">
+      <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #F97316, #FB923C); border-radius: 14px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
+        <span style="font-size: 28px;">🐾</span>
+      </div>
+      <h1 style="font-size: 22px; color: #1e293b; margin: 0 0 8px;">שלום ${params.name}! 👋</h1>
+      <p style="color: #64748b; font-size: 15px; margin: 0;">${params.inviterName} הזמין/ה אותך להצטרף ל<strong>${params.businessName}</strong></p>
+    </div>
+
+    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: center;">
+      <p style="margin: 0; font-size: 14px; color: #15803d;">התפקיד שלך: <strong>${roleLabel}</strong></p>
+    </div>
+
+    <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+      <p style="margin: 0 0 12px; font-weight: 600; color: #c2410c; font-size: 14px;">פרטי ההתחברות שלך:</p>
+      <table style="width: 100%; font-size: 14px; color: #1e293b;">
+        <tr>
+          <td style="padding: 6px 0; font-weight: 500; width: 120px;">אימייל:</td>
+          <td style="padding: 6px 0;" dir="ltr">${params.to}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-weight: 500;">סיסמה זמנית:</td>
+          <td style="padding: 6px 0; font-family: monospace; letter-spacing: 1px; font-size: 15px;" dir="ltr">${params.tempPassword}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="text-align: center; margin-bottom: 24px;">
+      <a href="${loginUrl}" style="display: inline-block; background: #f97316; color: white; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 15px;">
+        כניסה למערכת
+      </a>
+    </div>
+
+    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px; margin-bottom: 24px;">
+      <p style="margin: 0; font-size: 13px; color: #dc2626;">
+        ⚠️ <strong>חשוב:</strong> מומלץ לשנות את הסיסמה מיד לאחר ההתחברות הראשונה.
+      </p>
+    </div>
+
+    <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center;">
+      <p style="margin: 0 0 4px; font-size: 12px; color: #94a3b8;">Petra — ניהול עסקי חיות מחמד</p>
+      <p style="margin: 0; font-size: 11px; color: #cbd5e1;">אם לא ביקשת חשבון זה, ניתן להתעלם מהודעה זו.</p>
+    </div>
+  </div>
+</body>
+</html>`,
+  });
+
+  if (error) {
+    throw new Error(`Resend email failed: ${error.message}`);
+  }
+}
+
 // ─── Support Ticket Email ────────────────────────────────────────────────────
 
 export interface SupportTicketEmailParams {

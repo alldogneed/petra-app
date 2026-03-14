@@ -14,6 +14,12 @@ export async function GET(
     if (isGuardError(authResult)) return authResult;
     const { businessId, session } = authResult;
 
+    // Staff cannot access recipients at all
+    const callerMembership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
+    if (callerMembership && !hasTenantPermission(callerMembership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE)) {
+      return NextResponse.json({ error: "אין הרשאה לצפות בזכאים" }, { status: 403 });
+    }
+
     const recipient = await prisma.serviceDogRecipient.findFirst({
       where: { id: params.id, businessId },
       include: {
@@ -63,7 +69,13 @@ export async function PATCH(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
-    const { businessId } = authResult;
+    const { businessId, session } = authResult;
+
+    // Staff cannot manage recipients
+    const patchMembership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
+    if (patchMembership && !hasTenantPermission(patchMembership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE)) {
+      return NextResponse.json({ error: "אין הרשאה לנהל זכאים" }, { status: 403 });
+    }
 
     const existing = await prisma.serviceDogRecipient.findFirst({
       where: { id: params.id, businessId },

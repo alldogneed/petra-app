@@ -28,6 +28,12 @@ export async function GET(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
+    // Staff cannot access customer data
+    const callerMembership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);
+    if (callerMembership && !hasTenantPermission(callerMembership.role, TENANT_PERMS.CUSTOMERS_PII)) {
+      return NextResponse.json({ error: "אין הרשאה לצפות בלקוחות" }, { status: 403 });
+    }
+
     const customer = await prisma.customer.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
       include: {

@@ -13,6 +13,7 @@ import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
+import { sendTeamInvitationEmail } from "@/lib/email";
 
 export async function GET(
   request: NextRequest,
@@ -74,7 +75,7 @@ export async function POST(
   // Enforce staff_management feature gate
   const business = await prisma.business.findUnique({
     where: { id: params.businessId },
-    select: { tier: true, featureOverrides: true },
+    select: { tier: true, featureOverrides: true, name: true },
   });
   const overrides = (business?.featureOverrides as Record<string, boolean> | null) ?? null;
   if (!hasFeatureWithOverrides(business?.tier, "staff_management", overrides)) {
@@ -133,6 +134,21 @@ export async function POST(
         completedAt: new Date(),
       },
     });
+
+    // Send invitation email with credentials
+    try {
+      await sendTeamInvitationEmail({
+        to: body.email,
+        name: body.name,
+        tempPassword: body.temporaryPassword,
+        businessName: business?.name || "העסק",
+        role: body.role,
+        inviterName: session.user.name || "מנהל המערכת",
+      });
+    } catch (emailErr) {
+      console.error("Failed to send team invitation email:", emailErr);
+      // Don't fail the invite — user was created, email is best-effort
+    }
   }
 
   // Check if already a member

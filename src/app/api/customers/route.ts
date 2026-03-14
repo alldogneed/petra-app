@@ -19,7 +19,14 @@ export async function GET(request: NextRequest) {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const { businessId } = authResult;
+    const { businessId, session } = authResult;
+
+    // Staff cannot access customer data
+    const membership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
+    if (membership && !hasTenantPermission(membership.role, TENANT_PERMS.CUSTOMERS_PII)) {
+      return NextResponse.json({ error: "אין הרשאה לצפות בלקוחות" }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const rawSearch = searchParams.get("search");
     const search = rawSearch ? rawSearch.slice(0, 100) : null; // max 100 chars
