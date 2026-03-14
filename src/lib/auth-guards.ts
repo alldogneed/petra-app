@@ -244,8 +244,11 @@ export async function requireBusinessAuth(
     return { session, businessId: session.impersonatedBusinessId };
   }
 
-  // Find the first active business membership
-  const membership = session.memberships.find((m) => m.isActive);
+  // Find the first active business membership — prefer owner role so users who are
+  // also employees/members of other businesses always land on their own business first.
+  const membership =
+    session.memberships.find((m) => m.isActive && m.role === "owner") ||
+    session.memberships.find((m) => m.isActive);
   if (!membership) {
     // Platform super_admins may have no membership but need access
     if (session.user.platformRole === "super_admin") {

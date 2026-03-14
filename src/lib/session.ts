@@ -104,7 +104,8 @@ export async function getSessionByToken(token: string): Promise<FullSession | nu
         include: {
           businessMemberships: {
             where: { isActive: true },
-            select: { businessId: true, role: true, isActive: true },
+            select: { businessId: true, role: true, isActive: true, createdAt: true },
+            orderBy: { createdAt: "asc" },
           },
         },
       },
