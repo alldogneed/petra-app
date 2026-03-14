@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import {
   Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
   Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText,
-  CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles,
+  CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles, MapPin, Tag,
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName } from "@/lib/validation";
@@ -466,6 +466,22 @@ function KanbanColumn({
 
 // ─── Draggable Lead Card ─────────────────────────────────────────────────────
 
+/** מחלץ עיר ושירות מבוקש מתוך שדה ה-notes */
+function parseLeadMeta(notes: string | null): { city: string | null; service: string | null; cleanNotes: string | null } {
+  if (!notes) return { city: null, service: null, cleanNotes: null };
+  let city: string | null = null;
+  let service: string | null = null;
+  const lines = notes.split("\n").filter((line) => {
+    const cityMatch = line.match(/^עיר:\s*(.+)/);
+    const serviceMatch = line.match(/^שירות מבוקש:\s*(.+)/);
+    if (cityMatch) { city = cityMatch[1].trim(); return false; }
+    if (serviceMatch) { service = serviceMatch[1].trim(); return false; }
+    return true;
+  });
+  const cleanNotes = lines.join("\n").trim() || null;
+  return { city, service, cleanNotes };
+}
+
 function DraggableLeadCard({
   lead,
   stage,
@@ -513,6 +529,7 @@ function DraggableLeadCard({
   const sourceLabel = LEAD_SOURCES.find((s) => s.id === lead.source)?.label || lead.source;
   const sourceEmoji = getSourceEmoji(lead.source);
   const callLogCount = lead.callLogs?.length || 0;
+  const { city, service, cleanNotes } = parseLeadMeta(lead.notes);
   const isWon = stage.isWon;
   const isLost = stage.isLost;
 
@@ -585,6 +602,20 @@ function DraggableLeadCard({
               <Mail className="w-3.5 h-3.5" />{lead.email}
             </div>
           )}
+          {(city || service) && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {city && (
+                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium border border-blue-100">
+                  <MapPin className="w-3 h-3" />{city}
+                </span>
+              )}
+              {service && (
+                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-medium border border-violet-100">
+                  <Tag className="w-3 h-3" />{service}
+                </span>
+              )}
+            </div>
+          )}
           <div className="text-[10px] text-petra-muted mt-1.5">
             {new Date(lead.createdAt).toLocaleDateString("he-IL")}
           </div>
@@ -602,9 +633,9 @@ function DraggableLeadCard({
         <p className="text-[10px] text-petra-muted line-clamp-1 mt-1.5 italic border-t border-slate-100 pt-1.5">
           &ldquo;{lead.callLogs[0].summary}&rdquo;
         </p>
-      ) : lead.notes ? (
+      ) : cleanNotes ? (
         <p className="text-[10px] text-petra-muted line-clamp-2 mt-1.5 border-t border-slate-100 pt-1.5">
-          {lead.notes}
+          {cleanNotes}
         </p>
       ) : null}
 

@@ -38,6 +38,7 @@ export async function PATCH(
     const remainingPending = await prisma.serviceDogComplianceEvent.count({
       where: {
         serviceDogId: event.serviceDogId,
+        businessId: authResult.businessId,
         notificationStatus: "PENDING",
         id: { not: params.id },
       },
@@ -45,7 +46,7 @@ export async function PATCH(
 
     if (remainingPending === 0) {
       await prisma.serviceDogProfile.update({
-        where: { id: event.serviceDogId },
+        where: { id: event.serviceDogId, businessId: authResult.businessId },
         data: { isGovReportPending: false, govReportDue: null },
       });
     }

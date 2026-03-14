@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 /**
  * POST /api/intake/send
@@ -8,10 +9,14 @@ import { NextRequest, NextResponse } from "next/server";
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireBusinessAuth(request);
+    if (isGuardError(authResult)) return authResult;
+    const { businessId } = authResult;
+
     const { intakeFormId, deliveryChannel } = await request.json();
 
     const form = await prisma.intakeForm.update({
-      where: { id: intakeFormId },
+      where: { id: intakeFormId, businessId },
       data: {
         status: "SENT",
         deliveryChannel: deliveryChannel || "WHATSAPP_DEEPLINK",

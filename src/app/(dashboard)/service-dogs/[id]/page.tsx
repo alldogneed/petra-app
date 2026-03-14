@@ -49,6 +49,8 @@ import {
   FileText as FileTextIcon,
   Paperclip,
   Loader2,
+  Clock3,
+  Download,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import {
@@ -71,6 +73,7 @@ import {
   INSURANCE_COVERAGE_TYPES,
   CLAIM_STATUSES,
   CLAIM_STATUS_MAP,
+  CLAIM_OPEN_STATUSES,
   LOCATION_OPTIONS,
   LOCATION_MAP,
 } from "@/lib/service-dogs";
@@ -3684,6 +3687,11 @@ interface ClaimDocument {
   uploadedAt: string;
 }
 
+interface NoteEntry {
+  text: string;
+  createdAt: string;
+}
+
 interface ClaimRecord {
   id: string;
   incidentDate: string;
@@ -3698,16 +3706,372 @@ interface ClaimRecord {
   documents: ClaimDocument[] | null;
   submittedAt: string | null;
   resolvedAt: string | null;
+  followUpAt: string | null;
   status: string;
   notes: string | null;
+}
+
+// Notes stored as JSON array [{text, createdAt}]; falls back to plain text for legacy records
+function parseNoteLog(raw: string | null): NoteEntry[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed as NoteEntry[];
+    return [{ text: raw, createdAt: new Date(0).toISOString() }];
+  } catch {
+    return [{ text: raw, createdAt: new Date(0).toISOString() }];
+  }
+}
+function stringifyNoteLog(entries: NoteEntry[]): string {
+  return JSON.stringify(entries);
+}
+
+// ─── Claim Card (expanded tracking panel) ───
+function ClaimCard({
+  claim,
+  insuranceId,
+  providerName,
+  dogId,
+  onUpdated,
+}: {
+  claim: ClaimRecord;
+  insuranceId: string;
+  providerName: string;
+  dogId: string;
+  onUpdated: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [newNoteText, setNewNoteText] = useState("");
+  const [showAddNote, setShowAddNote] = useState(false);
+  const [editForm, setEditForm] = useState({
+    incidentDate: claim.incidentDate?.split("T")[0] ?? "",
+    claimNumber: claim.claimNumber ?? "",
+    vetName: claim.vetName ?? "",
+    amount: claim.amount?.toString() ?? "",
+    deductiblePaid: claim.deductiblePaid?.toString() ?? "",
+    reimbursedAmount: claim.reimbursedAmount?.toString() ?? "",
+    submittedAt: claim.submittedAt?.split("T")[0] ?? "",
+    followUpAt: claim.followUpAt?.split("T")[0] ?? "",
+    description: claim.description ?? "",
+  });
+
+  const sc = CLAIM_STATUS_MAP[claim.status] ?? { label: claim.status, color: "bg-slate-100 text-slate-600" };
+  const noteLog = parseNoteLog(claim.notes);
+  const isOpen = (CLAIM_OPEN_STATUSES as readonly string[]).includes(claim.status);
+  const today = new Date().toISOString().split("T")[0];
+  const followUpOverdue = claim.followUpAt && claim.followUpAt.split("T")[0] < today;
+
+  const patchClaim = async (patch: Record<string, unknown>) => {
+    await fetch(`/api/service-dogs/${dogId}/insurance/${insuranceId}/claims/${claim.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    onUpdated();
+  };
+
+  const handleStatusChange = (status: string) => {
+    const isClosed = ["PAID", "DENIED", "WITHDRAWN"].includes(status);
+    patchClaim({
+      status,
+      resolvedAt: isClosed ? new Date().toISOString() : null,
+      submittedAt: status === "SUBMITTED" && !claim.submittedAt ? new Date().toISOString() : undefined,
+    }).then(() => toast.success("סטטוס עודכן"));
+  };
+
+  const handleSaveEdit = () => {
+    patchClaim({
+      incidentDate: editForm.incidentDate || undefined,
+      claimNumber: editForm.claimNumber || null,
+      vetName: editForm.vetName || null,
+      amount: editForm.amount ? parseFloat(editForm.amount) : null,
+      deductiblePaid: editForm.deductiblePaid ? parseFloat(editForm.deductiblePaid) : null,
+      reimbursedAmount: editForm.reimbursedAmount ? parseFloat(editForm.reimbursedAmount) : null,
+      submittedAt: editForm.submittedAt || null,
+      followUpAt: editForm.followUpAt || null,
+      description: editForm.description || null,
+    }).then(() => { toast.success("תביעה עודכנה"); setEditMode(false); });
+  };
+
+  const handleAddNote = () => {
+    if (!newNoteText.trim()) return;
+    const updated: NoteEntry[] = [...noteLog, { text: newNoteText.trim(), createdAt: new Date().toISOString() }];
+    patchClaim({ notes: stringifyNoteLog(updated) }).then(() => {
+      toast.success("עדכון נוסף");
+      setNewNoteText("");
+      setShowAddNote(false);
+    });
+  };
+
+  const handleDeleteNote = (idx: number) => {
+    const updated = noteLog.filter((_, i) => i !== idx);
+    patchClaim({ notes: stringifyNoteLog(updated) }).then(() => toast.success("עדכון נמחק"));
+  };
+
+  const handleUploadDoc = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("קובץ גדול מדי (מקסימום 5MB)"); return; }
+    const name = file.name.toLowerCase();
+    const docType: ClaimDocument["type"] =
+      name.includes("חשבונית") || name.includes("invoice") ? "invoice"
+      : name.includes("סיכום") || name.includes("summary") ? "visit_summary"
+      : "other";
+    const reader = new FileReader();
+    reader.onload = () => {
+      const existingDocs: ClaimDocument[] = Array.isArray(claim.documents) ? claim.documents : [];
+      patchClaim({
+        documents: [...existingDocs, { name: file.name, type: docType, data: reader.result as string, uploadedAt: new Date().toISOString() }],
+        invoiceAttached: docType === "invoice" ? true : claim.invoiceAttached,
+        visitSummaryAttached: docType === "visit_summary" ? true : claim.visitSummaryAttached,
+      }).then(() => toast.success("מסמך הועלה"));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleDeleteDoc = (docIdx: number) => {
+    const existingDocs: ClaimDocument[] = Array.isArray(claim.documents) ? claim.documents : [];
+    const updated = existingDocs.filter((_, i) => i !== docIdx);
+    patchClaim({
+      documents: updated,
+      invoiceAttached: updated.some((d) => d.type === "invoice"),
+      visitSummaryAttached: updated.some((d) => d.type === "visit_summary"),
+    }).then(() => toast.success("מסמך נמחק"));
+  };
+
+  // Status pipeline: which next statuses are valid from current
+  const STATUS_TRANSITIONS: Record<string, string[]> = {
+    PENDING:   ["SUBMITTED", "DENIED", "WITHDRAWN"],
+    SUBMITTED: ["IN_REVIEW", "PAID", "DENIED", "WITHDRAWN"],
+    IN_REVIEW: ["PAID", "DENIED", "WITHDRAWN"],
+    PAID: [], DENIED: [], WITHDRAWN: [],
+  };
+  const nextStatuses = STATUS_TRANSITIONS[claim.status] ?? [];
+
+  return (
+    <div className={cn("bg-white rounded-xl border overflow-hidden transition-shadow", expanded && "shadow-md ring-1 ring-blue-100")}>
+      {/* Header row */}
+      <div
+        className="p-3.5 flex items-start gap-3 cursor-pointer hover:bg-slate-50/60 select-none"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-0.5">
+            <span className={cn("text-xs px-2 py-0.5 rounded-full font-semibold shrink-0", sc.color)}>{sc.label}</span>
+            {claim.claimNumber && <span className="text-xs font-mono font-medium text-petra-text">#{claim.claimNumber}</span>}
+            <span className="text-xs text-petra-muted">{providerName}</span>
+          </div>
+          <p className="text-sm font-medium truncate">{claim.description || "ללא תיאור"}</p>
+          <div className="flex gap-3 text-xs text-petra-muted mt-0.5 flex-wrap">
+            <span>אירוע: {formatDate(claim.incidentDate)}</span>
+            {claim.vetName && <span>וטרינר: {claim.vetName}</span>}
+            {claim.amount && <span>₪{claim.amount.toLocaleString("he-IL")}</span>}
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          {claim.followUpAt && (
+            <span className={cn("text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1", followUpOverdue ? "bg-red-100 text-red-600 font-semibold" : "bg-blue-50 text-blue-600")}>
+              <Clock3 className="w-3 h-3" />
+              {formatDate(claim.followUpAt)}
+            </span>
+          )}
+          {(claim.documents?.length ?? 0) > 0 && (
+            <span className="text-xs text-petra-muted flex items-center gap-0.5">
+              <Paperclip className="w-3 h-3" />{claim.documents!.length}
+            </span>
+          )}
+          {expanded ? <ChevronUp className="w-3.5 h-3.5 text-slate-400 mt-1" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400 mt-1" />}
+        </div>
+      </div>
+
+      {/* Expanded body */}
+      {expanded && (
+        <div className="border-t bg-slate-50/40 divide-y divide-slate-100">
+
+          {/* Status pipeline */}
+          {isOpen && nextStatuses.length > 0 && (
+            <div className="px-4 py-3">
+              <p className="text-xs font-semibold text-petra-muted mb-2">עדכון סטטוס</p>
+              <div className="flex gap-2 flex-wrap">
+                {nextStatuses.map((s) => {
+                  const st = CLAIM_STATUS_MAP[s] ?? { label: s, color: "bg-slate-100 text-slate-600" };
+                  const isFinal = ["PAID","DENIED","WITHDRAWN"].includes(s);
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => handleStatusChange(s)}
+                      className={cn(
+                        "text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors",
+                        isFinal && s === "PAID" ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                        : isFinal ? "border-red-200 text-red-600 hover:bg-red-50"
+                        : "border-blue-200 text-blue-700 hover:bg-blue-50"
+                      )}
+                    >
+                      → {st.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Details / edit */}
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-petra-muted">פרטי תביעה</p>
+              {!editMode && (
+                <button onClick={() => setEditMode(true)} className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1">
+                  <Pencil className="w-3 h-3" /> עריכה
+                </button>
+              )}
+            </div>
+            {editMode ? (
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div><label className="label text-xs">תאריך אירוע</label><input type="date" className="input w-full text-xs" value={editForm.incidentDate} onChange={(e) => setEditForm((p) => ({ ...p, incidentDate: e.target.value }))} /></div>
+                  <div><label className="label text-xs">מספר תביעה</label><input className="input w-full text-xs" value={editForm.claimNumber} onChange={(e) => setEditForm((p) => ({ ...p, claimNumber: e.target.value }))} /></div>
+                  <div><label className="label text-xs">וטרינר</label><input className="input w-full text-xs" value={editForm.vetName} onChange={(e) => setEditForm((p) => ({ ...p, vetName: e.target.value }))} /></div>
+                  <div><label className="label text-xs">סכום תביעה (₪)</label><input type="number" className="input w-full text-xs" value={editForm.amount} onChange={(e) => setEditForm((p) => ({ ...p, amount: e.target.value }))} /></div>
+                  <div><label className="label text-xs">השתתפות עצמית (₪)</label><input type="number" className="input w-full text-xs" value={editForm.deductiblePaid} onChange={(e) => setEditForm((p) => ({ ...p, deductiblePaid: e.target.value }))} /></div>
+                  <div><label className="label text-xs">סכום שהוחזר (₪)</label><input type="number" className="input w-full text-xs" value={editForm.reimbursedAmount} onChange={(e) => setEditForm((p) => ({ ...p, reimbursedAmount: e.target.value }))} /></div>
+                  <div><label className="label text-xs">תאריך הגשה</label><input type="date" className="input w-full text-xs" value={editForm.submittedAt} onChange={(e) => setEditForm((p) => ({ ...p, submittedAt: e.target.value }))} /></div>
+                  <div><label className="label text-xs">🔔 תאריך מעקב</label><input type="date" className="input w-full text-xs" value={editForm.followUpAt} onChange={(e) => setEditForm((p) => ({ ...p, followUpAt: e.target.value }))} /></div>
+                </div>
+                <div><label className="label text-xs">תיאור האירוע</label><textarea className="input w-full text-xs" rows={2} value={editForm.description} onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))} /></div>
+                <div className="flex gap-2">
+                  <button className="btn-primary text-xs" onClick={handleSaveEdit}>שמור שינויים</button>
+                  <button className="btn-ghost text-xs" onClick={() => setEditMode(false)}>ביטול</button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 text-xs">
+                {claim.incidentDate && <div><span className="text-petra-muted">תאריך אירוע: </span>{formatDate(claim.incidentDate)}</div>}
+                {claim.vetName && <div><span className="text-petra-muted">וטרינר: </span>{claim.vetName}</div>}
+                {claim.claimNumber && <div><span className="text-petra-muted">מספר: </span>#{claim.claimNumber}</div>}
+                {claim.amount && <div><span className="text-petra-muted">תביעה: </span>₪{claim.amount.toLocaleString("he-IL")}</div>}
+                {claim.deductiblePaid && <div><span className="text-petra-muted">ה״ע: </span>₪{claim.deductiblePaid.toLocaleString("he-IL")}</div>}
+                {claim.reimbursedAmount && <div className="text-emerald-600 font-semibold"><span className="font-normal text-petra-muted">הוחזר: </span>₪{claim.reimbursedAmount.toLocaleString("he-IL")}</div>}
+                {claim.submittedAt && <div><span className="text-petra-muted">הוגש: </span>{formatDate(claim.submittedAt)}</div>}
+                {claim.resolvedAt && <div><span className="text-petra-muted">נסגר: </span>{formatDate(claim.resolvedAt)}</div>}
+                {claim.followUpAt && (
+                  <div className={cn("col-span-2 font-medium", followUpOverdue ? "text-red-600" : "text-blue-600")}>
+                    🔔 מעקב: {formatDate(claim.followUpAt)}{followUpOverdue ? " (באיחור!)" : ""}
+                  </div>
+                )}
+                {claim.description && <div className="col-span-full text-petra-muted mt-0.5">{claim.description}</div>}
+              </div>
+            )}
+          </div>
+
+          {/* Notes / activity log */}
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-petra-muted">יומן עדכונים</p>
+              {!showAddNote && (
+                <button onClick={() => setShowAddNote(true)} className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1">
+                  <Plus className="w-3 h-3" /> הוסף עדכון
+                </button>
+              )}
+            </div>
+            {showAddNote && (
+              <div className="mb-3 flex gap-2 items-start">
+                <textarea
+                  className="input flex-1 text-xs resize-none"
+                  rows={2}
+                  placeholder='למשל: "דיברתי עם נציג הביטוח, מחכים לאישור רופא"'
+                  value={newNoteText}
+                  onChange={(e) => setNewNoteText(e.target.value)}
+                  autoFocus
+                />
+                <div className="flex flex-col gap-1 shrink-0">
+                  <button className="btn-primary text-xs px-2 py-1" onClick={handleAddNote} disabled={!newNoteText.trim()}>הוסף</button>
+                  <button className="btn-ghost text-xs px-2 py-1" onClick={() => { setShowAddNote(false); setNewNoteText(""); }}>ביטול</button>
+                </div>
+              </div>
+            )}
+            {noteLog.length === 0 ? (
+              <p className="text-xs text-petra-muted">אין עדכונים עדיין</p>
+            ) : (
+              <div className="space-y-2">
+                {[...noteLog].reverse().map((entry, ri) => {
+                  const idx = noteLog.length - 1 - ri;
+                  const entryDate = entry.createdAt && new Date(entry.createdAt).getFullYear() > 2000
+                    ? new Date(entry.createdAt).toLocaleString("he-IL", { day: "numeric", month: "short", year: "2-digit", hour: "2-digit", minute: "2-digit" })
+                    : "";
+                  return (
+                    <div key={idx} className="flex items-start gap-2 group">
+                      <div className="flex-1 bg-white rounded-lg border px-3 py-2">
+                        {entryDate && <p className="text-[10px] text-petra-muted mb-0.5">{entryDate}</p>}
+                        <p className="text-xs text-petra-text whitespace-pre-wrap">{entry.text}</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteNote(idx)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-400 mt-1 shrink-0"
+                        title="מחק עדכון"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Documents */}
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-petra-muted">
+                מסמכים {(claim.documents?.length ?? 0) > 0 && `(${claim.documents!.length})`}
+              </p>
+              <label className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1 cursor-pointer">
+                <Upload className="w-3 h-3" /> הוסף מסמך
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={handleUploadDoc} />
+              </label>
+            </div>
+            {(claim.documents?.length ?? 0) === 0 ? (
+              <p className="text-xs text-petra-muted">אין מסמכים</p>
+            ) : (
+              <div className="space-y-1.5">
+                {(claim.documents as ClaimDocument[]).map((doc, di) => (
+                  <div key={di} className="flex items-center gap-2 group bg-white rounded-lg border px-3 py-2">
+                    <FileTextIcon className="w-4 h-4 text-blue-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{doc.name}</p>
+                      <p className="text-[10px] text-petra-muted">
+                        {doc.type === "invoice" ? "חשבונית" : doc.type === "visit_summary" ? "סיכום ביקור" : "מסמך"}
+                        {doc.uploadedAt ? ` · ${new Date(doc.uploadedAt).toLocaleDateString("he-IL")}` : ""}
+                      </p>
+                    </div>
+                    <a href={doc.data} download={doc.name} className="text-xs text-brand-500 hover:text-brand-700 shrink-0" title="הורד">
+                      <Download className="w-3.5 h-3.5" />
+                    </a>
+                    <button
+                      onClick={() => handleDeleteDoc(di)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-400 shrink-0"
+                      title="מחק מסמך"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function InsuranceTab({ dogId }: { dogId: string }) {
   const queryClient = useQueryClient();
   const [showAddInsurance, setShowAddInsurance] = useState(false);
   const [expandedInsId, setExpandedInsId] = useState<string | null>(null);
-  const [showAddClaim, setShowAddClaim] = useState<string | null>(null); // insuranceId
-  const [expandedClaimId, setExpandedClaimId] = useState<string | null>(null); // for doc section
+  const [showAddClaim, setShowAddClaim] = useState<string | null>(null);
+  const [claimStatusFilter, setClaimStatusFilter] = useState<"open" | "closed">("open");
 
   const { data: insurances = [], isLoading } = useQuery<InsuranceRecord[]>({
     queryKey: ["sd-insurance", dogId],
@@ -3744,253 +4108,186 @@ function InsuranceTab({ dogId }: { dogId: string }) {
     onError: () => toast.error("שגיאה בהוספת תביעה"),
   });
 
-  const updateClaimMutation = useMutation({
-    mutationFn: ({ insuranceId, claimId, status }: { insuranceId: string; claimId: string; status: string }) =>
-      fetch(`/api/service-dogs/${dogId}/insurance/${insuranceId}/claims/${claimId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, resolvedAt: ["PAID","DENIED","WITHDRAWN"].includes(status) ? new Date().toISOString() : null }),
-      }).then((r) => r.json()),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sd-insurance", dogId] });
-      toast.success("תביעה עודכנה");
-    },
-  });
-
-  const uploadClaimDocMutation = useMutation({
-    mutationFn: ({ insuranceId, claimId, claim, newDoc }: { insuranceId: string; claimId: string; claim: ClaimRecord; newDoc: ClaimDocument }) => {
-      const existingDocs: ClaimDocument[] = Array.isArray(claim.documents) ? claim.documents : [];
-      return fetch(`/api/service-dogs/${dogId}/insurance/${insuranceId}/claims/${claimId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          documents: [...existingDocs, newDoc],
-          invoiceAttached: newDoc.type === "invoice" ? true : claim.invoiceAttached,
-          visitSummaryAttached: newDoc.type === "visit_summary" ? true : claim.visitSummaryAttached,
-        }),
-      }).then((r) => r.json());
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sd-insurance", dogId] });
-      toast.success("מסמך הועלה");
-    },
-    onError: () => toast.error("שגיאה בהעלאת מסמך"),
-  });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["sd-insurance", dogId] });
 
   if (isLoading) return <div className="card h-40 animate-pulse" />;
 
+  // Flatten all claims with insurance context
+  const allClaims = insurances.flatMap((ins) =>
+    ins.claims.map((c) => ({ ...c, insuranceId: ins.id, providerName: ins.provider || "ביטוח" }))
+  );
+  const openClaims = allClaims
+    .filter((c) => (CLAIM_OPEN_STATUSES as readonly string[]).includes(c.status))
+    .sort((a, b) => {
+      // Sort: overdue followUp first, then by incidentDate desc
+      const today = new Date().toISOString().split("T")[0];
+      const aOverdue = a.followUpAt && a.followUpAt.split("T")[0] < today;
+      const bOverdue = b.followUpAt && b.followUpAt.split("T")[0] < today;
+      if (aOverdue && !bOverdue) return -1;
+      if (!aOverdue && bOverdue) return 1;
+      return new Date(b.incidentDate).getTime() - new Date(a.incidentDate).getTime();
+    });
+  const closedClaims = allClaims.filter((c) => !(CLAIM_OPEN_STATUSES as readonly string[]).includes(c.status))
+    .sort((a, b) => new Date(b.incidentDate).getTime() - new Date(a.incidentDate).getTime());
+
+  const displayedClaims = claimStatusFilter === "open" ? openClaims : closedClaims;
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-blue-500" />
-          ביטוח כלב שירות
-        </h3>
-        <button className="btn-primary text-sm flex items-center gap-1.5" onClick={() => setShowAddInsurance(!showAddInsurance)}>
-          <Plus className="w-4 h-4" />
-          הוסף פוליסה
-        </button>
+    <div className="space-y-5">
+      {/* ── Active claims tracking panel ── */}
+      <div className="card p-0 overflow-hidden">
+        <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-slate-100">
+          <h3 className="font-semibold flex items-center gap-2 text-sm">
+            <FileTextIcon className="w-4 h-4 text-blue-500" />
+            מעקב תביעות
+            {openClaims.length > 0 && (
+              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                {openClaims.length} פתוחות
+              </span>
+            )}
+          </h3>
+          {/* Status filter */}
+          <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5 text-xs">
+            <button
+              onClick={() => setClaimStatusFilter("open")}
+              className={cn("px-3 py-1 rounded-md font-medium transition-colors", claimStatusFilter === "open" ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text")}
+            >
+              פעילות {openClaims.length > 0 && `(${openClaims.length})`}
+            </button>
+            <button
+              onClick={() => setClaimStatusFilter("closed")}
+              className={cn("px-3 py-1 rounded-md font-medium transition-colors", claimStatusFilter === "closed" ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text")}
+            >
+              סגורות {closedClaims.length > 0 && `(${closedClaims.length})`}
+            </button>
+          </div>
+        </div>
+
+        <div className="p-3 space-y-2">
+          {displayedClaims.length === 0 ? (
+            <div className="py-8 text-center">
+              <FileTextIcon className="w-8 h-8 mx-auto text-slate-200 mb-2" />
+              <p className="text-sm text-petra-muted">
+                {claimStatusFilter === "open" ? "אין תביעות פעילות" : "אין תביעות סגורות"}
+              </p>
+            </div>
+          ) : (
+            displayedClaims.map((c) => (
+              <ClaimCard
+                key={c.id}
+                claim={c}
+                insuranceId={c.insuranceId}
+                providerName={c.providerName}
+                dogId={dogId}
+                onUpdated={refresh}
+              />
+            ))
+          )}
+        </div>
       </div>
 
-      {showAddInsurance && (
-        <AddInsuranceForm
-          onSave={(data) => addInsMutation.mutate(data)}
-          onCancel={() => setShowAddInsurance(false)}
-          isSaving={addInsMutation.isPending}
-        />
-      )}
-
-      {insurances.length === 0 && !showAddInsurance && (
-        <div className="card p-10 text-center">
-          <ShieldCheck className="w-12 h-12 mx-auto text-petra-muted/30 mb-3" />
-          <p className="text-petra-muted">אין פוליסות ביטוח</p>
+      {/* ── Insurance policies ── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold flex items-center gap-2 text-sm">
+            <ShieldCheck className="w-4 h-4 text-blue-500" />
+            פוליסות ביטוח
+          </h3>
+          <button className="btn-primary text-sm flex items-center gap-1.5" onClick={() => setShowAddInsurance(!showAddInsurance)}>
+            <Plus className="w-4 h-4" />
+            הוסף פוליסה
+          </button>
         </div>
-      )}
 
-      {insurances.map((ins) => {
-        const isExpanded = expandedInsId === ins.id;
-        const pendingClaims = ins.claims.filter((c) => c.status === "PENDING").length;
-        const totalClaimed = ins.claims.reduce((s, c) => s + (c.amount ?? 0), 0);
+        {showAddInsurance && (
+          <AddInsuranceForm
+            onSave={(data) => addInsMutation.mutate(data)}
+            onCancel={() => setShowAddInsurance(false)}
+            isSaving={addInsMutation.isPending}
+          />
+        )}
 
-        return (
-          <div key={ins.id} className={cn("card p-0 overflow-hidden", !ins.isActive && "opacity-70")}>
-            <div
-              className="p-4 flex items-start justify-between gap-3 cursor-pointer hover:bg-slate-50/40"
-              onClick={() => setExpandedInsId(isExpanded ? null : ins.id)}
-            >
-              <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-semibold">{ins.provider || "ביטוח לא ידוע"}</p>
-                  <span className={cn("text-xs px-2 py-0.5 rounded-full", ins.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500")}>
-                    {ins.isActive ? "פעיל" : "לא פעיל"}
-                  </span>
-                  {pendingClaims > 0 && (
-                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{pendingClaims} תביעות פתוחות</span>
-                  )}
-                </div>
-                <div className="flex gap-4 text-xs text-petra-muted mt-1 flex-wrap">
-                  {ins.policyNumber && <span>פוליסה: {ins.policyNumber}</span>}
-                  {ins.premium && <span>פרמיה: ₪{ins.premium.toLocaleString("he-IL")}</span>}
-                  {ins.renewalDate && <span>חידוש: {formatDate(ins.renewalDate)}</span>}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {ins.claims.length > 0 && (
-                  <div className="text-right">
-                    <p className="text-xs text-petra-muted">{ins.claims.length} תביעות</p>
-                    <p className="text-xs font-medium">₪{totalClaimed.toLocaleString("he-IL")}</p>
+        {insurances.length === 0 && !showAddInsurance && (
+          <div className="card p-8 text-center">
+            <ShieldCheck className="w-10 h-10 mx-auto text-petra-muted/30 mb-2" />
+            <p className="text-petra-muted text-sm">אין פוליסות ביטוח</p>
+          </div>
+        )}
+
+        {insurances.map((ins) => {
+          const isExpanded = expandedInsId === ins.id;
+          const openCount = ins.claims.filter((c) => (CLAIM_OPEN_STATUSES as readonly string[]).includes(c.status)).length;
+          const totalClaimed = ins.claims.reduce((s, c) => s + (c.amount ?? 0), 0);
+
+          return (
+            <div key={ins.id} className={cn("card p-0 overflow-hidden", !ins.isActive && "opacity-70")}>
+              <div
+                className="p-4 flex items-start justify-between gap-3 cursor-pointer hover:bg-slate-50/40"
+                onClick={() => setExpandedInsId(isExpanded ? null : ins.id)}
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold">{ins.provider || "ביטוח לא ידוע"}</p>
+                    <span className={cn("text-xs px-2 py-0.5 rounded-full", ins.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500")}>
+                      {ins.isActive ? "פעיל" : "לא פעיל"}
+                    </span>
+                    {openCount > 0 && (
+                      <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{openCount} תביעות פתוחות</span>
+                    )}
                   </div>
-                )}
-                {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-              </div>
-            </div>
-
-            {isExpanded && (
-              <div className="border-t px-4 pb-4 pt-3 bg-slate-50/30 space-y-3">
-                {/* Insurance details */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
-                  {ins.coverageType && <div><p className="text-xs text-petra-muted">סוג כיסוי</p><p className="font-medium">{INSURANCE_COVERAGE_TYPES.find((c) => c.id === ins.coverageType)?.label || ins.coverageType}</p></div>}
-                  {ins.deductible && <div><p className="text-xs text-petra-muted">השתתפות עצמית</p><p className="font-medium">₪{ins.deductible.toLocaleString("he-IL")}</p></div>}
-                  {ins.startDate && <div><p className="text-xs text-petra-muted">תחילת כיסוי</p><p className="font-medium">{formatDate(ins.startDate)}</p></div>}
-                </div>
-
-                {/* Policy document */}
-                {ins.policyDocument && (
-                  <a
-                    href={ins.policyDocument}
-                    download={`policy-${ins.policyNumber || ins.id}.pdf`}
-                    className="inline-flex items-center gap-1.5 text-xs text-brand-500 hover:text-brand-600 mt-2"
-                  >
-                    <FileTextIcon className="w-3.5 h-3.5" />
-                    הורד מסמך פוליסה
-                  </a>
-                )}
-
-                {/* Claims */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h5 className="text-sm font-semibold">תביעות</h5>
-                    <button className="text-xs text-brand-500 hover:text-brand-600" onClick={() => setShowAddClaim(ins.id)}>
-                      + תביעה חדשה
-                    </button>
+                  <div className="flex gap-4 text-xs text-petra-muted mt-1 flex-wrap">
+                    {ins.policyNumber && <span>פוליסה: {ins.policyNumber}</span>}
+                    {ins.premium && <span>פרמיה: ₪{ins.premium.toLocaleString("he-IL")}</span>}
+                    {ins.renewalDate && <span>חידוש: {formatDate(ins.renewalDate)}</span>}
                   </div>
-
-                  {showAddClaim === ins.id && (
-                    <AddClaimForm
-                      onSave={(data) => addClaimMutation.mutate({ insuranceId: ins.id, data })}
-                      onCancel={() => setShowAddClaim(null)}
-                      isSaving={addClaimMutation.isPending}
-                    />
-                  )}
-
-                  {ins.claims.length === 0 ? (
-                    <p className="text-xs text-petra-muted">אין תביעות</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {ins.claims.map((claim) => {
-                        const sc = CLAIM_STATUS_MAP[claim.status] || { label: claim.status, color: "bg-slate-100 text-slate-600" };
-                        return (
-                          <div key={claim.id} className="bg-white rounded-lg border overflow-hidden">
-                            <div className="p-3 flex items-start justify-between gap-2">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                                  <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium", sc.color)}>{sc.label}</span>
-                                  <span className="text-xs text-petra-muted">{formatDate(claim.incidentDate)}</span>
-                                  {claim.claimNumber && <span className="text-xs font-medium text-petra-text">#{claim.claimNumber}</span>}
-                                  {claim.resolvedAt && <span className="text-xs text-petra-muted">סיים: {formatDate(claim.resolvedAt)}</span>}
-                                </div>
-                                {claim.vetName && <p className="text-xs text-petra-muted">וטרינר: {claim.vetName}</p>}
-                                {claim.description && <p className="text-sm mt-0.5">{claim.description}</p>}
-                                <div className="flex gap-3 text-xs text-petra-muted mt-0.5 flex-wrap">
-                                  {claim.amount && <span>תביעה: ₪{claim.amount.toLocaleString("he-IL")}</span>}
-                                  {claim.deductiblePaid && <span>ה״ע: ₪{claim.deductiblePaid.toLocaleString("he-IL")}</span>}
-                                  {claim.reimbursedAmount && <span className="text-emerald-600 font-medium">הוחזר: ₪{claim.reimbursedAmount.toLocaleString("he-IL")}</span>}
-                                  {claim.submittedAt && <span>הוגש: {formatDate(claim.submittedAt)}</span>}
-                                </div>
-                              </div>
-                              <div className="flex flex-col items-end gap-1 shrink-0">
-                                {claim.status === "PENDING" && (
-                                  <div className="flex gap-1">
-                                    <button onClick={() => updateClaimMutation.mutate({ insuranceId: ins.id, claimId: claim.id, status: "PAID" })} className="text-xs text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded border border-emerald-200">שולם</button>
-                                    <button onClick={() => updateClaimMutation.mutate({ insuranceId: ins.id, claimId: claim.id, status: "DENIED" })} className="text-xs text-red-600 hover:bg-red-50 px-2 py-1 rounded border border-red-200">נדחה</button>
-                                  </div>
-                                )}
-                                <button
-                                  onClick={() => setExpandedClaimId(expandedClaimId === claim.id ? null : claim.id)}
-                                  className="text-xs text-petra-muted hover:text-petra-text flex items-center gap-1"
-                                >
-                                  <Paperclip className="w-3 h-3" />
-                                  מסמכים {Array.isArray(claim.documents) && claim.documents.length > 0 ? `(${claim.documents.length})` : ""}
-                                </button>
-                              </div>
-                            </div>
-                            {/* Documents section */}
-                            {expandedClaimId === claim.id && (
-                              <div className="border-t bg-slate-50 px-3 py-2.5 space-y-2">
-                                {Array.isArray(claim.documents) && claim.documents.length > 0 && (
-                                  <div className="space-y-1">
-                                    {(claim.documents as ClaimDocument[]).map((doc, di) => (
-                                      <a
-                                        key={di}
-                                        href={doc.data}
-                                        download={doc.name}
-                                        className="flex items-center gap-1.5 text-xs text-brand-500 hover:text-brand-700"
-                                      >
-                                        <FileTextIcon className="w-3.5 h-3.5 shrink-0" />
-                                        <span className="truncate">{doc.name}</span>
-                                        <span className="text-petra-muted shrink-0">
-                                          ({doc.type === "invoice" ? "חשבונית" : doc.type === "visit_summary" ? "סיכום ביקור" : "מסמך"})
-                                        </span>
-                                      </a>
-                                    ))}
-                                  </div>
-                                )}
-                                {/* Upload new doc */}
-                                <label className="flex items-center gap-2 cursor-pointer text-xs text-brand-500 hover:text-brand-700 w-fit">
-                                  <Upload className="w-3.5 h-3.5" />
-                                  הוסף מסמך
-                                  <input
-                                    type="file"
-                                    accept=".pdf,.jpg,.jpeg,.png,.webp"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (!file) return;
-                                      if (file.size > 5 * 1024 * 1024) { toast.error("קובץ גדול מדי (מקסימום 5MB)"); return; }
-                                      const name = file.name.toLowerCase();
-                                      const docType: ClaimDocument["type"] =
-                                        name.includes("חשבונית") || name.includes("invoice") ? "invoice"
-                                        : name.includes("סיכום") || name.includes("summary") ? "visit_summary"
-                                        : "other";
-                                      const reader = new FileReader();
-                                      reader.onload = () => {
-                                        uploadClaimDocMutation.mutate({
-                                          insuranceId: ins.id,
-                                          claimId: claim.id,
-                                          claim,
-                                          newDoc: { name: file.name, type: docType, data: reader.result as string, uploadedAt: new Date().toISOString() },
-                                        });
-                                      };
-                                      reader.readAsDataURL(file);
-                                      e.target.value = "";
-                                    }}
-                                  />
-                                </label>
-                                {uploadClaimDocMutation.isPending && <p className="text-xs text-petra-muted">מעלה...</p>}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {ins.claims.length > 0 && (
+                    <div className="text-left">
+                      <p className="text-xs text-petra-muted">{ins.claims.length} תביעות</p>
+                      <p className="text-xs font-medium">₪{totalClaimed.toLocaleString("he-IL")}</p>
                     </div>
                   )}
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                 </div>
-                {ins.notes && <p className="text-xs text-petra-muted">{ins.notes}</p>}
               </div>
-            )}
-          </div>
-        );
-      })}
+
+              {isExpanded && (
+                <div className="border-t px-4 pb-4 pt-3 bg-slate-50/30 space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                    {ins.coverageType && <div><p className="text-xs text-petra-muted">סוג כיסוי</p><p className="font-medium">{INSURANCE_COVERAGE_TYPES.find((c) => c.id === ins.coverageType)?.label || ins.coverageType}</p></div>}
+                    {ins.deductible && <div><p className="text-xs text-petra-muted">השתתפות עצמית</p><p className="font-medium">₪{ins.deductible.toLocaleString("he-IL")}</p></div>}
+                    {ins.startDate && <div><p className="text-xs text-petra-muted">תחילת כיסוי</p><p className="font-medium">{formatDate(ins.startDate)}</p></div>}
+                  </div>
+                  {ins.policyDocument && (
+                    <a href={ins.policyDocument} download={`policy-${ins.policyNumber || ins.id}.pdf`} className="inline-flex items-center gap-1.5 text-xs text-brand-500 hover:text-brand-600">
+                      <FileTextIcon className="w-3.5 h-3.5" /> הורד מסמך פוליסה
+                    </a>
+                  )}
+                  {ins.notes && <p className="text-xs text-petra-muted">{ins.notes}</p>}
+                  <div className="pt-1 border-t border-slate-100">
+                    <button
+                      className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1"
+                      onClick={(e) => { e.stopPropagation(); setShowAddClaim(ins.id); }}
+                    >
+                      <Plus className="w-3.5 h-3.5" /> תביעה חדשה בפוליסה זו
+                    </button>
+                    {showAddClaim === ins.id && (
+                      <div className="mt-2">
+                        <AddClaimForm
+                          onSave={(data) => addClaimMutation.mutate({ insuranceId: ins.id, data })}
+                          onCancel={() => setShowAddClaim(null)}
+                          isSaving={addClaimMutation.isPending}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -4052,9 +4349,10 @@ function AddInsuranceForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<s
 }
 
 function AddClaimForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<string, unknown>) => void; onCancel: () => void; isSaving: boolean }) {
-  const [form, setForm] = useState({ incidentDate: new Date().toISOString().split("T")[0], description: "", amount: "", deductiblePaid: "", reimbursedAmount: "", vetName: "", claimNumber: "", submittedAt: "", notes: "" });
+  const today = new Date().toISOString().split("T")[0];
+  const [form, setForm] = useState({ incidentDate: today, description: "", amount: "", deductiblePaid: "", vetName: "", claimNumber: "", submittedAt: "", followUpAt: "", status: "PENDING" });
   const [documents, setDocuments] = useState<ClaimDocument[]>([]);
-  const f = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm((p) => ({ ...p, [k]: e.target.value }));
+  const f = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm((p) => ({ ...p, [k]: e.target.value }));
 
   const handleDocUpload = (docType: ClaimDocument["type"]) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -4072,41 +4370,50 @@ function AddClaimForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<strin
   const summaryDoc = documents.find((d) => d.type === "visit_summary");
 
   return (
-    <div className="bg-white border rounded-xl p-3 space-y-3 mb-2">
+    <div className="bg-white border-2 border-blue-100 rounded-xl p-4 space-y-3">
+      <h4 className="text-sm font-semibold text-blue-700 flex items-center gap-1.5">
+        <FileTextIcon className="w-4 h-4" /> תביעה חדשה
+      </h4>
       <div className="grid grid-cols-2 gap-2">
-        <div><label className="label text-xs">תאריך אירוע</label><input type="date" className="input w-full text-sm" value={form.incidentDate} onChange={f("incidentDate")} /></div>
-        <div><label className="label text-xs">מספר תביעה</label><input className="input w-full text-sm" value={form.claimNumber} onChange={f("claimNumber")} placeholder="מספר תביעה מחברת הביטוח" /></div>
-        <div><label className="label text-xs">וטרינר</label><input className="input w-full text-sm" value={form.vetName} onChange={f("vetName")} placeholder="שם הוטרינר" /></div>
+        <div><label className="label text-xs">תאריך אירוע *</label><input type="date" className="input w-full text-sm" value={form.incidentDate} onChange={f("incidentDate")} /></div>
+        <div><label className="label text-xs">סטטוס</label>
+          <select className="input w-full text-sm" value={form.status} onChange={f("status")}>
+            {CLAIM_STATUSES.filter((s) => (CLAIM_OPEN_STATUSES as readonly string[]).includes(s.id)).map((s) => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
+        </div>
+        <div><label className="label text-xs">מספר תביעה</label><input className="input w-full text-sm" value={form.claimNumber} onChange={f("claimNumber")} placeholder="ממחברת הביטוח" /></div>
+        <div><label className="label text-xs">וטרינר</label><input className="input w-full text-sm" value={form.vetName} onChange={f("vetName")} /></div>
         <div><label className="label text-xs">סכום תביעה (₪)</label><input type="number" className="input w-full text-sm" value={form.amount} onChange={f("amount")} /></div>
         <div><label className="label text-xs">השתתפות עצמית (₪)</label><input type="number" className="input w-full text-sm" value={form.deductiblePaid} onChange={f("deductiblePaid")} /></div>
-        <div><label className="label text-xs">סכום שהוחזר (₪)</label><input type="number" className="input w-full text-sm" value={form.reimbursedAmount} onChange={f("reimbursedAmount")} /></div>
         <div><label className="label text-xs">תאריך הגשה</label><input type="date" className="input w-full text-sm" value={form.submittedAt} onChange={f("submittedAt")} /></div>
+        <div><label className="label text-xs">🔔 תאריך מעקב</label><input type="date" className="input w-full text-sm" value={form.followUpAt} onChange={f("followUpAt")} /></div>
       </div>
       <div><label className="label text-xs">תיאור האירוע</label><textarea className="input w-full text-sm" rows={2} value={form.description} onChange={f("description")} /></div>
-      <div><label className="label text-xs">הערות</label><textarea className="input w-full text-sm" rows={2} value={form.notes} onChange={f("notes")} /></div>
       {/* Document uploads */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-petra-muted">מסמכים</p>
+      <div className="space-y-1.5">
+        <p className="text-xs font-semibold text-petra-muted">מסמכים (אופציונלי)</p>
         <div className="grid grid-cols-2 gap-2">
           <label className={cn("flex items-center gap-1.5 cursor-pointer border rounded-lg px-2.5 py-2 text-xs transition-colors", invoiceDoc ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-dashed border-slate-300 hover:border-brand-300 text-petra-muted")}>
             {invoiceDoc ? <Check className="w-3.5 h-3.5 shrink-0" /> : <Upload className="w-3.5 h-3.5 shrink-0" />}
-            <span className="truncate">{invoiceDoc ? invoiceDoc.name : "העלה חשבונית"}</span>
+            <span className="truncate">{invoiceDoc ? invoiceDoc.name : "חשבונית"}</span>
             <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={handleDocUpload("invoice")} />
           </label>
           <label className={cn("flex items-center gap-1.5 cursor-pointer border rounded-lg px-2.5 py-2 text-xs transition-colors", summaryDoc ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-dashed border-slate-300 hover:border-brand-300 text-petra-muted")}>
             {summaryDoc ? <Check className="w-3.5 h-3.5 shrink-0" /> : <Upload className="w-3.5 h-3.5 shrink-0" />}
-            <span className="truncate">{summaryDoc ? summaryDoc.name : "העלה סיכום ביקור"}</span>
+            <span className="truncate">{summaryDoc ? summaryDoc.name : "סיכום ביקור"}</span>
             <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={handleDocUpload("visit_summary")} />
           </label>
         </div>
       </div>
       <div className="flex gap-2">
         <button
-          className="btn-primary text-xs"
-          onClick={() => onSave({ ...form, documents, invoiceAttached: !!invoiceDoc, visitSummaryAttached: !!summaryDoc })}
+          className="btn-primary text-sm"
+          onClick={() => onSave({ ...form, documents, invoiceAttached: !!invoiceDoc, visitSummaryAttached: !!summaryDoc, followUpAt: form.followUpAt || null })}
           disabled={!form.incidentDate || isSaving}
-        >{isSaving ? "שומר..." : "הגש תביעה"}</button>
-        <button className="btn-ghost text-xs" onClick={onCancel}>ביטול</button>
+        >{isSaving ? "שומר..." : "פתח תביעה"}</button>
+        <button className="btn-ghost text-sm" onClick={onCancel}>ביטול</button>
       </div>
     </div>
   );

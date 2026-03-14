@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { type TenantRole } from "@/lib/permissions";
 
 const ACTION_LABELS: Record<string, string> = {
   LOGIN: "התחברות למערכת",
@@ -35,6 +36,15 @@ export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    // Staff and volunteers cannot view activity log
+    const membership = authResult.session.memberships.find(
+      (m) => m.businessId === authResult.businessId && m.isActive
+    );
+    const callerRole = (membership?.role ?? "user") as TenantRole;
+    if (callerRole === "user" || callerRole === "volunteer") {
+      return NextResponse.json({ activities: [] });
+    }
 
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const { businessId } = authResult;

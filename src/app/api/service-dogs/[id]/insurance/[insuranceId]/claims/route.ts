@@ -34,6 +34,7 @@ export async function POST(
         visitSummaryAttached: body.visitSummaryAttached ?? false,
         documents: body.documents ?? [],
         submittedAt: body.submittedAt ? new Date(body.submittedAt) : null,
+        followUpAt: body.followUpAt ? new Date(body.followUpAt) : null,
         status: body.status || "PENDING",
         notes: body.notes || null,
       },

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { type TenantRole } from "@/lib/permissions";
 
 // GET /api/payments/[id] – get a single payment
 export async function GET(
@@ -100,7 +101,7 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/payments/[id]
+// DELETE /api/payments/[id] — owner only
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -108,15 +109,24 @@ export async function DELETE(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { session, businessId } = authResult;
+
+    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const callerRole = (membership?.role ?? "user") as TenantRole;
+
+    // Only owner can delete payments
+    if (callerRole !== "owner") {
+      return NextResponse.json({ error: "רק בעלים יכול למחוק תשלום" }, { status: 403 });
+    }
 
     const existing = await prisma.payment.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
+      where: { id: params.id, businessId },
     });
     if (!existing) {
       return NextResponse.json({ error: "תשלום לא נמצא" }, { status: 404 });
     }
 
-    await prisma.payment.delete({ where: { id: params.id, businessId: authResult.businessId } });
+    await prisma.payment.delete({ where: { id: params.id, businessId } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE payment error:", error);

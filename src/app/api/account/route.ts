@@ -19,7 +19,6 @@ export async function GET() {
         email: true,
         name: true,
         avatarUrl: true,
-        platformRole: true,
         isActive: true,
         createdAt: true,
         businessMemberships: {

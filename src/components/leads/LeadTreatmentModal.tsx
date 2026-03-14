@@ -434,15 +434,27 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
     });
 
     const deleteLeadMutation = useMutation({
-        mutationFn: () =>
-            fetch(`/api/leads/${lead!.id}`, { method: "DELETE" }).then((r) => r.json()),
-        onSuccess: () => {
+        mutationFn: async () => {
+            const r = await fetch(`/api/leads/${lead!.id}`, {
+                method: "DELETE",
+                headers: { "x-confirm-action": `DELETE_LEAD_${lead!.id}` },
+            });
+            const data = await r.json();
+            if (!r.ok && r.status !== 202) throw new Error(data.error || "שגיאה");
+            return { status: r.status, data };
+        },
+        onSuccess: ({ status, data }) => {
+            if (status === 202) {
+                toast.success(data.message || "הבקשה נשלחה לאישור הבעלים");
+            } else {
+                toast.success("הליד נמחק");
+            }
             queryClient.invalidateQueries({ queryKey: ["leads"] });
             setShowDeleteConfirm(false);
             onClose();
             if (onDeleted) onDeleted();
         },
-        onError: () => toast.error("שגיאה במחיקת הליד. נסה שוב."),
+        onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת הליד. נסה שוב."),
     });
 
     const isWorking = updateLeadMutation.isPending || closeWonMutation.isPending || closeLostMutation.isPending;

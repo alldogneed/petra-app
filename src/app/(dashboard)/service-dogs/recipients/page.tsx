@@ -5,7 +5,7 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import {
   UserCheck, Plus, X, Search, Phone, ChevronLeft, Dog,
-  LayoutGrid, LayoutList, Pencil, Trash2, GripVertical, Check,
+  LayoutGrid, LayoutList, Pencil, Trash2, GripVertical, Check, Upload,
 } from "lucide-react";
 import {
   DndContext,
@@ -39,6 +39,7 @@ import {
 import { toast } from "sonner";
 import { TierGate } from "@/components/paywall/TierGate";
 import { usePermissions } from "@/hooks/usePermissions";
+import { ImportModal } from "@/components/import/ImportModal";
 
 interface Stage {
   id: string;
@@ -242,6 +243,7 @@ function RecipientsPageContent() {
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [view, setView] = useState<"kanban" | "table">("kanban");
   const [isEditMode, setIsEditMode] = useState(false);
   const [showAddColumn, setShowAddColumn] = useState(false);
@@ -446,6 +448,13 @@ function RecipientsPageContent() {
               <LayoutList className="w-4 h-4" />
             </button>
           </div>
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            ייבוא מקובץ
+          </button>
           <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" />
             הוסף זכאי
@@ -606,6 +615,15 @@ function RecipientsPageContent() {
           stages={stages}
           onClose={() => setShowAddModal(false)}
           onAdded={() => queryClient.invalidateQueries({ queryKey: ["service-recipients"] })}
+        />
+      )}
+      {showImportModal && (
+        <ImportModal
+          title="ייבוא זכאים"
+          templateUrl="/api/service-recipients/import/template"
+          importUrl="/api/service-recipients/import"
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["service-recipients"] })}
+          onClose={() => setShowImportModal(false)}
         />
       )}
     </div>

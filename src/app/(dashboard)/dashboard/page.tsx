@@ -2587,14 +2587,16 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Activity Feed */}
-        <div className="card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-petra-text">פעילות אחרונה</h2>
-            <span className="text-[11px] text-petra-muted">24 שעות אחרונות</span>
+        {/* Activity Feed — owner/manager only */}
+        {!perms.isStaff && !perms.isVolunteer && (
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-petra-text">פעילות אחרונה</h2>
+              <span className="text-[11px] text-petra-muted">24 שעות אחרונות</span>
+            </div>
+            <ActivityFeed activities={activityData?.activities || []} />
           </div>
-          <ActivityFeed activities={activityData?.activities || []} />
-        </div>
+        )}
       </div>
 
       {/* Tomorrow Reminders */}

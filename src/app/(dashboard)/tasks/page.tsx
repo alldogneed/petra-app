@@ -321,7 +321,7 @@ export default function TasksPage() {
         body: JSON.stringify({ status }),
       }),
     onMutate: async ({ id, status }) => {
-      const key = ["tasks", activeCategory, activeFilter];
+      const key = ["tasks", activeCategory, activeFilter, dateFrom, dateTo];
       await queryClient.cancelQueries({ queryKey: key });
       const prev = queryClient.getQueryData<Task[]>(key);
       queryClient.setQueryData<Task[]>(key, (old) =>
@@ -338,7 +338,7 @@ export default function TasksPage() {
       if (status === "COMPLETED") toast.success("המשימה הושלמה ✓");
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(["tasks", activeCategory, activeFilter], ctx.prev);
+      if (ctx?.prev) queryClient.setQueryData(["tasks", activeCategory, activeFilter, dateFrom, dateTo], ctx.prev);
       toast.error("שגיאה בעדכון המשימה. נסה שוב.");
     },
   });
@@ -347,7 +347,7 @@ export default function TasksPage() {
     mutationFn: (id: string) =>
       fetchJSON(`/api/tasks/${id}`, { method: "DELETE" }),
     onMutate: async (id) => {
-      const key = ["tasks", activeCategory, activeFilter];
+      const key = ["tasks", activeCategory, activeFilter, dateFrom, dateTo];
       await queryClient.cancelQueries({ queryKey: key });
       const prev = queryClient.getQueryData<Task[]>(key);
       queryClient.setQueryData<Task[]>(key, (old) =>
@@ -356,7 +356,7 @@ export default function TasksPage() {
       return { prev };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(["tasks", activeCategory, activeFilter], ctx.prev);
+      if (ctx?.prev) queryClient.setQueryData(["tasks", activeCategory, activeFilter, dateFrom, dateTo], ctx.prev);
       toast.error("שגיאה במחיקת המשימה. נסה שוב.");
     },
     onSuccess: () => {
@@ -1759,7 +1759,7 @@ function EditTaskModal({
     ? format(new Date(task.dueAt), "yyyy-MM-dd")
     : task.dueDate
     ? format(new Date(task.dueDate), "yyyy-MM-dd")
-    : "";
+    : format(new Date(), "yyyy-MM-dd");
 
   const initialTime = task.dueAt ? format(new Date(task.dueAt), "HH:mm") : "";
 

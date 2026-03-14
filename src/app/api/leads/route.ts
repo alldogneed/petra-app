@@ -5,6 +5,7 @@ import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxLeads, normalizeTier } from "@/lib/feature-flags";
+import { getFirstLeadStageId } from "@/lib/lead-stages";
 
 export async function GET(request: NextRequest) {
   try {
@@ -74,16 +75,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Invalid stage value" }, { status: 400 });
       }
     } else {
-      // Default to the first stage (lowest sortOrder) for this business
-      const defaultStage = await prisma.leadStage.findFirst({
-        where: { businessId: authResult.businessId },
-        orderBy: { sortOrder: "asc" },
-        select: { id: true },
-      });
-      if (!defaultStage) {
-        return NextResponse.json({ error: "No lead stages configured for this business" }, { status: 400 });
-      }
-      resolvedStage = defaultStage.id;
+      // Default to "ליד חדש" (first stage), auto-creating stages if needed
+      resolvedStage = await getFirstLeadStageId(authResult.businessId);
     }
 
     const lead = await prisma.lead.create({

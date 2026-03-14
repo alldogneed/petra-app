@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { hasTenantPermission, type TenantRole, type TenantPermission } from "@/lib/permissions";
 
 interface AuthUser {
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -90,10 +92,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* ignore */
     }
+    queryClient.clear();
     setUser(null);
     router.push("/login");
     router.refresh();
-  }, [router]);
+  }, [router, queryClient]);
 
   const exitImpersonation = useCallback(async () => {
     const res = await fetch("/api/auth/exit-impersonation", { method: "POST" });
@@ -101,11 +104,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Failed to exit impersonation:", await res.text());
       return; // Do not redirect if exit failed
     }
+    queryClient.clear();
     const data = await fetch("/api/auth/me").then((r) => (r.ok ? r.json() : null));
     setUser(data?.user || null);
     router.push("/owner/tenants");
     router.refresh();
-  }, [router]);
+  }, [router, queryClient]);
 
   return (
     <AuthContext.Provider value={{ user, loading, logout, exitImpersonation, refreshUser, hasPermission, isOwner: !!isOwner, isManager: !!isManager, isStaff: !!isStaff, isVolunteer: !!isVolunteer }}>

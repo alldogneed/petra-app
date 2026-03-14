@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
-    platformRole: session.user.platformRole,
+    isAdmin: session.user.platformRole === "super_admin" || session.user.platformRole === "admin",
     twoFaEnabled: session.user.twoFaEnabled,
     twoFaVerified: session.twoFaVerified,
     memberships: session.memberships.map((m) => ({

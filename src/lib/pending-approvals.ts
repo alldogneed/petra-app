@@ -14,6 +14,7 @@ export type PendingApprovalAction =
   | "DELETE_PET"
   | "DELETE_TRAINING"
   | "DELETE_APPOINTMENT"
+  | "DELETE_LEAD"
   | "EDIT_PRICING"
   | "EDIT_SETTINGS";
 
@@ -71,6 +72,7 @@ export const PENDING_APPROVAL_LABELS: Record<PendingApprovalAction, string> = {
   DELETE_PET:         "מחיקת חיית מחמד",
   DELETE_TRAINING:    "מחיקת תוכנית אימון",
   DELETE_APPOINTMENT: "מחיקת פגישה",
+  DELETE_LEAD:        "מחיקת ליד",
   EDIT_PRICING:       "שינוי מחירון",
   EDIT_SETTINGS:      "שינוי הגדרות עסק",
 };

@@ -1979,8 +1979,9 @@ model ServiceDogClaim {
   documents            Json?     // [{name, type, data (base64), uploadedAt}]
   submittedAt          DateTime?
   resolvedAt           DateTime?
-  status               String    @default("PENDING") // PENDING | PAID | DENIED | WITHDRAWN
-  notes                String?
+  status               String    @default("PENDING") // PENDING | SUBMITTED | IN_REVIEW | PAID | DENIED | WITHDRAWN
+  followUpAt           DateTime? // when to follow up with insurer
+  notes                String?   // structured JSON log: [{text, createdAt}] or plain text
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

@@ -2029,11 +2029,14 @@ function BoardingPageContent() {
       return r.json();
     },
     onMutate: async ({ id, roomId }) => {
+      const occKey = ["boarding-occupancy", occFrom, occTo];
       await queryClient.cancelQueries({ queryKey: ["boarding"] });
       await queryClient.cancelQueries({ queryKey: ["rooms"] });
+      await queryClient.cancelQueries({ queryKey: occKey });
 
       const prev = queryClient.getQueryData<BoardingStay[]>(["boarding"]);
       const prevRooms = queryClient.getQueryData<Room[]>(["rooms"]);
+      const prevOcc = queryClient.getQueryData<BoardingStay[]>(occKey);
 
       const targetRoom = roomId ? (prevRooms?.find((r) => r.id === roomId) ?? null) : null;
 
@@ -2043,6 +2046,24 @@ function BoardingPageContent() {
           ? { ...s, room: targetRoom ? { id: targetRoom.id, name: targetRoom.name } : null }
           : s) ?? []
       );
+
+      // Update occupancy cache — this is what RoomStatusCard actually displays
+      queryClient.setQueryData<BoardingStay[]>(occKey, (old) => {
+        if (!old) return old;
+        // If stay is already in occ cache, update its room
+        const existing = old.find((s) => s.id === id);
+        if (existing) {
+          return old.map((s) => s.id === id
+            ? { ...s, room: targetRoom ? { id: targetRoom.id, name: targetRoom.name } : null }
+            : s);
+        }
+        // Stay not in occ cache yet (came from boarding cache) — add it
+        const stayFromBoarding = prev?.find((s) => s.id === id);
+        if (stayFromBoarding) {
+          return [...old, { ...stayFromBoarding, room: targetRoom ? { id: targetRoom.id, name: targetRoom.name } : null }];
+        }
+        return old;
+      });
 
       // Update rooms cache so grid cards update instantly
       const stayToMove = prev?.find((s) => s.id === id);
@@ -2078,11 +2099,12 @@ function BoardingPageContent() {
         );
       }
 
-      return { prev, prevRooms };
+      return { prev, prevRooms, prevOcc, occKey };
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(["boarding"], ctx.prev);
       if (ctx?.prevRooms) queryClient.setQueryData(["rooms"], ctx.prevRooms);
+      if (ctx?.prevOcc) queryClient.setQueryData(ctx.occKey, ctx.prevOcc);
       toast.error("שגיאה בשיוך החדר. נסה שוב.");
     },
     onSettled: () => {

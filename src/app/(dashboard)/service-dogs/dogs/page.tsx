@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   Archive,
   MapPin,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
@@ -29,6 +30,7 @@ import {
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
 import { TierGate } from "@/components/paywall/TierGate";
+import { ImportModal } from "@/components/import/ImportModal";
 
 interface ServiceDogCard {
   id: string;
@@ -64,6 +66,7 @@ function ServiceDogsListPageContent() {
   const [phaseFilter, setPhaseFilter] = useState(searchParams.get("phase") || "");
   const [showArchive, setShowArchive] = useState(searchParams.get("archive") === "1");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [phaseDropdownId, setPhaseDropdownId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -149,13 +152,22 @@ function ServiceDogsListPageContent() {
             {showArchive ? "חזרה לפעילים" : `ארכיון (${archivedDogs.length})`}
           </button>
           {!showArchive && (
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="btn-primary flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              הוסף כלב שירות
-            </button>
+            <>
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                ייבוא מקובץ
+              </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="btn-primary flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                הוסף כלב שירות
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -432,6 +444,15 @@ function ServiceDogsListPageContent() {
       )}
 
       {showAddModal && <AddDogModal dogs={dogs} onClose={() => setShowAddModal(false)} />}
+      {showImportModal && (
+        <ImportModal
+          title="ייבוא כלבי שירות"
+          templateUrl="/api/service-dogs/import/template"
+          importUrl="/api/service-dogs/import"
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["service-dogs"] })}
+          onClose={() => setShowImportModal(false)}
+        />
+      )}
     </div>
   );
 }

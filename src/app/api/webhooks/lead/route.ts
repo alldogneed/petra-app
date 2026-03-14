@@ -30,6 +30,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import prisma from "@/lib/prisma";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { getFirstLeadStageId } from "@/lib/lead-stages";
 
 export async function POST(request: NextRequest) {
   // ── Rate limiting ─────────────────────────────────────────────────────────
@@ -83,11 +84,11 @@ export async function POST(request: NextRequest) {
     if (!authorized) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    // Prefer env var over body to prevent cross-tenant injection
-    businessId = process.env.WEBHOOK_BUSINESS_ID || str(body.businessId) || undefined;
+    // Only use env var — never accept businessId from request body (IDOR risk)
+    businessId = process.env.WEBHOOK_BUSINESS_ID || undefined;
     if (!businessId) {
       return NextResponse.json(
-        { error: "businessId is required (body or WEBHOOK_BUSINESS_ID env var)" },
+        { error: "WEBHOOK_BUSINESS_ID env var is required for legacy auth" },
         { status: 400 }
       );
     }
@@ -128,11 +129,7 @@ export async function POST(request: NextRequest) {
 
   // ── Create lead ───────────────────────────────────────────────────────────
   try {
-    const firstStage = await prisma.leadStage.findFirst({
-      where: { businessId },
-      orderBy: { sortOrder: "asc" },
-      select: { id: true },
-    });
+    const firstStageId = await getFirstLeadStageId(businessId as string);
 
     const lead = await prisma.lead.create({
       data: {
@@ -141,7 +138,7 @@ export async function POST(request: NextRequest) {
         phone: phone || undefined,
         email: email || undefined,
         source,
-        stage: firstStage?.id ?? "new",
+        stage: firstStageId,
         notes: notes || undefined,
       },
       select: { id: true, name: true, stage: true, createdAt: true },

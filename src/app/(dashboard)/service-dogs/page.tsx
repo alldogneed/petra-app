@@ -3,6 +3,7 @@ import { PageTitle } from "@/components/ui/PageTitle";
 
 import { TierGate } from "@/components/paywall/TierGate";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/providers/auth-provider";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState, useMemo, useEffect, useCallback } from "react";
@@ -76,6 +77,7 @@ interface ComplianceEvent {
 
 function ServiceDogsOverviewPageContent() {
   const perms = usePermissions();
+  const { user } = useAuth();
 
   const { data: dogs = [] } = useQuery<ServiceDogSummary[]>({
     queryKey: ["service-dogs"],
@@ -168,7 +170,7 @@ function ServiceDogsOverviewPageContent() {
     .slice(0, 8);
 
   // Persistent dismissed state — survives page refresh, stored in localStorage for 7 days
-  const { dismissedIds, dismiss, archive, restore, clearAll } = usePersistentDismissed();
+  const { dismissedIds, dismiss, archive, restore, clearAll } = usePersistentDismissed(user?.businessId ?? null);
   const [showArchive, setShowArchive] = useState(false);
 
   const visibleDogs = dogsNeedingAttention.filter((d) => !dismissedIds.has(d.id));
@@ -755,7 +757,7 @@ function AddServiceDogModal({ onClose }: { onClose: () => void }) {
 
 // ─── Persistent dismissed alerts hook ────────────────────────────────────────
 
-const DISMISSED_KEY = "sd-alerts-dismissed";
+const DISMISSED_KEY_PREFIX = "sd-alerts-dismissed";
 const TTL_DAYS = 7;
 
 type DismissedEntry = {
@@ -765,13 +767,14 @@ type DismissedEntry = {
   dismissedAt: string; // ISO string
 };
 
-function usePersistentDismissed() {
+function usePersistentDismissed(businessId: string | null) {
   const [entries, setEntries] = useState<DismissedEntry[]>([]);
+  const storageKey = businessId ? `${DISMISSED_KEY_PREFIX}-${businessId}` : DISMISSED_KEY_PREFIX;
 
   // Load from localStorage on mount (runs only client-side)
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(DISMISSED_KEY);
+      const raw = localStorage.getItem(storageKey);
       if (!raw) return;
       const parsed: DismissedEntry[] = JSON.parse(raw);
       const cutoff = Date.now() - TTL_DAYS * 24 * 60 * 60 * 1000;
@@ -779,10 +782,10 @@ function usePersistentDismissed() {
       setEntries(filtered);
       // Prune expired entries
       if (filtered.length !== parsed.length) {
-        localStorage.setItem(DISMISSED_KEY, JSON.stringify(filtered));
+        localStorage.setItem(storageKey, JSON.stringify(filtered));
       }
     } catch { /* ignore */ }
-  }, []);
+  }, [storageKey]);
 
   const dismissedIds = useMemo(() => new Set(entries.map((e) => e.id)), [entries]);
 
@@ -790,7 +793,7 @@ function usePersistentDismissed() {
     setEntries((prev) => {
       if (prev.some((e) => e.id === id)) return prev;
       const next = [...prev, { id, label, type, dismissedAt: new Date().toISOString() }];
-      try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
   }, []);
@@ -798,14 +801,14 @@ function usePersistentDismissed() {
   const restore = useCallback((id: string) => {
     setEntries((prev) => {
       const next = prev.filter((e) => e.id !== id);
-      try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
   }, []);
 
   const clearAll = useCallback(() => {
     setEntries([]);
-    try { localStorage.removeItem(DISMISSED_KEY); } catch { /* ignore */ }
+    try { localStorage.removeItem(storageKey); } catch { /* ignore */ }
   }, []);
 
   return { dismissedIds, dismiss, archive: entries, restore, clearAll };

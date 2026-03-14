@@ -630,9 +630,11 @@ function ChangePasswordSection() {
 
 function BookingLinkBox() {
   const [copied, setCopied] = useState(false);
+  const { user } = useAuth();
+  const slug = user?.businessSlug || user?.businessId || "";
   const bookingUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/book/demo-business-001`
-    : "/book/demo-business-001";
+    ? `${window.location.origin}/book/${slug}`
+    : `/book/${slug}`;
 
   function copyLink() {
     navigator.clipboard.writeText(bookingUrl).then(() => {

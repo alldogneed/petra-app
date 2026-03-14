@@ -4,6 +4,8 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { createPendingApproval } from "@/lib/pending-approvals";
 
 const PatchLeadSchema = z.object({
   stage: z.string().optional(),
@@ -141,20 +143,52 @@ export async function DELETE(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { session, businessId } = authResult;
+
+    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const callerRole = (membership?.role ?? "user") as TenantRole;
+
+    // Staff/volunteer cannot delete leads
+    if (!hasTenantPermission(callerRole, TENANT_PERMS.CONTENT_WRITE) ||
+        callerRole === "user" || callerRole === "volunteer") {
+      return NextResponse.json({ error: "אין הרשאה למחיקת ליד" }, { status: 403 });
+    }
 
     const { id } = params;
 
     const existing = await prisma.lead.findFirst({
-      where: { id, businessId: authResult.businessId },
+      where: { id, businessId },
     });
 
     if (!existing) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    await prisma.lead.delete({ where: { id, businessId: authResult.businessId } });
+    // Manager → route to pending approval
+    if (callerRole === "manager") {
+      const approval = await createPendingApproval({
+        businessId,
+        requestedByUserId: session.user.id,
+        action: "DELETE_LEAD",
+        description: `מחיקת ליד: ${existing.name}${existing.phone ? ` — ${existing.phone}` : ""}`,
+        payload: { leadId: id, leadName: existing.name },
+      });
+      return NextResponse.json(
+        { pendingApproval: true, approvalId: approval.id, message: "הבקשה נשלחה לאישור הבעלים" },
+        { status: 202 }
+      );
+    }
 
-    const { session } = authResult;
+    // Owner → require typed confirmation header
+    const confirmHeader = request.headers.get("x-confirm-action");
+    if (confirmHeader !== `DELETE_LEAD_${id}`) {
+      return NextResponse.json(
+        { error: "נדרש אישור מפורש למחיקה", requireConfirmation: true },
+        { status: 428 }
+      );
+    }
+
+    await prisma.lead.delete({ where: { id, businessId } });
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_LEAD);
 
     return NextResponse.json({ success: true });

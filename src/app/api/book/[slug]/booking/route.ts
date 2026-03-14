@@ -7,6 +7,7 @@ import { rateLimit } from "@/lib/rate-limit"
 import { sendWhatsAppMessage } from "@/lib/whatsapp"
 import { toWhatsAppPhone } from "@/lib/utils"
 import { enqueueSyncJob } from "@/lib/sync-jobs"
+import { getFirstLeadStageId } from "@/lib/lead-stages"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://petra-app.vercel.app"
 
@@ -307,24 +308,19 @@ export async function POST(
 
   // Auto-create lead for new customers (fire-and-forget)
   if (isNewCustomer) {
-    prisma.leadStage.findFirst({
-      where: { businessId: business.id },
-      orderBy: { sortOrder: "asc" },
-      select: { id: true },
-    }).then((firstStage) => {
-      if (!firstStage) return
-      return prisma.lead.create({
+    getFirstLeadStageId(business.id).then((stageId) =>
+      prisma.lead.create({
         data: {
           businessId: business.id,
           customerId: customer.id,
           name: customer.name,
           phone: customer.phone,
-          stage: firstStage.id,
+          stage: stageId,
           source: "website",
           notes: `הזמנה מהאתר: ${item.name}`,
         },
       })
-    }).catch((err) => console.error("Failed to create lead from booking:", err))
+    ).catch((err) => console.error("Failed to create lead from booking:", err))
   }
 
   // Build human-readable date/time labels for notifications

@@ -310,11 +310,18 @@ export const INSURANCE_COVERAGE_TYPES = [
 ] as const;
 
 export const CLAIM_STATUSES = [
-  { id: "PENDING",    label: "ממתין",       color: "bg-amber-100 text-amber-700" },
-  { id: "PAID",       label: "שולם",        color: "bg-emerald-100 text-emerald-700" },
-  { id: "DENIED",     label: "נדחה",        color: "bg-red-100 text-red-600" },
-  { id: "WITHDRAWN",  label: "בוטל",        color: "bg-slate-100 text-slate-500" },
+  { id: "PENDING",    label: "ממתין",       color: "bg-amber-100 text-amber-700",    icon: "⏳" },
+  { id: "SUBMITTED",  label: "הוגש",        color: "bg-blue-100 text-blue-700",      icon: "📤" },
+  { id: "IN_REVIEW",  label: "בבדיקה",      color: "bg-violet-100 text-violet-700",  icon: "🔍" },
+  { id: "PAID",       label: "שולם",        color: "bg-emerald-100 text-emerald-700", icon: "✅" },
+  { id: "DENIED",     label: "נדחה",        color: "bg-red-100 text-red-600",        icon: "❌" },
+  { id: "WITHDRAWN",  label: "בוטל",        color: "bg-slate-100 text-slate-500",    icon: "🚫" },
 ] as const;
+
+/** Statuses that count as "open / in-progress" */
+export const CLAIM_OPEN_STATUSES = ["PENDING", "SUBMITTED", "IN_REVIEW"] as const;
+/** Statuses that count as "closed / resolved" */
+export const CLAIM_CLOSED_STATUSES = ["PAID", "DENIED", "WITHDRAWN"] as const;
 
 export const CLAIM_STATUS_MAP: Record<string, { label: string; color: string }> =
   Object.fromEntries(CLAIM_STATUSES.map((s) => [s.id, { label: s.label, color: s.color }]));

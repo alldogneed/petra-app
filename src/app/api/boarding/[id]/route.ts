@@ -158,22 +158,23 @@ export async function PATCH(
           const otherActive = await tx.boardingStay.count({
             where: {
               roomId: existing.roomId!,
+              businessId: authResult.businessId,
               id: { not: params.id },
               status: { in: ["reserved", "checked_in"] },
             },
           });
           if (otherActive === 0) {
             await tx.room.update({
-              where: { id: existing.roomId! },
+              where: { id: existing.roomId!, businessId: authResult.businessId },
               data: { status: "needs_cleaning" },
             });
           }
         });
       } else if (body.status === "checked_in") {
-        const room = await prisma.room.findUnique({ where: { id: existing.roomId } });
+        const room = await prisma.room.findFirst({ where: { id: existing.roomId!, businessId: authResult.businessId } });
         if (room && room.status === "needs_cleaning") {
           await prisma.room.update({
-            where: { id: existing.roomId },
+            where: { id: existing.roomId!, businessId: authResult.businessId },
             data: { status: "available" },
           });
         }

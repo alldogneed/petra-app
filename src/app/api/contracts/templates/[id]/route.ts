@@ -79,7 +79,7 @@ export async function DELETE(
     }
 
     if (relatedRequests.length > 0) {
-      await prisma.contractRequest.deleteMany({ where: { templateId: params.id } });
+      await prisma.contractRequest.deleteMany({ where: { templateId: params.id, businessId: authResult.businessId } });
     }
 
     // Delete template blob
@@ -91,7 +91,7 @@ export async function DELETE(
       // Blob may not exist
     }
 
-    await prisma.contractTemplate.delete({ where: { id: params.id } });
+    await prisma.contractTemplate.delete({ where: { id: params.id, businessId: authResult.businessId } });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

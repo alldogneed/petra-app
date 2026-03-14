@@ -2,6 +2,7 @@
 import { PageTitle } from "@/components/ui/PageTitle";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/providers/auth-provider";
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
   ChevronRight,
@@ -792,6 +793,7 @@ export default function CalendarPage() {
 
 function CalendarContent() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { isFree, tier, can } = usePlan();
   const maxAppts = getMaxAppointments(tier);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2451,7 +2453,7 @@ function CalendarContent() {
                         <a
                           href={(() => {
                             const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-                            const bookingUrl = `${baseUrl}/book/demo-business-001`;
+                            const bookingUrl = `${baseUrl}/book/${user?.businessSlug || user?.businessId || ""}`;
                             const msg = `שלום ${selectedAppointment.customer.name}! 😊\nתודה על הביקור! מוזמנ/ת לקבוע את התור הבא:\n${bookingUrl}\nנתראה! 🐾`;
                             return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(selectedAppointment.customer.phone)}&text=${encodeURIComponent(msg)}`;
                           })()}

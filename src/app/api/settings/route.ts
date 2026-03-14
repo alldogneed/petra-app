@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { type TenantRole } from "@/lib/permissions";
 
 export async function GET(request: NextRequest) {
   try {
@@ -45,6 +46,15 @@ export async function PATCH(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    // Only owner can change settings
+    const membership = authResult.session.memberships.find(
+      (m) => m.businessId === authResult.businessId && m.isActive
+    );
+    const callerRole = (membership?.role ?? "user") as TenantRole;
+    if (callerRole !== "owner") {
+      return NextResponse.json({ error: "רק בעלים יכול לשנות הגדרות" }, { status: 403 });
+    }
 
     const body = await request.json();
 

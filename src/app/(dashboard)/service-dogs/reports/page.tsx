@@ -57,19 +57,19 @@ interface TrainingProgram {
 function ServiceDogsReportsPageContent() {
   const { data: dogs = [], isLoading: dogsLoading } = useQuery<ServiceDogSummary[]>({
     queryKey: ["service-dogs"],
-    queryFn: () => fetch("/api/service-dogs").then((r) => r.json()),
+    queryFn: () => fetch("/api/service-dogs").then((r) => r.ok ? r.json() : []),
     staleTime: 60_000,
   });
 
   const { data: programs = [], isLoading: programsLoading } = useQuery<TrainingProgram[]>({
     queryKey: ["training-programs-sd"],
-    queryFn: () => fetch("/api/training-programs?trainingType=SERVICE_DOG").then((r) => r.json()).then((d) => Array.isArray(d) ? d : d.programs ?? []),
+    queryFn: () => fetch("/api/training-programs?trainingType=SERVICE_DOG").then((r) => r.ok ? r.json().then((d: unknown) => Array.isArray(d) ? d : (d as { programs?: TrainingProgram[] }).programs ?? []) : []),
     staleTime: 60_000,
   });
 
   const { data: recipients = [] } = useQuery<{ id: string; name: string; status: string; fundingSource: string | null; disabilityType: string | null }[]>({
     queryKey: ["service-recipients"],
-    queryFn: () => fetch("/api/service-recipients").then((r) => r.json()),
+    queryFn: () => fetch("/api/service-recipients").then((r) => r.ok ? r.json() : []),
     staleTime: 60_000,
   });
 
