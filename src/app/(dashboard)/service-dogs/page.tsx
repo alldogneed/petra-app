@@ -2,6 +2,7 @@
 import { PageTitle } from "@/components/ui/PageTitle";
 
 import { TierGate } from "@/components/paywall/TierGate";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState, useMemo, useEffect, useCallback } from "react";
@@ -74,6 +75,7 @@ interface ComplianceEvent {
 }
 
 function ServiceDogsOverviewPageContent() {
+  const perms = usePermissions();
 
   const { data: dogs = [] } = useQuery<ServiceDogSummary[]>({
     queryKey: ["service-dogs"],
@@ -119,6 +121,7 @@ function ServiceDogsOverviewPageContent() {
   const { data: recipients = [] } = useQuery<{ id: string; name: string; status: string; fundingSource: string | null }[]>({
     queryKey: ["service-recipients"],
     queryFn: () => fetch("/api/service-recipients").then((r) => r.json()),
+    enabled: perms.canSeeRecipientsSensitive,
   });
 
   // Training stats
@@ -220,8 +223,8 @@ function ServiceDogsOverviewPageContent() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recipients Pipeline Mini-board */}
-        {recipients.length > 0 && (
+        {/* Recipients Pipeline Mini-board — hidden from staff */}
+        {perms.canSeeRecipientsSensitive && recipients.length > 0 && (
           <div className="card p-0 overflow-hidden">
             <div className="px-5 py-4 border-b flex items-center justify-between">
               <h2 className="font-semibold flex items-center gap-2">
