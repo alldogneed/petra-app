@@ -256,12 +256,22 @@ function RecipientsPageContent() {
 
   const { data: stages = [], isLoading: stagesLoading } = useQuery<Stage[]>({
     queryKey: ["recipient-stages"],
-    queryFn: () => fetch("/api/service-recipient-stages").then((r) => r.json()),
+    queryFn: () => fetch("/api/service-recipient-stages").then((r) => {
+      if (!r.ok) throw new Error("Failed to fetch stages");
+      return r.json();
+    }),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const { data: recipients = [], isLoading: recipientsLoading } = useQuery<Recipient[]>({
     queryKey: ["service-recipients"],
-    queryFn: () => fetch("/api/service-recipients").then((r) => r.json()),
+    queryFn: () => fetch("/api/service-recipients").then((r) => {
+      if (!r.ok) throw new Error("Failed to fetch recipients");
+      return r.json();
+    }),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const moveMutation = useMutation({

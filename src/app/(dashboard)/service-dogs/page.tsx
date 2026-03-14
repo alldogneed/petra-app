@@ -860,6 +860,7 @@ function AlertsWidget({
         dogId: p.dogId,
         dogName: p.dogName,
         isOverdue: p.isOverdue,
+        sectionKey: "medical" as const,
         line1: p.label,
         line2: p.dueDate
           ? `${p.isOverdue ? "עבר תאריך: " : "יעד: "}${new Date(p.dueDate).toLocaleDateString("he-IL")}`
@@ -879,6 +880,7 @@ function AlertsWidget({
         dogId: t.dogId,
         dogName: t.dogName,
         isOverdue: false,
+        sectionKey: "training" as const,
         line1: t.daysSinceLastSession
           ? `${t.daysSinceLastSession} ימים ללא אימון`
           : "טרם בוצע אימון",
@@ -987,6 +989,16 @@ function AlertsWidget({
                         </div>
                         <ChevronLeft className="w-4 h-4 text-petra-muted flex-shrink-0 mt-0.5" />
                       </Link>
+                      {item.sectionKey === "training" && (
+                        <Link
+                          href={`/training?dogId=${item.dogId}&dogName=${encodeURIComponent(item.dogName)}`}
+                          className="text-[10px] px-2 py-1 rounded-lg font-medium bg-brand-500 text-white hover:bg-brand-600 transition-colors flex items-center gap-1 flex-shrink-0 mt-0.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Plus className="w-3 h-3" />
+                          תזמן
+                        </Link>
+                      )}
                     </div>
                   ))}
                 </div>

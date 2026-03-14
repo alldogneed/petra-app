@@ -473,7 +473,10 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
           {/* Mail — Petra Platform Messages */}
           <div ref={messagesRef} className="relative">
             <button
-              onClick={() => {
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 setMessagesOpen((prev) => !prev);
                 setNotificationsOpen(false);
               }}

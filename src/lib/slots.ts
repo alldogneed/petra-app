@@ -38,7 +38,7 @@ interface Interval {
 
 /** Convert "HH:mm" + a Date (acting as the day) into a UTC Date, interpreting the
  *  time as being in the given IANA timezone (e.g. "Asia/Jerusalem"). */
-function localTimeToUtc(hhmm: string, localDateStr: string, timezone: string): Date {
+export function localTimeToUtc(hhmm: string, localDateStr: string, timezone: string): Date {
   const [h, m] = hhmm.split(":").map(Number)
   // Build a Date by formatting as if it were in the target timezone.
   // We do this by constructing the ISO string and letting Intl figure it out.
@@ -106,7 +106,7 @@ export async function getAvailableSlots(
 ): Promise<SlotResult[]> {
   // 1. Load business (including booking settings), availability rule, blocks,
   //    breaks, and existing bookings in parallel
-  const [business, rules, blocks, existingBookings, dayBreaks] = await Promise.all([
+  const [business, rules, blocks, existingBookings, dayBreaks, existingAppointments] = await Promise.all([
     prisma.business.findUniqueOrThrow({
       where: { id: businessId },
       select: {
@@ -138,6 +138,18 @@ export async function getAvailableSlots(
     // Breaks for this day (dayOfWeek will be resolved after we know the timezone)
     prisma.availabilityBreak.findMany({
       where: { businessId },
+    }),
+    // Manual appointments that could touch our target day (block slots)
+    prisma.appointment.findMany({
+      where: {
+        businessId,
+        status: { notIn: ["canceled", "CANCELED", "completed", "COMPLETED"] },
+        date: {
+          gte: new Date(`${localDateStr}T00:00:00Z`),
+          lte: new Date(`${localDateStr}T23:59:59Z`),
+        },
+      },
+      select: { startTime: true, endTime: true, serviceId: true },
     }),
   ])
 
@@ -192,7 +204,10 @@ export async function getAvailableSlots(
 
   // For legacy service-based bookings, look up their buffer values.
   const uniqueServiceIds = Array.from(
-    new Set(existingBookings.map((b) => b.serviceId).filter((id): id is string => id !== null))
+    new Set([
+      ...existingBookings.map((b) => b.serviceId),
+      ...existingAppointments.map((a) => a.serviceId),
+    ].filter((id): id is string => id !== null))
   )
   const existingServices = uniqueServiceIds.length > 0
     ? await prisma.service.findMany({
@@ -220,9 +235,20 @@ export async function getAvailableSlots(
     end:   localTimeToUtc(br.endTime, localDateStr, timezone),
   }))
 
+  // 5b. Add manual appointments as busy intervals
+  const busyFromAppointments: Interval[] = existingAppointments.map((appt) => {
+    const svc = appt.serviceId ? svcMap[appt.serviceId] : null
+    const svcBufAfter = svc?.bufferAfter ?? bookingBuffer
+    return {
+      start: addMinutes(localTimeToUtc(appt.startTime, localDateStr, timezone), -(svc?.bufferBefore ?? 0)),
+      end:   addMinutes(localTimeToUtc(appt.endTime, localDateStr, timezone), svcBufAfter),
+    }
+  })
+
   const allBusy: Interval[] = [
     ...blocks.map((b) => ({ start: b.startAt, end: b.endAt })),
     ...busyFromBookings,
+    ...busyFromAppointments,
     ...busyFromBreaks,
   ]
 

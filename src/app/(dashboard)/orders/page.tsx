@@ -122,11 +122,13 @@ function shortId(id: string) { return id.slice(-8).toUpperCase(); }
 function CancelDialog({ orderId, orderStatus, onClose }: { orderId: string; orderStatus?: string; onClose: () => void }) {
   const qc = useQueryClient();
 
+  const isDelete = orderStatus === "draft" || orderStatus === "cancelled";
+
   const cancelMutation = useMutation({
     mutationFn: () => {
-      // Draft orders can be deleted; confirmed orders are cancelled via PATCH
-      if (orderStatus === "draft") {
-        return fetch(`/api/orders/${orderId}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בביטול"); return d; });
+      // Draft and cancelled orders can be deleted; confirmed orders are cancelled via PATCH
+      if (isDelete) {
+        return fetch(`/api/orders/${orderId}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקה"); return d; });
       }
       return fetch(`/api/orders/${orderId}`, {
         method: "PATCH",
@@ -136,10 +138,10 @@ function CancelDialog({ orderId, orderStatus, onClose }: { orderId: string; orde
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
-      toast.success("ההזמנה בוטלה בהצלחה");
+      toast.success(isDelete ? "ההזמנה נמחקה" : "ההזמנה בוטלה בהצלחה");
       onClose();
     },
-    onError: () => toast.error("שגיאה בביטול ההזמנה"),
+    onError: () => toast.error(isDelete ? "שגיאה במחיקת ההזמנה" : "שגיאה בביטול ההזמנה"),
   });
 
   return (
@@ -149,7 +151,9 @@ function CancelDialog({ orderId, orderStatus, onClose }: { orderId: string; orde
         <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-3">
           <AlertTriangle className="w-6 h-6 text-red-500" />
         </div>
-        <h3 className="text-base font-bold text-petra-text mb-1">לבטל את ההזמנה?</h3>
+        <h3 className="text-base font-bold text-petra-text mb-1">
+          {isDelete ? "למחוק את ההזמנה?" : "לבטל את ההזמנה?"}
+        </h3>
         <p className="text-sm text-petra-muted mb-4">פעולה זו לא ניתנת לביטול.</p>
         <div className="flex gap-3">
           <button
@@ -157,7 +161,7 @@ function CancelDialog({ orderId, orderStatus, onClose }: { orderId: string; orde
             disabled={cancelMutation.isPending}
             className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-60"
           >
-            {cancelMutation.isPending ? "מבטל..." : "כן, בטל"}
+            {cancelMutation.isPending ? (isDelete ? "מוחק..." : "מבטל...") : (isDelete ? "כן, מחק" : "כן, בטל")}
           </button>
           <button onClick={onClose} className="btn-secondary flex-1">
             חזרה
@@ -794,6 +798,15 @@ function OrdersPageContent() {
                             בטל
                           </button>
                         )}
+                        {order.status === "cancelled" && (
+                          <button
+                            className="btn-danger text-xs py-1.5 px-3"
+                            onClick={(e) => { e.stopPropagation(); setCancelOrder({ id: order.id, status: order.status }); }}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            מחק
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -913,11 +926,30 @@ function OrdersPageContent() {
                             <Eye className="w-3.5 h-3.5" />
                             צפה בפרטים
                           </Link>
+                          {order.status === "confirmed" && (
+                            <button
+                              className="btn-primary text-xs py-1.5 px-3 gap-1.5"
+                              onClick={() => statusMutation.mutate({ id: order.id, status: "completed" })}
+                              disabled={statusMutation.isPending}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              הושלמה
+                            </button>
+                          )}
                           {isCancellable && (
                             <button
                               onClick={() => setCancelOrder({ id: order.id, status: order.status })}
                               className="p-1.5 rounded-lg text-petra-muted hover:text-red-500 hover:bg-red-50 transition-colors border border-transparent hover:border-red-100"
                               title="בטל הזמנה"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {order.status === "cancelled" && (
+                            <button
+                              onClick={() => setCancelOrder({ id: order.id, status: order.status })}
+                              className="p-1.5 rounded-lg text-petra-muted hover:text-red-500 hover:bg-red-50 transition-colors border border-transparent hover:border-red-100"
+                              title="מחק הזמנה"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>

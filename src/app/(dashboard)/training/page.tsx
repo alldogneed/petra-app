@@ -500,6 +500,7 @@ function TrainingPageContent() {
   const [showCreateServiceDogProgram, setShowCreateServiceDogProgram] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [dropoutTarget, setDropoutTarget] = useState<{ programId: string; dogName: string } | null>(null);
+  const [finishTarget, setFinishTarget] = useState<{ programId: string; dogName: string } | null>(null);
   const queryClient = useQueryClient();
 
 
@@ -892,6 +893,7 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
       queryClient.invalidateQueries({ queryKey: ["training-programs-archive"] });
       setDropoutTarget(null);
+      setFinishTarget(null);
       toast.success(variables.status === "COMPLETED" ? "אילוף הסתיים ✓" : "כלב עבר לארכיון");
     },
     onError: () => toast.error("שגיאה בעדכון סטטוס"),
@@ -1112,6 +1114,7 @@ function TrainingPageContent() {
               {individualSubTab === "private" && (
                 <IndividualTab
                   programs={programs.filter((p) => !p.isPackage && !p.boardingStayId)}
+                  groups={groups}
                   searchQuery={searchQuery}
                   expandedCards={expandedCards}
                   toggleExpand={toggleExpand}
@@ -1120,7 +1123,7 @@ function TrainingPageContent() {
                   }
                   onEditSettings={(program) => setEditingProgram(program)}
                   isMarkingAttendance={markAttendanceMutation.isPending}
-                  onFinishProgram={(id) => updateStatusMutation.mutate({ id, status: "COMPLETED" })}
+                  onFinishProgram={(id, dogName) => setFinishTarget({ programId: id, dogName })}
                   onDropoutProgram={(id, dogName) => setDropoutTarget({ programId: id, dogName })}
                   isUpdatingStatus={updateStatusMutation.isPending}
                 />
@@ -1139,7 +1142,7 @@ function TrainingPageContent() {
                     }
                     onEditSettings={(program) => setEditingProgram(program)}
                     isMarkingAttendance={markAttendanceMutation.isPending}
-                    onFinishProgram={(id) => updateStatusMutation.mutate({ id, status: "COMPLETED" })}
+                    onFinishProgram={(id, dogName) => setFinishTarget({ programId: id, dogName })}
                     onDropoutProgram={(id, dogName) => setDropoutTarget({ programId: id, dogName })}
                     isUpdatingStatus={updateStatusMutation.isPending}
                   />
@@ -1443,6 +1446,20 @@ function TrainingPageContent() {
               id: dropoutTarget.programId,
               status: "CANCELED",
               notes: reason || undefined,
+            })
+          }
+        />
+      )}
+
+      {finishTarget && (
+        <FinishTrainingModal
+          dogName={finishTarget.dogName}
+          isPending={updateStatusMutation.isPending}
+          onClose={() => setFinishTarget(null)}
+          onSubmit={() =>
+            updateStatusMutation.mutate({
+              id: finishTarget.programId,
+              status: "COMPLETED",
             })
           }
         />
@@ -2236,7 +2253,7 @@ function ServiceDogSessionLog({
   onMarkAttendance: (programId: string, sessionNumber: number, dogName: string, customerPhone?: string, customerName?: string) => void;
   onEditSettings: (program: TrainingProgram) => void;
   isMarkingAttendance: boolean;
-  onFinishProgram?: (programId: string) => void;
+  onFinishProgram?: (programId: string, dogName: string) => void;
   onDropoutProgram?: (programId: string, dogName: string) => void;
   isUpdatingStatus?: boolean;
 }) {
@@ -2408,6 +2425,7 @@ function ServiceDogSessionLog({
 
 function IndividualTab({
   programs,
+  groups,
   searchQuery,
   expandedCards,
   toggleExpand,
@@ -2419,16 +2437,28 @@ function IndividualTab({
   isUpdatingStatus,
 }: {
   programs: TrainingProgram[];
+  groups?: TrainingGroup[];
   searchQuery: string;
   expandedCards: Set<string>;
   toggleExpand: (id: string) => void;
   onMarkAttendance: (programId: string, sessionNumber: number, dogName: string, customerPhone?: string, customerName?: string) => void;
   onEditSettings: (program: TrainingProgram) => void;
   isMarkingAttendance: boolean;
-  onFinishProgram?: (programId: string) => void;
+  onFinishProgram?: (programId: string, dogName: string) => void;
   onDropoutProgram?: (programId: string, dogName: string) => void;
   isUpdatingStatus?: boolean;
 }) {
+  // Map dog IDs to their group names for cross-reference
+  const dogGroupMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!groups) return map;
+    for (const g of groups) {
+      for (const p of g.participants) {
+        if (p.status === "ACTIVE") map.set(p.dog.id, g.name);
+      }
+    }
+    return map;
+  }, [groups]);
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return programs;
     const q = searchQuery.toLowerCase();
@@ -2485,6 +2515,12 @@ function IndividualTab({
                           מפגשים נמוכים
                         </span>
                       )}
+                      {dogGroupMap.get(program.dog.id) && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700 flex items-center gap-1">
+                          <Users className="w-3 h-3" />
+                          גם בקבוצה: {dogGroupMap.get(program.dog.id)}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-xs text-petra-muted">
                       <span>{program.customer?.name ?? ""}</span>
@@ -2539,7 +2575,7 @@ function IndividualTab({
                         <button
                           className="btn-secondary text-xs text-emerald-600 hover:text-emerald-700 border-emerald-200 hover:border-emerald-300"
                           disabled={isUpdatingStatus}
-                          onClick={(e) => { e.stopPropagation(); onFinishProgram(program.id); }}
+                          onClick={(e) => { e.stopPropagation(); onFinishProgram(program.id, program.dog.name); }}
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           סיים אילוף
@@ -2865,13 +2901,31 @@ function BoardingTrainingTab({
                   )}
                 </div>
               ) : (
-                <button
-                  className="btn-secondary text-sm w-full"
-                  onClick={() => onAddTraining(stay)}
-                >
-                  <Plus className="w-4 h-4" />
-                  צור תוכנית אילוף לפנסיון
-                </button>
+                <div className="space-y-2">
+                  {daysRemaining !== null && daysRemaining <= 3 && (
+                    <div className="p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-semibold text-red-700">
+                          {daysRemaining <= 0 ? "הכלב צפוי לצאת היום!" : `נותרו ${daysRemaining} ימים בלבד`}
+                        </p>
+                        <p className="text-[10px] text-red-600 mt-0.5">טרם נוצרה תוכנית אילוף לפנסיון</p>
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    className={cn(
+                      "text-sm w-full",
+                      daysRemaining !== null && daysRemaining <= 3
+                        ? "btn-primary bg-red-500 hover:bg-red-600"
+                        : "btn-secondary"
+                    )}
+                    onClick={() => onAddTraining(stay)}
+                  >
+                    <Plus className="w-4 h-4" />
+                    צור תוכנית אילוף לפנסיון
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -4555,6 +4609,53 @@ function DropoutModal({
 }
 
 // ═══════════════════════════════════════════════════════
+// FINISH TRAINING MODAL
+// ═══════════════════════════════════════════════════════
+
+function FinishTrainingModal({
+  dogName,
+  isPending,
+  onClose,
+  onSubmit,
+}: {
+  dogName: string;
+  isPending: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+            סיום אילוף — {dogName}
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-sm text-petra-muted mb-5">
+          האילוף של {dogName} יסומן כהושלם ויועבר לארכיון. פעולה זו אינה הפיכה.
+        </p>
+        <div className="flex gap-3">
+          <button
+            className="flex-1 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            disabled={isPending}
+            onClick={onSubmit}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            {isPending ? "מעבד..." : "אשר סיום"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
 // ARCHIVE TAB
 // ═══════════════════════════════════════════════════════
 
@@ -4585,8 +4686,10 @@ function exportArchiveCSV(programs: TrainingProgram[]) {
   const a = document.createElement("a");
   a.href = url;
   a.download = `training_archive_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
 function ArchiveTab({ programs, isLoading }: { programs: TrainingProgram[]; isLoading: boolean }) {

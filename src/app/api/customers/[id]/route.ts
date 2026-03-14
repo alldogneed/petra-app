@@ -6,6 +6,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
+import { normalizeIsraeliPhone } from "@/lib/validation";
 
 const PatchCustomerSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -149,12 +150,14 @@ export async function PATCH(
     for (const [k, v] of Object.entries(parsed.data)) {
       if (v !== undefined) data[k] = v;
     }
-    // Auto-compute phoneNorm when phone is updated
+    // Auto-normalize phone and compute phoneNorm when phone is updated
     if (parsed.data.phone) {
-      const digits = parsed.data.phone.replace(/\D/g, "")
+      const normalized = normalizeIsraeliPhone(parsed.data.phone);
+      data.phone = normalized;
+      const digits = normalized.replace(/\D/g, "");
       data.phoneNorm = digits.startsWith("0") && digits.length >= 9
         ? "972" + digits.slice(1)
-        : digits || null
+        : digits || null;
     }
 
     const customer = await prisma.customer.update({

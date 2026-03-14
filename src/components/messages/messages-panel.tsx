@@ -6,8 +6,6 @@ import {
   Plus,
   X,
   MessageSquare,
-  Mail,
-  Phone,
   Trash2,
   Edit3,
   Zap,
@@ -52,12 +50,6 @@ interface MessageTemplate {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const CHANNELS = [
-  { id: "all", label: "הכל" },
-  { id: "whatsapp", label: "וואטסאפ", icon: Phone },
-  { id: "sms", label: "SMS", icon: MessageSquare },
-  { id: "email", label: "אימייל", icon: Mail },
-];
 
 const AUTOMATION_TRIGGERS = [
   { id: "appointment_confirmation", label: "אישור קביעת פגישה", description: "שלח מיד כשנקבעת פגישה חדשה" },
@@ -88,11 +80,6 @@ function triggerOffsetLabel(trigger: string, offset: number): string {
   return `${offset} שעות`;
 }
 
-const CHANNEL_LABELS: Record<string, string> = {
-  whatsapp: "וואטסאפ",
-  sms: "SMS",
-  email: "אימייל",
-};
 
 // Sample data used in the live preview
 const SAMPLE_VARS: Record<string, string> = {
@@ -190,14 +177,7 @@ function SendModal({ template, onClose }: { template: MessageTemplate; onClose: 
   function handleSend() {
     if (!selected) return;
     const text = encodeURIComponent(renderBody(template.body, selected));
-    if (template.channel === "whatsapp") {
-      window.open(`https://wa.me/${toWhatsAppPhone(selected.phone)}?text=${text}`, "_blank");
-    } else if (template.channel === "sms") {
-      window.open(`sms:${selected.phone}?body=${text}`, "_self");
-    } else if (template.channel === "email" && selected.email) {
-      const subject = template.subject ? encodeURIComponent(template.subject) : "";
-      window.location.href = `mailto:${selected.email}?subject=${subject}&body=${text}`;
-    }
+    window.open(`https://wa.me/${toWhatsAppPhone(selected.phone)}?text=${text}`, "_blank");
   }
 
   return (
@@ -262,7 +242,7 @@ function SendModal({ template, onClose }: { template: MessageTemplate; onClose: 
             onClick={handleSend}
           >
             <Send className="w-4 h-4" />
-            {template.channel === "whatsapp" ? "פתח בוואטסאפ" : template.channel === "email" ? "שלח במייל" : "שלח SMS"}
+            פתח בוואטסאפ
           </button>
         </div>
       </div>
@@ -319,11 +299,7 @@ function BulkSendModal({ template, onClose }: { template: MessageTemplate; onClo
     toSend.forEach((c, i) => {
       setTimeout(() => {
         const text = encodeURIComponent(renderBody(template.body, c));
-        if (template.channel === "whatsapp") {
-          window.open(`https://wa.me/${toWhatsAppPhone(c.phone)}?text=${text}`, "_blank");
-        } else if (template.channel === "sms") {
-          window.open(`sms:${c.phone}?body=${text}`, "_self");
-        }
+        window.open(`https://wa.me/${toWhatsAppPhone(c.phone)}?text=${text}`, "_blank");
         setSentIds((prev) => new Set([...prev, c.id]));
       }, i * 700);
     });
@@ -410,7 +386,6 @@ function BulkSendModal({ template, onClose }: { template: MessageTemplate; onClo
 // ─── Templates Tab ────────────────────────────────────────────────────────────
 
 function TemplatesTab() {
-  const [activeChannel, setActiveChannel] = useState("all");
   const [showEditor, setShowEditor] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   const [sendingTemplate, setSendingTemplate] = useState<MessageTemplate | null>(null);
@@ -422,11 +397,8 @@ function TemplatesTab() {
   const queryClient = useQueryClient();
 
   const { data: templates = [], isLoading } = useQuery<MessageTemplate[]>({
-    queryKey: ["messages", activeChannel],
-    queryFn: () => {
-      const params = activeChannel !== "all" ? `?channel=${activeChannel}` : "";
-      return fetchJSON<MessageTemplate[]>(`/api/messages${params}`);
-    },
+    queryKey: ["messages"],
+    queryFn: () => fetchJSON<MessageTemplate[]>("/api/messages?channel=whatsapp"),
   });
 
   const saveMutation = useMutation({
@@ -509,24 +481,7 @@ function TemplatesTab() {
 
   return (
     <>
-      {/* Channel filter */}
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <div className="flex gap-2">
-          {CHANNELS.map((ch) => (
-            <button
-              key={ch.id}
-              onClick={() => setActiveChannel(ch.id)}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
-                activeChannel === ch.id
-                  ? "bg-brand-500 text-white"
-                  : "bg-slate-100 text-petra-muted hover:bg-slate-200"
-              )}
-            >
-              {ch.label}
-            </button>
-          ))}
-        </div>
+      <div className="flex items-center justify-end mb-4">
         <button className="btn-primary" onClick={() => openEditor()}>
           <Plus className="w-4 h-4" />תבנית חדשה
         </button>
@@ -551,9 +506,6 @@ function TemplatesTab() {
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <h3 className="text-sm font-semibold text-petra-text">{template.name}</h3>
-                  <span className="badge-neutral text-[10px] mt-1">
-                    {CHANNEL_LABELS[template.channel] ?? template.channel}
-                  </span>
                 </div>
                 <div className="flex gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                   <button
@@ -563,15 +515,13 @@ function TemplatesTab() {
                   >
                     <Send className="w-3.5 h-3.5" />
                   </button>
-                  {(template.channel === "whatsapp" || template.channel === "sms") && (
-                    <button
-                      onClick={() => setBulkSendingTemplate(template)}
-                      className="p-1.5 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600"
-                      title="שלח לקבוצת לקוחות"
-                    >
-                      <Users className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setBulkSendingTemplate(template)}
+                    className="p-1.5 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600"
+                    title="שלח לקבוצת לקוחות"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                  </button>
                   <button
                     onClick={() => openEditor(template)}
                     className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
@@ -654,28 +604,7 @@ function TemplatesTab() {
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                 />
               </div>
-              <div>
-                <label className="label">ערוץ</label>
-                <select
-                  className="input"
-                  value={form.channel}
-                  onChange={(e) => setForm({ ...form, channel: e.target.value })}
-                >
-                  <option value="whatsapp">וואטסאפ</option>
-                  <option value="sms">SMS</option>
-                  <option value="email">אימייל</option>
-                </select>
-              </div>
-              {form.channel === "email" && (
-                <div>
-                  <label className="label">נושא</label>
-                  <input
-                    className="input"
-                    value={form.subject}
-                    onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                  />
-                </div>
-              )}
+              {/* Channel is always WhatsApp */}
               <div>
                 {/* Label row: title + starter picker + char count */}
                 <div className="flex items-center justify-between mb-1">
@@ -888,7 +817,7 @@ function BulkSendTab() {
   });
 
   const whatsappTemplates = templates.filter(
-    (t) => t.channel === "whatsapp" || t.channel === "sms"
+    (t) => t.channel === "whatsapp"
   );
 
   const { data: allCustomers = [], isLoading } = useQuery<CustomerBasic[]>({
@@ -932,7 +861,7 @@ function BulkSendTab() {
         <div className="flex-1 min-w-[200px]">
           <label className="label">תבנית הודעה</label>
           {whatsappTemplates.length === 0 ? (
-            <div className="input text-petra-muted text-sm">אין תבניות WhatsApp/SMS — צור תבנית קודם</div>
+            <div className="input text-petra-muted text-sm">אין תבניות WhatsApp — צור תבנית קודם</div>
           ) : (
             <select
               className="input"
@@ -942,7 +871,7 @@ function BulkSendTab() {
               <option value="">בחר תבנית...</option>
               {whatsappTemplates.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.name} ({CHANNEL_LABELS[t.channel] ?? t.channel})
+                  {t.name}
                 </option>
               ))}
             </select>
@@ -979,7 +908,7 @@ function BulkSendTab() {
           <div className="flex items-center gap-2 mb-2">
             <MessageSquare className="w-4 h-4 text-green-600" />
             <span className="text-sm font-semibold text-green-800">תצוגה מקדימה של ההודעה</span>
-            <span className="badge-neutral text-[10px]">{CHANNEL_LABELS[selectedTemplate.channel]}</span>
+            <span className="badge-neutral text-[10px]">וואטסאפ</span>
           </div>
           <p className="text-sm text-green-900 whitespace-pre-wrap font-mono bg-white rounded-lg p-3 border border-green-100">
             {allCustomers[0]

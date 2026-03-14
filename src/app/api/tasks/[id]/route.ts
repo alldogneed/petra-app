@@ -77,7 +77,7 @@ export async function PATCH(
     const isReopening = status !== undefined && status !== "COMPLETED" && existing.status === "COMPLETED";
 
     const task = await prisma.task.update({
-      where: { id, businessId: authResult.businessId },
+      where: { id },
       data: {
         ...(title !== undefined && { title }),
         ...(description !== undefined && { description }),

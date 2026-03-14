@@ -101,8 +101,8 @@ export async function DELETE(
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
-    if (order.status !== "draft") {
-      return NextResponse.json({ error: "Only draft orders can be deleted" }, { status: 400 });
+    if (!["draft", "cancelled"].includes(order.status)) {
+      return NextResponse.json({ error: "Only draft or cancelled orders can be deleted" }, { status: 400 });
     }
 
     // Cancel any pending reminders

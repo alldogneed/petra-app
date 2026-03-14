@@ -197,7 +197,7 @@ export function Sidebar({
   const mainNavEntries = visibleEntries.filter(e => isGroup(e) || !isItemLocked(e as NavItem));
   const lockedNavEntries = visibleEntries.filter(e => !isGroup(e) && isItemLocked(e as NavItem)) as NavItem[];
 
-  const { data: counters } = useQuery<{ openTasks: number; overdueFollowUps: number; pendingBookings: number }>({
+  const { data: counters } = useQuery<{ openTasks: number; overdueFollowUps: number; pendingBookings: number; activeBoarding: number }>({
     queryKey: ["sidebar-counters"],
     queryFn: () => fetch("/api/dashboard/counters").then((r) => {
       if (!r.ok) throw new Error("Failed");
@@ -221,12 +221,14 @@ export function Sidebar({
     "/tasks": counters?.openTasks || 0,
     "/leads": counters?.overdueFollowUps || 0,
     "/bookings": counters?.pendingBookings || 0,
+    "/boarding": counters?.activeBoarding || 0,
     "/service-dogs": sdAlerts?.total || 0,
   };
   const BADGE_TOOLTIPS: Record<string, string> = {
     "/tasks": `${counters?.openTasks || 0} משימות פתוחות`,
     "/leads": `${counters?.overdueFollowUps || 0} לידים עם מעקב באיחור`,
     "/bookings": `${counters?.pendingBookings || 0} הזמנות ממתינות לאישור`,
+    "/boarding": `${counters?.activeBoarding || 0} כלבים בפנסיון`,
     "/service-dogs": `${sdAlerts?.total || 0} התראות פעילות`,
   };
 

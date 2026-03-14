@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarClock,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -160,6 +161,7 @@ function SchedulerContent() {
   const [bookingResult, setBookingResult] = useState<BookingResult | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [showServiceDropdown, setShowServiceDropdown] = useState(false);
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
@@ -517,19 +519,47 @@ function SchedulerContent() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               בחירת שירות
             </label>
-            <select
-              value={selectedServiceId}
-              onChange={(e) => handleServiceChange(e.target.value)}
-              className="input w-full"
-              disabled={activeServices.length === 0}
-            >
-              <option value="">{activeServices.length === 0 ? "אין שירותים פעילים — הוסף שירות בדף שירותים" : "בחר שירות..."}</option>
-              {activeServices.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} — {s.duration} דק׳ — {formatCurrency(s.price)}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => { if (activeServices.length > 0) setShowServiceDropdown((p) => !p); }}
+                className={cn(
+                  "input w-full text-start flex items-center justify-between gap-2",
+                  activeServices.length === 0 && "opacity-60 cursor-not-allowed"
+                )}
+              >
+                <span className={selectedService ? "text-gray-900 truncate" : "text-gray-400 truncate"}>
+                  {selectedService
+                    ? `${selectedService.name} — ${selectedService.duration} דק׳ — ${formatCurrency(selectedService.price)}`
+                    : activeServices.length === 0
+                      ? "אין שירותים פעילים — הוסף שירות בדף שירותים"
+                      : "בחר שירות..."}
+                </span>
+                <ChevronDown className={cn("w-4 h-4 text-gray-400 flex-shrink-0 transition-transform", showServiceDropdown && "rotate-180")} />
+              </button>
+              {showServiceDropdown && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowServiceDropdown(false)} />
+                  <div className="absolute z-50 top-full mt-1 w-full bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+                    {activeServices.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => { handleServiceChange(s.id); setShowServiceDropdown(false); }}
+                        className={cn(
+                          "w-full text-start px-4 py-2.5 text-sm transition-colors",
+                          selectedServiceId === s.id
+                            ? "bg-orange-50 text-orange-700 font-medium"
+                            : "text-gray-700 hover:bg-orange-50/50"
+                        )}
+                      >
+                        {s.name} — {s.duration} דק׳ — {formatCurrency(s.price)}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
             {activeServices.length === 0 && services.length > 0 && (
               <p className="text-xs text-amber-600 mt-1">יש שירותים לא פעילים — הפעל אותם בדף שירותים</p>
             )}

@@ -21,14 +21,20 @@ export async function GET(request: NextRequest) {
     const callerRole = (membership?.role ?? "user") as TenantRole;
     const canSeeRevenueSummary = hasTenantPermission(callerRole, TENANT_PERMS.FINANCE_SUMMARY);
 
+    // Use Israel timezone so "today" matches the user's local day
+    const IL_TZ = "Asia/Jerusalem";
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const ilFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: IL_TZ, year: "numeric", month: "2-digit", day: "2-digit" });
+    const [ilYear, ilMonth, ilDay] = ilFormatter.format(now).split("-").map(Number);
+    // todayStart/todayEnd in UTC that correspond to midnight-midnight in Israel
+    const todayStart = new Date(new Date(`${ilYear}-${String(ilMonth).padStart(2, "0")}-${String(ilDay).padStart(2, "0")}T00:00:00+03:00`).getTime());
+    // Israel is UTC+2 in winter, UTC+3 in summer — use the actual offset from the formatted date
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStart = new Date(`${ilYear}-${String(ilMonth).padStart(2, "0")}-01T00:00:00+03:00`);
 
     const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
     const tomorrowEnd = new Date(tomorrowStart.getTime() + 24 * 60 * 60 * 1000 - 1);
-    const sixMonthsStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const sixMonthsStart = new Date(ilYear, ilMonth - 1 - 5, 1);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
     // Get open lead stage IDs (not won and not lost) for this business

@@ -9,6 +9,7 @@ import { sendWhatsAppTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxAppointments, normalizeTier } from "@/lib/feature-flags";
+import { localTimeToUtc } from "@/lib/slots";
 
 export async function GET(request: NextRequest) {
   try {
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Enforce appointment limit for free tier
-    const business = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true } });
+    const business = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true, timezone: true } });
     const maxAppts = getMaxAppointments(normalizeTier(business?.tier));
     if (maxAppts !== null) {
       const totalCount = await prisma.appointment.count({
@@ -182,6 +183,32 @@ export async function POST(request: NextRequest) {
     await syncAppointmentToGcal(appointment.id, authResult.businessId).catch((err) =>
       console.error("Failed to sync appointment to GCal:", err)
     );
+
+    // Create a corresponding Booking so manual appointments show in bookings list & block online slots
+    try {
+      const tz = business?.timezone || "Asia/Jerusalem";
+      const dateStr = date.split("T")[0]; // normalize to YYYY-MM-DD
+      const bookingStartAt = localTimeToUtc(startTime, dateStr, tz);
+      const bookingEndAt = localTimeToUtc(endTime, dateStr, tz);
+
+      await prisma.booking.create({
+        data: {
+          businessId: authResult.businessId,
+          serviceId: serviceId || null,
+          priceListItemId: priceListItemId || null,
+          customerId,
+          startAt: bookingStartAt,
+          endAt: bookingEndAt,
+          status: "confirmed",
+          source: "manual",
+          notes: notes || null,
+          ...(petId ? { dogs: { create: { petId } } } : {}),
+        },
+      });
+    } catch (err) {
+      // Non-critical — appointment was already created successfully
+      console.error("Failed to create companion Booking for manual appointment:", err);
+    }
 
     return NextResponse.json(appointment, { status: 201 });
   } catch (error) {

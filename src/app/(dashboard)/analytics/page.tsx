@@ -126,19 +126,22 @@ function AnalyticsContent() {
   const [customTo, setCustomTo] = useState("");
   const [isExporting, setIsExporting] = useState(false);
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const effectiveCustomTo = customTo || todayStr;
+
   const queryUrl =
-    dateMode === "custom" && customFrom && customTo
-      ? `/api/analytics?from=${customFrom}&to=${customTo}`
+    dateMode === "custom" && customFrom
+      ? `/api/analytics?from=${customFrom}&to=${effectiveCustomTo}`
       : `/api/analytics?period=${period}`;
 
   const { data, isLoading, isError } = useQuery<AnalyticsData>({
-    queryKey: ["analytics", dateMode === "custom" ? `custom-${customFrom}-${customTo}` : period],
+    queryKey: ["analytics", dateMode === "custom" ? `custom-${customFrom}-${effectiveCustomTo}` : period],
     queryFn: () => fetchJSON<AnalyticsData>(queryUrl),
-    enabled: dateMode === "preset" || (!!customFrom && !!customTo),
+    enabled: dateMode === "preset" || !!customFrom,
   });
 
   const exportFrom = dateMode === "custom" && customFrom ? customFrom : data?.from?.slice(0, 10) ?? "";
-  const exportTo = dateMode === "custom" && customTo ? customTo : data?.to?.slice(0, 10) ?? "";
+  const exportTo = dateMode === "custom" ? effectiveCustomTo : data?.to?.slice(0, 10) ?? "";
 
   const handleExport = () => {
     if (!exportFrom || !exportTo) return;
@@ -178,7 +181,10 @@ function AnalyticsContent() {
             </button>
           ))}
           <button
-            onClick={() => setDateMode("custom")}
+            onClick={() => {
+              setDateMode("custom");
+              if (!customFrom) setCustomFrom(new Date().toISOString().slice(0, 10));
+            }}
             className={cn(
               "px-4 py-2 rounded-xl text-sm font-medium transition-all",
               dateMode === "custom"
@@ -202,6 +208,7 @@ function AnalyticsContent() {
                 value={customTo}
                 onChange={(e) => setCustomTo(e.target.value)}
                 className="input px-3 py-1.5 text-sm w-36"
+                placeholder="היום"
               />
             </>
           )}

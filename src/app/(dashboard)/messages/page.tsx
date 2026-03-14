@@ -10,7 +10,7 @@ export default function MessagesPage() {
     <TierGate
       feature="custom_messages"
       title="תבניות הודעות מותאמות"
-      description="צור ועורך תבניות WhatsApp, SMS ואימייל מותאמות אישית. שלח הודעות בזמן הנכון לכל לקוח."
+      description="צור ועורך תבניות WhatsApp מותאמות אישית. שלח הודעות בזמן הנכון לכל לקוח."
     >
       <div>
         <PageTitle title="הודעות" />

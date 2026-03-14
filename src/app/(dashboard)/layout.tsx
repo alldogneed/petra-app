@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { Toaster } from "sonner";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 import nextDynamic from "next/dynamic";
 
@@ -58,18 +57,6 @@ export default async function DashboardLayout({
     <AppShell>
       <Suspense fallback={<div className="p-4 md:p-6 animate-pulse space-y-4"><div className="h-7 w-48 bg-slate-200 rounded-lg"/><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[...Array(4)].map((_,i)=><div key={i} className="h-24 bg-slate-200 rounded-xl"/>)}</div></div>}>{children}</Suspense>
       <InstallPWABanner />
-      <Toaster
-        position="bottom-left"
-        toastOptions={{
-          style: { fontFamily: "Heebo, sans-serif", direction: "rtl" },
-          classNames: {
-            success: "!bg-green-50 !border-green-200 !text-green-800",
-            error: "!bg-red-50 !border-red-200 !text-red-700",
-            info: "!bg-blue-50 !border-blue-200 !text-blue-800",
-          },
-        }}
-        richColors
-      />
     </AppShell>
   );
 }

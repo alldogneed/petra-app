@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   PawPrint,
@@ -25,17 +25,28 @@ import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface CareLog {
+  id: string;
+  type: string;
+  title: string;
+  notes: string | null;
+  doneAt: string;
+  doneByUserId: string | null;
+}
+
 interface Medication {
+  id: string;
   medName: string;
   dosage: string | null;
   frequency: string | null;
   times: string | null;
+  instructions: string | null;
 }
 
 interface BoardingStay {
   id: string;
   petId: string;
-  customerId: string;
+  customerId: string | null;
   status: string;
   checkIn: string;
   checkOut: string | null;
@@ -55,7 +66,8 @@ interface BoardingStay {
     id: string;
     name: string;
     phone: string;
-  };
+  } | null;
+  careLogs: CareLog[];
 }
 
 interface FeedingPlan {
@@ -74,18 +86,7 @@ function parseFeedingPlan(raw: string | null): FeedingPlan | null {
   }
 }
 
-interface MealRecord {
-  done: boolean;
-  doneAt: string | null;
-}
-
 type MealSlot = "breakfast" | "lunch" | "dinner";
-
-interface DailyMeals {
-  breakfast: MealRecord;
-  lunch: MealRecord;
-  dinner: MealRecord;
-}
 
 const MEAL_LABELS: Record<MealSlot, { label: string; emoji: string }> = {
   breakfast: { label: "ארוחת בוקר", emoji: "🌅" },
@@ -95,39 +96,7 @@ const MEAL_LABELS: Record<MealSlot, { label: string; emoji: string }> = {
 
 const MEAL_SLOTS: MealSlot[] = ["breakfast", "lunch", "dinner"];
 
-// ─── localStorage helpers ─────────────────────────────────────────────────────
-
-function storageKey(petId: string, dateStr: string, slot: MealSlot): string {
-  return `feeding:${dateStr}:${petId}:${slot}`;
-}
-
-function loadMeal(petId: string, dateStr: string, slot: MealSlot): MealRecord {
-  if (typeof window === "undefined")
-    return { done: false, doneAt: null };
-  try {
-    const raw = localStorage.getItem(storageKey(petId, dateStr, slot));
-    if (!raw) return { done: false, doneAt: null };
-    return JSON.parse(raw) as MealRecord;
-  } catch {
-    return { done: false, doneAt: null };
-  }
-}
-
-function saveMeal(
-  petId: string,
-  dateStr: string,
-  slot: MealSlot,
-  record: MealRecord
-) {
-  try {
-    localStorage.setItem(
-      storageKey(petId, dateStr, slot),
-      JSON.stringify(record)
-    );
-  } catch {
-    // ignore quota errors
-  }
-}
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function dateToISO(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -137,21 +106,6 @@ function addDays(d: Date, n: number): Date {
   const next = new Date(d);
   next.setDate(next.getDate() + n);
   return next;
-}
-
-function isStayActiveOnDate(stay: BoardingStay, date: Date): boolean {
-  const checkIn = new Date(stay.checkIn);
-  const checkOut = stay.checkOut ? new Date(stay.checkOut) : null;
-  const dayStart = new Date(date);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(date);
-  dayEnd.setHours(23, 59, 59, 999);
-  // stay must have checked in by end of day and either not checked out or checked out after day start
-  return (
-    checkIn <= dayEnd &&
-    (checkOut === null || checkOut >= dayStart) &&
-    ["reserved", "checked_in"].includes(stay.status)
-  );
 }
 
 function formatHebrewDate(d: Date): string {
@@ -306,51 +260,6 @@ function FeedingPlanModal({
   );
 }
 
-// ─── Meal Toggle Button ───────────────────────────────────────────────────────
-
-function MealButton({
-  slot,
-  record,
-  onToggle,
-}: {
-  slot: MealSlot;
-  record: MealRecord;
-  onToggle: () => void;
-}) {
-  const { label, emoji } = MEAL_LABELS[slot];
-
-  return (
-    <button
-      onClick={onToggle}
-      className={cn(
-        "flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all select-none active:scale-95",
-        record.done
-          ? "bg-emerald-50 border-emerald-300 text-emerald-700"
-          : "bg-white border-slate-200 text-petra-muted hover:border-brand-300 hover:bg-brand-50"
-      )}
-    >
-      <span className="text-xl">{emoji}</span>
-      <span className="text-xs font-medium text-center leading-tight">{label}</span>
-      {record.done ? (
-        <span className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-medium">
-          <Check className="w-3 h-3" />
-          {record.doneAt
-            ? new Date(record.doneAt).toLocaleTimeString("he-IL", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "בוצע"}
-        </span>
-      ) : (
-        <span className="flex items-center gap-0.5 text-[10px] text-slate-400">
-          <X className="w-3 h-3" />
-          לא בוצע
-        </span>
-      )}
-    </button>
-  );
-}
-
 // ─── Medications Board ────────────────────────────────────────────────────────
 
 const MED_TIME_LABELS: Record<string, string> = {
@@ -362,37 +271,23 @@ const MED_TIME_LABELS: Record<string, string> = {
 
 function MedicationsBoard({
   stays,
-  dateStr,
+  onLog,
+  onDelete,
 }: {
   stays: BoardingStay[];
-  dateStr: string;
+  onLog: (boardingStayId: string, petId: string, type: string, title: string, notes?: string) => void;
+  onDelete: (logId: string) => void;
 }) {
-  const [given, setGiven] = useState<Record<string, boolean>>({});
-
-  // Load given-state from localStorage on date/stays change
-  useEffect(() => {
-    const loaded: Record<string, boolean> = {};
-    for (const stay of stays) {
-      for (const med of stay.pet.medications) {
-        const key = `med:${dateStr}:${stay.petId}:${med.medName}`;
-        try {
-          loaded[key] = localStorage.getItem(key) === "1";
-        } catch {
-          loaded[key] = false;
-        }
-      }
+  function toggleMed(stay: BoardingStay, med: Medication) {
+    const existingLog = stay.careLogs.find(
+      (l) => l.type === "MEDICATION" && l.title === med.medName
+    );
+    if (existingLog) {
+      onDelete(existingLog.id);
+    } else {
+      const desc = [med.dosage, med.instructions].filter(Boolean).join(" • ");
+      onLog(stay.id, stay.pet.id, "MEDICATION", med.medName, desc || undefined);
     }
-    setGiven(loaded);
-  }, [stays, dateStr]);
-
-  function toggleGiven(petId: string, medName: string) {
-    const key = `med:${dateStr}:${petId}:${medName}`;
-    const next = !given[key];
-    try {
-      if (next) localStorage.setItem(key, "1");
-      else localStorage.removeItem(key);
-    } catch { /* ignore */ }
-    setGiven((prev) => ({ ...prev, [key]: next }));
   }
 
   // Only show stays with medications
@@ -411,7 +306,7 @@ function MedicationsBoard({
     <div className="space-y-4">
       {staysWithMeds.map((stay) => {
         const allGiven = stay.pet.medications.every(
-          (m) => given[`med:${dateStr}:${stay.petId}:${m.medName}`]
+          (m) => stay.careLogs.some((l) => l.type === "MEDICATION" && l.title === m.medName)
         );
         return (
           <div
@@ -443,13 +338,17 @@ function MedicationsBoard({
                       <span className="mr-2 badge badge-blue text-[10px]">כלב שירות</span>
                     )}
                   </p>
-                  <Link
-                    href={`/customers/${stay.customer.id}`}
-                    className="flex items-center gap-1 text-xs text-brand-600 hover:underline"
-                  >
-                    <User className="w-3 h-3" />
-                    {stay.customer.name}
-                  </Link>
+                  {stay.customer ? (
+                    <Link
+                      href={`/customers/${stay.customer.id}`}
+                      className="flex items-center gap-1 text-xs text-brand-600 hover:underline"
+                    >
+                      <User className="w-3 h-3" />
+                      {stay.customer.name}
+                    </Link>
+                  ) : (
+                    <span className="text-xs text-petra-muted">כלב שירות</span>
+                  )}
                 </div>
               </div>
               <span className="text-xs text-petra-muted">
@@ -460,15 +359,16 @@ function MedicationsBoard({
             {/* Medications list */}
             <div className="p-4 space-y-3">
               {stay.pet.medications.map((med) => {
-                const key = `med:${dateStr}:${stay.petId}:${med.medName}`;
-                const isGiven = given[key] ?? false;
+                const isGiven = stay.careLogs.some(
+                  (l) => l.type === "MEDICATION" && l.title === med.medName
+                );
                 const times = med.times
                   ? med.times.split(",").map((t) => MED_TIME_LABELS[t.trim()] ?? t.trim()).join(", ")
                   : null;
 
                 return (
                   <div
-                    key={med.medName}
+                    key={med.id}
                     className={cn(
                       "flex items-start justify-between gap-3 p-3 rounded-xl border transition-all",
                       isGiven
@@ -499,7 +399,7 @@ function MedicationsBoard({
                       </div>
                     </div>
                     <button
-                      onClick={() => toggleGiven(stay.petId, med.medName)}
+                      onClick={() => toggleMed(stay, med)}
                       className={cn(
                         "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-95 flex-shrink-0",
                         isGiven
@@ -520,9 +420,6 @@ function MedicationsBoard({
           </div>
         );
       })}
-      <p className="text-xs text-petra-muted text-center">
-        סטטוס מתן תרופות נשמר מקומית בדפדפן
-      </p>
     </div>
   );
 }
@@ -537,15 +434,52 @@ export default function FeedingPage() {
 
   const queryClient = useQueryClient();
 
-  // Local state for all meal records, keyed by "petId:slot"
-  const [meals, setMeals] = useState<Record<string, MealRecord>>({});
-
-  const { data: stays, isLoading, isError, refetch, isFetching } = useQuery<
+  // Fetch stays with care logs from care-log API (server-side date filtering)
+  const { data: activePets = [], isLoading, isError, refetch, isFetching } = useQuery<
     BoardingStay[]
   >({
-    queryKey: ["boarding-stays-feeding"],
-    queryFn: () => fetch("/api/boarding").then((r) => r.json()),
-    staleTime: 60000,
+    queryKey: ["care-log", dateStr],
+    queryFn: async () => {
+      const r = await fetch(`/api/boarding/care-log?date=${dateStr}`);
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  const logMutation = useMutation({
+    mutationFn: async (payload: {
+      boardingStayId: string;
+      petId: string;
+      type: string;
+      title: string;
+      notes?: string;
+    }) => {
+      const r = await fetch("/api/boarding/care-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["care-log", dateStr] });
+    },
+    onError: () => toast.error("שגיאה בשמירה. נסה שוב."),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (logId: string) => {
+      const r = await fetch(`/api/boarding/care-log/${logId}`, { method: "DELETE" });
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["care-log", dateStr] });
+    },
+    onError: () => toast.error("שגיאה בביטול. נסה שוב."),
   });
 
   const savePlanMutation = useMutation({
@@ -559,44 +493,56 @@ export default function FeedingPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["boarding-stays-feeding"] });
+      queryClient.invalidateQueries({ queryKey: ["care-log"] });
       toast.success("תוכנית האכלה נשמרה");
       setEditPlanStay(null);
     },
     onError: () => toast.error("שגיאה בשמירת תוכנית האכלה"),
   });
 
-  // Filter stays active on current date — memoized to prevent identity changes on every render
-  const activePets = useMemo(
-    () => (stays ?? []).filter((s) => isStayActiveOnDate(s, currentDate)),
-    [stays, currentDate]
-  );
-
-  // Load meal data from localStorage whenever date or activePets change
-  useEffect(() => {
-    const loaded: Record<string, MealRecord> = {};
-    for (const stay of activePets) {
-      for (const slot of MEAL_SLOTS) {
-        loaded[`${stay.petId}:${slot}`] = loadMeal(stay.petId, dateStr, slot);
-      }
+  function toggleMeal(stay: BoardingStay, slot: MealSlot) {
+    const existingLog = stay.careLogs.find(
+      (l) => l.type === "FEEDING" && l.title === slot
+    );
+    if (existingLog) {
+      deleteMutation.mutate(existingLog.id);
+    } else {
+      const foodDesc = [
+        stay.pet.foodBrand,
+        stay.pet.foodGramsPerDay ? `${stay.pet.foodGramsPerDay}ג׳` : null,
+        stay.pet.foodNotes,
+      ].filter(Boolean).join(" • ");
+      logMutation.mutate({
+        boardingStayId: stay.id,
+        petId: stay.pet.id,
+        type: "FEEDING",
+        title: slot,
+        notes: foodDesc || undefined,
+      });
     }
-    setMeals(loaded);
-  }, [activePets, dateStr]);
-
-  function toggleMeal(petId: string, slot: MealSlot) {
-    const key = `${petId}:${slot}`;
-    const current = meals[key] ?? { done: false, doneAt: null };
-    const next: MealRecord = {
-      done: !current.done,
-      doneAt: !current.done ? new Date().toISOString() : null,
-    };
-    saveMeal(petId, dateStr, slot, next);
-    setMeals((prev) => ({ ...prev, [key]: next }));
   }
 
-  const totalMeals = activePets.length * MEAL_SLOTS.length;
-  const doneMeals = Object.values(meals).filter((m) => m.done).length;
-  const allDone = totalMeals > 0 && doneMeals === totalMeals;
+  function handleLog(boardingStayId: string, petId: string, type: string, title: string, notes?: string) {
+    logMutation.mutate({ boardingStayId, petId, type, title, notes });
+  }
+
+  function handleDelete(logId: string) {
+    deleteMutation.mutate(logId);
+  }
+
+  // Progress tracking — derived from careLogs
+  const { totalMeals, doneMeals, allDone } = useMemo(() => {
+    const total = activePets.length * MEAL_SLOTS.length;
+    let done = 0;
+    for (const stay of activePets) {
+      for (const slot of MEAL_SLOTS) {
+        if (stay.careLogs.some((l) => l.type === "FEEDING" && l.title === slot)) {
+          done++;
+        }
+      }
+    }
+    return { totalMeals: total, doneMeals: done, allDone: total > 0 && done === total };
+  }, [activePets]);
 
   const isToday = dateToISO(new Date()) === dateStr;
 
@@ -706,7 +652,7 @@ export default function FeedingPage() {
       </div>
 
       {activeTab === "medications" && !isLoading && !isError && (
-        <MedicationsBoard stays={activePets} dateStr={dateStr} />
+        <MedicationsBoard stays={activePets} onLog={handleLog} onDelete={handleDelete} />
       )}
 
       {activeTab === "feeding" && <>
@@ -791,7 +737,7 @@ export default function FeedingPage() {
               <tbody className="divide-y divide-slate-50">
                 {activePets.map((stay) => {
                   const petDoneMeals = MEAL_SLOTS.filter(
-                    (s) => meals[`${stay.petId}:${s}`]?.done
+                    (s) => stay.careLogs.some((l) => l.type === "FEEDING" && l.title === s)
                   ).length;
                   const petAllDone = petDoneMeals === MEAL_SLOTS.length;
 
@@ -834,13 +780,17 @@ export default function FeedingPage() {
                                 </span>
                               )}
                             </p>
-                            <Link
-                              href={`/customers/${stay.customer.id}`}
-                              className="flex items-center gap-1 text-xs text-brand-600 hover:underline"
-                            >
-                              <User className="w-3 h-3" />
-                              {stay.customer.name}
-                            </Link>
+                            {stay.customer ? (
+                              <Link
+                                href={`/customers/${stay.customer.id}`}
+                                className="flex items-center gap-1 text-xs text-brand-600 hover:underline"
+                              >
+                                <User className="w-3 h-3" />
+                                {stay.customer.name}
+                              </Link>
+                            ) : (
+                              <span className="text-xs text-petra-muted">כלב שירות</span>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -905,35 +855,35 @@ export default function FeedingPage() {
 
                       {/* Meal slots */}
                       {MEAL_SLOTS.map((slot) => {
-                        const record = meals[`${stay.petId}:${slot}`] ?? {
-                          done: false,
-                          doneAt: null,
-                        };
+                        const mealLog = stay.careLogs.find(
+                          (l) => l.type === "FEEDING" && l.title === slot
+                        );
+                        const done = !!mealLog;
                         return (
                           <td key={slot} className="table-cell text-center">
                             <button
-                              onClick={() => toggleMeal(stay.petId, slot)}
+                              onClick={() => toggleMeal(stay, slot)}
                               className={cn(
                                 "inline-flex items-center justify-center w-9 h-9 rounded-full border-2 transition-all active:scale-90",
-                                record.done
+                                done
                                   ? "bg-emerald-100 border-emerald-400 text-emerald-600"
                                   : "bg-white border-slate-200 text-slate-400 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600"
                               )}
                               title={
-                                record.done
+                                done
                                   ? `בוטל סימון – ${MEAL_LABELS[slot].label}`
                                   : `סמן ${MEAL_LABELS[slot].label}`
                               }
                             >
-                              {record.done ? (
+                              {done ? (
                                 <Check className="w-4 h-4" />
                               ) : (
                                 <X className="w-4 h-4" />
                               )}
                             </button>
-                            {record.done && record.doneAt && (
+                            {done && mealLog?.doneAt && (
                               <p className="text-[10px] text-emerald-600 mt-0.5">
-                                {new Date(record.doneAt).toLocaleTimeString(
+                                {new Date(mealLog.doneAt).toLocaleTimeString(
                                   "he-IL",
                                   { hour: "2-digit", minute: "2-digit" }
                                 )}
@@ -949,13 +899,6 @@ export default function FeedingPage() {
             </table>
           </div>
         </div>
-      )}
-
-      {/* Note about localStorage */}
-      {activePets.length > 0 && (
-        <p className="text-xs text-petra-muted text-center">
-          נתוני ההאכלה נשמרים מקומית בדפדפן (localStorage) לצרכי דמו
-        </p>
       )}
 
       </> /* end activeTab === "feeding" */}

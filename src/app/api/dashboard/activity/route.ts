@@ -7,12 +7,17 @@ const ACTION_LABELS: Record<string, string> = {
   LOGIN: "התחברות למערכת",
   CREATE_CUSTOMER: "יצירת לקוח חדש",
   UPDATE_CUSTOMER: "עדכון פרטי לקוח",
+  DELETE_CUSTOMER: "מחיקת לקוח",
+  EXPORT_CUSTOMERS: "ייצוא לקוחות",
   CREATE_ORDER: "יצירת הזמנה",
   UPDATE_ORDER: "עדכון הזמנה",
   CREATE_PAYMENT: "רישום תשלום",
   CREATE_APPOINTMENT: "קביעת תור",
   UPDATE_APPOINTMENT: "עדכון תור",
   CANCEL_APPOINTMENT: "ביטול תור",
+  CREATE_BOOKING: "יצירת הזמנה אונליין",
+  UPDATE_BOOKING: "עדכון הזמנה אונליין",
+  DELETE_BOOKING: "מחיקת הזמנה אונליין",
   CREATE_LEAD: "יצירת ליד",
   UPDATE_LEAD: "עדכון ליד",
   ADD_PET: "הוספת חיית מחמד",
@@ -21,6 +26,9 @@ const ACTION_LABELS: Record<string, string> = {
   CREATE_BOARDING: "יצירת שהייה בפנסיון",
   CHECK_IN: "צ׳ק-אין לפנסיון",
   CHECK_OUT: "צ׳ק-אאוט מפנסיון",
+  UPDATE_SETTINGS: "עדכון הגדרות",
+  INVITE_MEMBER: "הזמנת חבר צוות",
+  REMOVE_MEMBER: "הסרת חבר צוות",
 };
 
 export async function GET(request: NextRequest) {

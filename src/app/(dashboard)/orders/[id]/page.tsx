@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowRight, CheckCircle2, Clock, XCircle, ShoppingCart,
-  Trash2, User, FileText, Calendar, Tag, CreditCard, Plus, Send,
+  Trash2, User, FileText, Calendar, Tag, CreditCard, Plus, Send, GraduationCap,
 } from "lucide-react";
 import { cn, formatDate, toWhatsAppPhone } from "@/lib/utils";
 import { useState } from "react";
@@ -58,11 +58,12 @@ interface Order {
 const STATUS_MAP: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   draft:     { label: "טיוטה",  color: "bg-slate-100 text-slate-600 border-transparent",    icon: Clock },
   confirmed: { label: "מאושר", color: "bg-emerald-50 text-emerald-700 border-emerald-100", icon: CheckCircle2 },
+  completed: { label: "הושלמה", color: "bg-blue-50 text-blue-700 border-blue-100",          icon: CheckCircle2 },
   cancelled: { label: "בוטל",  color: "bg-red-50 text-red-600 border-red-100",             icon: XCircle },
 };
 
 const ORDER_TYPE_MAP: Record<string, string> = {
-  sale: "🛒 מכירה", appointment: "📅 תור", boarding: "🏠 פנסיון",
+  sale: "🛒 מכירה", appointment: "📅 תור", boarding: "🏠 פנסיון", training: "🐕 אילוף",
 };
 
 const UNIT_LABEL: Record<string, string> = {
@@ -188,6 +189,26 @@ export default function OrderDetailPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["order", orderId] }),
   });
 
+  const completeMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["order", orderId] }); toast.success("ההזמנה סומנה כהושלמה"); },
+  });
+
+  const deleteCancelledMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/orders/${orderId}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקה"); return d; }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      toast.success("ההזמנה נמחקה");
+      router.push("/orders");
+    },
+  });
+
   const cancelMutation = useMutation({
     mutationFn: async () => {
       if (order?.status === "draft") {
@@ -307,12 +328,32 @@ export default function OrderDetailPage() {
               </>
             )}
             {order.status === "confirmed" && (
+              <>
+                <button
+                  onClick={() => completeMutation.mutate()}
+                  disabled={completeMutation.isPending}
+                  className="btn-primary text-sm"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  סמן כהושלמה
+                </button>
+                <button
+                  onClick={() => setConfirmCancel(true)}
+                  className="btn-secondary text-sm text-red-500 hover:bg-red-50 hover:border-red-200"
+                >
+                  <XCircle className="w-4 h-4" />
+                  בטל הזמנה
+                </button>
+              </>
+            )}
+            {order.status === "cancelled" && (
               <button
-                onClick={() => setConfirmCancel(true)}
+                onClick={() => deleteCancelledMutation.mutate()}
+                disabled={deleteCancelledMutation.isPending}
                 className="btn-secondary text-sm text-red-500 hover:bg-red-50 hover:border-red-200"
               >
-                <XCircle className="w-4 h-4" />
-                בטל הזמנה
+                <Trash2 className="w-4 h-4" />
+                {deleteCancelledMutation.isPending ? "מוחק..." : "מחק הזמנה"}
               </button>
             )}
           </div>
@@ -362,6 +403,23 @@ export default function OrderDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Training link */}
+      {order.orderType === "training" && (
+        <Link
+          href="/training"
+          className="card p-4 flex items-center gap-3 hover:bg-slate-50 transition-colors group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
+            <GraduationCap className="w-5 h-5 text-orange-500" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-petra-text">פתח תהליך אילוף</p>
+            <p className="text-xs text-petra-muted">צפה בתוכנית האילוף, מפגשים ויעדים</p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-petra-muted group-hover:text-brand-500 transition-colors rotate-180" />
+        </Link>
+      )}
 
       {/* Lines table */}
       <div className="card overflow-hidden">

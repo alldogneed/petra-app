@@ -581,7 +581,7 @@ function TimelineView({
     map["unassigned"] = [];
 
     stays
-      .filter((s) => ACTIVE_STATUSES.includes(s.status))
+      .filter((s) => ["reserved", "checked_in", "checked_out"].includes(s.status))
       .filter((s) => {
         const checkIn = new Date(s.checkIn);
         const checkOut = s.checkOut ? new Date(s.checkOut) : addDays(today, numDays + 30);
@@ -676,7 +676,7 @@ function TimelineView({
                 {/* Timeline cells with bars */}
                 <div
                   className="relative col-span-14"
-                  style={{ gridColumn: `2 / -1`, minHeight: "48px" }}
+                  style={{ gridColumn: `2 / -1`, minHeight: `${Math.max(48, roomStays.length * 26 + 8)}px` }}
                 >
                   {/* Day grid lines */}
                   <div
@@ -699,19 +699,23 @@ function TimelineView({
                     })}
                   </div>
 
-                  {/* Stay bars */}
-                  {roomStays.map((stay) => {
+                  {/* Stay bars — stacked vertically */}
+                  {roomStays.map((stay, rowIdx) => {
                     const pos = getBarPosition(stay);
-                    const stayStatus = STATUS_MAP[stay.status] || STATUS_MAP.reserved;
+                    const barColor = stay.status === "checked_in" ? "#22C55E"
+                      : stay.status === "checked_out" ? "#3B82F6"
+                      : "#94A3B8";
 
                     return (
                       <div
                         key={stay.id}
-                        className="absolute top-1.5 bottom-1.5 rounded-md flex items-center gap-1 px-2 text-[10px] font-semibold text-white truncate shadow-sm cursor-default"
+                        className="absolute rounded-md flex items-center gap-1 px-2 text-[10px] font-semibold text-white truncate shadow-sm cursor-default"
                         style={{
                           left: pos.left,
                           width: pos.width,
-                          backgroundColor: stayStatus.color,
+                          top: `${4 + rowIdx * 26}px`,
+                          height: "22px",
+                          backgroundColor: barColor,
                         }}
                         title={`${stay.pet.name} — ${stay.customer?.name ?? "כלב שירות"}\n${formatDate(stay.checkIn)}${stay.checkOut ? ` → ${formatDate(stay.checkOut)}` : ""}`}
                       >
@@ -744,7 +748,7 @@ function TimelineView({
               </div>
               <div
                 className="relative col-span-14"
-                style={{ gridColumn: `2 / -1`, minHeight: "48px" }}
+                style={{ gridColumn: `2 / -1`, minHeight: `${Math.max(48, (roomStaysMap["unassigned"] || []).length * 26 + 8)}px` }}
               >
                 <div
                   className="absolute inset-0 grid"
@@ -754,13 +758,22 @@ function TimelineView({
                     <div key={i} className="border-l border-slate-100 h-full" />
                   ))}
                 </div>
-                {(roomStaysMap["unassigned"] || []).map((stay) => {
+                {(roomStaysMap["unassigned"] || []).map((stay, rowIdx) => {
                   const pos = getBarPosition(stay);
+                  const barColor = stay.status === "checked_in" ? "#22C55E"
+                    : stay.status === "checked_out" ? "#3B82F6"
+                    : "#94A3B8";
                   return (
                     <div
                       key={stay.id}
-                      className="absolute top-1.5 bottom-1.5 rounded-md flex items-center gap-1 px-2 text-[10px] font-semibold text-white truncate shadow-sm bg-slate-400"
-                      style={{ left: pos.left, width: pos.width }}
+                      className="absolute rounded-md flex items-center gap-1 px-2 text-[10px] font-semibold text-white truncate shadow-sm"
+                      style={{
+                        left: pos.left,
+                        width: pos.width,
+                        top: `${4 + rowIdx * 26}px`,
+                        height: "22px",
+                        backgroundColor: barColor,
+                      }}
                     >
                       <PawPrint className="w-3 h-3 flex-shrink-0" />
                       {stay.pet.name}
@@ -885,12 +898,14 @@ function StayRow({
   onCheckin,
   onCheckout,
   onExtend,
+  onDelete,
   settings,
 }: {
   stay: BoardingStay;
   onCheckin: (id: string) => void;
   onCheckout: (id: string) => void;
   onExtend: (id: string) => void;
+  onDelete: (stay: BoardingStay) => void;
   settings: BusinessSettings;
 }) {
   const st = STATUS_MAP[stay.status] || STATUS_MAP.reserved;
@@ -973,6 +988,16 @@ function StayRow({
       <span className="badge text-[10px] flex-shrink-0" style={{ background: st.bg, color: st.color }}>
         {st.label}
       </span>
+
+      {(stay.status === "reserved" || stay.status === "checked_in") && (
+        <button
+          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
+          onClick={() => onDelete(stay)}
+          title="מחק שהות"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
 
       {stay.status === "reserved" && (
         <div className="flex gap-1 flex-shrink-0">
@@ -1259,9 +1284,13 @@ function CheckoutDialog({
   const calcMode = settings.boardingCalcMode || "nights";
   const configuredCheckoutTime = settings.boardingCheckOutTime || "11:00";
 
-  const now = new Date();
-  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-  const isLate = currentTime > configuredCheckoutTime;
+  const isLate = (() => {
+    if (!stay.checkOut) return false;
+    const checkOutDate = new Date(stay.checkOut);
+    const [h, m] = configuredCheckoutTime.split(":").map(Number);
+    checkOutDate.setHours(h, m, 0, 0);
+    return Date.now() > checkOutDate.getTime();
+  })();
 
   return (
     <div className="modal-overlay">
@@ -1368,6 +1397,7 @@ function ExtendStayDialog({
   onCancel: () => void;
   isPending: boolean;
 }) {
+  const hasCheckout = !!stay.checkOut;
   const currentCheckout = stay.checkOut
     ? new Date(stay.checkOut).toISOString().slice(0, 10)
     : new Date().toISOString().slice(0, 10);
@@ -1384,7 +1414,7 @@ function ExtendStayDialog({
       <div className="modal-content max-w-sm mx-4 p-6">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-lg font-bold text-petra-text">הארכת שהות</h2>
+            <h2 className="text-lg font-bold text-petra-text">{hasCheckout ? "הארכת שהות" : "הגדרת תאריך יציאה"}</h2>
             <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? "כלב שירות"}</p>
           </div>
           <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
@@ -1400,11 +1430,11 @@ function ExtendStayDialog({
             </div>
             <div className="flex justify-between">
               <span className="text-petra-muted">יציאה נוכחית:</span>
-              <span className="font-medium">{stay.checkOut ? new Date(stay.checkOut).toLocaleDateString("he-IL") : "לא מוגדר"}</span>
+              <span className="font-medium">{hasCheckout ? new Date(stay.checkOut!).toLocaleDateString("he-IL") : "שהות פתוחה — לא הוגדר תאריך"}</span>
             </div>
           </div>
           <div>
-            <label className="label">תאריך יציאה חדש *</label>
+            <label className="label">{hasCheckout ? "תאריך יציאה חדש *" : "תאריך יציאה *"}</label>
             <input
               type="date"
               className="input"
@@ -1418,11 +1448,11 @@ function ExtendStayDialog({
         <div className="flex gap-3 mt-6">
           <button
             className="btn-primary flex-1"
-            disabled={isPending || !newCheckout || newCheckout < minDate || newCheckout === currentCheckout}
+            disabled={isPending || !newCheckout || newCheckout < minDate || (hasCheckout && newCheckout === currentCheckout)}
             onClick={() => onConfirm(newCheckout + "T12:00:00")}
           >
             <Calendar className="w-4 h-4" />
-            {isPending ? "שומר..." : "עדכן תאריך יציאה"}
+            {isPending ? "שומר..." : hasCheckout ? "עדכן תאריך יציאה" : "הגדר תאריך יציאה"}
           </button>
           <button className="btn-secondary" onClick={onCancel}>ביטול</button>
         </div>
@@ -1805,6 +1835,7 @@ function BoardingPageContent() {
   const [checkinDialogStay, setCheckinDialogStay] = useState<BoardingStay | null>(null);
   const [checkoutDialogStay, setCheckoutDialogStay] = useState<BoardingStay | null>(null);
   const [extendDialogStay, setExtendDialogStay] = useState<BoardingStay | null>(null);
+  const [deleteDialogStay, setDeleteDialogStay] = useState<BoardingStay | null>(null);
 
   // Rooms manager
   const [showRoomsManager, setShowRoomsManager] = useState(false);
@@ -2158,6 +2189,19 @@ function BoardingPageContent() {
       toast.success("החדר נמחק");
     },
     onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת החדר. נסה שוב."),
+  });
+
+  const deleteStayMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/boarding/${id}`, { method: "DELETE" })
+        .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקת השהות"); return d; }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["boarding-stays"] });
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      toast.success("השהות נמחקה");
+      setDeleteDialogStay(null);
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת השהות"),
   });
 
   function startEditRoom(room: Room) {
@@ -2800,6 +2844,7 @@ function BoardingPageContent() {
                   onCheckin={handleCheckin}
                   onCheckout={handleCheckout}
                   onExtend={handleExtend}
+                  onDelete={(s) => setDeleteDialogStay(s)}
                   settings={settings}
                 />
                 {(stay.status === "checked_in" || stay.status === "reserved") && (
@@ -3474,6 +3519,38 @@ function BoardingPageContent() {
           onCancel={() => setExtendDialogStay(null)}
           isPending={extendMutation.isPending}
         />
+      )}
+
+      {/* ── Delete Stay Confirmation ── */}
+      {deleteDialogStay && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setDeleteDialogStay(null)} />
+          <div className="modal-content max-w-sm mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-petra-text">מחיקת שהות</h2>
+                <p className="text-sm text-petra-muted">{deleteDialogStay.pet.name} — {deleteDialogStay.customer?.name ?? "כלב שירות"}</p>
+              </div>
+            </div>
+            <p className="text-sm text-petra-muted mb-5">
+              האם למחוק את השהות של {deleteDialogStay.pet.name}? פעולה זו בלתי הפיכה.
+            </p>
+            <div className="flex gap-3">
+              <button
+                className="btn-primary flex-1 !bg-red-500 hover:!bg-red-600"
+                disabled={deleteStayMutation.isPending}
+                onClick={() => deleteStayMutation.mutate(deleteDialogStay.id)}
+              >
+                <Trash2 className="w-4 h-4" />
+                {deleteStayMutation.isPending ? "מוחק..." : "מחק"}
+              </button>
+              <button className="btn-secondary flex-1" onClick={() => setDeleteDialogStay(null)}>ביטול</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

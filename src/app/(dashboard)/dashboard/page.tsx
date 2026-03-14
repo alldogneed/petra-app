@@ -54,6 +54,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { usePlan } from "@/hooks/usePlan";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, fetchJSON, cn, toWhatsAppPhone } from "@/lib/utils";
+import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone } from "@/lib/validation";
 import dynamic from "next/dynamic";
 const SetupChecklist = dynamic(
   () => import("@/components/onboarding/SetupChecklist").then((m) => ({ default: m.SetupChecklist })),
@@ -1533,6 +1534,7 @@ function NewCustomerModal({
   onCreated: () => void;
 }) {
   const queryClient = useQueryClient();
+  const PRESET_TAGS = ["VIP", "קבוע", "מזדמן", "פוטנציאל", "לשעבר", "עסקי"];
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -1541,7 +1543,9 @@ function NewCustomerModal({
     notes: "",
     source: "",
     requestedService: "",
+    selectedTags: [] as string[],
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [showPetForm, setShowPetForm] = useState(false);
   const [petForm, setPetForm] = useState({ name: "", species: "", breed: "", age: "" });
 
@@ -1551,16 +1555,19 @@ function NewCustomerModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: data.name,
-          phone: data.phone,
+          name: sanitizeName(data.name),
+          phone: normalizeIsraeliPhone(data.phone),
           email: data.email || null,
           address: data.address || null,
           notes: data.notes || null,
           source: data.source || null,
-          tags: "[]",
+          tags: JSON.stringify(data.selectedTags),
         }),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed");
+      }
       const customer = await res.json();
       // Optionally create pet
       if (petForm.name.trim()) {
@@ -1581,12 +1588,28 @@ function NewCustomerModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      setForm({ name: "", phone: "", email: "", address: "", notes: "", source: "", requestedService: "" });
+      setForm({ name: "", phone: "", email: "", address: "", notes: "", source: "", requestedService: "", selectedTags: [] });
       setPetForm({ name: "", species: "", breed: "", age: "" });
       setShowPetForm(false);
+      setFieldErrors({});
       onCreated();
+      toast.success("הלקוח נוצר בהצלחה");
     },
+    onError: (err) => toast.error(err.message || "שגיאה ביצירת הלקוח"),
   });
+
+  function validateAndSubmitNew() {
+    const errors: Record<string, string | undefined> = {};
+    const nameErr = validateName(form.name);
+    if (nameErr) errors.name = nameErr;
+    const phoneErr = validateIsraeliPhone(form.phone);
+    if (phoneErr) errors.phone = phoneErr;
+    const emailErr = validateEmail(form.email);
+    if (emailErr) errors.email = emailErr;
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    mutation.mutate(form);
+  }
 
   if (!isOpen) return null;
 
@@ -1611,30 +1634,34 @@ function NewCustomerModal({
           <div>
             <label className="label">שם מלא *</label>
             <input
-              className="input"
+              className={cn("input", fieldErrors.name && "border-red-300 focus:ring-red-200")}
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => { setForm({ ...form, name: e.target.value }); if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: undefined }); }}
               placeholder="שם הלקוח"
             />
+            {fieldErrors.name && <p className="text-xs text-red-500 mt-1">{fieldErrors.name}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">טלפון *</label>
               <input
-                className="input"
+                className={cn("input", fieldErrors.phone && "border-red-300 focus:ring-red-200")}
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: undefined }); }}
                 placeholder="050-0000000"
+                inputMode="tel"
               />
+              {fieldErrors.phone && <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>}
             </div>
             <div>
               <label className="label">אימייל</label>
               <input
-                className="input"
+                className={cn("input", fieldErrors.email && "border-red-300 focus:ring-red-200")}
                 type="email"
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                onChange={(e) => { setForm({ ...form, email: e.target.value }); if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined }); }}
               />
+              {fieldErrors.email && <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
             </div>
           </div>
           <div>
@@ -1645,6 +1672,32 @@ function NewCustomerModal({
               onChange={(e) => setForm({ ...form, address: e.target.value })}
               placeholder="עיר, רחוב"
             />
+          </div>
+          {/* Tags */}
+          <div>
+            <label className="label">תגיות לקוח</label>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {PRESET_TAGS.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => setForm((f) => ({
+                    ...f,
+                    selectedTags: f.selectedTags.includes(tag)
+                      ? f.selectedTags.filter((t) => t !== tag)
+                      : [...f.selectedTags, tag],
+                  }))}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${form.selectedTags.includes(tag)
+                    ? tag === "VIP"
+                      ? "bg-amber-500 text-white border-amber-500"
+                      : "bg-[#3D2E1F] text-white border-[#3D2E1F]"
+                    : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:border-[#C4956A]"
+                    }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
           </div>
           {/* Optional fields */}
           <div className="grid grid-cols-2 gap-3">
@@ -1661,11 +1714,13 @@ function NewCustomerModal({
             <div>
               <label className="label">מקור הפנייה</label>
               <select className="input" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
-                <option value="">בחר...</option>
-                <option value="website">אתר</option>
+                <option value="">— לא ידוע —</option>
+                <option value="referral">המלצה מלקוח</option>
+                <option value="google">גוגל</option>
+                <option value="instagram">אינסטגרם</option>
                 <option value="facebook">פייסבוק</option>
-                <option value="recommendation">המלצה</option>
-                <option value="google">Google</option>
+                <option value="tiktok">טיקטוק</option>
+                <option value="signage">שלט / מעבר ברחוב</option>
                 <option value="other">אחר</option>
               </select>
             </div>
@@ -1731,8 +1786,8 @@ function NewCustomerModal({
         <div className="flex gap-3 mt-6">
           <button
             className="btn-primary flex-1"
-            disabled={!form.name || !form.phone || mutation.isPending}
-            onClick={() => mutation.mutate(form)}
+            disabled={mutation.isPending}
+            onClick={validateAndSubmitNew}
           >
             <UserPlus className="w-4 h-4" />
             {mutation.isPending ? "שומר..." : "הוסף לקוח"}
@@ -2047,6 +2102,7 @@ export default function DashboardPage() {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "Asia/Jerusalem",
   });
 
   const filteredAppointments =

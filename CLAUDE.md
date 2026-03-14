@@ -129,3 +129,5 @@ import { prisma } from "@/lib/prisma"
 | Auth guards | `src/lib/auth-guards.ts` |
 | Session | `src/lib/session.ts` — `SESSION_TTL_REMEMBER_ME` for 30-day sessions |
 | Current user (client) | `useAuth().user` — has `isAdmin: boolean`, NOT `platformRole` |
+| Orders API date filters | `from`/`to` → filter by `createdAt` (orders list); `startFrom`/`startTo` → filter by `startAt` (calendar view) |
+| Owner stats API | `GET /api/owner/stats` — includes `gcalConnectedCount` (Business.gcalConnected=true count, limit 100 in Testing mode) |

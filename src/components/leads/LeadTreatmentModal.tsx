@@ -248,6 +248,10 @@ function TimelineItem({
 export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDeleted }: LeadTreatmentModalProps) {
     const queryClient = useQueryClient();
 
+    // Use live data from cache so call logs update after saving
+    const leadsCache = queryClient.getQueryData<typeof lead[]>(["leads"]);
+    const liveLead = leadsCache?.find((l) => l?.id === lead?.id) ?? lead;
+
     const [summary, setSummary] = useState("");
     const [treatment, setTreatment] = useState("");
     const [callLogSaved, setCallLogSaved] = useState(false);
@@ -295,19 +299,19 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
     // ── Build CRM Timeline ────────────────────────────────────────────────
 
     const timeline = useMemo((): TLEvent[] => {
-        if (!lead) return [];
+        if (!liveLead) return [];
         const events: TLEvent[] = [];
 
         events.push({
             id: "created",
             type: "created",
-            date: lead.createdAt,
+            date: liveLead.createdAt,
             title: "ליד נוצר במערכת",
-            description: lead.notes || undefined,
+            description: liveLead.notes || undefined,
         });
 
-        if (lead.callLogs) {
-            [...lead.callLogs]
+        if (liveLead.callLogs) {
+            [...liveLead.callLogs]
                 .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                 .forEach((log) => {
                     events.push({
@@ -321,36 +325,36 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                 });
         }
 
-        if (lead.nextFollowUpAt) {
-            const isFuture = new Date(lead.nextFollowUpAt) > new Date();
+        if (liveLead.nextFollowUpAt) {
+            const isFuture = new Date(liveLead.nextFollowUpAt) > new Date();
             events.push({
                 id: "follow_up",
                 type: "follow_up",
-                date: lead.nextFollowUpAt,
-                title: lead.followUpStatus === "completed" ? "פולואפ הושלם" : "פולואפ מתוזמן",
+                date: liveLead.nextFollowUpAt,
+                title: liveLead.followUpStatus === "completed" ? "פולואפ הושלם" : "פולואפ מתוזמן",
                 isFuture,
             });
         }
 
-        if (lead.wonAt) {
-            events.push({ id: "won", type: "won", date: lead.wonAt, title: "ליד נסגר — לקוח נוצר" });
+        if (liveLead.wonAt) {
+            events.push({ id: "won", type: "won", date: liveLead.wonAt, title: "ליד נסגר — לקוח נוצר" });
         }
 
-        if (lead.lostAt) {
-            const reasonLabel = lead.lostReasonCode
-                ? LOST_REASON_CODES.find((r) => r.id === lead.lostReasonCode)?.label
+        if (liveLead.lostAt) {
+            const reasonLabel = liveLead.lostReasonCode
+                ? LOST_REASON_CODES.find((r) => r.id === liveLead.lostReasonCode)?.label
                 : undefined;
             events.push({
                 id: "lost",
                 type: "lost",
-                date: lead.lostAt,
+                date: liveLead.lostAt,
                 title: "ליד אבד",
-                description: reasonLabel || lead.lostReasonText || undefined,
+                description: reasonLabel || liveLead.lostReasonText || undefined,
             });
         }
 
         return events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    }, [lead]);
+    }, [liveLead]);
 
     // ── Mutations ─────────────────────────────────────────────────────────
 
@@ -510,7 +514,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
     };
 
     const handleEditLog = (event: TLEvent) => {
-        const log = lead?.callLogs?.find(l => l.id === event.id);
+        const log = liveLead?.callLogs?.find(l => l.id === event.id);
         if (!log) return;
         setEditingLogId(event.id);
         setEditLogSummary(log.summary === "ללא סיכום" ? "" : log.summary);

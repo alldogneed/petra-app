@@ -300,6 +300,7 @@ export default function TasksPage() {
       );
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
       setShowNewTask(false);
       toast.success("המשימה נוצרה בהצלחה");
     },
@@ -333,6 +334,7 @@ export default function TasksPage() {
     onSuccess: (_data, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
       if (status === "COMPLETED") toast.success("המשימה הושלמה ✓");
     },
     onError: (_err, _vars, ctx) => {
@@ -362,6 +364,7 @@ export default function TasksPage() {
       toast.success("המשימה נמחקה");
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
     },
   });
 
@@ -375,6 +378,7 @@ export default function TasksPage() {
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
       setSelectedTaskIds(new Set());
       toast.success(`${ids.length} משימות הושלמו`);
     },
@@ -422,6 +426,7 @@ export default function TasksPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
       toast.success("המשימה שוכפלה");
     },
     onError: () => toast.error("שגיאה בשכפול המשימה"),
@@ -558,6 +563,7 @@ export default function TasksPage() {
           onTasksGenerated={() => {
             queryClient.invalidateQueries({ queryKey: ["tasks"] });
             queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+            queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
           }}
         />
       ) : (<>

@@ -7,6 +7,7 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxCustomers } from "@/lib/feature-flags";
 import { checkFirstCustomer } from "@/lib/engagement-service";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { validateIsraeliPhone, validateEmail, sanitizeName, normalizeIsraeliPhone } from "@/lib/validation";
 
 /** Strip PII from a customer object for callers who cannot see sensitive data */
 function maskCustomerPii<T extends { address?: string | null }>(c: T): T {
@@ -120,7 +121,7 @@ export async function GET(request: NextRequest) {
         const hasDeposits = c.payments.some((p) => p.isDeposit);
         const serviceTypes = [...new Set(c.appointments.map((a) => a.service?.type).filter(Boolean))];
         return {
-          id: c.id, name: c.name, phone: c.phone, email: c.email, address: c.address, tags: c.tags, notes: c.notes, source: c.source, createdAt: c.createdAt,
+          id: c.id, name: c.name, phone: c.phone, email: c.email, address: c.address, idNumber: c.idNumber, tags: c.tags, notes: c.notes, source: c.source, createdAt: c.createdAt,
           pets: c.pets, _count: c._count,
           status, isVip, isInBoarding, hasActiveTraining,
           appointmentsLast30: recentAppts.length,
@@ -205,6 +206,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    const safeName = sanitizeName(body.name);
 
     let tags = "[]";
     if (body.tags) {
@@ -227,16 +229,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Server-side phone validation
+    const phoneErr = validateIsraeliPhone(body.phone);
+    if (phoneErr) {
+      return NextResponse.json({ error: phoneErr }, { status: 400 });
+    }
+
+    // Server-side email validation
+    if (body.email) {
+      const emailErr = validateEmail(body.email);
+      if (emailErr) {
+        return NextResponse.json({ error: emailErr }, { status: 400 });
+      }
+    }
+
+    // Normalize phone to local display format (05X-XXXXXXX)
+    const normalizedPhone = normalizeIsraeliPhone(body.phone);
+
     // Compute phoneNorm for consistent lookups (same as booking wizard)
-    const _phoneDigits = body.phone.replace(/\D/g, "");
+    const _phoneDigits = normalizedPhone.replace(/\D/g, "");
     const phoneNorm = _phoneDigits.startsWith("0") && _phoneDigits.length >= 9
       ? "972" + _phoneDigits.slice(1)
       : _phoneDigits || null;
 
     const customer = await prisma.customer.create({
       data: {
-        name: body.name,
-        phone: body.phone,
+        name: safeName,
+        phone: normalizedPhone,
         phoneNorm,
         email: body.email || null,
         address: body.address || null,

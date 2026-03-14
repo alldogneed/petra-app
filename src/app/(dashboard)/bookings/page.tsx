@@ -295,6 +295,9 @@ function BookingsContent() {
                       {booking.source === "online" && (
                         <span className="badge-neutral text-[10px]">אונליין</span>
                       )}
+                      {booking.source === "manual" && (
+                        <span className="badge-neutral text-[10px]">ידני</span>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 text-xs text-petra-muted mb-1">
@@ -489,6 +492,34 @@ function BookingsContent() {
                       <p className="text-sm text-petra-text bg-slate-50 rounded-lg p-3">
                         {booking.notes}
                       </p>
+                    </div>
+                  )}
+
+                  {/* Actions for confirmed bookings */}
+                  {booking.status === "confirmed" && (
+                    <div className="border-t border-slate-100 pt-4">
+                      <button
+                        onClick={() => updateMutation.mutate({ id: booking.id, status: "cancelled" })}
+                        disabled={updateMutation.isPending}
+                        className="w-full px-4 py-2.5 rounded-lg bg-red-50 text-red-600 text-sm font-semibold hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        בטל הזמנה
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Actions for declined bookings */}
+                  {booking.status === "declined" && (
+                    <div className="border-t border-slate-100 pt-4">
+                      <button
+                        onClick={() => updateMutation.mutate({ id: booking.id, status: "confirmed" })}
+                        disabled={updateMutation.isPending}
+                        className="w-full px-4 py-2.5 rounded-lg bg-emerald-50 text-emerald-600 text-sm font-semibold hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        אשר מחדש
+                      </button>
                     </div>
                   )}
 

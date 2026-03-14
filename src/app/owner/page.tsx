@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Users, Activity, Loader2, TrendingUp, Clock, PauseCircle } from "lucide-react";
+import { Building2, Users, Activity, Loader2, TrendingUp, Clock, PauseCircle, CalendarCheck } from "lucide-react";
 import Link from "next/link";
 import { fetchJSON, cn } from "@/lib/utils";
 
@@ -22,6 +22,7 @@ interface Stats {
   mrr: number;
   trialCount: number;
   tierBreakdown: TierBreakdownRow[];
+  gcalConnectedCount: number;
 }
 
 const TIER_LABEL: Record<string, string> = {
@@ -94,7 +95,7 @@ export default function OwnerDashboard() {
       ) : stats && (
         <div className="mb-6 space-y-4">
           {/* MRR stat cards row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
             <div className="card p-5">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingUp className="w-4 h-4 text-green-500" />
@@ -131,6 +132,19 @@ export default function OwnerDashboard() {
                 <div className="text-xs text-slate-400 mt-1">חשבונות מושהים</div>
               </div>
             </Link>
+            <div className="card p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <CalendarCheck className="w-4 h-4 text-indigo-500" />
+                <span className="text-xs font-medium text-slate-500">Google Calendar</span>
+              </div>
+              <div className={`text-2xl font-bold ${stats.gcalConnectedCount >= 90 ? "text-red-600" : stats.gcalConnectedCount >= 70 ? "text-amber-600" : "text-slate-900"}`}>
+                {stats.gcalConnectedCount}
+                <span className="text-sm font-normal text-slate-400"> / 100</span>
+              </div>
+              <div className="text-xs text-slate-400 mt-1">
+                {stats.gcalConnectedCount >= 90 ? "⚠️ קרוב למגבלה!" : "עסקים מחוברים"}
+              </div>
+            </div>
           </div>
 
           {/* Tier breakdown table */}

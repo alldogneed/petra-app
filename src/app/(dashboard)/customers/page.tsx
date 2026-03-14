@@ -36,7 +36,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { cn, toWhatsAppPhone, fetchJSON, formatCurrency } from "@/lib/utils";
-import { validateIsraeliPhone, validateEmail, sanitizeName, validateName } from "@/lib/validation";
+import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone, isValidEmail } from "@/lib/validation";
 import { SERVICE_TYPES } from "@/lib/constants";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PaywallCard } from "@/components/paywall/PaywallCard";
@@ -76,6 +76,7 @@ interface EnhancedCustomer {
   phone: string;
   email: string | null;
   address: string | null;
+  idNumber: string | null;
   notes: string | null;
   tags: string;
   source: string | null;
@@ -311,8 +312,8 @@ function QuickActions({
         <WhatsAppIcon className="w-4 h-4" />
       </a>
 
-      {/* Email — only when customer has an email address */}
-      {customer.email ? (
+      {/* Email — only when customer has a valid email address */}
+      {customer.email && isValidEmail(customer.email) ? (
         <button
           className="w-8 h-8 rounded-lg flex items-center justify-center text-blue-500 hover:bg-blue-50 transition-colors"
           title={`שלח אימייל ל־${customer.email}`}
@@ -805,6 +806,7 @@ function EditCustomerModal({
     phone: "",
     email: "",
     address: "",
+    idNumber: "",
     notes: "",
     selectedTags: [] as string[],
     source: "",
@@ -819,6 +821,7 @@ function EditCustomerModal({
         phone: customer.phone,
         email: customer.email || "",
         address: customer.address || "",
+        idNumber: customer.idNumber || "",
         notes: customer.notes || "",
         selectedTags: parseTags(customer.tags),
         source: customer.source || "",
@@ -846,6 +849,7 @@ function EditCustomerModal({
           phone: data.phone,
           email: data.email || null,
           address: data.address || null,
+          idNumber: data.idNumber || null,
           notes: data.notes || null,
           tags: JSON.stringify(data.selectedTags),
           source: data.source || null,
@@ -872,7 +876,7 @@ function EditCustomerModal({
     if (emailErr) errors.email = emailErr;
     setEditFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
-    mutation.mutate({ ...form, name: sanitizeName(form.name) });
+    mutation.mutate({ ...form, name: sanitizeName(form.name), phone: normalizeIsraeliPhone(form.phone) });
   }
 
   if (!isOpen || !customer) return null;
@@ -925,13 +929,25 @@ function EditCustomerModal({
               {editFieldErrors.email && <p className="text-xs text-red-500 mt-1">{editFieldErrors.email}</p>}
             </div>
           </div>
-          <div>
-            <label className="label">כתובת</label>
-            <input
-              className="input"
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">כתובת</label>
+              <input
+                className="input"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label">תעודת זהות</label>
+              <input
+                className="input"
+                value={form.idNumber}
+                onChange={(e) => setForm({ ...form, idNumber: e.target.value })}
+                inputMode="numeric"
+                placeholder="000000000"
+              />
+            </div>
           </div>
           <div>
             <label className="label">תגיות לקוח</label>
@@ -1056,8 +1072,14 @@ function QuickBookModal({
     onError: () => toast.error("שגיאה בקביעת התור. נסה שוב."),
   });
 
+  const [serviceError, setServiceError] = useState(false);
+
   const handleSubmit = () => {
-    if (!customer || !form.serviceId || !form.date || !form.startTime) return;
+    if (!form.serviceId) {
+      setServiceError(true);
+      return;
+    }
+    if (!customer || !form.date || !form.startTime) return;
     const duration = selectedService?.duration || 60;
     const endTime = computeEndTime(form.startTime, duration);
     mutation.mutate({
@@ -1097,9 +1119,9 @@ function QuickBookModal({
           <div>
             <label className="label">שירות *</label>
             <select
-              className="input"
+              className={cn("input", serviceError && !form.serviceId && "border-red-300 focus:ring-red-200")}
               value={form.serviceId}
-              onChange={(e) => setForm({ ...form, serviceId: e.target.value })}
+              onChange={(e) => { setForm({ ...form, serviceId: e.target.value }); setServiceError(false); }}
             >
               <option value="">בחר שירות</option>
               {services.map((s) => (
@@ -1108,6 +1130,9 @@ function QuickBookModal({
                 </option>
               ))}
             </select>
+            {serviceError && !form.serviceId && (
+              <p className="text-xs text-red-500 mt-1">יש לבחור שירות</p>
+            )}
           </div>
 
           {/* Date & Time */}
@@ -1186,12 +1211,7 @@ function QuickBookModal({
         <div className="flex gap-3 mt-6">
           <button
             className="btn-primary flex-1"
-            disabled={
-              !form.serviceId ||
-              !form.date ||
-              !form.startTime ||
-              mutation.isPending
-            }
+            disabled={mutation.isPending}
             onClick={handleSubmit}
           >
             <Calendar className="w-4 h-4" />
@@ -1301,7 +1321,7 @@ function NewCustomerModal({
     if (emailErr) errors.email = emailErr;
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
-    mutation.mutate({ ...form, name: sanitizeName(form.name) });
+    mutation.mutate({ ...form, name: sanitizeName(form.name), phone: normalizeIsraeliPhone(form.phone) });
   }
 
   if (!isOpen) return null;
@@ -1690,15 +1710,32 @@ export default function CustomersPage() {
             <ShoppingCart className="w-4 h-4" />
             הזמנה חדשה
           </button>
-          <a
-            href="/api/customers/export"
-            download
+          <button
             className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
             title="ייצוא לקוחות ל-CSV"
+            onClick={async () => {
+              try {
+                const res = await fetch("/api/customers/export");
+                if (!res.ok) throw new Error("Export failed");
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                const today = new Date().toISOString().slice(0, 10);
+                a.href = url;
+                a.download = `customers-export-${today}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+                toast.success("הקובץ הורד בהצלחה");
+              } catch {
+                toast.error("שגיאה בייצוא. נסה שוב.");
+              }
+            }}
           >
             <FileDown className="w-4 h-4" />
             ייצוא CSV
-          </a>
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <div>
@@ -1794,9 +1831,12 @@ export default function CustomersPage() {
             />
             <FilterPill
               label="VIP"
-              active={statusFilter === "vip"}
-              onClick={() => setStatusFilter(statusFilter === "vip" ? "all" : "vip")}
-              count={stats.vip}
+              active={tagFilter === "VIP"}
+              onClick={() => {
+                setTagFilter(tagFilter === "VIP" ? null : "VIP");
+                if (statusFilter === "vip") setStatusFilter("all");
+              }}
+              count={rawCustomers.filter((c) => parseTags(c.tags).includes("VIP")).length}
             />
           </div>
 
@@ -2266,7 +2306,7 @@ export default function CustomersPage() {
           {/* Table footer with summary */}
           <div className="px-5 py-3 bg-[#FAF7F3] border-t border-[#E8DFD5] flex flex-wrap items-center gap-4 text-xs text-[#8B7355]">
             <span>
-              מציג {customers.length} מתוך {rawCustomers.length}{hasNextPage ? "+" : ""} לקוחות
+              מציג {customers.length} מתוך {rawCustomers.length}{hasNextPage ? "+" : ""} {rawCustomers.length === 1 ? "לקוח" : "לקוחות"}
             </span>
             <div className="flex-1" />
             <div className="flex items-center gap-4">

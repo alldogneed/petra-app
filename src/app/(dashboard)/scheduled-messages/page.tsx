@@ -13,8 +13,6 @@ import {
   AlertTriangle,
   User,
   MessageSquare,
-  Mail,
-  Phone,
   Ban,
   ChevronRight,
   ChevronLeft,
@@ -85,8 +83,6 @@ const STATUS_INFO: Record<
 
 const CHANNEL_INFO: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   whatsapp: { label: "WhatsApp", icon: MessageSquare, color: "#22C55E" },
-  sms: { label: "SMS", icon: Phone, color: "#3B82F6" },
-  email: { label: "אימייל", icon: Mail, color: "#6366F1" },
 };
 
 const FILTER_STATUSES = [
@@ -100,8 +96,6 @@ const FILTER_STATUSES = [
 const FILTER_CHANNELS = [
   { id: "ALL", label: "כל הערוצים" },
   { id: "whatsapp", label: "WhatsApp" },
-  { id: "sms", label: "SMS" },
-  { id: "email", label: "אימייל" },
 ];
 
 function getPayloadPreview(payloadJson: string): string {

@@ -38,6 +38,8 @@ interface Payment {
   notes: string | null;
   paidAt: string | null;
   createdAt: string;
+  orderId: string | null;
+  order: { id: string } | null;
   customer: { id: string; name: string; phone: string };
   appointment: { service: { name: string } | null } | null;
   boardingStay: { pet: { name: string }; room: { name: string } } | null;
@@ -278,7 +280,7 @@ function PaymentsPageContent() {
 
   function exportCSV() {
     const rows = [
-      ["תאריך", "לקוח", "סכום", "אמצעי תשלום", "סטטוס", "שירות", "מספר חשבונית"],
+      ["תאריך", "לקוח", "סכום", "אמצעי תשלום", "סטטוס", "שירות", "הזמנה", "מספר חשבונית"],
       ...filteredPayments.map((p) => [
         formatDate(p.createdAt),
         p.customer.name,
@@ -286,6 +288,7 @@ function PaymentsPageContent() {
         METHOD_LABELS[p.method] || p.method,
         STATUS_INFO[p.status]?.label || p.status,
         p.appointment?.service?.name || (p.boardingStay ? `פנסיון — ${p.boardingStay.pet.name}` : ""),
+        p.orderId ? `#${p.orderId.slice(-8).toUpperCase()}` : "",
         p.invoiceNumber || "",
       ]),
     ];
@@ -295,8 +298,10 @@ function PaymentsPageContent() {
     const a = document.createElement("a");
     a.href = url;
     a.download = `תשלומים_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   }
 
   return (
@@ -684,11 +689,11 @@ function PaymentsPageContent() {
                 {filteredPayments.map((payment) => {
                   const statusInfo = STATUS_INFO[payment.status] || STATUS_INFO.pending;
                   const StatusIcon = statusInfo.icon;
-                  const association = payment.appointment
+                  const serviceInfo = payment.appointment
                     ? `תור: ${payment.appointment.service?.name ?? "ללא שירות"}`
                     : payment.boardingStay
                     ? `פנסיון: ${payment.boardingStay.pet.name}`
-                    : "—";
+                    : null;
 
                   return (
                     <tr
@@ -723,7 +728,23 @@ function PaymentsPageContent() {
                         </span>
                       </td>
                       <td className="table-cell">
-                        <span className="text-xs text-petra-muted">{association}</span>
+                        <div className="space-y-0.5">
+                          {payment.order && (
+                            <Link
+                              href={`/orders/${payment.order.id}`}
+                              className="text-xs font-medium text-brand-600 hover:underline block"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              הזמנה #{payment.order.id.slice(-8).toUpperCase()}
+                            </Link>
+                          )}
+                          {serviceInfo && (
+                            <span className="text-xs text-petra-muted">{serviceInfo}</span>
+                          )}
+                          {!payment.order && !serviceInfo && (
+                            <span className="text-xs text-petra-muted">—</span>
+                          )}
+                        </div>
                       </td>
                       <td className="table-cell">
                         <span
@@ -837,7 +858,7 @@ function PaymentsPageContent() {
                             </span>
                           ) : (
                             <button
-                              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-red-300 hover:text-red-600 hover:bg-red-50 transition-colors"
                               onClick={() => setConfirmDeleteId(payment.id)}
                               title="מחק תשלום"
                             >

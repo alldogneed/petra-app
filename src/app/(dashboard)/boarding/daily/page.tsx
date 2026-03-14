@@ -61,7 +61,7 @@ interface Stay {
   feedingPlan: string | null;
   room: { id: string; name: string; pricePerNight: number | null } | null;
   pet: Pet;
-  customer: { id: string; name: string; phone: string };
+  customer: { id: string; name: string; phone: string } | null;
   careLogs: CareLog[];
 }
 
@@ -262,7 +262,7 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
               <span className="font-bold text-petra-text text-lg">{stay.pet.name}</span>
               {stay.pet.breed && <span className="text-xs text-petra-muted">{stay.pet.breed}</span>}
             </div>
-            <div className="text-sm text-petra-muted">{stay.customer.name}</div>
+            <div className="text-sm text-petra-muted">{stay.customer?.name ?? "כלב שירות"}</div>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {stay.room && (
                 <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">

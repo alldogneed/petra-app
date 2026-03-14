@@ -14,6 +14,7 @@ import {
   Shield,
   AlertTriangle,
   CheckCircle2,
+  Clock,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
@@ -41,8 +42,19 @@ interface IDCard {
   generatedAt: string;
 }
 
+function getCertificateStatus(expiryDate: string | null): { status: "expired" | "expiring" | "valid" } {
+  if (!expiryDate) return { status: "valid" };
+  const now = new Date();
+  const expiry = new Date(expiryDate);
+  const daysUntilExpiry = Math.floor((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (daysUntilExpiry < 0) return { status: "expired" };
+  if (daysUntilExpiry <= 30) return { status: "expiring" };
+  return { status: "valid" };
+}
+
 function IDCardsPageContent() {
   const [viewingCard, setViewingCard] = useState<{ card: IDCard; dogName: string } | null>(null);
+  const [qrLoadError, setQrLoadError] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: dogs = [], isLoading } = useQuery<ServiceDogSummary[]>({
@@ -66,6 +78,7 @@ function IDCardsPageContent() {
   const downloadPDF = (card: IDCard, dogName: string) => {
     const data = JSON.parse(card.cardDataJson || "{}");
     const certDate = data.certificationDate ? formatDate(data.certificationDate) : null;
+    const expiryDate = data.certificationExpiry ? formatDate(data.certificationExpiry) : null;
     const html = `<!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head>
@@ -105,15 +118,30 @@ function IDCardsPageContent() {
       ${data.recipientName ? `<div class="field"><span class="field-label">משתמש / זכאי</span><span class="field-value">${data.recipientName}</span></div>` : ""}
       ${data.certifyingBody ? `<div class="field"><span class="field-label">גוף מסמיך</span><span class="field-value">${data.certifyingBody}</span></div>` : ""}
       ${certDate ? `<div class="field"><span class="field-label">תאריך הסמכה</span><span class="field-value">${certDate}</span></div>` : ""}
+      ${expiryDate ? `<div class="field"><span class="field-label">תוקף</span><span class="field-value">${expiryDate}</span></div>` : ""}
     </div>
-    ${card.qrPayload ? `<div class="qr-section"><img src="${card.qrPayload}" alt="QR Code" /><p class="qr-note">סרוק לאימות תעודה</p></div>` : ""}
+    ${card.qrPayload ? `<div class="qr-section"><img src="${card.qrPayload}" alt="QR Code" onerror="this.style.display='none'" /><p class="qr-note">סרוק לאימות תעודה</p></div>` : ""}
     <div class="footer">הונפק על ידי Petra Pet Business Management · מסמך רשמי</div>
   </div>
-  <script>window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; }</script>
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 300);
+      window.onafterprint = function() { window.close(); };
+    };
+  </script>
 </body></html>`;
-    const win = window.open("", "_blank", "width=700,height=900");
-    if (win) { win.document.write(html); win.document.close(); }
-    else toast.error("חסמת חלונות קופצים — אפשר ידנית בדפדפן");
+    try {
+      const win = window.open("", "_blank");
+      if (win) {
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+      } else {
+        toast.error("חסמת חלונות קופצים — אפשר ידנית בדפדפן");
+      }
+    } catch {
+      toast.error("שגיאה בהכנת תעודה להדפסה");
+    }
   };
 
   const fetchAndViewCard = async (dogId: string, dogName: string) => {
@@ -121,6 +149,7 @@ function IDCardsPageContent() {
       const res = await fetch(`/api/service-dogs/${dogId}/id-card`);
       if (res.ok) {
         const card = await res.json();
+        setQrLoadError(false);
         setViewingCard({ card, dogName });
       } else {
         toast.error("לא נמצאה תעודה");
@@ -133,6 +162,8 @@ function IDCardsPageContent() {
   const certifiedDogs = dogs.filter((d) => d.phase === "CERTIFIED");
   const dogsWithCards = dogs.filter((d) => d.idCardIsActive);
   const certifiedWithoutCards = certifiedDogs.filter((d) => !d.idCardIsActive);
+  const expiredCards = dogsWithCards.filter((d) => getCertificateStatus(d.certificationExpiry).status === "expired");
+  const expiringCards = dogsWithCards.filter((d) => getCertificateStatus(d.certificationExpiry).status === "expiring");
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -174,13 +205,54 @@ function IDCardsPageContent() {
           </div>
           <div className="text-xs text-petra-muted mt-0.5">ממתינים לתעודה</div>
         </div>
-        <div className="rounded-xl p-4 border bg-slate-50/50">
-          <div className="text-2xl font-bold text-slate-500">
-            {dogs.filter((d) => !["CERTIFIED", "RETIRED"].includes(d.phase)).length}
+        <div className={cn(
+          "rounded-xl p-4 border",
+          expiredCards.length > 0 ? "bg-red-50 border-red-200" : expiringCards.length > 0 ? "bg-amber-50 border-amber-200" : "bg-slate-50/50"
+        )}>
+          <div className={cn(
+            "text-2xl font-bold",
+            expiredCards.length > 0 ? "text-red-600" : expiringCards.length > 0 ? "text-amber-600" : "text-slate-500"
+          )}>
+            {expiredCards.length + expiringCards.length}
           </div>
-          <div className="text-xs text-petra-muted mt-0.5">בתהליך הכשרה</div>
+          <div className="text-xs text-petra-muted mt-0.5">
+            {expiredCards.length > 0 ? `${expiredCards.length} פגו · ${expiringCards.length} בקרוב` : expiringCards.length > 0 ? "פג בקרוב" : "תקינות"}
+          </div>
         </div>
       </div>
+
+      {/* Expired certificates warning */}
+      {expiredCards.length > 0 && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="w-4 h-4 text-red-500" />
+            <h3 className="font-semibold text-red-700">
+              תעודות שפג תוקפן ({expiredCards.length})
+            </h3>
+          </div>
+          <div className="space-y-1.5">
+            {expiredCards.map((dog) => (
+              <div key={dog.id} className="flex items-center justify-between text-sm">
+                <Link href={`/service-dogs/${dog.id}`} className="font-medium text-red-700 hover:underline">
+                  {dog.pet.name}
+                </Link>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-red-600">
+                    פג {dog.certificationExpiry ? formatDate(dog.certificationExpiry) : ""}
+                  </span>
+                  <button
+                    onClick={() => generateMutation.mutate(dog.id)}
+                    disabled={generateMutation.isPending && generateMutation.variables === dog.id}
+                    className="text-xs px-2.5 py-1 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+                  >
+                    חדש תעודה
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Certified without cards */}
       {certifiedWithoutCards.length > 0 && (
@@ -251,10 +323,15 @@ function IDCardsPageContent() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {dogsWithCards.map((dog) => {
               const phaseColors = SERVICE_DOG_PHASE_COLORS[dog.phase];
+              const certStatus = getCertificateStatus(dog.certificationExpiry);
               return (
                 <div
                   key={dog.id}
-                  className="card p-0 overflow-hidden hover:shadow-md transition-shadow"
+                  className={cn(
+                    "card p-0 overflow-hidden hover:shadow-md transition-shadow",
+                    certStatus.status === "expired" && "ring-2 ring-red-300",
+                    certStatus.status === "expiring" && "ring-2 ring-amber-300"
+                  )}
                 >
                   {/* Card header */}
                   <div
@@ -274,7 +351,21 @@ function IDCardsPageContent() {
                           {dog.pet.breed || "—"}
                         </p>
                       </div>
-                      <span className="badge-success text-xs">תעודה פעילה</span>
+                      <div className="flex flex-col items-end gap-1">
+                        {certStatus.status === "expired" ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
+                            <AlertTriangle className="w-3 h-3" />
+                            פג תוקף
+                          </span>
+                        ) : certStatus.status === "expiring" ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                            <Clock className="w-3 h-3" />
+                            פג בקרוב
+                          </span>
+                        ) : (
+                          <span className="badge-success text-xs">תעודה פעילה</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -310,9 +401,11 @@ function IDCardsPageContent() {
                         <span className="text-petra-muted">תוקף</span>
                         <span
                           className={cn(
-                            "text-xs",
-                            new Date(dog.certificationExpiry) < new Date()
-                              ? "text-red-600 font-medium"
+                            "text-xs font-medium",
+                            certStatus.status === "expired"
+                              ? "text-red-600"
+                              : certStatus.status === "expiring"
+                              ? "text-amber-600"
                               : "text-emerald-600"
                           )}
                         >
@@ -370,15 +463,24 @@ function IDCardsPageContent() {
             </div>
 
             {/* QR Code */}
-            {viewingCard.card.qrPayload && (
-              <div className="bg-white border rounded-xl p-4 mb-4 flex justify-center">
+            <div className="bg-white border rounded-xl p-4 mb-4 flex justify-center">
+              {viewingCard.card.qrPayload && !qrLoadError ? (
                 <img
                   src={viewingCard.card.qrPayload}
                   alt="QR Code"
                   className="w-48 h-48"
+                  onError={() => setQrLoadError(true)}
                 />
-              </div>
-            )}
+              ) : (
+                <div className="w-48 h-48 flex flex-col items-center justify-center bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                  <QrCode className="w-10 h-10 text-slate-300 mb-2" />
+                  <p className="text-xs text-petra-muted text-center">
+                    {qrLoadError ? "שגיאה בטעינת QR" : "QR לא זמין"}
+                  </p>
+                  <p className="text-[10px] text-petra-muted mt-1">הנפק תעודה מחדש</p>
+                </div>
+              )}
+            </div>
 
             {/* Card details */}
             {(() => {
@@ -409,7 +511,7 @@ function IDCardsPageContent() {
                 className="btn-primary flex-1 flex items-center justify-center gap-2"
               >
                 <Printer className="w-4 h-4" />
-                הורד PDF
+                הדפס תעודה
               </button>
               <button onClick={() => setViewingCard(null)} className="btn-secondary flex-1">
                 סגור

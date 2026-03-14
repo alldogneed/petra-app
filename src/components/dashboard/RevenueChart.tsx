@@ -54,9 +54,11 @@ export default function RevenueChart({
               axisLine={false}
               tickLine={false}
               tick={{ fontSize: 11, fill: "#94A3B8" }}
-              tickFormatter={(v) => v === 0 ? "" : v >= 1000 ? `₪${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : `₪${v}`}
-              width={50}
-              mirror
+              tickFormatter={(v: number) => {
+                if (v === 0) return "";
+                return "\u20AA" + v.toLocaleString("he-IL");
+              }}
+              width={60}
             />
             <Tooltip
               formatter={(value: number | undefined) => [formatCurrency(value || 0), "הכנסות"]}

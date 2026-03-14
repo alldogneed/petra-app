@@ -47,6 +47,9 @@ export async function GET(request: NextRequest) {
             room: { select: { name: true } },
           },
         },
+        order: {
+          select: { id: true },
+        },
       },
       orderBy: { createdAt: "desc" },
       take: 200,

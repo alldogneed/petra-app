@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Download,
   MapPin,
+  Plus,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
@@ -409,9 +410,21 @@ function ServiceDogsReportsPageContent() {
                           />
                         </div>
                         {isStale && (
-                          <p className="text-xs text-amber-600 mt-1.5 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> ללא אימון ב-14 ימים האחרונים
-                          </p>
+                          <div className="flex items-center justify-between mt-1.5">
+                            <p className="text-xs text-amber-600 flex items-center gap-1">
+                              <Clock className="w-3 h-3" /> ללא אימון ב-14 ימים האחרונים
+                            </p>
+                            {prog.dog && (
+                              <Link
+                                href={`/training?dogId=${prog.dog.id}&dogName=${encodeURIComponent(prog.dog.name)}`}
+                                className="text-xs px-2.5 py-1 rounded-lg font-medium bg-brand-500 text-white hover:bg-brand-600 transition-colors flex items-center gap-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Plus className="w-3 h-3" />
+                                תזמן אימון
+                              </Link>
+                            )}
+                          </div>
                         )}
                       </div>
                     );
