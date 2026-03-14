@@ -6,6 +6,8 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { scheduleBoardingCheckoutReminder } from "@/lib/reminder-service";
 import { syncBoardingToGcal } from "@/lib/google-calendar";
+import { sendWhatsAppTemplate } from "@/lib/whatsapp";
+import { toWhatsAppPhone } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -133,6 +135,22 @@ export async function POST(request: NextRequest) {
     });
 
     logCurrentUserActivity("CREATE_BOARDING_STAY");
+
+    // Send immediate WhatsApp booking confirmation (fire-and-forget)
+    if (stay.customer?.phone) {
+      const phone = toWhatsAppPhone(stay.customer.phone);
+      if (phone) {
+        const checkInStr = stay.checkIn.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
+        const checkOutStr = stay.checkOut
+          ? stay.checkOut.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })
+          : "טרם נקבע";
+        sendWhatsAppTemplate({
+          to: phone,
+          templateName: "petra_boarding_confirmation",
+          bodyParams: [stay.customer.name, stay.pet.name, checkInStr, checkOutStr],
+        }).catch((err) => console.error("Boarding confirmation WA failed:", err));
+      }
+    }
 
     // Schedule WhatsApp reminder 24h before checkout (fire-and-forget)
     // Skip for service dogs (no customer to message)
