@@ -13,7 +13,7 @@ export async function GET() {
 
     return NextResponse.json(
       { user },
-      { headers: { "Cache-Control": "private, max-age=300, stale-while-revalidate=60" } }
+      { headers: { "Cache-Control": "private, no-store" } }
     );
   } catch (error) {
     console.error("Auth me error:", error);
