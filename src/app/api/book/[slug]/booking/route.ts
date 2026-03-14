@@ -194,6 +194,7 @@ export async function POST(
       })
     }
 
+    let isNewCustomer = false
     if (!customer) {
       if (!customerName) {
         throw new Error("customerName is required for new customers")
@@ -209,6 +210,7 @@ export async function POST(
           notes: customerNotes ?? null,
         },
       })
+      isNewCustomer = true
     }
 
     // Handle dogs: resolve existing or create new
@@ -273,7 +275,7 @@ export async function POST(
       select: { id: true, customerToken: true },
     })
 
-    return { booking, customer, status }
+    return { booking, customer, status, isNewCustomer }
   }).catch((err: any) => {
     if (err.message === "SLOT_TAKEN") return null
     if (err.message === "customerName is required for new customers") return { validationError: err.message }
@@ -291,16 +293,39 @@ export async function POST(
     return NextResponse.json({ error: result.validationError }, { status: 400 })
   }
 
-  const { booking, customer, status } = result as {
+  const { booking, customer, status, isNewCustomer } = result as {
     booking: { id: string; customerToken?: string | null },
     customer: { id: string, phone: string, name: string },
     status: string,
+    isNewCustomer: boolean,
   }
 
   // Enqueue Google Calendar sync (fire-and-forget)
   enqueueSyncJob(booking.id, business.id, "create").catch((err) =>
     console.error("Failed to enqueue GCal sync job:", err)
   )
+
+  // Auto-create lead for new customers (fire-and-forget)
+  if (isNewCustomer) {
+    prisma.leadStage.findFirst({
+      where: { businessId: business.id },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true },
+    }).then((firstStage) => {
+      if (!firstStage) return
+      return prisma.lead.create({
+        data: {
+          businessId: business.id,
+          customerId: customer.id,
+          name: customer.name,
+          phone: customer.phone,
+          stage: firstStage.id,
+          source: "website",
+          notes: `הזמנה מהאתר: ${item.name}`,
+        },
+      })
+    }).catch((err) => console.error("Failed to create lead from booking:", err))
+  }
 
   // Build human-readable date/time labels for notifications
   const pad2 = (n: number) => n.toString().padStart(2, "0")
