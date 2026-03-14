@@ -2335,14 +2335,14 @@ export default function DashboardPage() {
         onComplete={handleCompleteTask}
       />
 
-      {/* Today's Follow-Ups */}
-      <TodayFollowUpsWidget leads={data.urgentLeads || []} />
+      {/* Today's Follow-Ups — hidden for staff (no leads access) */}
+      {!perms.isStaff && <TodayFollowUpsWidget leads={data.urgentLeads || []} />}
 
-      {/* Urgent Leads Alert — overdue only */}
-      <UrgentLeadsAlert leads={data.urgentLeads || []} />
+      {/* Urgent Leads Alert — hidden for staff */}
+      {!perms.isStaff && <UrgentLeadsAlert leads={data.urgentLeads || []} />}
 
-      {/* Top Debtors Widget */}
-      <TopDebtorsWidget debtors={data.topDebtors || []} />
+      {/* Top Debtors Widget — hidden for staff (financial) */}
+      {perms.canSeeFinance && <TopDebtorsWidget debtors={data.topDebtors || []} />}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -2355,13 +2355,15 @@ export default function DashboardPage() {
             href="/payments"
           />
         )}
-        <StatCard
-          title="הזמנות פעילות"
-          value={data.activeOrders}
-          icon={ShoppingCart}
-          color="#F97316"
-          href="/orders"
-        />
+        {perms.canSeeFinance && (
+          <StatCard
+            title="הזמנות פעילות"
+            value={data.activeOrders}
+            icon={ShoppingCart}
+            color="#F97316"
+            href="/orders"
+          />
+        )}
         {perms.canSeeFinance && (
           <StatCard
             title="תשלומים ממתינים"
@@ -2379,13 +2381,15 @@ export default function DashboardPage() {
           color="#3B82F6"
           href="/calendar"
         />
-        <StatCard
-          title="לידים פתוחים"
-          value={data.openLeads}
-          icon={Target}
-          color="#8B5CF6"
-          href="/leads"
-        />
+        {!perms.isStaff && (
+          <StatCard
+            title="לידים פתוחים"
+            value={data.openLeads}
+            icon={Target}
+            color="#8B5CF6"
+            href="/leads"
+          />
+        )}
         {(data.pendingBookings ?? 0) > 0 && (
           <StatCard
             title="תורים ממתינים לאישור"

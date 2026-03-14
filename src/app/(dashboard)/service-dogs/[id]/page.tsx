@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { usePermissions } from "@/hooks/usePermissions";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -1517,6 +1518,7 @@ function ComplianceEventGroup({
 function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const perms = usePermissions();
   const activePlacement = dog.placements.find((p) => ["ACTIVE", "TRIAL"].includes(p.status));
   const [showAddModal, setShowAddModal] = useState(false);
   const [recipientId, setRecipientId] = useState("");
@@ -1575,7 +1577,7 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
                 <p className="font-semibold text-emerald-800">שיבוץ פעיל</p>
               </div>
               <p className="text-lg font-bold">{activePlacement.recipient.name}</p>
-              {activePlacement.recipient.phone && (
+              {perms.canSeeRecipientsSensitive && activePlacement.recipient.phone && (
                 <p className="text-sm text-petra-muted mt-0.5">{activePlacement.recipient.phone}</p>
               )}
             </div>
