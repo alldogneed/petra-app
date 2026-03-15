@@ -1743,6 +1743,7 @@ model ServiceDogRecipient {
   customerId      String?
   name            String
   phone           String?
+  mobile          String?
   email           String?
   idNumber        String?
   address         String?
@@ -1752,10 +1753,12 @@ model ServiceDogRecipient {
   waitlistDate    DateTime?
   intakeDate      DateTime? // date of intake interview
   approvedAt      DateTime? // date approved for match
+  handoverDate    DateTime?
   notes           String?
   status          String    @default("LEAD") // LEAD | INTAKE | APPROVED | WAITLIST | MATCHED | JOINT_TRAINING | ACTIVE | CLOSED
   attachments     Json      @default("[]")
   meetings        Json      @default("[]")
+  contactPersons  Json      @default("[]")
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
