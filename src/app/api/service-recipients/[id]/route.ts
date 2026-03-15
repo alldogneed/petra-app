@@ -103,8 +103,11 @@ export async function PATCH(
         ...(body.fundingSource !== undefined && { fundingSource: body.fundingSource || null }),
         ...(body.intakeDate !== undefined && { intakeDate: body.intakeDate ? new Date(body.intakeDate) : null }),
         ...(body.approvedAt !== undefined && { approvedAt: body.approvedAt ? new Date(body.approvedAt) : null }),
+        ...(body.mobile !== undefined && { mobile: body.mobile || null }),
+        ...(body.handoverDate !== undefined && { handoverDate: body.handoverDate ? new Date(body.handoverDate) : null }),
         ...(body.attachments !== undefined && { attachments: body.attachments }),
         ...(body.meetings !== undefined && { meetings: body.meetings }),
+        ...(body.contactPersons !== undefined && { contactPersons: body.contactPersons }),
       },
     });
 
