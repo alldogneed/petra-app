@@ -244,7 +244,7 @@ function RecipientsPageContent() {
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [view, setView] = useState<"kanban" | "table">("kanban");
+  const [view, setView] = useState<"kanban" | "table">("table");
   const [isEditMode, setIsEditMode] = useState(false);
   const [showAddColumn, setShowAddColumn] = useState(false);
   const [newColName, setNewColName] = useState("");
@@ -575,11 +575,10 @@ function RecipientsPageContent() {
             <thead>
               <tr className="border-b bg-slate-50">
                 <th className="p-3 text-right font-medium text-petra-muted">שם</th>
-                <th className="p-3 text-right font-medium text-petra-muted">טלפון</th>
-                <th className="p-3 text-right font-medium text-petra-muted">מוגבלות</th>
+                <th className="p-3 text-right font-medium text-petra-muted">ת"ז</th>
+                <th className="p-3 text-right font-medium text-petra-muted">מקום מגורים</th>
                 <th className="p-3 text-right font-medium text-petra-muted">מימון</th>
-                <th className="p-3 text-right font-medium text-petra-muted">שלב</th>
-                <th className="p-3 text-right font-medium text-petra-muted">כלב</th>
+                <th className="p-3 text-right font-medium text-petra-muted">שלב כלב</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -591,13 +590,20 @@ function RecipientsPageContent() {
                     <td className="p-3">
                       <Link href={`/service-dogs/recipients/${r.id}`} className="font-medium hover:text-brand-600">{r.name}</Link>
                     </td>
-                    <td className="p-3 text-petra-muted">{r.phone || "—"}</td>
-                    <td className="p-3">{r.disabilityType ? (DISABILITY_TYPE_MAP[r.disabilityType] || r.disabilityType) : "—"}</td>
+                    <td className="p-3 text-petra-muted">{r.idNumber || "—"}</td>
+                    <td className="p-3 text-petra-muted">{r.address || "—"}</td>
                     <td className="p-3">{r.fundingSource ? (FUNDING_SOURCE_MAP[r.fundingSource] || r.fundingSource) : "—"}</td>
                     <td className="p-3">
-                      {stage && <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", stage.color)}>{stage.name}</span>}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {stage && <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", stage.color)}>{stage.name}</span>}
+                        {activePlacement && (
+                          <span className="flex items-center gap-1 text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">
+                            <Dog className="w-3 h-3" />
+                            {activePlacement.serviceDog.pet.name}
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td className="p-3">{activePlacement ? activePlacement.serviceDog.pet.name : "—"}</td>
                   </tr>
                 );
               })}
