@@ -15,6 +15,9 @@ import {
   ArrowLeft,
   Search,
   CheckCircle2,
+  Pencil,
+  Trash2,
+  Info,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
@@ -66,7 +69,16 @@ interface RecipientOption {
 function PlacementsPageContent() {
   const [statusFilter, setStatusFilter] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingPlacement, setEditingPlacement] = useState<Placement | null>(null);
   const queryClient = useQueryClient();
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["service-placements"] });
+    queryClient.invalidateQueries({ queryKey: ["service-recipients"] });
+    queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
+    queryClient.invalidateQueries({ queryKey: ["service-compliance"] });
+    queryClient.invalidateQueries({ queryKey: ["sd-alerts"] });
+  };
 
   const { data: placements = [], isLoading } = useQuery<Placement[]>({
     queryKey: ["service-placements"],
@@ -93,14 +105,18 @@ function PlacementsPageContent() {
         if (!r.ok) throw new Error("Failed");
         return r.json();
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["service-placements"] });
-      queryClient.invalidateQueries({ queryKey: ["service-recipients"] });
-      queryClient.invalidateQueries({ queryKey: ["service-compliance"] });
-      queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
-      toast.success("סטטוס שיבוץ עודכן");
-    },
+    onSuccess: () => { invalidateAll(); toast.success("סטטוס שיבוץ עודכן"); },
     onError: () => toast.error("שגיאה בעדכון סטטוס"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/service-placements/${id}`, { method: "DELETE" }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: () => { invalidateAll(); toast.success("שיבוץ נמחק"); },
+    onError: () => toast.error("שגיאה במחיקת שיבוץ"),
   });
 
   const filtered = statusFilter
@@ -139,6 +155,18 @@ function PlacementsPageContent() {
           <Plus className="w-4 h-4" />
           שיבוץ חדש
         </button>
+      </div>
+
+      {/* Status legend */}
+      <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100 text-sm">
+        <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-blue-700">
+          <span><strong>ממתין</strong> — שיבוץ נוצר, טרם החל</span>
+          <span><strong>ניסיון</strong> — הכלב אצל הזכאי בתקופת ניסיון</span>
+          <span><strong>פעיל</strong> — שיבוץ מאושר ומלא</span>
+          <span><strong>הסתיים</strong> — השיבוץ הופסק לפני הזמן</span>
+          <span><strong>הושלם</strong> — השיבוץ הסתיים בהצלחה</span>
+        </div>
       </div>
 
       {/* Active Placements Highlight */}
@@ -292,7 +320,7 @@ function PlacementsPageContent() {
                       {placement.nextCheckInAt ? formatDate(placement.nextCheckInAt) : "—"}
                     </td>
                     <td className="table-cell">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         {placement.status === "PENDING" && (
                           <button
                             onClick={() => statusChangeMutation.mutate({ id: placement.id, status: "TRIAL" })}
@@ -308,7 +336,7 @@ function PlacementsPageContent() {
                             disabled={statusChangeMutation.isPending}
                             className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
                           >
-                            אשר שיבוץ ✓
+                            אשר ✓
                           </button>
                         )}
                         {["PENDING", "TRIAL", "ACTIVE"].includes(placement.status) && (
@@ -323,6 +351,25 @@ function PlacementsPageContent() {
                             סיים
                           </button>
                         )}
+                        <button
+                          onClick={() => setEditingPlacement(placement)}
+                          title="עריכה"
+                          className="p-1 rounded hover:bg-slate-100 text-petra-muted hover:text-brand-600 transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`למחוק את השיבוץ של ${placement.serviceDog.pet.name} → ${placement.recipient.name}?`)) {
+                              deleteMutation.mutate(placement.id);
+                            }
+                          }}
+                          disabled={deleteMutation.isPending}
+                          title="מחיקה"
+                          className="p-1 rounded hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -338,6 +385,13 @@ function PlacementsPageContent() {
           dogs={dogs}
           recipients={recipients}
           onClose={() => setShowAddModal(false)}
+        />
+      )}
+      {editingPlacement && (
+        <EditPlacementModal
+          placement={editingPlacement}
+          onClose={() => setEditingPlacement(null)}
+          onSaved={() => { invalidateAll(); setEditingPlacement(null); }}
         />
       )}
     </div>
@@ -442,6 +496,109 @@ function SearchableSelect({
   );
 }
 
+// ─── Edit Placement Modal ───
+
+function EditPlacementModal({
+  placement,
+  onClose,
+  onSaved,
+}: {
+  placement: Placement;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [status, setStatus] = useState(placement.status);
+  const [placementDate, setPlacementDate] = useState(
+    placement.placementDate ? placement.placementDate.slice(0, 10) : ""
+  );
+  const [trialEndDate, setTrialEndDate] = useState(
+    placement.trialEndDate ? placement.trialEndDate.slice(0, 10) : ""
+  );
+  const [nextCheckInAt, setNextCheckInAt] = useState(
+    placement.nextCheckInAt ? placement.nextCheckInAt.slice(0, 10) : ""
+  );
+  const [notes, setNotes] = useState(placement.notes ?? "");
+
+  const updateMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      fetch(`/api/service-placements/${placement.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: () => { toast.success("שיבוץ עודכן בהצלחה"); onSaved(); },
+    onError: () => toast.error("שגיאה בעדכון שיבוץ"),
+  });
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-backdrop" />
+      <div className="modal-content max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold">
+            עריכת שיבוץ — {placement.serviceDog.pet.name} → {placement.recipient.name}
+          </h2>
+          <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="label">סטטוס</label>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className="input w-full">
+              {SERVICE_DOG_PLACEMENT_STATUSES.map((s) => (
+                <option key={s.id} value={s.id}>{PLACEMENT_STATUS_MAP[s.id]?.label || s.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">תאריך שיבוץ</label>
+              <input type="date" value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
+            </div>
+            <div>
+              <label className="label">סיום ניסיון</label>
+              <input type="date" value={trialEndDate} onChange={(e) => setTrialEndDate(e.target.value)} className="input w-full" />
+            </div>
+          </div>
+
+          <div>
+            <label className="label">בדיקת מעקב הבאה</label>
+            <input type="date" value={nextCheckInAt} onChange={(e) => setNextCheckInAt(e.target.value)} className="input w-full" />
+          </div>
+
+          <div>
+            <label className="label">הערות</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input w-full" rows={3} />
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={() =>
+                updateMutation.mutate({
+                  status,
+                  placementDate: placementDate || null,
+                  trialEndDate: trialEndDate || null,
+                  nextCheckInAt: nextCheckInAt || null,
+                  notes: notes || null,
+                })
+              }
+              disabled={updateMutation.isPending}
+              className="btn-primary flex-1"
+            >
+              {updateMutation.isPending ? "שומר..." : "שמור שינויים"}
+            </button>
+            <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Add Placement Modal ───
 
 function AddPlacementModal({
@@ -473,7 +630,9 @@ function AddPlacementModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["service-placements"] });
       queryClient.invalidateQueries({ queryKey: ["service-recipients"] });
+      queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
       queryClient.invalidateQueries({ queryKey: ["service-compliance"] });
+      queryClient.invalidateQueries({ queryKey: ["sd-alerts"] });
       toast.success("שיבוץ נוצר בהצלחה");
       onClose();
     },

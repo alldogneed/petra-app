@@ -61,6 +61,7 @@ export async function PATCH(
       where: { id: params.id, businessId: authResult.businessId },
       data: {
         ...(body.status !== undefined && { status: body.status }),
+        ...(body.placementDate !== undefined && { placementDate: body.placementDate ? new Date(body.placementDate) : null }),
         ...(body.trialStartDate !== undefined && { trialStartDate: body.trialStartDate ? new Date(body.trialStartDate) : null }),
         ...(body.trialEndDate !== undefined && { trialEndDate: body.trialEndDate ? new Date(body.trialEndDate) : null }),
         ...(body.notes !== undefined && { notes: body.notes }),
@@ -86,10 +87,10 @@ export async function PATCH(
         { placementId: params.id }
       );
 
-      // Update recipient status
+      // TERMINATED → send back to LEAD for reassignment; COMPLETED → stays ACTIVE
       await prisma.serviceDogRecipient.update({
         where: { id: placement.recipientId },
-        data: { status: "CLOSED" },
+        data: { status: newStatus === "COMPLETED" ? "ACTIVE" : "LEAD" },
       });
     }
 
@@ -105,5 +106,38 @@ export async function PATCH(
   } catch (error) {
     console.error("PATCH /api/service-placements/[id] error:", error);
     return NextResponse.json({ error: "שגיאה בעדכון שיבוץ" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const authResult = await requireBusinessAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    const placement = await prisma.serviceDogPlacement.findFirst({
+      where: { id: params.id, businessId: authResult.businessId },
+    });
+
+    if (!placement) {
+      return NextResponse.json({ error: "שיבוץ לא נמצא" }, { status: 404 });
+    }
+
+    await prisma.serviceDogPlacement.delete({ where: { id: params.id } });
+
+    // If it was an active/trial placement, revert recipient to LEAD
+    if (["ACTIVE", "TRIAL", "PENDING"].includes(placement.status)) {
+      await prisma.serviceDogRecipient.update({
+        where: { id: placement.recipientId },
+        data: { status: "LEAD" },
+      });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("DELETE /api/service-placements/[id] error:", error);
+    return NextResponse.json({ error: "שגיאה במחיקת שיבוץ" }, { status: 500 });
   }
 }

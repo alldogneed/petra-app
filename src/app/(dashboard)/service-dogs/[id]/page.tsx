@@ -4266,11 +4266,14 @@ function InsuranceTab({ dogId }: { dogId: string }) {
   const [expandedInsId, setExpandedInsId] = useState<string | null>(null);
   const [showAddClaim, setShowAddClaim] = useState<string | null>(null);
   const [claimStatusFilter, setClaimStatusFilter] = useState<"open" | "closed">("open");
+  const [editingInsurance, setEditingInsurance] = useState<InsuranceRecord | null>(null);
 
   const { data: insurances = [], isLoading } = useQuery<InsuranceRecord[]>({
     queryKey: ["sd-insurance", dogId],
     queryFn: () => fetch(`/api/service-dogs/${dogId}/insurance`).then((r) => r.json()),
   });
+
+  const refreshIns = () => queryClient.invalidateQueries({ queryKey: ["sd-insurance", dogId] });
 
   const addInsMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -4280,11 +4283,30 @@ function InsuranceTab({ dogId }: { dogId: string }) {
         body: JSON.stringify(data),
       }).then((r) => r.json()),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sd-insurance", dogId] });
+      refreshIns();
       setShowAddInsurance(false);
       toast.success("פוליסה נוספה");
     },
     onError: () => toast.error("שגיאה בהוספת פוליסה"),
+  });
+
+  const updateInsMutation = useMutation({
+    mutationFn: ({ insuranceId, data }: { insuranceId: string; data: Record<string, unknown> }) =>
+      fetch(`/api/service-dogs/${dogId}/insurance/${insuranceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => { refreshIns(); setEditingInsurance(null); toast.success("פוליסה עודכנה"); },
+    onError: () => toast.error("שגיאה בעדכון פוליסה"),
+  });
+
+  const deleteInsMutation = useMutation({
+    mutationFn: (insuranceId: string) =>
+      fetch(`/api/service-dogs/${dogId}/insurance/${insuranceId}`, { method: "DELETE" })
+        .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => { refreshIns(); toast.success("פוליסה נמחקה"); },
+    onError: () => toast.error("שגיאה במחיקת פוליסה"),
   });
 
   const addClaimMutation = useMutation({
@@ -4295,14 +4317,12 @@ function InsuranceTab({ dogId }: { dogId: string }) {
         body: JSON.stringify(data),
       }).then((r) => r.json()),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sd-insurance", dogId] });
+      refreshIns();
       setShowAddClaim(null);
       toast.success("תביעה נוספה");
     },
     onError: () => toast.error("שגיאה בהוספת תביעה"),
   });
-
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["sd-insurance", dogId] });
 
   if (isLoading) return <div className="card h-40 animate-pulse" />;
 
@@ -4373,7 +4393,7 @@ function InsuranceTab({ dogId }: { dogId: string }) {
                 insuranceId={c.insuranceId}
                 providerName={c.providerName}
                 dogId={dogId}
-                onUpdated={refresh}
+                onUpdated={refreshIns}
               />
             ))
           )}
@@ -4459,15 +4479,37 @@ function InsuranceTab({ dogId }: { dogId: string }) {
                     </a>
                   )}
                   {ins.notes && <p className="text-xs text-petra-muted">{ins.notes}</p>}
-                  <div className="pt-1 border-t border-slate-100">
+                  <div className="pt-1 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap">
                     <button
                       className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1"
                       onClick={(e) => { e.stopPropagation(); setShowAddClaim(ins.id); }}
                     >
                       <Plus className="w-3.5 h-3.5" /> תביעה חדשה בפוליסה זו
                     </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditingInsurance(ins); }}
+                        className="flex items-center gap-1 text-xs text-petra-muted hover:text-brand-600 transition-colors"
+                        title="עריכת פוליסה"
+                      >
+                        <Pencil className="w-3.5 h-3.5" /> עריכה
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`למחוק את הפוליסה של ${ins.provider || "ביטוח לא ידוע"}?`)) {
+                            deleteInsMutation.mutate(ins.id);
+                          }
+                        }}
+                        disabled={deleteInsMutation.isPending}
+                        className="flex items-center gap-1 text-xs text-petra-muted hover:text-red-500 transition-colors"
+                        title="מחיקת פוליסה"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> מחיקה
+                      </button>
+                    </div>
                     {showAddClaim === ins.id && (
-                      <div className="mt-2">
+                      <div className="w-full mt-2">
                         <AddClaimForm
                           onSave={(data) => addClaimMutation.mutate({ insuranceId: ins.id, data })}
                           onCancel={() => setShowAddClaim(null)}
@@ -4481,6 +4523,86 @@ function InsuranceTab({ dogId }: { dogId: string }) {
             </div>
           );
         })}
+      </div>
+
+      {editingInsurance && (
+        <EditInsuranceModal
+          insurance={editingInsurance}
+          onClose={() => setEditingInsurance(null)}
+          onSave={(data) => updateInsMutation.mutate({ insuranceId: editingInsurance.id, data })}
+          isSaving={updateInsMutation.isPending}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditInsuranceModal({
+  insurance,
+  onClose,
+  onSave,
+  isSaving,
+}: {
+  insurance: InsuranceRecord;
+  onClose: () => void;
+  onSave: (d: Record<string, unknown>) => void;
+  isSaving: boolean;
+}) {
+  const [form, setForm] = useState({
+    provider: insurance.provider ?? "",
+    policyNumber: insurance.policyNumber ?? "",
+    premium: insurance.premium?.toString() ?? "",
+    deductible: insurance.deductible?.toString() ?? "",
+    coverageType: insurance.coverageType ?? "",
+    startDate: insurance.startDate ? insurance.startDate.slice(0, 10) : "",
+    renewalDate: insurance.renewalDate ? insurance.renewalDate.slice(0, 10) : "",
+    notes: insurance.notes ?? "",
+    isActive: insurance.isActive,
+  });
+  const f = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setForm((p) => ({ ...p, [k]: e.target.value }));
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-backdrop" />
+      <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold">עריכת פוליסה</h2>
+          <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="label text-xs">חברת ביטוח</label><input className="input w-full text-sm" value={form.provider} onChange={f("provider")} /></div>
+            <div><label className="label text-xs">מספר פוליסה</label><input className="input w-full text-sm" value={form.policyNumber} onChange={f("policyNumber")} /></div>
+            <div><label className="label text-xs">סוג כיסוי</label>
+              <select className="input w-full text-sm" value={form.coverageType} onChange={f("coverageType")}>
+                <option value="">בחר...</option>
+                {INSURANCE_COVERAGE_TYPES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+            </div>
+            <div><label className="label text-xs">פרמיה שנתית (₪)</label><input type="number" className="input w-full text-sm" value={form.premium} onChange={f("premium")} /></div>
+            <div><label className="label text-xs">השתתפות עצמית (₪)</label><input type="number" className="input w-full text-sm" value={form.deductible} onChange={f("deductible")} /></div>
+            <div><label className="label text-xs">תחילת כיסוי</label><input type="date" className="input w-full text-sm" value={form.startDate} onChange={f("startDate")} /></div>
+            <div><label className="label text-xs">תאריך חידוש</label><input type="date" className="input w-full text-sm" value={form.renewalDate} onChange={f("renewalDate")} /></div>
+            <div className="flex items-center gap-2 pt-4">
+              <input
+                type="checkbox"
+                id="ins-active"
+                checked={form.isActive}
+                onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.checked }))}
+                className="w-4 h-4"
+              />
+              <label htmlFor="ins-active" className="text-sm">פוליסה פעילה</label>
+            </div>
+          </div>
+          <div><label className="label text-xs">הערות</label><textarea className="input w-full text-sm" rows={2} value={form.notes} onChange={f("notes")} /></div>
+          <div className="flex gap-2 pt-1">
+            <button className="btn-primary text-sm flex-1" onClick={() => onSave(form)} disabled={isSaving}>
+              {isSaving ? "שומר..." : "שמור שינויים"}
+            </button>
+            <button className="btn-secondary text-sm flex-1" onClick={onClose}>ביטול</button>
+          </div>
+        </div>
       </div>
     </div>
   );
