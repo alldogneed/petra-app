@@ -2340,7 +2340,7 @@ function QuickTaskModal({
     title: "",
     category: "GENERAL",
     priority: "MEDIUM",
-    dueDate: "",
+    dueDate: today,
   });
 
   const mutation = useMutation({

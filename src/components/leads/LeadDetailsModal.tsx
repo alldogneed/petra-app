@@ -95,7 +95,7 @@ export default function LeadDetailsModal({
   const [activeTab, setActiveTab] = useState<"logs" | "task">("logs");
   const [summaryForm, setSummaryForm] = useState({ summary: "", treatment: "" });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [taskForm, setTaskForm] = useState({ description: "", dueDate: "" });
+  const [taskForm, setTaskForm] = useState({ description: "", dueDate: new Date().toISOString().slice(0, 10) });
   const [lostModalOpen, setLostModalOpen] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -247,7 +247,7 @@ export default function LeadDetailsModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      setTaskForm({ description: "", dueDate: "" });
+      setTaskForm({ description: "", dueDate: new Date().toISOString().slice(0, 10) });
       setActiveTab("logs");
     },
   });
