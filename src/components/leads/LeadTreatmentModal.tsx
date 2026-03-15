@@ -254,7 +254,6 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
 
     const [summary, setSummary] = useState("");
     const [treatment, setTreatment] = useState("");
-    const [callLogSaved, setCallLogSaved] = useState(false);
 
     const [selectedStage, setSelectedStage] = useState(lead?.stage || "new");
 
@@ -287,7 +286,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             setIsEditing(false);
             setSummary("");
             setTreatment("");
-            setCallLogSaved(false);
+
             setFollowUpError(false);
             setEditingLogId(null);
             setShowDeleteConfirm(false);
@@ -461,36 +460,18 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
 
     // ── Handlers ──────────────────────────────────────────────────────────
 
-    const handleConfirmCallLog = async () => {
-        if (!nextFollowUpAt) { setFollowUpError(true); return; }
-        if (!summary.trim() && !treatment.trim()) return;
-        setFollowUpError(false);
-
-        await addCallLogMutation.mutateAsync({
-            summary: summary.trim() || "ללא סיכום",
-            treatment: treatment.trim() || "ללא טיפול",
-        });
-
-        // Save follow-up together with the call log
-        await updateLeadMutation.mutateAsync({
-            nextFollowUpAt: new Date(nextFollowUpAt).toISOString(),
-            followUpStatus,
-        });
-
-        setSummary("");
-        setTreatment("");
-        setCallLogSaved(true);
-        setTimeout(() => setCallLogSaved(false), 3000);
-    };
-
     const handleSave = async () => {
         if (!lead) return;
 
-        if (!nextFollowUpAt) {
+        const hasCallContent = summary.trim() || treatment.trim();
+
+        // If there's call content, require a follow-up date
+        if (hasCallContent && !nextFollowUpAt) {
             setFollowUpError(true);
             document.getElementById("followup-date-input")?.scrollIntoView({ behavior: "smooth", block: "center" });
             return;
         }
+        setFollowUpError(false);
 
         if (isSelectedWon) {
             if (isEditing) {
@@ -503,10 +484,22 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             return;
         }
 
+        // Create call log entry if there's content
+        if (hasCallContent) {
+            await addCallLogMutation.mutateAsync({
+                summary: summary.trim() || "ללא סיכום",
+                treatment: treatment.trim() || "ללא טיפול",
+            });
+            setSummary("");
+            setTreatment("");
+        }
+
         await updateLeadMutation.mutateAsync({
             stage: selectedStage,
-            nextFollowUpAt: new Date(nextFollowUpAt).toISOString(),
-            followUpStatus,
+            ...(nextFollowUpAt && {
+                nextFollowUpAt: new Date(nextFollowUpAt).toISOString(),
+                followUpStatus,
+            }),
             ...(isEditing && {
                 name: editForm.name, phone: editForm.phone || null,
                 email: editForm.email || null, source: editForm.source,
@@ -788,30 +781,6 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-end gap-2 pt-1">
-                                {callLogSaved && (
-                                    <span className="flex items-center gap-1 text-sm text-green-600 font-medium animate-in fade-in">
-                                        <Check className="w-4 h-4" /> נשמר!
-                                    </span>
-                                )}
-                                <button
-                                    type="button"
-                                    onClick={handleConfirmCallLog}
-                                    disabled={
-                                        addCallLogMutation.isPending ||
-                                        updateLeadMutation.isPending ||
-                                        (!summary.trim() && !treatment.trim()) ||
-                                        !nextFollowUpAt
-                                    }
-                                    className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
-                                    title={!nextFollowUpAt ? "יש לקבוע תאריך פולואפ תחילה" : ""}
-                                >
-                                    {(addCallLogMutation.isPending || updateLeadMutation.isPending)
-                                        ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        : <Check className="w-4 h-4" />}
-                                    אשר וסיים שיחה
-                                </button>
-                            </div>
                         </div>
 
                         {/* ── CRM Timeline ─────────────────────────────────── */}
