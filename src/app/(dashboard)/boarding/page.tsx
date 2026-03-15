@@ -160,7 +160,10 @@ function calcNights(checkIn: string, checkOut: string): number {
   const d1 = new Date(checkIn);
   const d2 = new Date(checkOut);
   if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return 0;
-  return Math.max(0, Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)));
+  // Use UTC date-only to avoid fractional-day rounding from time differences
+  const start = Date.UTC(d1.getFullYear(), d1.getMonth(), d1.getDate());
+  const end = Date.UTC(d2.getFullYear(), d2.getMonth(), d2.getDate());
+  return Math.max(0, Math.round((end - start) / (1000 * 60 * 60 * 24)));
 }
 
 function calcStayProgress(checkIn: string, checkOut: string | null): number {
@@ -3393,10 +3396,9 @@ function BoardingPageContent() {
                     <option value="">ללא חדר</option>
                     {rooms.map((r) => {
                       const roomStatus = getRoomDisplayStatus(r);
-                      const isFull = r._count.boardingStays >= r.capacity;
                       return (
-                        <option key={r.id} value={r.id} disabled={isFull}>
-                          {r.name} ({r._count.boardingStays}/{r.capacity}) {isFull ? "— מלא" : roomStatus === "needs_cleaning" ? "— דרוש ניקיון" : ""}
+                        <option key={r.id} value={r.id}>
+                          {r.name} ({r._count.boardingStays}/{r.capacity}) {roomStatus === "needs_cleaning" ? "— דרוש ניקיון" : ""}
                         </option>
                       );
                     })}
