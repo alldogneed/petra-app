@@ -84,7 +84,7 @@ const navEntries: NavEntry[] = [
   { name: "לקוחות", href: "/customers", icon: Users, minRole: "manager" },
   { name: "מערכת מכירות", href: "/leads", icon: Target, minRole: "manager", lockedFeature: "leads" },
   { name: "ניהול משימות", href: "/tasks", icon: ListTodo },
-  { name: "ניהול תורים אונליין", href: "/bookings", icon: CalendarCheck, minRole: "manager", lockedFeature: "online_bookings" },
+  { name: "ניהול תורים אונליין", href: "/scheduler", icon: CalendarCheck, minRole: "manager", lockedFeature: "online_bookings" },
   { name: "פנסיון", href: "/boarding", icon: Hotel, lockedFeature: "boarding", hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "פיננסים", href: "/pricing", icon: Wallet, minRole: "manager" },
   { name: "ניהול כלבי שירות", href: "/service-dogs", icon: Shield, lockedFeature: "service_dogs", hiddenForTiers: ["groomer", "groomer_plus"] },
@@ -220,14 +220,14 @@ export function Sidebar({
   const BADGES: Record<string, number> = {
     "/tasks": counters?.openTasks || 0,
     "/leads": counters?.overdueFollowUps || 0,
-    "/bookings": counters?.pendingBookings || 0,
+    "/scheduler": counters?.pendingBookings || 0,
     "/boarding": counters?.activeBoarding || 0,
     "/service-dogs": sdAlerts?.total || 0,
   };
   const BADGE_TOOLTIPS: Record<string, string> = {
     "/tasks": `${counters?.openTasks || 0} משימות פתוחות`,
     "/leads": `${counters?.overdueFollowUps || 0} לידים עם מעקב באיחור`,
-    "/bookings": `${counters?.pendingBookings || 0} הזמנות ממתינות לאישור`,
+    "/scheduler": `${counters?.pendingBookings || 0} הזמנות ממתינות לאישור`,
     "/boarding": `${counters?.activeBoarding || 0} כלבים בפנסיון`,
     "/service-dogs": `${sdAlerts?.total || 0} התראות פעילות`,
   };
@@ -242,7 +242,7 @@ export function Sidebar({
         ? ["/pricing", "/payments", "/payment-request", "/orders"].some(
             (p) => pathname === p || pathname.startsWith(p + "/")
           )
-        : item.href === "/bookings"
+        : item.href === "/scheduler"
         ? ["/bookings", "/scheduled-messages", "/scheduler"].some(
             (p) => pathname === p || pathname.startsWith(p + "/")
           )
