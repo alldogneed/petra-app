@@ -46,11 +46,11 @@ export async function POST(
 
         const { id } = params;
         const body = await request.json();
-        const { summary, treatment } = body;
+        const { summary, treatment, type = "call" } = body;
 
-        if (!summary || !treatment) {
+        if (!summary) {
             return NextResponse.json(
-                { error: "Summary and treatment are required" },
+                { error: "Summary is required" },
                 { status: 400 }
             );
         }
@@ -66,18 +66,19 @@ export async function POST(
         const callLog = await prisma.callLog.create({
             data: {
                 leadId: id,
+                type,
                 summary,
-                treatment,
+                treatment: treatment || "",
             },
         });
 
-        // Automatically update lastContactedAt when a log is added
-        await prisma.lead.update({
-            where: { id },
-            data: {
-                lastContactedAt: new Date(),
-            },
-        });
+        // Update lastContactedAt only for real call entries
+        if (type === "call") {
+            await prisma.lead.update({
+                where: { id },
+                data: { lastContactedAt: new Date() },
+            });
+        }
 
         return NextResponse.json(callLog, { status: 201 });
     } catch (error) {

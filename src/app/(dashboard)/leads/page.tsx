@@ -83,12 +83,11 @@ const STAGE_COLORS = [
 function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: () => void; stages: LeadStage[] }) {
   const queryClient = useQueryClient();
   const activeStages = stages.filter((s) => !s.isWon && !s.isLost);
-  const [form, setForm] = useState({ name: "", phone: "", email: "", source: "manual", notes: "", stage: activeStages[0]?.id || "new" });
+  const emptyForm = { name: "", phone: "", email: "", city: "", address: "", source: "manual", notes: "", stage: activeStages[0]?.id || "new" };
+  const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
-    if (isOpen) {
-      setForm({ name: "", phone: "", email: "", source: "manual", notes: "", stage: activeStages[0]?.id || "new" });
-    }
+    if (isOpen) setForm({ ...emptyForm, stage: activeStages[0]?.id || "new" });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
@@ -111,12 +110,16 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
     const errors: typeof leadFieldErrors = {};
     const nameErr = validateName(form.name);
     if (nameErr) errors.name = nameErr;
-    if (form.phone.trim()) {
+    if (!form.phone.trim()) {
+      errors.phone = "טלפון הוא שדה חובה";
+    } else {
       const phoneErr = validateIsraeliPhone(form.phone);
       if (phoneErr) errors.phone = phoneErr;
     }
-    const emailErr = validateEmail(form.email);
-    if (emailErr) errors.email = emailErr;
+    if (form.email.trim()) {
+      const emailErr = validateEmail(form.email);
+      if (emailErr) errors.email = emailErr;
+    }
     setLeadFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
     mutation.mutate({ ...form, name: sanitizeName(form.name) });
@@ -144,7 +147,7 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">טלפון</label>
+              <label className="label">טלפון *</label>
               <input
                 className={cn("input", leadFieldErrors.phone && "border-red-300 focus:ring-red-200")}
                 value={form.phone}
@@ -162,6 +165,26 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
                 onChange={(e) => { setForm({ ...form, email: e.target.value }); if (leadFieldErrors.email) setLeadFieldErrors({ ...leadFieldErrors, email: undefined }); }}
               />
               {leadFieldErrors.email && <p className="text-xs text-red-500 mt-1">{leadFieldErrors.email}</p>}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">עיר מגורים</label>
+              <input
+                className="input"
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+                placeholder="תל אביב"
+              />
+            </div>
+            <div>
+              <label className="label">כתובת מדויקת</label>
+              <input
+                className="input"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                placeholder="רחוב, מספר"
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -1106,8 +1129,15 @@ function LeadsPageContent() {
   // ─── Mutations ──────────────────────────────────────────────────────────
 
   const moveMutation = useMutation({
-    mutationFn: ({ id, stage }: { id: string; stage: string }) =>
-      fetch(`/api/leads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage }) }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    mutationFn: async ({ id, stage, fromStageName, toStageName }: { id: string; stage: string; fromStageName?: string; toStageName?: string }) => {
+      await fetch(`/api/leads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage }) }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); });
+      if (fromStageName && toStageName) {
+        await fetch(`/api/leads/${id}/logs`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "stage_change", summary: `הועבר מ"${fromStageName}" ל"${toStageName}"`, treatment: "" }),
+        });
+      }
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
     onError: () => toast.error("שגיאה בהזזת הליד. נסה שוב."),
   });
@@ -1191,6 +1221,7 @@ function LeadsPageContent() {
       const targetStage = stages.find((s) => s.id === targetStageId);
 
       if (lead && lead.stage !== targetStageId) {
+        const fromStage = stages.find((s) => s.id === lead.stage);
         queryClient.setQueryData(["leads"], (old: Lead[]) =>
           old.map(l => l.id === activeLeadId ? { ...l, stage: targetStageId } : l)
         );
@@ -1199,7 +1230,10 @@ function LeadsPageContent() {
           // Open treatment modal — it will call close-won and create the customer
           setSelectedLead({ ...lead, stage: targetStageId });
         } else {
-          moveMutation.mutate({ id: activeLeadId, stage: targetStageId });
+          moveMutation.mutate({
+            id: activeLeadId, stage: targetStageId,
+            fromStageName: fromStage?.name, toStageName: targetStage?.name,
+          });
           if (targetStage?.isLost) {
             setSelectedLead({ ...lead, stage: targetStageId });
           }

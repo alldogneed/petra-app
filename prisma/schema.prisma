@@ -551,6 +551,8 @@ model Lead {
   name             String
   phone            String?
   email            String?
+  city             String?
+  address          String?
   source           String   @default("manual")
   stage            String   @default("new")
   notes            String?
@@ -600,8 +602,9 @@ model LeadStage {
 model CallLog {
   id        String   @id @default(uuid())
   leadId    String
+  type      String   @default("call") // "call" | "stage_change"
   summary   String
-  treatment String
+  treatment String   @default("")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

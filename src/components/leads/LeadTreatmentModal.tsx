@@ -56,7 +56,7 @@ interface LeadTreatmentModalProps {
 
 // ─── Timeline ────────────────────────────────────────────────────────────────
 
-type TLType = "created" | "call_log" | "follow_up" | "won" | "lost";
+type TLType = "created" | "call_log" | "stage_change" | "follow_up" | "won" | "lost";
 
 interface TLEvent {
     id: string;
@@ -80,6 +80,12 @@ const TL_STYLES: Record<TLType, { icon: React.ReactNode; dot: string; line: stri
         dot: "bg-blue-100 text-blue-600 border-blue-300",
         line: "bg-blue-200",
         card: "bg-blue-50/50 border-blue-100",
+    },
+    stage_change: {
+        icon: <Zap className="w-3.5 h-3.5" />,
+        dot: "bg-slate-100 text-slate-600 border-slate-300",
+        line: "bg-slate-200",
+        card: "bg-slate-50/50 border-slate-100",
     },
     follow_up: {
         icon: <CalendarCheck className="w-3.5 h-3.5" />,
@@ -313,13 +319,14 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             [...liveLead.callLogs]
                 .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                 .forEach((log) => {
+                    const isStageChange = (log as { type?: string }).type === "stage_change";
                     events.push({
                         id: log.id,
-                        type: "call_log",
+                        type: isStageChange ? "stage_change" : "call_log",
                         date: log.createdAt,
-                        title: "שיחה תועדה",
-                        description: log.summary !== "ללא סיכום" ? log.summary : undefined,
-                        action: log.treatment !== "ללא טיפול" ? log.treatment : undefined,
+                        title: isStageChange ? "שינוי שלב" : "שיחה תועדה",
+                        description: log.summary,
+                        action: !isStageChange && log.treatment && log.treatment !== "ללא טיפול" ? log.treatment : undefined,
                     });
                 });
         }
@@ -492,6 +499,20 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             });
             setSummary("");
             setTreatment("");
+        }
+
+        // Log stage change if stage was changed
+        const stageChanged = selectedStage !== lead.stage;
+        if (stageChanged) {
+            const fromStage = stages.find((s) => s.id === lead.stage);
+            const toStage = stages.find((s) => s.id === selectedStage);
+            if (fromStage && toStage) {
+                await fetch(`/api/leads/${lead.id}/logs`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ type: "stage_change", summary: `הועבר מ"${fromStage.name}" ל"${toStage.name}"`, treatment: "" }),
+                });
+            }
         }
 
         await updateLeadMutation.mutateAsync({
