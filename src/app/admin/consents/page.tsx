@@ -10,6 +10,7 @@ import {
   Users,
   ShieldCheck,
   Filter,
+  FileDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ConsentRow } from "@/app/api/owner/consents/route";
@@ -196,6 +197,7 @@ export default function AdminConsentsPage() {
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">תאריך ושעה</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">כתובת IP</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">דפדפן</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">הורדה</th>
                 </tr>
               </thead>
               <tbody>
@@ -216,6 +218,16 @@ export default function AdminConsentsPage() {
                     <td className="px-4 py-3 text-slate-300 text-xs whitespace-nowrap">{formatDate(row.acceptedAt)}</td>
                     <td className="px-4 py-3 text-slate-400 font-mono text-xs" dir="ltr">{row.ipAddress ?? "—"}</td>
                     <td className="px-4 py-3 text-slate-400 text-xs">{truncateUA(row.userAgent)}</td>
+                    <td className="px-4 py-3">
+                      <a
+                        href={`/api/owner/consents/pdf?userId=${row.userId}`}
+                        download
+                        title="הורד PDF חתום"
+                        className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/10 transition-colors"
+                      >
+                        <FileDown className="w-3.5 h-3.5" />
+                      </a>
+                    </td>
                   </tr>
                 ))}
               </tbody>
