@@ -19,6 +19,7 @@ import {
   Bell,
   BarChart3,
   ClipboardList,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "sonner";
@@ -37,15 +38,12 @@ interface BusinessInfo {
 
 // ─── Step definitions (dynamic per tier) ─────────────────────────────────────
 
-function getSteps(tier: TierKey) {
-  const gcal = hasFeature(tier, "gcal_sync");
+function getSteps() {
   return [
     { label: "ברוך הבא", icon: Sparkles },
     { label: "לקוח ראשון", icon: UserPlus },
     { label: "מחירון", icon: Tag },
-    gcal
-      ? { label: "יומן Google", icon: CalendarDays }
-      : { label: "תזכורות", icon: Bell },
+    { label: "יומן Google", icon: CalendarDays },
     { label: "סיום", icon: CheckCircle2 },
   ];
 }
@@ -86,7 +84,7 @@ function OnboardingInner() {
 
   const tier = business?.tier ?? "free";
   const gcalAvailable = hasFeature(tier, "gcal_sync");
-  const STEPS = getSteps(tier);
+  const STEPS = getSteps();
 
   async function handleSkip() {
     await fetch("/api/onboarding/progress", {
@@ -197,14 +195,13 @@ function OnboardingInner() {
           <StepClient onNext={() => setStep(2)} onBack={() => setStep(0)} />
         ) : step === 2 ? (
           <StepPricing onNext={() => setStep(3)} onBack={() => setStep(1)} />
-        ) : gcalAvailable ? (
+        ) : (
           <StepGoogle
             gcalConnected={gcalConnected}
+            gcalAvailable={gcalAvailable}
             onSkip={() => setStep(4)}
             onBack={() => setStep(2)}
           />
-        ) : (
-          <StepReminders onNext={() => setStep(4)} onBack={() => setStep(2)} />
         )}
       </div>
     </div>
@@ -267,7 +264,7 @@ function StepWelcome({
       <div className="text-center">
         <h1 className="text-2xl font-bold text-petra-text mb-2">{greeting}</h1>
         <p className="text-petra-muted text-sm leading-relaxed max-w-md mx-auto">
-          Petra היא מערכת ניהול לעסקי חיות מחמד בישראל — מאלפים, פנסיון, וגרומרים.
+          Petra היא מערכת ניהול לעסקי חיות מחמד בישראל — מאלפים, פנסיון, גרומרים ומרכזי הכשרת כלבי שירות.
           כל הכלים שצריך במקום אחד: לקוחות, תורים, תשלומים ותקשורת.
         </p>
       </div>
@@ -497,10 +494,12 @@ function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => voi
 
 function StepGoogle({
   gcalConnected,
+  gcalAvailable,
   onSkip,
   onBack,
 }: {
   gcalConnected: boolean;
+  gcalAvailable: boolean;
   onSkip: () => void;
   onBack: () => void;
 }) {
@@ -533,13 +532,36 @@ function StepGoogle({
             ))}
           </div>
 
-          <a
-            href="/api/integrations/google/connect?from=onboarding"
-            className="btn-primary w-full justify-center flex items-center gap-2"
-          >
-            <CalendarDays className="w-4 h-4" />
-            חבר יומן Google
-          </a>
+          {gcalAvailable ? (
+            <a
+              href="/api/integrations/google/connect?from=onboarding"
+              className="btn-primary w-full justify-center flex items-center gap-2"
+            >
+              <CalendarDays className="w-4 h-4" />
+              חבר יומן Google
+            </a>
+          ) : (
+            <>
+              <button
+                disabled
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-slate-100 text-slate-400 text-sm font-semibold cursor-not-allowed"
+              >
+                <Lock className="w-4 h-4" />
+                חבר יומן Google
+              </button>
+              <p className="text-center text-xs text-petra-muted">
+                זמין במנוי Basic ומעלה —{" "}
+                <a
+                  href={`https://wa.me/972504828080?text=${encodeURIComponent("שלום, אני רוצה לשדרג את המנוי שלי ב-Petra. תוכלו לעזור לי?")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-brand-600 font-medium hover:underline"
+                >
+                  שדרג עכשיו
+                </a>
+              </p>
+            </>
+          )}
         </div>
       )}
 
@@ -613,7 +635,9 @@ function StepReminders({ onNext, onBack }: { onNext: () => void; onBack: () => v
 
       {/* CTA */}
       <a
-        href="/upgrade"
+        href={`https://wa.me/972504828080?text=${encodeURIComponent("שלום, אני רוצה לשדרג את המנוי שלי ב-Petra למסלול Basic (₪99/חודש). תוכלו לעזור לי?")}`}
+        target="_blank"
+        rel="noopener noreferrer"
         className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors"
       >
         <Sparkles className="w-4 h-4" />
@@ -658,7 +682,7 @@ function StepDone({
             <> תוכל לחבר את יומן Google בכל עת תחת <a href="/settings" className="text-brand-600 underline">הגדרות</a>.</>
           )}
           {!gcalAvailable && (
-            <> שדרג ל<a href="/settings" className="text-brand-600 underline">בייסיק</a> כדי לחבר יומן Google.</>
+            <> שדרג ל<a href="/upgrade" className="text-brand-600 underline">בייסיק</a> כדי לחבר יומן Google.</>
           )}
         </p>
       </div>

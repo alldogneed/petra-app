@@ -809,6 +809,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                         </span>
                       </div>
                     </div>
+                    {user?.businessEffectiveTier && user.businessEffectiveTier !== "free" && (
                     <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50">
                       <MessageCircle className="w-4 h-4 text-slate-500 flex-shrink-0" />
                       <span className="text-sm text-petra-text flex-1">
@@ -826,6 +827,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                         </span>
                       </div>
                     </div>
+                    )}
                   </div>
                 </div>
 
