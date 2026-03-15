@@ -6,13 +6,11 @@ import {
   Home,
   Target,
   UserPlus,
-  ClipboardList,
-  Link2,
+  ListChecks,
+  Calendar,
   X,
   Loader2,
-  Check,
 } from "lucide-react";
-import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -149,34 +147,13 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
 export function MobileBottomNav() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [copied, setCopied] = useState<"intake" | "booking" | null>(null);
 
   const isHome = pathname === "/dashboard" || pathname === "/";
 
   useEffect(() => {
     setDrawerOpen(false);
   }, [pathname]);
-
-  async function handleCopyBookingLink() {
-    const slug = user?.businessSlug || user?.businessId || "demo-business-001";
-    const url = `${window.location.origin}/book/${slug}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied("booking");
-      toast.success("הקישור הועתק!", {
-        description: "קישור הזמנת תורים אונליין הועתק ללוח.",
-      });
-      setTimeout(() => setCopied(null), 2000);
-    } catch {
-      toast.error("לא הצלחנו להעתיק");
-    }
-  }
-
-  function handleIntake() {
-    router.push("/intake-forms");
-  }
 
   const items = [
     {
@@ -203,19 +180,20 @@ export function MobileBottomNav() {
       active: isHome,
     },
     {
-      key: "intake",
-      icon: ClipboardList,
-      label: "טופס קליטה",
-      onClick: handleIntake,
+      key: "tasks",
+      icon: ListChecks,
+      label: "משימות",
+      onClick: () => router.push("/tasks"),
       isCenter: false,
-      active: pathname.startsWith("/intake-forms"),
+      active: pathname.startsWith("/tasks"),
     },
     {
-      key: "booking-link",
-      icon: copied === "booking" ? Check : Link2,
-      label: "קישור תורים",
-      onClick: handleCopyBookingLink,
+      key: "calendar",
+      icon: Calendar,
+      label: "תורים",
+      onClick: () => router.push("/calendar"),
       isCenter: false,
+      active: pathname.startsWith("/calendar"),
     },
   ] as const;
 
@@ -291,18 +269,12 @@ export function MobileBottomNav() {
                   className={[
                     "transition-colors",
                     active ? "text-brand-500" : "text-slate-400",
-                    item.key === "booking-link" && copied === "booking"
-                      ? "text-emerald-500"
-                      : "",
                   ].join(" ")}
                 />
                 <span
                   className={[
                     "text-[10px] font-medium leading-none truncate max-w-[56px]",
                     active ? "text-brand-500" : "text-slate-400",
-                    item.key === "booking-link" && copied === "booking"
-                      ? "text-emerald-500"
-                      : "",
                   ].join(" ")}
                 >
                   {item.label}
