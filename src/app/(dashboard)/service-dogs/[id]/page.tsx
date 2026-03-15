@@ -283,6 +283,7 @@ function ServiceDogProfilePageContent() {
   const [activeTab, setActiveTab] = useState<"training" | "medical" | "compliance" | "placements" | "idcard" | "dogfile" | "documents" | "tests" | "insurance" | "equipment">("dogfile");
   const [showPhaseDropdown, setShowPhaseDropdown] = useState(false);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: dog, isLoading, isError } = useQuery<ServiceDogDetail>({
@@ -321,6 +322,20 @@ function ServiceDogProfilePageContent() {
       toast.success("שלב עודכן");
     },
     onError: () => toast.error("שגיאה בעדכון שלב"),
+  });
+
+  const deleteDogMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/service-dogs/${dogId}`, { method: "DELETE" }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
+      toast.success("הכלב נמחק בהצלחה");
+      router.push("/service-dogs/dogs");
+    },
+    onError: () => toast.error("שגיאה במחיקת הכלב"),
   });
 
   const locationChangeMutation = useMutation({
@@ -535,15 +550,24 @@ function ServiceDogProfilePageContent() {
               </div>
             </div>
 
-            {/* Service type badge */}
-            {dog.serviceType && (
-              <div className="text-right">
-                <span className="text-xs text-petra-muted">סוג שירות</span>
-                <p className="text-sm font-semibold mt-0.5">
-                  {SERVICE_DOG_TYPES.find((t) => t.id === dog.serviceType)?.label || dog.serviceType}
-                </p>
-              </div>
-            )}
+            {/* Service type badge + delete */}
+            <div className="flex flex-col items-end gap-2">
+              {dog.serviceType && (
+                <div className="text-right">
+                  <span className="text-xs text-petra-muted">סוג שירות</span>
+                  <p className="text-sm font-semibold mt-0.5">
+                    {SERVICE_DOG_TYPES.find((t) => t.id === dog.serviceType)?.label || dog.serviceType}
+                  </p>
+                </div>
+              )}
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                מחק כלב
+              </button>
+            </div>
           </div>
 
           {/* Stats Strip */}
@@ -673,6 +697,30 @@ function ServiceDogProfilePageContent() {
             <div>
               <p className="text-xs font-medium text-amber-700 mb-1">הערות</p>
               <p className="text-sm text-amber-900">{dog.notes}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {confirmDelete && (
+        <div className="modal-overlay" onClick={() => setConfirmDelete(false)}>
+          <div className="modal-content max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-2">מחיקת כלב</h3>
+            <p className="text-sm text-petra-muted mb-4">
+              האם למחוק את <strong>{dog.pet.name}</strong>? פעולה זו אינה הפיכה.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button className="btn-secondary" onClick={() => setConfirmDelete(false)}>
+                ביטול
+              </button>
+              <button
+                className="btn-primary bg-red-600 hover:bg-red-700 border-red-600"
+                onClick={() => deleteDogMutation.mutate()}
+                disabled={deleteDogMutation.isPending}
+              >
+                {deleteDogMutation.isPending ? "מוחק..." : "מחק"}
+              </button>
             </div>
           </div>
         </div>
