@@ -682,7 +682,7 @@ function StepDone({
             <> תוכל לחבר את יומן Google בכל עת תחת <a href="/settings" className="text-brand-600 underline">הגדרות</a>.</>
           )}
           {!gcalAvailable && (
-            <> שדרג ל<a href="/upgrade" className="text-brand-600 underline">בייסיק</a> כדי לחבר יומן Google.</>
+            <> שדרג ל<a href={`https://wa.me/972504828080?text=${encodeURIComponent("שלום, אני רוצה לשדרג את המנוי שלי ב-Petra. תוכלו לעזור לי?")}`} target="_blank" rel="noopener noreferrer" className="text-brand-600 underline">בייסיק</a> כדי לחבר יומן Google.</>
           )}
         </p>
       </div>
