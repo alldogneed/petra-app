@@ -88,6 +88,7 @@ export async function PATCH(
         ...(petData.weight !== undefined && { weight: petData.weight ? parseFloat(petData.weight) : null }),
         ...(petData.birthDate !== undefined && { birthDate: petData.birthDate ? new Date(petData.birthDate) : null }),
         ...(petData.microchip !== undefined && { microchip: petData.microchip || null }),
+        ...(petData.color !== undefined && { color: petData.color || null }),
         ...(petData.tags !== undefined && { tags: petData.tags }),
         ...(petData.attachments !== undefined && { attachments: petData.attachments }),
         ...(petData.medicalNotes !== undefined && { medicalNotes: petData.medicalNotes || null }),

@@ -181,6 +181,7 @@ interface ServiceDogDetail {
     birthDate: string | null;
     weight: number | null;
     microchip: string | null;
+    color: string | null;
     foodBrand: string | null;
     foodGramsPerDay: number | null;
     foodFrequency: string | null;
@@ -3028,6 +3029,7 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
   const [deletingMed, setDeletingMed] = useState<string | null>(null);
   const [editingMicrochip, setEditingMicrochip] = useState(false);
   const [microchipInput, setMicrochipInput] = useState(pet.microchip ?? "");
+  const [showEditPetModal, setShowEditPetModal] = useState(false);
   const [renewingVaccine, setRenewingVaccine] = useState<{ type: "rabies" | "dhpp" | "bordetella"; label: string } | null>(null);
   const [expandedVaccineHistory, setExpandedVaccineHistory] = useState<string | null>(null);
   const [editingHours, setEditingHours] = useState(false);
@@ -3084,54 +3086,52 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
     <div className="space-y-4">
       {/* Basic dog info */}
       <div className="card p-5">
-        <h3 className="font-semibold mb-3 flex items-center gap-2">
-          <Dog className="w-4 h-4 text-brand-500" />
-          פרטי כלב
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Dog className="w-4 h-4 text-brand-500" />
+            פרטי כלב
+          </h3>
+          <button onClick={() => setShowEditPetModal(true)} className="btn-ghost flex items-center gap-1 text-xs text-petra-muted hover:text-foreground">
+            <Pencil className="w-3 h-3" /> ערוך
+          </button>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-          {/* Microchip — editable */}
+          {/* Microchip */}
           <div className="col-span-2 sm:col-span-1 bg-brand-50 rounded-lg p-2.5 border border-brand-200">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-xs text-brand-600 font-medium">מספר שבב</p>
-              {!editingMicrochip && (
-                <button onClick={() => { setMicrochipInput(pet.microchip ?? ""); setEditingMicrochip(true); }} className="text-brand-500 hover:text-brand-700">
-                  <Pencil className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-            {editingMicrochip ? (
-              <div className="flex gap-1">
-                <input
-                  type="text"
-                  value={microchipInput}
-                  onChange={(e) => setMicrochipInput(e.target.value)}
-                  className="input text-xs py-0.5 px-2 flex-1 font-mono"
-                  placeholder="מספר שבב..."
-                  autoFocus
-                />
-                <button onClick={() => saveMicrochipMutation.mutate()} disabled={saveMicrochipMutation.isPending} className="text-xs bg-brand-500 text-white px-2 rounded-lg">שמור</button>
-                <button onClick={() => setEditingMicrochip(false)} className="text-xs text-petra-muted px-1">✕</button>
-              </div>
-            ) : (
-              <p className="font-bold font-mono">{pet.microchip || <span className="text-petra-muted font-normal">לא הוזן</span>}</p>
-            )}
+            <p className="text-xs text-brand-600 font-medium mb-1">מספר שבב</p>
+            <p className="font-bold font-mono">{pet.microchip || <span className="text-petra-muted font-normal">לא הוזן</span>}</p>
           </div>
-          {pet.birthDate && (
+          {pet.birthDate ? (
             <div>
               <p className="text-xs text-petra-muted">תאריך לידה</p>
               <p className="font-medium">{toDate(pet.birthDate)}</p>
             </div>
-          )}
-          {pet.weight && (
+          ) : (
             <div>
-              <p className="text-xs text-petra-muted">משקל</p>
-              <p className="font-medium">{pet.weight} ק״ג</p>
+              <p className="text-xs text-petra-muted">תאריך לידה</p>
+              <p className="text-petra-muted text-xs">לא הוזן</p>
             </div>
           )}
-          {pet.health?.neuteredSpayed && (
+          <div>
+            <p className="text-xs text-petra-muted">משקל</p>
+            <p className="font-medium">{pet.weight ? `${pet.weight} ק״ג` : <span className="text-petra-muted text-xs">לא הוזן</span>}</p>
+          </div>
+          <div>
+            <p className="text-xs text-petra-muted">צבע</p>
+            <p className="font-medium">{pet.color || <span className="text-petra-muted text-xs">לא הוזן</span>}</p>
+          </div>
+          <div>
+            <p className="text-xs text-petra-muted">מין</p>
+            <p className="font-medium">{pet.gender === "male" ? "זכר" : pet.gender === "female" ? "נקבה" : <span className="text-petra-muted text-xs">לא הוזן</span>}</p>
+          </div>
+          <div>
+            <p className="text-xs text-petra-muted">גזע</p>
+            <p className="font-medium">{pet.breed || <span className="text-petra-muted text-xs">לא הוזן</span>}</p>
+          </div>
+          {pet.health?.neuteredSpayed !== undefined && (
             <div>
               <p className="text-xs text-petra-muted">מצב</p>
-              <p className="font-medium">מסורס / עקור</p>
+              <p className="font-medium">{pet.health.neuteredSpayed ? "מסורס / עקור" : "לא מסורס"}</p>
             </div>
           )}
           {pet.health?.vetName && (
@@ -3148,6 +3148,9 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
             </div>
           )}
         </div>
+        {showEditPetModal && (
+          <EditPetModal pet={pet} petId={pet.id} onClose={() => setShowEditPetModal(false)} onSaved={invalidate} />
+        )}
 
         {/* Training hours — manual edit */}
         <div className="mt-4 pt-4 border-t">
@@ -3587,6 +3590,126 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
           onClose={() => setRenewingVaccine(null)}
         />
       )}
+    </div>
+  );
+}
+
+// ─── Edit Pet Details Modal ───
+
+function EditPetModal({
+  pet,
+  petId,
+  onClose,
+  onSaved,
+}: {
+  pet: ServiceDogDetail["pet"];
+  petId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(pet.name);
+  const [breed, setBreed] = useState(pet.breed ?? "");
+  const [gender, setGender] = useState(pet.gender ?? "");
+  const [birthDate, setBirthDate] = useState(
+    pet.birthDate ? new Date(pet.birthDate).toISOString().slice(0, 10) : ""
+  );
+  const [weight, setWeight] = useState(pet.weight != null ? String(pet.weight) : "");
+  const [color, setColor] = useState(pet.color ?? "");
+  const [microchip, setMicrochip] = useState(pet.microchip ?? "");
+  const [neuteredSpayed, setNeuteredSpayed] = useState(pet.health?.neuteredSpayed ?? false);
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/pets/${petId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          breed: breed.trim() || null,
+          gender: gender || null,
+          birthDate: birthDate || null,
+          weight: weight ? parseFloat(weight) : null,
+          color: color.trim() || null,
+          microchip: microchip.trim() || null,
+          neuteredSpayed,
+        }),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    onSuccess: () => {
+      onSaved();
+      onClose();
+      toast.success("פרטי הכלב עודכנו");
+    },
+    onError: () => toast.error("שגיאה בעדכון פרטי הכלב"),
+  });
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content max-w-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <Dog className="w-5 h-5 text-brand-500" />
+            עריכת פרטי כלב
+          </h2>
+          <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <label className="label text-xs">שם *</label>
+            <input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div>
+            <label className="label text-xs">גזע</label>
+            <input className="input w-full" value={breed} onChange={(e) => setBreed(e.target.value)} placeholder="גזע הכלב..." />
+          </div>
+          <div>
+            <label className="label text-xs">מין</label>
+            <select className="input w-full" value={gender} onChange={(e) => setGender(e.target.value)}>
+              <option value="">לא מוגדר</option>
+              <option value="male">זכר</option>
+              <option value="female">נקבה</option>
+            </select>
+          </div>
+          <div>
+            <label className="label text-xs">תאריך לידה</label>
+            <input type="date" className="input w-full" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+          </div>
+          <div>
+            <label className="label text-xs">משקל (ק״ג)</label>
+            <input type="number" min={0} step={0.1} className="input w-full" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0.0" />
+          </div>
+          <div>
+            <label className="label text-xs">צבע הכלב</label>
+            <input className="input w-full" value={color} onChange={(e) => setColor(e.target.value)} placeholder="שחור, חום, אפור..." />
+          </div>
+          <div>
+            <label className="label text-xs">מספר שבב</label>
+            <input className="input w-full font-mono" value={microchip} onChange={(e) => setMicrochip(e.target.value)} placeholder="15 ספרות..." />
+          </div>
+          <div className="col-span-2 flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="neutered-edit"
+              checked={neuteredSpayed}
+              onChange={(e) => setNeuteredSpayed(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300"
+            />
+            <label htmlFor="neutered-edit" className="text-sm cursor-pointer">מסורס / עקור</label>
+          </div>
+        </div>
+        <div className="flex gap-2 mt-5">
+          <button
+            className="btn-primary flex-1"
+            onClick={() => saveMutation.mutate()}
+            disabled={!name.trim() || saveMutation.isPending}
+          >
+            {saveMutation.isPending ? "שומר..." : "שמור שינויים"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
     </div>
   );
 }
