@@ -667,7 +667,7 @@ export default function TasksPage() {
       {/* Category Filter */}
       <div className="flex items-center gap-2 mb-4">
         <Filter className="w-3.5 h-3.5 text-petra-muted flex-shrink-0" />
-        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1 flex-nowrap">
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1 flex-nowrap flex-1 min-w-0">
           {CATEGORIES.map((c) => (
             <button
               key={c.id}

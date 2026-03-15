@@ -3469,6 +3469,9 @@ export default function CustomerProfilePage() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowMobileActions(false)} />
                 <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-slate-100 z-50 py-1 animate-fade-in">
+                  <button onClick={() => { openOrderModal(); setShowMobileActions(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 text-right">
+                    <ShoppingCart className="w-4 h-4 text-slate-400" />הזמנה חדשה
+                  </button>
                   <button onClick={() => { setShowNewAppointmentModal(true); setShowMobileActions(false); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 text-right">
                     <CalendarClock className="w-4 h-4 text-slate-400" />קבע תור
                   </button>
@@ -3584,7 +3587,7 @@ export default function CustomerProfilePage() {
           )}
           <button
             onClick={() => openOrderModal()}
-            className="btn-primary flex items-center gap-2"
+            className="hidden sm:flex btn-primary items-center gap-2"
           >
             <ShoppingCart className="w-4 h-4" />
             הזמנה חדשה
