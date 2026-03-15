@@ -6,6 +6,7 @@ import {
   Search, Users, Shield, ShieldOff, X, Clock, Activity,
   ChevronLeft, ChevronRight, Crown, Laptop, RefreshCw, UserPlus, UserCheck, UserX, Eye, EyeOff,
   Check, Minus, ToggleLeft, ToggleRight, Zap, Loader2, Trash2, ChevronDown,
+  Building2, ChevronUp,
 } from "lucide-react";
 import { type FeatureKey, type TierKey, hasFeature } from "@/lib/feature-flags";
 
@@ -550,9 +551,477 @@ function TeamMembersRow({ userId }: { userId: string }) {
   );
 }
 
+// ─── Businesses Tab ───────────────────────────────────────────────────────────
+
+const TIER_STYLE: Record<string, { label: string; bg: string; color: string; border: string }> = {
+  free:        { label: "Free",        bg: "rgba(100,116,139,0.12)", color: "#94A3B8", border: "rgba(100,116,139,0.2)" },
+  basic:       { label: "Basic",       bg: "rgba(59,130,246,0.12)",  color: "#60A5FA", border: "rgba(59,130,246,0.25)" },
+  groomer:     { label: "Groomer+",    bg: "rgba(236,72,153,0.12)",  color: "#F472B6", border: "rgba(236,72,153,0.25)" },
+  groomer_plus:{ label: "Groomer+",    bg: "rgba(236,72,153,0.12)",  color: "#F472B6", border: "rgba(236,72,153,0.25)" },
+  pro:         { label: "Pro",         bg: "rgba(139,92,246,0.12)",  color: "#A78BFA", border: "rgba(139,92,246,0.25)" },
+  service_dog: { label: "Service Dog", bg: "rgba(245,158,11,0.12)",  color: "#FCD34D", border: "rgba(245,158,11,0.25)" },
+};
+
+const STATUS_STYLE: Record<string, { label: string; color: string }> = {
+  active:    { label: "פעיל",   color: "#22C55E" },
+  suspended: { label: "מושהה", color: "#EF4444" },
+  closed:    { label: "סגור",  color: "#64748B" },
+};
+
+interface TenantListItem {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  tier: string;
+  status: string;
+  createdAt: string;
+  _count: { members: number };
+}
+
+interface TenantMemberFull {
+  id: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+  user: { id: string; name: string; email: string; platformRole: string | null; isActive: boolean };
+}
+
+interface TenantDetailFull {
+  id: string;
+  name: string;
+  email: string | null;
+  tier: string;
+  status: string;
+  members: TenantMemberFull[];
+}
+
+function BusinessCard({ biz, initialExpand = false }: { biz: TenantListItem; initialExpand?: boolean }) {
+  const qc = useQueryClient();
+  const [expanded, setExpanded] = useState(initialExpand);
+  const [showAdd, setShowAdd] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addEmail, setAddEmail] = useState("");
+  const [addPassword, setAddPassword] = useState("");
+  const [addRole, setAddRole] = useState<"owner" | "manager" | "user">("user");
+
+  const { data: detail, isLoading: detailLoading } = useQuery<TenantDetailFull>({
+    queryKey: ["owner", "tenants", biz.id],
+    queryFn: () => fetch(`/api/owner/tenants/${biz.id}`).then((r) => r.json()),
+    enabled: expanded,
+  });
+
+  const patchMember = useMutation({
+    mutationFn: ({ memberId, body }: { memberId: string; body: Record<string, unknown> }) =>
+      fetch(`/api/owner/tenants/${biz.id}/members/${memberId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then((r) => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["owner", "tenants", biz.id] }),
+  });
+
+  const deleteMember = useMutation({
+    mutationFn: (memberId: string) =>
+      fetch(`/api/owner/tenants/${biz.id}/members/${memberId}`, { method: "DELETE" }).then((r) => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["owner", "tenants", biz.id] });
+      qc.invalidateQueries({ queryKey: ["admin-businesses"] });
+    },
+  });
+
+  const addMember = useMutation({
+    mutationFn: () =>
+      fetch(`/api/owner/tenants/${biz.id}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: addName, email: addEmail, role: addRole, temporaryPassword: addPassword || undefined }),
+      }).then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "שגיאה");
+        return json;
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["owner", "tenants", biz.id] });
+      qc.invalidateQueries({ queryKey: ["admin-businesses"] });
+      setShowAdd(false);
+      setAddName(""); setAddEmail(""); setAddPassword(""); setAddRole("user");
+    },
+  });
+
+  const tierStyle = TIER_STYLE[biz.tier] ?? TIER_STYLE.free;
+  const statusStyle = STATUS_STYLE[biz.status] ?? STATUS_STYLE.active;
+  const members = detail?.members ?? [];
+  const owner = members.find((m) => m.role === "owner");
+  const staff = members.filter((m) => m.role !== "owner");
+
+  return (
+    <div
+      className="rounded-2xl overflow-hidden transition-all"
+      style={{ background: "#12121A", border: `1px solid ${expanded ? "rgba(6,182,212,0.25)" : "#1E1E2E"}` }}
+    >
+      {/* ── Business header row ── */}
+      <div
+        className="flex items-center gap-4 px-5 py-4 cursor-pointer select-none"
+        onClick={() => setExpanded((v) => !v)}
+        style={{ borderBottom: expanded ? "1px solid #1E1E2E" : "none" }}
+      >
+        {/* Avatar */}
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold flex-shrink-0"
+          style={{ background: tierStyle.bg, color: tierStyle.color }}
+        >
+          {biz.name.charAt(0)}
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-white">{biz.name}</span>
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+              style={{ background: tierStyle.bg, color: tierStyle.color, border: `1px solid ${tierStyle.border}` }}
+            >
+              {tierStyle.label}
+            </span>
+            <span className="text-[10px] font-medium" style={{ color: statusStyle.color }}>
+              ● {statusStyle.label}
+            </span>
+          </div>
+          {biz.email && (
+            <div className="text-xs mt-0.5 truncate" style={{ color: "#475569" }}>{biz.email}</div>
+          )}
+        </div>
+
+        {/* Right side */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+            style={{ background: "rgba(6,182,212,0.08)", color: "#06B6D4", border: "1px solid rgba(6,182,212,0.15)" }}
+          >
+            <Users className="w-3 h-3" />
+            {biz._count.members} חברי צוות
+          </div>
+          {expanded ? (
+            <ChevronUp className="w-4 h-4" style={{ color: "#475569" }} />
+          ) : (
+            <ChevronDown className="w-4 h-4" style={{ color: "#475569" }} />
+          )}
+        </div>
+      </div>
+
+      {/* ── Expanded members ── */}
+      {expanded && (
+        <div className="px-5 py-4 space-y-3">
+          {detailLoading ? (
+            <div className="flex items-center gap-2 text-xs py-2" style={{ color: "#64748B" }}>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> טוען...
+            </div>
+          ) : (
+            <>
+              {/* Owner */}
+              {owner && (
+                <div>
+                  <p className="text-[10px] font-semibold mb-1.5 uppercase tracking-wider" style={{ color: "#475569" }}>בעלים</p>
+                  <MemberRow member={owner} onPatch={(id, body) => patchMember.mutate({ memberId: id, body })} onDelete={(id) => deleteMember.mutate(id)} isOwnerRow />
+                </div>
+              )}
+
+              {/* Staff */}
+              {staff.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold mb-1.5 uppercase tracking-wider" style={{ color: "#475569" }}>
+                    צוות ({staff.length})
+                  </p>
+                  <div className="space-y-1.5">
+                    {staff.map((m) => (
+                      <MemberRow key={m.id} member={m} onPatch={(id, body) => patchMember.mutate({ memberId: id, body })} onDelete={(id) => deleteMember.mutate(id)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Add member form */}
+              {showAdd ? (
+                <div className="p-3 rounded-xl" style={{ background: "#0A0A0F", border: "1px solid #1E1E2E" }}>
+                  <p className="text-[11px] font-semibold mb-2.5" style={{ color: "#94A3B8" }}>הוספת עובד חדש</p>
+                  <div className="grid grid-cols-2 gap-2 mb-2.5">
+                    {[
+                      { placeholder: "שם מלא", value: addName, onChange: setAddName, dir: "rtl" as const },
+                      { placeholder: "אימייל", value: addEmail, onChange: setAddEmail, dir: "ltr" as const, type: "email" },
+                      { placeholder: "סיסמה זמנית (8+ תווים)", value: addPassword, onChange: setAddPassword, dir: "ltr" as const },
+                    ].map((f) => (
+                      <input
+                        key={f.placeholder}
+                        placeholder={f.placeholder}
+                        type={f.type ?? "text"}
+                        dir={f.dir}
+                        value={f.value}
+                        onChange={(e) => f.onChange(e.target.value)}
+                        className="text-xs px-2.5 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        style={{ background: "#1E1E2E", color: "#E2E8F0", border: "1px solid #2D2D3E" }}
+                      />
+                    ))}
+                    <select
+                      value={addRole}
+                      onChange={(e) => setAddRole(e.target.value as "owner" | "manager" | "user")}
+                      className="text-xs px-2.5 py-2 rounded-lg focus:outline-none"
+                      style={{ background: "#1E1E2E", color: "#E2E8F0", border: "1px solid #2D2D3E" }}
+                    >
+                      <option value="user">עובד</option>
+                      <option value="manager">מנהל</option>
+                      <option value="owner">בעלים</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => addMember.mutate()}
+                      disabled={addMember.isPending || !addName || !addEmail}
+                      className="text-xs px-4 py-1.5 rounded-lg font-medium disabled:opacity-50 transition-colors"
+                      style={{ background: "rgba(6,182,212,0.2)", color: "#06B6D4", border: "1px solid rgba(6,182,212,0.3)" }}
+                    >
+                      {addMember.isPending ? "מוסיף..." : "הוסף עובד"}
+                    </button>
+                    <button
+                      onClick={() => { setShowAdd(false); setAddName(""); setAddEmail(""); setAddPassword(""); }}
+                      className="text-xs px-4 py-1.5 rounded-lg transition-colors"
+                      style={{ background: "#1E1E2E", color: "#64748B" }}
+                    >
+                      ביטול
+                    </button>
+                    {addMember.isError && (
+                      <span className="text-[11px]" style={{ color: "#EF4444" }}>
+                        {(addMember.error as Error)?.message ?? "שגיאה"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAdd(true)}
+                  className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl w-fit transition-colors"
+                  style={{ background: "rgba(6,182,212,0.06)", color: "#06B6D4", border: "1px dashed rgba(6,182,212,0.25)" }}
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  הוסף עובד לעסק
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MemberRow({
+  member,
+  onPatch,
+  onDelete,
+  isOwnerRow = false,
+}: {
+  member: TenantMemberFull;
+  onPatch: (memberId: string, body: Record<string, unknown>) => void;
+  onDelete: (memberId: string) => void;
+  isOwnerRow?: boolean;
+}) {
+  const ROLE_COLOR: Record<string, string> = { owner: "#FCD34D", manager: "#06B6D4", user: "#94A3B8" };
+  const ROLE_LABEL_MAP: Record<string, string> = { owner: "בעלים", manager: "מנהל", user: "עובד" };
+
+  return (
+    <div
+      className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
+      style={{
+        background: isOwnerRow ? "rgba(252,211,77,0.05)" : "#0D0D14",
+        border: `1px solid ${isOwnerRow ? "rgba(252,211,77,0.12)" : "#1E1E2E"}`,
+        opacity: member.isActive ? 1 : 0.55,
+      }}
+    >
+      <div
+        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+        style={{
+          background: member.isActive ? (isOwnerRow ? "rgba(252,211,77,0.15)" : "rgba(6,182,212,0.15)") : "rgba(100,116,139,0.15)",
+          color: member.isActive ? (isOwnerRow ? "#FCD34D" : "#06B6D4") : "#64748B",
+        }}
+      >
+        {member.user.name.charAt(0)}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium text-white">{member.user.name}</span>
+          {isOwnerRow && <Crown className="w-3 h-3" style={{ color: "#FCD34D" }} />}
+          {!member.isActive && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "#EF444420", color: "#EF4444" }}>מושהה</span>
+          )}
+        </div>
+        <div className="text-xs mt-0.5 truncate" dir="ltr" style={{ color: "#475569" }}>{member.user.email}</div>
+      </div>
+
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {!isOwnerRow ? (
+          <select
+            value={member.role}
+            onChange={(e) => onPatch(member.id, { role: e.target.value })}
+            className="text-[11px] px-2 py-1 rounded-lg focus:outline-none"
+            style={{ background: "#1E1E2E", color: ROLE_COLOR[member.role] ?? "#94A3B8", border: "1px solid #2D2D3E" }}
+          >
+            <option value="user">עובד</option>
+            <option value="manager">מנהל</option>
+            <option value="owner">בעלים</option>
+          </select>
+        ) : (
+          <span className="text-[11px] px-2 py-1 rounded-lg font-medium" style={{ background: "rgba(252,211,77,0.1)", color: "#FCD34D", border: "1px solid rgba(252,211,77,0.2)" }}>
+            {ROLE_LABEL_MAP[member.role]}
+          </span>
+        )}
+
+        <button
+          onClick={() => onPatch(member.id, { isActive: !member.isActive })}
+          title={member.isActive ? "השהה גישה" : "הפעל גישה"}
+          className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors"
+          style={{ background: member.isActive ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: member.isActive ? "#EF4444" : "#22C55E" }}
+        >
+          {member.isActive ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+        </button>
+
+        {!isOwnerRow && (
+          <button
+            onClick={() => { if (confirm(`הסר את ${member.user.name} מהעסק?`)) onDelete(member.id); }}
+            title="הסר מהעסק"
+            className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors"
+            style={{ background: "rgba(239,68,68,0.06)", color: "#EF444460" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#EF4444")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#EF444460")}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BusinessesTab() {
+  const [search, setSearch] = useState("");
+  const [tierFilter, setTierFilter] = useState("");
+  const [page, setPage] = useState(1);
+
+  const { data, isLoading } = useQuery<{ tenants: TenantListItem[]; total: number }>({
+    queryKey: ["admin-businesses", search, tierFilter, page],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: String(page), limit: "15" });
+      if (search) params.set("search", search);
+      if (tierFilter) params.set("tier", tierFilter);
+      return fetch(`/api/owner/tenants?${params}`).then((r) => r.json());
+    },
+  });
+
+  const tenants = data?.tenants ?? [];
+  const totalPages = data ? Math.ceil(data.total / 15) : 1;
+
+  const TIERS_FILTER = [
+    { value: "", label: "הכל" },
+    { value: "free", label: "Free" },
+    { value: "basic", label: "Basic" },
+    { value: "pro", label: "Pro" },
+    { value: "groomer", label: "Groomer+" },
+    { value: "service_dog", label: "Service Dog" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Filters bar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#475569" }} />
+          <input
+            type="text"
+            placeholder="חיפוש לפי שם עסק או אימייל..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="w-full pr-10 pl-4 py-2 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            style={{ background: "#12121A", border: "1px solid #1E1E2E", color: "#E2E8F0" }}
+            dir="rtl"
+          />
+        </div>
+        <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid #1E1E2E" }}>
+          {TIERS_FILTER.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => { setTierFilter(t.value); setPage(1); }}
+              className="px-3 py-1.5 text-xs font-medium transition-colors"
+              style={{
+                background: tierFilter === t.value ? "rgba(6,182,212,0.15)" : "#12121A",
+                color: tierFilter === t.value ? "#06B6D4" : "#64748B",
+                borderLeft: t.value !== "" ? "1px solid #1E1E2E" : undefined,
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Stats pill */}
+      {data && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs" style={{ color: "#475569" }}>
+            {data.total} עסקים
+          </span>
+        </div>
+      )}
+
+      {/* Business cards */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#475569" }} />
+        </div>
+      ) : tenants.length === 0 ? (
+        <div className="text-center py-16">
+          <Building2 className="w-10 h-10 mx-auto mb-3" style={{ color: "#1E1E2E" }} />
+          <p className="text-sm" style={{ color: "#64748B" }}>לא נמצאו עסקים</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {tenants.map((biz) => (
+            <BusinessCard key={biz.id} biz={biz} />
+          ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <span className="text-xs" style={{ color: "#64748B" }}>עמוד {page} מתוך {totalPages}</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="p-1.5 rounded-lg disabled:opacity-30"
+              style={{ background: "#1E1E2E", color: "#94A3B8" }}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="p-1.5 rounded-lg disabled:opacity-30"
+              style={{ background: "#1E1E2E", color: "#94A3B8" }}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function AdminUsersPage() {
+  const [mainTab, setMainTab] = useState<"users" | "businesses">("users");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<"" | "active" | "blocked">("");
@@ -632,49 +1101,85 @@ export default function AdminUsersPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">משתמשים</h1>
+          <h1 className="text-2xl font-bold text-white">
+            {mainTab === "users" ? "משתמשים" : "עסקים וצוותים"}
+          </h1>
           <p className="text-sm mt-1" style={{ color: "#64748B" }}>
-            {data ? `${data.total} משתמשים רשומים` : "טוען..."}
+            {mainTab === "users"
+              ? (data ? `${data.total} משתמשים רשומים` : "טוען...")
+              : "ניהול עובדים לפי עסק"}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
-            style={{ background: "rgba(6,182,212,0.15)", color: "#06B6D4", border: "1px solid rgba(6,182,212,0.25)" }}
-          >
-            <UserPlus className="w-4 h-4" /> הוסף משתמש
-          </button>
+          {/* Main tab switcher */}
           <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid #1E1E2E" }}>
-            {(["", "active", "blocked"] as const).map((f) => (
+            {([
+              { id: "users" as const, label: "משתמשים", icon: Users },
+              { id: "businesses" as const, label: "עסקים", icon: Building2 },
+            ]).map(({ id, label, icon: Icon }) => (
               <button
-                key={f}
-                onClick={() => { setStatusFilter(f); setPage(1); }}
-                className="px-3 py-1.5 text-xs font-medium transition-colors"
+                key={id}
+                onClick={() => setMainTab(id)}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors"
                 style={{
-                  background: statusFilter === f ? "rgba(6,182,212,0.15)" : "#12121A",
-                  color: statusFilter === f ? "#06B6D4" : "#64748B",
-                  borderLeft: f !== "" ? "1px solid #1E1E2E" : undefined,
+                  background: mainTab === id ? "rgba(6,182,212,0.15)" : "#12121A",
+                  color: mainTab === id ? "#06B6D4" : "#64748B",
+                  borderLeft: id === "businesses" ? "1px solid #1E1E2E" : undefined,
                 }}
               >
-                {f === "" ? "הכל" : f === "active" ? "פעילים" : "חסומים"}
+                <Icon className="w-3.5 h-3.5" />
+                {label}
               </button>
             ))}
           </div>
-          <div className="relative">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#475569" }} />
-            <input
-              type="text"
-              placeholder="חיפוש לפי שם או אימייל..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="pr-10 pl-4 py-2 rounded-xl text-sm placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-              style={{ background: "#12121A", border: "1px solid #1E1E2E", color: "#E2E8F0" }}
-              dir="rtl"
-            />
-          </div>
+
+          {mainTab === "users" && (
+            <>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+                style={{ background: "rgba(6,182,212,0.15)", color: "#06B6D4", border: "1px solid rgba(6,182,212,0.25)" }}
+              >
+                <UserPlus className="w-4 h-4" /> הוסף משתמש
+              </button>
+              <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid #1E1E2E" }}>
+                {(["", "active", "blocked"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => { setStatusFilter(f); setPage(1); }}
+                    className="px-3 py-1.5 text-xs font-medium transition-colors"
+                    style={{
+                      background: statusFilter === f ? "rgba(6,182,212,0.15)" : "#12121A",
+                      color: statusFilter === f ? "#06B6D4" : "#64748B",
+                      borderLeft: f !== "" ? "1px solid #1E1E2E" : undefined,
+                    }}
+                  >
+                    {f === "" ? "הכל" : f === "active" ? "פעילים" : "חסומים"}
+                  </button>
+                ))}
+              </div>
+              <div className="relative">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#475569" }} />
+                <input
+                  type="text"
+                  placeholder="חיפוש לפי שם או אימייל..."
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                  className="pr-10 pl-4 py-2 rounded-xl text-sm placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  style={{ background: "#12121A", border: "1px solid #1E1E2E", color: "#E2E8F0" }}
+                  dir="rtl"
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Businesses tab */}
+      {mainTab === "businesses" && <BusinessesTab />}
+
+      {/* Users table — only when on users tab */}
+      {mainTab === "users" && <>
 
       {/* Table */}
       <div className="rounded-2xl overflow-hidden" style={{ background: "#12121A", border: "1px solid #1E1E2E" }}>
@@ -1040,6 +1545,8 @@ export default function AdminUsersPage() {
           </div>
         </div>
       )}
+
+      </>}
 
       {/* Add User Modal */}
       {showAddModal && (
