@@ -18,6 +18,8 @@ import {
   Archive,
   MapPin,
   Upload,
+  LayoutGrid,
+  LayoutList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
@@ -68,6 +70,7 @@ function ServiceDogsListPageContent() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [phaseDropdownId, setPhaseDropdownId] = useState<string | null>(null);
+  const [view, setView] = useState<"grid" | "table">("table");
   const queryClient = useQueryClient();
 
   const { data: dogs = [], isLoading } = useQuery<ServiceDogCard[]>({
@@ -151,6 +154,14 @@ function ServiceDogsListPageContent() {
             <Archive className="w-4 h-4" />
             {showArchive ? "חזרה לפעילים" : `ארכיון (${archivedDogs.length})`}
           </button>
+          <div className="flex items-center bg-slate-100 rounded-lg p-1">
+            <button onClick={() => setView("table")} className={cn("p-1.5 rounded transition-colors", view === "table" ? "bg-white shadow-sm text-brand-600" : "text-petra-muted")}>
+              <LayoutList className="w-4 h-4" />
+            </button>
+            <button onClick={() => setView("grid")} className={cn("p-1.5 rounded transition-colors", view === "grid" ? "bg-white shadow-sm text-brand-600" : "text-petra-muted")}>
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
           {!showArchive && (
             <>
               <button
@@ -223,7 +234,7 @@ function ServiceDogsListPageContent() {
         />
       </div>
 
-      {/* Dogs Grid */}
+      {/* Dogs List */}
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -236,6 +247,82 @@ function ServiceDogsListPageContent() {
           <p className="text-petra-muted">
             {phaseFilter || search ? "לא נמצאו כלבים התואמים לחיפוש" : "אין כלבי שירות"}
           </p>
+        </div>
+      ) : view === "table" ? (
+        <div className="card overflow-hidden">
+          <table className="w-full text-right text-sm">
+            <thead>
+              <tr className="border-b bg-slate-50">
+                <th className="p-3 font-medium text-petra-muted">שם</th>
+                <th className="p-3 font-medium text-petra-muted">גזע</th>
+                <th className="p-3 font-medium text-petra-muted">שלב</th>
+                <th className="p-3 font-medium text-petra-muted">סוג שירות</th>
+                <th className="p-3 font-medium text-petra-muted">מיקום</th>
+                <th className="p-3 font-medium text-petra-muted">שעות אימון</th>
+                <th className="p-3 font-medium text-petra-muted">זכאי</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {filteredDogs.map((dog) => {
+                const phaseInfo = SERVICE_DOG_PHASE_MAP[dog.phase];
+                const phaseColors = SERVICE_DOG_PHASE_COLORS[dog.phase];
+                const hoursPercent = dog.trainingTargetHours > 0
+                  ? Math.min(100, Math.round((dog.trainingTotalHours / dog.trainingTargetHours) * 100))
+                  : 0;
+                const loc = dog.currentLocation || "TRAINER";
+                const locInfo = LOCATION_MAP[loc];
+                const serviceTypeLabel = SERVICE_DOG_TYPES.find((t) => t.id === dog.serviceType)?.label;
+                return (
+                  <tr key={dog.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="p-3">
+                      <Link href={`/service-dogs/${dog.id}`} className="font-semibold hover:text-brand-600 transition-colors">
+                        {dog.pet.name}
+                      </Link>
+                      {dog.isGovReportPending && (
+                        <span className="mr-2 inline-flex items-center gap-0.5 text-xs text-red-500">
+                          <AlertTriangle className="w-3 h-3" />דיווח
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3 text-petra-muted">{dog.pet.breed || dog.pet.species}</td>
+                    <td className="p-3">
+                      <span
+                        className="text-xs px-2 py-0.5 rounded-full font-medium border"
+                        style={{ backgroundColor: phaseColors?.bg, color: phaseColors?.text, borderColor: phaseColors?.border }}
+                      >
+                        {phaseInfo?.label || dog.phase}
+                      </span>
+                    </td>
+                    <td className="p-3 text-petra-muted">{serviceTypeLabel || "—"}</td>
+                    <td className="p-3">
+                      {loc !== "TRAINER" ? (
+                        <span
+                          className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full font-medium border"
+                          style={{ backgroundColor: locInfo?.color.bg, color: locInfo?.color.text, borderColor: locInfo?.color.border }}
+                        >
+                          <MapPin className="w-3 h-3" />{locInfo?.label || loc}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-petra-muted">מאלף</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={cn("h-full rounded-full", hoursPercent >= 100 ? "bg-emerald-500" : hoursPercent >= 50 ? "bg-blue-500" : "bg-amber-500")}
+                            style={{ width: `${hoursPercent}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-petra-muted">{dog.trainingTotalHours.toFixed(0)}/{dog.trainingTargetHours}</span>
+                      </div>
+                    </td>
+                    <td className="p-3 text-petra-muted">{dog.activePlacement?.recipientName || "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
