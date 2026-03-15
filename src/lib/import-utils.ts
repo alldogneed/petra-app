@@ -171,7 +171,13 @@ function sheetToRows(sheet: XLSX.WorkSheet): Record<string, string>[] {
   return raw.map((r) => {
     const out: Record<string, string> = {};
     for (const [k, v] of Object.entries(r)) {
-      out[String(k)] = String(v ?? "").trim();
+      // When cellDates:true, date cells come as Date objects — convert to ISO string
+      // so parseDateValue can handle them reliably
+      if (v instanceof Date) {
+        out[String(k)] = v.toISOString();
+      } else {
+        out[String(k)] = String(v ?? "").trim();
+      }
     }
     return out;
   });
@@ -400,7 +406,7 @@ export function parseImportFile(
   includePets: boolean
 ): ParseResult {
   const ext = filename.toLowerCase().split(".").pop();
-  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
 
   let customerRows: Record<string, string>[] = [];
   let petRows: Record<string, string>[] = [];
@@ -586,15 +592,22 @@ function normalizeGender(val: string): string | null {
 
 function parseDateValue(val: string): Date | null {
   if (!val) return null;
-  // Try DD/MM/YYYY
+  // Try DD/MM/YYYY or DD.MM.YYYY or DD-MM-YYYY (4-digit year)
   const ddmmyyyy = val.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/);
   if (ddmmyyyy) {
     const d = new Date(+ddmmyyyy[3], +ddmmyyyy[2] - 1, +ddmmyyyy[1]);
     if (!isNaN(d.getTime())) return d;
   }
-  // Try YYYY-MM-DD (ISO)
+  // Try DD/MM/YY or DD.MM.YY (2-digit year — Israeli common format, assume 2000+)
+  const ddmmyy = val.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2})$/);
+  if (ddmmyy) {
+    const year = 2000 + +ddmmyy[3];
+    const d = new Date(year, +ddmmyy[2] - 1, +ddmmyy[1]);
+    if (!isNaN(d.getTime())) return d;
+  }
+  // Try ISO string (covers cellDates:true output like "2025-02-24T00:00:00.000Z")
   const iso = new Date(val);
-  if (!isNaN(iso.getTime())) return iso;
+  if (!isNaN(iso.getTime()) && iso.getFullYear() < 9999) return iso;
   return null;
 }
 
@@ -684,7 +697,7 @@ export function parseServiceDogRows(
 }
 
 export function parseServiceDogFile(buffer: Buffer, filename: string): { dogs: RawServiceDogRow[]; issues: ParseIssue[]; confidence: number } {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = sheetToRows(sheet);
   return parseServiceDogRows(rows);
@@ -841,7 +854,7 @@ export function parseRecipientRows(
 }
 
 export function parseRecipientFile(buffer: Buffer, filename: string): { recipients: RawRecipientRow[]; issues: ParseIssue[]; confidence: number } {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = sheetToRows(sheet);
   return parseRecipientRows(rows);
