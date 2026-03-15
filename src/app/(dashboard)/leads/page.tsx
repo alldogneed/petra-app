@@ -1497,8 +1497,8 @@ function LeadsPageContent() {
       {!editMode && leads.length > 0 && (
         <div className="mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <p className="text-2xl font-bold text-petra-text">{leads.length}</p>
-            <p className="text-xs text-petra-muted mt-0.5">סה"כ לידים</p>
+            <p className="text-2xl font-bold text-petra-text">{funnelStats.activeCount}</p>
+            <p className="text-xs text-petra-muted mt-0.5">סה"כ לידים בטיפול</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <p className="text-2xl font-bold text-brand-600">{funnelStats.activeCount}</p>
