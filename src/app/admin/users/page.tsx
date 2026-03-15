@@ -4,7 +4,7 @@ import React, { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search, Users, Shield, ShieldOff, X, Clock, Activity,
-  ChevronLeft, ChevronRight, Crown, Laptop, RefreshCw, UserPlus, Eye, EyeOff,
+  ChevronLeft, ChevronRight, Crown, Laptop, RefreshCw, UserPlus, UserCheck, UserX, Eye, EyeOff,
   Check, Minus, ToggleLeft, ToggleRight, Zap, Loader2, Trash2, ChevronDown,
 } from "lucide-react";
 import { type FeatureKey, type TierKey, hasFeature } from "@/lib/feature-flags";
@@ -349,13 +349,60 @@ function FeaturePanel({ business, onRefresh }: { business: BusinessInfo; onRefre
 const ROLE_LABELS: Record<string, string> = {
   owner: "בעלים",
   manager: "מנהל",
+  user: "עובד",
   staff: "צוות",
 };
 
 function TeamMembersRow({ userId }: { userId: string }) {
+  const qc = useQueryClient();
+  const [showAdd, setShowAdd] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addEmail, setAddEmail] = useState("");
+  const [addPassword, setAddPassword] = useState("");
+  const [addRole, setAddRole] = useState<"owner" | "manager" | "user">("user");
+
   const { data, isLoading } = useQuery<UserDetail>({
     queryKey: ["admin-user-detail", userId],
     queryFn: () => fetch(`/api/admin/users/${userId}`).then((r) => r.json()),
+  });
+
+  const businessId = data?.businessMemberships?.[0]?.business?.id;
+
+  const patchMember = useMutation({
+    mutationFn: ({ memberId, body }: { memberId: string; body: Record<string, unknown> }) =>
+      fetch(`/api/owner/tenants/${businessId}/members/${memberId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-user-detail", userId] });
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
+    },
+  });
+
+  const deleteMember = useMutation({
+    mutationFn: (memberId: string) =>
+      fetch(`/api/owner/tenants/${businessId}/members/${memberId}`, { method: "DELETE" }).then((r) => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-user-detail", userId] });
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
+    },
+  });
+
+  const addMember = useMutation({
+    mutationFn: () =>
+      fetch(`/api/owner/tenants/${businessId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: addName, email: addEmail, role: addRole, temporaryPassword: addPassword || undefined }),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-user-detail", userId] });
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
+      setShowAdd(false);
+      setAddName(""); setAddEmail(""); setAddPassword(""); setAddRole("user");
+    },
   });
 
   if (isLoading) {
@@ -368,42 +415,137 @@ function TeamMembersRow({ userId }: { userId: string }) {
 
   const members = data?.businessMemberships?.[0]?.business?.members ?? [];
 
-  if (!members.length) {
-    return <div className="text-xs py-2" style={{ color: "#475569" }}>אין חברי צוות</div>;
-  }
-
   return (
-    <div className="grid gap-1.5">
-      {members.map((m) => (
-        <div
-          key={m.id}
-          className="flex items-center justify-between px-3 py-1.5 rounded-lg"
-          style={{ background: "#12121A", border: "1px solid #1E1E2E" }}
-        >
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-              style={{ background: m.isActive ? "rgba(6,182,212,0.15)" : "rgba(100,116,139,0.2)", color: m.isActive ? "#06B6D4" : "#64748B" }}
-            >
-              {m.user.name.charAt(0)}
+    <div className="grid gap-2">
+      {/* Members list */}
+      {members.length === 0 ? (
+        <div className="text-xs py-1" style={{ color: "#475569" }}>אין חברי צוות</div>
+      ) : (
+        members.map((m) => (
+          <div
+            key={m.id}
+            className="flex items-center justify-between px-3 py-2 rounded-lg"
+            style={{ background: "#12121A", border: "1px solid #1E1E2E", opacity: m.isActive ? 1 : 0.6 }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                style={{ background: m.isActive ? "rgba(6,182,212,0.15)" : "rgba(100,116,139,0.2)", color: m.isActive ? "#06B6D4" : "#64748B" }}
+              >
+                {m.user.name.charAt(0)}
+              </div>
+              <div className="min-w-0">
+                <span className="text-xs text-white">{m.user.name}</span>
+                <span className="text-[10px] mx-1.5 truncate" style={{ color: "#475569" }}>{m.user.email}</span>
+              </div>
             </div>
-            <div>
-              <span className="text-xs text-white">{m.user.name}</span>
-              <span className="text-[10px] mx-1.5" style={{ color: "#475569" }}>{m.user.email}</span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Role select */}
+              <select
+                value={m.role}
+                onChange={(e) => patchMember.mutate({ memberId: m.id, body: { role: e.target.value } })}
+                className="text-[10px] rounded px-1.5 py-0.5 focus:outline-none"
+                style={{ background: "#1E1E2E", color: "#94A3B8", border: "1px solid #2D2D3E" }}
+              >
+                <option value="user">עובד</option>
+                <option value="manager">מנהל</option>
+                <option value="owner">בעלים</option>
+              </select>
+              {/* Toggle active */}
+              <button
+                onClick={() => patchMember.mutate({ memberId: m.id, body: { isActive: !m.isActive } })}
+                title={m.isActive ? "השהה גישה" : "הפעל גישה"}
+                className="p-1 rounded transition-colors"
+                style={{ color: m.isActive ? "#EF4444" : "#22C55E", background: m.isActive ? "#EF444415" : "#22C55E15" }}
+              >
+                {m.isActive ? <UserX className="w-3 h-3" /> : <UserCheck className="w-3 h-3" />}
+              </button>
+              {/* Remove */}
+              <button
+                onClick={() => { if (confirm(`הסר את ${m.user.name}?`)) deleteMember.mutate(m.id); }}
+                title="הסר מהעסק"
+                className="p-1 rounded transition-colors"
+                style={{ color: "#EF444460", background: "#EF444408" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#EF4444")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "#EF444460")}
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "#1E1E2E", color: "#94A3B8" }}>
-              {ROLE_LABELS[m.role] || m.role}
-            </span>
-            {!m.isActive && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "#EF444420", color: "#EF4444" }}>
-                לא פעיל
-              </span>
+        ))
+      )}
+
+      {/* Add member */}
+      {showAdd ? (
+        <div className="mt-1 p-3 rounded-lg" style={{ background: "#0A0A0F", border: "1px solid #1E1E2E" }}>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <input
+              placeholder="שם מלא"
+              value={addName}
+              onChange={(e) => setAddName(e.target.value)}
+              className="text-xs px-2 py-1.5 rounded focus:outline-none"
+              style={{ background: "#1E1E2E", color: "#E2E8F0", border: "1px solid #2D2D3E" }}
+            />
+            <input
+              placeholder="אימייל"
+              type="email"
+              dir="ltr"
+              value={addEmail}
+              onChange={(e) => setAddEmail(e.target.value)}
+              className="text-xs px-2 py-1.5 rounded focus:outline-none"
+              style={{ background: "#1E1E2E", color: "#E2E8F0", border: "1px solid #2D2D3E" }}
+            />
+            <input
+              placeholder="סיסמה זמנית"
+              dir="ltr"
+              value={addPassword}
+              onChange={(e) => setAddPassword(e.target.value)}
+              className="text-xs px-2 py-1.5 rounded focus:outline-none"
+              style={{ background: "#1E1E2E", color: "#E2E8F0", border: "1px solid #2D2D3E" }}
+            />
+            <select
+              value={addRole}
+              onChange={(e) => setAddRole(e.target.value as "owner" | "manager" | "user")}
+              className="text-xs px-2 py-1.5 rounded focus:outline-none"
+              style={{ background: "#1E1E2E", color: "#E2E8F0", border: "1px solid #2D2D3E" }}
+            >
+              <option value="user">עובד</option>
+              <option value="manager">מנהל</option>
+              <option value="owner">בעלים</option>
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => addMember.mutate()}
+              disabled={addMember.isPending || !addName || !addEmail}
+              className="text-[11px] px-3 py-1 rounded font-medium disabled:opacity-50"
+              style={{ background: "rgba(6,182,212,0.2)", color: "#06B6D4", border: "1px solid rgba(6,182,212,0.3)" }}
+            >
+              {addMember.isPending ? "מוסיף..." : "הוסף"}
+            </button>
+            <button
+              onClick={() => { setShowAdd(false); setAddName(""); setAddEmail(""); setAddPassword(""); }}
+              className="text-[11px] px-3 py-1 rounded"
+              style={{ background: "#1E1E2E", color: "#64748B" }}
+            >
+              ביטול
+            </button>
+            {addMember.isError && (
+              <span className="text-[11px] self-center" style={{ color: "#EF4444" }}>שגיאה — ייתכן שהאימייל כבר קיים</span>
             )}
           </div>
         </div>
-      ))}
+      ) : businessId && (
+        <button
+          onClick={() => setShowAdd(true)}
+          className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg w-fit transition-colors"
+          style={{ background: "rgba(6,182,212,0.08)", color: "#06B6D4", border: "1px solid rgba(6,182,212,0.15)" }}
+        >
+          <UserPlus className="w-3 h-3" />
+          הוסף עובד לעסק
+        </button>
+      )}
     </div>
   );
 }
