@@ -170,7 +170,7 @@ function calcStayProgress(checkIn: string, checkOut: string | null): number {
   const now = Date.now();
   const total = end - start;
   if (total <= 0) return 100;
-  return Math.round(((now - start) / total) * 100);
+  return Math.max(0, Math.round(((now - start) / total) * 100));
 }
 
 function isOverdue(stay: BoardingStay, checkOutTime: string): boolean {
@@ -207,11 +207,12 @@ function getRoomDisplayStatus(room: Room): string {
 
 // ─── Stay Progress Bar ──────────────────────────────────────────────────────
 
-function StayProgress({ checkIn, checkOut }: { checkIn: string; checkOut: string | null }) {
+function StayProgress({ checkIn, checkOut, status }: { checkIn: string; checkOut: string | null; status: string }) {
   if (!checkOut) return null;
   const progress = calcStayProgress(checkIn, checkOut);
   const clamped = Math.min(progress, 100);
-  const color = progress > 100 ? "bg-red-500" : progress >= 75 ? "bg-amber-500" : "bg-emerald-500";
+  const isOverdue = progress > 100 && status === "checked_in";
+  const color = isOverdue ? "bg-red-500" : progress >= 75 ? "bg-amber-500" : "bg-emerald-500";
 
   return (
     <div className="w-full mt-1.5">
@@ -223,8 +224,8 @@ function StayProgress({ checkIn, checkOut }: { checkIn: string; checkOut: string
       </div>
       <div className="flex justify-between mt-0.5">
         <span className="text-[9px] text-petra-muted">{formatDate(checkIn)}</span>
-        <span className={cn("text-[9px]", progress > 100 ? "text-red-500 font-semibold" : "text-petra-muted")}>
-          {progress > 100 ? `חריגה! ${progress - 100}%` : `${progress}%`}
+        <span className={cn("text-[9px]", isOverdue ? "text-red-500 font-semibold" : "text-petra-muted")}>
+          {isOverdue ? `חריגה! ${progress - 100}%` : `${progress}%`}
         </span>
         <span className="text-[9px] text-petra-muted">{formatDate(checkOut)}</span>
       </div>
@@ -981,7 +982,7 @@ function StayRow({
           )}
         </div>
         {(stay.status === "checked_in" || stay.status === "reserved") && stay.checkOut && (
-          <StayProgress checkIn={stay.checkIn} checkOut={stay.checkOut} />
+          <StayProgress checkIn={stay.checkIn} checkOut={stay.checkOut} status={stay.status} />
         )}
       </div>
 
