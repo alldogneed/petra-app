@@ -2207,7 +2207,9 @@ export default function DashboardPage() {
             onClick={() => {
               const slug = user?.businessSlug || user?.businessId || "demo-business-001";
               const url = `${window.location.origin}/book/${slug}`;
-              copyToClipboard(url).then(() => toast.success("קישור הזמנת תורים הועתק!", { description: url })).catch(() => toast.error("לא הצלחנו להעתיק"));
+              copyToClipboard(url)
+                .then(() => toast.success("קישור הזמנת תורים הועתק!", { description: url }))
+                .catch(() => toast.info("הקישור לקוחות שלך:", { description: url, duration: 10000 }));
             }}
             className="btn-secondary flex items-center justify-center gap-2 text-slate-500 border-slate-200"
             title="העתק קישור הזמנת תורים אונליין"
