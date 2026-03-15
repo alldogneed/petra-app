@@ -7,7 +7,7 @@ import {
     Phone, Mail, Calendar, User, AlignLeft, X, Clock,
     CheckCircle2, History, Check, CalendarCheck,
     Trophy, XCircle, MessageSquare, Star, Zap, MessageCircle,
-    Pencil, Trash2,
+    Pencil, Trash2, MapPin, Tag,
 } from "lucide-react";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
@@ -18,6 +18,9 @@ interface Lead {
     name: string;
     phone: string | null;
     email: string | null;
+    city?: string | null;
+    address?: string | null;
+    requestedService?: string | null;
     source: string;
     stage: string;
     notes: string | null;
@@ -268,7 +271,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
     const [followUpError, setFollowUpError] = useState(false);
 
     const [isEditing, setIsEditing] = useState(false);
-    const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", source: "" });
+    const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", city: "", address: "", requestedService: "", source: "" });
 
     const [lostModalOpen, setLostModalOpen] = useState(false);
 
@@ -288,7 +291,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
     useEffect(() => {
         if (lead) {
             setSelectedStage(lead.stage);
-            setEditForm({ name: lead.name, phone: lead.phone || "", email: lead.email || "", source: lead.source });
+            setEditForm({ name: lead.name, phone: lead.phone || "", email: lead.email || "", city: lead.city || "", address: lead.address || "", requestedService: lead.requestedService || "", source: lead.source });
             setIsEditing(false);
             setSummary("");
             setTreatment("");
@@ -485,6 +488,8 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                 await updateLeadMutation.mutateAsync({
                     name: editForm.name, phone: editForm.phone || null,
                     email: editForm.email || null, source: editForm.source,
+                    city: editForm.city || null, address: editForm.address || null,
+                    requestedService: editForm.requestedService || null,
                 });
             }
             await closeWonMutation.mutateAsync();
@@ -524,6 +529,8 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             ...(isEditing && {
                 name: editForm.name, phone: editForm.phone || null,
                 email: editForm.email || null, source: editForm.source,
+                city: editForm.city || null, address: editForm.address || null,
+                requestedService: editForm.requestedService || null,
             }),
         });
         onClose();
@@ -630,6 +637,16 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                             </a>
                                         </div>
                                     )}
+                                    {lead.city && (
+                                        <span className="flex items-center gap-1.5 text-sm text-petra-muted">
+                                            <MapPin className="w-3.5 h-3.5" /> {lead.city}
+                                        </span>
+                                    )}
+                                    {lead.requestedService && (
+                                        <span className="flex items-center gap-1.5 text-sm text-petra-muted">
+                                            <Tag className="w-3.5 h-3.5" /> {lead.requestedService}
+                                        </span>
+                                    )}
                                     {lead.email && (
                                         <a
                                             href={`https://mail.google.com/mail/?view=cm&to=${lead.email}`}
@@ -659,6 +676,9 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                             { key: "name", label: "שם ליד" },
                                             { key: "phone", label: "טלפון" },
                                             { key: "email", label: "אימייל" },
+                                            { key: "city", label: "עיר מגורים" },
+                                            { key: "address", label: "כתובת" },
+                                            { key: "requestedService", label: "שירות מבוקש" },
                                         ].map(({ key, label }) => (
                                             <div key={key}>
                                                 <label className="label text-xs">{label}</label>

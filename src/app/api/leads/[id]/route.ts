@@ -14,6 +14,7 @@ const PatchLeadSchema = z.object({
   email: z.string().max(200).nullable().optional(),
   city: z.string().max(100).nullable().optional(),
   address: z.string().max(500).nullable().optional(),
+  requestedService: z.string().max(200).nullable().optional(),
   source: z.string().max(50).optional(),
   notes: z.string().max(5000).nullable().optional(),
   lostReasonCode: z.string().max(50).nullable().optional(),
@@ -42,7 +43,7 @@ export async function PATCH(
     // Use raw (any) for Prisma after Zod validation — avoids nullable/optional type conflicts
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const body: any = raw;
-    const { stage, name, phone, email, city, address, source, notes, lostReasonCode, lostReasonText, lastContactedAt, wonAt, lostAt, nextFollowUpAt, followUpStatus } = body;
+    const { stage, name, phone, email, city, address, requestedService, source, notes, lostReasonCode, lostReasonText, lastContactedAt, wonAt, lostAt, nextFollowUpAt, followUpStatus } = body;
 
     const existing = await prisma.lead.findFirst({
       where: { id, businessId: authResult.businessId },
@@ -71,6 +72,7 @@ export async function PATCH(
         ...(email !== undefined && { email }),
         ...(city !== undefined && { city }),
         ...(address !== undefined && { address }),
+        ...(requestedService !== undefined && { requestedService }),
         ...(source !== undefined && { source }),
         ...(notes !== undefined && { notes }),
         ...(lostReasonCode !== undefined && { lostReasonCode }),

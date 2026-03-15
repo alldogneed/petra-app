@@ -553,6 +553,7 @@ model Lead {
   email            String?
   city             String?
   address          String?
+  requestedService String?
   source           String   @default("manual")
   stage            String   @default("new")
   notes            String?

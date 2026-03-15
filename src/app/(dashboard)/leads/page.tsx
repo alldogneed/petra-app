@@ -83,7 +83,7 @@ const STAGE_COLORS = [
 function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: () => void; stages: LeadStage[] }) {
   const queryClient = useQueryClient();
   const activeStages = stages.filter((s) => !s.isWon && !s.isLost);
-  const emptyForm = { name: "", phone: "", email: "", city: "", address: "", source: "manual", notes: "", stage: activeStages[0]?.id || "new" };
+  const emptyForm = { name: "", phone: "", email: "", city: "", address: "", requestedService: "", source: "manual", notes: "", stage: activeStages[0]?.id || "new" };
   const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
@@ -186,6 +186,15 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
                 placeholder="רחוב, מספר"
               />
             </div>
+          </div>
+          <div>
+            <label className="label">שירות מבוקש</label>
+            <input
+              className="input"
+              value={form.requestedService}
+              onChange={(e) => setForm({ ...form, requestedService: e.target.value })}
+              placeholder="אילוף, פנסיון, גרומינג..."
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
