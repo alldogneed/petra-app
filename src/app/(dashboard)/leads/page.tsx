@@ -1647,7 +1647,7 @@ function LeadsPageContent() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 overflow-x-auto pb-6 items-stretch mb-8 snap-x snap-mandatory scrollbar-hide" style={{ minHeight: "500px" }}>
+          <div ref={kanbanScrollRef} className="flex gap-4 overflow-x-auto pb-6 items-stretch mb-8 snap-x snap-mandatory scrollbar-hide" style={{ minHeight: "500px" }}>
             {activeStages.map((stage) => {
               const stageLeads = leads.filter((l) => l.stage === stage.id);
               return (
@@ -1672,6 +1672,7 @@ function LeadsPageContent() {
                 </div>
               );
             })}
+            <AddStageInline onAdd={handleAddStage} triggerOpen={addStageTrigger} />
           </div>
 
           <ArchiveList leads={filteredLeads} wonStage={wonStage} lostStage={lostStage} onLeadClick={(lead) => setSelectedLead(lead)} />
