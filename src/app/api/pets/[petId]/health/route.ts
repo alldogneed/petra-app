@@ -32,7 +32,8 @@ export async function PATCH(
       "rabiesLastDate", "rabiesValidUntil",
       "dhppLastDate", "dhppValidUntil",
       "dhppPuppy1Date", "dhppPuppy2Date", "dhppPuppy3Date",
-      "bordatellaDate", "bordatellaValidUntil", "parkWormDate", "dewormingLastDate",
+      "bordatellaDate", "bordatellaValidUntil", "parkWormDate", "parkWormValidUntil",
+      "dewormingLastDate", "dewormingValidUntil",
       "fleaTickDate", "fleaTickExpiryDate",
     ];
     const stringFields = ["allergies", "medicalConditions", "surgeriesHistory", "activityLimitations", "vetName", "vetPhone", "originInfo", "timeWithOwner", "fleaTickType"];

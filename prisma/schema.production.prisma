@@ -1490,7 +1490,9 @@ model DogHealth {
   dhppHistory          Json?
   bordatellaHistory    Json?
   parkWormDate         DateTime?
+  parkWormValidUntil   DateTime?
   dewormingLastDate    DateTime?
+  dewormingValidUntil  DateTime?
   fleaTickType         String?
   fleaTickDate         DateTime?
   fleaTickExpiryDate   DateTime?

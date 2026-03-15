@@ -103,7 +103,9 @@ interface PetHealth {
   dhppHistory: { date: string; validUntil: string | null; recordedAt: string }[] | null;
   bordatellaHistory: { date: string; validUntil: string | null; recordedAt: string }[] | null;
   parkWormDate: string | null;
+  parkWormValidUntil: string | null;
   dewormingLastDate: string | null;
+  dewormingValidUntil: string | null;
   fleaTickType: string | null;
   fleaTickDate: string | null;
   fleaTickExpiryDate: string | null;
@@ -3031,6 +3033,7 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
   const [microchipInput, setMicrochipInput] = useState(pet.microchip ?? "");
   const [showEditPetModal, setShowEditPetModal] = useState(false);
   const [renewingVaccine, setRenewingVaccine] = useState<{ type: "rabies" | "dhpp" | "bordetella"; label: string } | null>(null);
+  const [renewingTreatment, setRenewingTreatment] = useState<{ type: "parkWorm" | "deworming" | "fleaTick"; label: string } | null>(null);
   const [expandedVaccineHistory, setExpandedVaccineHistory] = useState<string | null>(null);
   const [editingHours, setEditingHours] = useState(false);
   const [hoursInput, setHoursInput] = useState(String(dog.trainingTotalHours ?? 0));
@@ -3374,10 +3377,10 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
                     { label: "משושה בוגר (DHPP)", date: pet.health.dhppLastDate, until: pet.health.dhppValidUntil, vaccineType: "dhpp", history: pet.health.dhppHistory },
                     { label: "שעלת מכלאות", date: pet.health.bordatellaDate, until: pet.health.bordatellaValidUntil, vaccineType: "bordetella", history: pet.health.bordatellaHistory },
                   ];
-                  const simpleVaccines = [
-                    { label: "תולעת הפארק", date: pet.health.parkWormDate, until: null },
-                    { label: "תילוע", date: pet.health.dewormingLastDate, until: null },
-                    ...(pet.health.fleaTickDate ? [{ label: pet.health.fleaTickType || "קרציות ופרעושים", date: pet.health.fleaTickDate, until: pet.health.fleaTickExpiryDate }] : []),
+                  const treatmentItems: { type: "parkWorm" | "deworming" | "fleaTick"; label: string; date: string | null; until: string | null | undefined }[] = [
+                    { type: "parkWorm", label: "תולעת הפארק", date: pet.health.parkWormDate, until: pet.health.parkWormValidUntil },
+                    { type: "deworming", label: "תילוע", date: pet.health.dewormingLastDate, until: pet.health.dewormingValidUntil },
+                    ...(pet.health.fleaTickDate ? [{ type: "fleaTick" as const, label: pet.health.fleaTickType || "קרציות ופרעושים", date: pet.health.fleaTickDate, until: pet.health.fleaTickExpiryDate }] : []),
                   ];
                   return [
                     ...renewableVaccines
@@ -3432,20 +3435,30 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
                           </div>
                         );
                       }),
-                    ...simpleVaccines
+                    ...treatmentItems
                       .filter((v) => v.date)
                       .map((v) => {
                         const st = getStatus(v.until);
                         return (
-                          <div key={v.label} className={`flex items-center justify-between p-2.5 rounded-lg text-sm ${statusStyle[st]}`}>
-                            <span className="text-petra-text font-medium">{v.label}</span>
-                            <div className="text-right">
-                              <span className="text-petra-muted">{toDate(v.date)}</span>
-                              {v.until && (
-                                <p className={`text-xs ${untilStyle[st]}`}>
-                                  {st === "expired" ? "⚠️ פג תוקף: " : st === "expiring" ? "⏰ תוקף עד: " : "תוקף: "}{toDate(v.until)}
-                                </p>
-                              )}
+                          <div key={v.label} className={`rounded-lg text-sm ${statusStyle[st]}`}>
+                            <div className="flex items-center justify-between p-2.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-petra-text font-medium">{v.label}</span>
+                                <button
+                                  onClick={() => setRenewingTreatment({ type: v.type, label: v.label })}
+                                  className="text-xs px-2 py-0.5 bg-white border border-slate-300 rounded-full font-medium text-petra-muted hover:bg-slate-50 transition-colors"
+                                >
+                                  ↻ חדש טיפול
+                                </button>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-petra-muted">{toDate(v.date)}</span>
+                                {v.until && (
+                                  <p className={`text-xs ${untilStyle[st]}`}>
+                                    {st === "expired" ? "⚠️ פג תוקף: " : st === "expiring" ? "⏰ תוקף עד: " : "תוקף: "}{toDate(v.until)}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
@@ -3588,6 +3601,16 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
           vaccineType={renewingVaccine.type}
           vaccineLabel={renewingVaccine.label}
           onClose={() => setRenewingVaccine(null)}
+        />
+      )}
+      {renewingTreatment && (
+        <TreatmentRenewalModal
+          petId={pet.id}
+          dogId={dogId}
+          treatmentType={renewingTreatment.type}
+          treatmentLabel={renewingTreatment.label}
+          onClose={() => setRenewingTreatment(null)}
+          onSaved={invalidate}
         />
       )}
     </div>
@@ -4833,6 +4856,72 @@ function VaccineRenewalModal({
   );
 }
 
+// ─── Treatment Renewal Modal ───
+
+const TREATMENT_DATE_FIELD: Record<string, { dateField: string; validUntilField: string }> = {
+  parkWorm:  { dateField: "parkWormDate",      validUntilField: "parkWormValidUntil" },
+  deworming: { dateField: "dewormingLastDate",  validUntilField: "dewormingValidUntil" },
+  fleaTick:  { dateField: "fleaTickDate",       validUntilField: "fleaTickExpiryDate" },
+};
+
+function TreatmentRenewalModal({
+  petId, dogId, treatmentType, treatmentLabel, onClose, onSaved,
+}: {
+  petId: string; dogId: string; treatmentType: "parkWorm" | "deworming" | "fleaTick"; treatmentLabel: string; onClose: () => void; onSaved: () => void;
+}) {
+  const [newDate, setNewDate] = useState("");
+  const [newValidUntil, setNewValidUntil] = useState("");
+  const fields = TREATMENT_DATE_FIELD[treatmentType];
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/pets/${petId}/health`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          [fields.dateField]: newDate,
+          [fields.validUntilField]: newValidUntil || null,
+        }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
+    onSuccess: () => {
+      onSaved();
+      toast.success(`טיפול ${treatmentLabel} עודכן`);
+      onClose();
+    },
+    onError: (e: Error) => toast.error(e.message || "שגיאה בעדכון טיפול"),
+  });
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold">חידוש טיפול — {treatmentLabel}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="label">תאריך טיפול חדש *</label>
+            <input type="date" className="input" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">תוקף עד</label>
+            <input type="date" className="input" value={newValidUntil} onChange={(e) => setNewValidUntil(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-5">
+          <button className="btn-primary flex-1" disabled={!newDate || mutation.isPending} onClick={() => mutation.mutate()}>
+            {mutation.isPending ? "שומר..." : "שמור טיפול חדש"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── SD Health Modal ───
 
 function SDHealthModal({
@@ -4854,7 +4943,9 @@ function SDHealthModal({
     bordatellaDate: toDateInput(h?.bordatellaDate ?? null),
     bordatellaValidUntil: toDateInput(h?.bordatellaValidUntil ?? null),
     parkWormDate: toDateInput(h?.parkWormDate ?? null),
+    parkWormValidUntil: toDateInput(h?.parkWormValidUntil ?? null),
     dewormingLastDate: toDateInput(h?.dewormingLastDate ?? null),
+    dewormingValidUntil: toDateInput(h?.dewormingValidUntil ?? null),
     fleaTickType: h?.fleaTickType ?? "",
     fleaTickDate: toDateInput(h?.fleaTickDate ?? null),
     fleaTickExpiryDate: toDateInput(h?.fleaTickExpiryDate ?? null),
@@ -4928,11 +5019,17 @@ function SDHealthModal({
             </div>
             <div>
               <p className="text-xs font-medium mb-2">תולעת הפארק</p>
-              <div><label className="label">תאריך טיפול</label><input className="input" type="date" value={form.parkWormDate} onChange={(e) => setForm({ ...form, parkWormDate: e.target.value })} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="label">תאריך טיפול</label><input className="input" type="date" value={form.parkWormDate} onChange={(e) => setForm({ ...form, parkWormDate: e.target.value })} /></div>
+                <div><label className="label">תוקף עד</label><input className="input" type="date" value={(form as unknown as Record<string, string>).parkWormValidUntil ?? ""} onChange={(e) => setForm({ ...form, parkWormValidUntil: e.target.value })} /></div>
+              </div>
             </div>
             <div>
               <p className="text-xs font-medium mb-2">תילוע</p>
-              <div><label className="label">תאריך תילוע</label><input className="input" type="date" value={form.dewormingLastDate} onChange={(e) => setForm({ ...form, dewormingLastDate: e.target.value })} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="label">תאריך תילוע</label><input className="input" type="date" value={form.dewormingLastDate} onChange={(e) => setForm({ ...form, dewormingLastDate: e.target.value })} /></div>
+                <div><label className="label">תוקף עד</label><input className="input" type="date" value={(form as unknown as Record<string, string>).dewormingValidUntil ?? ""} onChange={(e) => setForm({ ...form, dewormingValidUntil: e.target.value })} /></div>
+              </div>
             </div>
             <div>
               <p className="text-xs font-medium mb-2">קרציות ופרעושים</p>
