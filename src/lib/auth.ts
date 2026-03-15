@@ -68,18 +68,13 @@ export async function ensureUserHasBusiness(
   const slugSuffix = Math.random().toString(36).slice(2, 7);
   const slug = `${slugBase}-${slugSuffix}`;
 
-  // 14-day free trial for new signups
-  const trialEndsAt = new Date();
-  trialEndsAt.setDate(trialEndsAt.getDate() + 14);
-
   const business = await prisma.$transaction(async (tx) => {
     const biz = await tx.business.create({
       data: {
         name: `העסק של ${displayName}`,
         slug,
         status: "active",
-        tier: "pro",         // Trial gives access to pro features
-        trialEndsAt,         // Downgrades to free after 14 days
+        tier: "free",
       },
     });
 

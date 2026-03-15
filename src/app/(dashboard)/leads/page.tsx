@@ -1555,30 +1555,11 @@ function LeadsPageContent() {
             <p className="text-2xl font-bold text-petra-text">{funnelStats.conversionRate}%</p>
             <p className="text-xs text-petra-muted mt-0.5">שיעור המרה</p>
           </div>
-          {funnelStats.stageBreakdown.length > 0 && (
-            <div className="col-span-2 sm:col-span-4 bg-white rounded-xl border border-slate-200 p-4">
-              <p className="text-xs font-semibold text-petra-muted mb-3">פילוח לפי שלב</p>
-              <div className="flex gap-2 items-end h-16">
-                {funnelStats.stageBreakdown.map((s) => {
-                  const max = Math.max(...funnelStats.stageBreakdown.map((x) => x.count), 1);
-                  const pct = Math.max((s.count / max) * 100, s.count > 0 ? 12 : 4);
-                  return (
-                    <div key={s.id} className="flex-1 flex flex-col items-center gap-1">
-                      <span className="text-[10px] font-semibold text-petra-text">{s.count > 0 ? s.count : ""}</span>
-                      <div
-                        className="w-full rounded-t-md transition-all"
-                        style={{ height: `${pct}%`, backgroundColor: s.color || "#6366F1" }}
-                      />
-                      <span className="text-[10px] text-petra-muted truncate w-full text-center leading-tight">{s.name}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              {funnelStats.topSource && (
-                <p className="text-[11px] text-petra-muted mt-3">
-                  מקור מוביל: <span className="font-semibold text-petra-text">{funnelStats.topSource}</span>
-                </p>
-              )}
+          {funnelStats.topSource && (
+            <div className="col-span-2 sm:col-span-4 bg-white rounded-xl border border-slate-200 px-4 py-3">
+              <p className="text-xs text-petra-muted">
+                מקור מוביל: <span className="font-semibold text-petra-text">{funnelStats.topSource}</span>
+              </p>
             </div>
           )}
         </div>

@@ -111,7 +111,7 @@ const PLANS: {
   },
 ];
 
-const WHATSAPP_UPGRADE_PHONE = "972515311435";
+const WHATSAPP_UPGRADE_PHONE = "972504828080";
 
 const TIER_RANK: Record<string, number> = {
   free: 0,
@@ -244,7 +244,7 @@ export default function UpgradePage() {
             { q: "איך משדרגים?", a: "שליחת הודעת WhatsApp לתמיכה — המסלול מתעדכן תוך שעות." },
             { q: "האם ניתן לבטל?", a: "כן, ניתן לבטל בכל עת ללא קנסות." },
             { q: "מה קורה לנתונים בביטול?", a: "הנתונים נשמרים 30 יום לאחר ביטול." },
-            { q: "יש ניסיון חינמי?", a: "כן — 14 יום ניסיון ללא כרטיס אשראי." },
+            { q: "יש ניסיון חינמי?", a: "ניתן ליצור חשבון חינמי ללא כרטיס אשראי ולשדרג בכל עת." },
           ].map(({ q, a }) => (
             <div key={q} className="bg-slate-50 rounded-xl p-4">
               <div className="font-medium text-slate-800 text-sm mb-1">{q}</div>

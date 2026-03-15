@@ -30,7 +30,7 @@ import {
   FileText,
   ShieldCheck,
 } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import dynamic from "next/dynamic";
 
@@ -220,6 +220,18 @@ interface BizNotifItem {
   meta?: Record<string, unknown>;
 }
 
+function getBizNotifRoute(type: string): string {
+  switch (type) {
+    case "task_overdue":
+    case "task_urgent":       return "/tasks";
+    case "payment":           return "/payments";
+    case "appointment":       return "/calendar";
+    case "boarding_checkin":
+    case "boarding_checkout":  return "/boarding";
+    default:                  return "/";
+  }
+}
+
 function getBizNotifStyle(type: string): { color: string; Icon: typeof AlertCircle } {
   switch (type) {
     case "task_overdue": return { color: "#EF4444", Icon: AlertCircle };
@@ -250,6 +262,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const notificationsRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout, isOwner } = useAuth();
   const queryClient = useQueryClient();
 
@@ -518,10 +531,16 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       return (
                         <div
                           key={msg.id}
-                          onClick={() => { if (!msg.isRead) markAsRead.mutate(msg.id); }}
+                          onClick={() => {
+                            if (!msg.isRead) markAsRead.mutate(msg.id);
+                            if (msg.actionUrl) {
+                              setMessagesOpen(false);
+                              router.push(msg.actionUrl);
+                            }
+                          }}
                           className={cn(
-                            "flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0",
-                            !msg.isRead && "bg-brand-50/30 cursor-pointer"
+                            "flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0 cursor-pointer",
+                            !msg.isRead && "bg-brand-50/30"
                           )}
                         >
                           <div
@@ -589,8 +608,12 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       return (
                         <div
                           key={item.id}
+                          onClick={() => {
+                            setNotificationsOpen(false);
+                            router.push(getBizNotifRoute(item.type));
+                          }}
                           className={cn(
-                            "flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0",
+                            "flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0 cursor-pointer",
                             item.critical && "bg-red-50/40"
                           )}
                         >
