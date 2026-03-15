@@ -231,7 +231,7 @@ model Business {
   timezone    String   @default("Asia/Jerusalem")
   webhookApiKey String? @unique // per-business webhook API key (pk_...)
   sdSettings    Json?   // service-dog settings: { trackHours, defaultTargetHours, allowManualCert }
-  whatsappRemindersEnabled  Boolean @default(true)
+  whatsappRemindersEnabled  Boolean @default(false)
   whatsappReminderLeadHours Int     @default(48)
   cancellationPolicy   String?  // shown in booking wizard confirm step
   bookingWelcomeText   String?  // shown as greeting on booking page
