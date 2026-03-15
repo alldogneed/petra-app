@@ -6,7 +6,7 @@ import {
   Users, Calendar, ArrowRight, Shield, Loader2,
   ToggleLeft, ToggleRight, Minus, Zap, Check, X,
   ChevronDown, RotateCcw, LogIn, Clock, CreditCard,
-  Activity, FileText,
+  Activity, FileText, UserPlus, UserCheck, UserX, Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { fetchJSON, cn } from "@/lib/utils";
@@ -144,6 +144,11 @@ export default function TenantDetailPage() {
   const [pendingOverrides, setPendingOverrides] = useState<Record<string, OverrideValue>>({});
   const [overridesDirty, setOverridesDirty] = useState(false);
   const [tierSelectOpen, setTierSelectOpen] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [newMemberName, setNewMemberName] = useState("");
+  const [newMemberEmail, setNewMemberEmail] = useState("");
+  const [newMemberPassword, setNewMemberPassword] = useState("");
+  const [newMemberRole, setNewMemberRole] = useState<"owner" | "manager" | "user">("user");
 
   // ── Queries ──────────────────────────────────────────────────────────────────
   const { data: tenant, isLoading, error } = useQuery<TenantDetail>({
@@ -219,6 +224,39 @@ export default function TenantDetailPage() {
     onSuccess: () => {
       router.push("/dashboard");
       router.refresh();
+    },
+  });
+
+  const patchMemberMutation = useMutation({
+    mutationFn: ({ memberId, data }: { memberId: string; data: { role?: string; isActive?: boolean } }) =>
+      fetchJSON(`/api/owner/tenants/${tenantId}/members/${memberId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["owner", "tenants", tenantId] }),
+  });
+
+  const deleteMemberMutation = useMutation({
+    mutationFn: (memberId: string) =>
+      fetchJSON(`/api/owner/tenants/${tenantId}/members/${memberId}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["owner", "tenants", tenantId] }),
+  });
+
+  const addMemberMutation = useMutation({
+    mutationFn: (data: { name: string; email: string; role: string; temporaryPassword?: string }) =>
+      fetchJSON(`/api/owner/tenants/${tenantId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["owner", "tenants", tenantId] });
+      setShowAddMember(false);
+      setNewMemberName("");
+      setNewMemberEmail("");
+      setNewMemberPassword("");
+      setNewMemberRole("user");
     },
   });
 
@@ -755,9 +793,82 @@ export default function TenantDetailPage() {
 
       {/* ── Members table ─────────────────────────────────────────────────── */}
       <div className="card overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="font-semibold text-slate-900">חברי צוות ({tenant.members.length})</h2>
+          <button
+            onClick={() => setShowAddMember(true)}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            הוסף עובד
+          </button>
         </div>
+
+        {/* Add member form */}
+        {showAddMember && (
+          <div className="px-5 py-4 border-b border-slate-100 bg-orange-50/40">
+            <p className="text-xs font-semibold text-slate-700 mb-3">הוספת עובד חדש</p>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <input
+                className="input text-sm"
+                placeholder="שם מלא"
+                value={newMemberName}
+                onChange={(e) => setNewMemberName(e.target.value)}
+              />
+              <input
+                className="input text-sm"
+                placeholder="אימייל"
+                type="email"
+                dir="ltr"
+                value={newMemberEmail}
+                onChange={(e) => setNewMemberEmail(e.target.value)}
+              />
+              <input
+                className="input text-sm"
+                placeholder="סיסמה זמנית (8+ תווים)"
+                type="text"
+                dir="ltr"
+                value={newMemberPassword}
+                onChange={(e) => setNewMemberPassword(e.target.value)}
+              />
+              <select
+                className="input text-sm"
+                value={newMemberRole}
+                onChange={(e) => setNewMemberRole(e.target.value as "owner" | "manager" | "user")}
+              >
+                <option value="user">עובד</option>
+                <option value="manager">מנהל</option>
+                <option value="owner">בעלים</option>
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => addMemberMutation.mutate({
+                  name: newMemberName,
+                  email: newMemberEmail,
+                  role: newMemberRole,
+                  temporaryPassword: newMemberPassword || undefined,
+                })}
+                disabled={addMemberMutation.isPending || !newMemberName || !newMemberEmail}
+                className="px-4 py-1.5 text-xs font-medium rounded-lg bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 transition-colors"
+              >
+                {addMemberMutation.isPending ? "מוסיף..." : "הוסף"}
+              </button>
+              <button
+                onClick={() => { setShowAddMember(false); setNewMemberName(""); setNewMemberEmail(""); setNewMemberPassword(""); }}
+                className="px-4 py-1.5 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                ביטול
+              </button>
+              {addMemberMutation.isError && (
+                <span className="text-xs text-red-500 self-center">
+                  {(addMemberMutation.error as Error)?.message ?? "שגיאה"}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {tenant.members.length === 0 ? (
           <div className="px-5 py-8 text-center text-slate-400 text-sm">אין חברי צוות</div>
         ) : (
@@ -768,6 +879,7 @@ export default function TenantDetailPage() {
                 <th className="table-header-cell">תפקיד</th>
                 <th className="table-header-cell">תפקיד פלטפורמה</th>
                 <th className="table-header-cell">מצב</th>
+                <th className="table-header-cell">פעולות</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -775,7 +887,10 @@ export default function TenantDetailPage() {
                 <tr key={member.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="table-cell">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 text-sm font-bold flex-shrink-0">
+                      <div className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0",
+                        member.isActive ? "bg-slate-200 text-slate-600" : "bg-slate-100 text-slate-400"
+                      )}>
                         {member.user.name.charAt(0)}
                       </div>
                       <div>
@@ -787,7 +902,15 @@ export default function TenantDetailPage() {
                     </div>
                   </td>
                   <td className="table-cell">
-                    <span className="badge badge-neutral">{ROLE_LABEL[member.role] ?? member.role}</span>
+                    <select
+                      className="text-xs border border-slate-200 rounded px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-orange-400"
+                      value={member.role}
+                      onChange={(e) => patchMemberMutation.mutate({ memberId: member.id, data: { role: e.target.value } })}
+                    >
+                      <option value="user">עובד</option>
+                      <option value="manager">מנהל</option>
+                      <option value="owner">בעלים</option>
+                    </select>
                   </td>
                   <td className="table-cell">
                     {member.user.platformRole ? (
@@ -800,9 +923,38 @@ export default function TenantDetailPage() {
                     )}
                   </td>
                   <td className="table-cell">
-                    <span className={cn("badge", member.user.isActive ? "badge-success" : "badge-danger")}>
-                      {member.user.isActive ? "פעיל" : "חסום"}
+                    <span className={cn("badge", member.isActive ? "badge-success" : "badge-danger")}>
+                      {member.isActive ? "פעיל" : "מושהה"}
                     </span>
+                  </td>
+                  <td className="table-cell">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => patchMemberMutation.mutate({ memberId: member.id, data: { isActive: !member.isActive } })}
+                        disabled={patchMemberMutation.isPending}
+                        title={member.isActive ? "השהה גישה" : "הפעל גישה"}
+                        className={cn(
+                          "p-1.5 rounded-lg transition-colors",
+                          member.isActive
+                            ? "text-slate-400 hover:bg-red-50 hover:text-red-500"
+                            : "text-slate-400 hover:bg-green-50 hover:text-green-600"
+                        )}
+                      >
+                        {member.isActive ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`האם למחוק את ${member.user.name} מהעסק?`)) {
+                            deleteMemberMutation.mutate(member.id);
+                          }
+                        }}
+                        disabled={deleteMemberMutation.isPending}
+                        title="הסר מהעסק"
+                        className="p-1.5 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

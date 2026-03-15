@@ -87,7 +87,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     service_dogs:      false,  // Service dog module — SERVICE_DOG only
     groomer_portfolio: false,  // Before/after portfolio — GROOMER+ only
     invoicing:         false,  // Invoices — PRO+ only
-    staff_management:  false,  // Extra staff users — PRO+ only
+    staff_management:  true,   // ✅ Staff management — BASIC+
     excel_export:      false,  // Excel export — PRO+ only
     gcal_sync:         true,   // Google Calendar sync ✅
     payments:          true,   // Payment links ✅
