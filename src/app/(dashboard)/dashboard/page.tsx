@@ -53,7 +53,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlan } from "@/hooks/usePlan";
 import { usePermissions } from "@/hooks/usePermissions";
-import { formatCurrency, fetchJSON, cn, toWhatsAppPhone } from "@/lib/utils";
+import { formatCurrency, fetchJSON, cn, toWhatsAppPhone, copyToClipboard } from "@/lib/utils";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone } from "@/lib/validation";
 import dynamic from "next/dynamic";
 const SetupChecklist = dynamic(
@@ -2065,7 +2065,7 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error("Failed");
       const data = await res.json();
       if (data.url) {
-        await navigator.clipboard.writeText(data.url);
+        await copyToClipboard(data.url);
         setIntakeCopied(true);
         setTimeout(() => setIntakeCopied(false), 3000);
         toast.success("קישור טופס הקליטה הועתק ללוח!");
@@ -2207,7 +2207,7 @@ export default function DashboardPage() {
             onClick={() => {
               const slug = user?.businessSlug || user?.businessId || "demo-business-001";
               const url = `${window.location.origin}/book/${slug}`;
-              navigator.clipboard.writeText(url).then(() => {
+              copyToClipboard(url).then(() => {
                 toast.success("קישור הזמנת תורים הועתק!", { description: url });
               }).catch(() => toast.error("לא הצלחנו להעתיק"));
             }}
@@ -2310,7 +2310,7 @@ export default function DashboardPage() {
               onClick={() => {
                 const slug = user?.businessSlug || user?.businessId || "demo-business-001";
                 const url = `${window.location.origin}/book/${slug}`;
-                navigator.clipboard.writeText(url).then(() => {
+                copyToClipboard(url).then(() => {
                   toast.success("קישור הזמנת תורים הועתק!", { description: url });
                 }).catch(() => toast.error("לא הצלחנו להעתיק"));
               }}

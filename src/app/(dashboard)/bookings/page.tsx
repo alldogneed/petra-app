@@ -23,7 +23,7 @@ import {
   Share2,
 } from "lucide-react";
 import QRCode from "qrcode";
-import { cn, fetchJSON, formatCurrency, formatRelativeTime, toWhatsAppPhone } from "@/lib/utils";
+import { cn, fetchJSON, formatCurrency, formatRelativeTime, toWhatsAppPhone, copyToClipboard } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { TierGate } from "@/components/paywall/TierGate";
 
@@ -131,7 +131,7 @@ function BookingsContent() {
   const bookingLink = `${origin}/book/${bookingSlug}`;
 
   function copyLink() {
-    navigator.clipboard.writeText(bookingLink);
+    copyToClipboard(bookingLink);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
   }

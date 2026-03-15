@@ -84,6 +84,23 @@ export function toWhatsAppPhone(phone: string): string {
 }
 
 /** Safe fetch that throws on non-ok responses (for use with React Query) */
+/** Copy text to clipboard — works on iOS Safari (fallback via execCommand) */
+export async function copyToClipboard(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // Fallback for iOS Safari which loses user-gesture context after async calls
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+    document.body.appendChild(el);
+    el.focus();
+    el.select();
+    document.execCommand("copy");
+    document.body.removeChild(el);
+  }
+}
+
 export async function fetchJSON<T = unknown>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
   if (!res.ok) {

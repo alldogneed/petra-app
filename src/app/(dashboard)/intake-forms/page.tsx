@@ -15,7 +15,7 @@ import {
   ExternalLink,
   MessageCircle,
 } from "lucide-react";
-import { cn, toWhatsAppPhone } from "@/lib/utils";
+import { cn, toWhatsAppPhone, copyToClipboard } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { TierGate } from "@/components/paywall/TierGate";
 
@@ -55,7 +55,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={() => {
-        navigator.clipboard.writeText(text);
+        copyToClipboard(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
@@ -149,7 +149,7 @@ function NewIntakeModal({
             <button
               className="btn-secondary"
               onClick={() => {
-                navigator.clipboard.writeText(intakeUrl);
+                copyToClipboard(intakeUrl);
               }}
             >
               <Copy className="w-4 h-4" />

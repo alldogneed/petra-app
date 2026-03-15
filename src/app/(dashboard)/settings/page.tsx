@@ -53,7 +53,7 @@ import {
 
 const RepeatIcon = Repeat;
 import { useSearchParams } from "next/navigation";
-import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
+import { cn, fetchJSON, formatRelativeTime, copyToClipboard } from "@/lib/utils";
 import { MessagesPanel } from "@/components/messages/messages-panel";
 import { PendingApprovalsPanel } from "@/components/settings/PendingApprovalsPanel";
 import { toast } from "sonner";
@@ -383,7 +383,7 @@ function BusinessTab() {
                   type="button"
                   className="flex-shrink-0 p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
                   onClick={() => {
-                    navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_APP_URL || "https://petra-app.com"}/book/${biz.slug}`);
+                    copyToClipboard(`${process.env.NEXT_PUBLIC_APP_URL || "https://petra-app.com"}/book/${biz.slug}`);
                     setCopiedLink(true);
                     setTimeout(() => setCopiedLink(false), 2000);
                   }}
@@ -637,7 +637,7 @@ function BookingLinkBox() {
     : `/book/${slug}`;
 
   function copyLink() {
-    navigator.clipboard.writeText(bookingUrl).then(() => {
+    copyToClipboard(bookingUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -1354,7 +1354,7 @@ function MakeWebhookCard() {
   });
 
   function copy(value: string, setter: (v: boolean) => void) {
-    navigator.clipboard.writeText(value).then(() => {
+    copyToClipboard(value).then(() => {
       setter(true);
       setTimeout(() => setter(false), 2000);
     });

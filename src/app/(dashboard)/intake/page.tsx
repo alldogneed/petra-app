@@ -20,7 +20,7 @@ import {
   MessageCircle,
   Search,
 } from "lucide-react";
-import { cn, fetchJSON, formatRelativeTime, toWhatsAppPhone } from "@/lib/utils";
+import { cn, fetchJSON, formatRelativeTime, toWhatsAppPhone, copyToClipboard } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface IntakeForm {
@@ -122,7 +122,7 @@ export default function IntakePage() {
   }
 
   function copyLink(link: string) {
-    navigator.clipboard.writeText(link);
+    copyToClipboard(link);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
   }

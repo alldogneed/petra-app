@@ -65,6 +65,7 @@ import {
   getTimelineIcon,
   toWhatsAppPhone,
   fetchJSON,
+  copyToClipboard,
 } from "@/lib/utils";
 
 const DOG_BREEDS = [
@@ -1720,7 +1721,7 @@ function SendContractSection({ customerId, customerName }: { customerId: string;
                     type="button"
                     className="text-xs text-petra-muted hover:text-petra-text px-2 py-0.5 rounded hover:bg-slate-100 transition-colors flex items-center gap-1 flex-shrink-0"
                     title={req.signUrl}
-                    onClick={() => { navigator.clipboard.writeText(req.signUrl!); toast.success("הקישור הועתק!"); }}
+                    onClick={() => { copyToClipboard(req.signUrl!); toast.success("הקישור הועתק!"); }}
                   >
                     <Copy className="w-3 h-3" />
                     העתק קישור
