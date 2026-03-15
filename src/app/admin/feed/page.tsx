@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Clock, Filter } from "lucide-react";
+import { Activity, Clock, Filter, RefreshCw } from "lucide-react";
 
 const ACTION_LABELS: Record<string, string> = {
   LOGIN: "התחבר למערכת",
@@ -69,12 +69,17 @@ function formatTimestamp(date: string) {
 export default function AdminFeedPage() {
   const [actionFilter, setActionFilter] = useState("");
 
-  const { data: feed, isLoading } = useQuery({
+  const { data: feed, isLoading, dataUpdatedAt, refetch, isFetching } = useQuery({
     queryKey: ["admin-feed-full", actionFilter],
     queryFn: () =>
       fetch(`/api/admin/feed?limit=100${actionFilter ? `&action=${actionFilter}` : ""}`).then((r) => r.json()),
-    refetchInterval: 30000,
+    refetchInterval: 5000,
+    staleTime: 0,
   });
+
+  const lastUpdated = dataUpdatedAt
+    ? new Date(dataUpdatedAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+    : null;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -83,9 +88,24 @@ export default function AdminFeedPage() {
           <h1 className="text-2xl font-bold text-white">פיד פעילות</h1>
           <p className="text-sm mt-1" style={{ color: "#64748B" }}>כל הפעולות בפלטפורמה בזמן אמת</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-[10px]" style={{ color: "#64748B" }}>עדכון כל 30 שניות</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className={`w-2 h-2 rounded-full ${isFetching ? "bg-cyan-400 animate-ping" : "bg-green-400 animate-pulse"}`} />
+            <span className="text-[10px]" style={{ color: "#64748B" }}>
+              {isFetching ? "מעדכן..." : lastUpdated ? `עודכן ${lastUpdated}` : "עדכון כל 5 שניות"}
+            </span>
+          </div>
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            title="רענן"
+            className="p-1.5 rounded-lg transition-colors disabled:opacity-40"
+            style={{ background: "#1E1E2E", color: "#64748B" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#06B6D4")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#64748B")}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
+          </button>
         </div>
       </div>
 
