@@ -43,7 +43,7 @@ interface ServiceDogCard {
   trainingStatus: string;
   isGovReportPending: boolean;
   currentLocation: string;
-  pet: { id: string; name: string; breed: string | null; species: string };
+  pet: { id: string; name: string; breed: string | null; species: string; birthDate: string | null; microchip: string | null };
   medicalCompliance: {
     completedCount: number;
     totalProtocols: number;
@@ -98,17 +98,23 @@ function ServiceDogsListPageContent() {
 
   const ARCHIVE_PHASES = ["RETIRED", "DECERTIFIED"];
 
-  const filteredDogs = dogs.filter((d) => {
-    const matchSearch =
-      !search ||
-      d.pet.name.includes(search) ||
-      (d.pet.breed || "").includes(search);
-    const matchPhase = !phaseFilter || d.phase === phaseFilter;
-    const matchArchive = showArchive
-      ? ARCHIVE_PHASES.includes(d.phase)
-      : !ARCHIVE_PHASES.includes(d.phase);
-    return matchSearch && matchPhase && matchArchive;
-  });
+  const filteredDogs = dogs
+    .filter((d) => {
+      const matchSearch =
+        !search ||
+        d.pet.name.includes(search) ||
+        (d.pet.breed || "").includes(search);
+      const matchPhase = !phaseFilter || d.phase === phaseFilter;
+      const matchArchive = showArchive
+        ? ARCHIVE_PHASES.includes(d.phase)
+        : !ARCHIVE_PHASES.includes(d.phase);
+      return matchSearch && matchPhase && matchArchive;
+    })
+    .sort((a, b) => {
+      const dateA = a.pet.birthDate ? new Date(a.pet.birthDate).getTime() : Infinity;
+      const dateB = b.pet.birthDate ? new Date(b.pet.birthDate).getTime() : Infinity;
+      return dateA - dateB; // oldest first
+    });
 
   const activeDogs = dogs.filter((d) => !ARCHIVE_PHASES.includes(d.phase));
   const archivedDogs = dogs.filter((d) => ARCHIVE_PHASES.includes(d.phase));
@@ -254,11 +260,11 @@ function ServiceDogsListPageContent() {
             <thead>
               <tr className="border-b bg-slate-50">
                 <th className="p-3 font-medium text-petra-muted">שם</th>
+                <th className="p-3 font-medium text-petra-muted">תאריך לידה</th>
+                <th className="p-3 font-medium text-petra-muted">שבב</th>
                 <th className="p-3 font-medium text-petra-muted">גזע</th>
                 <th className="p-3 font-medium text-petra-muted">שלב</th>
-                <th className="p-3 font-medium text-petra-muted">סוג שירות</th>
                 <th className="p-3 font-medium text-petra-muted">מיקום</th>
-                <th className="p-3 font-medium text-petra-muted">שעות אימון</th>
                 <th className="p-3 font-medium text-petra-muted">זכאי</th>
               </tr>
             </thead>
@@ -266,12 +272,8 @@ function ServiceDogsListPageContent() {
               {filteredDogs.map((dog) => {
                 const phaseInfo = SERVICE_DOG_PHASE_MAP[dog.phase];
                 const phaseColors = SERVICE_DOG_PHASE_COLORS[dog.phase];
-                const hoursPercent = dog.trainingTargetHours > 0
-                  ? Math.min(100, Math.round((dog.trainingTotalHours / dog.trainingTargetHours) * 100))
-                  : 0;
                 const loc = dog.currentLocation || "TRAINER";
                 const locInfo = LOCATION_MAP[loc];
-                const serviceTypeLabel = SERVICE_DOG_TYPES.find((t) => t.id === dog.serviceType)?.label;
                 return (
                   <tr key={dog.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="p-3">
@@ -284,6 +286,12 @@ function ServiceDogsListPageContent() {
                         </span>
                       )}
                     </td>
+                    <td className="p-3 text-petra-muted text-xs">
+                      {dog.pet.birthDate
+                        ? new Date(dog.pet.birthDate).toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" })
+                        : "—"}
+                    </td>
+                    <td className="p-3 text-petra-muted text-xs font-mono">{dog.pet.microchip || "—"}</td>
                     <td className="p-3 text-petra-muted">{dog.pet.breed || dog.pet.species}</td>
                     <td className="p-3">
                       <span
@@ -293,7 +301,6 @@ function ServiceDogsListPageContent() {
                         {phaseInfo?.label || dog.phase}
                       </span>
                     </td>
-                    <td className="p-3 text-petra-muted">{serviceTypeLabel || "—"}</td>
                     <td className="p-3">
                       {loc !== "TRAINER" ? (
                         <span
@@ -305,17 +312,6 @@ function ServiceDogsListPageContent() {
                       ) : (
                         <span className="text-xs text-petra-muted">מאלף</span>
                       )}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className={cn("h-full rounded-full", hoursPercent >= 100 ? "bg-emerald-500" : hoursPercent >= 50 ? "bg-blue-500" : "bg-amber-500")}
-                            style={{ width: `${hoursPercent}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-petra-muted">{dog.trainingTotalHours.toFixed(0)}/{dog.trainingTargetHours}</span>
-                      </div>
                     </td>
                     <td className="p-3 text-petra-muted">{dog.activePlacement?.recipientName || "—"}</td>
                   </tr>
