@@ -21,6 +21,7 @@ const ACTION_LABELS: Record<string, string> = {
   DELETE_BOOKING: "מחיקת הזמנה אונליין",
   CREATE_LEAD: "יצירת ליד",
   UPDATE_LEAD: "עדכון ליד",
+  DELETE_LEAD: "מחיקת ליד",
   ADD_PET: "הוספת חיית מחמד",
   CREATE_TASK: "יצירת משימה",
   COMPLETE_TASK: "השלמת משימה",

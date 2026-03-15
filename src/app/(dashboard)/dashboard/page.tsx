@@ -244,6 +244,7 @@ const ORDER_STATUS_BADGE: Record<string, string> = {
   confirmed: "badge-brand",
   completed: "badge-success",
   canceled: "badge-danger",
+  cancelled: "badge-danger",
 };
 
 const ORDER_STATUS_LABEL: Record<string, string> = {
@@ -251,6 +252,7 @@ const ORDER_STATUS_LABEL: Record<string, string> = {
   confirmed: "מאושר",
   completed: "הושלם",
   canceled: "בוטל",
+  cancelled: "בוטל",
 };
 
 const ACTIVITY_ICONS: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
@@ -1210,8 +1212,8 @@ function VaccinationAlertWidget() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <Link href={`/customers/${v.customerId}`} className="text-sm font-medium text-petra-text hover:text-brand-600 truncate block">
-                  {v.petName} <span className="font-normal text-petra-muted">({v.customerName})</span>
+                <Link href={v.customerId ? `/customers/${v.customerId}` : "/customers"} className="text-sm font-medium text-petra-text hover:text-brand-600 truncate block">
+                  {v.petName}{v.customerName && <span className="font-normal text-petra-muted"> ({v.customerName})</span>}
                 </Link>
                 <div className={cn(
                   "text-[11px] font-medium",
