@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         businessMemberships: {
           where: { isActive: true },
-          include: { business: { select: { name: true, tier: true } } },
+          include: { business: { select: { id: true, name: true, tier: true } } },
           take: 1,
         },
       },
@@ -64,18 +64,37 @@ export async function GET(request: NextRequest) {
   const scoreMap = new Map(activityCounts.map((a) => [a.userId, a._count]));
   const lastMap = new Map(lastActivities.map((a) => [a.userId, a.createdAt]));
 
-  const enrichedUsers = users.map((u) => ({
-    id: u.id,
-    name: u.name,
-    email: u.email,
-    role: u.role,
-    isActive: u.isActive,
-    createdAt: u.createdAt,
-    businessName: u.businessMemberships[0]?.business?.name || null,
-    businessTier: u.businessMemberships[0]?.business?.tier || null,
-    activityScore: scoreMap.get(u.id) || 0,
-    lastActivityAt: lastMap.get(u.id) || null,
-  }));
+  // Count team members per business
+  const businessIds = users
+    .map((u) => u.businessMemberships[0]?.business?.id)
+    .filter((id): id is string => !!id);
+
+  const teamCounts = businessIds.length
+    ? await prisma.businessUser.groupBy({
+        by: ["businessId"],
+        where: { businessId: { in: businessIds } },
+        _count: true,
+      })
+    : [];
+  const teamMap = new Map(teamCounts.map((t) => [t.businessId, t._count]));
+
+  const enrichedUsers = users.map((u) => {
+    const bizId = u.businessMemberships[0]?.business?.id || null;
+    return {
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      isActive: u.isActive,
+      createdAt: u.createdAt,
+      businessId: bizId,
+      businessName: u.businessMemberships[0]?.business?.name || null,
+      businessTier: u.businessMemberships[0]?.business?.tier || null,
+      teamCount: bizId ? teamMap.get(bizId) || 0 : 0,
+      activityScore: scoreMap.get(u.id) || 0,
+      lastActivityAt: lastMap.get(u.id) || null,
+    };
+  });
 
   return NextResponse.json({ users: enrichedUsers, total, page, limit });
 }

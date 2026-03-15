@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search, Users, Shield, ShieldOff, X, Clock, Activity,
   ChevronLeft, ChevronRight, Crown, Laptop, RefreshCw, UserPlus, Eye, EyeOff,
-  Check, Minus, ToggleLeft, ToggleRight, Zap, Loader2, Trash2,
+  Check, Minus, ToggleLeft, ToggleRight, Zap, Loader2, Trash2, ChevronDown,
 } from "lucide-react";
 import { type FeatureKey, type TierKey, hasFeature } from "@/lib/feature-flags";
 
@@ -75,11 +75,19 @@ function getScoreStyle(score: number): React.CSSProperties {
 
 type OverrideValue = true | false | null;
 
+interface TeamMember {
+  id: string;
+  role: string;
+  isActive: boolean;
+  user: { id: string; name: string; email: string };
+}
+
 interface BusinessInfo {
   id: string;
   name: string;
   tier: string;
   featureOverrides: Record<string, boolean> | null;
+  members?: TeamMember[];
 }
 
 interface User {
@@ -90,8 +98,10 @@ interface User {
   platformRole: string | null;
   isActive: boolean;
   createdAt: string;
+  businessId: string | null;
   businessName: string | null;
   businessTier: string | null;
+  teamCount: number;
   activityScore: number;
   lastActivityAt: string | null;
 }
@@ -334,6 +344,70 @@ function FeaturePanel({ business, onRefresh }: { business: BusinessInfo; onRefre
   );
 }
 
+// ─── Team Members Row ─────────────────────────────────────────────────────────
+
+const ROLE_LABELS: Record<string, string> = {
+  owner: "בעלים",
+  manager: "מנהל",
+  staff: "צוות",
+};
+
+function TeamMembersRow({ userId }: { userId: string }) {
+  const { data, isLoading } = useQuery<UserDetail>({
+    queryKey: ["admin-user-detail", userId],
+    queryFn: () => fetch(`/api/admin/users/${userId}`).then((r) => r.json()),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 py-2 text-xs" style={{ color: "#64748B" }}>
+        <Loader2 className="w-3.5 h-3.5 animate-spin" /> טוען חברי צוות...
+      </div>
+    );
+  }
+
+  const members = data?.businessMemberships?.[0]?.business?.members ?? [];
+
+  if (!members.length) {
+    return <div className="text-xs py-2" style={{ color: "#475569" }}>אין חברי צוות</div>;
+  }
+
+  return (
+    <div className="grid gap-1.5">
+      {members.map((m) => (
+        <div
+          key={m.id}
+          className="flex items-center justify-between px-3 py-1.5 rounded-lg"
+          style={{ background: "#12121A", border: "1px solid #1E1E2E" }}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+              style={{ background: m.isActive ? "rgba(6,182,212,0.15)" : "rgba(100,116,139,0.2)", color: m.isActive ? "#06B6D4" : "#64748B" }}
+            >
+              {m.user.name.charAt(0)}
+            </div>
+            <div>
+              <span className="text-xs text-white">{m.user.name}</span>
+              <span className="text-[10px] mx-1.5" style={{ color: "#475569" }}>{m.user.email}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "#1E1E2E", color: "#94A3B8" }}>
+              {ROLE_LABELS[m.role] || m.role}
+            </span>
+            {!m.isActive && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "#EF444420", color: "#EF4444" }}>
+                לא פעיל
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function AdminUsersPage() {
@@ -344,6 +418,7 @@ export default function AdminUsersPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [detailTab, setDetailTab] = useState<"info" | "subscription">("info");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -474,7 +549,7 @@ export default function AdminUsersPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: "1px solid #1E1E2E" }}>
-                    {["שם", "תפקיד", "עסק / מנוי", "הצטרפות", "פעילות אחרונה", "ציון", "פעולות"].map((h) => (
+                    {["שם", "תפקיד", "עסק / מנוי", "צוות", "הצטרפות", "פעילות אחרונה", "ציון", "פעולות"].map((h) => (
                       <th key={h} className="text-right px-4 py-3 text-xs font-medium" style={{ color: "#64748B" }}>{h}</th>
                     ))}
                   </tr>
@@ -483,8 +558,8 @@ export default function AdminUsersPage() {
                   {users.map((user) => {
                     const roleInfo = user.platformRole ? PLATFORM_ROLE_LABELS[user.platformRole] : null;
                     return (
+                      <React.Fragment key={user.id}>
                       <tr
-                        key={user.id}
                         className="hover:bg-white/[0.02] transition-colors"
                         style={{ borderBottom: "1px solid #1E1E2E", opacity: user.isActive ? 1 : 0.55 }}
                       >
@@ -517,6 +592,24 @@ export default function AdminUsersPage() {
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(6,182,212,0.1)", color: "#06B6D4" }}>
                               {user.businessTier}
                             </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {user.teamCount > 0 ? (
+                            <button
+                              onClick={() => setExpandedUserId(expandedUserId === user.id ? null : user.id)}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors"
+                              style={{ background: "rgba(6,182,212,0.1)", color: "#06B6D4", border: "1px solid rgba(6,182,212,0.2)" }}
+                            >
+                              <Users className="w-3 h-3" />
+                              {user.teamCount}
+                              <ChevronDown
+                                className="w-3 h-3 transition-transform"
+                                style={{ transform: expandedUserId === user.id ? "rotate(180deg)" : undefined }}
+                              />
+                            </button>
+                          ) : (
+                            <span className="text-xs" style={{ color: "#475569" }}>—</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-sm" style={{ color: "#94A3B8" }}>{formatDate(user.createdAt)}</td>
@@ -567,6 +660,14 @@ export default function AdminUsersPage() {
                           </div>
                         </td>
                       </tr>
+                      {expandedUserId === user.id && (
+                        <tr style={{ background: "#0A0A0F" }}>
+                          <td colSpan={8} className="px-4 py-3">
+                            <TeamMembersRow userId={user.id} />
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>

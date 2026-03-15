@@ -2065,20 +2065,10 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error("Failed");
       const data = await res.json();
       if (data.url) {
-        // On mobile, iOS requires clipboard to be called synchronously within user gesture.
-        // navigator.share() is the reliable mobile alternative.
-        if (typeof navigator.share === "function") {
-          try {
-            await navigator.share({ url: data.url, title: "טופס קליטת לקוח" });
-            return;
-          } catch {
-            // User dismissed share sheet — fall through to clipboard attempt
-          }
-        }
         await copyToClipboard(data.url);
         setIntakeCopied(true);
         setTimeout(() => setIntakeCopied(false), 3000);
-        toast.success("קישור טופס הקליטה הועתק ללוח!");
+        toast.success("קישור טופס הקליטה הועתק ללוח!", { description: data.url });
       }
     } catch {
       toast.error("שגיאה ביצירת קישור טופס הרישום");
@@ -2217,11 +2207,7 @@ export default function DashboardPage() {
             onClick={() => {
               const slug = user?.businessSlug || user?.businessId || "demo-business-001";
               const url = `${window.location.origin}/book/${slug}`;
-              if (typeof navigator.share === "function") {
-                navigator.share({ url, title: "הזמנת תורים אונליין" }).catch(() => copyToClipboard(url).then(() => toast.success("הועתק!")));
-              } else {
-                copyToClipboard(url).then(() => toast.success("קישור הזמנת תורים הועתק!", { description: url })).catch(() => toast.error("לא הצלחנו להעתיק"));
-              }
+              copyToClipboard(url).then(() => toast.success("קישור הזמנת תורים הועתק!", { description: url })).catch(() => toast.error("לא הצלחנו להעתיק"));
             }}
             className="btn-secondary flex items-center justify-center gap-2 text-slate-500 border-slate-200"
             title="העתק קישור הזמנת תורים אונליין"

@@ -26,7 +26,19 @@ export async function GET(
       authProvider: true,
       twoFaEnabled: true,
       businessMemberships: {
-        include: { business: { select: { id: true, name: true, tier: true, featureOverrides: true } } },
+        include: {
+          business: {
+            select: {
+              id: true, name: true, tier: true, featureOverrides: true,
+              members: {
+                select: {
+                  id: true, role: true, isActive: true,
+                  user: { select: { id: true, name: true, email: true } },
+                },
+              },
+            },
+          },
+        },
       },
       sessions: {
         orderBy: { lastSeenAt: "desc" },
