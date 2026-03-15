@@ -102,6 +102,7 @@ interface User {
   businessId: string | null;
   businessName: string | null;
   businessTier: string | null;
+  businessRole: string | null;
   teamCount: number;
   activityScore: number;
   lastActivityAt: string | null;
@@ -1089,7 +1090,10 @@ export default function AdminUsersPage() {
   });
 
   const totalPages = data ? Math.ceil(data.total / data.limit) : 1;
-  const users: User[] = data?.users ?? [];
+  // Hide staff (non-owner) who belong to a business — they appear under their owner in the Businesses tab
+  const users: User[] = (data?.users ?? []).filter(
+    (u: User) => !u.businessId || u.businessRole === "owner" || !!u.platformRole
+  );
 
   // Active business for selected user
   const activeBusiness = userDetail?.businessMemberships?.find((m) => m.isActive)?.business
