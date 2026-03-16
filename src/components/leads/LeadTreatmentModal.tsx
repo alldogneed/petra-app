@@ -627,7 +627,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                             </a>
                                             <a
                                                 href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(lead.phone)}`}
-                                                target="_blank"
+                                                target="whatsapp_window"
                                                 rel="noopener noreferrer"
                                                 title="שלח הודעה בוואטסאפ"
                                                 className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 hover:border-green-300 transition-colors"

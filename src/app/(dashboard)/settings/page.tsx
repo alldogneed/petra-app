@@ -1040,6 +1040,23 @@ function IntegrationsTab() {
           variant="inline"
         />
       )}
+
+      {/* ── Google Contacts (Coming Soon) ── */}
+      <div className="card p-5 flex items-start gap-4 opacity-70">
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-50">
+          <Users2 className="w-6 h-6 text-blue-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-semibold text-petra-text">Google Contacts</h3>
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">קרוב</span>
+          </div>
+          <p className="text-sm text-petra-muted mt-0.5">סנכרן לידים ולקוחות אוטומטית לאנשי הקשר ב-Google — עדכונים בזמן אמת בנייד וב-Gmail</p>
+        </div>
+        <div className="flex-shrink-0">
+          <span className="text-xs text-petra-muted">בקרוב</span>
+        </div>
+      </div>
     </div>
   );
 }

@@ -12,7 +12,7 @@ import {
   CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles, MapPin, Tag,
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
-import { validateIsraeliPhone, validateEmail, sanitizeName, validateName } from "@/lib/validation";
+import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone } from "@/lib/validation";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
@@ -152,6 +152,13 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
                 className={cn("input", leadFieldErrors.phone && "border-red-300 focus:ring-red-200")}
                 value={form.phone}
                 onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (leadFieldErrors.phone) setLeadFieldErrors({ ...leadFieldErrors, phone: undefined }); }}
+                onPaste={(e) => {
+                  e.preventDefault();
+                  const pasted = e.clipboardData.getData("text");
+                  const normalized = normalizeIsraeliPhone(pasted);
+                  setForm((f) => ({ ...f, phone: normalized }));
+                  if (leadFieldErrors.phone) setLeadFieldErrors((err) => ({ ...err, phone: undefined }));
+                }}
                 placeholder="050-0000000"
                 inputMode="tel"
               />
@@ -796,7 +803,7 @@ function DraggableLeadCard({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(lead.phone!)}`, "_blank");
+                window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(lead.phone!)}`, "whatsapp_window");
               }}
               className="w-7 h-7 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors"
               title="שלח וואטסאפ"
