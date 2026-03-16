@@ -67,6 +67,7 @@ import {
   fetchJSON,
   copyToClipboard,
 } from "@/lib/utils";
+import { validateIsraeliPhone, validateEmail, sanitizeName, normalizeIsraeliPhone, validateName } from "@/lib/validation";
 
 const DOG_BREEDS = [
   "גולדן רטריוור", "לברדור", "בורדר קולי", "ג'ק ראסל", "פודל", "צ'יוואווה",
@@ -1076,6 +1077,7 @@ function EditCustomerModal({
       }
     })() as string[],
   });
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; phone?: string; email?: string }>({});
 
   const toggleTag = (tag: string) => {
     setForm((prev) => ({
@@ -1209,18 +1211,27 @@ function EditCustomerModal({
           <button
             className="btn-primary flex-1"
             disabled={!form.name || !form.phone || mutation.isPending}
-            onClick={() =>
+            onClick={() => {
+              const errors: typeof fieldErrors = {};
+              const nameErr = validateName(form.name);
+              if (nameErr) errors.name = nameErr;
+              const phoneErr = validateIsraeliPhone(form.phone);
+              if (phoneErr) errors.phone = phoneErr;
+              const emailErr = validateEmail(form.email);
+              if (emailErr) errors.email = emailErr;
+              setFieldErrors(errors);
+              if (Object.keys(errors).length > 0) return;
               mutation.mutate({
-                name: form.name,
-                phone: form.phone,
+                name: sanitizeName(form.name),
+                phone: normalizeIsraeliPhone(form.phone),
                 email: form.email || null,
                 address: form.address || null,
                 idNumber: form.idNumber || null,
                 notes: form.notes || null,
                 source: form.source || null,
                 tags: JSON.stringify(form.selectedTags),
-              })
-            }
+              });
+            }}
           >
             {mutation.isPending ? "שומר..." : "שמור שינויים"}
           </button>
@@ -1228,6 +1239,9 @@ function EditCustomerModal({
             ביטול
           </button>
         </div>
+        {fieldErrors.name && <p className="text-xs text-red-500 mt-2">{fieldErrors.name}</p>}
+        {fieldErrors.phone && <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>}
+        {fieldErrors.email && <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
       </div>
     </div>
   );
@@ -3491,7 +3505,7 @@ export default function CustomerProfilePage() {
                         const data = await res.json();
                         if (data.url && customer.phone) {
                           const msg = `שלום ${customer.name}! 📋\nאנא מלא טופס קבלה:\n${data.url}`;
-                          window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(customer.phone)}&text=${encodeURIComponent(msg)}`, "_blank");
+                          window.open(`https://wa.me/${toWhatsAppPhone(customer.phone)}?text=${encodeURIComponent(msg)}`, "_blank");
                         }
                       } finally { setIntakeSending(false); }
                     }}
@@ -3542,7 +3556,7 @@ export default function CustomerProfilePage() {
                 const data = await res.json();
                 if (data.url && customer.phone) {
                   const msg = `שלום ${customer.name}! 📋\nאנא מלא טופס קבלה עבור הכלב שלך:\n${data.url}\nהקישור בתוקף ל-7 ימים. תודה! 🐾`;
-                  window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(customer.phone)}&text=${encodeURIComponent(msg)}`, "_blank");
+                  window.open(`https://wa.me/${toWhatsAppPhone(customer.phone)}?text=${encodeURIComponent(msg)}`, "_blank");
                 }
               } finally {
                 setIntakeSending(false);
@@ -3554,7 +3568,7 @@ export default function CustomerProfilePage() {
           </button>
           {user?.businessSlug && customer.phone && (
             <a
-              href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(customer.phone)}&text=${encodeURIComponent(
+              href={`https://wa.me/${toWhatsAppPhone(customer.phone)}?text=${encodeURIComponent(
                 `שלום ${customer.name}! 📅\nקבע/י תור אונליין בקישור הבא:\n${window?.location?.origin || ""}/book/${user.businessSlug}\nנשמח לראותך! 🐾`
               )}`}
               target="_blank"
@@ -3625,7 +3639,7 @@ export default function CustomerProfilePage() {
                     שלח
                   </button>
                   <a
-                    href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(customer.phone)}`}
+                    href={`https://wa.me/${toWhatsAppPhone(customer.phone)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 transition-colors"
