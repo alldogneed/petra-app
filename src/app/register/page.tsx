@@ -71,6 +71,23 @@ export default function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    // Client-side password validation — give explicit feedback before hitting the API
+    if (
+      password.length < 12 ||
+      !/[A-Z]/.test(password) ||
+      !/[a-z]/.test(password) ||
+      !/[0-9]/.test(password)
+    ) {
+      setError("הסיסמה חייבת להכיל לפחות 12 תווים, אות גדולה (A-Z), אות קטנה (a-z) וספרה (0-9)");
+      return;
+    }
+
+    if (!tosAccepted) {
+      setError("יש לאשר את תנאי השימוש כדי להמשיך");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -100,11 +117,7 @@ export default function RegisterPage() {
   const isValid =
     name.trim().length > 0 &&
     email.trim().length > 0 &&
-    password.length >= 12 &&
-    /[A-Z]/.test(password) &&
-    /[a-z]/.test(password) &&
-    /[0-9]/.test(password) &&
-    tosAccepted;
+    password.length > 0;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-petra-bg p-4" dir="rtl">
