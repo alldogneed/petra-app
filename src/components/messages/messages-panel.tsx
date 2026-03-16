@@ -429,6 +429,7 @@ function TemplatesTab() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["messages"] });
+      queryClient.refetchQueries({ queryKey: ["messages"] });
       setShowEditor(false);
       toast.success(editingTemplate ? "התבנית עודכנה" : "התבנית נוצרה בהצלחה");
       setEditingTemplate(null);
