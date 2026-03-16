@@ -13,7 +13,7 @@ const DEFAULT_STAGES = [
   { key: "WAITLIST",          name: "המתנה",                color: "bg-amber-100 text-amber-700",     sortOrder: 2, isBuiltIn: true },
   { key: "MATCHED",           name: "שובץ",                 color: "bg-blue-100 text-blue-700",       sortOrder: 3, isBuiltIn: true },
   { key: "ADVANCED_TRAINING", name: "אימון מתקדם",          color: "bg-indigo-100 text-indigo-700",   sortOrder: 4, isBuiltIn: true },
-  { key: "ACTIVE",            name: "פעיל או נמסר כלב",    color: "bg-emerald-100 text-emerald-700", sortOrder: 5, isBuiltIn: true },
+  { key: "ACTIVE",            name: "נמסר כלב",             color: "bg-emerald-100 text-emerald-700", sortOrder: 5, isBuiltIn: true },
   { key: "REJECTED",          name: "נדחה",                 color: "bg-red-100 text-red-600",         sortOrder: 6, isBuiltIn: true },
 ];
 

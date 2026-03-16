@@ -81,7 +81,7 @@ const STAGE_COLORS = [
 ];
 
 // ─── Draggable recipient card ───
-function DraggableRecipientCard({ recipient, stageKey }: { recipient: Recipient; stageKey: string }) {
+function DraggableRecipientCard({ recipient, stageKey, onDelete }: { recipient: Recipient; stageKey: string; onDelete: (id: string, name: string) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `card-${recipient.id}`,
     data: { type: "card", recipientId: recipient.id, stageKey },
@@ -94,7 +94,7 @@ function DraggableRecipientCard({ recipient, stageKey }: { recipient: Recipient;
       ref={setNodeRef}
       style={style}
       className={cn(
-        "bg-white rounded-xl border p-3 text-right cursor-grab active:cursor-grabbing transition-shadow",
+        "group relative bg-white rounded-xl border p-3 text-right cursor-grab active:cursor-grabbing transition-shadow",
         isDragging && "opacity-40 shadow-lg"
       )}
       {...attributes}
@@ -129,19 +129,28 @@ function DraggableRecipientCard({ recipient, stageKey }: { recipient: Recipient;
           </div>
         )}
       </Link>
+      <button
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); onDelete(recipient.id, recipient.name); }}
+        className="absolute top-2 left-2 w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 text-petra-muted hover:text-red-500 transition-all"
+        title="מחק זכאי"
+      >
+        <Trash2 className="w-3 h-3" />
+      </button>
     </div>
   );
 }
 
 // ─── Droppable column ───
 function DroppableColumn({
-  stage, recipients, onRename, onDelete, isEditMode,
+  stage, recipients, onRename, onDelete, isEditMode, onDeleteRecipient,
 }: {
   stage: Stage;
   recipients: Recipient[];
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
   isEditMode: boolean;
+  onDeleteRecipient: (id: string, name: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `col-${stage.key}` });
   const [editing, setEditing] = useState(false);
@@ -211,7 +220,7 @@ function DroppableColumn({
           strategy={verticalListSortingStrategy}
         >
           {recipients.map((r) => (
-            <DraggableRecipientCard key={r.id} recipient={r} stageKey={stage.key} />
+            <DraggableRecipientCard key={r.id} recipient={r} stageKey={stage.key} onDelete={onDeleteRecipient} />
           ))}
         </SortableContext>
         {recipients.length === 0 && (
@@ -250,6 +259,8 @@ function RecipientsPageContent() {
   const [newColName, setNewColName] = useState("");
   const [newColColor, setNewColColor] = useState(STAGE_COLORS[0].value);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
+  const [showArchive, setShowArchive] = useState(false);
   const queryClient = useQueryClient();
 
   const sensors = useSensors(
@@ -309,6 +320,25 @@ function RecipientsPageContent() {
       toast.success("שלב נמחק");
     },
     onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת שלב"),
+  });
+
+  const deleteRecipientMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/service-recipients/${id}`, {
+        method: "DELETE",
+        headers: { "x-confirm-action": `DELETE_RECIPIENT_${id}` },
+      }).then(async (r) => {
+        const data = await r.json();
+        if (r.status === 202) { toast.success("הבקשה נשלחה לאישור הבעלים"); return data; }
+        if (!r.ok) throw new Error(data.error || "שגיאה");
+        return data;
+      }),
+    onSuccess: (data) => {
+      if (!data.pendingApproval) toast.success("הזכאי נמחק");
+      queryClient.invalidateQueries({ queryKey: ["service-recipients"] });
+      setConfirmDelete(null);
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקה"),
   });
 
   const addStageMutation = useMutation({
@@ -385,10 +415,12 @@ function RecipientsPageContent() {
   };
 
   // ── Filtered data ──────────────────────────────────────────────
+  const activeStages = stages.filter((s) => showArchive || s.key !== "REJECTED");
   const filtered = recipients.filter((r) => {
     const matchStatus = !statusFilter || r.status === statusFilter;
     const matchSearch = !search || r.name.includes(search) || (r.phone || "").includes(search);
-    return matchStatus && matchSearch;
+    const matchArchive = showArchive || r.status !== "REJECTED";
+    return matchStatus && matchSearch && matchArchive;
   });
 
   const activeRecipient = activeId?.startsWith("card-")
@@ -449,6 +481,12 @@ function RecipientsPageContent() {
             </button>
           </div>
           <button
+            onClick={() => setShowArchive(!showArchive)}
+            className={cn("btn-secondary flex items-center gap-2", showArchive && "border-red-300 text-red-600 bg-red-50")}
+          >
+            {showArchive ? "הסתר ארכיון" : "ארכיון"}
+          </button>
+          <button
             onClick={() => setShowImportModal(true)}
             className="btn-secondary flex items-center gap-2"
           >
@@ -475,11 +513,11 @@ function RecipientsPageContent() {
           onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={stages.map((s) => `col-${s.key}`)}
+            items={activeStages.map((s) => `col-${s.key}`)}
             strategy={horizontalListSortingStrategy}
           >
             <div className="flex gap-3 overflow-x-auto pb-6 min-h-[400px]">
-              {stages.map((stage) => {
+              {activeStages.map((stage) => {
                 const stageRecipients = filtered.filter((r) => r.status === stage.key);
                 return (
                   <SortableColumn key={stage.key} stage={stage}>
@@ -489,6 +527,7 @@ function RecipientsPageContent() {
                       onRename={(id, name) => renameStageMutation.mutate({ id, name })}
                       onDelete={(id) => { if (confirm("למחוק את השלב? הזכאים ישארו עם הסטטוס הנוכחי.")) deleteStageMutation.mutate(id); }}
                       isEditMode={isEditMode}
+                      onDeleteRecipient={(id, name) => setConfirmDelete({ id, name })}
                     />
                   </SortableColumn>
                 );
@@ -561,7 +600,7 @@ function RecipientsPageContent() {
         // ── Table view ──────────────────────────────────────────
         <div className="card overflow-hidden">
           <div className="flex items-center gap-3 p-4 border-b">
-            {stages.map((s) => (
+            {activeStages.map((s) => (
               <button
                 key={s.key}
                 onClick={() => setStatusFilter(statusFilter === s.key ? "" : s.key)}
@@ -578,7 +617,9 @@ function RecipientsPageContent() {
                 <th className="p-3 text-right font-medium text-petra-muted">ת"ז</th>
                 <th className="p-3 text-right font-medium text-petra-muted">מקום מגורים</th>
                 <th className="p-3 text-right font-medium text-petra-muted">מימון</th>
-                <th className="p-3 text-right font-medium text-petra-muted">שלב כלב</th>
+                <th className="p-3 text-right font-medium text-petra-muted">שלב זכאי</th>
+                <th className="p-3 text-right font-medium text-petra-muted">שם כלב</th>
+                <th className="p-3 w-10" />
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -594,15 +635,19 @@ function RecipientsPageContent() {
                     <td className="p-3 text-petra-muted">{r.address || "—"}</td>
                     <td className="p-3">{r.fundingSource ? (FUNDING_SOURCE_MAP[r.fundingSource] || r.fundingSource) : "—"}</td>
                     <td className="p-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {stage && <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", stage.color)}>{stage.name}</span>}
-                        {activePlacement && (
-                          <span className="flex items-center gap-1 text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">
-                            <Dog className="w-3 h-3" />
-                            {activePlacement.serviceDog.pet.name}
-                          </span>
-                        )}
-                      </div>
+                      {stage && <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", stage.color)}>{stage.name}</span>}
+                    </td>
+                    <td className="p-3 text-petra-muted">
+                      {activePlacement ? activePlacement.serviceDog.pet.name : "—"}
+                    </td>
+                    <td className="p-3">
+                      <button
+                        onClick={() => setConfirmDelete({ id: r.id, name: r.name })}
+                        className="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors"
+                        title="מחק זכאי"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </td>
                   </tr>
                 );
@@ -618,7 +663,7 @@ function RecipientsPageContent() {
       {/* Add recipient modal */}
       {showAddModal && (
         <AddRecipientModal
-          stages={stages}
+          stages={stages.filter((s) => s.key !== "REJECTED")}
           onClose={() => setShowAddModal(false)}
           onAdded={() => queryClient.invalidateQueries({ queryKey: ["service-recipients"] })}
         />
@@ -631,6 +676,37 @@ function RecipientsPageContent() {
           onSuccess={() => queryClient.invalidateQueries({ queryKey: ["service-recipients"] })}
           onClose={() => setShowImportModal(false)}
         />
+      )}
+
+      {/* Delete recipient confirmation */}
+      {confirmDelete && (
+        <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
+          <div className="modal-backdrop" />
+          <div className="modal-content max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-petra-text">מחיקת זכאי</h3>
+                <p className="text-sm text-petra-muted mt-1">
+                  בטוח שברצונך למחוק את <span className="font-medium text-petra-text">{confirmDelete.name}</span>?
+                  <br />פעולה זו אינה ניתנת לביטול.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button className="btn-secondary" onClick={() => setConfirmDelete(null)}>ביטול</button>
+              <button
+                className="btn-primary bg-red-600 hover:bg-red-700 border-red-600"
+                onClick={() => deleteRecipientMutation.mutate(confirmDelete.id)}
+                disabled={deleteRecipientMutation.isPending}
+              >
+                {deleteRecipientMutation.isPending ? "מוחק..." : "מחק"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -728,7 +804,7 @@ function AddRecipientModal({
               <input className="input w-full" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
             </div>
             <div>
-              <label className="label text-xs">שלב ראשוני</label>
+              <label className="label text-xs">שלב/סטטוס</label>
               <select className="input w-full text-sm" value={status} onChange={(e) => setStatus(e.target.value)}>
                 {stages.map((s) => <option key={s.key} value={s.key}>{s.name}</option>)}
               </select>
