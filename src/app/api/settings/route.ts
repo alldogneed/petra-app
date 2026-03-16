@@ -91,6 +91,7 @@ export async function PATCH(request: NextRequest) {
       sdSettings,
       whatsappRemindersEnabled,
       whatsappReminderLeadHours,
+      googleContactsSync,
     } = body;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -116,6 +117,7 @@ export async function PATCH(request: NextRequest) {
     if (sdSettings !== undefined) data.sdSettings = sdSettings;
     if (whatsappRemindersEnabled !== undefined) data.whatsappRemindersEnabled = whatsappRemindersEnabled;
     if (whatsappReminderLeadHours !== undefined) data.whatsappReminderLeadHours = whatsappReminderLeadHours;
+    if (googleContactsSync !== undefined) data.googleContactsSync = googleContactsSync;
 
     const business = await prisma.business.update({
       where: { id: authResult.businessId },

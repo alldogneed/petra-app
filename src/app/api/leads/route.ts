@@ -6,6 +6,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxLeads, normalizeTier } from "@/lib/feature-flags";
 import { getFirstLeadStageId } from "@/lib/lead-stages";
+import { shouldSyncContacts, upsertLeadContact } from "@/lib/google-contacts";
 
 export async function GET(request: NextRequest) {
   try {
@@ -100,6 +101,28 @@ export async function POST(request: NextRequest) {
     });
 
     logCurrentUserActivity("CREATE_LEAD");
+
+    // Fire-and-forget: sync to Google Contacts if enabled
+    if (lead.phone || lead.email) {
+      shouldSyncContacts(authResult.businessId).then(async (enabled) => {
+        if (!enabled) return;
+        const resourceName = await upsertLeadContact({
+          id: lead.id,
+          name: lead.name,
+          phone: lead.phone ?? null,
+          email: lead.email ?? null,
+          notes: lead.notes ?? null,
+          requestedService: lead.requestedService ?? null,
+          city: lead.city ?? null,
+          googleContactId: null,
+          businessId: lead.businessId,
+        });
+        if (resourceName) {
+          await prisma.lead.update({ where: { id: lead.id }, data: { googleContactId: resourceName } });
+        }
+      }).catch(() => {});
+    }
+
     return NextResponse.json(lead, { status: 201 });
   } catch (error) {
     if (error instanceof SyntaxError) {

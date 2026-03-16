@@ -977,6 +977,7 @@ export function buildCalendarAuthUrl(state: string): string {
       "https://www.googleapis.com/auth/calendar.events",
       "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
       "https://www.googleapis.com/auth/calendar",
+      "https://www.googleapis.com/auth/contacts",
       "email",
     ].join(" "),
     state,

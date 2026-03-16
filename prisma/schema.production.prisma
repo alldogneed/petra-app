@@ -233,6 +233,7 @@ model Business {
   sdSettings    Json?   // service-dog settings: { trackHours, defaultTargetHours, allowManualCert }
   whatsappRemindersEnabled  Boolean @default(false)
   whatsappReminderLeadHours Int     @default(48)
+  googleContactsSync        Boolean @default(false) // sync leads to Google Contacts
   cancellationPolicy   String?  // shown in booking wizard confirm step
   bookingWelcomeText   String?  // shown as greeting on booking page
   depositInstructions  String?  // payment instructions when no paymentUrl
@@ -572,6 +573,7 @@ model Lead {
   nextFollowUpAt   DateTime?
   followUpStatus   String   @default("pending") // "pending" | "completed"
   followUpTaskId   String?   // ID of the auto-created follow-up Task
+  googleContactId  String?   // Google People API resource name (e.g. "people/c12345678")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
