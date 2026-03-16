@@ -437,7 +437,7 @@ function ServiceDogProfilePageContent() {
                 <h1 className="text-2xl font-bold leading-tight">{dog.pet.name}</h1>
                 <p className="text-petra-muted text-sm mt-0.5">
                   {dog.pet.breed || dog.pet.species}
-                  {dog.pet.gender && ` · ${dog.pet.gender === "male" ? "זכר" : "נקבה"}`}
+                  {(dog.pet.gender === "male" || dog.pet.gender === "זכר") ? " · זכר" : (dog.pet.gender === "female" || dog.pet.gender === "נקבה") ? " · נקבה" : null}
                 </p>
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   {/* Phase dropdown */}
@@ -560,7 +560,7 @@ function ServiceDogProfilePageContent() {
                 <div className="text-right">
                   <span className="text-xs text-petra-muted">סוג שירות</span>
                   <p className="text-sm font-semibold mt-0.5">
-                    {SERVICE_DOG_TYPES.find((t) => t.id === dog.serviceType)?.label || dog.serviceType}
+                    {SERVICE_DOG_TYPES.find((t) => t.id.toLowerCase() === (dog.serviceType || "").toLowerCase())?.label || dog.serviceType}
                   </p>
                 </div>
               )}
@@ -3359,7 +3359,7 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
           </div>
           <div>
             <p className="text-xs text-petra-muted">מין</p>
-            <p className="font-medium">{pet.gender === "male" ? "זכר" : pet.gender === "female" ? "נקבה" : <span className="text-petra-muted text-xs">לא הוזן</span>}</p>
+            <p className="font-medium">{(pet.gender === "male" || pet.gender === "זכר") ? "זכר" : (pet.gender === "female" || pet.gender === "נקבה") ? "נקבה" : <span className="text-petra-muted text-xs">לא הוזן</span>}</p>
           </div>
           <div>
             <p className="text-xs text-petra-muted">גזע</p>

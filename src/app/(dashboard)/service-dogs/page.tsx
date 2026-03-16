@@ -144,9 +144,9 @@ function ServiceDogsOverviewPageContent() {
   // Stats
   const totalDogs = dogs.length;
   const inTraining = dogs.filter((d) =>
-    ["IN_TRAINING", "ADVANCED_TRAINING"].includes(d.phase)
+    ["IN_TRAINING", "ADVANCED_TRAINING", "TRAINING", "ADVANCED"].includes(d.phase)
   ).length;
-  const certified = dogs.filter((d) => d.phase === "CERTIFIED").length;
+  const certified = dogs.filter((d) => ["CERTIFIED", "PLACEMENT"].includes(d.phase)).length;
   const pendingCert = dogs.filter((d) => d.trainingStatus === "PENDING_CERT").length;
   const complianceAlerts = dogs.filter((d) => d.isGovReportPending).length;
   const activePlacements = dogs.filter((d) => d.activePlacement?.status === "ACTIVE").length;

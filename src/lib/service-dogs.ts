@@ -13,8 +13,13 @@ export const SERVICE_DOG_PHASES = [
   { id: "DECERTIFIED", label: "שלילת הסמכה", color: "bg-red-50 text-red-600 border-red-200" },
 ] as const;
 
-export const SERVICE_DOG_PHASE_MAP: Record<string, { label: string; color: string }> =
-  Object.fromEntries(SERVICE_DOG_PHASES.map((p) => [p.id, { label: p.label, color: p.color }]));
+export const SERVICE_DOG_PHASE_MAP: Record<string, { label: string; color: string }> = {
+  ...Object.fromEntries(SERVICE_DOG_PHASES.map((p) => [p.id, { label: p.label, color: p.color }])),
+  // Legacy DB aliases — old values stored before schema rename
+  TRAINING:   { label: "באימון",       color: "bg-blue-50 text-blue-700 border-blue-200" },
+  ADVANCED:   { label: "אימון מתקדם", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  PLACEMENT:  { label: "מוסמך",        color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+};
 
 export const SERVICE_DOG_PHASE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   SELECTION:         { bg: "#F1F5F9", text: "#475569", border: "#CBD5E1" },
@@ -25,6 +30,10 @@ export const SERVICE_DOG_PHASE_COLORS: Record<string, { bg: string; text: string
   CERTIFIED:         { bg: "#F0FDF4", text: "#16A34A", border: "#86EFAC" },
   RETIRED:           { bg: "#FFFBEB", text: "#D97706", border: "#FDE68A" },
   DECERTIFIED:       { bg: "#FEF2F2", text: "#DC2626", border: "#FCA5A5" },
+  // Legacy DB aliases
+  TRAINING:          { bg: "#EFF6FF", text: "#2563EB", border: "#93C5FD" },
+  ADVANCED:          { bg: "#EEF2FF", text: "#4338CA", border: "#A5B4FC" },
+  PLACEMENT:         { bg: "#F0FDF4", text: "#16A34A", border: "#86EFAC" },
 };
 
 // ─── Current Location Options ───

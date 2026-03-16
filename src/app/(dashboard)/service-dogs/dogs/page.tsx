@@ -628,7 +628,7 @@ function AddDogModal({ dogs, onClose }: { dogs: ServiceDogCard[]; onClose: () =>
                     key={pet.id}
                     onClick={() => {
                       setSelectedPetId(pet.id);
-                      setSelectedPetName(`${pet.name} (${pet.breed || pet.species}) — ${pet.customerName}`);
+                      setSelectedPetName(`${pet.name} (${pet.breed || pet.species}) — ${pet.customer?.name ?? ""}`);
                     }}
                     className="w-full text-right px-3 py-2.5 text-sm hover:bg-slate-50 transition-colors border-b last:border-b-0"
                   >
