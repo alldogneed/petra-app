@@ -18,6 +18,15 @@ export async function POST(
       return NextResponse.json({ error: "Description is required" }, { status: 400 });
     }
 
+    // Verify customer belongs to this business
+    const customer = await prisma.customer.findFirst({
+      where: { id: params.id, businessId: authResult.businessId },
+      select: { id: true },
+    });
+    if (!customer) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     const event = await prisma.timelineEvent.create({
       data: {
         type,
