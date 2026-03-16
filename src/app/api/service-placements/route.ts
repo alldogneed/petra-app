@@ -37,7 +37,9 @@ export async function POST(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
-    const { serviceDogId, recipientId, placementDate, trialStartDate, trialEndDate, notes } = body;
+    const { serviceDogId, recipientId, placementDate, trialStartDate, trialEndDate, notes, status: bodyStatus } = body;
+    const VALID_STATUSES = ["ACTIVE", "TERMINATED"];
+    const initialStatus = VALID_STATUSES.includes(bodyStatus) ? bodyStatus : "ACTIVE";
 
     if (!serviceDogId || !recipientId) {
       return NextResponse.json({ error: "נדרש כלב שירות ומקבל" }, { status: 400 });
@@ -66,7 +68,7 @@ export async function POST(request: NextRequest) {
       where: {
         serviceDogId,
         recipientId,
-        status: { in: ["PENDING", "TRIAL", "ACTIVE"] },
+        status: "ACTIVE",
       },
     });
 
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest) {
         trialStartDate: trialStartDate ? new Date(trialStartDate) : null,
         trialEndDate: trialEndDate ? new Date(trialEndDate) : null,
         notes: notes || null,
-        status: "PENDING",
+        status: initialStatus,
       },
       include: {
         serviceDog: { include: { pet: true } },

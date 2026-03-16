@@ -37,6 +37,8 @@ export async function POST(
                 dhppLastDate: true,
                 bordatellaDate: true,
                 dewormingLastDate: true,
+                dewormingValidUntil: true,
+                parkWormValidUntil: true,
                 fleaTickExpiryDate: true,
               },
             },

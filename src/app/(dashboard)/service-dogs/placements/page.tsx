@@ -130,7 +130,6 @@ function PlacementsPageContent() {
 
   // Active placements (kanban-like view)
   const activePlacements = placements.filter((p) => p.status === "ACTIVE");
-  const trialPlacements = placements.filter((p) => p.status === "TRIAL");
 
   return (
     <div className="animate-fade-in space-y-5">
@@ -148,7 +147,7 @@ function PlacementsPageContent() {
             ניהול שיבוצים
           </h1>
           <p className="text-sm text-petra-muted mt-1">
-            {activePlacements.length} שיבוצים פעילים · {trialPlacements.length} בתקופת ניסיון
+            {activePlacements.length} שיבוצים פעילים · {placements.filter((p) => p.status === "TERMINATED").length} הסתיימו
           </p>
         </div>
         <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2">
@@ -161,11 +160,8 @@ function PlacementsPageContent() {
       <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100 text-sm">
         <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-blue-700">
-          <span><strong>ממתין</strong> — שיבוץ נוצר, טרם החל</span>
-          <span><strong>ניסיון</strong> — הכלב אצל הזכאי בתקופת ניסיון</span>
           <span><strong>פעיל</strong> — שיבוץ מאושר ומלא</span>
-          <span><strong>הסתיים</strong> — השיבוץ הופסק לפני הזמן</span>
-          <span><strong>הושלם</strong> — השיבוץ הסתיים בהצלחה</span>
+          <span><strong>הסתיים</strong> — השיבוץ הופסק</span>
         </div>
       </div>
 
@@ -270,7 +266,6 @@ function PlacementsPageContent() {
                 <th className="table-header-cell">זכאי</th>
                 <th className="table-header-cell">סטטוס</th>
                 <th className="table-header-cell">תאריך שיבוץ</th>
-                <th className="table-header-cell">סיום ניסיון</th>
                 <th className="table-header-cell">בדיקה הבאה</th>
                 <th className="table-header-cell">פעולות</th>
               </tr>
@@ -314,39 +309,18 @@ function PlacementsPageContent() {
                       {placement.placementDate ? formatDate(placement.placementDate) : "—"}
                     </td>
                     <td className="table-cell text-petra-muted text-sm">
-                      {placement.trialEndDate ? formatDate(placement.trialEndDate) : "—"}
-                    </td>
-                    <td className="table-cell text-petra-muted text-sm">
                       {placement.nextCheckInAt ? formatDate(placement.nextCheckInAt) : "—"}
                     </td>
                     <td className="table-cell">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        {placement.status === "PENDING" && (
-                          <button
-                            onClick={() => statusChangeMutation.mutate({ id: placement.id, status: "TRIAL" })}
-                            disabled={statusChangeMutation.isPending}
-                            className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                          >
-                            התחל ניסיון
-                          </button>
-                        )}
-                        {placement.status === "TRIAL" && (
-                          <button
-                            onClick={() => statusChangeMutation.mutate({ id: placement.id, status: "ACTIVE" })}
-                            disabled={statusChangeMutation.isPending}
-                            className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
-                          >
-                            אשר ✓
-                          </button>
-                        )}
-                        {["PENDING", "TRIAL", "ACTIVE"].includes(placement.status) && (
+                        {placement.status === "ACTIVE" && (
                           <button
                             onClick={() =>
                               confirm("האם לסיים את השיבוץ?") &&
                               statusChangeMutation.mutate({ id: placement.id, status: "TERMINATED" })
                             }
                             disabled={statusChangeMutation.isPending}
-                            className="text-xs text-red-500 hover:text-red-600"
+                            className="text-xs text-red-500 hover:text-red-600 font-medium"
                           >
                             סיים
                           </button>
@@ -554,15 +528,9 @@ function EditPlacementModal({
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">תאריך שיבוץ</label>
-              <input type="date" value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
-            </div>
-            <div>
-              <label className="label">סיום ניסיון</label>
-              <input type="date" value={trialEndDate} onChange={(e) => setTrialEndDate(e.target.value)} className="input w-full" />
-            </div>
+          <div>
+            <label className="label">תאריך שיבוץ</label>
+            <input type="date" value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
           </div>
 
           <div>
@@ -616,6 +584,7 @@ function AddPlacementModal({
   const [placementDate, setPlacementDate] = useState(new Date().toISOString().split("T")[0]);
   const [trialEndDate, setTrialEndDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [status, setStatus] = useState("ACTIVE");
 
   const createMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -699,15 +668,9 @@ function AddPlacementModal({
             }}
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">תאריך שיבוץ</label>
-              <input type="date" value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
-            </div>
-            <div>
-              <label className="label">סיום תקופת ניסיון</label>
-              <input type="date" value={trialEndDate} onChange={(e) => setTrialEndDate(e.target.value)} className="input w-full" />
-            </div>
+          <div>
+            <label className="label">תאריך שיבוץ</label>
+            <input type="date" value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
           </div>
 
           <div>
@@ -724,6 +687,7 @@ function AddPlacementModal({
                   placementDate,
                   trialEndDate: trialEndDate || null,
                   notes: notes || null,
+                  status,
                 })
               }
               disabled={!serviceDogId || !recipientId || createMutation.isPending}

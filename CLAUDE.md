@@ -81,7 +81,15 @@ Current order: SELECTION → RAISING → PUPPY → IN_TRAINING → ADVANCED_TRAI
 `activeStages = stages.filter(s => showArchive || s.key !== "REJECTED")` pattern in recipients page.
 AddRecipientModal receives stages filtered without REJECTED.
 
-### 14. `shadcn init` destroys utils.ts
+### 14. Placement statuses — only 2
+`SERVICE_DOG_PLACEMENT_STATUSES` = `ACTIVE` (פעיל) + `TERMINATED` (הסתיים).
+No PENDING / TRIAL / SUSPENDED / COMPLETED. New placements default to `ACTIVE`.
+`activePlacement` filter: `p.status === "ACTIVE"` (not `|| "TRIAL"`).
+
+### 15. Service dog types — includes PTSD
+`SERVICE_DOG_TYPES` in `src/lib/service-dogs.ts`: MOBILITY, PSYCHIATRIC, PTSD, GUIDE, AUTISM, ALERT, OTHER.
+
+### 16. `shadcn init` destroys utils.ts
 Restore: `DEMO_BUSINESS_ID`, `formatCurrency`, `formatDate`, `formatTime`, `getStatusColor`, `getStatusLabel`, `toWhatsAppPhone`, `getTimelineIcon`
 
 ---
@@ -135,6 +143,8 @@ import { prisma } from "@/lib/prisma"
 | Message template defaults | `STARTER_TEMPLATES` in `src/components/messages/messages-panel.tsx` — 8 templates with automated footer |
 | Form validation utils | `src/lib/validation.ts` — `validateIsraeliPhone`, `validateEmail`, `sanitizeName`, `validateName` |
 | Service dog phases | `src/lib/service-dogs.ts` — `SERVICE_DOG_PHASES` (single source of truth; VALID_PHASES derived from it) |
+| Service dog types | `src/lib/service-dogs.ts` — `SERVICE_DOG_TYPES` (MOBILITY, PSYCHIATRIC, PTSD, GUIDE, AUTISM, ALERT, OTHER) |
+| Service dog placement statuses | `src/lib/service-dogs.ts` — `SERVICE_DOG_PLACEMENT_STATUSES` (ACTIVE + TERMINATED only) |
 | Service dog location options | `src/lib/service-dogs.ts` — `LOCATION_OPTIONS` |
 | Recipient stages | `src/app/api/service-recipient-stages/route.ts` — `DEFAULT_STAGES` (upserted on every GET; REJECTED = archive stage) |
 | Sidebar | `src/components/layout/sidebar.tsx` |

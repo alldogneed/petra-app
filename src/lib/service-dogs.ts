@@ -55,12 +55,8 @@ export const TRAINING_STATUS_MAP: Record<string, { label: string; color: string 
 // ─── Placement Statuses ───
 
 export const SERVICE_DOG_PLACEMENT_STATUSES = [
-  { id: "PENDING", label: "ממתין", color: "bg-slate-100 text-slate-600" },
-  { id: "TRIAL", label: "תקופת ניסיון", color: "bg-blue-100 text-blue-700" },
   { id: "ACTIVE", label: "פעיל", color: "bg-emerald-100 text-emerald-700" },
-  { id: "SUSPENDED", label: "מושהה", color: "bg-amber-100 text-amber-700" },
   { id: "TERMINATED", label: "הסתיים", color: "bg-red-100 text-red-600" },
-  { id: "COMPLETED", label: "הושלם", color: "bg-indigo-100 text-indigo-700" },
 ] as const;
 
 export const PLACEMENT_STATUS_MAP: Record<string, { label: string; color: string }> =
@@ -115,6 +111,7 @@ export const DISABILITY_TYPE_MAP: Record<string, string> =
 export const SERVICE_DOG_TYPES = [
   { id: "MOBILITY", label: "ניידות" },
   { id: "PSYCHIATRIC", label: "פסיכיאטרי" },
+  { id: "PTSD", label: "PTSD" },
   { id: "GUIDE", label: "נחייה" },
   { id: "AUTISM", label: "אוטיזם" },
   { id: "ALERT", label: "התרעה" },
@@ -134,8 +131,8 @@ export interface MedicalProtocolDef {
 
 export const MEDICAL_PROTOCOL_CATEGORIES = [
   { id: "VACCINATION", label: "חיסונים" },
+  { id: "PARASITE", label: "טיפולים" },
   { id: "HEALTH_CHECK", label: "בדיקות בריאות" },
-  { id: "PARASITE", label: "טפילים" },
   { id: "BEHAVIOR_EVAL", label: "הערכה התנהגותית" },
   { id: "VET_CLEARANCE", label: "אישור וטרינרי" },
 ] as const;
@@ -150,7 +147,7 @@ export const MEDICAL_PROTOCOL_KEYS: MedicalProtocolDef[] = [
   { key: "LEPTOSPIROSIS",     label: "לפטוספירוזיס",              category: "VACCINATION" },
   { key: "BORDETELLA",        label: "בורדטלה",                   category: "VACCINATION" },
   { key: "DEWORMING",         label: "תילוע",                     category: "PARASITE" },
-  { key: "PARK_WORM",         label: "תולעת גן (גיחון)",          category: "PARASITE" },
+  { key: "PARK_WORM",         label: "תולעת הפארק",               category: "PARASITE" },
   { key: "FLEA_TICK",         label: "טיפול פרעושים וקרציות",     category: "PARASITE" },
   { key: "VET_EXAM",          label: "בדיקה וטרינרית",            category: "HEALTH_CHECK" },
   { key: "VET_CLEARANCE",     label: "אישור וטרינרי להמשך",       category: "VET_CLEARANCE" },

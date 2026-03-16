@@ -27,6 +27,8 @@ type HealthFields = {
   dhppLastDate?: Date | null;
   bordatellaDate?: Date | null;
   dewormingLastDate?: Date | null;
+  dewormingValidUntil?: Date | null;
+  parkWormValidUntil?: Date | null;
   fleaTickExpiryDate?: Date | null;
 };
 
@@ -69,8 +71,13 @@ export const PROTOCOL_HEALTH_SYNC_MAP: Record<string, SyncRule> = {
 
   // ── Parasites ─────────────────────────────────────────────────────────────
   DEWORMING: {
-    // Every 6 months
-    dueDateFn: (h) => (h.dewormingLastDate ? addDays(new Date(h.dewormingLastDate), 180) : null),
+    dueDateFn: (h) => {
+      if (h.dewormingValidUntil) return new Date(h.dewormingValidUntil);
+      return h.dewormingLastDate ? addDays(new Date(h.dewormingLastDate), 180) : null;
+    },
+  },
+  PARK_WORM: {
+    dueDateFn: (h) => (h.parkWormValidUntil ? new Date(h.parkWormValidUntil) : null),
   },
   FLEA_TICK: {
     dueDateFn: (h) => (h.fleaTickExpiryDate ? new Date(h.fleaTickExpiryDate) : null),

@@ -60,6 +60,7 @@ import {
   SERVICE_DOG_TYPES,
   ADI_SKILL_CATEGORIES,
   MEDICAL_PROTOCOL_CATEGORIES,
+  MEDICAL_PROTOCOL_MAP,
   COMPLIANCE_EVENT_MAP,
   PLACEMENT_STATUS_MAP,
   TRAINING_MILESTONES,
@@ -1354,7 +1355,7 @@ function MedicalTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
                     </div>
                     <div className="min-w-0">
                       <p className={cn("text-sm font-medium", isOverdue && "text-red-700")}>
-                        {protocol.protocolLabel}
+                        {MEDICAL_PROTOCOL_MAP[protocol.protocolKey]?.label ?? protocol.protocolLabel}
                       </p>
                       <div className="flex gap-3 text-xs text-petra-muted mt-0.5">
                         {protocol.dueDate && (
@@ -1786,6 +1787,9 @@ interface TrainingTest {
   testItems?: TestItem[]; // Simba-specific test items
   overallResult: "PASS" | "FAIL" | "CONDITIONAL_PASS";
   notes: string;
+  fileUrl?: string;
+  fileName?: string;
+  nextRenewalDate?: string; // for ANNUAL_RETEST
 }
 
 interface TestCategory {
@@ -1827,6 +1831,7 @@ const ADI_TEST_CATEGORY_MAP = Object.fromEntries(ADI_TEST_CATEGORIES.map((c) => 
 const TEST_TYPES = [
   { id: "SIMBA_PUBLIC_SPACE", label: "מבחן כשירות במרחב הציבורי (סימבה)" },
   { id: "SIMBA_FUNCTIONAL_TASKS", label: "מבחן משימות תפקודיות (סימבה)" },
+  { id: "SIMBA_COMBINED", label: "מבחן כשירות במרחב הציבורי+משימות (סימבה)" },
   { id: "INITIAL_EVAL", label: "הערכה ראשונית" },
   { id: "PROGRESS_TEST", label: "בחינת התקדמות" },
   { id: "PRE_CERT", label: "טרום הסמכה" },
@@ -1896,6 +1901,7 @@ const SIMBA_TASK_MAP_PUBLIC = Object.fromEntries(
   [...SIMBA_PUBLIC_SPACE_TASKS, ...SIMBA_PUBLIC_SPACE_REQUIREMENTS].map((t) => [t.id, t.label])
 );
 const SIMBA_TASK_MAP_FUNCTIONAL = Object.fromEntries(SIMBA_FUNCTIONAL_TASKS.map((t) => [t.id, t.label]));
+const SIMBA_TASK_MAP_COMBINED = { ...SIMBA_TASK_MAP_PUBLIC, ...SIMBA_TASK_MAP_FUNCTIONAL };
 
 const OVERALL_RESULT_MAP: Record<string, { label: string; color: string }> = {
   PASS: { label: "עבר ✓", color: "bg-emerald-100 text-emerald-700" },
@@ -1944,8 +1950,40 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
   const passCount = tests.filter((t) => t.overallResult === "PASS" || t.overallResult === "CONDITIONAL_PASS").length;
   const failCount = tests.filter((t) => t.overallResult === "FAIL").length;
 
+  const today = new Date();
+  const overdueRenewals = tests.filter(
+    (t) => t.testType === "ANNUAL_RETEST" && t.nextRenewalDate && new Date(t.nextRenewalDate) < today
+  );
+  const upcomingRenewals = tests.filter(
+    (t) => t.testType === "ANNUAL_RETEST" && t.nextRenewalDate &&
+      new Date(t.nextRenewalDate) >= today &&
+      new Date(t.nextRenewalDate) < new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
+  );
+
   return (
     <div className="space-y-4">
+      {overdueRenewals.length > 0 && (
+        <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 flex items-start gap-2">
+          <span className="text-red-500 text-sm mt-0.5">⚠️</span>
+          <div>
+            <p className="text-sm font-semibold text-red-700">בחינה שנתית מחזורית פג תוקפה</p>
+            <p className="text-xs text-red-600">
+              {overdueRenewals.map((t) => `${formatDate(t.nextRenewalDate!)} (${formatDate(t.date)})`).join(" · ")}
+            </p>
+          </div>
+        </div>
+      )}
+      {upcomingRenewals.length > 0 && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2">
+          <span className="text-amber-500 text-sm mt-0.5">🔔</span>
+          <div>
+            <p className="text-sm font-semibold text-amber-700">חידוש בחינה שנתית מתקרב</p>
+            <p className="text-xs text-amber-600">
+              {upcomingRenewals.map((t) => `חידוש ב-${formatDate(t.nextRenewalDate!)}`).join(" · ")}
+            </p>
+          </div>
+        </div>
+      )}
       {tests.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
           <div className="card p-3 text-center">
@@ -1999,10 +2037,32 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
                           {test.examinerName}
                         </span>
                       )}
-                      {(test.testType === "SIMBA_PUBLIC_SPACE" || test.testType === "SIMBA_FUNCTIONAL_TASKS") ? (
-                        <span>{(test.testItems || []).filter((i) => i.passed).length}/{test.testType === "SIMBA_PUBLIC_SPACE" ? SIMBA_PUBLIC_SPACE_TASKS.length : SIMBA_FUNCTIONAL_TASKS.length} משימות עברו</span>
+                      {(test.testType === "SIMBA_PUBLIC_SPACE" || test.testType === "SIMBA_FUNCTIONAL_TASKS" || test.testType === "SIMBA_COMBINED") ? (
+                        <span>
+                          {(test.testItems || []).filter((i) => i.passed).length}/
+                          {test.testType === "SIMBA_PUBLIC_SPACE" ? SIMBA_PUBLIC_SPACE_TASKS.length
+                            : test.testType === "SIMBA_FUNCTIONAL_TASKS" ? SIMBA_FUNCTIONAL_TASKS.length
+                            : SIMBA_PUBLIC_SPACE_TASKS.length + SIMBA_FUNCTIONAL_TASKS.length} משימות עברו
+                        </span>
                       ) : (
                         <span>{test.categories?.length || 0} קטגוריות</span>
+                      )}
+                      {test.testType === "ANNUAL_RETEST" && test.nextRenewalDate && (
+                        <span className={cn(
+                          "flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full",
+                          new Date(test.nextRenewalDate) < new Date()
+                            ? "bg-red-100 text-red-600"
+                            : new Date(test.nextRenewalDate) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-slate-100 text-slate-500"
+                        )}>
+                          חידוש: {formatDate(test.nextRenewalDate)}
+                        </span>
+                      )}
+                      {test.fileUrl && (
+                        <a href={test.fileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-0.5 text-xs text-brand-500 hover:underline" title="פתח קובץ מבחן" onClick={(e) => e.stopPropagation()}>
+                          <FileText className="w-3 h-3" /> קובץ
+                        </a>
                       )}
                     </div>
                   </div>
@@ -2019,30 +2079,62 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
                 {isExpanded && (
                   <div className="px-4 pb-4 border-t bg-slate-50/30 pt-3 space-y-3">
                     {/* Simba test items display */}
-                    {(test.testType === "SIMBA_PUBLIC_SPACE" || test.testType === "SIMBA_FUNCTIONAL_TASKS") && test.testItems && (
-                      <div className="divide-y">
-                        {test.testItems.map((item) => {
-                          const taskMap = test.testType === "SIMBA_PUBLIC_SPACE"
-                            ? SIMBA_TASK_MAP_PUBLIC
-                            : SIMBA_TASK_MAP_FUNCTIONAL;
-                          const label = taskMap[item.taskId] || item.taskId;
-                          const isReq = item.taskId.startsWith("PS_R");
-                          return (
-                            <div key={item.taskId} className={cn(
-                              "flex items-start gap-2 py-1.5",
-                              isReq && "bg-orange-50/40"
-                            )}>
-                              <span className={cn("text-xs font-bold mt-0.5 shrink-0",
-                                item.passed ? "text-emerald-600" : "text-red-400")}>
-                                {item.passed ? "✓" : "✗"}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm">{label}</p>
-                                {item.notes && <p className="text-xs text-amber-600 mt-0.5">{item.notes}</p>}
-                              </div>
+                    {(test.testType === "SIMBA_PUBLIC_SPACE" || test.testType === "SIMBA_FUNCTIONAL_TASKS" || test.testType === "SIMBA_COMBINED") && test.testItems && (
+                      <div className="space-y-3">
+                        {test.testType === "SIMBA_COMBINED" && (
+                          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">מרחב ציבורי</p>
+                        )}
+                        <div className="divide-y">
+                          {test.testItems
+                            .filter((item) => test.testType === "SIMBA_FUNCTIONAL_TASKS"
+                              ? true
+                              : test.testType === "SIMBA_COMBINED"
+                                ? !item.taskId.startsWith("FT_")
+                                : true)
+                            .map((item) => {
+                              const taskMap = test.testType === "SIMBA_FUNCTIONAL_TASKS"
+                                ? SIMBA_TASK_MAP_FUNCTIONAL
+                                : test.testType === "SIMBA_COMBINED"
+                                  ? SIMBA_TASK_MAP_COMBINED
+                                  : SIMBA_TASK_MAP_PUBLIC;
+                              const label = taskMap[item.taskId] || item.taskId;
+                              const isReq = item.taskId.startsWith("PS_R");
+                              return (
+                                <div key={item.taskId} className={cn(
+                                  "flex items-start gap-2 py-1.5",
+                                  isReq && "bg-orange-50/40"
+                                )}>
+                                  <span className={cn("text-xs font-bold mt-0.5 shrink-0",
+                                    item.passed ? "text-emerald-600" : "text-red-400")}>
+                                    {item.passed ? "✓" : "✗"}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm">{label}</p>
+                                    {item.notes && <p className="text-xs text-amber-600 mt-0.5">{item.notes}</p>}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                        {test.testType === "SIMBA_COMBINED" && (
+                          <>
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide pt-1">משימות תפקודיות</p>
+                            <div className="divide-y">
+                              {test.testItems.filter((item) => item.taskId.startsWith("FT_")).map((item) => (
+                                <div key={item.taskId} className="flex items-start gap-2 py-1.5">
+                                  <span className={cn("text-xs font-bold mt-0.5 shrink-0",
+                                    item.passed ? "text-emerald-600" : "text-red-400")}>
+                                    {item.passed ? "✓" : "✗"}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm">{SIMBA_TASK_MAP_FUNCTIONAL[item.taskId] || item.taskId}</p>
+                                    {item.notes && <p className="text-xs text-amber-600 mt-0.5">{item.notes}</p>}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          );
-                        })}
+                          </>
+                        )}
                       </div>
                     )}
                     {/* ADI categories display */}
@@ -2130,6 +2222,9 @@ function AddTrainingTestModal({
   const [examinerName, setExaminerName] = useState("");
   const [overallResult, setOverallResult] = useState<"PASS" | "FAIL" | "CONDITIONAL_PASS">("PASS");
   const [notes, setNotes] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [nextRenewalDate, setNextRenewalDate] = useState("");
 
   // ADI categories state
   const [categories, setCategories] = useState<TestCategory[]>(
@@ -2154,6 +2249,12 @@ function AddTrainingTestModal({
       ]);
     } else if (type === "SIMBA_FUNCTIONAL_TASKS") {
       setTestItems(SIMBA_FUNCTIONAL_TASKS.map((t) => ({ taskId: t.id, passed: false, notes: "" })));
+    } else if (type === "SIMBA_COMBINED") {
+      setTestItems([
+        ...SIMBA_PUBLIC_SPACE_TASKS.map((t) => ({ taskId: t.id, passed: false, notes: "" })),
+        ...SIMBA_PUBLIC_SPACE_REQUIREMENTS.map((t) => ({ taskId: t.id, passed: false, notes: "" })),
+        ...SIMBA_FUNCTIONAL_TASKS.map((t) => ({ taskId: t.id, passed: false, notes: "" })),
+      ]);
     }
   };
 
@@ -2163,6 +2264,13 @@ function AddTrainingTestModal({
   const handleTestTypeChange = (type: string) => {
     setTestType(type);
     initSimbaItems(type);
+    if (type === "ANNUAL_RETEST") {
+      const d = new Date(date);
+      d.setFullYear(d.getFullYear() + 1);
+      setNextRenewalDate(d.toISOString().split("T")[0]);
+    } else {
+      setNextRenewalDate("");
+    }
   };
 
   const toggleItem = (taskId: string) => {
@@ -2179,19 +2287,40 @@ function AddTrainingTestModal({
     );
   };
 
-  const isSimbaTest = testType === "SIMBA_PUBLIC_SPACE" || testType === "SIMBA_FUNCTIONAL_TASKS";
+  const isSimbaTest = testType === "SIMBA_PUBLIC_SPACE" || testType === "SIMBA_FUNCTIONAL_TASKS" || testType === "SIMBA_COMBINED";
 
-  // Auto-compute pass/fail for Simba tests
+  // Auto-compute pass/fail indicator for Simba tests
   const simbaPassedCount = testItems.filter((i) => i.passed).length;
   const simbaAutoResult: "PASS" | "FAIL" = testType === "SIMBA_FUNCTIONAL_TASKS"
     ? (simbaPassedCount >= SIMBA_FUNCTIONAL_PASS_THRESHOLD ? "PASS" : "FAIL")
-    : (testType === "SIMBA_PUBLIC_SPACE"
+    : (testType === "SIMBA_PUBLIC_SPACE" || testType === "SIMBA_COMBINED"
         ? (testItems.filter((i) => i.taskId.startsWith("PS_R")).every((i) => i.passed) &&
            testItems.filter((i) => i.taskId.startsWith("PS_0")).every((i) => i.passed) ? "PASS" : "FAIL")
         : "PASS");
 
-  const handleSave = () => {
-    const finalResult = isSimbaTest ? simbaAutoResult : overallResult;
+  const handleSave = async () => {
+    let fileUrl: string | undefined;
+    let fileName: string | undefined;
+    if (selectedFile) {
+      setIsUploading(true);
+      try {
+        const fd = new FormData();
+        fd.append("file", selectedFile);
+        fd.append("name", `מבחן ${TEST_TYPE_MAP[testType] || testType} — ${date}`);
+        fd.append("docType", "TRAINING_CERT");
+        const res = await fetch(`/api/service-dogs/${selectedDogId}/documents`, { method: "POST", body: fd });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          toast.error(err.error || "שגיאה בהעלאת הקובץ");
+          return;
+        }
+        const doc = await res.json();
+        fileUrl = doc.url;
+        fileName = selectedFile.name;
+      } finally {
+        setIsUploading(false);
+      }
+    }
     onSave({
       id: crypto.randomUUID(),
       date,
@@ -2199,8 +2328,10 @@ function AddTrainingTestModal({
       testType,
       categories: isSimbaTest ? [] : categories.filter((c) => c.result !== "NOT_TESTED"),
       testItems: isSimbaTest ? testItems : undefined,
-      overallResult: finalResult,
+      overallResult,
       notes,
+      ...(fileUrl && { fileUrl, fileName }),
+      ...(nextRenewalDate && { nextRenewalDate }),
     }, selectedDogId);
   };
 
@@ -2245,30 +2376,28 @@ function AddTrainingTestModal({
               <label className="label">שם הבוחן</label>
               <input value={examinerName} onChange={(e) => setExaminerName(e.target.value)} className="input w-full" placeholder="שם הבוחן / מעריך" />
             </div>
-            {!isSimbaTest && (
-              <div>
-                <label className="label">תוצאה כללית</label>
-                <select value={overallResult} onChange={(e) => setOverallResult(e.target.value as "PASS" | "FAIL" | "CONDITIONAL_PASS")} className="input w-full">
-                  <option value="PASS">עבר ✓</option>
-                  <option value="CONDITIONAL_PASS">עבר עם הערות</option>
-                  <option value="FAIL">נכשל ✗</option>
-                </select>
-              </div>
-            )}
-            {isSimbaTest && (
-              <div className="flex items-end pb-0.5">
-                <div className={cn(
-                  "w-full text-center text-sm font-semibold py-2 rounded-lg",
-                  simbaAutoResult === "PASS" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"
-                )}>
-                  {testType === "SIMBA_FUNCTIONAL_TASKS"
-                    ? `${simbaPassedCount}/${SIMBA_FUNCTIONAL_TASKS.length} משימות — ${simbaAutoResult === "PASS" ? "עבר ✓" : "נכשל ✗"} (ספי: ${SIMBA_FUNCTIONAL_PASS_THRESHOLD})`
-                    : `${simbaAutoResult === "PASS" ? "עבר ✓" : "נכשל ✗"}`
-                  }
-                </div>
-              </div>
-            )}
+            <div>
+              <label className="label">תוצאה כללית</label>
+              <select value={overallResult} onChange={(e) => setOverallResult(e.target.value as "PASS" | "FAIL" | "CONDITIONAL_PASS")} className="input w-full">
+                <option value="PASS">עבר ✓</option>
+                <option value="CONDITIONAL_PASS">עבר עם הערות</option>
+                <option value="FAIL">נכשל ✗</option>
+              </select>
+            </div>
           </div>
+          {isSimbaTest && (
+            <div className={cn(
+              "text-center text-xs font-medium py-1.5 rounded-lg",
+              simbaAutoResult === "PASS" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"
+            )}>
+              {testType === "SIMBA_FUNCTIONAL_TASKS"
+                ? `חישוב אוטומטי: ${simbaPassedCount}/${SIMBA_FUNCTIONAL_TASKS.length} משימות — ${simbaAutoResult === "PASS" ? "עבר" : "נכשל"} (סף: ${SIMBA_FUNCTIONAL_PASS_THRESHOLD})`
+                : testType === "SIMBA_COMBINED"
+                  ? `חישוב אוטומטי: ${simbaPassedCount}/${SIMBA_PUBLIC_SPACE_TASKS.length + SIMBA_FUNCTIONAL_TASKS.length} — ${simbaAutoResult === "PASS" ? "עבר" : "נכשל"}`
+                  : `חישוב אוטומטי: ${simbaAutoResult === "PASS" ? "עבר" : "נכשל"}`
+              }
+            </div>
+          )}
 
           {/* Simba Public Space tasks */}
           {testType === "SIMBA_PUBLIC_SPACE" && (
@@ -2371,6 +2500,111 @@ function AddTrainingTestModal({
             </div>
           )}
 
+          {/* Simba Combined — Public Space + Functional */}
+          {testType === "SIMBA_COMBINED" && (
+            <div className="space-y-4">
+              <div>
+                <label className="label mb-2">
+                  מרחב הציבורי
+                  <span className="text-xs text-petra-muted font-normal mr-2">({testItems.filter((i) => i.taskId.startsWith("PS_0") && i.passed).length}/{SIMBA_PUBLIC_SPACE_TASKS.length} עברו)</span>
+                </label>
+                <div className="border rounded-xl overflow-hidden">
+                  <div className="divide-y max-h-60 overflow-y-auto">
+                    {SIMBA_PUBLIC_SPACE_TASKS.map((task) => {
+                      const item = testItems.find((i) => i.taskId === task.id);
+                      return (
+                        <div key={task.id} className={cn("flex items-center gap-3 px-3 py-2", item?.passed && "bg-emerald-50")}>
+                          <button type="button" onClick={() => toggleItem(task.id)} className={cn("w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all", item?.passed ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-300 bg-white")}>
+                            {item?.passed && <Check className="w-3 h-3" />}
+                          </button>
+                          <span className="text-sm flex-1">{task.label}</span>
+                          <input type="text" value={item?.notes ?? ""} onChange={(e) => updateItemNotes(task.id, e.target.value)} className="text-xs border rounded px-1.5 py-0.5 w-32 flex-shrink-0" placeholder="הערות..." />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <label className="label mb-1 text-orange-700 text-xs">דרישות נוספות</label>
+                  <div className="border border-orange-200 rounded-xl overflow-hidden bg-orange-50">
+                    {SIMBA_PUBLIC_SPACE_REQUIREMENTS.map((req) => {
+                      const item = testItems.find((i) => i.taskId === req.id);
+                      return (
+                        <div key={req.id} className={cn("flex items-center gap-3 px-3 py-2 border-b border-orange-100 last:border-b-0", item?.passed && "bg-emerald-50")}>
+                          <button type="button" onClick={() => toggleItem(req.id)} className={cn("w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all", item?.passed ? "bg-emerald-500 border-emerald-500 text-white" : "border-orange-300 bg-white")}>
+                            {item?.passed && <Check className="w-3 h-3" />}
+                          </button>
+                          <span className="text-sm flex-1 text-orange-800">{req.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="label mb-1">
+                  משימות תפקודיות
+                  <span className="text-xs text-petra-muted font-normal mr-2">(נדרשות {SIMBA_FUNCTIONAL_PASS_THRESHOLD} לפחות)</span>
+                </label>
+                <div className="border rounded-xl overflow-hidden">
+                  <div className="divide-y max-h-60 overflow-y-auto">
+                    {SIMBA_FUNCTIONAL_TASKS.map((task) => {
+                      const item = testItems.find((i) => i.taskId === task.id);
+                      return (
+                        <div key={task.id} className={cn("flex items-center gap-3 px-3 py-2", item?.passed && "bg-emerald-50")}>
+                          <button type="button" onClick={() => toggleItem(task.id)} className={cn("w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all", item?.passed ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-300 bg-white")}>
+                            {item?.passed && <Check className="w-3 h-3" />}
+                          </button>
+                          <span className="text-sm flex-1">{task.label}</span>
+                          <input type="text" value={item?.notes ?? ""} onChange={(e) => updateItemNotes(task.id, e.target.value)} className="text-xs border rounded px-1.5 py-0.5 w-32 flex-shrink-0" placeholder="הערות..." />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Annual exam renewal date */}
+          {testType === "ANNUAL_RETEST" && (
+            <div>
+              <label className="label">תאריך חידוש (בעוד שנה)</label>
+              <input
+                type="date"
+                value={nextRenewalDate}
+                onChange={(e) => setNextRenewalDate(e.target.value)}
+                className="input w-full"
+              />
+              <p className="text-xs text-petra-muted mt-1">תוצג התראה כשמועד החידוש מתקרב</p>
+            </div>
+          )}
+
+          {/* File upload */}
+          <div>
+            <label className="label">העלאת קובץ המבחן (אופציונלי)</label>
+            <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 flex items-center gap-3">
+              <input
+                type="file"
+                id="test-file-upload"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                className="hidden"
+              />
+              <label htmlFor="test-file-upload" className="btn-secondary text-xs cursor-pointer px-3 py-1.5 shrink-0">
+                בחר קובץ
+              </label>
+              <span className="text-xs text-petra-muted truncate flex-1">
+                {selectedFile ? selectedFile.name : "PDF, Word, תמונה — עד 10MB"}
+              </span>
+              {selectedFile && (
+                <button type="button" onClick={() => setSelectedFile(null)} className="text-xs text-red-500 hover:text-red-600 shrink-0">
+                  הסר
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* ADI categories — only for non-Simba test types */}
           {!isSimbaTest && (
             <div>
@@ -2422,8 +2656,8 @@ function AddTrainingTestModal({
           </div>
         </div>
         <div className="flex gap-2 mt-4 pt-4 border-t">
-          <button onClick={handleSave} disabled={isSaving} className="btn-primary flex-1">
-            {isSaving ? "שומר..." : "שמור מבחן"}
+          <button onClick={handleSave} disabled={isSaving || isUploading} className="btn-primary flex-1">
+            {isUploading ? "מעלה קובץ..." : isSaving ? "שומר..." : "שמור מבחן"}
           </button>
           <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
         </div>
@@ -3148,6 +3382,12 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
             <div>
               <p className="text-xs text-petra-muted">מקור הכלב</p>
               <p className="font-medium">{pet.health.originInfo}</p>
+            </div>
+          )}
+          {dog.certificationDate && (
+            <div>
+              <p className="text-xs text-petra-muted">תאריך הסמכה</p>
+              <p className="font-medium">{formatDate(dog.certificationDate)}</p>
             </div>
           )}
         </div>

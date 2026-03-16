@@ -77,8 +77,8 @@ export async function PATCH(
       },
     });
 
-    // Create compliance event on termination/completion
-    if (oldStatus !== newStatus && (newStatus === "TERMINATED" || newStatus === "COMPLETED")) {
+    // Create compliance event on termination
+    if (oldStatus !== newStatus && newStatus === "TERMINATED") {
       await createComplianceEvent(
         placement.serviceDogId,
         authResult.businessId,
@@ -86,11 +86,9 @@ export async function PATCH(
         `שיבוץ הסתיים: ${placement.serviceDog.pet.name} → ${placement.recipient.name}`,
         { placementId: params.id }
       );
-
-      // TERMINATED → send back to LEAD for reassignment; COMPLETED → stays ACTIVE
       await prisma.serviceDogRecipient.update({
         where: { id: placement.recipientId },
-        data: { status: newStatus === "COMPLETED" ? "ACTIVE" : "LEAD" },
+        data: { status: "LEAD" },
       });
     }
 
@@ -127,8 +125,8 @@ export async function DELETE(
 
     await prisma.serviceDogPlacement.delete({ where: { id: params.id } });
 
-    // If it was an active/trial placement, revert recipient to LEAD
-    if (["ACTIVE", "TRIAL", "PENDING"].includes(placement.status)) {
+    // If it was an active placement, revert recipient to LEAD
+    if (placement.status === "ACTIVE") {
       await prisma.serviceDogRecipient.update({
         where: { id: placement.recipientId },
         data: { status: "LEAD" },

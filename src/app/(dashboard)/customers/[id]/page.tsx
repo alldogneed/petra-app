@@ -2862,13 +2862,13 @@ function EditHealthModal({
               </div>
             </div>
 
-            {/* שעלת מכלאות */}
+            {/* תילוע */}
             <div>
-              <p className="text-xs font-medium text-petra-text mb-2">שעלת מכלאות — תיעוד קבלה</p>
+              <p className="text-xs font-medium text-petra-text mb-2">תילוע — אחת לחצי שנה</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label">תאריך קבלה</label>
-                  <input className="input" type="date" value={form.bordatellaDate} onChange={(e) => setForm({ ...form, bordatellaDate: e.target.value })} />
+                  <label className="label">תאריך תילוע</label>
+                  <input className="input" type="date" value={form.dewormingLastDate} onChange={(e) => setForm({ ...form, dewormingLastDate: e.target.value })} />
                 </div>
               </div>
             </div>
@@ -2880,17 +2880,6 @@ function EditHealthModal({
                 <div>
                   <label className="label">תאריך טיפול</label>
                   <input className="input" type="date" value={form.parkWormDate} onChange={(e) => setForm({ ...form, parkWormDate: e.target.value })} />
-                </div>
-              </div>
-            </div>
-
-            {/* תילוע */}
-            <div>
-              <p className="text-xs font-medium text-petra-text mb-2">תילוע — אחת לחצי שנה</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">תאריך תילוע</label>
-                  <input className="input" type="date" value={form.dewormingLastDate} onChange={(e) => setForm({ ...form, dewormingLastDate: e.target.value })} />
                 </div>
               </div>
             </div>
@@ -2912,6 +2901,17 @@ function EditHealthModal({
                     <label className="label">תוקף עד</label>
                     <input className="input" type="date" value={form.fleaTickExpiryDate} onChange={(e) => setForm({ ...form, fleaTickExpiryDate: e.target.value })} />
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* שעלת מכלאות */}
+            <div>
+              <p className="text-xs font-medium text-petra-text mb-2">שעלת מכלאות — תיעוד קבלה</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">תאריך קבלה</label>
+                  <input className="input" type="date" value={form.bordatellaDate} onChange={(e) => setForm({ ...form, bordatellaDate: e.target.value })} />
                 </div>
               </div>
             </div>

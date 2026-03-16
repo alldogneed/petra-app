@@ -566,22 +566,16 @@ function AddDogModal({ dogs, onClose }: { dogs: ServiceDogCard[]; onClose: () =>
 
   const existingPetIds = new Set(dogs.map((d) => d.pet.id));
 
-  const { data: customers = [] } = useQuery<
-    Array<{ id: string; name: string; pets: Array<{ id: string; name: string; breed: string | null; species: string }> }>
-  >({
-    queryKey: ["customers-pet-search", petSearch],
+  const { data: petsData } = useQuery<{
+    pets: Array<{ id: string; name: string; breed: string | null; species: string; customer: { name: string } | null }>;
+  }>({
+    queryKey: ["pets-search", petSearch],
     queryFn: () =>
-      fetch(`/api/customers?enhanced=1&search=${encodeURIComponent(petSearch)}`).then((r) =>
-        r.json()
-      ),
+      fetch(`/api/pets?search=${encodeURIComponent(petSearch)}`).then((r) => r.json()),
     enabled: petSearch.length >= 1,
   });
 
-  const availablePets = customers.flatMap((c) =>
-    (c.pets || [])
-      .filter((p) => !existingPetIds.has(p.id))
-      .map((p) => ({ ...p, customerName: c.name }))
-  );
+  const availablePets = (petsData?.pets ?? []).filter((p) => !existingPetIds.has(p.id));
 
   const createMutation = useMutation({
     mutationFn: (data: { petId: string; phase: string; serviceType: string; notes: string }) =>
@@ -615,7 +609,7 @@ function AddDogModal({ dogs, onClose }: { dogs: ServiceDogCard[]; onClose: () =>
         <div className="space-y-4">
           {/* Pet search */}
           <div>
-            <label className="label">חיפוש כלב (לפי שם לקוח) *</label>
+            <label className="label">חיפוש כלב (לפי שם הכלב) *</label>
             <input
               type="text"
               value={petSearch}
@@ -624,7 +618,7 @@ function AddDogModal({ dogs, onClose }: { dogs: ServiceDogCard[]; onClose: () =>
                 setSelectedPetId("");
                 setSelectedPetName("");
               }}
-              placeholder="הקלד שם לקוח..."
+              placeholder="הקלד שם הכלב..."
               className="input w-full"
             />
             {availablePets.length > 0 && !selectedPetId && (
@@ -639,7 +633,7 @@ function AddDogModal({ dogs, onClose }: { dogs: ServiceDogCard[]; onClose: () =>
                     className="w-full text-right px-3 py-2.5 text-sm hover:bg-slate-50 transition-colors border-b last:border-b-0"
                   >
                     <span className="font-medium">{pet.name}</span>
-                    <span className="text-petra-muted"> · {pet.breed || pet.species} · {pet.customerName}</span>
+                    <span className="text-petra-muted"> · {pet.breed || pet.species} · {pet.customer?.name ?? ""}</span>
                   </button>
                 ))}
               </div>
@@ -659,7 +653,7 @@ function AddDogModal({ dogs, onClose }: { dogs: ServiceDogCard[]; onClose: () =>
 
           {/* Phase */}
           <div>
-            <label className="label">שלב התחלתי</label>
+            <label className="label">שלב / סטטוס</label>
             <select value={phase} onChange={(e) => setPhase(e.target.value)} className="input w-full">
               {SERVICE_DOG_PHASES.map((p) => (
                 <option key={p.id} value={p.id}>{p.label}</option>
