@@ -133,6 +133,7 @@ export async function GET(request: NextRequest) {
       "מספר פוליסה",
       "תחידוש ביטוח",
       "אבן דרך אחרונה",
+      "תאריך בחינה שנתית מחזורית",
       "הערות",
     ];
 
@@ -143,6 +144,11 @@ export async function GET(request: NextRequest) {
       const placement = dog.placements[0];
       const insurance = dog.insurances[0];
       const milestone = dog.milestones[0];
+
+      const tests = Array.isArray(dog.trainingTests) ? (dog.trainingTests as { testType?: string; nextRenewalDate?: string; date?: string }[]) : [];
+      const annualRetest = tests
+        .filter((t) => t.testType === "ANNUAL_RETEST" && t.nextRenewalDate)
+        .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))[0];
 
       rows.push([
         dog.pet.name,
@@ -174,6 +180,7 @@ export async function GET(request: NextRequest) {
         insurance?.policyNumber || "",
         fmt(insurance?.renewalDate),
         milestone ? (MILESTONE_KEY_LABELS[milestone.milestoneKey] || milestone.milestoneKey) : "",
+        annualRetest ? fmt(annualRetest.nextRenewalDate) : "",
         dog.notes || "",
       ]);
     }
@@ -187,7 +194,8 @@ export async function GET(request: NextRequest) {
       { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 18 },
       { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 18 }, { wch: 12 },
       { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 20 },
-      { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 22 }, { wch: 30 },
+      { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 22 }, { wch: 24 },
+      { wch: 30 },
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, "כלבי שירות");

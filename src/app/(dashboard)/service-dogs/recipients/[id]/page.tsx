@@ -96,6 +96,7 @@ const MEETING_TYPES = [
   { id: "COMPATIBILITY_CHECK", label: "בדיקת התאמה" },
   { id: "FOLLOW_UP", label: "מעקב" },
   { id: "ANNUAL_REVIEW", label: "בדיקה שנתית" },
+  { id: "GROUP_TRAINING", label: "אימון קבוצתי" },
   { id: "OTHER", label: "אחר" },
 ];
 const MEETING_TYPE_MAP = Object.fromEntries(MEETING_TYPES.map((t) => [t.id, t.label]));
@@ -141,6 +142,7 @@ function RecipientDetailPageContent() {
   const [editMode, setEditMode] = useState(false);
   const [showLinkCustomer, setShowLinkCustomer] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAddContact, setShowAddContact] = useState(false);
   const [editingContact, setEditingContact] = useState<ContactPerson | null>(null);
   const [uploadingForContact, setUploadingForContact] = useState<string | null>(null);
@@ -153,6 +155,27 @@ function RecipientDetailPageContent() {
       if (!r.ok) throw new Error("Failed");
       return r.json();
     }),
+  });
+
+  const deleteRecipientMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/service-recipients/${id}`, {
+        method: "DELETE",
+        headers: { "x-confirm-action": `DELETE_RECIPIENT_${id}` },
+      }).then(async (r) => {
+        const data = await r.json();
+        if (r.status === 202) { toast.success("הבקשה נשלחה לאישור הבעלים"); return data; }
+        if (!r.ok) throw new Error(data.error || "שגיאה");
+        return data;
+      }),
+    onSuccess: (data) => {
+      if (!data.pendingApproval) {
+        toast.success("הזכאי נמחק");
+        router.push("/service-dogs/recipients");
+      }
+      setShowDeleteConfirm(false);
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקה"),
   });
 
   const patchMutation = useMutation({
@@ -239,7 +262,7 @@ function RecipientDetailPageContent() {
 
   const statusInfo = RECIPIENT_STATUS_MAP[recipient.status];
   const activePlacement = recipient.placements?.find((p) =>
-    ["ACTIVE", "TRIAL"].includes(p.status)
+    p.status === "ACTIVE"
   );
   const mainDocs = (recipient.attachments || []).filter((a) => !a.contactPersonId);
   const handoverDocs = mainDocs.filter((a) => a.docType === "HANDOVER_DOCS");
@@ -343,6 +366,13 @@ function RecipientDetailPageContent() {
             >
               <Pencil className="w-4 h-4" />
               עריכה
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="btn-ghost flex items-center gap-1.5 text-sm text-red-500 hover:bg-red-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              מחק
             </button>
           </div>
         </div>
@@ -864,6 +894,37 @@ function RecipientDetailPageContent() {
           onClose={() => setShowReport(false)}
         />
       )}
+
+      {/* Delete confirmation */}
+      {showDeleteConfirm && recipient && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal-backdrop" />
+          <div className="modal-content max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-petra-text">מחיקת זכאי</h3>
+                <p className="text-sm text-petra-muted mt-1">
+                  בטוח שברצונך למחוק את <span className="font-medium text-petra-text">{recipient.name}</span>?
+                  <br />פעולה זו אינה ניתנת לביטול.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button className="btn-secondary" onClick={() => setShowDeleteConfirm(false)}>ביטול</button>
+              <button
+                className="btn-primary bg-red-600 hover:bg-red-700 border-red-600"
+                onClick={() => deleteRecipientMutation.mutate()}
+                disabled={deleteRecipientMutation.isPending}
+              >
+                {deleteRecipientMutation.isPending ? "מוחק..." : "מחק"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1335,7 +1396,7 @@ function GovernmentReportModal({
   recipient: RecipientDetail;
   onClose: () => void;
 }) {
-  const activePlacement = recipient.placements?.find((p) => ["ACTIVE", "TRIAL"].includes(p.status));
+  const activePlacement = recipient.placements?.find((p) => p.status === "ACTIVE");
   const today = new Date().toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" });
 
   const handlePrint = () => {

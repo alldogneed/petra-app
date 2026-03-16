@@ -87,7 +87,7 @@ function DraggableRecipientCard({ recipient, stageKey, onDelete }: { recipient: 
     data: { type: "card", recipientId: recipient.id, stageKey },
   });
   const style = { transform: CSS.Translate.toString(transform), transition };
-  const activePlacement = recipient.placements.find((p) => p.status === "ACTIVE" || p.status === "TRIAL");
+  const activePlacement = recipient.placements.find((p) => p.status === "ACTIVE");
 
   return (
     <div
@@ -625,7 +625,7 @@ function RecipientsPageContent() {
             <tbody className="divide-y">
               {filtered.map((r) => {
                 const stage = stages.find((s) => s.key === r.status);
-                const activePlacement = r.placements.find((p) => p.status === "ACTIVE" || p.status === "TRIAL");
+                const activePlacement = r.placements.find((p) => p.status === "ACTIVE");
                 return (
                   <tr key={r.id} className="hover:bg-slate-50/60">
                     <td className="p-3">
