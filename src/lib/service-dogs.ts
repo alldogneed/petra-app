@@ -3,8 +3,9 @@
 // ─── Phases ───
 
 export const SERVICE_DOG_PHASES = [
-  { id: "PUPPY", label: "גור", color: "bg-pink-50 text-pink-700 border-pink-200" },
   { id: "SELECTION", label: "בחירה", color: "bg-slate-100 text-slate-700 border-slate-200" },
+  { id: "RAISING", label: "גידול", color: "bg-violet-50 text-violet-700 border-violet-200" },
+  { id: "PUPPY", label: "גור", color: "bg-pink-50 text-pink-700 border-pink-200" },
   { id: "IN_TRAINING", label: "באימון", color: "bg-blue-50 text-blue-700 border-blue-200" },
   { id: "ADVANCED_TRAINING", label: "אימון מתקדם", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
   { id: "CERTIFIED", label: "מוסמך", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -16,8 +17,9 @@ export const SERVICE_DOG_PHASE_MAP: Record<string, { label: string; color: strin
   Object.fromEntries(SERVICE_DOG_PHASES.map((p) => [p.id, { label: p.label, color: p.color }]));
 
 export const SERVICE_DOG_PHASE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  PUPPY:             { bg: "#FDF2F8", text: "#BE185D", border: "#FBCFE8" },
   SELECTION:         { bg: "#F1F5F9", text: "#475569", border: "#CBD5E1" },
+  RAISING:           { bg: "#F5F3FF", text: "#6D28D9", border: "#DDD6FE" },
+  PUPPY:             { bg: "#FDF2F8", text: "#BE185D", border: "#FBCFE8" },
   IN_TRAINING:       { bg: "#EFF6FF", text: "#2563EB", border: "#93C5FD" },
   ADVANCED_TRAINING: { bg: "#EEF2FF", text: "#4338CA", border: "#A5B4FC" },
   CERTIFIED:         { bg: "#F0FDF4", text: "#16A34A", border: "#86EFAC" },
@@ -166,8 +168,9 @@ export const MEDICAL_PROTOCOL_MAP: Record<string, MedicalProtocolDef> =
 // ─── Phase → Medical Protocols Map ───
 
 export const PHASE_MEDICAL_PROTOCOLS: Record<string, string[]> = {
-  PUPPY: ["DHPP_PRIMARY", "DEWORMING", "FLEA_TICK", "VET_EXAM", "TEMPERAMENT_EVAL"],
   SELECTION: ["RABIES_PRIMARY", "DHPP", "DEWORMING", "FLEA_TICK", "VET_EXAM", "TEMPERAMENT_EVAL", "VET_CLEARANCE", "HIP_XRAY", "EYE_EXAM", "MUNICIPAL_LICENSE"],
+  RAISING: ["DHPP_PRIMARY", "DEWORMING", "FLEA_TICK", "VET_EXAM", "TEMPERAMENT_EVAL"],
+  PUPPY: ["DHPP_PRIMARY", "DEWORMING", "FLEA_TICK", "VET_EXAM", "TEMPERAMENT_EVAL"],
   IN_TRAINING: ["RABIES_BOOSTER", "DHPP_BOOSTER", "LEPTOSPIROSIS", "BORDETELLA", "DEWORMING", "FLEA_TICK", "VET_EXAM", "VET_CLEARANCE", "PARK_WORM", "MUNICIPAL_LICENSE"],
   ADVANCED_TRAINING: ["RABIES_BOOSTER", "DHPP_BOOSTER", "DEWORMING", "FLEA_TICK", "VET_CLEARANCE", "HEALTH_CERT", "PARK_WORM", "MUNICIPAL_LICENSE"],
   CERTIFIED: ["RABIES_BOOSTER", "DHPP_BOOSTER", "DEWORMING", "FLEA_TICK", "VET_EXAM", "HEALTH_CERT", "ANNUAL_RECERT", "RABIES_TITER", "PARK_WORM", "MUNICIPAL_LICENSE"],
