@@ -70,7 +70,18 @@ All authenticated API routes derive `businessId` from session — never from req
 ### 11. `platformRole` is server-only — use `isAdmin` client-side
 `getCurrentUser()` returns `isAdmin: boolean` (not `platformRole`). The raw `platformRole` string is only available in server-side session objects (`auth-guards.ts`, `session.ts`). Never add `platformRole` back to client-facing API responses.
 
-### 12. `shadcn init` destroys utils.ts
+### 12. Service dog phases — single source of truth
+`SERVICE_DOG_PHASES` in `src/lib/service-dogs.ts` drives ALL phase UI and API validation.
+`VALID_PHASES` in `/api/service-dogs/[id]/phase/route.ts` is derived from it — never hardcode phase strings elsewhere.
+Current order: SELECTION → RAISING → PUPPY → IN_TRAINING → ADVANCED_TRAINING → CERTIFIED → RETIRED → DECERTIFIED
+
+### 13. Recipient stages — REJECTED = archive
+`DEFAULT_STAGES` in `/api/service-recipient-stages/route.ts` is upserted (name + color) on every GET.
+`REJECTED` is the only "archive" stage — hidden by default in kanban + table; toggled by "ארכיון" button.
+`activeStages = stages.filter(s => showArchive || s.key !== "REJECTED")` pattern in recipients page.
+AddRecipientModal receives stages filtered without REJECTED.
+
+### 14. `shadcn init` destroys utils.ts
 Restore: `DEMO_BUSINESS_ID`, `formatCurrency`, `formatDate`, `formatTime`, `getStatusColor`, `getStatusLabel`, `toWhatsAppPhone`, `getTimelineIcon`
 
 ---
@@ -123,7 +134,9 @@ import { prisma } from "@/lib/prisma"
 | WhatsApp reminder (auto) | `src/lib/reminder-service.ts` — `scheduleAppointmentReminder()` checks `whatsappRemindersEnabled` + tier |
 | Message template defaults | `STARTER_TEMPLATES` in `src/components/messages/messages-panel.tsx` — 8 templates with automated footer |
 | Form validation utils | `src/lib/validation.ts` — `validateIsraeliPhone`, `validateEmail`, `sanitizeName`, `validateName` |
+| Service dog phases | `src/lib/service-dogs.ts` — `SERVICE_DOG_PHASES` (single source of truth; VALID_PHASES derived from it) |
 | Service dog location options | `src/lib/service-dogs.ts` — `LOCATION_OPTIONS` |
+| Recipient stages | `src/app/api/service-recipient-stages/route.ts` — `DEFAULT_STAGES` (upserted on every GET; REJECTED = archive stage) |
 | Sidebar | `src/components/layout/sidebar.tsx` |
 | App shell | `src/components/layout/app-shell.tsx` |
 | Auth guards | `src/lib/auth-guards.ts` |
