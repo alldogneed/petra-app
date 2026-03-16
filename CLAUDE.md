@@ -146,6 +146,9 @@ import { prisma } from "@/lib/prisma"
 | Service dog types | `src/lib/service-dogs.ts` — `SERVICE_DOG_TYPES` (MOBILITY, PSYCHIATRIC, PTSD, GUIDE, AUTISM, ALERT, OTHER) |
 | Service dog placement statuses | `src/lib/service-dogs.ts` — `SERVICE_DOG_PLACEMENT_STATUSES` (ACTIVE + TERMINATED only) |
 | Service dog location options | `src/lib/service-dogs.ts` — `LOCATION_OPTIONS` |
+| Medical protocol categories | `MEDICAL_PROTOCOL_CATEGORIES` — order: חיסונים→טיפולים→בדיקות בריאות; label "טיפולים" (not "טפילים"); PARK_WORM = "תולעת הפארק" |
+| Medical protocol label display | Render `MEDICAL_PROTOCOL_MAP[key]?.label ?? storedLabel` — overrides stale DB labels |
+| Medical protocol date sync | `service-dog-engine.ts` — DEWORMING: `dewormingValidUntil` direct when set, else `lastDate+180d`; PARK_WORM: `parkWormValidUntil` |
 | Recipient stages | `src/app/api/service-recipient-stages/route.ts` — `DEFAULT_STAGES` (upserted on every GET; REJECTED = archive stage) |
 | Sidebar | `src/components/layout/sidebar.tsx` |
 | App shell | `src/components/layout/app-shell.tsx` |
