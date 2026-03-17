@@ -367,9 +367,9 @@ export default function LandingPage() {
                   className="flex flex-wrap items-center justify-center lg:justify-start gap-x-6 gap-y-2 text-slate-400 text-sm list-none p-0 m-0"
                 >
                   {[
-                    { icon: CreditCard, text: "ללא כרטיס אשראי" },
-                    { icon: Clock, text: "התחלה תוך דקה" },
-                    { icon: Check, text: "ביטול בכל עת" },
+                    { icon: CreditCard, text: "נדרש כרטיס אשראי" },
+                    { icon: Clock, text: "14 יום ניסיון חינמי" },
+                    { icon: Check, text: "ביטול בניסיון = ₪0" },
                   ].map(({ icon: Icon, text }) => (
                     <li key={text} className="flex items-center gap-1.5">
                       <Icon aria-hidden="true" className="w-4 h-4 text-brand-400" />
@@ -804,7 +804,7 @@ export default function LandingPage() {
             <Link href="/register" className="btn-primary text-base px-10 py-4">
               אני רוצה לנסות בחינם
             </Link>
-            <p className="mt-4 text-slate-500 text-sm">ללא כרטיס אשראי · ביטול בכל עת</p>
+            <p className="mt-4 text-slate-500 text-sm">14 יום ניסיון חינמי · ביטול בניסיון = ₪0 · ממשיך אוטומטית</p>
             <p className="mt-2 text-brand-400/80 text-sm">מעבר קל ממערכות אחרות — אנחנו נעזור לך</p>
           </div>
         </section>
