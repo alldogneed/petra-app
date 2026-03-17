@@ -209,6 +209,42 @@ const FAQ = [
   },
 ];
 
+// ─── FAQ Accordion ────────────────────────────────────────────────────────────
+function FaqAccordion() {
+  const [open, setOpen] = useState<string | null>(null);
+  return (
+    <div className="mt-12 bg-slate-50 rounded-2xl p-6">
+      <h3 className="font-bold text-slate-900 mb-5 flex items-center gap-2 text-base">
+        <Star className="w-4 h-4 text-amber-500 fill-amber-400" aria-hidden="true" />
+        שאלות נפוצות
+      </h3>
+      <div className="space-y-2">
+        {FAQ.map(({ q, a }) => {
+          const isOpen = open === q;
+          return (
+            <div key={q} className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+              <button
+                onClick={() => setOpen(isOpen ? null : q)}
+                className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-right hover:bg-slate-50 transition-colors"
+              >
+                <span className="font-medium text-slate-800 text-sm">{q}</span>
+                <ChevronDown
+                  className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              {isOpen && (
+                <div className="px-4 pb-4 text-slate-500 text-sm leading-relaxed border-t border-slate-100 pt-3">
+                  {a}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export function PricingSection() {
   const [showComparison, setShowComparison] = useState(false);
@@ -435,20 +471,7 @@ export function PricingSection() {
         )}
 
         {/* FAQ */}
-        <div className="mt-12 bg-slate-50 rounded-2xl p-6">
-          <h3 className="font-bold text-slate-900 mb-5 flex items-center gap-2 text-base">
-            <Star className="w-4 h-4 text-amber-500 fill-amber-400" aria-hidden="true" />
-            שאלות נפוצות
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {FAQ.map(({ q, a }) => (
-              <div key={q} className="bg-white rounded-xl p-4 border border-slate-100">
-                <div className="font-medium text-slate-800 text-sm mb-1">{q}</div>
-                <div className="text-slate-500 text-xs leading-relaxed">{a}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <FaqAccordion />
 
         {/* WhatsApp contact */}
         <div className="mt-6 text-center">
