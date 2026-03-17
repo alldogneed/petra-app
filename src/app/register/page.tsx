@@ -98,7 +98,7 @@ function RegisterForm() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, tosAccepted, tosVersion: "1.0" }),
+        body: JSON.stringify({ name, email, password, tosAccepted, tosVersion: "1.0", plan: planParam || undefined }),
       });
 
       const data = await res.json();
@@ -108,9 +108,11 @@ function RegisterForm() {
         return;
       }
 
-      // If user came from pricing page with a plan, skip onboarding and go straight to payment
+      // Trial is now active — skip onboarding and go to dashboard
+      // The trial banner in the app will prompt payment when ready
       if (planParam && VALID_PLANS.has(planParam)) {
-        window.location.href = `/upgrade?autostart=${planParam}`;
+        router.push("/dashboard");
+        router.refresh();
         return;
       }
       // Registered + logged in → go to onboarding wizard

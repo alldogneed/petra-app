@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, X, ChevronDown, ChevronUp, MessageCircle, Star, Zap, CreditCard } from "lucide-react";
+import { Check, X, ChevronDown, ChevronUp, MessageCircle, Star, Zap, Gift } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 
 const CARDCOM_TIERS = new Set(["basic", "pro", "groomer", "service_dog"]);
@@ -202,7 +202,7 @@ const FAQ = [
   { q: "איך משדרגים?", a: "שליחת הודעת WhatsApp לתמיכה — המסלול מתעדכן תוך שעות." },
   { q: "האם ניתן לבטל?", a: "כן, ניתן לבטל בכל עת ללא קנסות." },
   { q: "מה קורה לנתונים בביטול?", a: "הנתונים נשמרים 30 יום לאחר ביטול." },
-  { q: "יש ניסיון חינמי?", a: "ניתן ליצור חשבון חינמי ללא כרטיס אשראי ולשדרג בכל עת." },
+  { q: "יש ניסיון חינמי?", a: "כן! כל המסלולים בתשלום כוללים 14 יום ניסיון חינמי ללא כרטיס אשראי. אחרי הניסיון ניתן להמשיך בתשלום — או לחזור למסלול החינמי." },
   {
     q: "מה קורה אם יש לי כבר מאות לקוחות במערכת אחרת או בטלפון?",
     a: "צוות פטרה יעזור לך לייבא את כל הנתונים בקלות ובמהירות, כדי שתוכל להתחיל לעבוד כבר היום בלי לאבד מידע.",
@@ -318,17 +318,21 @@ export function PricingSection() {
                   {/* CTA */}
                   {CARDCOM_TIERS.has(plan.key) ? (
                     <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full py-1 px-2">
+                        <Gift className="w-3 h-3" aria-hidden="true" />
+                        14 יום ניסיון חינמי — ללא כרטיס אשראי
+                      </div>
                       <Link
                         href={user ? `/upgrade?autostart=${plan.key}` : `/register?plan=${plan.key}`}
-                        aria-label={`שלם עכשיו — מסלול ${plan.name}`}
+                        aria-label={`נסה 14 יום חינם — מסלול ${plan.name}`}
                         className={`text-sm py-2.5 rounded-xl text-center font-semibold transition-colors flex items-center justify-center gap-1.5 ${
                           plan.highlight
                             ? "bg-brand-500 hover:bg-brand-600 text-white"
                             : "bg-slate-900 hover:bg-slate-800 text-white"
                         }`}
                       >
-                        <CreditCard className="w-3.5 h-3.5" aria-hidden="true" />
-                        שלם עכשיו
+                        <Gift className="w-3.5 h-3.5" aria-hidden="true" />
+                        נסה 14 יום חינם
                       </Link>
                       {!user && (
                         <Link

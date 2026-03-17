@@ -7,6 +7,14 @@ import { type ReactNode, useState, useEffect } from "react";
 import { HelpCircle } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/providers/auth-provider";
+import { usePlan } from "@/hooks/usePlan";
+
+const TIER_LABEL: Record<string, string> = {
+  basic: "בייסיק",
+  pro: "פרו",
+  groomer: "גרומר+",
+  service_dog: "Service Dog",
+};
 
 const HelpCenter = dynamic(
   () => import("@/components/help/HelpCenter").then((m) => ({ default: m.HelpCenter })),
@@ -28,6 +36,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
   const [helpOpen, setHelpOpen] = useState(false);
   const { user, exitImpersonation } = useAuth();
+  const { trialActive, trialExpired, trialDaysLeft, tier } = usePlan();
 
   return (
     <div className="min-h-screen">
@@ -45,6 +54,29 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </div>
       )}
+      {/* Trial active banner */}
+      {trialActive && !user?.isImpersonating && (
+        <div className="bg-amber-400 text-amber-950 text-sm px-4 py-2 flex items-center justify-between sticky top-0 z-50">
+          <span>
+            נשארו <strong>{trialDaysLeft} ימים</strong> בניסיון החינמי של מסלול{" "}
+            <strong>{TIER_LABEL[tier] ?? tier}</strong>
+          </span>
+          <a href="/upgrade" className="underline font-semibold hover:text-amber-800 transition-colors">
+            שלם עכשיו ←
+          </a>
+        </div>
+      )}
+
+      {/* Trial expired banner */}
+      {trialExpired && !user?.isImpersonating && (
+        <div className="bg-red-600 text-white text-sm px-4 py-2 flex items-center justify-between sticky top-0 z-50">
+          <span>הניסיון שלך פג — עבור למסלול בתשלום כדי להמשיך</span>
+          <a href="/upgrade" className="underline font-semibold hover:text-red-100 transition-colors">
+            שדרג עכשיו ←
+          </a>
+        </div>
+      )}
+
       <Sidebar
         collapsed={collapsed}
         onCollapsedChange={setCollapsed}
