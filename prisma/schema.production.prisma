@@ -212,8 +212,11 @@ model Business {
   tier        String   @default("basic")
   featureOverrides Json?   // per-tenant overrides: { "leads": true, "boarding": false, ... }
   status      String   @default("active") // "active" | "suspended" | "closed"
-  trialEndsAt        DateTime?
-  subscriptionEndsAt DateTime?
+  trialEndsAt          DateTime?
+  subscriptionEndsAt   DateTime?
+  subscriptionStatus   String    @default("inactive") // "active" | "inactive" | "cancelled" | "expired"
+  cardcomDealId        String?   // last successful Cardcom deal number
+  cardcomToken         String?   // Cardcom recurring billing token (future use)
   vatNumber          String?
   businessRegNumber  String?   // ח.פ / עוסק מורשה / בע"מ
   vatEnabled         Boolean  @default(true)
@@ -295,6 +298,7 @@ model Business {
   contractTemplates      ContractTemplate[]
   contractRequests       ContractRequest[]
   pendingApprovals       PendingApproval[]
+  subscriptionEvents     SubscriptionEvent[]
 
   @@index([slug])
 }
@@ -2159,3 +2163,21 @@ model PendingApproval {
   @@index([requestedByUserId])
   @@index([status])
 }
+
+/// Audit log of every Cardcom subscription event (activate, cancel, renew, error)
+model SubscriptionEvent {
+  id             String   @id @default(uuid())
+  businessId     String
+  eventType      String   // "activate" | "renew" | "cancel" | "expired" | "error"
+  tier           String?  // the tier purchased/changed to
+  cardcomDealId  String?  // Cardcom deal number
+  amount         Float?   // amount charged in ILS
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now())
+
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([createdAt])
+}
+

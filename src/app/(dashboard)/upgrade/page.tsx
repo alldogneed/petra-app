@@ -1,9 +1,11 @@
 "use client";
 
-import { Check, X, MessageCircle, Crown, Zap, Star } from "lucide-react";
+import { Check, X, MessageCircle, Crown, Zap, Loader2, CreditCard } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
 import { cn } from "@/lib/utils";
 import type { TierKey } from "@/lib/feature-flags";
+import { useState } from "react";
+import { toast } from "sonner";
 
 const PLANS: {
   key: TierKey;
@@ -135,8 +137,33 @@ const TIER_RANK: Record<string, number> = {
   service_dog: 4,
 };
 
+// Tiers that support online Cardcom payment (paid tiers only)
+const CARDCOM_TIERS = new Set(["basic", "pro", "groomer", "service_dog"]);
+
 export default function UpgradePage() {
   const { tier } = usePlan();
+  const [loadingTier, setLoadingTier] = useState<string | null>(null);
+
+  async function handlePurchase(planKey: string) {
+    setLoadingTier(planKey);
+    try {
+      const res = await fetch("/api/cardcom/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier: planKey }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        toast.error(data.error ?? "שגיאה ביצירת דף תשלום");
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      toast.error("שגיאה בחיבור לשרת. נסה שוב.");
+    } finally {
+      setLoadingTier(null);
+    }
+  }
 
   function openWhatsApp(planName: string, price: number, isDowngrade: boolean) {
     const action = isDowngrade ? "לשנמך" : "לשדרג";
@@ -226,20 +253,57 @@ export default function UpgradePage() {
                 <div className="w-full py-2.5 rounded-xl text-center text-sm font-semibold bg-green-100 text-green-700">
                   ✓ המסלול שלך
                 </div>
+              ) : isDowngrade ? (
+                <button
+                  onClick={() => openWhatsApp(plan.name, plan.price, true)}
+                  className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors bg-slate-200 hover:bg-slate-300 text-slate-700"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  {`שנמך ל-${plan.name}`}
+                </button>
+              ) : plan.price === 0 ? (
+                <div className="w-full py-2.5 rounded-xl text-center text-sm text-slate-400 border border-dashed border-slate-300">
+                  חינמי תמיד
+                </div>
+              ) : CARDCOM_TIERS.has(plan.key) ? (
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => handlePurchase(plan.key)}
+                    disabled={loadingTier === plan.key}
+                    className={cn(
+                      "w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors",
+                      isHighlight
+                        ? "bg-brand-500 hover:bg-brand-600 text-white"
+                        : "bg-slate-900 hover:bg-slate-800 text-white"
+                    )}
+                  >
+                    {loadingTier === plan.key ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CreditCard className="w-4 h-4" />
+                    )}
+                    {loadingTier === plan.key ? "מעבד..." : `שלם עכשיו`}
+                  </button>
+                  <button
+                    onClick={() => openWhatsApp(plan.name, plan.price, false)}
+                    className="w-full py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors text-slate-500 hover:text-green-600 hover:bg-green-50"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    שדרג דרך WhatsApp
+                  </button>
+                </div>
               ) : (
                 <button
-                  onClick={() => openWhatsApp(plan.name, plan.price, isDowngrade)}
+                  onClick={() => openWhatsApp(plan.name, plan.price, false)}
                   className={cn(
                     "w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors",
-                    isDowngrade
-                      ? "bg-slate-200 hover:bg-slate-300 text-slate-700"
-                      : isHighlight
+                    isHighlight
                       ? "bg-brand-500 hover:bg-brand-600 text-white"
                       : "bg-slate-900 hover:bg-slate-800 text-white"
                   )}
                 >
                   <MessageCircle className="w-4 h-4" />
-                  {isDowngrade ? `שנמך ל-${plan.name}` : `שדרג ל-${plan.name}`}
+                  {`שדרג ל-${plan.name}`}
                 </button>
               )}
             </div>

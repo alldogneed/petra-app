@@ -159,7 +159,7 @@ export async function getCurrentUser() {
     effectiveBusinessId
       ? prisma.business.findUnique({
           where: { id: effectiveBusinessId },
-          select: { name: true, slug: true, tier: true, featureOverrides: true, trialEndsAt: true, subscriptionEndsAt: true },
+          select: { name: true, slug: true, tier: true, featureOverrides: true, trialEndsAt: true, subscriptionEndsAt: true, subscriptionStatus: true },
         })
       : Promise.resolve(null),
     prisma.platformUser.findUnique({
@@ -191,6 +191,7 @@ export async function getCurrentUser() {
     businessEffectiveTier,
     businessTrialEndsAt: trialEndsAt?.toISOString() ?? null,
     businessSubscriptionEndsAt: subscriptionEndsAt?.toISOString() ?? null,
+    businessSubscriptionStatus: business?.subscriptionStatus ?? "inactive",
     businessFeatureOverrides: (() => {
       try {
         const raw = business?.featureOverrides;
