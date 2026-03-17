@@ -1,12 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { XCircle, MessageCircle } from "lucide-react";
 
 const WHATSAPP_SUPPORT = "972504828080";
 
 export default function PaymentErrorPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    // Break out of Cardcom iframe if we're embedded
+    if (typeof window !== "undefined" && window !== window.top) {
+      window.top!.location.href = window.location.href;
+    }
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-red-50 to-white p-8 text-center" dir="rtl">

@@ -18,6 +18,11 @@ function SuccessContent() {
   const tierLabel = TIER_LABELS[tier] ?? tier;
 
   useEffect(() => {
+    // Break out of Cardcom iframe if we're embedded
+    if (typeof window !== "undefined" && window !== window.top) {
+      window.top!.location.href = window.location.href;
+      return;
+    }
     // Wait 4s for Cardcom indicator to fire and update DB,
     // then hard-navigate so auth context re-fetches fresh session data.
     const t = setTimeout(() => {

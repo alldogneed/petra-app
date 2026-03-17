@@ -1,12 +1,11 @@
 "use client";
 
-import { Check, X, MessageCircle, Crown, Zap, Loader2, CreditCard } from "lucide-react";
+import { Check, X, MessageCircle, Crown, Zap, CreditCard } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
 import { cn } from "@/lib/utils";
 import type { TierKey } from "@/lib/feature-flags";
-import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
+import { useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 
 const PLANS: {
   key: TierKey;
@@ -143,39 +142,20 @@ const CARDCOM_TIERS = new Set(["basic", "pro", "groomer", "service_dog"]);
 
 export default function UpgradePage() {
   const { tier } = usePlan();
-  const [loadingTier, setLoadingTier] = useState<string | null>(null);
   const searchParams = useSearchParams();
+  const router = useRouter();
 
-  // Auto-trigger payment if redirected from register with ?autostart=plan
+  // Auto-redirect to checkout if ?autostart=plan is present (e.g. after registration)
   useEffect(() => {
     const autostart = searchParams.get("autostart");
     if (autostart && CARDCOM_TIERS.has(autostart)) {
-      // Small delay so the page renders first
-      const t = setTimeout(() => handlePurchase(autostart), 800);
-      return () => clearTimeout(t);
+      router.replace(`/checkout?tier=${autostart}`);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handlePurchase(planKey: string) {
-    setLoadingTier(planKey);
-    try {
-      const res = await fetch("/api/cardcom/create-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier: planKey }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.url) {
-        toast.error(data.error ?? "שגיאה ביצירת דף תשלום");
-        return;
-      }
-      window.location.href = data.url;
-    } catch {
-      toast.error("שגיאה בחיבור לשרת. נסה שוב.");
-    } finally {
-      setLoadingTier(null);
-    }
+  function goToCheckout(planKey: string) {
+    router.push(`/checkout?tier=${planKey}`);
   }
 
   function openWhatsApp(planName: string, price: number, isDowngrade: boolean) {
@@ -281,8 +261,7 @@ export default function UpgradePage() {
               ) : CARDCOM_TIERS.has(plan.key) ? (
                 <div className="flex flex-col gap-2">
                   <button
-                    onClick={() => handlePurchase(plan.key)}
-                    disabled={loadingTier === plan.key}
+                    onClick={() => goToCheckout(plan.key)}
                     className={cn(
                       "w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors",
                       isHighlight
@@ -290,12 +269,8 @@ export default function UpgradePage() {
                         : "bg-slate-900 hover:bg-slate-800 text-white"
                     )}
                   >
-                    {loadingTier === plan.key ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <CreditCard className="w-4 h-4" />
-                    )}
-                    {loadingTier === plan.key ? "מעבד..." : `שלם עכשיו`}
+                    <CreditCard className="w-4 h-4" />
+                    שלם עכשיו
                   </button>
                   <button
                     onClick={() => openWhatsApp(plan.name, plan.price, false)}
@@ -332,7 +307,7 @@ export default function UpgradePage() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[
-            { q: "איך משדרגים?", a: "לחץ על \"שלם עכשיו\" — תועבר לדף תשלום מאובטח של Cardcom. המסלול יתעדכן מיד לאחר אישור התשלום." },
+            { q: "איך משדרגים?", a: "לחץ על \"שלם עכשיו\" — תועבר לדף תשלום מאובטח. המסלול יתעדכן מיד לאחר אישור התשלום." },
             { q: "האם ניתן לבטל?", a: "כן, ניתן לבטל בכל עת ללא קנסות. לביטול פנה לתמיכה בWhatsApp." },
             { q: "מה קורה לנתונים בביטול?", a: "הנתונים נשמרים. בתום המנוי תחזור לסלול החינמי עם הגבלות הרגילות שלו." },
             { q: "האם התשלום מאובטח?", a: "כן. פרטי הכרטיס מוזנים ישירות בסביבה המאובטחת של Cardcom (PCI DSS). Petra אינה רואה את פרטי הכרטיס." },
