@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, User, UserPlus, CheckSquare, Square } from "lucide-react";
@@ -60,7 +60,7 @@ function PasswordStrength({ password }: { password: string }) {
 
 const VALID_PLANS = new Set(["basic", "pro", "groomer", "service_dog"]);
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const planParam = searchParams.get("plan") ?? "";
@@ -323,5 +323,13 @@ export default function RegisterPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
   );
 }
