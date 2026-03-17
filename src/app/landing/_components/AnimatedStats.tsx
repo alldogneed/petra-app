@@ -52,7 +52,7 @@ function Stat({
 
 export function AnimatedStats() {
   const [active, setActive] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDListElement>(null);
 
   useEffect(() => {
     const el = ref.current;
