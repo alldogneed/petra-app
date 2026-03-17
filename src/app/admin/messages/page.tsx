@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Send,
@@ -13,6 +13,7 @@ import {
   Users,
   RefreshCw,
   X,
+  Calendar,
 } from "lucide-react";
 
 const MESSAGE_TYPES = [
@@ -60,7 +61,34 @@ export default function AdminMessagesPage() {
   const [actionUrl, setActionUrl]   = useState("");
   const [actionLabel, setActionLabel] = useState("");
   const [expiresAt, setExpiresAt]   = useState("");
+  const [showExpiryPicker, setShowExpiryPicker] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const expiryPickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (expiryPickerRef.current && !expiryPickerRef.current.contains(e.target as Node)) {
+        setShowExpiryPicker(false);
+      }
+    }
+    if (showExpiryPicker) document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [showExpiryPicker]);
+
+  function setExpiryDays(days: number) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    d.setHours(23, 59, 0, 0);
+    setExpiresAt(d.toISOString().slice(0, 16));
+    setShowExpiryPicker(false);
+  }
+
+  function formatExpiryDisplay(val: string) {
+    return new Date(val).toLocaleString("he-IL", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+  }
 
   // History
   const { data: historyData, isLoading: historyLoading, refetch } = useQuery({
@@ -237,17 +265,71 @@ export default function AdminMessagesPage() {
             </div>
 
             {/* Expiry */}
-            <div>
+            <div ref={expiryPickerRef} className="relative">
               <label className="block text-xs font-medium mb-1.5" style={{ color: "#94A3B8" }}>
                 תאריך תפוגה (אופציונלי — ברירת מחדל: ללא תפוגה)
               </label>
-              <input
-                type="datetime-local"
-                value={expiresAt}
-                onChange={(e) => setExpiresAt(e.target.value)}
-                className="px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
-                style={{ background: "#0A0A0F", border: "1px solid #1E1E2E", color: "#E2E8F0" }}
-              />
+              <button
+                type="button"
+                onClick={() => setShowExpiryPicker(!showExpiryPicker)}
+                className="w-full px-3 py-2 rounded-xl text-sm flex items-center justify-between gap-2 transition-colors"
+                style={{
+                  background: "#0A0A0F",
+                  border: `1px solid ${showExpiryPicker ? "#F97316" : "#1E1E2E"}`,
+                  color: expiresAt ? "#E2E8F0" : "#475569",
+                }}
+              >
+                <span>{expiresAt ? formatExpiryDisplay(expiresAt) : "ללא תפוגה"}</span>
+                <Calendar className="w-4 h-4 flex-shrink-0" style={{ color: "#64748B" }} />
+              </button>
+
+              {showExpiryPicker && (
+                <div
+                  className="absolute left-0 right-0 top-full mt-1 rounded-xl p-4 z-50 shadow-2xl"
+                  style={{ background: "#0F1117", border: "1px solid #1E1E2E" }}
+                >
+                  <p className="text-xs mb-2" style={{ color: "#64748B" }}>קיצורים מהירים</p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {[
+                      { label: "מחר", days: 1 },
+                      { label: "3 ימים", days: 3 },
+                      { label: "שבוע", days: 7 },
+                      { label: "שבועיים", days: 14 },
+                      { label: "חודש", days: 30 },
+                    ].map(({ label, days }) => (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => setExpiryDays(days)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:ring-1 hover:ring-orange-500"
+                        style={{ background: "#1E1E2E", color: "#CBD5E1" }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className="text-xs mb-1.5" style={{ color: "#64748B" }}>תאריך ספציפי</p>
+                  <input
+                    type="datetime-local"
+                    value={expiresAt}
+                    onChange={(e) => setExpiresAt(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    style={{ background: "#0A0A0F", border: "1px solid #1E1E2E", color: "#E2E8F0" }}
+                  />
+
+                  {expiresAt && (
+                    <button
+                      type="button"
+                      onClick={() => { setExpiresAt(""); setShowExpiryPicker(false); }}
+                      className="mt-2 w-full text-center text-xs py-1.5 rounded-lg transition-colors"
+                      style={{ color: "#EF4444", background: "#1A0808" }}
+                    >
+                      הסר תאריך תפוגה
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Preview banner */}

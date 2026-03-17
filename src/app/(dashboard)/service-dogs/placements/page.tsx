@@ -35,6 +35,7 @@ interface Placement {
   id: string;
   status: string;
   placementDate: string | null;
+  certifiedAt: string | null;
   trialStartDate: string | null;
   trialEndDate: string | null;
   nextCheckInAt: string | null;
@@ -266,6 +267,7 @@ function PlacementsPageContent() {
                 <th className="table-header-cell">זכאי</th>
                 <th className="table-header-cell">סטטוס</th>
                 <th className="table-header-cell">תאריך שיבוץ</th>
+                <th className="table-header-cell">תאריך הסמכה</th>
                 <th className="table-header-cell">בדיקה הבאה</th>
                 <th className="table-header-cell">פעולות</th>
               </tr>
@@ -307,6 +309,9 @@ function PlacementsPageContent() {
                     </td>
                     <td className="table-cell text-petra-muted text-sm">
                       {placement.placementDate ? formatDate(placement.placementDate) : "—"}
+                    </td>
+                    <td className="table-cell text-petra-muted text-sm">
+                      {placement.certifiedAt ? formatDate(placement.certifiedAt) : "—"}
                     </td>
                     <td className="table-cell text-petra-muted text-sm">
                       {placement.nextCheckInAt ? formatDate(placement.nextCheckInAt) : "—"}
@@ -485,6 +490,9 @@ function EditPlacementModal({
   const [placementDate, setPlacementDate] = useState(
     placement.placementDate ? placement.placementDate.slice(0, 10) : ""
   );
+  const [certifiedAt, setCertifiedAt] = useState(
+    placement.certifiedAt ? placement.certifiedAt.slice(0, 10) : ""
+  );
   const [trialEndDate, setTrialEndDate] = useState(
     placement.trialEndDate ? placement.trialEndDate.slice(0, 10) : ""
   );
@@ -534,6 +542,11 @@ function EditPlacementModal({
           </div>
 
           <div>
+            <label className="label">תאריך הסמכה</label>
+            <input type="date" value={certifiedAt} onChange={(e) => setCertifiedAt(e.target.value)} className="input w-full" />
+          </div>
+
+          <div>
             <label className="label">בדיקת מעקב הבאה</label>
             <input type="date" value={nextCheckInAt} onChange={(e) => setNextCheckInAt(e.target.value)} className="input w-full" />
           </div>
@@ -549,6 +562,7 @@ function EditPlacementModal({
                 updateMutation.mutate({
                   status,
                   placementDate: placementDate || null,
+                  certifiedAt: certifiedAt || null,
                   trialEndDate: trialEndDate || null,
                   nextCheckInAt: nextCheckInAt || null,
                   notes: notes || null,
@@ -582,6 +596,7 @@ function AddPlacementModal({
   const [serviceDogId, setServiceDogId] = useState("");
   const [recipientId, setRecipientId] = useState("");
   const [placementDate, setPlacementDate] = useState(new Date().toISOString().split("T")[0]);
+  const [certifiedAt, setCertifiedAt] = useState("");
   const [trialEndDate, setTrialEndDate] = useState("");
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("ACTIVE");
@@ -674,6 +689,11 @@ function AddPlacementModal({
           </div>
 
           <div>
+            <label className="label">תאריך הסמכה</label>
+            <input type="date" value={certifiedAt} onChange={(e) => setCertifiedAt(e.target.value)} className="input w-full" />
+          </div>
+
+          <div>
             <label className="label">הערות</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input w-full" rows={2} />
           </div>
@@ -685,6 +705,7 @@ function AddPlacementModal({
                   serviceDogId,
                   recipientId,
                   placementDate,
+                  certifiedAt: certifiedAt || null,
                   trialEndDate: trialEndDate || null,
                   notes: notes || null,
                   status,

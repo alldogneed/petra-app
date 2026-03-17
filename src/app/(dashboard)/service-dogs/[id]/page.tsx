@@ -261,6 +261,7 @@ interface PlacementItem {
   id: string;
   status: string;
   placementDate: string | null;
+  certifiedAt: string | null;
   trialStartDate: string | null;
   trialEndDate: string | null;
   nextCheckInAt: string | null;
@@ -1578,6 +1579,7 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [recipientId, setRecipientId] = useState("");
   const [placementDate, setPlacementDate] = useState(new Date().toISOString().split("T")[0]);
+  const [certifiedAt, setCertifiedAt] = useState("");
   const [trialEndDate, setTrialEndDate] = useState("");
 
   const { data: recipients = [] } = useQuery<{ id: string; name: string }[]>({
@@ -1592,7 +1594,7 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
       fetch("/api/service-placements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serviceDogId: dog.id, recipientId, placementDate, trialEndDate: trialEndDate || null }),
+        body: JSON.stringify({ serviceDogId: dog.id, recipientId, placementDate, certifiedAt: certifiedAt || null, trialEndDate: trialEndDate || null }),
       }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["service-dog-detail"] });
@@ -1653,6 +1655,12 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
                 <p className="text-sm font-medium">{formatDate(activePlacement.placementDate)}</p>
               </div>
             )}
+            {activePlacement.certifiedAt && (
+              <div>
+                <p className="text-xs text-emerald-600">תאריך הסמכה</p>
+                <p className="text-sm font-medium">{formatDate(activePlacement.certifiedAt)}</p>
+              </div>
+            )}
             {activePlacement.trialEndDate && (
               <div>
                 <p className="text-xs text-emerald-600">סיום ניסיון</p>
@@ -1711,7 +1719,8 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
                   <div>
                     <p className="font-medium text-sm">{placement.recipient.name}</p>
                     <div className="flex gap-3 text-xs text-petra-muted mt-0.5">
-                      {placement.placementDate && <span>{formatDate(placement.placementDate)}</span>}
+                      {placement.placementDate && <span>שובץ: {formatDate(placement.placementDate)}</span>}
+                      {placement.certifiedAt && <span>מוסמך: {formatDate(placement.certifiedAt)}</span>}
                       {placement.trialEndDate && <span>עד {formatDate(placement.trialEndDate)}</span>}
                     </div>
                   </div>
@@ -1754,8 +1763,8 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
                   <input type="date" value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
                 </div>
                 <div>
-                  <label className="label">סיום תקופת ניסיון</label>
-                  <input type="date" value={trialEndDate} onChange={(e) => setTrialEndDate(e.target.value)} className="input w-full" />
+                  <label className="label">תאריך הסמכה</label>
+                  <input type="date" value={certifiedAt} onChange={(e) => setCertifiedAt(e.target.value)} className="input w-full" />
                 </div>
               </div>
               <div className="flex gap-2 pt-1">

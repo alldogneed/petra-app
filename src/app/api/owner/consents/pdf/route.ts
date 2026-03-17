@@ -38,6 +38,14 @@ function truncateUA(ua: string | null): string {
   return ua.slice(0, 30);
 }
 
+const TOS_SECTIONS = [
+  "1. מבוא", "2. הגדרות", "3. רישום ושימוש",
+  "4. מדיניות שימוש מקובל (Acceptable Use)", "5. רישוי וקניין רוחני",
+  "6. תשלומים ומנויים", "7. שמירת מידע והעברת נתונים",
+  "8. פרטיות ואבטחת מידע", "9. אחריות ומגבלות", "10. שיפוי",
+  "11. סיום שירות", "12. שינויים בתנאים", "13. סמכות שיפוט", "14. כוח עליון",
+];
+
 // ── PDF builder ───────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
@@ -46,6 +54,8 @@ export async function GET(request: NextRequest) {
 
   const userId = new URL(request.url).searchParams.get("userId");
   if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 });
+
+  try {
 
   const user = await prisma.platformUser.findUnique({
     where: { id: userId },
@@ -190,6 +200,47 @@ export async function GET(request: NextRequest) {
   const legalW = heebo.widthOfTextAtSize(legalStr, 8);
   page.drawText(legalStr, { x: (width - legalW) / 2, y: legalY, size: 8, font: heebo, color: cGray });
 
+  // ── ToS section ──────────────────────────────────────────────────────────
+  const tosHeaderY = legalY - 26;
+
+  // Section box
+  const tosSectionH = 14 + TOS_SECTIONS.length * 14 + 28;
+  page.drawRectangle({
+    x: M, y: tosHeaderY - tosSectionH,
+    width: contentW, height: tosSectionH,
+    color: cWhite, borderColor: cLine, borderWidth: 1, borderOpacity: 1,
+  });
+
+  // Section header label (LTR English)
+  page.drawText("Agreement Scope — what the user accepted:", {
+    x: innerLeft, y: tosHeaderY - 10, size: 8, font: heebo, color: cGray,
+  });
+
+  // ToS URL (right-aligned, LTR)
+  const tosUrl = "petra-app.com/terms";
+  const tosUrlW = heebo.widthOfTextAtSize(tosUrl, 8);
+  page.drawText(tosUrl, { x: innerRight - tosUrlW, y: tosHeaderY - 10, size: 8, font: heebo, color: cAccent });
+
+  // Section divider
+  page.drawLine({
+    start: { x: innerLeft, y: tosHeaderY - 18 },
+    end:   { x: innerRight, y: tosHeaderY - 18 },
+    thickness: 0.5, color: cLine,
+  });
+
+  // Section titles (2 per row to save space, Hebrew reversed)
+  const colW = contentW / 2 - 20;
+  TOS_SECTIONS.forEach((sec, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const x = col === 0 ? innerRight - colW : innerLeft;
+    const y = tosHeaderY - 30 - row * 14;
+    const str = vrtl(sec);
+    const sw = heebo.widthOfTextAtSize(str, 8);
+    // right-align within its column
+    page.drawText(str, { x: x - (col === 0 ? 0 : sw - colW), y, size: 8, font: heebo, color: cDark });
+  });
+
   // Bottom accent bar
   page.drawRectangle({ x: 0, y: 0, width, height: 7, color: cAccent });
 
@@ -209,4 +260,8 @@ export async function GET(request: NextRequest) {
       "Content-Disposition": `attachment; filename="${filename}"`,
     },
   });
+  } catch (err) {
+    console.error("[consent-pdf] Error generating PDF:", err);
+    return NextResponse.json({ error: "Failed to generate PDF" }, { status: 500 });
+  }
 }

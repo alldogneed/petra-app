@@ -100,6 +100,7 @@ export async function GET(request: NextRequest) {
       "גזע כלב",
       "סטטוס שיבוץ",
       "תאריך שיבוץ",
+      "תאריך הסמכה",
       "לקוח מקושר",
       "טלפון לקוח",
       "הערות",
@@ -126,6 +127,7 @@ export async function GET(request: NextRequest) {
         placement ? placement.serviceDog.pet.breed || "" : "",
         placement ? PLACEMENT_STATUS_LABELS[placement.status] || placement.status : "",
         placement ? fmt(placement.placementDate) : "",
+        fmt(r.handoverDate),
         r.customer?.name || "",
         r.customer?.phone || "",
         r.notes || "",
@@ -139,7 +141,7 @@ export async function GET(request: NextRequest) {
       { wch: 20 }, { wch: 15 }, { wch: 22 }, { wch: 12 }, { wch: 25 },
       { wch: 16 }, { wch: 14 }, { wch: 25 }, { wch: 18 }, { wch: 16 },
       { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 16 }, { wch: 16 },
-      { wch: 14 }, { wch: 20 }, { wch: 15 }, { wch: 30 },
+      { wch: 14 }, { wch: 14 }, { wch: 20 }, { wch: 15 }, { wch: 30 },
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, "זכאים");

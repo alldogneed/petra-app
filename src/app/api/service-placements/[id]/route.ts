@@ -62,6 +62,7 @@ export async function PATCH(
       data: {
         ...(body.status !== undefined && { status: body.status }),
         ...(body.placementDate !== undefined && { placementDate: body.placementDate ? new Date(body.placementDate) : null }),
+        ...(body.certifiedAt !== undefined && { certifiedAt: body.certifiedAt ? new Date(body.certifiedAt) : null }),
         ...(body.trialStartDate !== undefined && { trialStartDate: body.trialStartDate ? new Date(body.trialStartDate) : null }),
         ...(body.trialEndDate !== undefined && { trialEndDate: body.trialEndDate ? new Date(body.trialEndDate) : null }),
         ...(body.notes !== undefined && { notes: body.notes }),

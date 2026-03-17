@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import {
-  RECIPIENT_STATUS_MAP, RECIPIENT_STATUSES, DISABILITY_TYPES, DISABILITY_TYPE_MAP,
+  RECIPIENT_STATUS_MAP, DISABILITY_TYPE_MAP,
   PLACEMENT_STATUS_MAP, SERVICE_DOG_PHASE_MAP, RECIPIENT_FUNDING_SOURCES, FUNDING_SOURCE_MAP,
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
@@ -53,6 +53,7 @@ interface Placement {
   id: string;
   status: string;
   placementDate: string | null;
+  certifiedAt: string | null;
   trialStartDate: string | null;
   trialEndDate: string | null;
   nextCheckInAt: string | null;
@@ -155,6 +156,12 @@ function RecipientDetailPageContent() {
       if (!r.ok) throw new Error("Failed");
       return r.json();
     }),
+  });
+
+  const { data: stages = [] } = useQuery<Array<{ id: string; key: string; name: string; color: string }>>({
+    queryKey: ["recipient-stages"],
+    queryFn: () => fetch("/api/service-recipient-stages").then((r) => r.json()),
+    staleTime: 60_000,
   });
 
   const deleteRecipientMutation = useMutation({
@@ -570,7 +577,7 @@ function RecipientDetailPageContent() {
               <div className="space-y-3">
                 {recipient.handoverDate && (
                   <div className="py-2 border-b">
-                    <p className="text-xs text-petra-muted mb-0.5">תאריך מסירה</p>
+                    <p className="text-xs text-petra-muted mb-0.5">תאריך הסמכה</p>
                     <p className="text-sm font-medium">{formatDate(recipient.handoverDate)}</p>
                   </div>
                 )}
@@ -645,8 +652,13 @@ function RecipientDetailPageContent() {
                         </div>
                         <p className="text-xs text-petra-muted">
                           {SERVICE_DOG_PHASE_MAP[p.serviceDog.phase]?.label}
-                          {p.placementDate && ` · ${formatDate(p.placementDate)}`}
                         </p>
+                        {p.placementDate && (
+                          <p className="text-xs text-petra-muted">שיבוץ: {formatDate(p.placementDate)}</p>
+                        )}
+                        {p.certifiedAt && (
+                          <p className="text-xs text-petra-muted">הסמכה: {formatDate(p.certifiedAt)}</p>
+                        )}
                         {p.nextCheckInAt && (
                           <p className="text-xs text-amber-600 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
@@ -823,6 +835,7 @@ function RecipientDetailPageContent() {
       {editMode && (
         <EditRecipientModal
           recipient={recipient}
+          stages={stages}
           onSave={(data) => patchMutation.mutate(data)}
           onClose={() => setEditMode(false)}
           isSaving={patchMutation.isPending}
@@ -945,9 +958,10 @@ export default function RecipientDetailPage() {
 // ─── Edit Recipient Modal ───
 
 function EditRecipientModal({
-  recipient, onSave, onClose, isSaving,
+  recipient, stages, onSave, onClose, isSaving,
 }: {
   recipient: RecipientDetail;
+  stages: Array<{ id: string; key: string; name: string; color: string }>;
   onSave: (data: Record<string, string | null>) => void;
   onClose: () => void;
   isSaving: boolean;
@@ -967,95 +981,93 @@ function EditRecipientModal({
     recipient.handoverDate ? recipient.handoverDate.split("T")[0] : ""
   );
 
+  const DISABILITY_TYPES_LIST = [
+    { id: "PTSD", label: "PTSD" }, { id: "VISUAL", label: "לקות ראייה" },
+    { id: "HEARING", label: "לקות שמיעה" }, { id: "MOBILITY", label: "לקות תנועה" },
+    { id: "AUTISM", label: "אוטיזם" }, { id: "DIABETES", label: "סוכרת" },
+    { id: "EPILEPSY", label: "אפילפסיה" }, { id: "OTHER", label: "אחר" },
+  ];
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-backdrop" />
       <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold">עריכת פרטי זכאי</h2>
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <UserCheck className="w-5 h-5 text-brand-500" />
+            עריכת פרטי זכאי
+          </h2>
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
         </div>
-        <div className="space-y-3">
-          <div>
-            <label className="label">שם מלא *</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="input w-full" />
-          </div>
+        <div className="space-y-3 max-h-[70vh] overflow-y-auto">
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">טלפון</label>
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="input w-full" />
+            <div className="col-span-2">
+              <label className="label text-xs">שם מלא *</label>
+              <input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} placeholder="שם פרטי ושם משפחה" />
             </div>
             <div>
-              <label className="label">נייד</label>
-              <input type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} className="input w-full" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">אימייל</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input w-full" />
+              <label className="label text-xs">טלפון</label>
+              <input type="tel" className="input w-full" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div>
-              <label className="label">תעודת זהות</label>
-              <input value={idNumber} onChange={(e) => setIdNumber(e.target.value)} className="input w-full" />
+              <label className="label text-xs">מייל</label>
+              <input type="email" className="input w-full" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">סטטוס</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value)} className="input w-full">
-                {RECIPIENT_STATUSES.map((s) => (
-                  <option key={s.id} value={s.id}>{s.label}</option>
-                ))}
+              <label className="label text-xs">ת.ז.</label>
+              <input className="input w-full" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
+            </div>
+            <div>
+              <label className="label text-xs">שלב/סטטוס</label>
+              <select className="input w-full text-sm" value={status} onChange={(e) => setStatus(e.target.value)}>
+                {stages.map((s) => <option key={s.key} value={s.key}>{s.name}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="label text-xs">כתובת</label>
+              <input className="input w-full" value={address} onChange={(e) => setAddress(e.target.value)} />
+            </div>
+            <div>
+              <label className="label text-xs">סוג מוגבלות</label>
+              <select className="input w-full text-sm" value={disabilityType} onChange={(e) => setDisabilityType(e.target.value)}>
+                <option value="">בחר...</option>
+                {DISABILITY_TYPES_LIST.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="label">מקור מימון</label>
-              <select value={fundingSource} onChange={(e) => setFundingSource(e.target.value)} className="input w-full">
-                <option value="">לא נבחר</option>
-                {RECIPIENT_FUNDING_SOURCES.map((f) => (
-                  <option key={f.id} value={f.id}>{f.label}</option>
-                ))}
+              <label className="label text-xs">מקור מימון</label>
+              <select className="input w-full text-sm" value={fundingSource} onChange={(e) => setFundingSource(e.target.value)}>
+                <option value="">בחר...</option>
+                {RECIPIENT_FUNDING_SOURCES.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
               </select>
             </div>
-          </div>
-          <div>
-            <label className="label">כתובת</label>
-            <input value={address} onChange={(e) => setAddress(e.target.value)} className="input w-full" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">סוג לקות</label>
-              <select value={disabilityType} onChange={(e) => setDisabilityType(e.target.value)} className="input w-full">
-                <option value="">לא נבחר</option>
-                {DISABILITY_TYPES.map((d) => (
-                  <option key={d.id} value={d.id}>{d.label}</option>
-                ))}
-              </select>
+            <div className="col-span-2">
+              <label className="label text-xs">הערות מוגבלות</label>
+              <input className="input w-full" value={disabilityNotes} onChange={(e) => setDisabilityNotes(e.target.value)} />
+            </div>
+            <div className="col-span-2">
+              <label className="label text-xs">הערות</label>
+              <textarea className="input w-full" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
             <div>
-              <label className="label">תאריך מסירה</label>
-              <input type="date" value={handoverDate} onChange={(e) => setHandoverDate(e.target.value)} className="input w-full" />
+              <label className="label text-xs">נייד</label>
+              <input type="tel" className="input w-full" value={mobile} onChange={(e) => setMobile(e.target.value)} />
             </div>
-          </div>
-          <div>
-            <label className="label">פרטים על הלקות</label>
-            <textarea value={disabilityNotes} onChange={(e) => setDisabilityNotes(e.target.value)} className="input w-full" rows={2} />
-          </div>
-          <div>
-            <label className="label">הערות</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input w-full" rows={3} />
+            <div>
+              <label className="label text-xs">תאריך הסמכה</label>
+              <input type="date" className="input w-full" value={handoverDate} onChange={(e) => setHandoverDate(e.target.value)} />
+            </div>
           </div>
         </div>
-        <div className="flex gap-2 mt-4 pt-4 border-t">
+        <div className="flex gap-2 mt-4">
           <button
-            onClick={() => onSave({ name, phone, mobile, email, idNumber, address, disabilityType, disabilityNotes, fundingSource, notes, status, handoverDate: handoverDate || null })}
-            disabled={!name || isSaving}
             className="btn-primary flex-1"
+            onClick={() => onSave({ name, phone, mobile, email, idNumber, address, disabilityType, disabilityNotes, fundingSource, notes, status, handoverDate: handoverDate || null })}
+            disabled={!name.trim() || isSaving}
           >
             {isSaving ? "שומר..." : "שמור שינויים"}
           </button>
-          <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>
       </div>
     </div>
@@ -1440,7 +1452,7 @@ function GovernmentReportModal({
                 { label: "סוג לקות", value: DISABILITY_TYPE_MAP[recipient.disabilityType || ""] || recipient.disabilityType },
                 { label: "מקור מימון", value: FUNDING_SOURCE_MAP[recipient.fundingSource || ""] || recipient.fundingSource },
                 { label: "סטטוס", value: RECIPIENT_STATUS_MAP[recipient.status]?.label || recipient.status },
-                { label: "תאריך מסירה", value: recipient.handoverDate ? formatDate(recipient.handoverDate) : null },
+                { label: "תאריך הסמכה", value: recipient.handoverDate ? formatDate(recipient.handoverDate) : null },
               ].filter((r) => r.value).map((row) => (
                 <div key={row.label} className="flex gap-2">
                   <span className="text-petra-muted font-medium min-w-28">{row.label}:</span>
@@ -1494,6 +1506,12 @@ function GovernmentReportModal({
                   <div className="flex gap-2">
                     <span className="text-petra-muted font-medium min-w-28">תאריך שיבוץ:</span>
                     <span className="font-medium">{formatDate(activePlacement.placementDate)}</span>
+                  </div>
+                )}
+                {(activePlacement.certifiedAt || recipient.handoverDate) && (
+                  <div className="flex gap-2">
+                    <span className="text-petra-muted font-medium min-w-28">תאריך הסמכה:</span>
+                    <span className="font-medium">{formatDate((activePlacement.certifiedAt ?? recipient.handoverDate)!)}</span>
                   </div>
                 )}
                 {activePlacement.nextCheckInAt && (

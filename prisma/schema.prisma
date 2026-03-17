@@ -1780,6 +1780,7 @@ model ServiceDogPlacement {
   recipientId       String
   status            String    @default("PENDING")
   placementDate     DateTime?
+  certifiedAt       DateTime?
   trialStartDate    DateTime?
   trialEndDate      DateTime?
   terminatedAt      DateTime?

@@ -8,6 +8,7 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { syncAppointmentToGcal, syncBoardingToGcal } from "@/lib/google-calendar";
 import { sendWhatsAppTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
+import { logCurrentUserActivity } from "@/lib/activity-log";
 
 export async function GET(request: NextRequest) {
   try {
@@ -359,6 +360,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    logCurrentUserActivity("CREATE_ORDER");
     return NextResponse.json(full, { status: 201 });
   } catch (error) {
     console.error("Error creating order:", error);

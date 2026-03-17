@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Minus, MessageCircle, Crown, Zap, Star } from "lucide-react";
+import { Check, X, MessageCircle, Crown, Zap, Star } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
 import { cn } from "@/lib/utils";
 import type { TierKey } from "@/lib/feature-flags";
@@ -84,7 +84,21 @@ const PLANS: {
     price: 169,
     description: "מסלול ייעודי לגרומרים",
     features: [
-      "הכל ב-Pro",
+      "לקוחות ללא הגבלה",
+      "יומן תורים ופגישות",
+      "מערכת ניהול תורים",
+      "CRM / לידים ללא הגבלה",
+      "שליחת בקשת תשלום",
+      "בקשת תשלום WhatsApp",
+      "תזכורות WhatsApp",
+      "דוחות ואנליטיקס",
+      "טפסי קליטה",
+      "סנכרון Google Calendar",
+      "הזמנות אונליין",
+      "אוטומציות WhatsApp מתקדמות",
+      "ניהול צוות ומשתמשים",
+      "ייצוא Excel",
+      "הודעות מותאמות אישית",
       "תיק עבודות לפני/אחרי",
     ],
     notIncluded: ["פנסיון", "אילוף", "כלבי שירות"],
@@ -201,7 +215,7 @@ export default function UpgradePage() {
                 ))}
                 {plan.notIncluded.map((f) => (
                   <div key={f} className="flex items-start gap-2 text-sm text-slate-400">
-                    <Minus className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <X className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-400" />
                     {f}
                   </div>
                 ))}

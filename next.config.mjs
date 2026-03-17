@@ -4,6 +4,10 @@ import { withSentryConfig } from "@sentry/nextjs";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  // Ensure font + icon are bundled into the consent PDF serverless function on Vercel
+  outputFileTracingIncludes: {
+    "/api/owner/consents/pdf": ["./public/fonts/*.ttf", "./public/icon.png"],
+  },
   // Prevent webpack from bundling Prisma (it uses native binaries — must stay external)
   experimental: {
     serverComponentsExternalPackages: ["@prisma/client", "prisma"],

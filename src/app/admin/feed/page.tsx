@@ -40,6 +40,7 @@ const FILTER_OPTIONS = [
   { value: "CREATE_APPOINTMENT", label: "תורים" },
   { value: "CREATE_PAYMENT", label: "תשלומים" },
   { value: "CREATE_LEAD", label: "לידים" },
+  { value: "CREATE_ORDER", label: "הזמנות" },
   { value: "CREATE_TASK", label: "משימות" },
   { value: "CREATE_BOARDING_STAY", label: "פנסיון" },
 ];

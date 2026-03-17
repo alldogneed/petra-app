@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
-    const { serviceDogId, recipientId, placementDate, trialStartDate, trialEndDate, notes, status: bodyStatus } = body;
+    const { serviceDogId, recipientId, placementDate, certifiedAt, trialStartDate, trialEndDate, notes, status: bodyStatus } = body;
     const VALID_STATUSES = ["ACTIVE", "TERMINATED"];
     const initialStatus = VALID_STATUSES.includes(bodyStatus) ? bodyStatus : "ACTIVE";
 
@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
         serviceDogId,
         recipientId,
         placementDate: placementDate ? new Date(placementDate) : new Date(),
+        certifiedAt: certifiedAt ? new Date(certifiedAt) : null,
         trialStartDate: trialStartDate ? new Date(trialStartDate) : null,
         trialEndDate: trialEndDate ? new Date(trialEndDate) : null,
         notes: notes || null,
