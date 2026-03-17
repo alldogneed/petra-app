@@ -225,7 +225,7 @@ function RecipientDetailPageContent() {
   const deleteAttachment = (attId: string) => {
     if (!recipient) return;
     if (!confirm("למחוק את המסמך?")) return;
-    const attachments = recipient.attachments.filter((a) => a.id !== attId);
+    const attachments = attachmentsArray.filter((a) => a.id !== attId);
     patchMutation.mutate({ attachments });
   };
 
@@ -244,7 +244,7 @@ function RecipientDetailPageContent() {
     if (!recipient) return;
     if (!confirm("למחוק גורם קשר זה?")) return;
     const contactPersons = recipient.contactPersons.filter((c) => c.id !== cpId);
-    const attachments = recipient.attachments.filter((a) => a.contactPersonId !== cpId);
+    const attachments = attachmentsArray.filter((a) => a.contactPersonId !== cpId);
     patchMutation.mutate({ contactPersons, attachments });
   };
 
@@ -271,7 +271,12 @@ function RecipientDetailPageContent() {
   const activePlacement = recipient.placements?.find((p) =>
     p.status === "ACTIVE"
   );
-  const mainDocs = (recipient.attachments || []).filter((a) => !a.contactPersonId);
+  const attachmentsArray: Attachment[] = Array.isArray(recipient.attachments)
+    ? recipient.attachments
+    : typeof recipient.attachments === "string"
+      ? (() => { try { return JSON.parse(recipient.attachments as unknown as string); } catch { return []; } })()
+      : [];
+  const mainDocs = attachmentsArray.filter((a) => !a.contactPersonId);
   const handoverDocs = mainDocs.filter((a) => a.docType === "HANDOVER_DOCS");
 
   const tabs = [
@@ -468,7 +473,7 @@ function RecipientDetailPageContent() {
                   <p className="text-sm text-petra-muted text-center py-4">אין גורמי קשר עדיין</p>
                 ) : (
                   (recipient.contactPersons || []).map((cp) => {
-                    const cpFiles = (recipient.attachments || []).filter((a) => a.contactPersonId === cp.id);
+                    const cpFiles = attachmentsArray.filter((a) => a.contactPersonId === cp.id);
                     return (
                       <div key={cp.id} className="rounded-xl border p-4 space-y-3 group">
                         <div className="flex items-start justify-between gap-2">

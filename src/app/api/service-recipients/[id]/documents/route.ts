@@ -41,7 +41,12 @@ export async function POST(
     const blob = await put(blobPath, file, { access: "public" });
 
     let docs: unknown[] = [];
-    try { docs = JSON.parse((recipient.attachments as string) || "[]"); } catch { docs = []; }
+    const raw = recipient.attachments;
+    if (Array.isArray(raw)) {
+      docs = raw;
+    } else if (typeof raw === "string") {
+      try { docs = JSON.parse(raw); } catch { docs = []; }
+    }
 
     const contactPersonId = (formData.get("contactPersonId") as string | null) || undefined;
 
@@ -60,7 +65,7 @@ export async function POST(
 
     await prisma.serviceDogRecipient.update({
       where: { id: params.id },
-      data: { attachments: JSON.stringify(docs) },
+      data: { attachments: docs as object[] },
     });
 
     return NextResponse.json(newDoc, { status: 201 });
