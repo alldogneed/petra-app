@@ -199,12 +199,22 @@ function CheckoutContent() {
 
               {/* Trust badge */}
               {isTrial ? (
-                <div className="mt-4 flex items-start gap-2.5 p-3.5 bg-amber-50 border border-amber-100 rounded-xl">
-                  <Gift className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-700 leading-relaxed">
-                    <strong>14 יום ניסיון חינמי — לא תחויב עכשיו.</strong><br />
-                    אנו שומרים את פרטי הכרטיס לחיוב אוטומטי בסוף הניסיון. ביטול בכל עת מההגדרות.
-                  </p>
+                <div className="mt-4 space-y-2">
+                  <ul className="space-y-1.5">
+                    <li className="flex items-center gap-2 text-xs text-slate-600">
+                      <span className="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-600 font-bold text-[10px]">✓</span>
+                      <span><strong>היום:</strong> לא תחויב כלום — הכרטיס רק נשמר</span>
+                    </li>
+                    <li className="flex items-center gap-2 text-xs text-slate-600">
+                      <span className="w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 text-amber-600 font-bold text-[10px]">14</span>
+                      <span><strong>לאחר 14 יום:</strong> חיוב אוטומטי ₪{plan.price}/חודש</span>
+                    </li>
+                    <li className="flex items-center gap-2 text-xs text-slate-600">
+                      <span className="w-4 h-4 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 text-red-500 font-bold text-[10px]">✕</span>
+                      <span><strong>בטלת בניסיון?</strong> ₪0 — ללא שום חיוב</span>
+                    </li>
+                  </ul>
+                  <p className="text-[10px] text-slate-400 pt-1">ביטול בכל עת מהגדרות → ניהול מנוי</p>
                 </div>
               ) : (
                 <div className="mt-4 flex items-start gap-2.5 p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl">

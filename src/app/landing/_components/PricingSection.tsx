@@ -202,7 +202,7 @@ const FAQ = [
   { q: "איך משדרגים?", a: "שליחת הודעת WhatsApp לתמיכה — המסלול מתעדכן תוך שעות." },
   { q: "האם ניתן לבטל?", a: "כן, ניתן לבטל בכל עת ללא קנסות." },
   { q: "מה קורה לנתונים בביטול?", a: "הנתונים נשמרים 30 יום לאחר ביטול." },
-  { q: "יש ניסיון חינמי?", a: "כן! כל המסלולים בתשלום כוללים 14 יום ניסיון חינמי ללא כרטיס אשראי. אחרי הניסיון ניתן להמשיך בתשלום — או לחזור למסלול החינמי." },
+  { q: "יש ניסיון חינמי?", a: "כן! כל המסלולים בתשלום כוללים 14 יום ניסיון חינמי. נדרשת הזנת כרטיס אשראי — אך לא תחויב דבר בתקופת הניסיון. בתום 14 הימים המנוי ממשיך אוטומטית. ביטלת בתוך הניסיון? לא שילמת כלום." },
   {
     q: "מה קורה אם יש לי כבר מאות לקוחות במערכת אחרת או בטלפון?",
     a: "צוות פטרה יעזור לך לייבא את כל הנתונים בקלות ובמהירות, כדי שתוכל להתחיל לעבוד כבר היום בלי לאבד מידע.",
@@ -227,7 +227,7 @@ export function PricingSection() {
           <h2 id="pricing-heading" className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
             מחירים שקופים, ללא הפתעות
           </h2>
-          <p className="text-slate-500 text-lg">התחל בחינם — שדרג רק כשאתה מוכן</p>
+          <p className="text-slate-500 text-lg">התחל עם 14 יום ניסיון — לא תחויב כלום אם תבטל</p>
         </div>
 
         {/* Plan cards — horizontal scroll on mobile */}
@@ -320,7 +320,7 @@ export function PricingSection() {
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full py-1 px-2">
                         <Gift className="w-3 h-3" aria-hidden="true" />
-                        14 יום ניסיון חינמי — ללא כרטיס אשראי
+                        14 יום ניסיון — בטל חינם בכל עת
                       </div>
                       <Link
                         href={user ? `/upgrade?autostart=${plan.key}` : `/register?plan=${plan.key}`}
@@ -334,13 +334,16 @@ export function PricingSection() {
                         <Gift className="w-3.5 h-3.5" aria-hidden="true" />
                         נסה 14 יום חינם
                       </Link>
+                      <p className="text-[10px] text-center text-slate-400 leading-snug px-1">
+                        נדרש כרטיס אשראי · לא תחויב עד סוף הניסיון · ממשיך אוטומטית לאחר 14 יום
+                      </p>
                       {!user && (
                         <Link
                           href="/register"
                           aria-label={`התחל בחינם — מסלול ${plan.name}`}
                           className="text-xs py-1.5 rounded-xl text-center font-medium text-slate-500 hover:text-slate-700 transition-colors"
                         >
-                          או התחל בחינם
+                          או התחל בחינם ←
                         </Link>
                       )}
                     </div>
