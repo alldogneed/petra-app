@@ -108,11 +108,9 @@ function RegisterForm() {
         return;
       }
 
-      // Trial is now active — skip onboarding and go to dashboard
-      // The trial banner in the app will prompt payment when ready
+      // Plan selected — go to checkout to enter card details (trial starts after tokenization)
       if (planParam && VALID_PLANS.has(planParam)) {
-        router.push("/dashboard");
-        router.refresh();
+        router.push(`/checkout?tier=${planParam}&trial=1`);
         return;
       }
       // Registered + logged in → go to onboarding wizard

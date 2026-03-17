@@ -112,16 +112,9 @@ export async function POST(request: NextRequest) {
     // Every new user gets their own isolated business workspace
     const businessId = await ensureUserHasBusiness(user.id, name.trim());
 
-    // ── Activate 14-day free trial if a valid paid plan was selected ──────────
-    const VALID_PAID_TIERS = new Set(["basic", "pro", "groomer", "service_dog"]);
-    if (plan && VALID_PAID_TIERS.has(plan)) {
-      const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 14);
-      await prisma.business.update({
-        where: { id: businessId },
-        data: { tier: plan, trialEndsAt },
-      });
-    }
+    // Note: tier/trial are NOT set here. When a paid plan is selected,
+    // the user is redirected to /checkout?trial=1 where they enter a card.
+    // The trial-indicator webhook sets tier + trialEndsAt after tokenization.
 
     // ── Create onboarding progress (step 0, not started yet) ─────────────────
     await prisma.onboardingProgress.create({

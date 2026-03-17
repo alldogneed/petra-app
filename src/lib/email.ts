@@ -22,6 +22,18 @@ function getFromEmail(): string {
   return process.env.EMAIL_FROM || "Petra <onboarding@resend.dev>";
 }
 
+// ─── Generic email sender ────────────────────────────────────────────────────
+
+export async function sendEmail(params: { to: string; subject: string; html: string }): Promise<void> {
+  const resend = getResend();
+  await resend.emails.send({
+    from: getFromEmail(),
+    to: params.to,
+    subject: params.subject,
+    html: params.html,
+  });
+}
+
 // ─── Welcome Email ──────────────────────────────────────────────────────────────
 
 export interface WelcomeEmailParams {

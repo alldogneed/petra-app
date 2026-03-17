@@ -132,7 +132,11 @@ const TIER_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
 // ─── Subscription Card ───────────────────────────────────────────────────────
 
 function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: string; customerCount: number; appointmentCount: number }) {
-  const { subscriptionEndsAt, subscriptionDaysLeft, subscriptionExpired, subscriptionActive } = usePlan();
+  const queryClient = useQueryClient();
+  const { refreshUser } = useAuth();
+  const { subscriptionEndsAt, subscriptionDaysLeft, subscriptionExpired, subscriptionActive, trialActive, trialDaysLeft, trialEndsAt } = usePlan();
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const TierIcon = TIER_ICONS[tier] ?? Star;
   const tierInfo = TIERS[tier as keyof typeof TIERS];
@@ -140,6 +144,8 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
 
   const statusLabel = isFree
     ? "חינמי"
+    : trialActive
+    ? `ניסיון חינמי — נשארו ${trialDaysLeft} ימים`
     : subscriptionExpired
     ? "פג תוקף"
     : subscriptionActive
@@ -148,9 +154,33 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
 
   const statusColor = subscriptionExpired
     ? "text-red-500"
+    : trialActive
+    ? "text-amber-600"
     : subscriptionActive && subscriptionDaysLeft <= 7
     ? "text-amber-500"
     : "text-emerald-500";
+
+  const canCancel = !isFree && (trialActive || subscriptionActive);
+
+  async function handleCancel() {
+    setCancelling(true);
+    try {
+      const res = await fetch("/api/subscription/cancel", { method: "POST" });
+      if (!res.ok) {
+        const d = await res.json();
+        toast.error(d.error ?? "שגיאה בביטול המנוי");
+        return;
+      }
+      toast.success("המנוי בוטל בהצלחה. עברת למסלול חינמי.");
+      setShowCancelConfirm(false);
+      await refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    } catch {
+      toast.error("שגיאת רשת. נסה שוב.");
+    } finally {
+      setCancelling(false);
+    }
+  }
 
   return (
     <div className="rounded-2xl border overflow-hidden"
@@ -171,6 +201,17 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
           שנה מסלול
         </a>
       </div>
+
+      {/* Trial active info */}
+      {trialActive && (
+        <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 flex items-center justify-between">
+          <span>
+            ניסיון חינמי — יסתיים ב-<strong>{trialEndsAt ? new Date(trialEndsAt).toLocaleDateString("he-IL") : ""}</strong>.
+            לאחר מכן תחויב אוטומטית.
+          </span>
+        </div>
+      )}
+
       {subscriptionActive && subscriptionDaysLeft <= 7 && (
         <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 flex items-center justify-between">
           <span>המנוי שלך יפוג בעוד {subscriptionDaysLeft} ימים</span>
@@ -181,6 +222,44 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
         <div className="px-4 py-2 bg-red-50 border-t border-red-100 text-xs text-red-700 flex items-center justify-between">
           <span>המנוי שלך פג — חזרת למסלול חינמי</span>
           <a href="/upgrade" className="font-semibold underline">חדש עכשיו</a>
+        </div>
+      )}
+
+      {/* Cancel subscription */}
+      {canCancel && !showCancelConfirm && (
+        <div className="px-4 py-3 border-t border-slate-100 flex justify-end">
+          <button
+            onClick={() => setShowCancelConfirm(true)}
+            className="text-xs text-slate-400 hover:text-red-500 transition-colors underline"
+          >
+            ביטול מנוי
+          </button>
+        </div>
+      )}
+
+      {canCancel && showCancelConfirm && (
+        <div className="px-4 py-3 border-t border-red-100 bg-red-50 flex flex-col gap-2">
+          <p className="text-xs text-red-700 font-medium">
+            {trialActive
+              ? "ביטול הניסיון יסיר את הגישה לתכונות מתקדמות מיידית. הכרטיס לא יחויב."
+              : "ביטול המנוי יסיר את הגישה לתכונות מתקדמות מיידית."}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="text-xs px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {cancelling && <Loader2 className="w-3 h-3 animate-spin" />}
+              {cancelling ? "מבטל..." : "כן, בטל מנוי"}
+            </button>
+            <button
+              onClick={() => setShowCancelConfirm(false)}
+              className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              חזרה
+            </button>
+          </div>
         </div>
       )}
     </div>

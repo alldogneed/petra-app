@@ -217,6 +217,7 @@ model Business {
   subscriptionStatus   String    @default("inactive") // "active" | "inactive" | "cancelled" | "expired"
   cardcomDealId        String?   // last successful Cardcom deal number
   cardcomToken         String?   // Cardcom recurring billing token (future use)
+  cardcomTokenExpiry   String?   // Card expiry from Cardcom (MMYY format, used for token charges)
   vatNumber          String?
   businessRegNumber  String?   // ח.פ / עוסק מורשה / בע"מ
   vatEnabled         Boolean  @default(true)

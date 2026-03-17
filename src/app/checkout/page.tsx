@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { Shield, Check, Loader2, Crown, ArrowRight, Lock } from "lucide-react";
+import { Shield, Check, Loader2, Crown, ArrowRight, Lock, Gift, CreditCard } from "lucide-react";
 import { useState, useEffect, Suspense } from "react";
 
 // ─── Plan details for the summary panel ───────────────────────────────────────
@@ -67,6 +67,7 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tier = (searchParams.get("tier") ?? "") as PlanKey;
+  const isTrial = searchParams.get("trial") === "1";
   const plan = PLAN_DETAILS[tier];
 
   const [cardcomUrl, setCardcomUrl] = useState<string | null>(null);
@@ -77,7 +78,11 @@ function CheckoutContent() {
     setLoading(true);
     setError(null);
 
-    fetch("/api/cardcom/create-payment", {
+    const endpoint = isTrial
+      ? "/api/cardcom/create-tokenization"
+      : "/api/cardcom/create-payment";
+
+    fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tier }),
@@ -125,7 +130,7 @@ function CheckoutContent() {
           </div>
           <span className="font-bold text-slate-800 text-sm">Petra</span>
           <span className="text-slate-300 mx-0.5 hidden sm:inline">·</span>
-          <span className="text-slate-500 text-sm hidden sm:inline">שדרוג מנוי</span>
+          <span className="text-slate-500 text-sm hidden sm:inline">{isTrial ? "אימות כרטיס לניסיון חינמי" : "שדרוג מנוי"}</span>
         </div>
         <button
           onClick={() => router.back()}
@@ -174,19 +179,42 @@ function CheckoutContent() {
               </ul>
 
               {/* Total row */}
-              <div className="flex items-center justify-between py-3 border-t border-slate-200">
-                <span className="text-sm font-semibold text-slate-700">סה״כ לתשלום</span>
-                <span className="text-base font-extrabold text-slate-900">₪{plan.price} <span className="text-xs font-normal text-slate-400">/ חודש</span></span>
-              </div>
+              {isTrial ? (
+                <div className="py-3 border-t border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-slate-700">חיוב היום</span>
+                    <span className="text-base font-extrabold text-emerald-600">₪0</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500">לאחר 14 יום ניסיון</span>
+                    <span className="text-sm font-semibold text-slate-700">₪{plan.price} <span className="text-xs font-normal text-slate-400">/ חודש</span></span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between py-3 border-t border-slate-200">
+                  <span className="text-sm font-semibold text-slate-700">סה״כ לתשלום</span>
+                  <span className="text-base font-extrabold text-slate-900">₪{plan.price} <span className="text-xs font-normal text-slate-400">/ חודש</span></span>
+                </div>
+              )}
 
               {/* Trust badge */}
-              <div className="mt-4 flex items-start gap-2.5 p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl">
-                <Lock className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-emerald-700 leading-relaxed">
-                  תשלום מאובטח בתקן PCI DSS.<br />
-                  חשבונית מס תישלח אוטומטית למייל.
-                </p>
-              </div>
+              {isTrial ? (
+                <div className="mt-4 flex items-start gap-2.5 p-3.5 bg-amber-50 border border-amber-100 rounded-xl">
+                  <Gift className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    <strong>14 יום ניסיון חינמי — לא תחויב עכשיו.</strong><br />
+                    אנו שומרים את פרטי הכרטיס לחיוב אוטומטי בסוף הניסיון. ביטול בכל עת מההגדרות.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-4 flex items-start gap-2.5 p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl">
+                  <Lock className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-emerald-700 leading-relaxed">
+                    תשלום מאובטח בתקן PCI DSS.<br />
+                    חשבונית מס תישלח אוטומטית למייל.
+                  </p>
+                </div>
+              )}
 
               {/* Bottom badges */}
               <div className="mt-4 flex items-center justify-center gap-3 text-[10px] text-slate-400">
@@ -207,7 +235,9 @@ function CheckoutContent() {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
                 <Lock className="w-3.5 h-3.5 text-emerald-500" />
-                <h2 className="font-semibold text-slate-800 text-sm">פרטי תשלום</h2>
+                <h2 className="font-semibold text-slate-800 text-sm">
+                  {isTrial ? "אימות כרטיס — לא יחויב עכשיו" : "פרטי תשלום"}
+                </h2>
               </div>
 
               {/* Loading */}
