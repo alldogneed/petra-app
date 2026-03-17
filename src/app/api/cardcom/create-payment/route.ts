@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
       ProductName:      plan.label,
       GoodURL:          `${appUrl}/payment/success?tier=${tier}`,
       ErrorURL:         `${appUrl}/payment/error`,
+      ErrorRedirectUrl: `${appUrl}/payment/error`,
       IndicatorURL:     `${appUrl}/api/cardcom/indicator?secret=${process.env.CARDCOM_WEBHOOK_SECRET ?? ""}`,
       UserId:           encodedUserId,
       ShowLogoutButton: "false",
