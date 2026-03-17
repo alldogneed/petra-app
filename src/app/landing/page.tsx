@@ -804,7 +804,7 @@ export default function LandingPage() {
             <Link href="/register" className="btn-primary text-base px-10 py-4">
               אני רוצה לנסות בחינם
             </Link>
-            <p className="mt-4 text-slate-500 text-sm">14 יום ניסיון חינמי · ביטול בניסיון = ₪0 · ממשיך אוטומטית</p>
+            <p className="mt-4 text-slate-500 text-sm">14 ימי ניסיון חינם — ללא חיוב מיידי · בטל בכל עת בלחיצת כפתור</p>
             <p className="mt-2 text-brand-400/80 text-sm">מעבר קל ממערכות אחרות — אנחנו נעזור לך</p>
           </div>
         </section>
