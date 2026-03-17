@@ -108,9 +108,10 @@ export default function RegisterPage() {
         return;
       }
 
-      // If user came from pricing page with a plan, save it for post-onboarding auto-payment
+      // If user came from pricing page with a plan, skip onboarding and go straight to payment
       if (planParam && VALID_PLANS.has(planParam)) {
-        sessionStorage.setItem("pending_plan", planParam);
+        window.location.href = `/upgrade?autostart=${planParam}`;
+        return;
       }
       // Registered + logged in → go to onboarding wizard
       router.push("/onboarding");
