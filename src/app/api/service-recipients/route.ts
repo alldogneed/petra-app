@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
 
     const body = await request.json();
-    const { name, phone, email, idNumber, address, disabilityType, disabilityNotes, customerId, notes, fundingSource, intakeDate } = body;
+    const { name, phone, mobile, email, idNumber, address, disabilityType, disabilityNotes, customerId, notes, fundingSource, intakeDate } = body;
 
     if (!name) {
       return NextResponse.json({ error: "נדרש שם" }, { status: 400 });
@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
         businessId: authResult.businessId,
         name,
         phone: phone || null,
+        mobile: mobile || null,
         email: email || null,
         idNumber: idNumber || null,
         address: address || null,

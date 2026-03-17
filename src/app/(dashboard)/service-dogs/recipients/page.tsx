@@ -746,6 +746,7 @@ function AddRecipientModal({
   onAdded: () => void;
 }) {
   const [name, setName] = useState("");
+  const [mobile, setMobile] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [idNumber, setIdNumber] = useState("");
@@ -792,12 +793,16 @@ function AddRecipientModal({
               <input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} placeholder="שם פרטי ושם משפחה" />
             </div>
             <div>
-              <label className="label text-xs">טלפון</label>
-              <input className="input w-full" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <label className="label text-xs">נייד</label>
+              <input type="tel" className="input w-full" value={mobile} onChange={(e) => setMobile(e.target.value)} />
             </div>
             <div>
               <label className="label text-xs">מייל</label>
               <input type="email" className="input w-full" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div>
+              <label className="label text-xs">טלפון</label>
+              <input type="tel" className="input w-full" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div>
               <label className="label text-xs">ת.ז.</label>
@@ -840,7 +845,7 @@ function AddRecipientModal({
         <div className="flex gap-2 mt-4">
           <button
             className="btn-primary flex-1"
-            onClick={() => addMutation.mutate({ name, phone, email, idNumber, address, disabilityType, disabilityNotes, fundingSource, notes, status })}
+            onClick={() => addMutation.mutate({ name, phone, mobile, email, idNumber, address, disabilityType, disabilityNotes, fundingSource, notes, status })}
             disabled={!name.trim() || addMutation.isPending}
           >
             {addMutation.isPending ? "מוסיף..." : "הוסף זכאי"}

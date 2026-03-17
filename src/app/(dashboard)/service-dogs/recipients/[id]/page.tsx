@@ -1018,12 +1018,16 @@ function EditRecipientModal({
               <input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} placeholder="שם פרטי ושם משפחה" />
             </div>
             <div>
-              <label className="label text-xs">טלפון</label>
-              <input type="tel" className="input w-full" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <label className="label text-xs">נייד</label>
+              <input type="tel" className="input w-full" value={mobile} onChange={(e) => setMobile(e.target.value)} />
             </div>
             <div>
               <label className="label text-xs">מייל</label>
               <input type="email" className="input w-full" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div>
+              <label className="label text-xs">טלפון</label>
+              <input type="tel" className="input w-full" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div>
               <label className="label text-xs">ת.ז.</label>
@@ -1060,10 +1064,6 @@ function EditRecipientModal({
             <div className="col-span-2">
               <label className="label text-xs">הערות</label>
               <textarea className="input w-full" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </div>
-            <div>
-              <label className="label text-xs">נייד</label>
-              <input type="tel" className="input w-full" value={mobile} onChange={(e) => setMobile(e.target.value)} />
             </div>
             <div>
               <label className="label text-xs">תאריך הסמכה</label>
