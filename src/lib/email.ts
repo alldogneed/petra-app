@@ -227,6 +227,92 @@ export async function sendTeamInvitationEmail(params: TeamInvitationEmailParams)
   }
 }
 
+// ─── Trial Reminder Email ────────────────────────────────────────────────────
+
+export interface TrialReminderEmailParams {
+  to: string;
+  name: string;
+  tierName: string;
+  daysLeft: number;
+  trialEndsAt: Date;
+}
+
+export async function sendTrialReminderEmail(params: TrialReminderEmailParams): Promise<void> {
+  const appUrl = process.env.APP_URL || "https://petra-app.com";
+  const upgradeUrl = `${appUrl}/upgrade`;
+  const isLastDay = params.daysLeft <= 1;
+  const endDateStr = params.trialEndsAt.toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" });
+
+  const subject = isLastDay
+    ? `⏰ הניסיון החינמי שלך ב-Petra מסתיים מחר`
+    : `⏳ נשארו ${params.daysLeft} ימים לניסיון החינמי שלך ב-Petra`;
+
+  const { error } = await getResend().emails.send({
+    from: getFromEmail(),
+    to: params.to,
+    subject,
+    html: buildTrialReminderHtml({ ...params, upgradeUrl, endDateStr, isLastDay }),
+  });
+
+  if (error) {
+    throw new Error(`Resend trial reminder failed: ${error.message}`);
+  }
+}
+
+function buildTrialReminderHtml(params: TrialReminderEmailParams & { upgradeUrl: string; endDateStr: string; isLastDay: boolean }): string {
+  const accentColor = params.isLastDay ? "#DC2626" : "#F59E0B";
+  const bgColor = params.isLastDay ? "#FEF2F2" : "#FFFBEB";
+  const borderColor = params.isLastDay ? "#FECACA" : "#FDE68A";
+  const emoji = params.isLastDay ? "⏰" : "⏳";
+
+  return `<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head><meta charset="utf-8" /></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; padding: 40px 20px; direction: rtl;">
+  <div style="max-width: 520px; margin: 0 auto; background: white; border-radius: 16px; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+
+    <div style="text-align: center; margin-bottom: 28px;">
+      <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #F97316, #FB923C); border-radius: 14px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
+        <span style="font-size: 28px;">${emoji}</span>
+      </div>
+      <h1 style="font-size: 22px; color: #1e293b; margin: 0 0 8px;">שלום ${params.name},</h1>
+      <p style="color: #64748b; font-size: 15px; margin: 0;">הניסיון החינמי שלך ב-Petra מתקרב לסיומו</p>
+    </div>
+
+    <div style="background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
+      <p style="margin: 0 0 6px; font-size: 28px; font-weight: 800; color: ${accentColor};">
+        ${params.isLastDay ? "יום אחרון!" : `${params.daysLeft} ימים`}
+      </p>
+      <p style="margin: 0; font-size: 14px; color: #92400e;">
+        מסלול <strong>${params.tierName}</strong> — בתוקף עד ${params.endDateStr}
+      </p>
+    </div>
+
+    <p style="color: #475569; font-size: 14px; line-height: 1.7; margin: 0 0 20px;">
+      כדי להמשיך ליהנות מכל הפיצ'רים של מסלול <strong>${params.tierName}</strong>, כולל יומן תורים, תזכורות WhatsApp ועוד — ניתן לשדרג בלחיצה אחת.
+    </p>
+
+    <div style="text-align: center; margin-bottom: 24px;">
+      <a href="${params.upgradeUrl}"
+         style="display: inline-block; background: linear-gradient(135deg, #F97316, #FB923C); color: white; text-decoration: none; padding: 14px 36px; border-radius: 12px; font-weight: 700; font-size: 15px;">
+        שדרג עכשיו ←
+      </a>
+    </div>
+
+    <div style="background: #f1f5f9; border-radius: 10px; padding: 16px; margin-bottom: 24px;">
+      <p style="margin: 0; font-size: 13px; color: #475569; line-height: 1.6;">
+        💡 <strong>לא רוצה להמשיך?</strong> לא צריך לעשות כלום. ב-${params.endDateStr} החשבון יחזור אוטומטית למסלול החינמי ולא תחויב.
+      </p>
+    </div>
+
+    <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center;">
+      <p style="margin: 0; font-size: 12px; color: #94a3b8;">Petra — ניהול עסקי חיות מחמד</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 // ─── Support Ticket Email ────────────────────────────────────────────────────
 
 export interface SupportTicketEmailParams {
