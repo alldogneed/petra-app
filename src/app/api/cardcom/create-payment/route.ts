@@ -57,9 +57,10 @@ export async function POST(request: NextRequest) {
       SumToBill:        plan.price.toString(),
       CoinID:           "1",          // ILS
       ProductName:      plan.label,
-      GoodURL:          `${appUrl}/payment/success?tier=${tier}`,
-      ErrorURL:         `${appUrl}/payment/error`,
-      ErrorRedirectUrl: `${appUrl}/payment/error`,
+      GoodURL:            `${appUrl}/payment/success?tier=${tier}`,
+      SuccessRedirectUrl: `${appUrl}/payment/success?tier=${tier}`,
+      ErrorURL:           `${appUrl}/payment/error`,
+      ErrorRedirectUrl:   `${appUrl}/payment/error`,
       IndicatorURL:     `${appUrl}/api/cardcom/indicator?secret=${process.env.CARDCOM_WEBHOOK_SECRET ?? ""}`,
       UserId:           encodedUserId,
       ShowLogoutButton: "false",
