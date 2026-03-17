@@ -189,6 +189,18 @@ function ServiceDogsListPageContent() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
+        <input
+          type="text"
+          placeholder="חיפוש לפי שם או גזע..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="input pr-10 w-full"
+        />
+      </div>
+
       {/* Phase Filter */}
       <div className="flex items-center gap-1 flex-wrap">
         <button
@@ -202,10 +214,9 @@ function ServiceDogsListPageContent() {
         >
           הכל ({dogs.length})
         </button>
-        {SERVICE_DOG_PHASES.map((p) => {
+        {SERVICE_DOG_PHASES.filter((p) => !["RETIRED", "DECERTIFIED"].includes(p.id)).map((p) => {
           const colors = SERVICE_DOG_PHASE_COLORS[p.id];
           const count = phaseCounts[p.id] || 0;
-          if (count === 0) return null;
           return (
             <button
               key={p.id}
@@ -214,7 +225,8 @@ function ServiceDogsListPageContent() {
                 "text-sm px-3 py-1.5 rounded-lg font-medium border transition-all",
                 phaseFilter === p.id
                   ? "shadow-sm"
-                  : "hover:shadow-sm opacity-70 hover:opacity-100"
+                  : "hover:shadow-sm opacity-70 hover:opacity-100",
+                count === 0 && phaseFilter !== p.id && "opacity-40"
               )}
               style={{
                 backgroundColor: phaseFilter === p.id ? colors?.bg : "white",
@@ -226,18 +238,6 @@ function ServiceDogsListPageContent() {
             </button>
           );
         })}
-      </div>
-
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
-        <input
-          type="text"
-          placeholder="חיפוש לפי שם או גזע..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="input pr-10 w-full"
-        />
       </div>
 
       {/* Dogs List */}
