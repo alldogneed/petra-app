@@ -571,61 +571,6 @@ function RecipientDetailPageContent() {
               </div>
             )}
 
-            {/* Handover Section */}
-            <div className="card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Package className="w-4 h-4 text-brand-500" />
-                  תיק מסירה
-                </h3>
-                <button
-                  onClick={() => { setAddDocDefaultType("HANDOVER_DOCS"); setShowAddDoc(true); }}
-                  className="btn-ghost text-sm flex items-center gap-1.5"
-                >
-                  <Upload className="w-4 h-4" />
-                  העלה מסמך
-                </button>
-              </div>
-              <div className="space-y-3">
-                {recipient.handoverDate && (
-                  <div className="py-2 border-b">
-                    <p className="text-xs text-petra-muted mb-0.5">תאריך הסמכה</p>
-                    <p className="text-sm font-medium">{formatDate(recipient.handoverDate)}</p>
-                  </div>
-                )}
-                {handoverDocs.length > 0 ? (
-                  <div className="space-y-2">
-                    {handoverDocs.map((doc) => (
-                      <div key={doc.id} className="flex items-center justify-between p-2.5 rounded-xl border bg-slate-50/50 group">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <FileText className="w-4 h-4 text-brand-500 shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">{doc.name}</p>
-                            <p className="text-xs text-petra-muted">{doc.uploadedAt ? formatDate(doc.uploadedAt) : ""}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {doc.url && (
-                            <a href={doc.url} target="_blank" rel="noreferrer" className="w-7 h-7 rounded flex items-center justify-center hover:bg-brand-50">
-                              <ExternalLink className="w-3.5 h-3.5 text-brand-500" />
-                            </a>
-                          )}
-                          <button
-                            onClick={() => deleteAttachment(doc.id)}
-                            className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded flex items-center justify-center hover:bg-red-100 transition-all"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-petra-muted text-center py-2">אין מסמכי מסירה</p>
-                )}
-              </div>
-            </div>
-
             {/* Notes */}
             {recipient.notes && (
               <div className="card p-5">
@@ -683,6 +628,14 @@ function RecipientDetailPageContent() {
                 </div>
               )}
             </div>
+
+            {/* Certification date below placements */}
+            {recipient.handoverDate && (
+              <div className="card p-4 mt-3">
+                <p className="text-xs text-petra-muted mb-0.5">תאריך הסמכה</p>
+                <p className="text-sm font-semibold">{formatDate(recipient.handoverDate)}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
