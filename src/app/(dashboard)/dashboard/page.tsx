@@ -41,6 +41,8 @@ import {
   ChevronDown,
   ChevronUp,
   Zap,
+  Dumbbell,
+  Scissors,
 } from "lucide-react";
 import {
   isToday,
@@ -235,8 +237,11 @@ const SERVICE_TYPE_TABS = [
 
 const ORDER_TYPE_INFO: Record<string, { label: string; icon: React.ElementType }> = {
   sale: { label: "מוצרים", icon: Package },
+  products: { label: "מוצרים", icon: Package },
   appointment: { label: "תור", icon: Calendar },
   boarding: { label: "פנסיון", icon: Hotel },
+  training: { label: "אילוף", icon: Dumbbell },
+  grooming: { label: "טיפוח", icon: Scissors },
 };
 
 const ORDER_STATUS_BADGE: Record<string, string> = {

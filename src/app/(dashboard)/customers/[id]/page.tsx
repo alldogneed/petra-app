@@ -2315,8 +2315,11 @@ const ORDER_STATUS_INFO: Record<string, { label: string; color: string }> = {
 
 const ORDER_TYPE_LABELS: Record<string, string> = {
   sale: "מכירה",
+  products: "מוצרים",
   appointment: "תור",
   boarding: "פנסיון",
+  training: "אילוף",
+  grooming: "טיפוח",
 };
 
 // ─── Quick Task Modal (linked to customer) ───────────────────────────────────
