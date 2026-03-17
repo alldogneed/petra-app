@@ -2165,6 +2165,24 @@ model PendingApproval {
   @@index([status])
 }
 
+/// Temporary record created when a visitor starts a checkout-first trial flow.
+/// Stores name + email before account creation so the trial-indicator webhook
+/// can create the PlatformUser + Business after card tokenisation succeeds.
+model PendingCheckout {
+  id          String    @id @default(uuid())
+  name        String
+  email       String
+  tier        String
+  tosAccepted Boolean   @default(false)
+  expiresAt   DateTime                       // 2 hours after creation
+  processed   Boolean   @default(false)
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
 /// Audit log of every Cardcom subscription event (activate, cancel, renew, error)
 model SubscriptionEvent {
   id              String   @id @default(uuid())

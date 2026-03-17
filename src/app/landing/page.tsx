@@ -52,7 +52,7 @@ const AUDIENCES = [
     photo:
       "https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=400&q=80",
     features: [
-      "תוכניות אילוף אישיות וקבוצתיות",
+      "תוכניות אילוף בכיס שלך – מעקב התקדמות שזמין לך מהשטח",
       "מעקב יעדים ומשימות לכל כלב",
       "תזכורות WhatsApp אוטומטיות",
     ],
@@ -65,7 +65,7 @@ const AUDIENCES = [
     photo:
       "https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=400&q=80",
     features: [
-      "יומן תורים ממוטב לגרומינג",
+      "סוף לסמסים של 'מתי התור שלי' – יומן מסודר עם תזכורות אוטומטיות",
       "תיק עבודות לפני/אחרי",
       "חשבוניות ותשלומים מובנים",
     ],
@@ -78,7 +78,7 @@ const AUDIENCES = [
     photo:
       "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=400&q=80",
     features: [
-      "ניהול חדרים וזמינות",
+      "שקט תעשייתי בפנסיון – ניהול זמינות ועדכוני סטטוס לבעלים בלחיצת כפתור",
       "Check-in/out ומעקב יומי",
       "הודעות WhatsApp לבעלים",
     ],
@@ -103,7 +103,7 @@ const HOW_IT_WORKS = [
     n: "01",
     icon: Users,
     title: "מצטרפים בדקה",
-    desc: "בלי כרטיס אשראי, בלי כאב ראש. חשבון פעיל תוך 30 שניות.",
+    desc: "14 ימי ניסיון חינם — ללא חיוב מיידי. חשבון פעיל תוך 30 שניות.",
   },
   {
     n: "02",
@@ -309,13 +309,13 @@ export default function LandingPage() {
                 >
                   <Zap aria-hidden="true" className="w-3.5 h-3.5 text-brand-400" />
                   <span className="text-brand-300 text-sm font-medium">
-                    פלטפורמת ניהול מס׳ 1 לעסקי חיות מחמד
+                    המערכת שנבנתה על ידי אנשי כלבים, עבור אנשי כלבים
                   </span>
                 </p>
 
                 <h1
                   id="hero-heading"
-                  className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-5"
+                  className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-[1.18] mb-6"
                 >
                   תפסיק לרדוף אחרי זנבות –
                   <br className="hidden sm:block" />
@@ -367,9 +367,9 @@ export default function LandingPage() {
                   className="flex flex-wrap items-center justify-center lg:justify-start gap-x-6 gap-y-2 text-slate-400 text-sm list-none p-0 m-0"
                 >
                   {[
-                    { icon: CreditCard, text: "נדרש כרטיס אשראי" },
-                    { icon: Clock, text: "14 יום ניסיון חינמי" },
-                    { icon: Check, text: "ביטול בניסיון = ₪0" },
+                    { icon: Clock, text: "14 ימי ניסיון חינם — ללא חיוב מיידי" },
+                    { icon: Check, text: "בטל בכל עת בלחיצת כפתור" },
+                    { icon: CreditCard, text: "נדרש כרטיס אשראי לאימות" },
                   ].map(({ icon: Icon, text }) => (
                     <li key={text} className="flex items-center gap-1.5">
                       <Icon aria-hidden="true" className="w-4 h-4 text-brand-400" />

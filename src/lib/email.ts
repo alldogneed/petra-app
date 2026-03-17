@@ -22,6 +22,94 @@ function getFromEmail(): string {
   return process.env.EMAIL_FROM || "Petra <onboarding@resend.dev>";
 }
 
+// ─── Trial Welcome Email (checkout-first flow) ───────────────────────────────
+
+export interface TrialWelcomeEmailParams {
+  to: string;
+  name: string;
+  tierName: string;
+  tierPrice: number;
+  tempPassword: string;
+}
+
+export async function sendTrialWelcomeEmail(params: TrialWelcomeEmailParams): Promise<void> {
+  const resend = getResend();
+  const appUrl = process.env.APP_URL || "https://petra-app.com";
+  const loginUrl = `${appUrl}/login`;
+
+  const { to, name, tierName, tierPrice, tempPassword } = params;
+
+  await resend.emails.send({
+    from: getFromEmail(),
+    to,
+    subject: `🎉 ברוכים הבאים ל-Petra! — פרטי הכניסה שלך`,
+    html: `
+      <div dir="rtl" style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;color:#1e293b;background:#ffffff;">
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#f97316,#fb923c);padding:32px 24px;text-align:center;border-radius:12px 12px 0 0;">
+          <h1 style="color:#fff;margin:0;font-size:28px;font-weight:800;">Petra 🐾</h1>
+          <p style="color:rgba(255,255,255,0.9);margin:8px 0 0;font-size:14px;">ניהול עסקי חיות מחמד</p>
+        </div>
+
+        <!-- Body -->
+        <div style="padding:32px 24px;background:#fff;">
+          <h2 style="font-size:20px;margin:0 0 8px;color:#0f172a;">שלום ${name}! 👋</h2>
+          <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 24px;">
+            החשבון שלך ב-Petra נוצר בהצלחה.<br/>
+            <strong>14 ימי ניסיון חינמי למסלול ${tierName}</strong> מתחילים עכשיו.
+          </p>
+
+          <!-- Credentials box -->
+          <div style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:12px;padding:20px 24px;margin:0 0 24px;">
+            <p style="font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 12px;">פרטי כניסה למערכת</p>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr>
+                <td style="padding:6px 0;color:#64748b;font-size:14px;width:90px;">📧 אימייל</td>
+                <td style="padding:6px 0;font-size:14px;font-weight:600;color:#0f172a;">${to}</td>
+              </tr>
+              <tr>
+                <td style="padding:6px 0;color:#64748b;font-size:14px;">🔑 סיסמה</td>
+                <td style="padding:6px 0;">
+                  <code style="background:#1e293b;color:#f8fafc;font-size:15px;font-weight:700;padding:4px 10px;border-radius:6px;font-family:monospace;letter-spacing:0.05em;">${tempPassword}</code>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- CTA Button -->
+          <div style="text-align:center;margin:0 0 24px;">
+            <a href="${loginUrl}" style="display:inline-block;background:#f97316;color:#fff;font-size:16px;font-weight:700;padding:14px 40px;border-radius:12px;text-decoration:none;">
+              כניסה למערכת →
+            </a>
+          </div>
+
+          <!-- Change password note -->
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;margin:0 0 24px;">
+            <p style="margin:0;font-size:13px;color:#92400e;">
+              💡 <strong>מומלץ:</strong> שנה את הסיסמה הזמנית בכניסה הראשונה —<br/>
+              הגדרות → פרטי משתמש → שינוי סיסמה
+            </p>
+          </div>
+
+          <!-- Trial info -->
+          <div style="border-top:1px solid #e2e8f0;padding-top:20px;">
+            <p style="font-size:13px;color:#64748b;margin:0 0 8px;">
+              ✅ <strong>הניסיון פעיל</strong> — 14 ימים מלאים ללא תשלום<br/>
+              🔄 לאחר 14 יום: חיוב אוטומטי <strong>₪${tierPrice}/חודש</strong><br/>
+              ❌ ביטול בניסיון? הגדרות → ניהול מנוי — <strong>₪0</strong>
+            </p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="background:#f8fafc;padding:16px 24px;text-align:center;border-radius:0 0 12px 12px;border-top:1px solid #e2e8f0;">
+          <p style="margin:0;font-size:12px;color:#94a3b8;">Petra · ניהול עסקי חיות מחמד · <a href="https://petra-app.com" style="color:#f97316;text-decoration:none;">petra-app.com</a></p>
+        </div>
+      </div>
+    `,
+  });
+}
+
 // ─── Generic email sender ────────────────────────────────────────────────────
 
 export async function sendEmail(params: { to: string; subject: string; html: string }): Promise<void> {

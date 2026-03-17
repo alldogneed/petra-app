@@ -1,9 +1,11 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { Shield, Check, Loader2, Crown, ArrowRight, Lock, Gift, CreditCard } from "lucide-react";
+import { Shield, Check, Loader2, Crown, ArrowRight, Lock, Gift, CreditCard, ChevronLeft } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useState, useEffect, Suspense } from "react";
+import { useAuth } from "@/providers/auth-provider";
 
 // ─── Plan details for the summary panel ───────────────────────────────────────
 const PLAN_DETAILS = {
@@ -67,17 +69,30 @@ type PlanKey = keyof typeof PLAN_DETAILS;
 function CheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+
   const tier = (searchParams.get("tier") ?? "") as PlanKey;
   const isTrial = searchParams.get("trial") === "1";
   const plan = PLAN_DETAILS[tier];
 
+  // ── Cardcom iframe state ──────────────────────────────────────────────────
   const [cardcomUrl, setCardcomUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [iframeLoading, setIframeLoading] = useState(false);
+  const [iframeError, setIframeError] = useState<string | null>(null);
 
+  // ── Step 1 form state (unauthenticated trial only) ────────────────────────
+  const [formName, setFormName] = useState("");
+  const [formEmail, setFormEmail] = useState("");
+  const [formTos, setFormTos] = useState(false);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formErrorCode, setFormErrorCode] = useState<string | null>(null);
+  const [onStep2, setOnStep2] = useState(false);
+
+  // Fetch payment URL for authenticated users
   function fetchPaymentUrl() {
-    setLoading(true);
-    setError(null);
+    setIframeLoading(true);
+    setIframeError(null);
 
     const endpoint = isTrial
       ? "/api/cardcom/create-tokenization"
@@ -90,7 +105,7 @@ function CheckoutContent() {
     })
       .then((r) => {
         if (r.status === 401) {
-          router.replace(`/login?redirect=/checkout?tier=${tier}`);
+          router.replace(`/login?redirect=/checkout?tier=${tier}${isTrial ? "&trial=1" : ""}`);
           return null;
         }
         return r.json();
@@ -100,11 +115,11 @@ function CheckoutContent() {
         if (data.url) {
           setCardcomUrl(data.url);
         } else {
-          setError(data.error ?? "שגיאה ביצירת דף תשלום");
+          setIframeError(data.error ?? "שגיאה ביצירת דף תשלום");
         }
       })
-      .catch(() => setError("שגיאה בחיבור לשרת. נסה שוב."))
-      .finally(() => setLoading(false));
+      .catch(() => setIframeError("שגיאה בחיבור לשרת. נסה שוב."))
+      .finally(() => setIframeLoading(false));
   }
 
   useEffect(() => {
@@ -112,11 +127,54 @@ function CheckoutContent() {
       router.replace("/upgrade");
       return;
     }
-    fetchPaymentUrl();
+    // Unauthenticated trial: show step 1 form first (don't fetch)
+    if (isTrial && !authLoading && !user) return;
+    // Authenticated or non-trial: fetch payment URL
+    if (!authLoading) fetchPaymentUrl();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authLoading, user]);
+
+  // Submit step 1 form (unauthenticated checkout-first trial)
+  async function handleFormSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setFormError(null);
+    setFormErrorCode(null);
+    setFormSubmitting(true);
+
+    try {
+      const res = await fetch("/api/cardcom/create-trial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: formName, email: formEmail, tier, tosAccepted: formTos }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setFormError(data.error ?? "שגיאה ביצירת טופס תשלום");
+        setFormErrorCode(data.code ?? null);
+        return;
+      }
+
+      if (data.url) {
+        setCardcomUrl(data.url);
+        setOnStep2(true);
+      } else {
+        setFormError("שגיאה ביצירת טופס תשלום. נסה שוב.");
+      }
+    } catch {
+      setFormError("שגיאה בחיבור לשרת. נסה שוב.");
+    } finally {
+      setFormSubmitting(false);
+    }
+  }
 
   if (!plan) return null;
+
+  // Determine what to render in the right panel
+  const isNewUserTrial = isTrial && !authLoading && !user;
+  const showStep1 = isNewUserTrial && !onStep2;
+  const showIframe = cardcomUrl && (!isNewUserTrial || onStep2);
+  const showAuthLoading = isTrial && authLoading;
 
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
@@ -132,7 +190,9 @@ function CheckoutContent() {
             priority
           />
           <span className="text-slate-300 mx-0.5 hidden sm:inline">·</span>
-          <span className="text-slate-500 text-sm hidden sm:inline">{isTrial ? "אימות כרטיס לניסיון חינמי" : "שדרוג מנוי"}</span>
+          <span className="text-slate-500 text-sm hidden sm:inline">
+            {isTrial ? "ניסיון חינמי 14 יום" : "שדרוג מנוי"}
+          </span>
         </div>
         <button
           onClick={() => router.back()}
@@ -199,7 +259,7 @@ function CheckoutContent() {
                 </div>
               )}
 
-              {/* Trust badge */}
+              {/* Trust section */}
               {isTrial ? (
                 <div className="mt-4 space-y-2">
                   <ul className="space-y-1.5">
@@ -242,28 +302,156 @@ function CheckoutContent() {
             </div>
           </div>
 
-          {/* ── Right: Cardcom payment iframe (appears SECOND on mobile) ── */}
+          {/* ── Right: Form or Cardcom iframe (appears SECOND on mobile) ── */}
           <div className="w-full lg:w-3/5 order-2">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
-                <Lock className="w-3.5 h-3.5 text-emerald-500" />
-                <h2 className="font-semibold text-slate-800 text-sm">
-                  {isTrial ? "אימות כרטיס — לא יחויב עכשיו" : "פרטי תשלום"}
-                </h2>
+
+              {/* Panel header */}
+              <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Lock className="w-3.5 h-3.5 text-emerald-500" />
+                  <h2 className="font-semibold text-slate-800 text-sm">
+                    {isTrial ? "אימות כרטיס — לא יחויב עכשיו" : "פרטי תשלום"}
+                  </h2>
+                </div>
+                {/* Step indicator for new-user trial */}
+                {isNewUserTrial && (
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className={`px-2.5 py-0.5 rounded-full font-semibold transition-colors ${!onStep2 ? "bg-brand-500 text-white" : "bg-emerald-100 text-emerald-600"}`}>
+                      1 פרטים
+                    </span>
+                    <ChevronLeft className="w-3 h-3 text-slate-300" />
+                    <span className={`px-2.5 py-0.5 rounded-full font-semibold transition-colors ${onStep2 ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-400"}`}>
+                      2 כרטיס
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* Loading */}
-              {loading && (
+              {/* Auth loading spinner */}
+              {showAuthLoading && (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <Loader2 className="w-6 h-6 text-brand-500 animate-spin" />
+                </div>
+              )}
+
+              {/* ── Step 1: Name + Email + TOS form (new user, unauthenticated trial) ── */}
+              {showStep1 && (
+                <form onSubmit={handleFormSubmit} className="p-6 space-y-4">
+                  <p className="text-sm text-slate-600 leading-relaxed mb-2">
+                    הזן את הפרטים שלך — נשלח לך כניסה למערכת באימייל לאחר שמירת הכרטיס.
+                  </p>
+
+                  {/* Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      שם מלא <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      minLength={2}
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
+                      placeholder="ישראל ישראלי"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      אימייל <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={formEmail}
+                      onChange={(e) => { setFormEmail(e.target.value); setFormError(null); setFormErrorCode(null); }}
+                      placeholder="name@example.com"
+                      dir="ltr"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
+                    />
+                  </div>
+
+                  {/* TOS */}
+                  <div className="flex items-start gap-2.5">
+                    <input
+                      id="tos"
+                      type="checkbox"
+                      required
+                      checked={formTos}
+                      onChange={(e) => setFormTos(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-slate-300 text-brand-500 focus:ring-brand-400 flex-shrink-0"
+                    />
+                    <label htmlFor="tos" className="text-xs text-slate-600 leading-relaxed cursor-pointer">
+                      קראתי ואני מסכים/ה ל
+                      <Link href="/tos" target="_blank" className="text-brand-600 hover:underline mx-1">תנאי השימוש</Link>
+                      ול
+                      <Link href="/privacy" target="_blank" className="text-brand-600 hover:underline mx-1">מדיניות הפרטיות</Link>
+                      של פטרה
+                    </label>
+                  </div>
+
+                  {/* Error */}
+                  {formError && (
+                    <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3">
+                      <p className="text-sm text-red-600">{formError}</p>
+                      {formErrorCode === "email_exists" && (
+                        <Link
+                          href={`/login?redirect=/checkout?tier=${tier}&trial=1`}
+                          className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline"
+                        >
+                          כבר יש לך חשבון? התחבר ←
+                        </Link>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Trial note */}
+                  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                    <Gift className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-700">
+                      לאחר שמירת הכרטיס תקבל אימייל עם פרטי הכניסה למערכת.
+                      <br />
+                      <span className="font-semibold">לא תחויב כלום עד תום 14 ימי הניסיון.</span>
+                    </p>
+                  </div>
+
+                  {/* Submit */}
+                  <button
+                    type="submit"
+                    disabled={formSubmitting || !formTos}
+                    className="w-full py-3 rounded-xl bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                  >
+                    {formSubmitting ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> טוען...</>
+                    ) : (
+                      <><CreditCard className="w-4 h-4" /> המשך לאימות כרטיס</>
+                    )}
+                  </button>
+
+                  <p className="text-center text-xs text-slate-400">
+                    כבר יש לך חשבון?{" "}
+                    <Link href="/login" className="text-brand-600 hover:underline font-medium">
+                      התחבר
+                    </Link>
+                  </p>
+                </form>
+              )}
+
+              {/* ── Loading (authenticated flow) ── */}
+              {iframeLoading && (
                 <div className="flex flex-col items-center justify-center py-24 gap-3">
                   <Loader2 className="w-7 h-7 text-brand-500 animate-spin" />
                   <p className="text-xs text-slate-400">טוען דף תשלום מאובטח...</p>
                 </div>
               )}
 
-              {/* Error */}
-              {!loading && error && (
+              {/* ── Error (authenticated flow) ── */}
+              {!iframeLoading && iframeError && (
                 <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
-                  <p className="text-sm text-red-600">{error}</p>
+                  <p className="text-sm text-red-600">{iframeError}</p>
                   <button
                     onClick={fetchPaymentUrl}
                     className="text-xs px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors"
@@ -273,8 +461,8 @@ function CheckoutContent() {
                 </div>
               )}
 
-              {/* Iframe */}
-              {!loading && !error && cardcomUrl && (
+              {/* ── Cardcom iframe ── */}
+              {showIframe && (
                 <iframe
                   src={cardcomUrl}
                   title="טופס תשלום מאובטח"

@@ -1,8 +1,14 @@
 export const dynamic = "force-dynamic";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { isValidTier } from "@/lib/feature-flags";
 import { checkRateLimit } from "@/lib/security/rateLimiter";
+import { ensureUserHasBusiness } from "@/lib/auth";
+import { sendTrialWelcomeEmail } from "@/lib/email";
+import { CURRENT_TOS_VERSION } from "@/lib/tos";
+import { randomBytes } from "crypto";
+import bcrypt from "bcryptjs";
+import { logAudit, AUDIT_ACTIONS } from "@/lib/audit";
 
 function getClientIp(request: NextRequest): string {
   return (
@@ -12,11 +18,48 @@ function getClientIp(request: NextRequest): string {
   );
 }
 
+/** Generates a strong 12-character temp password (uppercase + digit + lowercase). */
+function generateTempPassword(): string {
+  const upper   = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower   = "abcdefghjkmnpqrstuvwxyz";
+  const digits  = "23456789";
+  const all     = upper + lower + digits;
+
+  const bytes = randomBytes(16);
+  let pass = "";
+  pass += upper[bytes[0] % upper.length];
+  pass += lower[bytes[1] % lower.length];
+  pass += digits[bytes[2] % digits.length];
+  for (let i = 3; i < 12; i++) pass += all[bytes[i] % all.length];
+
+  // Shuffle
+  const arr = pass.split("");
+  const shuffleBytes = randomBytes(12);
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = shuffleBytes[i] % (i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.join("");
+}
+
+const TIER_LABEL: Record<string, string> = {
+  basic: "בייסיק", pro: "פרו", groomer: "גרומר+", service_dog: "Service Dog",
+};
+const TIER_PRICE: Record<string, number> = {
+  basic: 99, pro: 199, groomer: 169, service_dog: 229,
+};
+
 /**
  * GET /api/cardcom/trial-indicator
  *
- * Cardcom calls this after a successful tokenization (Operation=4).
- * Saves the card token and starts the 14-day free trial for the business.
+ * Cardcom calls this after a successful tokenisation (Operation=4, ₪0).
+ * Handles two flows depending on the UserId:
+ *
+ *   A) "pending:{checkoutId}::{tier}" — checkout-first (new user):
+ *      → Creates PlatformUser + Business, sends welcome email with temp password
+ *
+ *   B) "{businessId}::{tier}" — existing logged-in user:
+ *      → Saves token + starts 14-day trial (unchanged from previous version)
  *
  * Same 5-layer security as /api/cardcom/indicator.
  */
@@ -26,102 +69,219 @@ export async function GET(request: NextRequest) {
 
   // ── Layer 1: Secret validation ───────────────────────────────────────────
   if (searchParams.get("secret") !== process.env.CARDCOM_WEBHOOK_SECRET) {
-    console.error(`trial-indicator [Layer 1]: invalid secret from IP ${ip}`);
+    console.error(`trial-indicator [L1]: invalid secret from IP ${ip}`);
     await prisma.subscriptionEvent.create({
-      data: {
-        businessId: "unknown",
-        eventType: "security_invalid_secret",
-        ipAddress: ip,
-        metadata: { path: "trial-indicator", ua: request.headers.get("user-agent") ?? "" },
-      },
+      data: { businessId: "unknown", eventType: "security_invalid_secret", ipAddress: ip, metadata: { path: "trial-indicator" } },
     }).catch(() => null);
     return new Response("Unauthorized", { status: 401 });
   }
 
   // ── Layer 2: Rate limiting ────────────────────────────────────────────────
   if (!checkRateLimit(ip, 10)) {
-    console.warn(`trial-indicator [Layer 2]: rate limit exceeded for IP ${ip}`);
+    console.warn(`trial-indicator [L2]: rate limit exceeded for IP ${ip}`);
     await prisma.subscriptionEvent.create({
-      data: {
-        businessId: "unknown",
-        eventType: "security_rate_limit",
-        ipAddress: ip,
-        metadata: {},
-      },
+      data: { businessId: "unknown", eventType: "security_rate_limit", ipAddress: ip, metadata: {} },
     }).catch(() => null);
     return new Response("Too Many Requests", { status: 429 });
   }
 
   const lowProfileCode = searchParams.get("lowprofilecode");
-  if (!lowProfileCode) {
-    return new Response("Missing lowprofilecode", { status: 400 });
-  }
+  if (!lowProfileCode) return new Response("Missing lowprofilecode", { status: 400 });
 
-  // ── Layer 3: Idempotency — skip duplicate events ─────────────────────────
+  // ── Layer 3: Idempotency ──────────────────────────────────────────────────
   const existing = await prisma.subscriptionEvent.findFirst({
     where: { lowprofileCode: lowProfileCode, eventType: "trial_started" },
     select: { id: true },
   });
   if (existing) {
-    console.log(`trial-indicator [Layer 3]: duplicate lowprofileCode ${lowProfileCode} — skipping`);
+    console.log(`trial-indicator [L3]: duplicate code ${lowProfileCode} — skipping`);
     return new Response("OK");
   }
 
   // ── Layer 4: Double-verify via Cardcom API ────────────────────────────────
-  const indicatorUrl = new URL(
-    "https://secure.cardcom.solutions/Interface/BillGoldGetLowProfileIndicator.aspx"
-  );
-  indicatorUrl.searchParams.set("terminalnumber", process.env.CARDCOM_TERMINAL_NUMBER ?? "");
-  indicatorUrl.searchParams.set("username", process.env.CARDCOM_API_USERNAME ?? "");
-  indicatorUrl.searchParams.set("lowprofilecode", lowProfileCode);
+  const verifyUrl = new URL("https://secure.cardcom.solutions/Interface/BillGoldGetLowProfileIndicator.aspx");
+  verifyUrl.searchParams.set("terminalnumber", process.env.CARDCOM_TERMINAL_NUMBER ?? "");
+  verifyUrl.searchParams.set("username",       process.env.CARDCOM_API_USERNAME ?? "");
+  verifyUrl.searchParams.set("lowprofilecode", lowProfileCode);
 
-  const res = await fetch(indicatorUrl.toString());
-  const text = await res.text();
+  const verifyRes = await fetch(verifyUrl.toString());
+  const verifyText = await verifyRes.text();
 
   const data: Record<string, string> = {};
-  text.split("&").forEach((pair) => {
+  verifyText.split("&").forEach((pair) => {
     const eqIdx = pair.indexOf("=");
     if (eqIdx === -1) return;
-    const k = decodeURIComponent(pair.slice(0, eqIdx));
-    const v = decodeURIComponent(pair.slice(eqIdx + 1));
-    data[k] = v;
+    data[decodeURIComponent(pair.slice(0, eqIdx))] = decodeURIComponent(pair.slice(eqIdx + 1));
   });
 
-  // For tokenization (Operation=4), Cardcom may return DealResponse=0 even with SumToBill=0
   if (data.DealResponse !== "0") {
-    console.warn(`trial-indicator [Layer 4]: DealResponse not 0 (${data.DealResponse}) for code ${lowProfileCode}`);
+    console.warn(`trial-indicator [L4]: DealResponse=${data.DealResponse} for ${lowProfileCode}`);
     await prisma.subscriptionEvent.create({
-      data: {
-        businessId: "unknown",
-        eventType: "security_deal_verify_failed",
-        lowprofileCode: lowProfileCode,
-        ipAddress: ip,
-        metadata: { dealResponse: data.DealResponse ?? "N/A" },
-      },
+      data: { businessId: "unknown", eventType: "security_deal_verify_failed", lowprofileCode: lowProfileCode, ipAddress: ip, metadata: { dealResponse: data.DealResponse ?? "N/A" } },
     }).catch(() => null);
     return new Response("OK");
   }
 
-  // ── Decode businessId + tier from UserId ─────────────────────────────────
+  // ── Decode UserId ─────────────────────────────────────────────────────────
   const rawUserId = data.UserId ?? "";
+  const now = new Date();
+
+  // ════════════════════════════════════════════════════════════════════
+  //  FLOW A: Checkout-first — "pending:{checkoutId}::{tier}"
+  // ════════════════════════════════════════════════════════════════════
+  if (rawUserId.startsWith("pending:")) {
+    const withoutPrefix = rawUserId.slice("pending:".length); // "{checkoutId}::{tier}"
+    const colonIdx = withoutPrefix.indexOf("::");
+    if (colonIdx === -1) {
+      console.error(`trial-indicator [FlowA]: malformed UserId: ${rawUserId}`);
+      return new Response("OK");
+    }
+    const checkoutId = withoutPrefix.slice(0, colonIdx);
+    const tier       = withoutPrefix.slice(colonIdx + 2);
+
+    if (!isValidTier(tier)) {
+      console.error(`trial-indicator [FlowA]: invalid tier ${tier}`);
+      return new Response("OK");
+    }
+
+    // Find PendingCheckout
+    const checkout = await prisma.pendingCheckout.findUnique({ where: { id: checkoutId } });
+    if (!checkout) {
+      console.error(`trial-indicator [FlowA]: PendingCheckout ${checkoutId} not found`);
+      return new Response("OK");
+    }
+    if (checkout.processed) {
+      console.log(`trial-indicator [FlowA]: already processed ${checkoutId}`);
+      return new Response("OK");
+    }
+    if (checkout.expiresAt < now) {
+      console.warn(`trial-indicator [FlowA]: PendingCheckout ${checkoutId} expired`);
+      return new Response("OK");
+    }
+
+    // Check email not already taken (edge case: user registered between form submit + webhook)
+    const existingUser = await prisma.platformUser.findUnique({
+      where: { email: checkout.email },
+      select: { id: true },
+    });
+    if (existingUser) {
+      console.warn(`trial-indicator [FlowA]: email ${checkout.email} already registered, skipping`);
+      await prisma.pendingCheckout.update({ where: { id: checkoutId }, data: { processed: true, processedAt: now } });
+      return new Response("OK");
+    }
+
+    // ── Create user account ───────────────────────────────────────────────
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 12);
+
+    const user = await prisma.platformUser.create({
+      data: {
+        name:           checkout.name,
+        email:          checkout.email,
+        passwordHash,
+        platformRole:   null,
+        isActive:       true,
+        tosAcceptedVersion: CURRENT_TOS_VERSION,
+        tosAcceptedAt:  now,
+      },
+    });
+
+    // Record TOS consent
+    await prisma.userConsent.create({
+      data: {
+        id:           `${user.id}:${CURRENT_TOS_VERSION}`,
+        userId:       user.id,
+        termsVersion: CURRENT_TOS_VERSION,
+        ipAddress:    ip,   // Cardcom IP — best we have at this point
+        userAgent:    "checkout-first",
+      },
+    }).catch(() => null);
+
+    // Create Business + BusinessUser membership
+    const businessId = await ensureUserHasBusiness(user.id, checkout.name);
+
+    // Create OnboardingProgress
+    await prisma.onboardingProgress.create({
+      data: { userId: user.id, currentStep: 0 },
+    }).catch(() => null);
+
+    // ── Start 14-day trial ────────────────────────────────────────────────
+    const trialEndsAt = new Date(now.getTime() + 14 * 86_400_000);
+
+    await prisma.business.update({
+      where: { id: businessId },
+      data: {
+        tier,
+        trialEndsAt,
+        cardcomToken:       data.Token ?? null,
+        cardcomTokenExpiry: data.TokenExDate ?? null,
+        cardcomDealId:      data.DealNumber ?? null,
+      },
+    });
+
+    // ── Layer 5: Log events ───────────────────────────────────────────────
+    await prisma.subscriptionEvent.create({
+      data: {
+        businessId,
+        eventType:      "trial_started",
+        tier,
+        lowprofileCode: lowProfileCode,
+        ipAddress:      ip,
+        amount:         0,
+        cardcomDealId:  data.DealNumber ?? null,
+        metadata: {
+          flow:         "checkout_first",
+          userId:       user.id,
+          email:        checkout.email,
+          trialEndsAt:  trialEndsAt.toISOString(),
+          hasToken:     !!data.Token,
+        },
+      },
+    });
+
+    await logAudit({
+      actorUserId:  user.id,
+      action:       AUDIT_ACTIONS.PLATFORM_USER_CREATED,
+      targetType:   "PlatformUser",
+      targetId:     user.id,
+      metadata:     { email: user.email, name: user.name, method: "checkout_first" },
+    });
+
+    // Mark PendingCheckout as processed
+    await prisma.pendingCheckout.update({
+      where: { id: checkoutId },
+      data:  { processed: true, processedAt: now },
+    });
+
+    // ── Send welcome email with temp credentials ──────────────────────────
+    await sendTrialWelcomeEmail({
+      to:           checkout.email,
+      name:         checkout.name,
+      tierName:     TIER_LABEL[tier] ?? tier,
+      tierPrice:    TIER_PRICE[tier] ?? 0,
+      tempPassword,
+    }).catch((e) => console.error("trial-indicator: failed to send welcome email:", e));
+
+    console.log(`trial-indicator [FlowA]: created user ${user.id} for ${checkout.email}, started ${tier} trial`);
+    return new Response("OK");
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  //  FLOW B: Existing logged-in user — "{businessId}::{tier}"
+  // ════════════════════════════════════════════════════════════════════
   const [businessId, tier] = rawUserId.split("::");
 
   if (!businessId || !isValidTier(tier)) {
-    console.error(`trial-indicator: invalid UserId format: ${rawUserId}`);
+    console.error(`trial-indicator [FlowB]: invalid UserId: ${rawUserId}`);
     return new Response("OK");
   }
 
-  const business = await prisma.business.findUnique({
-    where: { id: businessId },
-    select: { id: true },
-  });
+  const business = await prisma.business.findUnique({ where: { id: businessId }, select: { id: true } });
   if (!business) {
-    console.error(`trial-indicator: business not found: ${businessId}`);
+    console.error(`trial-indicator [FlowB]: business not found: ${businessId}`);
     return new Response("OK");
   }
 
-  // ── Start 14-day trial ────────────────────────────────────────────────────
-  const now = new Date();
   const trialEndsAt = new Date(now.getTime() + 14 * 86_400_000);
 
   await prisma.business.update({
@@ -129,13 +289,12 @@ export async function GET(request: NextRequest) {
     data: {
       tier,
       trialEndsAt,
-      cardcomToken:        data.Token ?? null,
-      cardcomTokenExpiry:  data.TokenExDate ?? null,   // MMYY card expiry
-      cardcomDealId:       data.DealNumber ?? null,
+      cardcomToken:       data.Token ?? null,
+      cardcomTokenExpiry: data.TokenExDate ?? null,
+      cardcomDealId:      data.DealNumber ?? null,
     },
   });
 
-  // ── Layer 5: Log the trial start event ───────────────────────────────────
   await prisma.subscriptionEvent.create({
     data: {
       businessId,
@@ -145,10 +304,14 @@ export async function GET(request: NextRequest) {
       amount:         0,
       lowprofileCode: lowProfileCode,
       ipAddress:      ip,
-      metadata:       { trialEndsAt: trialEndsAt.toISOString(), hasToken: !!data.Token },
+      metadata: {
+        flow:         "existing_user",
+        trialEndsAt:  trialEndsAt.toISOString(),
+        hasToken:     !!data.Token,
+      },
     },
   });
 
-  console.log(`trial-indicator: started ${tier} trial for business ${businessId}, ends ${trialEndsAt.toISOString()}`);
+  console.log(`trial-indicator [FlowB]: started ${tier} trial for business ${businessId}`);
   return new Response("OK");
 }

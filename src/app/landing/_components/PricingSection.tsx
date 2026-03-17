@@ -67,15 +67,15 @@ const PLANS: {
     key: "pro",
     name: "Pro",
     price: 199,
-    badge: "הכי פופולרי",
+    badge: "מומלץ · הכי משתלם",
     highlight: true,
     description: "שליטה מלאה — לעסק שגדל",
     features: [
       "הכל ב-Basic",
       { text: "הזמנות אונליין — לקוחות קובעים לבד 24/7", star: true },
-      "פנסיון + ניהול חדרים",
-      "אוטומציות WhatsApp מתקדמות",
-      "ניהול צוות ומשתמשים",
+      { text: "פנסיון + ניהול חדרים", star: true },
+      { text: "אוטומציות WhatsApp מתקדמות", star: true },
+      { text: "ניהול צוות ומשתמשים", star: true },
     ],
     notIncluded: ["מודול כלבי שירות", "תיק עבודות גרומר"],
   },
@@ -104,10 +104,10 @@ const PLANS: {
     description: "המערכת המתקדמת הראשונה בישראל לניהול כלבי שירות",
     features: [
       "הכל ב-Pro",
-      "ניהול כלבי שירות בתהליך",
-      "ניהול תיק זכאים",
-      "מבחני הסמכה",
-      "פרוטוקולים רפואיים",
+      { text: "ניהול כלבי שירות בתהליך", star: true },
+      { text: "ניהול תיק זכאים", star: true },
+      { text: "מבחני הסמכה", star: true },
+      { text: "פרוטוקולים רפואיים", star: true },
     ],
     notIncluded: ["תיק עבודות גרומר"],
   },
@@ -205,7 +205,7 @@ const FAQ = [
   { q: "יש ניסיון חינמי?", a: "כן! כל המסלולים בתשלום כוללים 14 יום ניסיון חינמי. נדרשת הזנת כרטיס אשראי — אך לא תחויב דבר בתקופת הניסיון. בתום 14 הימים המנוי ממשיך אוטומטית. ביטלת בתוך הניסיון? לא שילמת כלום." },
   {
     q: "מה קורה אם יש לי כבר מאות לקוחות במערכת אחרת או בטלפון?",
-    a: "צוות פטרה יעזור לך לייבא את כל הנתונים בקלות ובמהירות, כדי שתוכל להתחיל לעבוד כבר היום בלי לאבד מידע.",
+    a: "מעבר קל ובטוח — הצוות שלנו מלווה אותך בתהליך ייבוא הנתונים מהנייד או ממערכות ישנות. לא תאבד שום מידע.",
   },
 ];
 
@@ -318,12 +318,8 @@ export function PricingSection() {
                   {/* CTA */}
                   {CARDCOM_TIERS.has(plan.key) ? (
                     <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full py-1 px-2">
-                        <Gift className="w-3 h-3" aria-hidden="true" />
-                        14 יום ניסיון — בטל חינם בכל עת
-                      </div>
                       <Link
-                        href={user ? `/upgrade?autostart=${plan.key}` : `/register?plan=${plan.key}`}
+                        href={user ? `/upgrade?autostart=${plan.key}` : `/checkout?tier=${plan.key}&trial=1`}
                         aria-label={`נסה 14 יום חינם — מסלול ${plan.name}`}
                         className={`text-sm py-2.5 rounded-xl text-center font-semibold transition-colors flex items-center justify-center gap-1.5 ${
                           plan.highlight
@@ -335,7 +331,7 @@ export function PricingSection() {
                         נסה 14 יום חינם
                       </Link>
                       <p className="text-[10px] text-center text-slate-400 leading-snug px-1">
-                        נדרש כרטיס אשראי · לא תחויב עד סוף הניסיון · ממשיך אוטומטית לאחר 14 יום
+                        ללא חיוב מיידי · בטל בכל עת בלחיצת כפתור
                       </p>
                       {!user && (
                         <Link
