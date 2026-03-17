@@ -2166,18 +2166,21 @@ model PendingApproval {
 
 /// Audit log of every Cardcom subscription event (activate, cancel, renew, error)
 model SubscriptionEvent {
-  id             String   @id @default(uuid())
-  businessId     String
-  eventType      String   // "activate" | "renew" | "cancel" | "expired" | "error"
-  tier           String?  // the tier purchased/changed to
-  cardcomDealId  String?  // Cardcom deal number
-  amount         Float?   // amount charged in ILS
-  metadata       Json     @default("{}")
-  createdAt      DateTime @default(now())
+  id              String   @id @default(uuid())
+  businessId      String
+  eventType       String   // "activate" | "renew" | "cancel" | "expired" | "error" | "security_*"
+  tier            String?  // the tier purchased/changed to
+  cardcomDealId   String?  // Cardcom deal number
+  amount          Float?   // amount charged in ILS
+  lowprofileCode  String?  // Cardcom LowProfile code — used for idempotency
+  ipAddress       String?  // caller IP — logged for security events
+  metadata        Json     @default("{}")
+  createdAt       DateTime @default(now())
 
-  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([businessId])
   @@index([createdAt])
+  @@index([lowprofileCode])
 }
 
