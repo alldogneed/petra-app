@@ -3401,7 +3401,7 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
           )}
         </div>
         {showEditPetModal && (
-          <EditPetModal pet={pet} petId={pet.id} onClose={() => setShowEditPetModal(false)} onSaved={invalidate} />
+          <EditPetModal pet={pet} petId={pet.id} dogId={dogId} certificationDate={dog.certificationDate} onClose={() => setShowEditPetModal(false)} onSaved={invalidate} />
         )}
 
         {/* Training hours — manual edit */}
@@ -3871,11 +3871,15 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
 function EditPetModal({
   pet,
   petId,
+  dogId,
+  certificationDate: initialCertDate,
   onClose,
   onSaved,
 }: {
   pet: ServiceDogDetail["pet"];
   petId: string;
+  dogId: string;
+  certificationDate: string | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -3889,10 +3893,13 @@ function EditPetModal({
   const [color, setColor] = useState(pet.color ?? "");
   const [microchip, setMicrochip] = useState(pet.microchip ?? "");
   const [neuteredSpayed, setNeuteredSpayed] = useState(pet.health?.neuteredSpayed ?? false);
+  const [certificationDate, setCertificationDate] = useState(
+    initialCertDate ? new Date(initialCertDate).toISOString().slice(0, 10) : ""
+  );
 
   const saveMutation = useMutation({
-    mutationFn: () =>
-      fetch(`/api/pets/${petId}`, {
+    mutationFn: async () => {
+      await fetch(`/api/pets/${petId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3905,10 +3912,13 @@ function EditPetModal({
           microchip: microchip.trim() || null,
           neuteredSpayed,
         }),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Failed");
-        return r.json();
-      }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); });
+      await fetch(`/api/service-dogs/${dogId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ certificationDate: certificationDate || null }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); });
+    },
     onSuccess: () => {
       onSaved();
       onClose();
@@ -3959,6 +3969,10 @@ function EditPetModal({
           <div>
             <label className="label text-xs">מספר שבב</label>
             <input className="input w-full font-mono" value={microchip} onChange={(e) => setMicrochip(e.target.value)} placeholder="15 ספרות..." />
+          </div>
+          <div>
+            <label className="label text-xs">תאריך הסמכה</label>
+            <input type="date" className="input w-full" value={certificationDate} onChange={(e) => setCertificationDate(e.target.value)} />
           </div>
           <div className="col-span-2 flex items-center gap-2 pt-1">
             <input
