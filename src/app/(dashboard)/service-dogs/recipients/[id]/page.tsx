@@ -129,6 +129,15 @@ const CONTACT_PERSON_ROLES = [
 
 type Tab = "details" | "documents" | "meetings";
 
+// ─── Safe JSON array helper ───
+function safeJsonArray<T>(raw: unknown): T[] {
+  if (Array.isArray(raw)) return raw as T[];
+  if (typeof raw === "string") {
+    try { const p = JSON.parse(raw); return Array.isArray(p) ? p as T[] : []; } catch { return []; }
+  }
+  return [];
+}
+
 // ─── Main Page ───
 
 function RecipientDetailPageContent() {
@@ -206,7 +215,7 @@ function RecipientDetailPageContent() {
 
   const saveMeeting = (meeting: Meeting) => {
     if (!recipient) return;
-    const meetings = [...(recipient.meetings || [])];
+    const meetings = [...safeJsonArray<Meeting>(recipient.meetings)];
     const idx = meetings.findIndex((m) => m.id === meeting.id);
     if (idx >= 0) meetings[idx] = meeting;
     else meetings.unshift(meeting);
@@ -218,20 +227,20 @@ function RecipientDetailPageContent() {
   const deleteMeeting = (meetingId: string) => {
     if (!recipient) return;
     if (!confirm("למחוק את המפגש?")) return;
-    const meetings = recipient.meetings.filter((m) => m.id !== meetingId);
+    const meetings = safeJsonArray<Meeting>(recipient.meetings).filter((m) => m.id !== meetingId);
     patchMutation.mutate({ meetings });
   };
 
   const deleteAttachment = (attId: string) => {
     if (!recipient) return;
     if (!confirm("למחוק את המסמך?")) return;
-    const attachments = attachmentsArray.filter((a) => a.id !== attId);
+    const attachments = safeJsonArray<Attachment>(recipient.attachments).filter((a) => a.id !== attId);
     patchMutation.mutate({ attachments });
   };
 
   const saveContactPerson = (cp: ContactPerson) => {
     if (!recipient) return;
-    const contactPersons = [...(recipient.contactPersons || [])];
+    const contactPersons = [...safeJsonArray<ContactPerson>(recipient.contactPersons)];
     const idx = contactPersons.findIndex((c) => c.id === cp.id);
     if (idx >= 0) contactPersons[idx] = cp;
     else contactPersons.push(cp);
@@ -243,8 +252,8 @@ function RecipientDetailPageContent() {
   const deleteContactPerson = (cpId: string) => {
     if (!recipient) return;
     if (!confirm("למחוק גורם קשר זה?")) return;
-    const contactPersons = recipient.contactPersons.filter((c) => c.id !== cpId);
-    const attachments = attachmentsArray.filter((a) => a.contactPersonId !== cpId);
+    const contactPersons = safeJsonArray<ContactPerson>(recipient.contactPersons).filter((c) => c.id !== cpId);
+    const attachments = safeJsonArray<Attachment>(recipient.attachments).filter((a) => a.contactPersonId !== cpId);
     patchMutation.mutate({ contactPersons, attachments });
   };
 
@@ -271,18 +280,16 @@ function RecipientDetailPageContent() {
   const activePlacement = recipient.placements?.find((p) =>
     p.status === "ACTIVE"
   );
-  const attachmentsArray: Attachment[] = Array.isArray(recipient.attachments)
-    ? recipient.attachments
-    : typeof recipient.attachments === "string"
-      ? (() => { try { return JSON.parse(recipient.attachments as unknown as string); } catch { return []; } })()
-      : [];
+  const attachmentsArray = safeJsonArray<Attachment>(recipient.attachments);
+  const meetingsArray = safeJsonArray<Meeting>(recipient.meetings);
+  const contactPersonsArray = safeJsonArray<ContactPerson>(recipient.contactPersons);
   const mainDocs = attachmentsArray.filter((a) => !a.contactPersonId);
   const handoverDocs = mainDocs.filter((a) => a.docType === "HANDOVER_DOCS");
 
   const tabs = [
     { id: "details" as Tab, label: "פרטים", icon: UserCheck },
     { id: "documents" as Tab, label: "מסמכים", icon: FileText, badge: mainDocs.length },
-    { id: "meetings" as Tab, label: "מפגשים", icon: Calendar, badge: recipient.meetings?.length || 0 },
+    { id: "meetings" as Tab, label: "מפגשים", icon: Calendar, badge: meetingsArray.length },
   ];
 
   return (
@@ -458,7 +465,7 @@ function RecipientDetailPageContent() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold flex items-center gap-2">
                   <Users className="w-4 h-4 text-brand-500" />
-                  גורמי קשר ({(recipient.contactPersons || []).length})
+                  גורמי קשר ({contactPersonsArray.length})
                 </h3>
                 <button
                   onClick={() => { setEditingContact(null); setShowAddContact(true); }}
@@ -469,10 +476,10 @@ function RecipientDetailPageContent() {
                 </button>
               </div>
               <div className="space-y-3">
-                {(recipient.contactPersons || []).length === 0 ? (
+                {contactPersonsArray.length === 0 ? (
                   <p className="text-sm text-petra-muted text-center py-4">אין גורמי קשר עדיין</p>
                 ) : (
-                  (recipient.contactPersons || []).map((cp) => {
+                  contactPersonsArray.map((cp) => {
                     const cpFiles = attachmentsArray.filter((a) => a.contactPersonId === cp.id);
                     return (
                       <div key={cp.id} className="rounded-xl border p-4 space-y-3 group">
@@ -511,7 +518,7 @@ function RecipientDetailPageContent() {
                                 <div className="flex items-center gap-2 min-w-0">
                                   <FileText className="w-3 h-3 text-petra-muted shrink-0" />
                                   <span className="truncate font-medium">{f.name}</span>
-                                  <span className="text-petra-muted shrink-0">{formatDate(f.uploadedAt)}</span>
+                                  <span className="text-petra-muted shrink-0">{f.uploadedAt ? formatDate(f.uploadedAt) : ""}</span>
                                 </div>
                                 <div className="flex items-center gap-0.5 shrink-0">
                                   {f.url && (
@@ -594,7 +601,7 @@ function RecipientDetailPageContent() {
                           <FileText className="w-4 h-4 text-brand-500 shrink-0" />
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">{doc.name}</p>
-                            <p className="text-xs text-petra-muted">{formatDate(doc.uploadedAt)}</p>
+                            <p className="text-xs text-petra-muted">{doc.uploadedAt ? formatDate(doc.uploadedAt) : ""}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
@@ -762,11 +769,11 @@ function RecipientDetailPageContent() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold flex items-center gap-2">
               <Calendar className="w-4 h-4 text-brand-500" />
-              מפגשים ותיאומים ({recipient.meetings?.length || 0})
+              מפגשים ותיאומים ({meetingsArray.length})
             </h3>
           </div>
           <div className="space-y-3">
-            {(recipient.meetings || []).map((meeting) => {
+            {meetingsArray.map((meeting) => {
               const ms = MEETING_STATUS_MAP[meeting.status];
               return (
                 <div key={meeting.id} className="p-4 rounded-xl border bg-slate-50/50 group">
@@ -1474,11 +1481,11 @@ function GovernmentReportModal({
           </div>
 
           {/* Contact persons in report */}
-          {recipient.contactPersons && recipient.contactPersons.length > 0 && (
+          {safeJsonArray<ContactPerson>(recipient.contactPersons).length > 0 && (
             <div className="border rounded-xl p-4">
               <h4 className="font-bold mb-3 text-base border-b pb-2">גורמי קשר</h4>
               <div className="space-y-2">
-                {recipient.contactPersons.map((cp) => (
+                {safeJsonArray<ContactPerson>(recipient.contactPersons).map((cp) => (
                   <div key={cp.id} className="flex gap-4 text-sm py-1.5 border-b last:border-0">
                     <span className="font-medium min-w-28">{cp.name}</span>
                     <span className="text-petra-muted">{cp.role}</span>
@@ -1535,18 +1542,18 @@ function GovernmentReportModal({
             </div>
           )}
 
-          {recipient.meetings && recipient.meetings.length > 0 && (
+          {safeJsonArray<Meeting>(recipient.meetings).length > 0 && (
             <div className="border rounded-xl p-4">
               <h4 className="font-bold mb-3 text-base border-b pb-2">
-                מפגשים ותיאומים ({recipient.meetings.length})
+                מפגשים ותיאומים ({safeJsonArray<Meeting>(recipient.meetings).length})
               </h4>
               <div className="space-y-2">
-                {[...recipient.meetings]
+                {[...safeJsonArray<Meeting>(recipient.meetings)]
                   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                   .slice(0, 10)
                   .map((m) => (
                     <div key={m.id} className="flex gap-3 text-xs py-1.5 border-b last:border-0">
-                      <span className="text-petra-muted min-w-24">{formatDate(m.date)}</span>
+                      <span className="text-petra-muted min-w-24">{m.date ? formatDate(m.date) : ""}</span>
                       <span className="font-medium">{MEETING_TYPE_MAP[m.type] || m.type}</span>
                       {m.trainerName && <span className="text-petra-muted">— {m.trainerName}</span>}
                       {m.notes && <span className="text-petra-muted truncate">{m.notes}</span>}
