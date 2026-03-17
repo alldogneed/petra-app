@@ -2,6 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { Shield, Check, Loader2, Crown, ArrowRight, Lock, Gift, CreditCard } from "lucide-react";
+import Image from "next/image";
 import { useState, useEffect, Suspense } from "react";
 
 // ─── Plan details for the summary panel ───────────────────────────────────────
@@ -122,13 +123,14 @@ function CheckoutContent() {
       {/* ── Top bar ── */}
       <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-2.5">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)" }}
-          >
-            <span className="text-white text-sm font-bold">P</span>
-          </div>
-          <span className="font-bold text-slate-800 text-sm">Petra</span>
+          <Image
+            src="/petra-logo.png"
+            alt="לוגו פטרה"
+            width={36}
+            height={36}
+            className="object-contain flex-shrink-0"
+            priority
+          />
           <span className="text-slate-300 mx-0.5 hidden sm:inline">·</span>
           <span className="text-slate-500 text-sm hidden sm:inline">{isTrial ? "אימות כרטיס לניסיון חינמי" : "שדרוג מנוי"}</span>
         </div>
