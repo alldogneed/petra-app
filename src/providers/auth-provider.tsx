@@ -19,6 +19,7 @@ interface AuthUser {
   businessEffectiveTier: string | null;
   businessTrialEndsAt: string | null;
   businessSubscriptionEndsAt: string | null;
+  businessSubscriptionStatus: string | null;
   businessFeatureOverrides: Record<string, boolean> | null;
   businessRole: string | null;
   authProvider: string;

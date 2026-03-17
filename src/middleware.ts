@@ -22,11 +22,15 @@ const PUBLIC_PATHS = [
   "/api/cron",
   "/api/webhooks/invoices",
   "/api/webhooks/lead",
+  "/api/cardcom/indicator", // Cardcom server-to-server webhook — no session cookie
   "/api/service-dogs/id-card",
   "/api/integrations/google/callback", // Google Calendar OAuth callback
+  "/payment/success",
+  "/payment/error",
   "/privacy",
   "/terms",
   "/tos-accept",
+  "/landing",
 ];
 
 /** Validate token format: must be exactly 64 hex characters */

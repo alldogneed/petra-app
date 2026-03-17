@@ -2,7 +2,7 @@
 import { PageTitle } from "@/components/ui/PageTitle";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Building2,
   Save,
@@ -127,7 +127,65 @@ function validateVatNumber(vat: string): string | undefined {
 
 // ─── Tier Icons ──────────────────────────────────────────────────────────────
 
-const TIER_ICONS = { basic: Star, pro: Zap, groomer: Crown };
+const TIER_ICONS: Record<string, React.ComponentType<{ className?: string }>> = { basic: Star, pro: Zap, groomer: Crown, service_dog: Crown };
+
+// ─── Subscription Card ───────────────────────────────────────────────────────
+
+function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: string; customerCount: number; appointmentCount: number }) {
+  const { subscriptionEndsAt, subscriptionDaysLeft, subscriptionExpired, subscriptionActive } = usePlan();
+
+  const TierIcon = TIER_ICONS[tier] ?? Star;
+  const tierInfo = TIERS[tier as keyof typeof TIERS];
+  const isFree = tier === "free";
+
+  const statusLabel = isFree
+    ? "חינמי"
+    : subscriptionExpired
+    ? "פג תוקף"
+    : subscriptionActive
+    ? `פעיל עד ${subscriptionEndsAt ? new Date(subscriptionEndsAt).toLocaleDateString("he-IL") : ""}`
+    : "לא פעיל";
+
+  const statusColor = subscriptionExpired
+    ? "text-red-500"
+    : subscriptionActive && subscriptionDaysLeft <= 7
+    ? "text-amber-500"
+    : "text-emerald-500";
+
+  return (
+    <div className="rounded-2xl border overflow-hidden"
+      style={{ borderColor: "rgba(249,115,22,0.15)" }}
+    >
+      <div className="flex items-center gap-3 p-4"
+        style={{ background: "linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(251,146,60,0.04) 100%)" }}
+      >
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(249,115,22,0.1)" }}>
+          <TierIcon className="w-5 h-5 text-brand-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-petra-text">מנוי: {tierInfo?.name ?? tier}</p>
+          <p className={`text-xs font-medium ${statusColor}`}>{statusLabel}</p>
+          <p className="text-xs text-petra-muted">{customerCount} לקוחות · {appointmentCount} פגישות</p>
+        </div>
+        <a href="/upgrade" className="btn-secondary text-xs py-1.5 px-3 flex-shrink-0">
+          שנה מסלול
+        </a>
+      </div>
+      {subscriptionActive && subscriptionDaysLeft <= 7 && (
+        <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 flex items-center justify-between">
+          <span>המנוי שלך יפוג בעוד {subscriptionDaysLeft} ימים</span>
+          <a href="/upgrade" className="font-semibold underline">חדש עכשיו</a>
+        </div>
+      )}
+      {subscriptionExpired && !isFree && (
+        <div className="px-4 py-2 bg-red-50 border-t border-red-100 text-xs text-red-700 flex items-center justify-between">
+          <span>המנוי שלך פג — חזרת למסלול חינמי</span>
+          <a href="/upgrade" className="font-semibold underline">חדש עכשיו</a>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Business Tab ────────────────────────────────────────────────────────────
 
@@ -219,18 +277,8 @@ function BusinessTab() {
 
   return (
     <div className="space-y-6 max-w-xl">
-      {/* Tier Info */}
-      <div className="flex items-center gap-3 p-4 rounded-2xl border"
-        style={{ background: "linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(251,146,60,0.04) 100%)", borderColor: "rgba(249,115,22,0.15)" }}
-      >
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(249,115,22,0.1)" }}>
-          <TierIcon className="w-5 h-5 text-brand-500" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-petra-text">מנוי: {tierInfo?.name ?? editing.tier}</p>
-          <p className="text-xs text-petra-muted">{biz?._count.customers} לקוחות · {biz?._count.appointments} פגישות</p>
-        </div>
-      </div>
+      {/* Tier Info + Subscription */}
+      <SubscriptionCard tier={editing.tier ?? "free"} customerCount={biz?._count.customers ?? 0} appointmentCount={biz?._count.appointments ?? 0} />
 
       {/* User Display Name */}
       <div className="space-y-4">

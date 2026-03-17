@@ -2131,20 +2131,20 @@ export default function DashboardPage() {
       {trialActive && trialDaysLeft <= 7 && (
         <div className="rounded-xl px-4 py-3 flex items-center justify-between bg-amber-50 border border-amber-200 text-amber-800">
           <span className="text-sm font-medium">⏳ נותרו {trialDaysLeft} ימים בתקופת הניסיון החינמי שלך</span>
-          <a href="mailto:support@petra-app.com" className="text-sm font-semibold underline shrink-0 mr-4">שדרג עכשיו</a>
+          <a href="/upgrade" className="text-sm font-semibold underline shrink-0 mr-4">שדרג עכשיו</a>
         </div>
       )}
       {/* Subscription Banner */}
       {subscriptionExpired && !isFree && (
         <div className="rounded-xl px-4 py-3 flex items-center justify-between bg-red-50 border border-red-200 text-red-800">
           <span className="text-sm font-medium">⚠️ המנוי שלך פג — הגישה לתכונות מתקדמות הוגבלה</span>
-          <a href="mailto:support@petra-app.com" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</a>
+          <a href="/upgrade" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</a>
         </div>
       )}
       {subscriptionActive && subscriptionDaysLeft <= 14 && (
         <div className="rounded-xl px-4 py-3 flex items-center justify-between bg-amber-50 border border-amber-200 text-amber-800">
           <span className="text-sm font-medium">⏳ המנוי שלך מסתיים בעוד {subscriptionDaysLeft} ימים</span>
-          <a href="mailto:support@petra-app.com" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</a>
+          <a href="/upgrade" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</a>
         </div>
       )}
       {/* Greeting Header */}

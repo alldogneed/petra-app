@@ -31,6 +31,8 @@ export async function GET(request: NextRequest) {
     service_dog: 229,
   };
 
+  const sevenDaysFromNow = new Date(now.getTime() + 7 * 86_400_000);
+
   const [
     totalTenants,
     activeTenants,
@@ -41,6 +43,9 @@ export async function GET(request: NextRequest) {
     tierGroups,
     trialCount,
     gcalConnectedCount,
+    activeSubscriptions,
+    expiringIn7Days,
+    recentPayments,
   ] = await Promise.all([
     prisma.business.count(),
     prisma.business.count({ where: { status: "active" } }),
@@ -55,6 +60,19 @@ export async function GET(request: NextRequest) {
     }),
     prisma.business.count({ where: { status: "active", trialEndsAt: { gte: now } } }),
     prisma.platformUser.count({ where: { gcalConnected: true, isActive: true } }),
+    prisma.business.count({ where: { subscriptionStatus: "active" } }),
+    prisma.business.count({
+      where: {
+        subscriptionStatus: "active",
+        subscriptionEndsAt: { lt: sevenDaysFromNow, gt: now },
+      },
+    }),
+    prisma.subscriptionEvent.findMany({
+      take: 20,
+      where: { eventType: "activate" },
+      orderBy: { createdAt: "desc" },
+      include: { business: { select: { name: true } } },
+    }),
   ]);
 
   // Compute MRR: sum(count × price) for active businesses
@@ -77,5 +95,8 @@ export async function GET(request: NextRequest) {
     trialCount,
     tierBreakdown,
     gcalConnectedCount,
+    activeSubscriptions,
+    expiringIn7Days,
+    recentPayments,
   });
 }
