@@ -37,6 +37,8 @@ import {
   UserCheck,
   Printer,
   Sparkles,
+  LayoutGrid,
+  LayoutList,
 } from "lucide-react";
 import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -1502,7 +1504,7 @@ function OverviewDogCard({ dog }: { dog: UnifiedDog }) {
   const isCompleted = dog.status === "COMPLETED";
 
   const whatsappUrl = dog.customerPhone
-    ? `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
+    ? `https://wa.me/${toWhatsAppPhone(dog.customerPhone)}?text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
     : null;
 
   return (
@@ -1591,7 +1593,73 @@ function OverviewDogCard({ dog }: { dog: UnifiedDog }) {
   );
 }
 
+function OverviewDogRow({ dog }: { dog: UnifiedDog }) {
+  const badge = TYPE_BADGE[dog.type];
+  const isLowSessions = dog.sessionsRemaining !== undefined && dog.sessionsRemaining <= 2 && dog.status === "ACTIVE";
+  const isOverdue = dog.daysSinceLastSession !== undefined && dog.daysSinceLastSession >= 14 && dog.status === "ACTIVE";
+  const isCompleted = dog.status === "COMPLETED";
+
+  const whatsappUrl = dog.customerPhone
+    ? `https://wa.me/${toWhatsAppPhone(dog.customerPhone)}?text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
+    : null;
+
+  return (
+    <tr className={cn("border-b last:border-0 hover:bg-slate-50/60 transition-colors", isCompleted && "opacity-60")}>
+      <td className="p-3">
+        <div className="flex items-center gap-2">
+          <DogStatusDot dog={dog} />
+          <span className="text-sm font-semibold text-petra-text">{dog.dogName}</span>
+          {(isLowSessions || isOverdue) && <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />}
+        </div>
+      </td>
+      <td className="p-3 text-sm text-petra-muted">{dog.customerName}</td>
+      <td className="p-3">
+        <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", badge.bg, badge.text)}>
+          {badge.label}
+        </span>
+      </td>
+      <td className="p-3">
+        {dog.progress ? (
+          <div className="flex items-center gap-2 min-w-[80px]">
+            <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+              <div
+                className={cn("h-full rounded-full", isLowSessions ? "bg-red-400" : "bg-emerald-500")}
+                style={{ width: `${Math.min(100, (dog.progress.used / dog.progress.total) * 100)}%` }}
+              />
+            </div>
+            <span className="text-xs text-petra-muted whitespace-nowrap">{dog.progress.used}/{dog.progress.total}</span>
+          </div>
+        ) : (
+          <span className="text-xs text-petra-muted">—</span>
+        )}
+      </td>
+      <td className="p-3 text-xs text-petra-muted">
+        {isOverdue ? (
+          <span className="text-amber-600 font-medium">{dog.daysSinceLastSession} ימים</span>
+        ) : dog.lastSessionDate ? (
+          formatDate(dog.lastSessionDate)
+        ) : "—"}
+      </td>
+      <td className="p-3">
+        {whatsappUrl && (
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-[11px] text-green-700 hover:text-green-800 font-medium bg-green-50 hover:bg-green-100 px-2 py-1 rounded-lg transition-colors border border-green-200"
+          >
+            <Send className="w-3 h-3" />
+            שלח
+          </a>
+        )}
+      </td>
+    </tr>
+  );
+}
+
 function OverviewTab({ dogs }: { dogs: UnifiedDog[] }) {
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
   if (dogs.length === 0) {
     return (
       <div className="empty-state">
@@ -1609,42 +1677,73 @@ function OverviewTab({ dogs }: { dogs: UnifiedDog[] }) {
   const active = dogs.filter((d) => d.status === "ACTIVE" && !attention.some((a) => a.key === d.key));
   const completed = dogs.filter((d) => d.status === "COMPLETED");
 
+  const sections: { label: string; icon: React.ReactNode; labelClass: string; dogs: UnifiedDog[] }[] = [
+    { label: `דורשים תשומת לב (${attention.length})`, icon: <AlertTriangle className="w-4 h-4" />, labelClass: "text-red-600", dogs: attention },
+    { label: `באימון פעיל (${active.length})`, icon: <CheckCircle2 className="w-4 h-4" />, labelClass: "text-emerald-700", dogs: active },
+    { label: `הושלמו (${completed.length})`, icon: <Clock className="w-4 h-4" />, labelClass: "text-slate-500", dogs: completed },
+  ].filter((s) => s.dogs.length > 0);
+
   return (
     <div className="space-y-6">
-      {attention.length > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold text-red-600 mb-3 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" />
-            דורשים תשומת לב ({attention.length})
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {attention.map((dog) => <OverviewDogCard key={dog.key} dog={dog} />)}
-          </div>
-        </section>
-      )}
+      <div className="flex justify-end">
+        <div className="flex items-center bg-slate-100 rounded-lg p-1">
+          <button
+            onClick={() => setViewMode("list")}
+            className={cn("p-1.5 rounded transition-colors", viewMode === "list" ? "bg-white shadow-sm text-brand-600" : "text-petra-muted")}
+            title="תצוגת שורות"
+          >
+            <LayoutList className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setViewMode("grid")}
+            className={cn("p-1.5 rounded transition-colors", viewMode === "grid" ? "bg-white shadow-sm text-brand-600" : "text-petra-muted")}
+            title="תצוגת כרטיסים"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
 
-      {active.length > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold text-emerald-700 mb-3 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4" />
-            באימון פעיל ({active.length})
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {active.map((dog) => <OverviewDogCard key={dog.key} dog={dog} />)}
-          </div>
-        </section>
-      )}
-
-      {completed.length > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold text-slate-500 mb-3 flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            הושלמו ({completed.length})
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {completed.map((dog) => <OverviewDogCard key={dog.key} dog={dog} />)}
-          </div>
-        </section>
+      {viewMode === "grid" ? (
+        sections.map((section) => (
+          <section key={section.label}>
+            <h2 className={cn("text-sm font-semibold mb-3 flex items-center gap-2", section.labelClass)}>
+              {section.icon}
+              {section.label}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {section.dogs.map((dog) => <OverviewDogCard key={dog.key} dog={dog} />)}
+            </div>
+          </section>
+        ))
+      ) : (
+        <div className="card overflow-hidden">
+          <table className="w-full text-right text-sm">
+            <thead>
+              <tr className="border-b bg-slate-50">
+                <th className="p-3 font-medium text-petra-muted">כלב</th>
+                <th className="p-3 font-medium text-petra-muted">בעלים</th>
+                <th className="p-3 font-medium text-petra-muted">סוג אימון</th>
+                <th className="p-3 font-medium text-petra-muted">מפגשים</th>
+                <th className="p-3 font-medium text-petra-muted">מפגש אחרון</th>
+                <th className="p-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {sections.map((section) => (
+                <>
+                  <tr key={section.label} className="bg-slate-50/80">
+                    <td colSpan={6} className={cn("px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5", section.labelClass)}>
+                      {section.icon}
+                      {section.label}
+                    </td>
+                  </tr>
+                  {section.dogs.map((dog) => <OverviewDogRow key={dog.key} dog={dog} />)}
+                </>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
