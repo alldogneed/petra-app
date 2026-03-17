@@ -92,7 +92,13 @@ function OnboardingInner() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ completedAt: new Date().toISOString(), skipped: true }),
     });
-    window.location.href = "/dashboard";
+    const pendingPlan = sessionStorage.getItem("pending_plan");
+    if (pendingPlan) {
+      sessionStorage.removeItem("pending_plan");
+      window.location.href = `/upgrade?autostart=${pendingPlan}`;
+    } else {
+      window.location.href = "/dashboard";
+    }
   }
 
   const trialDaysLeft = business?.trialEndsAt
@@ -181,7 +187,13 @@ function OnboardingInner() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ completedAt: new Date().toISOString() }),
               });
-              window.location.href = "/dashboard";
+              const pendingPlan = sessionStorage.getItem("pending_plan");
+              if (pendingPlan) {
+                sessionStorage.removeItem("pending_plan");
+                window.location.href = `/upgrade?autostart=${pendingPlan}`;
+              } else {
+                window.location.href = "/dashboard";
+              }
             }}
           />
         ) : step === 0 ? (

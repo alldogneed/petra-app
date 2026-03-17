@@ -4,7 +4,8 @@ import { Check, X, MessageCircle, Crown, Zap, Loader2, CreditCard } from "lucide
 import { usePlan } from "@/hooks/usePlan";
 import { cn } from "@/lib/utils";
 import type { TierKey } from "@/lib/feature-flags";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 const PLANS: {
@@ -143,6 +144,18 @@ const CARDCOM_TIERS = new Set(["basic", "pro", "groomer", "service_dog"]);
 export default function UpgradePage() {
   const { tier } = usePlan();
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+
+  // Auto-trigger payment if redirected from register with ?autostart=plan
+  useEffect(() => {
+    const autostart = searchParams.get("autostart");
+    if (autostart && CARDCOM_TIERS.has(autostart)) {
+      // Small delay so the page renders first
+      const t = setTimeout(() => handlePurchase(autostart), 800);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handlePurchase(planKey: string) {
     setLoadingTier(planKey);

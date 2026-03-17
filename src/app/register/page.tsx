@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, User, UserPlus, CheckSquare, Square } from "lucide-react";
 
@@ -58,8 +58,12 @@ function PasswordStrength({ password }: { password: string }) {
   );
 }
 
+const VALID_PLANS = new Set(["basic", "pro", "groomer", "service_dog"]);
+
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const planParam = searchParams.get("plan") ?? "";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -104,6 +108,10 @@ export default function RegisterPage() {
         return;
       }
 
+      // If user came from pricing page with a plan, save it for post-onboarding auto-payment
+      if (planParam && VALID_PLANS.has(planParam)) {
+        sessionStorage.setItem("pending_plan", planParam);
+      }
       // Registered + logged in → go to onboarding wizard
       router.push("/onboarding");
       router.refresh();

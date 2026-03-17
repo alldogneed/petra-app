@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, X, ChevronDown, ChevronUp, MessageCircle, Star, Zap } from "lucide-react";
+import { Check, X, ChevronDown, ChevronUp, MessageCircle, Star, Zap, CreditCard } from "lucide-react";
+
+const CARDCOM_TIERS = new Set(["basic", "pro", "groomer", "service_dog"]);
 
 // ─── Exact data from /upgrade page ────────────────────────────────────────────
 const PLANS = [
@@ -38,14 +40,8 @@ const PLANS = [
     features: [
       "לקוחות ללא הגבלה",
       "יומן תורים ופגישות",
-      "מערכת ניהול תורים",
-      "CRM / לידים ללא הגבלה",
-      "ניהול תהליכי אילוף ללא הגבלה",
-      "שליחת בקשת תשלום",
-      "בקשת תשלום WhatsApp",
       "תזכורות WhatsApp",
       "דוחות ואנליטיקס",
-      "טפסי קליטה",
       "סנכרון Google Calendar",
     ],
     notIncluded: [
@@ -65,11 +61,8 @@ const PLANS = [
       "הכל ב-Basic",
       "הזמנות אונליין",
       "פנסיון + ניהול חדרים",
-      "ניהול קבוצות וסדנאות אילוף",
       "אוטומציות WhatsApp מתקדמות",
       "ניהול צוות ומשתמשים",
-      "ייצוא Excel",
-      "הודעות מותאמות אישית",
     ],
     notIncluded: ["מודול כלבי שירות", "תיק עבודות גרומר"],
   },
@@ -83,20 +76,9 @@ const PLANS = [
     features: [
       "לקוחות ללא הגבלה",
       "יומן תורים ופגישות",
-      "מערכת ניהול תורים",
-      "CRM / לידים ללא הגבלה",
-      "שליחת בקשת תשלום",
-      "בקשת תשלום WhatsApp",
-      "תזכורות WhatsApp",
-      "דוחות ואנליטיקס",
-      "טפסי קליטה",
-      "סנכרון Google Calendar",
-      "הזמנות אונליין",
-      "אוטומציות WhatsApp מתקדמות",
-      "ניהול צוות ומשתמשים",
-      "ייצוא Excel",
-      "הודעות מותאמות אישית",
       "תיק עבודות לפני/אחרי",
+      "אוטומציות WhatsApp מתקדמות",
+      "ניהול צוות + ייצוא Excel",
     ],
     notIncluded: ["פנסיון", "אילוף", "כלבי שירות"],
   },
@@ -111,12 +93,8 @@ const PLANS = [
       "הכל ב-Pro",
       "ניהול כלבי שירות בתהליך",
       "ניהול תיק זכאים",
-      "ניהול כלבייה",
       "מבחני הסמכה",
-      "דיווח למשרד החקלאות",
-      "כרטיסי זיהוי + QR",
       "פרוטוקולים רפואיים",
-      "120+ שעות מעקב אילוף",
     ],
     notIncluded: ["תיק עבודות גרומר"],
   },
@@ -301,17 +279,37 @@ export function PricingSection() {
                   )}
 
                   {/* CTA */}
-                  <Link
-                    href="/register"
-                    aria-label={`${plan.price === 0 ? "התחל בחינם" : "התחל בחינם"} — מסלול ${plan.name}`}
-                    className={`text-sm py-2.5 rounded-xl text-center font-semibold transition-colors ${
-                      plan.highlight
-                        ? "bg-brand-500 hover:bg-brand-600 text-white"
-                        : "bg-slate-900 hover:bg-slate-800 text-white"
-                    }`}
-                  >
-                    {plan.price === 0 ? "התחל בחינם" : "התחל בחינם"}
-                  </Link>
+                  {CARDCOM_TIERS.has(plan.key) ? (
+                    <div className="flex flex-col gap-1.5">
+                      <Link
+                        href={`/register?plan=${plan.key}`}
+                        aria-label={`שלם עכשיו — מסלול ${plan.name}`}
+                        className={`text-sm py-2.5 rounded-xl text-center font-semibold transition-colors flex items-center justify-center gap-1.5 ${
+                          plan.highlight
+                            ? "bg-brand-500 hover:bg-brand-600 text-white"
+                            : "bg-slate-900 hover:bg-slate-800 text-white"
+                        }`}
+                      >
+                        <CreditCard className="w-3.5 h-3.5" aria-hidden="true" />
+                        שלם עכשיו
+                      </Link>
+                      <Link
+                        href="/register"
+                        aria-label={`התחל בחינם — מסלול ${plan.name}`}
+                        className="text-xs py-1.5 rounded-xl text-center font-medium text-slate-500 hover:text-slate-700 transition-colors"
+                      >
+                        או התחל בחינם
+                      </Link>
+                    </div>
+                  ) : (
+                    <Link
+                      href="/register"
+                      aria-label={`התחל בחינם — מסלול ${plan.name}`}
+                      className="text-sm py-2.5 rounded-xl text-center font-semibold transition-colors bg-slate-900 hover:bg-slate-800 text-white"
+                    >
+                      התחל בחינם
+                    </Link>
+                  )}
                 </div>
               </li>
             ))}
