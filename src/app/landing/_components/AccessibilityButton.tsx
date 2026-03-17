@@ -13,7 +13,7 @@ export function AccessibilityButton() {
   }
 
   return (
-    <div className="fixed bottom-[88px] right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-[76px] sm:bottom-[88px] right-5 z-50 flex flex-col items-end">
       {/* Panel */}
       {open && (
         <div
@@ -87,12 +87,12 @@ export function AccessibilityButton() {
         aria-label={open ? "סגור תפריט נגישות" : "פתח תפריט נגישות"}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="w-12 h-12 bg-slate-800 hover:bg-slate-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2"
+        className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-800 hover:bg-slate-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-slate-600 focus:ring-offset-2"
       >
         {open ? (
-          <X className="w-5 h-5" aria-hidden="true" />
+          <X className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
         ) : (
-          <Accessibility className="w-5 h-5" aria-hidden="true" />
+          <Accessibility className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
         )}
       </button>
     </div>

@@ -3,11 +3,24 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Check, X, ChevronDown, ChevronUp, MessageCircle, Star, Zap, CreditCard } from "lucide-react";
+import { useAuth } from "@/providers/auth-provider";
 
 const CARDCOM_TIERS = new Set(["basic", "pro", "groomer", "service_dog"]);
 
 // ─── Exact data from /upgrade page ────────────────────────────────────────────
-const PLANS = [
+// Feature entry: plain string or highlighted (shown in bold/orange)
+type FeatureEntry = string | { text: string; star: true };
+
+const PLANS: {
+  key: string;
+  name: string;
+  price: number;
+  badge: string | null;
+  highlight: boolean;
+  description: string;
+  features: FeatureEntry[];
+  notIncluded: string[];
+}[] = [
   {
     key: "free",
     name: "חינמי",
@@ -59,7 +72,7 @@ const PLANS = [
     description: "שליטה מלאה — לעסק שגדל",
     features: [
       "הכל ב-Basic",
-      "הזמנות אונליין",
+      { text: "הזמנות אונליין — לקוחות קובעים לבד 24/7", star: true },
       "פנסיון + ניהול חדרים",
       "אוטומציות WhatsApp מתקדמות",
       "ניהול צוות ומשתמשים",
@@ -98,7 +111,7 @@ const PLANS = [
     ],
     notIncluded: ["תיק עבודות גרומר"],
   },
-] as const;
+];
 
 // ─── Full feature comparison (for toggle table) ────────────────────────────────
 type FVal = boolean | string;
@@ -190,11 +203,16 @@ const FAQ = [
   { q: "האם ניתן לבטל?", a: "כן, ניתן לבטל בכל עת ללא קנסות." },
   { q: "מה קורה לנתונים בביטול?", a: "הנתונים נשמרים 30 יום לאחר ביטול." },
   { q: "יש ניסיון חינמי?", a: "ניתן ליצור חשבון חינמי ללא כרטיס אשראי ולשדרג בכל עת." },
+  {
+    q: "מה קורה אם יש לי כבר מאות לקוחות במערכת אחרת או בטלפון?",
+    a: "צוות פטרה יעזור לך לייבא את כל הנתונים בקלות ובמהירות, כדי שתוכל להתחיל לעבוד כבר היום בלי לאבד מידע.",
+  },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function PricingSection() {
   const [showComparison, setShowComparison] = useState(false);
+  const { user } = useAuth();
 
   return (
     <section aria-labelledby="pricing-heading" className="py-20 bg-white" id="pricing">
@@ -258,12 +276,31 @@ export function PricingSection() {
 
                   {/* Included */}
                   <ul className="space-y-1.5 mb-3 flex-1 list-none p-0 m-0">
-                    {plan.features.map((f) => (
-                      <li key={f} className="flex items-start gap-1.5 text-xs text-slate-700">
-                        <Check aria-hidden="true" className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                        {f}
-                      </li>
-                    ))}
+                    {plan.features.map((f) => {
+                      const isHighlighted = typeof f === "object" && f.star;
+                      const label = typeof f === "object" ? f.text : f;
+                      return (
+                        <li
+                          key={label}
+                          className={`flex items-start gap-1.5 text-xs ${isHighlighted ? "text-brand-700 font-semibold" : "text-slate-700"}`}
+                        >
+                          <Check
+                            aria-hidden="true"
+                            className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${isHighlighted ? "text-brand-500" : "text-emerald-500"}`}
+                          />
+                          {isHighlighted ? (
+                            <span>
+                              {label}
+                              <span className="mr-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-brand-100 text-brand-600 align-middle">
+                                חדש
+                              </span>
+                            </span>
+                          ) : (
+                            label
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
 
                   {/* Not included */}
@@ -282,7 +319,7 @@ export function PricingSection() {
                   {CARDCOM_TIERS.has(plan.key) ? (
                     <div className="flex flex-col gap-1.5">
                       <Link
-                        href={`/register?plan=${plan.key}`}
+                        href={user ? `/upgrade?autostart=${plan.key}` : `/register?plan=${plan.key}`}
                         aria-label={`שלם עכשיו — מסלול ${plan.name}`}
                         className={`text-sm py-2.5 rounded-xl text-center font-semibold transition-colors flex items-center justify-center gap-1.5 ${
                           plan.highlight
@@ -293,21 +330,23 @@ export function PricingSection() {
                         <CreditCard className="w-3.5 h-3.5" aria-hidden="true" />
                         שלם עכשיו
                       </Link>
-                      <Link
-                        href="/register"
-                        aria-label={`התחל בחינם — מסלול ${plan.name}`}
-                        className="text-xs py-1.5 rounded-xl text-center font-medium text-slate-500 hover:text-slate-700 transition-colors"
-                      >
-                        או התחל בחינם
-                      </Link>
+                      {!user && (
+                        <Link
+                          href="/register"
+                          aria-label={`התחל בחינם — מסלול ${plan.name}`}
+                          className="text-xs py-1.5 rounded-xl text-center font-medium text-slate-500 hover:text-slate-700 transition-colors"
+                        >
+                          או התחל בחינם
+                        </Link>
+                      )}
                     </div>
                   ) : (
                     <Link
-                      href="/register"
+                      href={user ? "/upgrade" : "/register"}
                       aria-label={`התחל בחינם — מסלול ${plan.name}`}
                       className="text-sm py-2.5 rounded-xl text-center font-semibold transition-colors bg-slate-900 hover:bg-slate-800 text-white"
                     >
-                      התחל בחינם
+                      {user ? "עבור למסלולים" : "התחל בחינם"}
                     </Link>
                   )}
                 </div>
@@ -398,7 +437,7 @@ export function PricingSection() {
             <Star className="w-4 h-4 text-amber-500 fill-amber-400" aria-hidden="true" />
             שאלות נפוצות
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {FAQ.map(({ q, a }) => (
               <div key={q} className="bg-white rounded-xl p-4 border border-slate-100">
                 <div className="font-medium text-slate-800 text-sm mb-1">{q}</div>

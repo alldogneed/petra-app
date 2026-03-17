@@ -15,7 +15,6 @@ import {
   Heart,
   Shield,
   Check,
-  Star,
   ArrowLeft,
   Zap,
   Clock,
@@ -30,6 +29,8 @@ import { PricingSection } from "./_components/PricingSection";
 import { WhatsAppFAB } from "./_components/WhatsAppFAB";
 import { AnimatedStats } from "./_components/AnimatedStats";
 import { AccessibilityButton } from "./_components/AccessibilityButton";
+import { PhoneMockup } from "./_components/PhoneMockup";
+import { TestimonialsCarousel } from "./_components/TestimonialsCarousel";
 
 export const metadata: Metadata = {
   title: "Petra — מערכת ניהול לעסקי חיות מחמד",
@@ -101,40 +102,40 @@ const HOW_IT_WORKS = [
   {
     n: "01",
     icon: Users,
-    title: "הרשמה חינמית",
-    desc: "צור חשבון תוך 30 שניות — ללא כרטיס אשראי, ללא התחייבות.",
+    title: "מצטרפים בדקה",
+    desc: "בלי כרטיס אשראי, בלי כאב ראש. חשבון פעיל תוך 30 שניות.",
   },
   {
     n: "02",
     icon: Zap,
-    title: "הגדרה מהירה",
-    desc: "הכנס שירותים, צוות ולקוחות קיימים. פטרה מדריכה אותך שלב אחרי שלב.",
+    title: "מעבירים את הנתונים",
+    desc: "אנחנו נעזור לך לייבא את כל הלקוחות מהנייד או מהמערכת הישנה — בלי לאבד מידע.",
   },
   {
     n: "03",
     icon: TrendingUp,
-    title: "נהל וגדל",
-    desc: "קבע תורים, שלח תזכורות WhatsApp, וצפה בעסק שלך גדל.",
+    title: "מתחילים לחסוך זמן",
+    desc: "הודעות הוואטסאפ נשלחות לבד, היומן מתמלא — ואתה חוזר לאלף.",
   },
 ];
 
 const FEATURES = [
   {
     icon: Users,
-    title: "ניהול לקוחות ו-CRM",
-    desc: "כרטיס לקוח + חיית מחמד, היסטוריית ביקורים, לידים וצינור מכירות",
+    title: "כל ההיסטוריה של הכלב מול העיניים",
+    desc: "תוכניות אילוף, חיסונים ותמונות — כרטיס לקוח מלא עם כל הביקורים, לידים וצינור מכירות",
     color: "bg-orange-50 text-orange-500",
   },
   {
     icon: CalendarDays,
-    title: "יומן תורים חכם",
+    title: "יומן חכם שמסדר לך את היום",
     desc: "יומן שבועי/יומי, תורים חוזרים, צפייה לפי עובד",
     color: "bg-blue-50 text-blue-500",
   },
   {
     icon: MessageCircle,
-    title: "תזכורות WhatsApp",
-    desc: "שליחה אוטומטית 24/48/72 שעות לפני התור דרך WhatsApp API",
+    title: "סוף לביטולים ברגע האחרון",
+    desc: "תזכורות WhatsApp אוטומטיות ללקוחות — 24/48/72 שעות לפני התור, ישר מה-API",
     color: "bg-emerald-50 text-emerald-500",
   },
   {
@@ -157,8 +158,8 @@ const FEATURES = [
   },
   {
     icon: Receipt,
-    title: "חשבוניות ותשלומים",
-    desc: "חשבוניות דיגיטליות, לינקי תשלום, מעקב הזמנות",
+    title: "תשלומים בלי מרדפים",
+    desc: "לינק לתשלום בוואטסאפ וחשבונית שיוצאת לבד — מעקב הזמנות בזמן אמת",
     color: "bg-rose-50 text-rose-500",
   },
   {
@@ -193,41 +194,6 @@ const FEATURES = [
   },
 ];
 
-const TESTIMONIALS = [
-  {
-    name: "יעל כהן",
-    role: "מאלפת כלבים",
-    business: "סטודיו קנין, תל אביב",
-    initials: "י",
-    gradientFrom: "from-orange-400",
-    gradientTo: "to-brand-500",
-    quote:
-      "פטרה שינתה לי את החיים. כל הלקוחות, התוכניות, התזכורות — הכל במקום אחד. חסכתי 2 שעות ביום לפחות.",
-    stars: 5,
-  },
-  {
-    name: "מוריה לוי",
-    role: "גרומרת",
-    business: "פגי גרומינג, ירושלים",
-    initials: "מ",
-    gradientFrom: "from-purple-400",
-    gradientTo: "to-pink-500",
-    quote:
-      "התורים מתמלאים לבד, הלקוחות מקבלים תזכורת בוואטסאפ וגם החשבוניות נשלחות אוטומטית. ממליצה בחום!",
-    stars: 5,
-  },
-  {
-    name: "דני אברהם",
-    role: "בעלים",
-    business: "פנסיון דוגי, חיפה",
-    initials: "ד",
-    gradientFrom: "from-blue-400",
-    gradientTo: "to-indigo-500",
-    quote:
-      "הפנסיון שלי עם 20 חדרים — ומעולם לא היה לי כל כך פשוט לנהל. Check-in/out, עדכונים לבעלים, הכל חלק.",
-    stars: 5,
-  },
-];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
@@ -351,22 +317,28 @@ export default function LandingPage() {
                   id="hero-heading"
                   className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-5"
                 >
-                  ניהול העסק שלך —{" "}
-                  <span className="text-brand-400">פשוט, חכם,</span>
-                  <br className="hidden sm:block" /> עם כל הכלים במקום אחד
+                  תפסיק לרדוף אחרי זנבות –
+                  <br className="hidden sm:block" />
+                  תן לפטרה לנהל את{" "}
+                  <span className="text-brand-400">היומן והתשלומים</span>
+                  <br className="hidden sm:block" />
+                  בזמן שאתה בשטח עם הכלבים
                 </h1>
 
                 <p className="text-lg md:text-xl text-slate-300 mb-8 leading-relaxed">
-                  מאלפים, גרומרים, פנסיונות וארגוני כלבי שירות —
-                  <br className="hidden sm:block" /> הכל עם פטרה
+                  המערכת היחידה שנבנתה על ידי אנשי כלבים, עבור אנשי כלבים.
+                  <br className="hidden sm:block" />
+                  תזכורות WhatsApp אוטומטיות, סליקה קלה וניהול הכשרה —
+                  <br className="hidden sm:block" />
+                  בממשק שכיף לעבוד איתו.
                 </p>
 
-                <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-8">
+                <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-3">
                   <Link
                     href="/register"
                     className="btn-primary text-base px-8 py-3.5 w-full sm:w-auto justify-center"
                   >
-                    התחל בחינם עכשיו
+                    אני רוצה לנסות בחינם
                   </Link>
                   <a
                     href={WHATSAPP_DEMO}
@@ -379,6 +351,16 @@ export default function LandingPage() {
                     קבע דמו
                   </a>
                 </div>
+
+                {/* Migration reassurance */}
+                <p className="text-brand-300 text-sm mb-3 text-center lg:text-right flex items-center justify-center lg:justify-start gap-1.5">
+                  <ArrowLeft aria-hidden="true" className="w-3.5 h-3.5 rotate-180" />
+                  מעבר קל ממערכות אחרות — אנחנו נעזור לך
+                </p>
+
+                <p className="text-slate-400 text-sm mb-4 text-center lg:text-right">
+                  הצטרפו ל-500+ בעלי עסקים שכבר נרשמו
+                </p>
 
                 <ul
                   aria-label="יתרונות ההרשמה"
@@ -399,58 +381,36 @@ export default function LandingPage() {
 
               {/* Visual col — second in DOM = left side in RTL */}
               <div aria-hidden="true" className="relative mt-8 lg:mt-0">
-                {/* Main dog photo */}
-                <div className="relative rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+                {/* Container with defined height for fill Image */}
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10 h-[420px] md:h-[540px]">
+                  {/* Dog photo as atmospheric background */}
                   <Image
                     src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=700&q=85"
                     alt=""
-                    width={700}
-                    height={500}
-                    className="w-full h-72 md:h-[440px] object-cover"
+                    fill
+                    className="object-cover object-center opacity-55"
                     priority
                   />
-                  {/* Dark gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A]/70 via-[#0F172A]/10 to-transparent" />
-                  <div className="absolute inset-0 bg-gradient-to-l from-transparent to-[#0F172A]/30" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A]/85 via-[#0F172A]/40 to-[#0F172A]/15" />
 
-                  {/* Floating stat pill — top left */}
-                  <div className="absolute top-5 left-5 hidden lg:flex items-center gap-3 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl px-4 py-3">
+                  {/* Phone mockup — center-bottom */}
+                  <div className="absolute inset-0 flex items-end justify-center pb-6">
+                    <PhoneMockup />
+                  </div>
+
+                  {/* Floating stat pill — top right */}
+                  <div className="absolute top-5 right-5 hidden lg:flex items-center gap-3 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl px-4 py-3">
                     <div className="w-10 h-10 rounded-xl bg-brand-500 flex items-center justify-center shrink-0">
                       <Users className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <div className="text-xl font-extrabold text-slate-900 leading-none">
-                        500+
-                      </div>
+                      <div className="text-xl font-extrabold text-slate-900 leading-none">500+</div>
                       <div className="text-xs text-slate-500 mt-0.5">עסקים פעילים</div>
                     </div>
                   </div>
 
-                  {/* Floating dashboard mini card — bottom right */}
-                  <div className="absolute bottom-5 right-5 hidden lg:block bg-[#0F172A]/95 backdrop-blur-sm rounded-2xl border border-white/10 shadow-2xl p-4 w-52">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-6 h-6 rounded-lg bg-brand-500 flex items-center justify-center">
-                        <CalendarDays className="w-3.5 h-3.5 text-white" />
-                      </div>
-                      <span className="text-white text-xs font-semibold">תורים היום</span>
-                    </div>
-                    <div className="space-y-2">
-                      {["10:00 — מאיה כהן", "11:30 — רון לוי", "14:00 — שירה מזרחי"].map(
-                        (t) => (
-                          <div key={t} className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-brand-400 shrink-0" />
-                            <span className="text-slate-300 text-[11px] truncate">{t}</span>
-                          </div>
-                        )
-                      )}
-                    </div>
-                    <div className="mt-3 pt-2 border-t border-white/10 text-xs text-emerald-400 font-semibold">
-                      +9 נוספים
-                    </div>
-                  </div>
-
-                  {/* WhatsApp notification badge — middle */}
-                  <div className="absolute top-1/2 left-5 -translate-y-1/2 hidden lg:flex items-center gap-2.5 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl px-3 py-2.5">
+                  {/* WhatsApp notification — top left */}
+                  <div className="absolute top-5 left-5 hidden lg:flex items-center gap-2.5 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl px-3 py-2.5">
                     <div className="w-8 h-8 rounded-full bg-[#25D366] flex items-center justify-center shrink-0">
                       <MessageCircle className="w-4 h-4 text-white" />
                     </div>
@@ -474,7 +434,7 @@ export default function LandingPage() {
         </section>
 
         {/* ── How it works ─────────────────────────────────────────────────────── */}
-        <section aria-labelledby="how-heading" className="py-20 bg-white" id="how">
+        <section aria-labelledby="how-heading" className="py-24 bg-white" id="how">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
               <h2
@@ -515,14 +475,14 @@ export default function LandingPage() {
 
             <div className="text-center mt-12">
               <Link href="/register" className="btn-primary px-8 py-3.5 text-base">
-                התחל עכשיו — בחינם
+                אני רוצה לנסות בחינם
               </Link>
             </div>
           </div>
         </section>
 
         {/* ── Audience section ─────────────────────────────────────────────────── */}
-        <section aria-labelledby="audience-heading" className="py-20 bg-slate-50">
+        <section aria-labelledby="audience-heading" className="py-24 bg-slate-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <h2
@@ -594,10 +554,75 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ── Service Dog USP banner ───────────────────────────────────────────── */}
+        <section
+          aria-labelledby="service-dog-usp-heading"
+          className="py-16 bg-[#052E16] relative overflow-hidden"
+        >
+          {/* Subtle radial glow */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: "radial-gradient(ellipse 70% 80% at 50% 50%, rgba(16,185,129,0.12) 0%, transparent 65%)",
+            }}
+          />
+          <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col lg:flex-row items-center gap-10">
+
+              {/* Icon badge */}
+              <div className="shrink-0 flex flex-col items-center gap-3">
+                <div className="w-24 h-24 rounded-3xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-900/40">
+                  <Shield className="w-12 h-12 text-emerald-400" aria-hidden="true" />
+                </div>
+                <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold uppercase tracking-wide">
+                  ייחודי בישראל
+                </span>
+              </div>
+
+              {/* Text */}
+              <div className="text-center lg:text-right">
+                <h2
+                  id="service-dog-usp-heading"
+                  className="text-2xl md:text-3xl font-bold text-white mb-3 leading-snug"
+                >
+                  כלבי שירות —{" "}
+                  <span className="text-emerald-400">המערכת היחידה בישראל</span>
+                </h2>
+                <p className="text-emerald-200/80 text-base mb-6 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                  פותחה יחד עם מומחים מתוך התחום. מספקת מענה מלא מהכשרה ועד שיבוץ — כולל כל מה שהמשרד מצריך.
+                </p>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-7 max-w-xl mx-auto lg:mx-0 text-right">
+                  {[
+                    "מעקב שלבי הכשרה מלא (8 שלבים)",
+                    "דיווח אוטומטי למשרד החקלאות",
+                    "ניהול תיקי זכאים ושיבוצים",
+                    "מבחני הסמכה ופרוטוקולים רפואיים",
+                    "כרטיסי זיהוי + קוד QR",
+                    "120+ שעות מעקב אילוף",
+                  ].map((item) => (
+                    <li key={item} className="flex items-center gap-2 text-emerald-100 text-sm">
+                      <Check aria-hidden="true" className="w-4 h-4 text-emerald-400 shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/register?plan=service_dog"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-emerald-950"
+                >
+                  <Shield className="w-4 h-4" aria-hidden="true" />
+                  גלה את המודול המלא
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ── Features grid ────────────────────────────────────────────────────── */}
         <section
           aria-labelledby="features-heading"
-          className="py-20 bg-white"
+          className="py-24 bg-white"
           id="features"
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -637,7 +662,7 @@ export default function LandingPage() {
         </section>
 
         {/* ── WhatsApp highlight ───────────────────────────────────────────────── */}
-        <section aria-labelledby="whatsapp-heading" className="py-20 bg-slate-900">
+        <section aria-labelledby="whatsapp-heading" className="py-24 bg-slate-900">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div>
@@ -731,10 +756,10 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── Testimonials ─────────────────────────────────────────────────────── */}
+        {/* ── Testimonials carousel ────────────────────────────────────────────── */}
         <section
           aria-labelledby="testimonials-heading"
-          className="py-20 bg-slate-50"
+          className="py-24 bg-slate-50"
           id="testimonials"
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -750,55 +775,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <ul className="grid grid-cols-1 md:grid-cols-3 gap-6 list-none p-0 m-0">
-              {TESTIMONIALS.map((t) => (
-                <li key={t.name}>
-                  <figure className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm h-full flex flex-col relative overflow-hidden hover:shadow-md transition-shadow">
-                    {/* Decorative quote mark */}
-                    <div
-                      aria-hidden="true"
-                      className="absolute top-3 left-4 text-7xl font-serif text-slate-100 leading-none select-none pointer-events-none"
-                    >
-                      &ldquo;
-                    </div>
-
-                    <div
-                      aria-label={`דירוג ${t.stars} מתוך 5 כוכבים`}
-                      className="flex gap-0.5 mb-4 relative"
-                    >
-                      {Array.from({ length: t.stars }).map((_, i) => (
-                        <Star
-                          key={i}
-                          aria-hidden="true"
-                          className="w-4 h-4 fill-amber-400 text-amber-400"
-                        />
-                      ))}
-                    </div>
-
-                    <blockquote className="flex-1 relative">
-                      <p className="text-slate-700 text-sm leading-relaxed mb-5">
-                        &ldquo;{t.quote}&rdquo;
-                      </p>
-                    </blockquote>
-
-                    <figcaption className="flex items-center gap-3">
-                      <div
-                        aria-hidden="true"
-                        className={`w-11 h-11 rounded-full bg-gradient-to-br ${t.gradientFrom} ${t.gradientTo} flex items-center justify-center text-white font-bold text-sm shrink-0`}
-                      >
-                        {t.initials}
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-slate-900">{t.name}</div>
-                        <div className="text-xs text-slate-500">
-                          {t.role} · {t.business}
-                        </div>
-                      </div>
-                    </figcaption>
-                  </figure>
-                </li>
-              ))}
-            </ul>
+            <TestimonialsCarousel />
           </div>
         </section>
 
@@ -825,9 +802,10 @@ export default function LandingPage() {
               הצטרף לאלפי בעלי עסקים שכבר עובדים עם פטרה
             </p>
             <Link href="/register" className="btn-primary text-base px-10 py-4">
-              התחל בחינם עכשיו
+              אני רוצה לנסות בחינם
             </Link>
             <p className="mt-4 text-slate-500 text-sm">ללא כרטיס אשראי · ביטול בכל עת</p>
+            <p className="mt-2 text-brand-400/80 text-sm">מעבר קל ממערכות אחרות — אנחנו נעזור לך</p>
           </div>
         </section>
       </main>
