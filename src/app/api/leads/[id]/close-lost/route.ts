@@ -40,12 +40,25 @@ export async function POST(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // Find the lost stage for this business
-    const lostStage = await prisma.leadStage.findFirst({
+    // Find the lost stage for this business — auto-create if missing (e.g. older businesses)
+    let lostStage = await prisma.leadStage.findFirst({
       where: { businessId: authResult.businessId, isLost: true },
     });
     if (!lostStage) {
-      return NextResponse.json({ error: "לא הוגדר שלב 'אבוד' לעסק" }, { status: 400 });
+      const maxOrder = await prisma.leadStage.aggregate({
+        where: { businessId: authResult.businessId },
+        _max: { sortOrder: true },
+      });
+      lostStage = await prisma.leadStage.create({
+        data: {
+          businessId: authResult.businessId,
+          name: "לא רלוונטי",
+          color: "#EF4444",
+          sortOrder: (maxOrder._max.sortOrder ?? 5) + 1,
+          isLost: true,
+          isWon: false,
+        },
+      });
     }
 
     if (existing.stage === lostStage.id) {

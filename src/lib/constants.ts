@@ -94,6 +94,7 @@ export const LOST_REASON_CODES = [
   { id: "TRUST_FIT", label: "לא התחבר מקצועית" },
   { id: "NO_RESPONSE", label: "לא חזר אלינו" },
   { id: "NOT_RELEVANT", label: "לא רלוונטי / רק בירור" },
+  { id: "LOCATION", label: "מיקום לא רלוונטי" },
   { id: "OTHER", label: "אחר" },
 ] as const;
 
