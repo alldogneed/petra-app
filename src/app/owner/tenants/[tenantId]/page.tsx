@@ -222,8 +222,9 @@ export default function TenantDetailPage() {
         method: "POST",
       }),
     onSuccess: () => {
-      router.push("/dashboard");
-      router.refresh();
+      // Full page reload ensures server components and auth context
+      // both pick up the new impersonatedBusinessId from the session.
+      window.location.href = "/dashboard";
     },
   });
 
