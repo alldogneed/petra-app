@@ -282,14 +282,14 @@ export default function LandingPage() {
                 </div>
 
                 {/* Two trust signals */}
-                <ul className="mt-3 space-y-1.5 list-none p-0 m-0">
-                  <li className="flex items-center justify-center lg:justify-start gap-2 text-slate-300 text-sm">
-                    <Check aria-hidden="true" className="w-3.5 h-3.5 text-brand-400 shrink-0" />
-                    התחל בחינם – אין צורך בכרטיס אשראי.
+                <ul className="mt-4 space-y-2.5 list-none p-0 m-0">
+                  <li className="flex items-center justify-center lg:justify-start gap-2.5 text-white text-base font-medium">
+                    <Check aria-hidden="true" className="w-4 h-4 text-brand-400 shrink-0" />
+                    מסלול חינמי — ללא כרטיס אשראי, ללא הגבלת זמן.
                   </li>
-                  <li className="flex items-center justify-center lg:justify-start gap-2 text-slate-300 text-sm">
-                    <Check aria-hidden="true" className="w-3.5 h-3.5 text-brand-400 shrink-0" />
-                    מעבר קל ממערכות אחרות (אנחנו כאן לעזור).
+                  <li className="flex items-center justify-center lg:justify-start gap-2.5 text-white text-base font-medium">
+                    <Check aria-hidden="true" className="w-4 h-4 text-brand-400 shrink-0" />
+                    מעבירים אותך מהמערכת הישנה — אנחנו עושים את העבודה.
                   </li>
                 </ul>
               </div>
