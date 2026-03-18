@@ -318,15 +318,13 @@ export default function LandingPage() {
                   className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-[1.18] mb-6"
                 >
                   תתמקדו בטיפול
-                  <br className="hidden sm:block" />
+                  <br />
                   <span className="text-brand-400">פטרה תדאג לניהול</span>
                 </h1>
 
                 <p className="text-lg md:text-xl text-slate-300 mb-8 leading-relaxed">
-                  נבנתה ע״י מומחי שטח. מיועדת למקצוענים בבעלי חיים.
-                  <br className="hidden sm:block" />
-                  זיקקנו ניסיון של שנים באילוף, טיפוח והכשרה לתוך מערכת אחת חכמה.
-                  <br className="hidden sm:block" />
+                  נבנתה ע״י מומחי שטח. מיועדת למקצוענים בבעלי חיים.{" "}
+                  זיקקנו ניסיון של שנים באילוף, טיפוח והכשרה לתוך מערכת אחת חכמה.{" "}
                   פטרה נותנת לכם את הכלים לנהל את העסק ביעילות, כדי שתוכלו להישאר ממוקדים בבעלי החיים.
                 </p>
 
@@ -377,7 +375,7 @@ export default function LandingPage() {
               </div>
 
               {/* Visual col — second in DOM = left side in RTL */}
-              <div aria-hidden="true" className="relative mt-8 lg:mt-0 lg:-ml-4 lg:-mr-0">
+              <div aria-hidden="true" className="relative mt-2 lg:mt-0 lg:-ml-4 lg:-mr-0">
                 <Image
                   src="/hero-image.jpg"
                   alt=""
