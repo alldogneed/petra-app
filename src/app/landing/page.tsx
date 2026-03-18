@@ -299,7 +299,7 @@ export default function LandingPage() {
           />
 
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 lg:py-28">
-            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            <div className="grid lg:grid-cols-[5fr_7fr] gap-8 lg:gap-12 items-center">
 
               {/* Text col — first in DOM = right side in RTL */}
               <div className="text-center lg:text-right">
@@ -377,13 +377,13 @@ export default function LandingPage() {
               </div>
 
               {/* Visual col — second in DOM = left side in RTL */}
-              <div aria-hidden="true" className="relative mt-8 lg:mt-0">
+              <div aria-hidden="true" className="relative mt-8 lg:mt-0 lg:-ml-4 lg:-mr-0">
                 <Image
                   src="/hero-image.jpg"
                   alt=""
                   width={1400}
                   height={800}
-                  className="w-full h-auto rounded-3xl shadow-2xl"
+                  className="w-full h-auto rounded-2xl shadow-2xl"
                   priority
                 />
               </div>
