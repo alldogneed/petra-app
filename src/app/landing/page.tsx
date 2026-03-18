@@ -84,8 +84,7 @@ const AUDIENCES = [
     color: "text-emerald-500",
     bg: "bg-emerald-50",
     title: "ארגוני כלבי שירות",
-    photo:
-      "https://images.unsplash.com/photo-1601758124510-52d02ddb7cbd?auto=format&fit=crop&w=400&q=80",
+    photo: "/service-dog-training.jpg",
     features: [
       "מעקב שלבי הכשרה מלא",
       "ניהול זכאים ושיבוצים",
