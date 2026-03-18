@@ -69,6 +69,39 @@ export async function PATCH(
 
     const body = await request.json();
 
+    // Numeric range validation
+    if (body.trainingTargetHours != null) {
+      const v = Number(body.trainingTargetHours);
+      if (!isFinite(v) || v < 1 || v > 10000) return NextResponse.json({ error: "שעות יעד לא חוקיות (1–10000)" }, { status: 400 });
+    }
+    if (body.trainingTotalHours != null) {
+      const v = Number(body.trainingTotalHours);
+      if (!isFinite(v) || v < 0 || v > 100000) return NextResponse.json({ error: "סה\"כ שעות לא חוקי (0–100000)" }, { status: 400 });
+    }
+    if (body.purchasePrice != null) {
+      const v = parseFloat(body.purchasePrice);
+      if (!isFinite(v) || v < 0 || v > 9999999) return NextResponse.json({ error: "מחיר לא חוקי" }, { status: 400 });
+    }
+
+    // JSON array size limits (max 100 items)
+    if (body.documents !== undefined) {
+      let docs: unknown;
+      try { docs = typeof body.documents === "string" ? JSON.parse(body.documents) : body.documents; } catch { docs = []; }
+      if (Array.isArray(docs) && docs.length > 100) return NextResponse.json({ error: "יותר מדי מסמכים (מקסימום 100)" }, { status: 400 });
+    }
+    if (body.trainingTests !== undefined) {
+      let tests: unknown;
+      try { tests = typeof body.trainingTests === "string" ? JSON.parse(body.trainingTests) : body.trainingTests; } catch { tests = []; }
+      if (Array.isArray(tests) && tests.length > 100) return NextResponse.json({ error: "יותר מדי בחינות (מקסימום 100)" }, { status: 400 });
+    }
+
+    // URL validation for dogPhoto
+    if (body.dogPhoto != null && body.dogPhoto !== "") {
+      try { const u = new URL(body.dogPhoto); if (u.protocol !== "https:") throw new Error(); } catch {
+        return NextResponse.json({ error: "כתובת תמונה לא חוקית" }, { status: 400 });
+      }
+    }
+
     const existing = await prisma.serviceDogProfile.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
     });

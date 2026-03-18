@@ -53,6 +53,10 @@ export async function POST(
     if (!sessionDate || !durationMinutes) {
       return NextResponse.json({ error: "נדרש תאריך ומשך אימון" }, { status: 400 });
     }
+    const dur = Number(durationMinutes);
+    if (!isFinite(dur) || dur < 1 || dur > 1440) {
+      return NextResponse.json({ error: "משך אימון לא חוקי (1–1440 דקות)" }, { status: 400 });
+    }
 
     const dog = await prisma.serviceDogProfile.findFirst({
       where: { id: params.id, businessId: authResult.businessId },

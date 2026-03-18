@@ -6,6 +6,16 @@ import { put } from "@vercel/blob";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const ALLOWED_EXTENSIONS = new Set(["pdf", "jpg", "jpeg", "png", "gif", "webp", "doc", "docx", "xls", "xlsx", "csv", "txt"]);
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg", "image/png", "image/gif", "image/webp",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/csv", "text/plain",
+]);
 
 export async function POST(
   request: NextRequest,
@@ -34,8 +44,10 @@ export async function POST(
         { status: 400 }
       );
     }
-
-    const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    if (!ALLOWED_EXTENSIONS.has(ext) || !ALLOWED_MIME_TYPES.has(file.type)) {
+      return NextResponse.json({ error: "סוג קובץ לא מורשה" }, { status: 400 });
+    }
     const fileId = crypto.randomBytes(16).toString("hex");
     const blobPath = `service-recipients/${params.id}/${fileId}.${ext}`;
     const blob = await put(blobPath, file, { access: "public" });

@@ -19,6 +19,11 @@ export async function POST(
 
     const body = await request.json();
 
+    const VALID_CLAIM_STATUSES = ["PENDING", "SUBMITTED", "IN_REVIEW", "PAID", "DENIED", "WITHDRAWN"];
+    if (body.status && !VALID_CLAIM_STATUSES.includes(body.status)) {
+      return NextResponse.json({ error: "סטטוס תביעה לא חוקי" }, { status: 400 });
+    }
+
     const claim = await prisma.serviceDogClaim.create({
       data: {
         insuranceId: params.insuranceId,

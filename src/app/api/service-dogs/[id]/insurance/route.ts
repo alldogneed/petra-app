@@ -40,6 +40,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const body = await request.json();
 
+    if (body.policyDocument) {
+      try { const u = new URL(body.policyDocument); if (u.protocol !== "https:") throw new Error(); } catch {
+        return NextResponse.json({ error: "כתובת מסמך ביטוח לא חוקית" }, { status: 400 });
+      }
+    }
+
     const insurance = await prisma.serviceDogInsurance.create({
       data: {
         serviceDogId: params.id,

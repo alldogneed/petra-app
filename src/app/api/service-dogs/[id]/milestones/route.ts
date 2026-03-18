@@ -58,6 +58,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const body = await request.json();
     const { milestoneKey, achievedAt, notes } = body;
 
+    if (!milestoneKey || !MILESTONE_KEYS.includes(milestoneKey)) {
+      return NextResponse.json({ error: "ציון דרך לא חוקי" }, { status: 400 });
+    }
+
     const dog = await prisma.serviceDogProfile.findFirst({
       where: { id: params.id, businessId: auth.businessId },
       select: { id: true },

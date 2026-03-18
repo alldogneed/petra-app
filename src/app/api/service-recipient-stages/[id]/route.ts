@@ -19,6 +19,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     const body = await request.json();
 
+    if (body.name !== undefined) {
+      if (stage.isBuiltIn) return NextResponse.json({ error: "לא ניתן לשנות שם שלב מובנה" }, { status: 400 });
+      if (typeof body.name !== "string" || body.name.trim().length === 0 || body.name.length > 50) {
+        return NextResponse.json({ error: "שם שלב לא חוקי (1–50 תווים)" }, { status: 400 });
+      }
+    }
+
     const updated = await prisma.serviceRecipientStage.update({
       where: { id: params.id },
       data: {

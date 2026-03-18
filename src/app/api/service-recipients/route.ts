@@ -87,6 +87,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "נדרש שם" }, { status: 400 });
     }
 
+    // Verify customerId belongs to this business
+    if (customerId) {
+      const customerCheck = await prisma.customer.findFirst({
+        where: { id: customerId, businessId: authResult.businessId },
+        select: { id: true },
+      });
+      if (!customerCheck) {
+        return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
+      }
+    }
+
     const recipient = await prisma.serviceDogRecipient.create({
       data: {
         businessId: authResult.businessId,

@@ -50,7 +50,7 @@ export async function PATCH(
     // Transaction: update phase + create new protocols + compliance event
     const [updated] = await prisma.$transaction([
       prisma.serviceDogProfile.update({
-        where: { id: params.id },
+        where: { id: params.id, businessId: authResult.businessId },
         data: {
           phase,
           phaseChangedAt: new Date(),

@@ -42,6 +42,10 @@ export async function PATCH(
 
     const body = await request.json();
 
+    if (body.status !== undefined && !["ACTIVE", "TERMINATED"].includes(body.status)) {
+      return NextResponse.json({ error: "סטטוס לא חוקי" }, { status: 400 });
+    }
+
     const placement = await prisma.serviceDogPlacement.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
       include: {

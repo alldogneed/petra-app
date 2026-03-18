@@ -5,6 +5,12 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { seedMedicalProtocols } from "@/lib/service-dog-engine";
 import { computeMedicalComplianceStatus } from "@/lib/service-dog-engine";
+import { SERVICE_DOG_PHASES, SERVICE_DOG_TYPES, LOCATION_OPTIONS } from "@/lib/service-dogs";
+
+const VALID_PHASES: string[] = SERVICE_DOG_PHASES.map((p) => p.id);
+const VALID_SERVICE_TYPES: string[] = SERVICE_DOG_TYPES.map((t) => t.id);
+const VALID_LOCATIONS: string[] = LOCATION_OPTIONS.map((l) => l.id);
+const VALID_TRAINING_STATUSES: string[] = ["NOT_STARTED", "IN_PROGRESS", "PENDING_CERT", "CERTIFIED", "FAILED", "ON_HOLD"];
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,6 +21,16 @@ export async function GET(request: NextRequest) {
     const phase = searchParams.get("phase");
     const trainingStatus = searchParams.get("trainingStatus");
     const location = searchParams.get("location");
+
+    if (phase && !VALID_PHASES.includes(phase)) {
+      return NextResponse.json({ error: "שלב לא חוקי" }, { status: 400 });
+    }
+    if (trainingStatus && !VALID_TRAINING_STATUSES.includes(trainingStatus)) {
+      return NextResponse.json({ error: "סטטוס אימון לא חוקי" }, { status: 400 });
+    }
+    if (location && !VALID_LOCATIONS.includes(location)) {
+      return NextResponse.json({ error: "מיקום לא חוקי" }, { status: 400 });
+    }
 
     const dogs = await prisma.serviceDogProfile.findMany({
       where: {
@@ -70,6 +86,12 @@ export async function POST(request: NextRequest) {
 
     if (!petId) {
       return NextResponse.json({ error: "נדרש לבחור חיית מחמד" }, { status: 400 });
+    }
+    if (phase && !VALID_PHASES.includes(phase)) {
+      return NextResponse.json({ error: "שלב לא חוקי" }, { status: 400 });
+    }
+    if (serviceType && !VALID_SERVICE_TYPES.includes(serviceType)) {
+      return NextResponse.json({ error: "סוג שירות לא חוקי" }, { status: 400 });
     }
 
     // Verify pet belongs to business (via customer or directly) — include health for smart protocol seeding

@@ -89,6 +89,10 @@ export async function PATCH(
     if (!protocolId) {
       return NextResponse.json({ error: "נדרש מזהה פרוטוקול" }, { status: 400 });
     }
+    const VALID_PROTOCOL_STATUSES = ["PENDING", "COMPLETED", "OVERDUE", "WAIVED"];
+    if (status !== undefined && !VALID_PROTOCOL_STATUSES.includes(status)) {
+      return NextResponse.json({ error: "סטטוס פרוטוקול לא חוקי" }, { status: 400 });
+    }
 
     const protocol = await prisma.serviceDogMedicalProtocol.findFirst({
       where: { id: protocolId, serviceDogId: params.id, businessId: authResult.businessId },
