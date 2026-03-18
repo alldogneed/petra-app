@@ -317,7 +317,7 @@ export default function LandingPage() {
                   id="hero-heading"
                   className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-[1.18] mb-6"
                 >
-                  תתמקדו בטיפול —
+                  תתמקדו בטיפול
                   <br className="hidden sm:block" />
                   <span className="text-brand-400">פטרה תדאג לניהול</span>
                 </h1>
