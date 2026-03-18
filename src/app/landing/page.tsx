@@ -49,9 +49,9 @@ const AUDIENCES = [
     title: "מאלפי כלבים",
     photo: "/trainer-black-shepherd.jpg",
     features: [
-      "תוכניות אילוף בכיס שלך – מעקב התקדמות שזמין לך מהשטח",
-      "מעקב יעדים ומשימות לכל כלב",
-      "תזכורות WhatsApp אוטומטיות",
+      "כל תוכנית האילוף בכיס שלך – מעקב התקדמות בזמן אמת מהשטח",
+      "סדר בראש: יעדים ומשימות לכל כלב בלחיצת כפתור",
+      "אפס הברזות: תזכורות WhatsApp נשלחות לבד",
     ],
   },
   {
@@ -61,9 +61,9 @@ const AUDIENCES = [
     title: "גרומרים",
     photo: "/groomer-poodle.jpg",
     features: [
-      "סוף לסמסים של 'מתי התור שלי' – יומן מסודר עם תזכורות אוטומטיות",
-      "תיק עבודות לפני/אחרי",
-      "חשבוניות ותשלומים מובנים",
+      "די לחפירות בוואטסאפ: יומן חכם ששולח תזכורות לבד",
+      "הוכחות בשטח: תיק עבודות 'לפני ואחרי' לכל לקוח",
+      "גבייה ללא מאמץ: לינק לתשלום וחשבונית אוטומטית",
     ],
   },
   {
@@ -74,9 +74,9 @@ const AUDIENCES = [
     photo:
       "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=400&q=80",
     features: [
-      "שקט תעשייתי בפנסיון – ניהול זמינות ועדכוני סטטוס לבעלים בלחיצת כפתור",
-      "Check-in/out ומעקב יומי",
-      "הודעות WhatsApp לבעלים",
+      "שליטה מלאה בפנסיון: ניהול חדרים ועדכוני סטטוס לבעלים",
+      "ניהול צ'ק-אין מהיר ומעקב יומי אחרי כל כלב",
+      "ראש שקט ללקוח: עדכוני WhatsApp אוטומטיים מהפנסיון",
     ],
   },
   {
@@ -86,9 +86,9 @@ const AUDIENCES = [
     title: "ארגוני כלבי שירות",
     photo: "/service-dog-training.jpg",
     features: [
-      "מעקב שלבי הכשרה מלא",
-      "ניהול זכאים ושיבוצים",
-      "ייצוא דוחות ומסמכים",
+      "פרוטוקול הכשרה מלא: מעקב שלבים ודיווח למשרד החקלאות",
+      "ניהול תיקי זכאים, שיבוצים והסמכות במקום אחד",
+      "תיעוד מקצועי: ייצוא דוחות וכרטיסי זיהוי עם QR",
     ],
   },
 ];
@@ -248,9 +248,11 @@ export default function LandingPage() {
                   id="hero-heading"
                   className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-[1.18] mb-6"
                 >
-                  תתמקדו בטיפול
+                  תפסיק לרדוף אחרי זנבות —
                   <br />
-                  <span className="text-brand-400">פטרה תדאג לניהול</span>
+                  <span className="text-brand-400">תן לפטרה לנהל</span>
+                  <br />
+                  את היומן והתשלומים
                 </h1>
 
                 <p className="text-lg md:text-xl text-slate-300 mb-8 leading-relaxed">
@@ -282,11 +284,11 @@ export default function LandingPage() {
                 <ul className="mt-4 space-y-2.5 list-none p-0 m-0">
                   <li className="flex items-center justify-center lg:justify-start gap-2.5 text-white text-base font-medium">
                     <Check aria-hidden="true" className="w-4 h-4 text-brand-400 shrink-0" />
-                    מסלול חינמי — ללא כרטיס אשראי, ללא הגבלת זמן.
+                    התחל בחינם – אין צורך בכרטיס אשראי.
                   </li>
                   <li className="flex items-center justify-center lg:justify-start gap-2.5 text-white text-base font-medium">
                     <Check aria-hidden="true" className="w-4 h-4 text-brand-400 shrink-0" />
-                    מעבירים אותך מהמערכת הישנה — אנחנו עושים את העבודה.
+                    מעבר קל ממערכות אחרות (אנחנו כאן לעזור).
                   </li>
                 </ul>
               </div>
@@ -456,34 +458,33 @@ export default function LandingPage() {
                 <div className="w-24 h-24 rounded-3xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-900/40">
                   <Shield className="w-12 h-12 text-emerald-400" aria-hidden="true" />
                 </div>
-                <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold uppercase tracking-wide">
-                  ייחודי בישראל
-                </span>
               </div>
 
               {/* Text */}
               <div className="text-center lg:text-right">
+                {/* Badge above heading */}
+                <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold uppercase tracking-wide mb-4">
+                  ייחודי בישראל
+                </span>
                 <h2
                   id="service-dog-usp-heading"
                   className="text-2xl md:text-3xl font-bold text-white mb-3 leading-snug"
                 >
-                  כלבי שירות —{" "}
-                  <span className="text-emerald-400">המערכת היחידה בישראל</span>
+                  <span className="text-emerald-400">הבית הדיגיטלי היחיד בישראל</span>
+                  {" "}לארגוני כלבי שירות
                 </h2>
                 <p className="text-emerald-200/80 text-base mb-6 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                  פותחה יחד עם מומחים מתוך התחום. מספקת מענה מלא מהכשרה ועד שיבוץ — כולל כל מה שהמשרד מצריך.
+                  בנינו את המערכת הראשונה מסוגה שדוברת את השפה שלכם. תאימות מלאה לדרישות משרד החקלאות, ניהול זכאים והסמכות – הכל במקום אחד, בלי ניירת ובלי טעויות.
                 </p>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-7 max-w-xl mx-auto lg:mx-0 text-right">
                   {[
-                    "מעקב שלבי הכשרה מלא (8 שלבים)",
-                    "דיווח אוטומטי למשרד החקלאות",
-                    "ניהול תיקי זכאים ושיבוצים",
-                    "מבחני הסמכה ופרוטוקולים רפואיים",
-                    "כרטיסי זיהוי + קוד QR",
-                    "120+ שעות מעקב אילוף",
+                    "עמידה מלאה ברגולציה: דיווחים אוטומטיים למשרד החקלאות בפורמט הנדרש.",
+                    "פרוטוקול הכשרה מקצועי: מעקב 8 שלבי הכשרה וצבירת 120+ שעות אילוף לכל כלב.",
+                    "ניהול זכאים חכם: תיק דיגיטלי הכולל מסמכים, שיבוצים והיסטוריה רפואית.",
+                    "כרטיסי זיהוי עם QR: הנפקת תעודות זיהוי חכמות לסריקה מהירה בשטח.",
                   ].map((item) => (
-                    <li key={item} className="flex items-center gap-2 text-emerald-100 text-sm">
-                      <Check aria-hidden="true" className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <li key={item} className="flex items-start gap-2 text-emerald-100 text-sm">
+                      <Check aria-hidden="true" className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                       {item}
                     </li>
                   ))}

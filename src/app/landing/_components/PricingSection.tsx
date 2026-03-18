@@ -434,7 +434,7 @@ export function PricingSection() {
             aria-label="טבלת השוואת מסלולים"
           >
             <table className="w-full min-w-[720px] text-sm border-collapse">
-              <thead>
+              <thead className="sticky top-0 z-10 shadow-sm">
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th scope="col" className="text-right px-4 py-3 font-semibold text-slate-700 w-52">פיצ'ר</th>
                   {PLANS.map((p) => (
