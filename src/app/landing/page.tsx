@@ -378,45 +378,14 @@ export default function LandingPage() {
 
               {/* Visual col — second in DOM = left side in RTL */}
               <div aria-hidden="true" className="relative mt-8 lg:mt-0">
-                {/* Container with defined height for fill Image */}
-                <div className="relative rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/10 h-[420px] md:h-[540px]">
-                  {/* Dog photo as atmospheric background */}
-                  <Image
-                    src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=700&q=85"
-                    alt=""
-                    fill
-                    className="object-cover object-center opacity-55"
-                    priority
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A]/85 via-[#0F172A]/40 to-[#0F172A]/15" />
-
-                  {/* Phone mockup — center-bottom */}
-                  <div className="absolute inset-0 flex items-end justify-center pb-6">
-                    <PhoneMockup />
-                  </div>
-
-                  {/* Floating stat pill — top right */}
-                  <div className="absolute top-5 right-5 hidden lg:flex items-center gap-3 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl px-4 py-3">
-                    <div className="w-10 h-10 rounded-xl bg-brand-500 flex items-center justify-center shrink-0">
-                      <Users className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-xl font-extrabold text-slate-900 leading-none">500+</div>
-                      <div className="text-xs text-slate-500 mt-0.5">עסקים פעילים</div>
-                    </div>
-                  </div>
-
-                  {/* WhatsApp notification — top left */}
-                  <div className="absolute top-5 left-5 hidden lg:flex items-center gap-2.5 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl px-3 py-2.5">
-                    <div className="w-8 h-8 rounded-full bg-[#25D366] flex items-center justify-center shrink-0">
-                      <MessageCircle className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-bold text-slate-800">תזכורת נשלחה ✓</div>
-                      <div className="text-[10px] text-slate-500">מאיה כהן — מחר 10:00</div>
-                    </div>
-                  </div>
-                </div>
+                <Image
+                  src="/hero-image.png"
+                  alt=""
+                  width={1568}
+                  height={882}
+                  className="w-full h-auto rounded-3xl shadow-2xl"
+                  priority
+                />
               </div>
             </div>
           </div>
