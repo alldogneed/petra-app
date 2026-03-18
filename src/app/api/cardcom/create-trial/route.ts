@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isValidTier } from "@/lib/feature-flags";
 import { rateLimit } from "@/lib/rate-limit";
+import { sanitizeName } from "@/lib/validation";
 
 const CARDCOM_PLANS: Record<string, { label: string; price: number }> = {
   basic:       { label: "Petra בייסיק — ניסיון 14 יום", price: 99  },
@@ -44,8 +45,9 @@ export async function POST(request: NextRequest) {
     const { name, email, tier, tosAccepted } = body;
 
     // ── Validate inputs ───────────────────────────────────────────────────────
-    if (!name?.trim() || name.trim().length < 2) {
-      return NextResponse.json({ error: "נא להזין שם מלא" }, { status: 400 });
+    const cleanName = sanitizeName(name ?? "");
+    if (cleanName.length < 2 || cleanName.length > 100) {
+      return NextResponse.json({ error: "נא להזין שם מלא (עד 100 תווים)" }, { status: 400 });
     }
     const emailNorm = (email ?? "").toLowerCase().trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -75,7 +77,7 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
     const checkout = await prisma.pendingCheckout.create({
       data: {
-        name: name.trim(),
+        name: cleanName,
         email: emailNorm,
         tier,
         tosAccepted: true,

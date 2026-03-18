@@ -6,7 +6,7 @@ import { checkRateLimit } from "@/lib/security/rateLimiter";
 import { ensureUserHasBusiness } from "@/lib/auth";
 import { sendTrialWelcomeEmail } from "@/lib/email";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
-import { randomBytes } from "crypto";
+import { randomBytes, randomInt, timingSafeEqual } from "crypto";
 import bcrypt from "bcryptjs";
 import { logAudit, AUDIT_ACTIONS } from "@/lib/audit";
 
@@ -18,29 +18,31 @@ function getClientIp(request: NextRequest): string {
   );
 }
 
-/** Generates a strong 12-character temp password (uppercase + digit + lowercase). */
+/** Generates a strong 12-character temp password (uppercase + digit + lowercase).
+ *  Uses crypto.randomInt for unbiased index selection. */
 function generateTempPassword(): string {
-  const upper   = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  const lower   = "abcdefghjkmnpqrstuvwxyz";
-  const digits  = "23456789";
-  const all     = upper + lower + digits;
+  const upper  = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower  = "abcdefghjkmnpqrstuvwxyz";
+  const digits = "23456789";
+  const all    = upper + lower + digits;
 
-  const bytes = randomBytes(16);
   let pass = "";
-  pass += upper[bytes[0] % upper.length];
-  pass += lower[bytes[1] % lower.length];
-  pass += digits[bytes[2] % digits.length];
-  for (let i = 3; i < 12; i++) pass += all[bytes[i] % all.length];
+  pass += upper[randomInt(upper.length)];
+  pass += lower[randomInt(lower.length)];
+  pass += digits[randomInt(digits.length)];
+  for (let i = 3; i < 12; i++) pass += all[randomInt(all.length)];
 
-  // Shuffle
+  // Fisher-Yates shuffle using unbiased randomInt
   const arr = pass.split("");
-  const shuffleBytes = randomBytes(12);
   for (let i = arr.length - 1; i > 0; i--) {
-    const j = shuffleBytes[i] % (i + 1);
+    const j = randomInt(i + 1);
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr.join("");
 }
+
+// Only these tiers may be activated via the payment webhook
+const BILLABLE_TIERS = new Set(["basic", "pro", "groomer", "service_dog"]);
 
 const TIER_LABEL: Record<string, string> = {
   basic: "בייסיק", pro: "פרו", groomer: "גרומר+", service_dog: "Service Dog",
@@ -67,8 +69,14 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const ip = getClientIp(request);
 
-  // ── Layer 1: Secret validation ───────────────────────────────────────────
-  if (searchParams.get("secret") !== process.env.CARDCOM_WEBHOOK_SECRET) {
+  // ── Layer 1: Secret validation (constant-time) ───────────────────────────
+  const providedSecret = searchParams.get("secret") ?? "";
+  const expectedSecret = process.env.CARDCOM_WEBHOOK_SECRET ?? "";
+  const secretsMatch =
+    providedSecret.length === expectedSecret.length &&
+    expectedSecret.length > 0 &&
+    timingSafeEqual(Buffer.from(providedSecret), Buffer.from(expectedSecret));
+  if (!secretsMatch) {
     console.error(`trial-indicator [L1]: invalid secret from IP ${ip}`);
     await prisma.subscriptionEvent.create({
       data: { businessId: "unknown", eventType: "security_invalid_secret", ipAddress: ip, metadata: { path: "trial-indicator" } },
@@ -139,8 +147,8 @@ export async function GET(request: NextRequest) {
     const checkoutId = withoutPrefix.slice(0, colonIdx);
     const tier       = withoutPrefix.slice(colonIdx + 2);
 
-    if (!isValidTier(tier)) {
-      console.error(`trial-indicator [FlowA]: invalid tier ${tier}`);
+    if (!isValidTier(tier) || !BILLABLE_TIERS.has(tier)) {
+      console.error(`trial-indicator [FlowA]: invalid/non-billable tier ${tier}`);
       return new Response("OK");
     }
 
@@ -271,8 +279,8 @@ export async function GET(request: NextRequest) {
   // ════════════════════════════════════════════════════════════════════
   const [businessId, tier] = rawUserId.split("::");
 
-  if (!businessId || !isValidTier(tier)) {
-    console.error(`trial-indicator [FlowB]: invalid UserId: ${rawUserId}`);
+  if (!businessId || !isValidTier(tier) || !BILLABLE_TIERS.has(tier)) {
+    console.error(`trial-indicator [FlowB]: invalid/non-billable UserId: ${rawUserId}`);
     return new Response("OK");
   }
 

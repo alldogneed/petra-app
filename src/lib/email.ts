@@ -5,6 +5,16 @@
 
 import { Resend } from "resend";
 
+/** Escapes user-controlled strings before inserting into HTML email templates. */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
+
 /** Lazy-initialized Resend client (avoids build-time error when API key is missing). */
 let _resend: Resend | null = null;
 function getResend(): Resend {
@@ -38,6 +48,11 @@ export async function sendTrialWelcomeEmail(params: TrialWelcomeEmailParams): Pr
   const loginUrl = `${appUrl}/login`;
 
   const { to, name, tierName, tierPrice, tempPassword } = params;
+  const safeName = escapeHtml(name);
+  const safeTo   = escapeHtml(to);
+  const safeTier = escapeHtml(tierName);
+  // tempPassword is server-generated (alphanumeric only) — escape anyway for safety
+  const safePass = escapeHtml(tempPassword);
 
   await resend.emails.send({
     from: getFromEmail(),
@@ -53,10 +68,10 @@ export async function sendTrialWelcomeEmail(params: TrialWelcomeEmailParams): Pr
 
         <!-- Body -->
         <div style="padding:32px 24px;background:#fff;">
-          <h2 style="font-size:20px;margin:0 0 8px;color:#0f172a;">שלום ${name}! 👋</h2>
+          <h2 style="font-size:20px;margin:0 0 8px;color:#0f172a;">שלום ${safeName}! 👋</h2>
           <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 24px;">
             החשבון שלך ב-Petra נוצר בהצלחה.<br/>
-            <strong>14 ימי ניסיון חינמי למסלול ${tierName}</strong> מתחילים עכשיו.
+            <strong>14 ימי ניסיון חינמי למסלול ${safeTier}</strong> מתחילים עכשיו.
           </p>
 
           <!-- Credentials box -->
@@ -65,12 +80,12 @@ export async function sendTrialWelcomeEmail(params: TrialWelcomeEmailParams): Pr
             <table style="width:100%;border-collapse:collapse;">
               <tr>
                 <td style="padding:6px 0;color:#64748b;font-size:14px;width:90px;">📧 אימייל</td>
-                <td style="padding:6px 0;font-size:14px;font-weight:600;color:#0f172a;">${to}</td>
+                <td style="padding:6px 0;font-size:14px;font-weight:600;color:#0f172a;">${safeTo}</td>
               </tr>
               <tr>
                 <td style="padding:6px 0;color:#64748b;font-size:14px;">🔑 סיסמה</td>
                 <td style="padding:6px 0;">
-                  <code style="background:#1e293b;color:#f8fafc;font-size:15px;font-weight:700;padding:4px 10px;border-radius:6px;font-family:monospace;letter-spacing:0.05em;">${tempPassword}</code>
+                  <code style="background:#1e293b;color:#f8fafc;font-size:15px;font-weight:700;padding:4px 10px;border-radius:6px;font-family:monospace;letter-spacing:0.05em;">${safePass}</code>
                 </td>
               </tr>
             </table>
