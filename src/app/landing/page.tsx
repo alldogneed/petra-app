@@ -323,11 +323,11 @@ export default function LandingPage() {
                 </h1>
 
                 <p className="text-lg md:text-xl text-slate-300 mb-8 leading-relaxed">
-                  המערכת היחידה שנבנתה על ידי אנשי כלבים, עבור אנשי כלבים.
+                  נבנתה ע״י מומחי שטח. מיועדת למקצוענים בבעלי חיים.
                   <br className="hidden sm:block" />
-                  תזכורות WhatsApp אוטומטיות, סליקה קלה וניהול הכשרה —
+                  זיקקנו ניסיון של שנים באילוף, טיפוח והכשרה לתוך מערכת אחת חכמה.
                   <br className="hidden sm:block" />
-                  בממשק שכיף לעבוד איתו.
+                  פטרה נותנת לכם את הכלים לנהל את העסק ביעילות, כדי שתוכלו להישאר ממוקדים בבעלי החיים.
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-3">
