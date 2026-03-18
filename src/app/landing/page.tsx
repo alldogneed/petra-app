@@ -359,21 +359,21 @@ export default function LandingPage() {
                   הצטרפו ל-500+ בעלי עסקים שכבר נרשמו
                 </p>
 
-                <ul
-                  aria-label="יתרונות ההרשמה"
-                  className="flex flex-wrap items-center justify-center lg:justify-start gap-x-6 gap-y-2 text-slate-400 text-sm list-none p-0 m-0"
-                >
-                  {[
-                    { icon: Clock, text: "14 ימי ניסיון חינם — ללא חיוב מיידי" },
-                    { icon: Check, text: "בטל בכל עת בלחיצת כפתור" },
-                    { icon: CreditCard, text: "נדרש כרטיס אשראי לאימות" },
-                  ].map(({ icon: Icon, text }) => (
-                    <li key={text} className="flex items-center gap-1.5">
-                      <Icon aria-hidden="true" className="w-4 h-4 text-brand-400" />
-                      {text}
-                    </li>
-                  ))}
-                </ul>
+                {/* Trial trust signals */}
+                <div className="space-y-2">
+                  <p className="text-white text-lg font-bold flex items-center justify-center lg:justify-start gap-2">
+                    <Clock aria-hidden="true" className="w-5 h-5 text-brand-400 shrink-0" />
+                    14 ימי ניסיון חינם — ללא חיוב מיידי
+                  </p>
+                  <p className="text-brand-300 text-base font-semibold flex items-center justify-center lg:justify-start gap-2">
+                    <Check aria-hidden="true" className="w-5 h-5 shrink-0" />
+                    בטל בכל עת בלחיצת כפתור
+                  </p>
+                  <p className="text-slate-400 text-sm flex items-center justify-center lg:justify-start gap-2">
+                    <CreditCard aria-hidden="true" className="w-4 h-4 shrink-0" />
+                    נדרש כרטיס אשראי לאימות
+                  </p>
+                </div>
               </div>
 
               {/* Visual col — second in DOM = left side in RTL */}
