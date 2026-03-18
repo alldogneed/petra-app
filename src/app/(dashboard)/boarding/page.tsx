@@ -1817,6 +1817,7 @@ function BoardingPageContent() {
   });
   const [serviceDogMode, setServiceDogMode] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
+  const [serviceDogSearch, setServiceDogSearch] = useState("");
   const [staySearch, setStaySearch] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("active");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -1915,6 +1916,13 @@ function BoardingPageContent() {
       !customerSearch ||
       c.name.includes(customerSearch) ||
       c.phone.includes(customerSearch)
+  );
+
+  const filteredServiceDogs = serviceDogsList.filter(
+    (sd) =>
+      !serviceDogSearch ||
+      sd.pet.name.includes(serviceDogSearch) ||
+      (sd.pet.breed ?? "").includes(serviceDogSearch)
   );
 
   // ── Mutations ──
@@ -3145,7 +3153,7 @@ function BoardingPageContent() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setServiceDogMode(true); setForm({ ...form, petIds: [], customerId: "" }); setCustomerSearch(""); }}
+                  onClick={() => { setServiceDogMode(true); setForm({ ...form, petIds: [], customerId: "" }); setCustomerSearch(""); setServiceDogSearch(""); }}
                   className={cn("flex-1 text-xs py-1.5 rounded-md font-medium transition-colors", serviceDogMode ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text")}
                 >
                   כלב שירות
@@ -3243,11 +3251,22 @@ function BoardingPageContent() {
                     </button>
                   </div>
                 ) : (
+                  <div>
+                    <div className="relative mb-2">
+                      <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <input
+                        className="input pr-10"
+                        placeholder="חיפוש לפי שם או גזע..."
+                        value={serviceDogSearch}
+                        onChange={(e) => setServiceDogSearch(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
                   <div className="max-h-48 overflow-y-auto border border-petra-border rounded-xl divide-y divide-petra-border">
-                    {serviceDogsList.length === 0 ? (
-                      <div className="py-4 text-center text-sm text-petra-muted">אין כלבי שירות פעילים</div>
+                    {filteredServiceDogs.length === 0 ? (
+                      <div className="py-4 text-center text-sm text-petra-muted">{serviceDogsList.length === 0 ? "אין כלבי שירות פעילים" : "לא נמצאו תוצאות"}</div>
                     ) : (
-                      serviceDogsList.map((sd) => (
+                      filteredServiceDogs.map((sd) => (
                         <button
                           key={sd.id}
                           type="button"
@@ -3262,6 +3281,7 @@ function BoardingPageContent() {
                         </button>
                       ))
                     )}
+                  </div>
                   </div>
                 )}
               </div>
