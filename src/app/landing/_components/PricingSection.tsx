@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, X, ChevronDown, ChevronUp, MessageCircle, Star, Zap, Gift } from "lucide-react";
+import { Check, X, ChevronDown, ChevronUp, MessageCircle, Star, Zap, Gift, Sparkles } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 
 const CARDCOM_TIERS = new Set(["basic", "pro", "groomer", "service_dog"]);
@@ -51,9 +51,9 @@ const PLANS: {
     highlight: false,
     description: "לעסקים שרוצים את הכלים הבסיסיים לניהול מסודר",
     features: [
-      "לקוחות ללא הגבלה",
-      "יומן תורים ופגישות",
-      "תזכורות WhatsApp",
+      { text: "לקוחות ללא הגבלה", star: true },
+      { text: "יומן תורים ופגישות", star: true },
+      { text: "תזכורות WhatsApp", star: true },
       "דוחות ואנליטיקס",
       "סנכרון Google Calendar",
     ],
@@ -89,8 +89,8 @@ const PLANS: {
     features: [
       "לקוחות ללא הגבלה",
       "יומן תורים ופגישות",
-      "תיק עבודות לפני/אחרי",
-      "אוטומציות WhatsApp מתקדמות",
+      { text: "תיק עבודות לפני/אחרי", star: true },
+      { text: "אוטומציות WhatsApp מתקדמות", star: true },
       "ניהול צוות + ייצוא Excel",
     ],
     notIncluded: ["פנסיון", "אילוף", "כלבי שירות"],
@@ -202,7 +202,7 @@ const FAQ = [
   { q: "איך משדרגים?", a: "שליחת הודעת WhatsApp לתמיכה — המסלול מתעדכן תוך שעות." },
   { q: "האם ניתן לבטל?", a: "כן, ניתן לבטל בכל עת ללא קנסות." },
   { q: "מה קורה לנתונים בביטול?", a: "הנתונים נשמרים 30 יום לאחר ביטול." },
-  { q: "יש ניסיון חינמי?", a: "כן! כל המסלולים בתשלום כוללים 14 יום ניסיון חינמי. נדרשת הזנת כרטיס אשראי — אך לא תחויב דבר בתקופת הניסיון. בתום 14 הימים המנוי ממשיך אוטומטית. ביטלת בתוך הניסיון? לא שילמת כלום." },
+  { q: "יש ניסיון חינמי?", a: "כן! אפשר להתחיל במסלול חינמי ללא הגבלת זמן וללא אשראי. למסלולים המתקדמים אנו מציעים 14 ימי ניסיון מלאים ללא חיוב מיידי (נדרש אשראי לאימות בלבד)." },
   {
     q: "מה קורה אם יש לי כבר מאות לקוחות במערכת אחרת או בטלפון?",
     a: "מעבר קל ובטוח — הצוות שלנו מלווה אותך בתהליך ייבוא הנתונים מהנייד או ממערכות ישנות. לא תאבד שום מידע.",
@@ -263,34 +263,43 @@ export function PricingSection() {
           <h2 id="pricing-heading" className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
             מחירים שקופים, ללא הפתעות
           </h2>
-          <p className="text-slate-500 text-lg">התחל עם 14 יום ניסיון — לא תחויב כלום אם תבטל</p>
+          <p className="text-slate-500 text-lg">מסלול חינמי ללא כרטיס אשראי, או נסה כל מסלול מתקדם 14 יום ללא חיוב</p>
         </div>
 
-        {/* Plan cards — horizontal scroll on mobile */}
-        <div className="overflow-x-auto pb-4 -mx-4 px-4">
+        {/* Plan cards — snap scroll on mobile, grid on desktop */}
+        <div className="overflow-x-auto overflow-y-visible pb-4 -mx-4 px-4 snap-x snap-mandatory lg:snap-none scroll-smooth">
           <ul
-            className="flex gap-4 min-w-max lg:min-w-0 lg:grid lg:grid-cols-5 list-none p-0 m-0"
+            className="flex gap-4 min-w-max lg:min-w-0 lg:grid lg:grid-cols-5 list-none p-0 m-0 pt-6"
             aria-label="מסלולי מנוי"
           >
             {PLANS.map((plan) => (
-              <li key={plan.key} className="w-60 lg:w-auto flex flex-col">
+              <li key={plan.key} className="w-60 lg:w-auto flex flex-col snap-center lg:snap-align-none">
                 <div
-                  className={`relative rounded-2xl border-2 p-5 flex flex-col h-full transition-shadow hover:shadow-md ${
+                  className={`relative rounded-2xl border-2 flex flex-col h-full transition-shadow hover:shadow-md ${
                     plan.highlight
-                      ? "border-brand-500 bg-brand-50 shadow-lg shadow-brand-100"
-                      : "border-slate-200 bg-white"
+                      ? "border-brand-500 bg-gradient-to-b from-brand-50 to-white shadow-2xl shadow-brand-300/60 ring-4 ring-brand-400/40 p-5 pt-9"
+                      : "border-slate-200 bg-white p-5"
                   }`}
                 >
                   {/* Badge */}
                   {plan.badge && (
-                    <div
-                      aria-hidden="true"
-                      className={`absolute -top-3 right-4 text-xs font-bold px-3 py-1 rounded-full ${
-                        plan.highlight ? "bg-brand-500 text-white" : "bg-amber-500 text-white"
-                      }`}
-                    >
-                      {plan.badge}
-                    </div>
+                    plan.highlight ? (
+                      <div
+                        aria-hidden="true"
+                        className="absolute -top-5 right-1/2 translate-x-1/2 flex items-center gap-2 text-sm font-bold px-5 py-2 rounded-full bg-gradient-to-l from-brand-600 to-brand-500 text-white shadow-xl shadow-brand-400/60 whitespace-nowrap border border-brand-400/30"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        {plan.badge}
+                        <Sparkles className="w-3.5 h-3.5" />
+                      </div>
+                    ) : (
+                      <div
+                        aria-hidden="true"
+                        className="absolute -top-3 right-4 text-xs font-bold px-3 py-1 rounded-full bg-amber-500 text-white"
+                      >
+                        {plan.badge}
+                      </div>
+                    )
                   )}
 
                   {/* Plan header */}
@@ -367,26 +376,33 @@ export function PricingSection() {
                         נסה 14 יום חינם
                       </Link>
                       <p className="text-[10px] text-center text-slate-400 leading-snug px-1">
-                        ללא חיוב מיידי · בטל בכל עת בלחיצת כפתור
+                        נדרש כרטיס אשראי לאימות. לא תחויב ב-14 הימים הראשונים. ביטול פשוט בלחיצת כפתור.
                       </p>
                       {!user && (
                         <Link
                           href="/register"
                           aria-label={`התחל בחינם — מסלול ${plan.name}`}
-                          className="text-xs py-1.5 rounded-xl text-center font-medium text-slate-500 hover:text-slate-700 transition-colors"
+                          className="text-xs py-1.5 rounded-xl text-center font-medium text-slate-500 hover:text-slate-700 transition-colors border border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                         >
                           או התחל בחינם ←
                         </Link>
                       )}
                     </div>
                   ) : (
-                    <Link
-                      href={user ? "/upgrade" : "/register"}
-                      aria-label={`התחל בחינם — מסלול ${plan.name}`}
-                      className="text-sm py-2.5 rounded-xl text-center font-semibold transition-colors bg-slate-900 hover:bg-slate-800 text-white"
-                    >
-                      {user ? "עבור למסלולים" : "התחל בחינם"}
-                    </Link>
+                    <div className="flex flex-col gap-1.5">
+                      <Link
+                        href={user ? "/upgrade" : "/register"}
+                        aria-label={`התחל בחינם — מסלול ${plan.name}`}
+                        className="text-sm py-2.5 rounded-xl text-center font-semibold transition-colors bg-slate-900 hover:bg-slate-800 text-white"
+                      >
+                        {user ? "עבור למסלולים" : "התחל בחינם עכשיו"}
+                      </Link>
+                      {!user && (
+                        <p className="text-[10px] text-center text-emerald-600 font-medium leading-snug px-1">
+                          ללא הגבלת זמן, ללא צורך בכרטיס אשראי
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               </li>

@@ -123,7 +123,7 @@ const FEATURES = [
   {
     icon: Users,
     title: "כל ההיסטוריה של הכלב מול העיניים",
-    desc: "תוכניות אילוף, חיסונים ותמונות — כרטיס לקוח מלא עם כל הביקורים, לידים וצינור מכירות",
+    desc: "תוכניות אילוף, חיסונים ותמונות – הכל בכרטיס לקוח אחד שמלווה אותך בשטח.",
     color: "bg-orange-50 text-orange-500",
   },
   {
@@ -159,7 +159,7 @@ const FEATURES = [
   {
     icon: Receipt,
     title: "תשלומים בלי מרדפים",
-    desc: "לינק לתשלום בוואטסאפ וחשבונית שיוצאת לבד — מעקב הזמנות בזמן אמת",
+    desc: "שלח לינק לתשלום בוואטסאפ וקבל חשבונית אוטומטית. בלי לרדוף אחרי לקוחות.",
     color: "bg-rose-50 text-rose-500",
   },
   {
@@ -210,70 +210,6 @@ export default function LandingPage() {
         דלג לתוכן הראשי
       </a>
 
-      {/* ── Sticky Navbar ──────────────────────────────────────────────────────── */}
-      <header
-        className="sticky top-0 z-50 bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100"
-        role="banner"
-      >
-        <nav
-          aria-label="ניווט ראשי"
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between"
-        >
-          <Link
-            href="/"
-            aria-label="פטרה — חזרה לדף הבית"
-            className="flex items-center gap-2"
-          >
-            <Image
-              src="/petra-logo.png"
-              alt="לוגו פטרה"
-              width={40}
-              height={40}
-              className="object-contain"
-              priority
-            />
-          </Link>
-
-          <div className="hidden md:flex items-center gap-1 text-sm">
-            <a
-              href="#how"
-              className="px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-            >
-              איך זה עובד
-            </a>
-            <a
-              href="#features"
-              className="px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-            >
-              מאפיינים
-            </a>
-            <a
-              href="#pricing"
-              className="px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-            >
-              מחירים
-            </a>
-            <a
-              href="#testimonials"
-              className="px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-            >
-              ביקורות
-            </a>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Link
-              href="/login"
-              className="hidden sm:inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2"
-            >
-              התחבר
-            </Link>
-            <Link href="/register" className="btn-primary text-sm px-5 py-2.5">
-              התחל בחינם
-            </Link>
-          </div>
-        </nav>
-      </header>
 
       {/* ── Main ─────────────────────────────────────────────────────────────── */}
       <main id="main-content" tabIndex={-1} className="outline-none">
@@ -347,10 +283,10 @@ export default function LandingPage() {
                   </a>
                 </div>
 
-                {/* Migration reassurance */}
+                {/* Free plan reassurance — directly below primary CTA */}
                 <p className="text-brand-300 text-sm mb-3 text-center lg:text-right flex items-center justify-center lg:justify-start gap-1.5">
-                  <ArrowLeft aria-hidden="true" className="w-3.5 h-3.5 rotate-180" />
-                  מעבר קל ממערכות אחרות — אנחנו נעזור לך
+                  <Check aria-hidden="true" className="w-3.5 h-3.5 shrink-0" />
+                  התחל בחינם – ללא כרטיס אשראי למסלול הבסיסי
                 </p>
 
                 <p className="text-slate-400 text-sm mb-4 text-center lg:text-right">

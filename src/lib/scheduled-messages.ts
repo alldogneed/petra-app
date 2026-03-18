@@ -5,6 +5,7 @@
 import prisma from "@/lib/prisma";
 import { sendWhatsAppMessage, sendWhatsAppTemplate, interpolateTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone, formatDate, formatTime } from "@/lib/utils";
+import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 
 /**
  * Create a 48-hour WhatsApp reminder for an order.
@@ -62,11 +63,31 @@ export async function processPendingReminders(): Promise<{
     orderBy: { sendAt: "asc" },
   });
 
+  // Pre-fetch business settings for all unique businessIds
+  const businessIds = [...new Set(pending.map((m) => m.businessId))];
+  const businesses = await prisma.business.findMany({
+    where: { id: { in: businessIds } },
+    select: { id: true, whatsappRemindersEnabled: true, tier: true, featureOverrides: true },
+  });
+  const bizMap = Object.fromEntries(businesses.map((b) => [b.id, b]));
+
   let sent = 0;
   let failed = 0;
 
   for (const msg of pending) {
     try {
+      // Respect the business's WhatsApp reminders toggle + tier gate
+      const biz = bizMap[msg.businessId];
+      if (!biz?.whatsappRemindersEnabled) {
+        await prisma.scheduledMessage.update({ where: { id: msg.id }, data: { status: "CANCELED" } });
+        continue;
+      }
+      const overrides = (biz.featureOverrides as Record<string, boolean> | null) ?? null;
+      if (!hasFeatureWithOverrides(biz.tier, "whatsapp_reminders", overrides)) {
+        await prisma.scheduledMessage.update({ where: { id: msg.id }, data: { status: "CANCELED" } });
+        continue;
+      }
+
       const payload = JSON.parse(msg.payloadJson || "{}");
 
       // Try to find a matching template
