@@ -59,8 +59,7 @@ const AUDIENCES = [
     color: "text-purple-500",
     bg: "bg-purple-50",
     title: "גרומרים",
-    photo:
-      "https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=400&q=80",
+    photo: "/groomer-poodle.jpg",
     features: [
       "סוף לסמסים של 'מתי התור שלי' – יומן מסודר עם תזכורות אוטומטיות",
       "תיק עבודות לפני/אחרי",
