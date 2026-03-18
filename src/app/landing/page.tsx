@@ -17,8 +17,6 @@ import {
   Check,
   ArrowLeft,
   Zap,
-  Clock,
-  CreditCard,
   Receipt,
   UserCog,
   Layers,
@@ -283,31 +281,10 @@ export default function LandingPage() {
                   </a>
                 </div>
 
-                {/* Free plan reassurance — directly below primary CTA */}
-                <p className="text-brand-300 text-sm mb-3 text-center lg:text-right flex items-center justify-center lg:justify-start gap-1.5">
-                  <Check aria-hidden="true" className="w-3.5 h-3.5 shrink-0" />
-                  התחל בחינם – ללא כרטיס אשראי למסלול הבסיסי
+                {/* Single trust signal */}
+                <p className="text-slate-400 text-sm text-center lg:text-right">
+                  מסלול חינמי ללא כרטיס אשראי, או 14 יום ניסיון חינם למסלולים המתקדמים.
                 </p>
-
-                <p className="text-slate-400 text-sm mb-4 text-center lg:text-right">
-                  הצטרפו ל-500+ בעלי עסקים שכבר נרשמו
-                </p>
-
-                {/* Trial trust signals */}
-                <div className="space-y-2">
-                  <p className="text-white text-lg font-bold flex items-center justify-center lg:justify-start gap-2">
-                    <Clock aria-hidden="true" className="w-5 h-5 text-brand-400 shrink-0" />
-                    14 ימי ניסיון חינם — ללא חיוב מיידי
-                  </p>
-                  <p className="text-brand-300 text-base font-semibold flex items-center justify-center lg:justify-start gap-2">
-                    <Check aria-hidden="true" className="w-5 h-5 shrink-0" />
-                    בטל בכל עת בלחיצת כפתור
-                  </p>
-                  <p className="text-slate-400 text-sm flex items-center justify-center lg:justify-start gap-2">
-                    <CreditCard aria-hidden="true" className="w-4 h-4 shrink-0" />
-                    נדרש כרטיס אשראי לאימות
-                  </p>
-                </div>
               </div>
 
               {/* Visual col — second in DOM = left side in RTL */}
