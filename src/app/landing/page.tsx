@@ -379,10 +379,10 @@ export default function LandingPage() {
               {/* Visual col — second in DOM = left side in RTL */}
               <div aria-hidden="true" className="relative mt-8 lg:mt-0">
                 <Image
-                  src="/hero-image.png"
+                  src="/hero-image.jpg"
                   alt=""
-                  width={1568}
-                  height={882}
+                  width={1400}
+                  height={800}
                   className="w-full h-auto rounded-3xl shadow-2xl"
                   priority
                 />
