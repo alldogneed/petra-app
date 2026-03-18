@@ -168,6 +168,17 @@ function ServiceDogsListPageContent() {
               <LayoutGrid className="w-4 h-4" />
             </button>
           </div>
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
+            <input
+              type="text"
+              placeholder="חיפוש לפי שם או גזע..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="input pr-10 w-48 sm:w-56"
+            />
+          </div>
           {!showArchive && (
             <>
               <button
@@ -187,18 +198,6 @@ function ServiceDogsListPageContent() {
             </>
           )}
         </div>
-      </div>
-
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
-        <input
-          type="text"
-          placeholder="חיפוש לפי שם או גזע..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="input pr-10 w-full"
-        />
       </div>
 
       {/* Phase Filter */}
