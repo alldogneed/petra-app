@@ -41,8 +41,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Always run bcrypt.compare to prevent timing-based user enumeration
-    const isValid = await bcrypt.compare(password, user?.passwordHash || DUMMY_HASH);
+    // Always run bcrypt.compare to prevent timing-based user enumeration.
+    // Wrap in try/catch: a malformed passwordHash in the DB would otherwise throw → 500.
+    let isValid = false;
+    try {
+      isValid = await bcrypt.compare(password, user?.passwordHash || DUMMY_HASH);
+    } catch {
+      isValid = false;
+    }
     if (!user || !user.passwordHash || !isValid) {
       return NextResponse.json(
         { error: "אימייל או סיסמה שגויים" },
