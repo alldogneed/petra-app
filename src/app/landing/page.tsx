@@ -267,7 +267,7 @@ export default function LandingPage() {
                     href="/register"
                     className="btn-primary text-base px-8 py-3.5 w-full sm:w-auto justify-center"
                   >
-                    אני רוצה לנסות בחינם
+                    אני רוצה לנסות בחינם – בלי התחייבות
                   </Link>
                   <a
                     href={WHATSAPP_DEMO}
