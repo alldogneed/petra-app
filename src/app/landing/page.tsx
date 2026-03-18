@@ -47,7 +47,7 @@ const AUDIENCES = [
     color: "text-orange-500",
     bg: "bg-orange-50",
     title: "מאלפי כלבים",
-    photo: "/trainer-black-shepherd.png",
+    photo: "/trainer-black-shepherd.jpg",
     features: [
       "תוכניות אילוף בכיס שלך – מעקב התקדמות שזמין לך מהשטח",
       "מעקב יעדים ומשימות לכל כלב",
