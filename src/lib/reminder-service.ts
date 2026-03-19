@@ -566,3 +566,82 @@ export async function scheduleServiceDogMeetingReminder(meeting: ServiceDogMeeti
     },
   });
 }
+
+// ─── Training session reminder scheduling ─────────────────────────────────────
+
+interface TrainingSessionForReminder {
+  sessionId: string;
+  sessionDate: Date;
+  businessId: string;
+  customerId: string | null;
+  customerName: string;
+  customerPhone: string;
+  dogName: string;
+  programName: string;
+}
+
+/**
+ * Schedule a WhatsApp reminder before a future training session.
+ * Only fires when the session date is in the future.
+ * Idempotent — skips if a PENDING reminder already exists for this session.
+ */
+export async function scheduleTrainingSessionReminder(data: TrainingSessionForReminder) {
+  if (!data.customerId) return null;
+  if (data.sessionDate <= new Date()) return null; // past/today — no reminder needed
+
+  const bizSettings = await prisma.business.findUnique({
+    where: { id: data.businessId },
+    select: { whatsappRemindersEnabled: true, whatsappReminderLeadHours: true, phone: true, tier: true, featureOverrides: true },
+  });
+  if (!bizSettings?.whatsappRemindersEnabled) return null;
+  const overrides = (bizSettings.featureOverrides as Record<string, boolean> | null) ?? null;
+  if (!hasFeatureWithOverrides(bizSettings.tier, "whatsapp_reminders", overrides)) return null;
+
+  const offsetHours = bizSettings.whatsappReminderLeadHours ?? 48;
+  const sendAt = new Date(data.sessionDate.getTime() - offsetHours * 60 * 60 * 1000);
+  if (sendAt <= new Date()) return null;
+
+  // Deduplicate
+  const existing = await prisma.scheduledMessage.findFirst({
+    where: { relatedEntityType: "TRAINING_SESSION", relatedEntityId: data.sessionId, status: "PENDING" },
+  });
+  if (existing) return null;
+
+  const formattedDate = new Intl.DateTimeFormat("he-IL", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(data.sessionDate);
+
+  const bizPhone = bizSettings.phone ?? "";
+  const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${bizPhone}_`;
+  const body = `שלום ${data.customerName}! 🐾\n\nתזכורת למפגש אילוף עם ${data.dogName} ב-${formattedDate}.\n\nנתראה! 😊${footer}`;
+
+  return prisma.scheduledMessage.create({
+    data: {
+      businessId: data.businessId,
+      customerId: data.customerId,
+      channel: "whatsapp",
+      templateKey: "training_session_reminder",
+      payloadJson: JSON.stringify({
+        body,
+        metaTemplateName: "petra_appointment_reminder",
+        metaTemplateParams: [data.customerName, formattedDate, "", data.dogName],
+      }),
+      sendAt,
+      status: "PENDING",
+      relatedEntityType: "TRAINING_SESSION",
+      relatedEntityId: data.sessionId,
+    },
+  });
+}
+
+/**
+ * Cancel pending training session reminder (e.g. if session is deleted or rescheduled).
+ */
+export async function cancelTrainingSessionReminder(sessionId: string) {
+  return prisma.scheduledMessage.updateMany({
+    where: { relatedEntityType: "TRAINING_SESSION", relatedEntityId: sessionId, status: "PENDING" },
+    data: { status: "CANCELED" },
+  });
+}

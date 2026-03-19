@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { scheduleTrainingSessionReminder } from "@/lib/reminder-service";
 
 // POST /api/training-programs/[id]/sessions – add a training session
 export async function POST(
@@ -23,6 +24,10 @@ export async function POST(
     // Verify program belongs to this business
     const program = await prisma.trainingProgram.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
+      include: {
+        customer: { select: { id: true, name: true, phone: true } },
+        dog: { select: { name: true } },
+      },
     });
     if (!program) {
       return NextResponse.json({ error: "Training program not found" }, { status: 404 });
@@ -46,6 +51,20 @@ export async function POST(
         trainerName: trainerName || null,
       },
     });
+
+    // Schedule WhatsApp reminder if session is in the future and customer exists
+    if (program.customer) {
+      scheduleTrainingSessionReminder({
+        sessionId: session.id,
+        sessionDate: session.sessionDate,
+        businessId: authResult.businessId,
+        customerId: program.customer.id,
+        customerName: program.customer.name,
+        customerPhone: program.customer.phone,
+        dogName: program.dog.name,
+        programName: program.name,
+      }).catch(() => { /* non-critical — ignore errors */ });
+    }
 
     // Auto-accumulate training hours for service dogs
     if (sessionStatus === "COMPLETED" && program.trainingType === "SERVICE_DOG") {
