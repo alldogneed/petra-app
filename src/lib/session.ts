@@ -10,6 +10,64 @@ import { prisma } from "./prisma";
 import type { SessionUser, SessionMembership } from "./permissions";
 import type { PlatformRole, TenantRole } from "./permissions";
 
+// ─── In-memory session cache ──────────────────────────────────────────────────
+// Caches resolved FullSession objects keyed by the raw (unhashed) session token.
+// This prevents repeated DB queries when 10+ API routes fire simultaneously on
+// page navigation — a warm serverless function instance won't re-query the DB
+// for the same token within the TTL window.
+//
+// Security notes:
+//   - The raw token lives only in memory on the server; it is never persisted.
+//   - Cache is invalidated immediately on logout / session deletion.
+//   - TTL is short (30 s) so impersonation/role changes propagate quickly.
+//   - Max size (500) prevents unbounded memory growth; evicts oldest entry first.
+
+const SESSION_CACHE_TTL_MS = 30_000; // 30 seconds
+const SESSION_CACHE_MAX_SIZE = 500;
+
+interface CacheEntry {
+  session: FullSession;
+  expiresAt: number; // Date.now() + TTL
+}
+
+// Module-level Map — shared across all requests handled by the same Node.js
+// module instance (i.e. one warm serverless function container).
+const sessionCache = new Map<string, CacheEntry>();
+
+function cacheGet(token: string): FullSession | null {
+  const entry = sessionCache.get(token);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    sessionCache.delete(token);
+    return null;
+  }
+  return entry.session;
+}
+
+function cacheSet(token: string, session: FullSession): void {
+  // Evict oldest entry when at capacity
+  if (sessionCache.size >= SESSION_CACHE_MAX_SIZE) {
+    const oldestKey = sessionCache.keys().next().value;
+    if (oldestKey !== undefined) sessionCache.delete(oldestKey);
+  }
+  sessionCache.set(token, { session, expiresAt: Date.now() + SESSION_CACHE_TTL_MS });
+}
+
+/** Remove a token from the in-memory cache (call on logout / invalidation) */
+export function invalidateSessionCache(token: string): void {
+  sessionCache.delete(token);
+}
+
+/** Remove all cached sessions for a given userId */
+export function invalidateUserSessionCache(userId: string): void {
+  for (const [token, entry] of sessionCache.entries()) {
+    if (entry.session.user.id === userId) {
+      sessionCache.delete(token);
+    }
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const SESSION_COOKIE = "petra_session";
 /** Session timeout for regular users: 8 hours (no remember-me) */
 const SESSION_TTL_REGULAR = 8 * 60 * 60 * 1000;
@@ -76,6 +134,8 @@ export async function createSession(
 
 /** Mark a session as 2FA-verified */
 export async function markSessionTwoFaVerified(token: string): Promise<void> {
+  // Invalidate cache so the next request re-fetches with twoFaVerified: true
+  invalidateSessionCache(token);
   const tokenHashed = hashToken(token);
   await prisma.adminSession.updateMany({
     where: { token: tokenHashed },
@@ -94,6 +154,10 @@ export async function getSession(): Promise<FullSession | null> {
 
 /** Get a session by raw token value */
 export async function getSessionByToken(token: string): Promise<FullSession | null> {
+  // Fast path: return cached session if still valid
+  const cached = cacheGet(token);
+  if (cached) return cached;
+
   const now = new Date();
   const tokenHashed = hashToken(token);
 
@@ -147,7 +211,7 @@ export async function getSessionByToken(token: string): Promise<FullSession | nu
     })
   );
 
-  return {
+  const fullSession: FullSession = {
     user,
     sessionId: session.id,
     twoFaVerified: session.twoFaVerified,
@@ -155,10 +219,17 @@ export async function getSessionByToken(token: string): Promise<FullSession | nu
     impersonatedBusinessId: session.impersonatedBusinessId ?? null,
     impersonatedByAdminId: session.impersonatedByAdminId ?? null,
   };
+
+  // Store in cache for subsequent requests within the TTL window
+  cacheSet(token, fullSession);
+
+  return fullSession;
 }
 
 /** Delete a session (logout) */
 export async function deleteSession(token: string): Promise<void> {
+  // Evict from cache immediately so subsequent requests see the invalidation
+  invalidateSessionCache(token);
   const tokenHashed = hashToken(token);
   await prisma.adminSession
     .deleteMany({ where: { token: tokenHashed } })
@@ -167,6 +238,8 @@ export async function deleteSession(token: string): Promise<void> {
 
 /** Delete all sessions for a user (force logout everywhere) */
 export async function deleteAllUserSessions(userId: string): Promise<void> {
+  // Evict all cached sessions for this user
+  invalidateUserSessionCache(userId);
   await prisma.adminSession.deleteMany({ where: { userId } });
 }
 

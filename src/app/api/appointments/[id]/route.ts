@@ -107,6 +107,23 @@ export async function PATCH(
       );
     }
 
+    // Timeline event for status changes
+    if (status === "canceled" || status === "completed") {
+      const serviceName = appointment.service?.name ?? appointment.priceListItem?.name ?? "תור";
+      const petName = appointment.pet?.name ? ` (${appointment.pet.name})` : "";
+      const desc = status === "canceled"
+        ? `תור בוטל: ${serviceName}${petName} — ${appointment.date} ${appointment.startTime}`
+        : `תור הושלם: ${serviceName}${petName} — ${appointment.date} ${appointment.startTime}`;
+      prisma.timelineEvent.create({
+        data: {
+          type: status === "canceled" ? "APPOINTMENT_CANCELLED" : "APPOINTMENT_COMPLETED",
+          description: desc,
+          businessId: authResult.businessId,
+          customerId: appointment.customerId,
+        },
+      }).catch((err) => console.error("Failed to create timeline event:", err));
+    }
+
     return NextResponse.json(appointment);
   } catch (error) {
     console.error("Failed to update appointment:", error);

@@ -88,8 +88,12 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // CSV escape: wrap in quotes and double any internal quotes
-  const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  // CSV escape: wrap in quotes, double internal quotes, and prefix formula chars
+  // to prevent CSV injection (=, +, -, @ trigger formulas in Excel/Sheets)
+  const escape = (v: string) => {
+    const safe = /^[=+\-@\t\r]/.test(v) ? `\t${v}` : v;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
 
   const csvLines = [
     headers.map(escape).join(","),

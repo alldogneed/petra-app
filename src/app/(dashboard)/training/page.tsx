@@ -487,6 +487,7 @@ function TrainingPageContent() {
   const [groupSubTab, setGroupSubTab] = useState<"groups" | "workshops">("groups");
   const [searchQuery, setSearchQuery] = useState("");
   const [showSellPackage, setShowSellPackage] = useState(false);
+  const [showManualAdd, setShowManualAdd] = useState(false);
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [showNewWorkshop, setShowNewWorkshop] = useState(false);
   const [showAssignDog, setShowAssignDog] = useState<{ groupId: string; groupName: string } | null>(null);
@@ -782,6 +783,7 @@ function TrainingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       setShowSellPackage(false);
+      setShowManualAdd(false);
       toast.success("תוכנית אילוף נוצרה בהצלחה");
     },
     onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת תוכנית אימון. נסה שוב."),
@@ -977,6 +979,14 @@ function TrainingPageContent() {
 
         {/* Refresh controls */}
         <div className="flex items-center gap-2 mr-auto">
+          <button
+            onClick={() => setShowManualAdd(true)}
+            className="btn-secondary text-sm"
+            title="הוסף תהליך אילוף ידני ללא הזמנה"
+          >
+            <Plus className="w-4 h-4" />
+            הוסף תהליך ידני
+          </button>
           <button
             onClick={() => refetchPrograms()}
             disabled={programsFetching}
@@ -1270,6 +1280,14 @@ function TrainingPageContent() {
           onSubmit={(data) => createProgramMutation.mutate(data)}
           isPending={createProgramMutation.isPending}
           packages={packages.filter((p) => p.type === "HOME" && p.isActive)}
+        />
+      )}
+
+      {showManualAdd && (
+        <ManualAddProgramModal
+          onClose={() => setShowManualAdd(false)}
+          onSubmit={(data) => createProgramMutation.mutate(data)}
+          isPending={createProgramMutation.isPending}
         />
       )}
 
@@ -3510,6 +3528,162 @@ function GroupCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// MANUAL ADD PROGRAM MODAL
+// ═══════════════════════════════════════════════════════
+
+function ManualAddProgramModal({
+  onClose,
+  onSubmit,
+  isPending,
+}: {
+  onClose: () => void;
+  onSubmit: (data: Record<string, unknown>) => void;
+  isPending: boolean;
+}) {
+  const [customerId, setCustomerId] = useState("");
+  const [dogId, setDogId] = useState("");
+  const [programType, setProgramType] = useState("BASIC_OBEDIENCE");
+  const [totalSessions, setTotalSessions] = useState("10");
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState("");
+
+  const { data: customers = [], isLoading: customersLoading } = useQuery<Customer[]>({
+    queryKey: ["customers-full"],
+    queryFn: () => fetchJSON<Customer[]>("/api/customers?full=1"),
+  });
+
+  const customersWithPets = useMemo(
+    () => customers.filter((c) => c.pets && c.pets.length > 0),
+    [customers]
+  );
+
+  const selectedCustomer = customers.find((c) => c.id === customerId);
+  const selectedDog = selectedCustomer?.pets.find((p) => p.id === dogId);
+  const autoName = selectedDog
+    ? `אילוף ${PROGRAM_TYPES_MAP[programType] || programType} - ${selectedDog.name}`
+    : "";
+
+  const handleSubmit = () => {
+    if (!customerId || !dogId) return;
+    onSubmit({
+      customerId,
+      dogId,
+      name: autoName,
+      programType,
+      trainingType: "HOME",
+      totalSessions: totalSessions ? parseInt(totalSessions) : null,
+      startDate,
+      notes: notes || null,
+    });
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
+            <GraduationCap className="w-5 h-5 text-brand-500" />
+            הוסף תהליך אילוף ידני
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <p className="text-xs text-petra-muted bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 mb-4">
+          להוספת לקוחות שכבר בתהליך אילוף ממערכת אחרת — ללא קישור להזמנה חדשה
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="label">לקוח *</label>
+            <select
+              className="input"
+              value={customerId}
+              onChange={(e) => { setCustomerId(e.target.value); setDogId(""); }}
+              disabled={customersLoading}
+            >
+              <option value="">{customersLoading ? "טוען..." : "בחר לקוח..."}</option>
+              {customersWithPets.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {customerId && (
+            <div>
+              <label className="label">כלב *</label>
+              <select className="input" value={dogId} onChange={(e) => setDogId(e.target.value)}>
+                <option value="">בחר כלב...</option>
+                {selectedCustomer?.pets.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label className="label">סוג אילוף</label>
+            <select className="input" value={programType} onChange={(e) => setProgramType(e.target.value)}>
+              {Object.entries(PROGRAM_TYPES_MAP).filter(([k]) => !k.startsWith("SD_")).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">מספר מפגשים</label>
+              <input
+                type="number"
+                className="input"
+                value={totalSessions}
+                onChange={(e) => setTotalSessions(e.target.value)}
+                min="1"
+                placeholder="10"
+              />
+            </div>
+            <div>
+              <label className="label">תאריך התחלה</label>
+              <input
+                type="date"
+                className="input"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="label">הערות</label>
+            <textarea
+              className="input"
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="הקשר, שלב התהליך לפני המעבר..."
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            className="btn-primary flex-1"
+            disabled={!customerId || !dogId || isPending}
+            onClick={handleSubmit}
+          >
+            <Plus className="w-4 h-4" />
+            {isPending ? "שומר..." : "הוסף תהליך"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
     </div>
   );
 }

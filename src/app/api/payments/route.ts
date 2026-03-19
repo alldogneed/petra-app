@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { amount, method, status, customerId, appointmentId, boardingStayId, orderId, notes } =
+    const { amount, method, status, customerId, appointmentId, boardingStayId, orderId, notes, isDeposit } =
       body;
 
     if (!amount || !method || !status || !customerId) {
@@ -120,6 +120,7 @@ export async function POST(request: NextRequest) {
         boardingStayId: boardingStayId || null,
         orderId: orderId || null,
         notes: notes || null,
+        isDeposit: isDeposit === true,
         paidAt: status === "paid" ? new Date() : null,
         businessId: authResult.businessId,
       },

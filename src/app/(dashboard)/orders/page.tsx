@@ -193,6 +193,13 @@ function OrdersPageContent() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [fromDate, setFromDate] = useState(get30DaysAgoStr);
   const [toDate, setToDate] = useState("");
+  const [sortField, setSortField] = useState<"createdAt" | "total" | "customer">("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function toggleSort(field: "createdAt" | "total" | "customer") {
+    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortField(field); setSortDir("desc"); }
+  }
   const queryClient = useQueryClient();
 
   // Build server-side query params (status + date range only)
@@ -204,7 +211,7 @@ function OrdersPageContent() {
     return p.toString();
   }, [activeStatus, fromDate, toDate]);
 
-  const { data: orders = [], isLoading, isFetching: isOrdersFetching } = useQuery<Order[]>({
+  const { data: orders = [], isLoading, isError: isOrdersError, isFetching: isOrdersFetching } = useQuery<Order[]>({
     queryKey: ["orders", queryParams],
     queryFn: () =>
       fetch(`/api/orders${queryParams ? `?${queryParams}` : ""}`).then((r) => {
@@ -229,8 +236,15 @@ function OrdersPageContent() {
         return true;
       });
     }
+    result = [...result].sort((a, b) => {
+      let cmp = 0;
+      if (sortField === "createdAt") cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      else if (sortField === "total") cmp = a.total - b.total;
+      else if (sortField === "customer") cmp = a.customer.name.localeCompare(b.customer.name, "he");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
     return result;
-  }, [orders, customerSearch, paymentFilter]);
+  }, [orders, customerSearch, paymentFilter, sortField, sortDir]);
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
@@ -592,6 +606,19 @@ function OrdersPageContent() {
             <div key={i} className="h-12 bg-slate-100 rounded-xl" />
           ))}
         </div>
+      ) : isOrdersError ? (
+        <div className="card">
+          <div className="empty-state py-20">
+            <div className="empty-state-icon">
+              <AlertTriangle className="w-7 h-7 text-red-400" />
+            </div>
+            <p className="text-petra-text font-semibold mb-1">שגיאה בטעינת הזמנות</p>
+            <p className="text-sm text-petra-muted mb-4">לא ניתן לטעון את הנתונים. אנא נסה שוב.</p>
+            <button className="btn-secondary text-sm" onClick={() => window.location.reload()}>
+              רענן דף
+            </button>
+          </div>
+        </div>
       ) : filteredOrders.length === 0 ? (
         <div className="card">
           <div className="empty-state py-20">
@@ -821,12 +848,27 @@ function OrdersPageContent() {
               <thead>
                 <tr className="border-b border-petra-border bg-slate-50/60">
                   <th scope="col" className="table-header-cell">מס&apos; הזמנה</th>
-                  <th scope="col" className="table-header-cell">לקוח</th>
+                  <th scope="col" className="table-header-cell cursor-pointer select-none hover:bg-slate-100 transition-colors" onClick={() => toggleSort("customer")}>
+                    <span className="flex items-center gap-1">
+                      לקוח
+                      {sortField === "customer" ? (sortDir === "asc" ? <ChevronUp className="w-3 h-3 text-petra-primary" /> : <ChevronDown className="w-3 h-3 text-petra-primary" />) : <ChevronDown className="w-3 h-3 text-slate-300" />}
+                    </span>
+                  </th>
                   <th scope="col" className="table-header-cell hidden lg:table-cell">סוג</th>
                   <th scope="col" className="table-header-cell">סטטוס</th>
-                  <th scope="col" className="table-header-cell">סה&quot;כ לתשלום</th>
+                  <th scope="col" className="table-header-cell cursor-pointer select-none hover:bg-slate-100 transition-colors" onClick={() => toggleSort("total")}>
+                    <span className="flex items-center gap-1">
+                      סה&quot;כ לתשלום
+                      {sortField === "total" ? (sortDir === "asc" ? <ChevronUp className="w-3 h-3 text-petra-primary" /> : <ChevronDown className="w-3 h-3 text-petra-primary" />) : <ChevronDown className="w-3 h-3 text-slate-300" />}
+                    </span>
+                  </th>
                   <th scope="col" className="table-header-cell">תשלום</th>
-                  <th scope="col" className="table-header-cell">תאריך יצירה</th>
+                  <th scope="col" className="table-header-cell cursor-pointer select-none hover:bg-slate-100 transition-colors" onClick={() => toggleSort("createdAt")}>
+                    <span className="flex items-center gap-1">
+                      תאריך יצירה
+                      {sortField === "createdAt" ? (sortDir === "asc" ? <ChevronUp className="w-3 h-3 text-petra-primary" /> : <ChevronDown className="w-3 h-3 text-petra-primary" />) : <ChevronDown className="w-3 h-3 text-slate-300" />}
+                    </span>
+                  </th>
                   <th scope="col" className="table-header-cell">פעולות</th>
                 </tr>
               </thead>

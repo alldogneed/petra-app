@@ -6,7 +6,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
-import { normalizeIsraeliPhone } from "@/lib/validation";
+import { normalizeIsraeliPhone, sanitizeName, validateIsraeliPhone, validateEmail } from "@/lib/validation";
 
 const PatchCustomerSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -156,14 +156,50 @@ export async function PATCH(
     for (const [k, v] of Object.entries(parsed.data)) {
       if (v !== undefined) data[k] = v;
     }
-    // Auto-normalize phone and compute phoneNorm when phone is updated
+
+    // Sanitize name (strip HTML/script tags)
+    if (parsed.data.name) {
+      data.name = sanitizeName(parsed.data.name);
+      if (!data.name) {
+        return NextResponse.json({ error: "שם לא תקין" }, { status: 400 });
+      }
+    }
+
+    // Validate + normalize phone
     if (parsed.data.phone) {
+      const phoneErr = validateIsraeliPhone(parsed.data.phone);
+      if (phoneErr) {
+        return NextResponse.json({ error: phoneErr }, { status: 400 });
+      }
       const normalized = normalizeIsraeliPhone(parsed.data.phone);
       data.phone = normalized;
       const digits = normalized.replace(/\D/g, "");
-      data.phoneNorm = digits.startsWith("0") && digits.length >= 9
+      const newPhoneNorm = digits.startsWith("0") && digits.length >= 9
         ? "972" + digits.slice(1)
         : digits || null;
+      data.phoneNorm = newPhoneNorm;
+
+      // Duplicate phone detection — check another customer doesn't already have this phone
+      if (newPhoneNorm) {
+        const duplicate = await prisma.customer.findFirst({
+          where: { businessId: authResult.businessId, phoneNorm: newPhoneNorm, NOT: { id: params.id } },
+          select: { id: true, name: true },
+        });
+        if (duplicate) {
+          return NextResponse.json(
+            { error: `לקוח עם מספר טלפון זה כבר קיים במערכת (${duplicate.name})`, code: "DUPLICATE_PHONE", existingId: duplicate.id },
+            { status: 409 }
+          );
+        }
+      }
+    }
+
+    // Validate email if provided
+    if (parsed.data.email) {
+      const emailErr = validateEmail(parsed.data.email);
+      if (emailErr) {
+        return NextResponse.json({ error: emailErr }, { status: 400 });
+      }
     }
 
     const customer = await prisma.customer.update({

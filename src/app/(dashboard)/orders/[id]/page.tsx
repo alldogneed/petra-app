@@ -8,7 +8,7 @@ import {
   Trash2, User, FileText, Calendar, Tag, CreditCard, Plus, Send, GraduationCap,
 } from "lucide-react";
 import { cn, formatDate, toWhatsAppPhone } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 interface OrderLine {
@@ -100,6 +100,7 @@ function AddPaymentModal({
   const [amount, setAmount] = useState(defaultAmount > 0 ? String(defaultAmount.toFixed(2)) : "");
   const [method, setMethod] = useState("cash");
   const [notes, setNotes] = useState("");
+  const [isDeposit, setIsDeposit] = useState(false);
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -109,7 +110,7 @@ function AddPaymentModal({
     const res = await fetch("/api/payments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: parsed, method, status: "paid", customerId, orderId, notes: notes || null }),
+      body: JSON.stringify({ amount: parsed, method, status: "paid", customerId, orderId, notes: notes || null, isDeposit }),
     });
     setSaving(false);
     if (!res.ok) { toast.error("שגיאה ברישום תשלום"); return; }
@@ -153,6 +154,18 @@ function AddPaymentModal({
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="isDeposit"
+              checked={isDeposit}
+              onChange={(e) => setIsDeposit(e.target.checked)}
+              className="w-4 h-4 rounded accent-petra-primary cursor-pointer"
+            />
+            <label htmlFor="isDeposit" className="text-sm text-petra-text cursor-pointer">
+              סמן כמקדמה
+            </label>
+          </div>
         </div>
         <div className="flex gap-3 mt-5">
           <button className="btn-primary flex-1" onClick={save} disabled={saving}>
@@ -178,6 +191,12 @@ export default function OrderDetailPage() {
     queryFn: () => fetch(`/api/orders/${orderId}`).then((r) => r.json()),
     staleTime: 30_000,
   });
+
+  useEffect(() => {
+    if (order) {
+      document.title = `הזמנה #${order.id.slice(-8).toUpperCase()} — ${order.customer.name} | Petra`;
+    }
+  }, [order]);
 
   const confirmMutation = useMutation({
     mutationFn: () =>

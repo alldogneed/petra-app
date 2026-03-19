@@ -184,6 +184,22 @@ export async function POST(request: NextRequest) {
       console.error("Failed to sync appointment to GCal:", err)
     );
 
+    // Timeline event for the customer
+    try {
+      const serviceName = appointment.service?.name ?? appointment.priceListItem?.name ?? "תור";
+      const petName = appointment.pet?.name ? ` (${appointment.pet.name})` : "";
+      await prisma.timelineEvent.create({
+        data: {
+          type: "APPOINTMENT_CREATED",
+          description: `תור נקבע: ${serviceName}${petName} — ${appointment.date} ${appointment.startTime}`,
+          businessId: authResult.businessId,
+          customerId: appointment.customerId,
+        },
+      });
+    } catch (err) {
+      console.error("Failed to create timeline event for appointment:", err);
+    }
+
     // Create a corresponding Booking so manual appointments show in bookings list & block online slots
     try {
       const tz = business?.timezone || "Asia/Jerusalem";

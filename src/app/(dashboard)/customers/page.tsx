@@ -298,20 +298,24 @@ function QuickActions({
   onBook: () => void;
 }) {
   const waPhone = toWhatsAppPhone(customer.phone);
+  const isValidPhone = customer.phone.replace(/\D/g, "").length >= 9;
 
   return (
     <div className="flex items-center gap-1">
-      {/* WhatsApp — with official logo */}
-      <a
-        href={`https://wa.me/${waPhone}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="w-8 h-8 rounded-lg flex items-center justify-center text-[#25D366] hover:bg-[#E8FEF0] transition-colors"
-        title="שלח הודעת WhatsApp"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <WhatsAppIcon className="w-4 h-4" />
-      </a>
+      {/* WhatsApp — only for valid phone numbers */}
+      {isValidPhone && (
+        <a
+          href={`https://wa.me/${waPhone}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-[#25D366] hover:bg-[#E8FEF0] transition-colors"
+          title="שלח הודעת WhatsApp"
+          aria-label={`שלח הודעת WhatsApp`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <WhatsAppIcon className="w-4 h-4" />
+        </a>
+      )}
 
       {/* Email — only when customer has a valid email address */}
       {customer.email && isValidEmail(customer.email) ? (
@@ -1756,7 +1760,13 @@ export default function CustomersPage() {
         <div className="flex items-center gap-2">
           <div>
             <h1 className="page-title">לקוחות</h1>
-            <p className="text-sm text-petra-muted">{stats.total} {stats.total === 1 ? "לקוח" : "לקוחות"} במערכת</p>
+            <p className="text-sm text-petra-muted">
+              {isLoading ? (
+                <span className="inline-block w-16 h-3.5 bg-slate-200 animate-pulse rounded" />
+              ) : (
+                <>{stats.total} {stats.total === 1 ? "לקוח" : "לקוחות"} במערכת</>
+              )}
+            </p>
           </div>
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ["customers"] })}
@@ -2323,6 +2333,7 @@ export default function CustomersPage() {
           <div className="px-5 py-3 bg-[#FAF7F3] border-t border-[#E8DFD5] flex flex-wrap items-center gap-4 text-xs text-[#8B7355]">
             <span>
               מציג {customers.length} מתוך {rawCustomers.length}{hasNextPage ? "+" : ""} {rawCustomers.length === 1 ? "לקוח" : "לקוחות"}
+              {hasNextPage && <span className="mr-1 text-amber-600 font-medium">(לא כל הלקוחות נטענו — גלול למטה לטעינה נוספת)</span>}
             </span>
             <div className="flex-1" />
             <div className="flex items-center gap-4">

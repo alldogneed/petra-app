@@ -259,6 +259,20 @@ export async function POST(request: NextRequest) {
       ? "972" + _phoneDigits.slice(1)
       : _phoneDigits || null;
 
+    // Duplicate phone detection
+    if (phoneNorm) {
+      const existing = await prisma.customer.findFirst({
+        where: { businessId, phoneNorm },
+        select: { id: true, name: true },
+      });
+      if (existing) {
+        return NextResponse.json(
+          { error: `לקוח עם מספר טלפון זה כבר קיים במערכת (${existing.name})`, code: "DUPLICATE_PHONE", existingId: existing.id },
+          { status: 409 }
+        );
+      }
+    }
+
     const customer = await prisma.customer.create({
       data: {
         name: safeName,

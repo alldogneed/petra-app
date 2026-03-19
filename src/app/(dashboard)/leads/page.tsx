@@ -83,11 +83,11 @@ const STAGE_COLORS = [
 function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: () => void; stages: LeadStage[] }) {
   const queryClient = useQueryClient();
   const activeStages = stages.filter((s) => !s.isWon && !s.isLost);
-  const emptyForm = { name: "", phone: "", email: "", city: "", address: "", requestedService: "", source: "manual", notes: "", stage: activeStages[0]?.id || "new" };
+  const emptyForm = { name: "", phone: "", email: "", city: "", address: "", requestedService: "", source: "manual", notes: "", stage: activeStages[0]?.id || "" };
   const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
-    if (isOpen) setForm({ ...emptyForm, stage: activeStages[0]?.id || "new" });
+    if (isOpen) setForm({ ...emptyForm, stage: activeStages[0]?.id || "" });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
