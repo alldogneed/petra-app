@@ -85,9 +85,7 @@ export async function GET(request: NextRequest) {
           (process.env.META_WHATSAPP_TOKEN && process.env.META_PHONE_NUMBER_ID) ||
           (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
         ),
-        fromNumber: process.env.META_PHONE_NUMBER_ID
-          ? `Meta ID: ${process.env.META_PHONE_NUMBER_ID}`
-          : (process.env.TWILIO_WHATSAPP_FROM ?? null),
+        fromNumber: null,
         connectUrl: null,
       },
       {

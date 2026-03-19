@@ -1013,9 +1013,6 @@ function IntegrationsTab() {
               {isStripe && integ.connected && integ.accountId && (
                 <p className="text-xs text-emerald-600 mt-1">Account: {integ.accountId}</p>
               )}
-              {integ.id === "whatsapp" && integ.connected && integ.fromNumber && (
-                <p className="text-xs text-emerald-600 mt-1">מספר שולח: {integ.fromNumber}</p>
-              )}
               {isGcal && integ.connected && biz && (
                 <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
                   <div className="flex items-center justify-between gap-3">
