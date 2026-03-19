@@ -53,7 +53,9 @@ export async function GET(request: NextRequest) {
       take: 500,
     });
 
-    return NextResponse.json(orders);
+    const response = NextResponse.json(orders);
+    response.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=15");
+    return response;
   } catch (error) {
     console.error("Error fetching orders:", error);
     return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });

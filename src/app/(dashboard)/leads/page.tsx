@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import {
   Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
   Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText,
-  CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles, MapPin, Tag,
+  CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles, MapPin, Tag, Download,
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone } from "@/lib/validation";
@@ -1094,6 +1094,10 @@ function LeadsPageContent() {
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"kanban" | "reports">("kanban");
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exportFrom, setExportFrom] = useState("");
+  const [exportTo, setExportTo] = useState("");
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const { maxLeads, tier } = useSubscription();
 
   // Edit mode state
@@ -1120,6 +1124,26 @@ function LeadsPageContent() {
     }, 30_000);
     return () => clearInterval(interval);
   }, [autoRefresh, queryClient]);
+
+  // Close export menu on outside click
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showExportMenu]);
+
+  function exportLeads() {
+    const p = new URLSearchParams();
+    if (exportFrom) p.set("from", exportFrom);
+    if (exportTo) p.set("to", exportTo);
+    window.location.href = `/api/leads/export${p.toString() ? `?${p.toString()}` : ""}`;
+    setShowExportMenu(false);
+  }
 
   const { data: stages = [] } = useQuery<LeadStage[]>({
     queryKey: ["lead-stages"],
@@ -1419,6 +1443,48 @@ function LeadsPageContent() {
             >
               <X className="w-3.5 h-3.5" />
             </button>
+          )}
+        </div>
+
+        {/* Export button */}
+        <div className="relative" ref={exportMenuRef}>
+          <button
+            className="btn-secondary text-sm gap-1.5"
+            onClick={() => setShowExportMenu((v) => !v)}
+            title="ייצוא לידים"
+          >
+            <Download className="w-4 h-4" />
+            ייצוא
+          </button>
+          {showExportMenu && (
+            <div className="absolute left-0 top-full mt-1.5 w-64 bg-white rounded-xl shadow-lg border border-petra-border z-50 p-4 space-y-3">
+              <p className="text-xs font-semibold text-petra-text">ייצוא לידים לאקסל</p>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-xs text-petra-muted mb-1 block">מתאריך</label>
+                  <input
+                    type="date"
+                    className="input text-sm py-1.5"
+                    value={exportFrom}
+                    onChange={(e) => setExportFrom(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-petra-muted mb-1 block">עד תאריך</label>
+                  <input
+                    type="date"
+                    className="input text-sm py-1.5"
+                    value={exportTo}
+                    onChange={(e) => setExportTo(e.target.value)}
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-petra-muted">ללא סינון תאריך — ייצא את כל הלידים</p>
+              <button className="btn-primary w-full text-sm" onClick={exportLeads}>
+                <Download className="w-3.5 h-3.5" />
+                הורד CSV
+              </button>
+            </div>
           )}
         </div>
 
