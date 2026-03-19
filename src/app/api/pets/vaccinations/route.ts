@@ -31,6 +31,7 @@ export type VaccinationEntry = {
   customerId: string;
   customerName: string;
   customerPhone: string;
+  serviceDogId: string | null;
   vaccineType: VaccineType;
   vaccineLabel: string;
   lastDate: string | null;
@@ -65,6 +66,7 @@ const HEALTH_SELECT = {
       species: true,
       breed: true,
       customer: { select: { id: true, name: true, phone: true } },
+      serviceDogProfile: { select: { id: true } },
     },
   },
 } as const;
@@ -74,7 +76,7 @@ function daysFromNow(expiry: Date, now: Date) {
 }
 
 function buildEntry(
-  h: { id: string; pet: { id: string; name: string; species: string; breed: string | null; customer: { id: string; name: string; phone: string } | null } },
+  h: { id: string; pet: { id: string; name: string; species: string; breed: string | null; customer: { id: string; name: string; phone: string } | null; serviceDogProfile: { id: string } | null } },
   type: VaccineType,
   label: string,
   lastDate: Date | null,
@@ -90,6 +92,7 @@ function buildEntry(
     customerId: h.pet.customer?.id ?? "",
     customerName: h.pet.customer?.name ?? "",
     customerPhone: h.pet.customer?.phone ?? "",
+    serviceDogId: h.pet.serviceDogProfile?.id ?? null,
   };
 
   const idSuffix = type === "rabies" ? "" : `_${type}`;
@@ -162,7 +165,7 @@ function buildAllEntries(h: Awaited<ReturnType<typeof fetchHealths>>[number], no
 
   // ── תילוע ─────────────────────────────────────────────────────────────────────
   entries.push(buildEntry(base, "deworming", "תילוע", h.dewormingLastDate,
-    h.dewormingLastDate ? addDays(h.dewormingLastDate, 180) : null, now));
+    h.dewormingLastDate ? addDays(h.dewormingLastDate, 210) : null, now)); // 7 months
 
   // ── קרציות ופרעושים ──────────────────────────────────────────────────────────
   entries.push(buildEntry(base, "fleaTick", "קרציות ופרעושים", h.fleaTickDate,
@@ -216,7 +219,7 @@ export async function GET(request: NextRequest) {
     const dhppPuppy2Cutoff = new Date(cutoff.getTime() - 14 * DAY_MS);
     const dhppPuppy3Cutoff = new Date(cutoff.getTime() - 365 * DAY_MS);
     const parkWormCutoff   = new Date(cutoff.getTime() - 90 * DAY_MS);
-    const dewormCutoff     = new Date(cutoff.getTime() - 180 * DAY_MS);
+    const dewormCutoff     = new Date(cutoff.getTime() - 210 * DAY_MS); // 7 months
 
     const healths = await prisma.dogHealth.findMany({
       where: {

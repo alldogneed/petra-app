@@ -43,6 +43,7 @@ interface ServiceDogCard {
   trainingStatus: string;
   isGovReportPending: boolean;
   currentLocation: string;
+  certificationDate: string | null;
   pet: { id: string; name: string; breed: string | null; species: string; birthDate: string | null; microchip: string | null };
   medicalCompliance: {
     completedCount: number;
@@ -260,6 +261,7 @@ function ServiceDogsListPageContent() {
               <tr className="border-b bg-slate-50">
                 <th className="p-3 font-medium text-petra-muted">שם</th>
                 <th className="p-3 font-medium text-petra-muted">תאריך לידה</th>
+                <th className="p-3 font-medium text-petra-muted">תאריך הסמכה</th>
                 <th className="p-3 font-medium text-petra-muted">שבב</th>
                 <th className="p-3 font-medium text-petra-muted">גזע</th>
                 <th className="p-3 font-medium text-petra-muted">שלב</th>
@@ -289,6 +291,15 @@ function ServiceDogsListPageContent() {
                       {dog.pet.birthDate
                         ? new Date(dog.pet.birthDate).toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" })
                         : "—"}
+                    </td>
+                    <td className="p-3 text-xs">
+                      {dog.certificationDate ? (
+                        <span className="text-emerald-700 font-medium">
+                          {new Date(dog.certificationDate).toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                        </span>
+                      ) : (
+                        <span className="text-petra-muted">—</span>
+                      )}
                     </td>
                     <td className="p-3 text-petra-muted text-xs font-mono">{dog.pet.microchip || "—"}</td>
                     <td className="p-3 text-petra-muted">{dog.pet.breed || dog.pet.species}</td>

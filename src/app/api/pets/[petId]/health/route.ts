@@ -37,7 +37,7 @@ export async function PATCH(
       "fleaTickDate", "fleaTickExpiryDate",
     ];
     const stringFields = ["allergies", "medicalConditions", "surgeriesHistory", "activityLimitations", "vetName", "vetPhone", "originInfo", "timeWithOwner", "fleaTickType"];
-    const boolFields = ["neuteredSpayed"];
+    const boolFields = ["neuteredSpayed", "rabiesUnknown"];
 
     for (const f of dateFields) {
       if (f in body) data[f] = body[f] ? new Date(body[f]) : null;

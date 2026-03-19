@@ -8,6 +8,7 @@ import {
   Shield,
   GraduationCap,
   Heart,
+  Printer,
   Activity,
   Clock,
   CheckCircle2,
@@ -190,6 +191,38 @@ function ServiceDogsReportsPageContent() {
             <Download className="w-4 h-4" />
             האכלות ותרופות
           </a>
+          <button
+            onClick={() => {
+              const certRows = certified.map((dog) => `<tr><td>${dog.pet.name}</td><td>${dog.pet.breed || "—"}</td><td>${dog.certificationDate ? new Date(dog.certificationDate).toLocaleDateString("he-IL") : "—"}</td><td>${dog.activePlacement ? `משובץ — ${dog.activePlacement.recipientName}` : "ללא שיבוץ"}</td></tr>`).join("");
+              const phaseRows = Object.entries(byPhase).map(([phase, count]) => `<tr><td>${phase}</td><td>${count}</td></tr>`).join("");
+              const win = window.open("", "_blank");
+              if (!win) return;
+              win.document.write(`<html dir="rtl"><head><title>דוחות פנימיים — כלבי שירות</title>
+                <style>body{font-family:Arial,sans-serif;padding:32px;direction:rtl}h1{font-size:20px;margin-bottom:4px}h2{font-size:15px;margin:24px 0 10px;border-bottom:2px solid #eee;padding-bottom:4px}table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}th,td{border:1px solid #ddd;padding:7px 10px;text-align:right}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}.stat{display:inline-block;margin:0 8px 8px 0;padding:6px 14px;border:1px solid #ddd;border-radius:8px;font-size:13px}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
+              </head><body>
+                <h1>דוחות פנימיים — כלבי שירות</h1>
+                <p style="color:#888;font-size:12px">הופק: ${new Date().toLocaleDateString("he-IL")}</p>
+                <div>
+                  <span class="stat">סה"כ כלבים: <strong>${totalDogs}</strong></span>
+                  <span class="stat">מוסמכים: <strong>${certified.length}</strong></span>
+                  <span class="stat">באימון: <strong>${inTraining.length}</strong></span>
+                  <span class="stat">משובצים: <strong>${placed.length}</strong></span>
+                  <span class="stat">ציות רפואי ממוצע: <strong>${avgCompliance}%</strong></span>
+                </div>
+                <h2>כלבים מוסמכים (${certified.length})</h2>
+                <table><thead><tr><th>שם</th><th>גזע</th><th>תאריך הסמכה</th><th>שיבוץ</th></tr></thead><tbody>${certRows}</tbody></table>
+                <h2>כלבים לפי שלב</h2>
+                <table><thead><tr><th>שלב</th><th>כמות</th></tr></thead><tbody>${phaseRows}</tbody></table>
+                <footer>הופק ממערכת Petra · ${new Date().toLocaleDateString("he-IL")}</footer>
+              </body></html>`);
+              win.document.close();
+              win.print();
+            }}
+            className="btn-secondary flex items-center gap-2 text-sm px-3 py-2 print:hidden"
+          >
+            <Printer className="w-4 h-4" />
+            הדפס דוח
+          </button>
         </div>
       </div>
 
@@ -435,10 +468,40 @@ function ServiceDogsReportsPageContent() {
 
             {/* ── Certified Dogs Detail ─────────────────────────────────── */}
             <div className="card p-5">
-              <h2 className="font-semibold mb-4 flex items-center gap-2">
-                <Shield className="w-4 h-4 text-emerald-500" />
-                כלבים מוסמכים ({certified.length})
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-emerald-500" />
+                  כלבים מוסמכים ({certified.length})
+                </h2>
+                <button
+                  onClick={() => {
+                    const rows = certified.map((dog) => `
+                      <tr>
+                        <td>${dog.pet.name}</td>
+                        <td>${dog.pet.breed || "—"}</td>
+                        <td>${dog.certificationDate ? new Date(dog.certificationDate).toLocaleDateString("he-IL") : "—"}</td>
+                        <td>${dog.activePlacement ? `משובץ — ${dog.activePlacement.recipientName}` : "ללא שיבוץ"}</td>
+                        <td>${dog.licenseNumber || "—"}</td>
+                      </tr>`).join("");
+                    const win = window.open("", "_blank");
+                    if (!win) return;
+                    win.document.write(`<html dir="rtl"><head><title>כלבים מוסמכים</title>
+                      <style>body{font-family:Arial,sans-serif;padding:32px;direction:rtl}h2{font-size:18px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ddd;padding:8px 10px;text-align:right}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
+                    </head><body>
+                      <h2>כלבים מוסמכים (${certified.length})</h2>
+                      <table><thead><tr><th>שם הכלב</th><th>גזע</th><th>תאריך הסמכה</th><th>שיבוץ</th><th>מספר רישיון</th></tr></thead>
+                      <tbody>${rows}</tbody></table>
+                      <footer>הופק ממערכת Petra · ${new Date().toLocaleDateString("he-IL")}</footer>
+                    </body></html>`);
+                    win.document.close();
+                    win.print();
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors print:hidden"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  הדפס
+                </button>
+              </div>
               {certified.length === 0 ? (
                 <p className="text-sm text-petra-muted">אין כלבים מוסמכים עדיין</p>
               ) : (
