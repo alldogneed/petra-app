@@ -13,16 +13,42 @@ export const DEFAULT_LEAD_STAGES = [
   { name: "הצעת מחיר",      color: "#3B82F6", sortOrder: 3, isWon: false, isLost: false },
   { name: "ממתין להחלטה",  color: "#8B5CF6", sortOrder: 4, isWon: false, isLost: false },
   { name: "לקוח",           color: "#10B981", sortOrder: 5, isWon: true,  isLost: false },
-  { name: "לא רלוונטי",    color: "#EF4444", sortOrder: 6, isWon: false, isLost: true  },
+  { name: "אבד",            color: "#EF4444", sortOrder: 6, isWon: false, isLost: true  },
 ];
 
-/** Creates default stages if the business has none. Idempotent. */
+/** Creates default stages if the business has none. Also ensures won/lost stages exist for existing businesses. Idempotent. */
 export async function ensureDefaultStages(businessId: string): Promise<void> {
   const count = await prisma.leadStage.count({ where: { businessId } });
   if (count === 0) {
     await prisma.leadStage.createMany({
       data: DEFAULT_LEAD_STAGES.map((s) => ({ ...s, businessId })),
     });
+    return;
+  }
+
+  // For existing businesses, ensure won/lost stages exist
+  const [hasWon, hasLost] = await Promise.all([
+    prisma.leadStage.count({ where: { businessId, isWon: true } }),
+    prisma.leadStage.count({ where: { businessId, isLost: true } }),
+  ]);
+
+  if (!hasWon || !hasLost) {
+    const maxOrder = await prisma.leadStage.aggregate({
+      where: { businessId },
+      _max: { sortOrder: true },
+    });
+    let nextOrder = (maxOrder._max.sortOrder ?? 4) + 1;
+
+    if (!hasWon) {
+      await prisma.leadStage.create({
+        data: { businessId, name: "לקוח", color: "#10B981", sortOrder: nextOrder++, isWon: true, isLost: false },
+      });
+    }
+    if (!hasLost) {
+      await prisma.leadStage.create({
+        data: { businessId, name: "אבד", color: "#EF4444", sortOrder: nextOrder, isWon: false, isLost: true },
+      });
+    }
   }
 }
 

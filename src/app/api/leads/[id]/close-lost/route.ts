@@ -52,7 +52,7 @@ export async function POST(
       lostStage = await prisma.leadStage.create({
         data: {
           businessId: authResult.businessId,
-          name: "לא רלוונטי",
+          name: "אבד",
           color: "#EF4444",
           sortOrder: (maxOrder._max.sortOrder ?? 5) + 1,
           isLost: true,
