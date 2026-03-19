@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Syringe,
   AlertTriangle,
@@ -210,6 +211,7 @@ function VaccineCell({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function VaccinationsPage() {
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [search, setSearch] = useState("");
@@ -550,19 +552,20 @@ export default function VaccinationsPage() {
                             </a>
                           )}
                           {group.customerId ? (
-                            <Link
-                              href={`/customers/${group.customerId}`}
+                            <button
+                              onClick={() => router.push(`/customers/${group.customerId}`)}
                               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 transition-colors border border-brand-200 text-xs font-medium"
                             >
                               פרופיל
-                            </Link>
-                          ) : group.serviceDogId ? (
-                            <Link
-                              href={`/service-dogs/${group.serviceDogId}`}
+                            </button>
+                          ) : null}
+                          {group.serviceDogId ? (
+                            <button
+                              onClick={() => router.push(`/service-dogs/${group.serviceDogId}`)}
                               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-violet-50 text-violet-700 hover:bg-violet-100 transition-colors border border-violet-200 text-xs font-medium"
                             >
                               תיק כלב
-                            </Link>
+                            </button>
                           ) : null}
                         </div>
                       </td>
