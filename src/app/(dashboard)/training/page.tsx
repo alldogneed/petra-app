@@ -1676,7 +1676,7 @@ function OverviewDogRow({ dog }: { dog: UnifiedDog }) {
 }
 
 function OverviewTab({ dogs }: { dogs: UnifiedDog[] }) {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   if (dogs.length === 0) {
     return (
@@ -4754,7 +4754,7 @@ function ProgramSettingsModal({
               <option value="REACTIVITY">תגובתיות</option>
               <option value="PUPPY">גורים</option>
               <option value="BEHAVIOR">בעיות התנהגות</option>
-              <option value="ADVANCED">מתקדם</option>
+              <option value="ADVANCED">משמעת מתקדמת</option>
               <option value="CUSTOM">מותאם אישית</option>
             </select>
           </div>
