@@ -79,18 +79,7 @@ export async function POST(
       }
     }
 
-    // Auto-complete program when all planned sessions are done
-    if (program.totalSessions && sessionStatus === "COMPLETED") {
-      const completedCount = await prisma.trainingProgramSession.count({
-        where: { trainingProgramId: params.id, status: "COMPLETED" },
-      });
-      if (completedCount >= program.totalSessions && program.status === "ACTIVE") {
-        await prisma.trainingProgram.update({
-          where: { id: params.id },
-          data: { status: "COMPLETED" },
-        });
-      }
-    }
+    // Auto-complete removed — trainer manually finishes programs via "סיים תהליך"
 
     return NextResponse.json(session, { status: 201 });
   } catch (error) {
