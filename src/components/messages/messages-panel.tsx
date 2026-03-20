@@ -500,32 +500,40 @@ function TemplatesTab() {
           <p className="text-sm text-petra-muted mb-4">צור תבנית הודעה ראשונה</p>
           <button className="btn-primary" onClick={() => openEditor()}><Plus className="w-4 h-4" />תבנית חדשה</button>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {templates.map((template) => (
+      ) : (() => {
+        const autoTemplates = templates.filter(t => t.automationRules?.length > 0);
+        const manualTemplates = templates.filter(t => !t.automationRules?.length);
+
+        const renderCard = (template: MessageTemplate) => {
+          const rule = template.automationRules?.[0];
+          const isAuto = !!rule;
+          return (
             <div key={template.id} className="card p-4 group">
               <div className="flex items-start justify-between mb-2">
-                <div>
-                  <h3 className="text-sm font-semibold text-petra-text">{template.name}</h3>
-                </div>
+                <h3 className="text-sm font-semibold text-petra-text">{template.name}</h3>
                 <div className="flex gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-                  <button
-                    onClick={() => setSendingTemplate(template)}
-                    className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
-                    title="שלח ללקוח בודד"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setBulkSendingTemplate(template)}
-                    className="p-1.5 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600"
-                    title="שלח לקבוצת לקוחות"
-                  >
-                    <Users className="w-3.5 h-3.5" />
-                  </button>
+                  {!isAuto && (
+                    <>
+                      <button
+                        onClick={() => setSendingTemplate(template)}
+                        className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
+                        title="שלח ללקוח בודד"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setBulkSendingTemplate(template)}
+                        className="p-1.5 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600"
+                        title="שלח לקבוצת לקוחות"
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={() => openEditor(template)}
                     className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
+                    title="ערוך תבנית"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
                   </button>
@@ -541,44 +549,70 @@ function TemplatesTab() {
 
               {/* Automation row */}
               <div className="border-t border-slate-100 pt-2.5">
-                {(() => {
-                  const rule = template.automationRules?.[0];
-                  if (rule) {
-                    return (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-xs min-w-0">
-                          <Zap className="w-3 h-3 text-brand-500 flex-shrink-0" />
-                          <span className={cn("truncate", rule.isActive ? "text-petra-text font-medium" : "text-petra-muted line-through")}>
-                            {triggerOffsetLabel(rule.trigger, rule.triggerOffset)} · {TRIGGER_LABEL[rule.trigger] ?? rule.trigger}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => toggleRuleMutation.mutate({ ruleId: rule.id, isActive: !rule.isActive })}
-                          className="p-0.5 hover:opacity-75 transition-opacity flex-shrink-0"
-                          title={rule.isActive ? "כבה אוטומציה" : "הפעל אוטומציה"}
-                        >
-                          {rule.isActive
-                            ? <ToggleRight className="w-5 h-5 text-brand-500" />
-                            : <ToggleLeft className="w-5 h-5 text-slate-400" />}
-                        </button>
-                      </div>
-                    );
-                  }
-                  return (
+                {rule ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs min-w-0">
+                      <Zap className="w-3 h-3 text-brand-500 flex-shrink-0" />
+                      <span className={cn("truncate", rule.isActive ? "text-petra-text font-medium" : "text-petra-muted line-through")}>
+                        {triggerOffsetLabel(rule.trigger, rule.triggerOffset)} · {TRIGGER_LABEL[rule.trigger] ?? rule.trigger}
+                      </span>
+                    </div>
                     <button
-                      onClick={() => openEditor(template, true)}
-                      className="flex items-center gap-1 text-xs text-slate-400 hover:text-brand-500 transition-colors"
+                      onClick={() => toggleRuleMutation.mutate({ ruleId: rule.id, isActive: !rule.isActive })}
+                      className="p-0.5 hover:opacity-75 transition-opacity flex-shrink-0"
+                      title={rule.isActive ? "כבה אוטומציה" : "הפעל אוטומציה"}
                     >
-                      <Plus className="w-3 h-3" />
-                      הוסף אוטומציה
+                      {rule.isActive
+                        ? <ToggleRight className="w-5 h-5 text-brand-500" />
+                        : <ToggleLeft className="w-5 h-5 text-slate-400" />}
                     </button>
-                  );
-                })()}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => openEditor(template, true)}
+                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-brand-500 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    הוסף אוטומציה
+                  </button>
+                )}
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          );
+        };
+
+        return (
+          <div className="space-y-8">
+            {/* Automatic messages section */}
+            {autoTemplates.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap className="w-4 h-4 text-brand-500" />
+                  <h3 className="text-sm font-semibold text-petra-text">הודעות אוטומטיות</h3>
+                  <span className="text-xs text-petra-muted">נשלחות על ידי המערכת אוטומטית</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {autoTemplates.map(renderCard)}
+                </div>
+              </div>
+            )}
+
+            {/* Manual templates section */}
+            {manualTemplates.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Send className="w-4 h-4 text-petra-muted" />
+                  <h3 className="text-sm font-semibold text-petra-text">תבניות לשליחה ידנית</h3>
+                  <span className="text-xs text-petra-muted">שלח ידנית ללקוחות לפי בחירה</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {manualTemplates.map(renderCard)}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Editor Modal */}
       {showEditor && (

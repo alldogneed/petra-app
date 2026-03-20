@@ -136,13 +136,33 @@ interface BoardingStayForReminder {
 }
 
 /**
- * Schedule a WhatsApp reminder 24h before boarding checkout.
+ * Schedule a WhatsApp reminder before boarding checkout.
+ * Checks for an active boarding_pickup AutomationRule; falls back to hardcoded 24h/body.
  * Returns null if checkOut is null or send time is already in the past.
  */
 export async function scheduleBoardingCheckoutReminder(stay: BoardingStayForReminder) {
   if (!stay.checkOut || !stay.customerId) return null;
 
-  const sendAt = new Date(stay.checkOut.getTime() - 24 * 60 * 60 * 1000);
+  // Check business WhatsApp settings + tier
+  const bizSettings = await prisma.business.findUnique({
+    where: { id: stay.businessId },
+    select: { whatsappRemindersEnabled: true, phone: true, tier: true, featureOverrides: true },
+  });
+  if (!bizSettings?.whatsappRemindersEnabled) return null;
+  const overrides = (bizSettings.featureOverrides as Record<string, boolean> | null) ?? null;
+  if (!hasFeatureWithOverrides(bizSettings.tier, "whatsapp_reminders", overrides)) return null;
+
+  // Look up active boarding_pickup automation rule
+  const rule = await prisma.automationRule.findFirst({
+    where: { businessId: stay.businessId, trigger: "boarding_pickup", isActive: true },
+    include: {
+      template: { select: { body: true } },
+      business: { select: { phone: true } },
+    },
+  });
+
+  const offsetHours = rule?.triggerOffset ?? 24;
+  const sendAt = new Date(stay.checkOut.getTime() - offsetHours * 60 * 60 * 1000);
   if (sendAt <= new Date()) return null;
 
   const formattedDate = new Intl.DateTimeFormat("he-IL", {
@@ -151,14 +171,26 @@ export async function scheduleBoardingCheckoutReminder(stay: BoardingStayForRemi
     month: "long",
   }).format(stay.checkOut);
 
-  const body = `שלום ${stay.customer.name}! תזכורת לאיסוף ${stay.pet.name} מהפנסיון מחר (${formattedDate}). נשמח לראותכם! 🐾`;
+  let body: string;
+  if (rule?.template?.body) {
+    body = interpolateTemplate(rule.template.body, {
+      customerName: stay.customer.name,
+      petName: stay.pet.name,
+      date: formattedDate,
+      businessPhone: rule.business?.phone ?? "",
+    });
+  } else {
+    const bizPhone = bizSettings.phone ?? "";
+    const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${bizPhone}_`;
+    body = `שלום ${stay.customer.name}! 🏨\n\nתזכורת – מחר (${formattedDate}) הוא יום האיסוף של ${stay.pet.name} מהפנסיון.\n\n${stay.pet.name} נהנה/נהנתה מאוד ומחכה לכם! 🐕${footer}`;
+  }
 
   return prisma.scheduledMessage.create({
     data: {
       businessId: stay.businessId,
       customerId: stay.customerId,
       channel: "whatsapp",
-      templateKey: "boarding_checkout_reminder_24h",
+      templateKey: rule ? `automation-rule-${rule.id}` : "boarding_checkout_reminder_24h",
       payloadJson: JSON.stringify({
         body,
         metaTemplateName: "petra_boarding_checkout",
