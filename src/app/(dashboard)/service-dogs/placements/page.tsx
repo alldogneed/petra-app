@@ -189,7 +189,28 @@ function PlacementsPageContent() {
                       {SERVICE_DOG_PHASE_MAP[p.serviceDog.phase]?.label}
                     </p>
                   </div>
-                  <ArrowLeft className="w-5 h-5 text-emerald-500" />
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setEditingPlacement(p)}
+                      title="עריכה"
+                      className="p-1 rounded hover:bg-emerald-100 text-emerald-500 hover:text-brand-600 transition-colors"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`למחוק את השיבוץ של ${p.serviceDog.pet.name} → ${p.recipient.name}?`)) {
+                          deleteMutation.mutate(p.id);
+                        }
+                      }}
+                      disabled={deleteMutation.isPending}
+                      title="מחיקה"
+                      className="p-1 rounded hover:bg-red-50 text-emerald-500 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                    <ArrowLeft className="w-5 h-5 text-emerald-500 mr-1" />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <UserCheck className="w-4 h-4 text-emerald-600" />

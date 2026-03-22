@@ -1143,37 +1143,20 @@ function TrainingPageContent() {
 
               {/* חבילת אילוף */}
               {individualSubTab === "package" && (
-                <div className="space-y-6">
-                  <IndividualTab
-                    programs={programs.filter((p) => p.isPackage)}
-                    searchQuery={searchQuery}
-                    expandedCards={expandedCards}
-                    toggleExpand={toggleExpand}
-                    onMarkAttendance={(programId, sessionNumber, dogName, customerPhone, customerName) =>
-                      setSessionLogTarget({ programId, sessionNumber, dogName, customerPhone, customerName })
-                    }
-                    onEditSettings={(program) => setEditingProgram(program)}
-                    isMarkingAttendance={markAttendanceMutation.isPending}
-                    onFinishProgram={(id, dogName) => setFinishTarget({ programId: id, dogName })}
-                    onDropoutProgram={(id, dogName) => setDropoutTarget({ programId: id, dogName })}
-                    isUpdatingStatus={updateStatusMutation.isPending}
-                  />
-                  {/* Package catalog — manage packages */}
-                  <div>
-                    <h3 className="text-sm font-semibold text-petra-muted mb-3 flex items-center gap-1.5">
-                      <Package className="w-3.5 h-3.5" />
-                      ניהול חבילות אילוף
-                    </h3>
-                    <PackagesTab
-                      packages={packages}
-                      onCreatePackage={() => setShowCreatePackage(true)}
-                      onEditPackage={setEditingPackage}
-                      onDeletePackage={(id) => deletePackageMutation.mutate(id)}
-                      onToggleActive={(pkg) => updatePackageMutation.mutate({ id: pkg.id, isActive: !pkg.isActive })}
-                      isDeleting={deletePackageMutation.isPending}
-                    />
-                  </div>
-                </div>
+                <IndividualTab
+                  programs={programs.filter((p) => p.isPackage)}
+                  searchQuery={searchQuery}
+                  expandedCards={expandedCards}
+                  toggleExpand={toggleExpand}
+                  onMarkAttendance={(programId, sessionNumber, dogName, customerPhone, customerName) =>
+                    setSessionLogTarget({ programId, sessionNumber, dogName, customerPhone, customerName })
+                  }
+                  onEditSettings={(program) => setEditingProgram(program)}
+                  isMarkingAttendance={markAttendanceMutation.isPending}
+                  onFinishProgram={(id, dogName) => setFinishTarget({ programId: id, dogName })}
+                  onDropoutProgram={(id, dogName) => setDropoutTarget({ programId: id, dogName })}
+                  isUpdatingStatus={updateStatusMutation.isPending}
+                />
               )}
 
               {/* חלופות פנסיון בבית הלקוח — hidden, infrastructure kept for future use */}
@@ -3576,6 +3559,7 @@ function ManualAddProgramModal({
       name: autoName,
       programType,
       trainingType: "HOME",
+      isPackage: true,
       totalSessions: totalSessions ? parseInt(totalSessions) : null,
       startDate,
       notes: notes || null,

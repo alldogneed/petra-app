@@ -261,12 +261,12 @@ function ServiceDogsListPageContent() {
               <tr className="border-b bg-slate-50">
                 <th className="p-3 font-medium text-petra-muted">שם</th>
                 <th className="p-3 font-medium text-petra-muted">תאריך לידה</th>
-                <th className="p-3 font-medium text-petra-muted">תאריך הסמכה</th>
                 <th className="p-3 font-medium text-petra-muted">שבב</th>
                 <th className="p-3 font-medium text-petra-muted">גזע</th>
                 <th className="p-3 font-medium text-petra-muted">שלב</th>
                 <th className="p-3 font-medium text-petra-muted">מיקום</th>
                 <th className="p-3 font-medium text-petra-muted">זכאי</th>
+                <th className="p-3 font-medium text-petra-muted">תאריך הסמכה</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -292,15 +292,6 @@ function ServiceDogsListPageContent() {
                         ? new Date(dog.pet.birthDate).toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" })
                         : "—"}
                     </td>
-                    <td className="p-3 text-xs">
-                      {dog.certificationDate ? (
-                        <span className="text-emerald-700 font-medium">
-                          {new Date(dog.certificationDate).toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                        </span>
-                      ) : (
-                        <span className="text-petra-muted">—</span>
-                      )}
-                    </td>
                     <td className="p-3 text-petra-muted text-xs font-mono">{dog.pet.microchip || "—"}</td>
                     <td className="p-3 text-petra-muted">{dog.pet.breed || dog.pet.species}</td>
                     <td className="p-3">
@@ -324,6 +315,15 @@ function ServiceDogsListPageContent() {
                       )}
                     </td>
                     <td className="p-3 text-petra-muted">{dog.activePlacement?.recipientName || "—"}</td>
+                    <td className="p-3 text-xs">
+                      {dog.certificationDate ? (
+                        <span className="text-emerald-700 font-medium">
+                          {new Date(dog.certificationDate).toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                        </span>
+                      ) : (
+                        <span className="text-petra-muted">—</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}

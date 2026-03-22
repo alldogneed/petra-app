@@ -216,29 +216,32 @@ export async function POST(request: NextRequest) {
           let totalSessions: number | null = null;
           let programName = lines[0]?.name || "תוכנית אילוף";
 
+          // Resolve sessions from PriceListItem (new flow: price list is source of truth)
+          // The UI sends selectedPackageId = PriceListItem.id as trainingPackageId
+          const lineItemIds = lines
+            .map((l: { priceListItemId?: string | null }) => l.priceListItemId)
+            .filter(Boolean) as string[];
+          if (lineItemIds.length > 0) {
+            const pkgItem = await tx.priceListItem.findFirst({
+              where: { id: { in: lineItemIds }, businessId: authResult.businessId, sessions: { gt: 0 } },
+            });
+            if (pkgItem) {
+              isPkg = true;
+              resolvedPriceListItemId = pkgItem.id;
+              resolvedPackageId = null; // PriceListItem, not TrainingPackage
+              totalSessions = (pkgItem as { sessions?: number | null }).sessions ?? null;
+              programName = pkgItem.name;
+            }
+          }
+
           if (isPkg && resolvedPackageId) {
+            // Legacy: TrainingPackage lookup (old system)
             const pkg = await tx.trainingPackage.findFirst({
               where: { id: resolvedPackageId, businessId: authResult.businessId },
             });
             if (pkg) {
               totalSessions = pkg.sessions ?? null;
               programName = pkg.name;
-            }
-          } else if (!isPkg) {
-            // Legacy: detect package via PriceListItem.sessions
-            const lineItemIds = lines
-              .map((l: { priceListItemId?: string | null }) => l.priceListItemId)
-              .filter(Boolean) as string[];
-            if (lineItemIds.length > 0) {
-              const pkgItem = await tx.priceListItem.findFirst({
-                where: { id: { in: lineItemIds }, businessId: authResult.businessId, sessions: { gt: 0 } },
-              });
-              if (pkgItem) {
-                isPkg = true;
-                resolvedPriceListItemId = pkgItem.id;
-                totalSessions = (pkgItem as { sessions?: number | null }).sessions ?? null;
-                programName = pkgItem.name;
-              }
             }
           }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { usePermissions } from "@/hooks/usePermissions";
 import Link from "next/link";
@@ -51,6 +51,7 @@ import {
   Loader2,
   Clock3,
   Download,
+  ExternalLink,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import {
@@ -2683,42 +2684,30 @@ interface DogDocument {
   url: string;
   docType: string;
   uploadedAt: string;
+  fileName?: string;
+  fileSize?: number;
+  isFile?: boolean;
 }
 
 const DOG_DOC_TYPES = [
-  { id: "HEALTH_CERT", label: "תעודת בריאות" },
+  { id: "HEALTH_CERT", label: "אישור בריאות" },
+  { id: "ANTIBODIES", label: "נוגדנים" },
+  { id: "LICENSE", label: "רישיון" },
   { id: "VACCINATION", label: "תעודת חיסונים" },
-  { id: "TRAINING_CERT", label: "תעודת אימון" },
-  { id: "VET_REPORT", label: "דוח וטרינרי" },
-  { id: "PEDIGREE", label: "פנקס" },
-  { id: "ADI_CERT", label: "אישור ADI" },
-  { id: "GOV_REPORT", label: "דיווח ממשלתי" },
+  { id: "VET_REPORT", label: "דוח וטרינר" },
+  { id: "PURCHASE_INVOICE", label: "חשבונית רכש" },
+  { id: "VISIT_INVOICE", label: "חשבונית ביקור" },
   { id: "OTHER", label: "אחר" },
 ];
 const DOG_DOC_TYPE_MAP = Object.fromEntries(DOG_DOC_TYPES.map((d) => [d.id, d.label]));
 
 function DocumentsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
   const queryClient = useQueryClient();
-  const [showAddDoc, setShowAddDoc] = useState(false);
-  const [docName, setDocName] = useState("");
-  const [docUrl, setDocUrl] = useState("");
-  const [docType, setDocType] = useState("OTHER");
-  const [sourceMode, setSourceMode] = useState<"url" | "file">("url");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const documents: DogDocument[] = Array.isArray(dog.documents) ? (dog.documents as DogDocument[]) : [];
 
-  const resetForm = () => {
-    setShowAddDoc(false);
-    setDocName("");
-    setDocUrl("");
-    setDocType("OTHER");
-    setSourceMode("url");
-    setSelectedFile(null);
-  };
-
-  const saveMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: (docs: DogDocument[]) =>
       fetch(`/api/service-dogs/${dogId}`, {
         method: "PATCH",
@@ -2730,53 +2719,15 @@ function DocumentsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) 
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
-      toast.success("מסמכים עודכנו");
-      resetForm();
-      setDocType("OTHER");
+      toast.success("מסמך נמחק");
     },
-    onError: () => toast.error("שגיאה בשמירת מסמך"),
+    onError: () => toast.error("שגיאה במחיקת מסמך"),
   });
-
-  const addDoc = async () => {
-    if (!docName.trim()) return;
-    if (sourceMode === "file") {
-      if (!selectedFile) return;
-      setIsUploading(true);
-      try {
-        const fd = new FormData();
-        fd.append("file", selectedFile);
-        fd.append("name", docName.trim());
-        fd.append("docType", docType);
-        const res = await fetch(`/api/service-dogs/${dogId}/documents`, { method: "POST", body: fd });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          toast.error(err.error || "שגיאה בהעלאת הקובץ");
-          return;
-        }
-        queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
-        toast.success("מסמך הועלה בהצלחה");
-        resetForm();
-      } finally {
-        setIsUploading(false);
-      }
-    } else {
-      const newDoc: DogDocument = {
-        id: crypto.randomUUID(),
-        name: docName.trim(),
-        url: docUrl.trim(),
-        docType,
-        uploadedAt: new Date().toISOString(),
-      };
-      saveMutation.mutate([newDoc, ...documents]);
-    }
-  };
 
   const deleteDoc = (docId: string) => {
     if (!confirm("למחוק את המסמך?")) return;
-    saveMutation.mutate(documents.filter((d) => d.id !== docId));
+    deleteMutation.mutate(documents.filter((d) => d.id !== docId));
   };
-
-  const isBusy = saveMutation.isPending || isUploading;
 
   return (
     <div className="card p-5">
@@ -2785,118 +2736,228 @@ function DocumentsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) 
           <FileText className="w-4 h-4 text-brand-500" />
           מסמכים ({documents.length})
         </h3>
+        <button
+          onClick={() => setShowUploadModal(true)}
+          className="btn-primary flex items-center gap-1.5 text-sm"
+        >
+          <Upload className="w-4 h-4" />
+          העלה מסמך
+        </button>
       </div>
-      <div className="space-y-3">
-        {documents.map((doc) => (
-          <div key={doc.id} className="flex items-center justify-between p-3 rounded-xl border bg-slate-50/50 group">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
-                <FileText className="w-4 h-4 text-brand-500" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">{doc.name}</p>
-                <p className="text-xs text-petra-muted">
-                  {DOG_DOC_TYPE_MAP[doc.docType] || doc.docType}
-                  {doc.uploadedAt && ` · ${formatDate(doc.uploadedAt)}`}
-                </p>
-              </div>
+
+      {/* Grouped by category */}
+      {DOG_DOC_TYPES.map((dt) => {
+        const docs = documents.filter((d) => d.docType === dt.id);
+        if (docs.length === 0) return null;
+        return (
+          <div key={dt.id} className="mb-5">
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">{dt.label}</p>
+            <div className="space-y-2">
+              {docs.map((doc) => (
+                <div key={doc.id} className="flex items-center justify-between p-3 rounded-xl border bg-slate-50/50 group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
+                      <FileText className="w-4 h-4 text-brand-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{doc.name}</p>
+                      <p className="text-xs text-petra-muted">
+                        {doc.fileName && `${doc.fileName} · `}
+                        {doc.uploadedAt && formatDate(doc.uploadedAt)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {doc.url && (
+                      <a
+                        href={doc.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-8 h-8 rounded flex items-center justify-center hover:bg-brand-50 transition-colors"
+                        title="פתח מסמך"
+                      >
+                        <ExternalLink className="w-4 h-4 text-brand-500" />
+                      </a>
+                    )}
+                    <button
+                      onClick={() => deleteDoc(doc.id)}
+                      className="opacity-0 group-hover:opacity-100 w-8 h-8 rounded flex items-center justify-center hover:bg-red-100 transition-all"
+                      title="מחק"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center gap-1.5">
-              {doc.url && (
-                <a
-                  href={doc.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-8 h-8 rounded flex items-center justify-center hover:bg-brand-50 transition-colors"
-                  title="פתח מסמך"
-                >
-                  <Eye className="w-4 h-4 text-brand-500" />
-                </a>
+          </div>
+        );
+      })}
+
+      {/* "אחר" / uncategorized — docs with unknown type */}
+      {documents.filter((d) => !DOG_DOC_TYPES.find((dt) => dt.id === d.docType)).length > 0 && (
+        <div className="mb-5">
+          <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">אחר</p>
+          <div className="space-y-2">
+            {documents.filter((d) => !DOG_DOC_TYPES.find((dt) => dt.id === d.docType)).map((doc) => (
+              <div key={doc.id} className="flex items-center justify-between p-3 rounded-xl border bg-slate-50/50 group">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4 text-brand-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{doc.name}</p>
+                    <p className="text-xs text-petra-muted">
+                      {doc.fileName && `${doc.fileName} · `}
+                      {doc.uploadedAt && formatDate(doc.uploadedAt)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {doc.url && (
+                    <a href={doc.url} target="_blank" rel="noreferrer"
+                      className="w-8 h-8 rounded flex items-center justify-center hover:bg-brand-50 transition-colors" title="פתח מסמך">
+                      <ExternalLink className="w-4 h-4 text-brand-500" />
+                    </a>
+                  )}
+                  <button onClick={() => deleteDoc(doc.id)}
+                    className="opacity-0 group-hover:opacity-100 w-8 h-8 rounded flex items-center justify-center hover:bg-red-100 transition-all" title="מחק">
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {documents.length === 0 && (
+        <div className="text-center py-8">
+          <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+          <p className="text-sm text-petra-muted">אין מסמכים עדיין</p>
+        </div>
+      )}
+
+      {showUploadModal && (
+        <UploadDogDocModal
+          dogId={dogId}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+            setShowUploadModal(false);
+            toast.success("מסמך הועלה בהצלחה");
+          }}
+          onClose={() => setShowUploadModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Upload Dog Document Modal ───
+
+function UploadDogDocModal({
+  dogId, onSuccess, onClose,
+}: {
+  dogId: string;
+  onSuccess: () => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [docType, setDocType] = useState("OTHER");
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async () => {
+    if (!file || !name.trim()) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      fd.set("name", name.trim());
+      fd.set("docType", docType);
+      const res = await fetch(`/api/service-dogs/${dogId}/documents`, { method: "POST", body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "שגיאה בהעלאה");
+      }
+      onSuccess();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "שגיאה בהעלאת הקובץ");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-backdrop" />
+      <div className="modal-content max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold">העלאת מסמך</h2>
+          <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="label">שם המסמך *</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className="input w-full" placeholder="לדוג׳ אישור בריאות 2025" />
+          </div>
+          <div>
+            <label className="label">סוג מסמך</label>
+            <select value={docType} onChange={(e) => setDocType(e.target.value)} className="input w-full">
+              {DOG_DOC_TYPES.map((d) => (
+                <option key={d.id} value={d.id}>{d.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">קובץ *</label>
+            <div
+              onClick={() => fileRef.current?.click()}
+              className={cn(
+                "border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors",
+                file ? "border-brand-300 bg-brand-50" : "border-slate-200 hover:border-brand-300 hover:bg-brand-50/50"
               )}
-              <button
-                onClick={() => deleteDoc(doc.id)}
-                className="opacity-0 group-hover:opacity-100 w-8 h-8 rounded flex items-center justify-center hover:bg-red-100 transition-all"
-                title="מחק"
-              >
-                <Trash2 className="w-4 h-4 text-red-500" />
-              </button>
+            >
+              <input ref={fileRef} type="file" className="hidden"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.xls,.xlsx"
+                onChange={(e) => setFile(e.target.files?.[0] || null)} />
+              {file ? (
+                <div className="space-y-1">
+                  <FileText className="w-6 h-6 text-brand-500 mx-auto" />
+                  <p className="text-sm font-medium text-brand-600">{file.name}</p>
+                  <p className="text-xs text-petra-muted">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <Upload className="w-6 h-6 text-petra-muted mx-auto" />
+                  <p className="text-sm text-petra-muted">לחץ לבחירת קובץ</p>
+                  <p className="text-xs text-petra-muted">עד 10MB</p>
+                </div>
+              )}
             </div>
           </div>
-        ))}
-
-        {showAddDoc ? (
-          <div className="p-4 rounded-xl border bg-slate-50/50 space-y-3">
-            <div>
-              <label className="label">שם המסמך *</label>
-              <input value={docName} onChange={(e) => setDocName(e.target.value)} className="input w-full" placeholder="לדוג׳ תעודת בריאות 2025" />
-            </div>
-            <div>
-              <label className="label">סוג מסמך</label>
-              <select value={docType} onChange={(e) => setDocType(e.target.value)} className="input w-full">
-                {DOG_DOC_TYPES.map((d) => (
-                  <option key={d.id} value={d.id}>{d.label}</option>
-                ))}
-              </select>
-            </div>
-            {/* Source mode toggle */}
-            <div className="flex gap-1 p-1 bg-slate-100 rounded-lg">
-              <button
-                type="button"
-                onClick={() => { setSourceMode("url"); setSelectedFile(null); }}
-                className={`flex-1 text-xs py-1.5 rounded-md transition-colors ${sourceMode === "url" ? "bg-white shadow-sm font-medium" : "text-petra-muted hover:bg-white/60"}`}
-              >
-                קישור URL
-              </button>
-              <button
-                type="button"
-                onClick={() => { setSourceMode("file"); setDocUrl(""); }}
-                className={`flex-1 text-xs py-1.5 rounded-md transition-colors ${sourceMode === "file" ? "bg-white shadow-sm font-medium" : "text-petra-muted hover:bg-white/60"}`}
-              >
-                העלאת קובץ
-              </button>
-            </div>
-
-            {sourceMode === "url" ? (
-              <div>
-                <label className="label">קישור למסמך (URL)</label>
-                <input value={docUrl} onChange={(e) => setDocUrl(e.target.value)} className="input w-full" placeholder="https://..." type="url" dir="ltr" />
-                <p className="text-xs text-petra-muted mt-1">הדבק קישור ל-Google Drive, Dropbox, או כל קישור אחר</p>
-              </div>
-            ) : (
-              <div>
-                <label className="label">קובץ להעלאה</label>
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp"
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-                  className="input w-full text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
-                />
-                {selectedFile && (
-                  <p className="text-xs text-petra-muted mt-1">{selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(1)} MB)</p>
-                )}
-                <p className="text-xs text-petra-muted mt-1">מקסימום 10MB — PDF, Word, תמונות</p>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <button
-                onClick={addDoc}
-                disabled={!docName.trim() || isBusy || (sourceMode === "url" ? !docUrl.trim() : !selectedFile)}
-                className="btn-primary flex-1 text-sm"
-              >
-                {isBusy ? "שומר..." : "הוסף מסמך"}
-              </button>
-              <button onClick={resetForm} className="btn-secondary flex-1 text-sm">ביטול</button>
-            </div>
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={handleUpload}
+              disabled={!file || !name.trim() || uploading}
+              className="btn-primary flex-1 flex items-center justify-center gap-2"
+            >
+              {uploading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  מעלה...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  העלה
+                </>
+              )}
+            </button>
+            <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
           </div>
-        ) : (
-          <button
-            onClick={() => setShowAddDoc(true)}
-            className="w-full text-sm text-brand-500 hover:text-brand-600 py-2.5 border border-dashed border-brand-200 hover:border-brand-300 rounded-xl transition-colors"
-          >
-            + הוסף מסמך
-          </button>
-        )}
+        </div>
       </div>
     </div>
   );

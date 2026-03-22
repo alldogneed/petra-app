@@ -48,8 +48,12 @@ export async function GET(
       dog.trainingTargetMonths
     );
 
+    let parsedDocuments: unknown[] = [];
+    try { parsedDocuments = JSON.parse((dog.documents as string) || "[]"); } catch { parsedDocuments = []; }
+
     return NextResponse.json({
       ...dog,
+      documents: parsedDocuments,
       medicalCompliance,
       trainingProgress,
     });
@@ -122,7 +126,7 @@ export async function PATCH(
         ...(body.trainingTotalHours !== undefined && { trainingTotalHours: body.trainingTotalHours != null ? Number(body.trainingTotalHours) : 0 }),
         ...(body.trainingTargetMonths !== undefined && { trainingTargetMonths: body.trainingTargetMonths }),
         ...(body.notes !== undefined && { notes: body.notes }),
-        ...(body.documents !== undefined && { documents: body.documents }),
+        ...(body.documents !== undefined && { documents: typeof body.documents === "string" ? body.documents : JSON.stringify(body.documents) }),
         ...(body.trainingTests !== undefined && { trainingTests: body.trainingTests }),
         // New acquisition / license / logistics fields
         ...(body.pedigreeNumber !== undefined && { pedigreeNumber: body.pedigreeNumber }),

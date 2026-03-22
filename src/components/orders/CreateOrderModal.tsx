@@ -1078,7 +1078,7 @@ export function CreateOrderModal({
               <div className="space-y-2 pt-1">
                 <p className="text-xs font-semibold text-petra-muted">בחר חבילה</p>
                 {trainingPackages.length === 0 ? (
-                  <p className="text-xs text-petra-muted">אין חבילות פעילות. הגדר חבילות תחת אילוף → חבילת אילוף.</p>
+                  <p className="text-xs text-petra-muted">אין חבילות פעילות. הגדר פריט אילוף עם כמות מפגשים במחירון.</p>
                 ) : (
                   <div className="space-y-1.5">
                     {trainingPackages.map((pkg) => {

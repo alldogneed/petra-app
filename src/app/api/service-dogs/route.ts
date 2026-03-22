@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         pet: true,
         medicalProtocols: true,
         placements: {
-          where: { status: { in: ["ACTIVE", "TRIAL"] } },
+          where: { status: "ACTIVE" },
           include: { recipient: true },
           take: 1,
         },
