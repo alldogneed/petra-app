@@ -82,6 +82,14 @@ export async function PATCH(
       },
     });
 
+    // Sync certificationDate to ServiceDogProfile when certifiedAt is set
+    if (body.certifiedAt !== undefined) {
+      await prisma.serviceDogProfile.update({
+        where: { id: placement.serviceDogId },
+        data: { certificationDate: body.certifiedAt ? new Date(body.certifiedAt) : null },
+      });
+    }
+
     // Create compliance event on termination
     if (oldStatus !== newStatus && newStatus === "TERMINATED") {
       await createComplianceEvent(

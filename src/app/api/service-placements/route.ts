@@ -98,6 +98,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Sync certificationDate to ServiceDogProfile when certifiedAt is provided
+    if (certifiedAt) {
+      await prisma.serviceDogProfile.update({
+        where: { id: serviceDogId },
+        data: { certificationDate: new Date(certifiedAt) },
+      });
+    }
+
     // Update recipient status
     await prisma.serviceDogRecipient.update({
       where: { id: recipientId },
