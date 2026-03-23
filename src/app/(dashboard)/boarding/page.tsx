@@ -16,6 +16,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
   Hotel,
@@ -50,6 +51,8 @@ import {
   Pill,
   Syringe,
   ClipboardList,
+  Printer,
+  GripVertical,
 } from "lucide-react";
 import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
@@ -244,20 +247,29 @@ const RoomStatusCard = memo(function RoomStatusCard({
   onCheckout,
   onMarkClean,
   occPeriodStays,
+  sortedStayIds,
 }: {
   room: Room;
   onCheckin: (id: string) => void;
   onCheckout: (id: string) => void;
   onMarkClean: (roomId: string) => void;
   occPeriodStays: BoardingStay[]; // always provided (date-filtered stays for this room)
+  sortedStayIds: string[];
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: room.id });
   const displayStatus = getRoomDisplayStatus(room);
   const statusConfig = ROOM_STATUS_MAP[displayStatus];
 
-  // Display: always use date-filtered stays for the dog list
-  const displayCheckedIn = occPeriodStays.filter((s) => s.status === "checked_in");
-  const displayReserved = occPeriodStays.filter((s) => s.status === "reserved");
+  // Display: always use date-filtered stays for the dog list, sorted by custom order
+  const sortedOccPeriodStays = sortedStayIds.length > 0
+    ? [...occPeriodStays].sort((a, b) => {
+        const ai = sortedStayIds.indexOf(a.id);
+        const bi = sortedStayIds.indexOf(b.id);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      })
+    : occPeriodStays;
+  const displayCheckedIn = sortedOccPeriodStays.filter((s) => s.status === "checked_in");
+  const displayReserved = sortedOccPeriodStays.filter((s) => s.status === "reserved");
 
   // Action buttons: based on actual current room stays
   const checkedIn = room.boardingStays.filter((s) => s.status === "checked_in");
@@ -307,11 +319,12 @@ const RoomStatusCard = memo(function RoomStatusCard({
 
         {/* Checked-in + Reserved dogs — compact 2-column grid */}
         {(displayCheckedIn.length > 0 || displayReserved.length > 0) && (
+          <SortableContext items={sortedStayIds} strategy={rectSortingStrategy}>
           <div className="grid grid-cols-2 gap-1.5 mb-1">
             {displayCheckedIn.map((stay) => {
               const actionStay = checkedIn.find(s => s.id === stay.id);
               return (
-                <DraggableStayInRoom key={stay.id} stayId={stay.id}>
+                <SortableStayInRoom key={stay.id} stayId={stay.id}>
                   <div className="p-2 rounded-lg" style={{ background: "#FFF7ED", border: "1px solid #FDBA74" }}>
                     <div className="flex items-center gap-1 mb-1">
                       <PawPrint className="w-3 h-3 text-orange-500 flex-shrink-0" />
@@ -336,13 +349,13 @@ const RoomStatusCard = memo(function RoomStatusCard({
                       </button>
                     )}
                   </div>
-                </DraggableStayInRoom>
+                </SortableStayInRoom>
               );
             })}
             {displayReserved.map((stay) => {
               const actionStay = reserved.find(s => s.id === stay.id);
               return (
-                <DraggableStayInRoom key={stay.id} stayId={stay.id}>
+                <SortableStayInRoom key={stay.id} stayId={stay.id}>
                   <div className="p-2 rounded-lg" style={{ background: "#F5F3FF", border: "1px solid #C4B5FD" }}>
                     <div className="flex items-center gap-1 mb-1">
                       <PawPrint className="w-3 h-3 text-purple-500 flex-shrink-0" />
@@ -365,10 +378,11 @@ const RoomStatusCard = memo(function RoomStatusCard({
                       </button>
                     )}
                   </div>
-                </DraggableStayInRoom>
+                </SortableStayInRoom>
               );
             })}
           </div>
+          </SortableContext>
         )}
 
         {/* Drop hint when hovering empty room */}
@@ -798,11 +812,29 @@ function TimelineView({
   );
 }
 
-// ─── Draggable Stay wrapper for Grid View ───────────────────────────────────
+// ─── Simple Draggable wrapper (for unassigned zone) ─────────────────────────
 
 const DraggableStayInRoom = memo(function DraggableStayInRoom({ stayId, children }: { stayId: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: stayId });
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className={cn("cursor-grab active:cursor-grabbing select-none rounded-lg", isDragging && "opacity-30")}
+    >
+      {children}
+    </div>
+  );
+});
+
+// ─── Sortable Stay wrapper for Grid View (supports both intra-room sort & cross-room move) ──
+
+const SortableStayInRoom = memo(function SortableStayInRoom({ stayId, children }: { stayId: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stayId });
+  const style = { transform: CSS.Transform.toString(transform), transition };
   return (
     <div
       ref={setNodeRef}
@@ -1827,6 +1859,7 @@ function BoardingPageContent() {
   const [activeTab, setActiveTab] = useState<TabKey>("active");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [activeStayId, setActiveStayId] = useState<string | null>(null);
+  const [roomSlotOrders, setRoomSlotOrders] = useState<Record<string, string[]>>({});
 
   // Occupancy checker — defaults to today
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -2312,11 +2345,51 @@ function BoardingPageContent() {
     const stay = stays.find((s) => s.id === stayId);
     if (!stay) return;
 
-    const newRoomId = targetId === "unassigned" ? null : targetId;
-    const currentRoomId = stay.room?.id ?? null;
-    if (newRoomId === currentRoomId) return;
+    const allStayIds = new Set(stays.map(s => s.id));
 
-    roomMutation.mutate({ id: stayId, roomId: newRoomId });
+    if (allStayIds.has(targetId)) {
+      // Dropped onto another stay — check if same room (reorder) or different room (move)
+      const overStay = stays.find(s => s.id === targetId);
+      const overRoomId = overStay?.room?.id ?? null;
+      const activeRoomId = stay.room?.id ?? null;
+
+      if (overRoomId === activeRoomId) {
+        // Intra-room reorder
+        const roomKey = overRoomId ?? "unassigned";
+        setRoomSlotOrders(prev => {
+          const roomStayIds = overRoomId
+            ? stays.filter(s => s.room?.id === overRoomId).map(s => s.id)
+            : stays.filter(s => !s.room).map(s => s.id);
+          const current = prev[roomKey] ?? roomStayIds;
+          const oldIndex = current.indexOf(stayId);
+          const newIndex = current.indexOf(targetId);
+          if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return prev;
+          return { ...prev, [roomKey]: arrayMove(current, oldIndex, newIndex) };
+        });
+      } else {
+        // Cross-room move
+        roomMutation.mutate({ id: stayId, roomId: overRoomId });
+        // Reset slot order for affected rooms
+        setRoomSlotOrders(prev => {
+          const next = { ...prev };
+          if (activeRoomId) delete next[activeRoomId];
+          if (overRoomId) delete next[overRoomId];
+          return next;
+        });
+      }
+    } else {
+      // Dropped onto a room card (not a stay)
+      const newRoomId = targetId === "unassigned" ? null : targetId;
+      const currentRoomId = stay.room?.id ?? null;
+      if (newRoomId === currentRoomId) return;
+      roomMutation.mutate({ id: stayId, roomId: newRoomId });
+      setRoomSlotOrders(prev => {
+        const next = { ...prev };
+        if (currentRoomId) delete next[currentRoomId];
+        if (newRoomId) delete next[newRoomId];
+        return next;
+      });
+    }
   }, [stays, roomMutation]);
 
   // ── Computed data ──
@@ -2668,6 +2741,15 @@ function BoardingPageContent() {
               ))}
             </div>
           )}
+          {viewMode === "grid" && (
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-all border border-slate-200"
+              title="הדפס דוח חדרים"
+            >
+              <Printer className="w-3.5 h-3.5" />הדפסה
+            </button>
+          )}
           <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
             <button
               onClick={() => { setViewMode("grid"); setSelectedCalendarDate(null); }}
@@ -2715,7 +2797,7 @@ function BoardingPageContent() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" data-print-rooms>
                 {rooms.map((room) => (
                   <RoomStatusCard
                     key={room.id}
@@ -2724,6 +2806,7 @@ function BoardingPageContent() {
                     onCheckout={handleCheckout}
                     onMarkClean={handleMarkClean}
                     occPeriodStays={occStays.filter(s => s.room?.id === room.id)}
+                    sortedStayIds={roomSlotOrders[room.id] ?? occStays.filter(s => s.room?.id === room.id).map(s => s.id)}
                   />
                 ))}
                 {/* Unassigned stays drop zone */}
@@ -3610,6 +3693,17 @@ function BoardingPageContent() {
 export default function BoardingPage() {
   return (
     <>
+      <style>{`
+        @media print {
+          body > * { display: none !important; }
+          body > div:has([data-print-rooms]) { display: block !important; }
+          [data-print-rooms] { display: block !important; }
+          aside, nav, header, [data-sidebar], [data-topbar] { display: none !important; }
+          .no-print { display: none !important; }
+          [data-print-rooms] .card { break-inside: avoid; box-shadow: none; border: 1px solid #e2e8f0; }
+          [data-print-rooms] button { display: none !important; }
+        }
+      `}</style>
       <PageTitle title="פנסיון" />
       <TierGate
       feature="boarding"
