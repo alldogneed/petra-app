@@ -2,33 +2,25 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  Users,
-  CalendarDays,
   MessageCircle,
-  Globe,
-  Home,
-  BarChart3,
-  FileText,
-  CalendarCheck,
   Dog,
   Scissors,
-  Heart,
+  Home,
   Shield,
   Check,
   ArrowLeft,
   Zap,
-  Receipt,
-  UserCog,
-  Layers,
-  BookOpen,
+  Users,
   TrendingUp,
 } from "lucide-react";
 import { PricingSection } from "./_components/PricingSection";
 import { WhatsAppFAB } from "./_components/WhatsAppFAB";
-import { AnimatedStats } from "./_components/AnimatedStats";
 import { AccessibilityButton } from "./_components/AccessibilityButton";
-import { PhoneMockup } from "./_components/PhoneMockup";
 import { TestimonialsCarousel } from "./_components/TestimonialsCarousel";
+import { LandingNav } from "./_components/LandingNav";
+import { DashboardMockup } from "./_components/DashboardMockup";
+import { WhatsAppMockupAnimated } from "./_components/WhatsAppMockupAnimated";
+import { FeaturesSection } from "./_components/FeaturesSection";
 
 export const metadata: Metadata = {
   title: "Petra — מערכת ניהול לעסקי חיות מחמד",
@@ -114,80 +106,6 @@ const HOW_IT_WORKS = [
   },
 ];
 
-const FEATURES = [
-  {
-    icon: Users,
-    title: "כל ההיסטוריה של הכלב מול העיניים",
-    desc: "תוכניות אילוף, חיסונים ותמונות – הכל בכרטיס לקוח אחד שמלווה אותך בשטח.",
-    color: "bg-orange-50 text-orange-500",
-  },
-  {
-    icon: CalendarDays,
-    title: "יומן חכם שמסדר לך את היום",
-    desc: "יומן שבועי/יומי, תורים חוזרים, צפייה לפי עובד",
-    color: "bg-blue-50 text-blue-500",
-  },
-  {
-    icon: MessageCircle,
-    title: "סוף לביטולים ברגע האחרון",
-    desc: "תזכורות WhatsApp אוטומטיות ללקוחות — 24/48/72 שעות לפני התור, ישר מה-API",
-    color: "bg-emerald-50 text-emerald-500",
-  },
-  {
-    icon: Globe,
-    title: "הזמנות אונליין",
-    desc: "דף הזמנה ציבורי — לקוחות קובעים תור בעצמם 24/7",
-    color: "bg-violet-50 text-violet-500",
-  },
-  {
-    icon: Home,
-    title: "ניהול פנסיון",
-    desc: "ניהול חדרים, check-in/out, עדכוני סטטוס יומיים",
-    color: "bg-sky-50 text-sky-500",
-  },
-  {
-    icon: BookOpen,
-    title: "מודול אילוף",
-    desc: "תוכניות אילוף, קבוצות, יעדים ומשימות לכל כלב",
-    color: "bg-amber-50 text-amber-500",
-  },
-  {
-    icon: Receipt,
-    title: "תשלומים בלי מרדפים",
-    desc: "שלח לינק לתשלום בוואטסאפ וקבל חשבונית אוטומטית. בלי לרדוף אחרי לקוחות.",
-    color: "bg-rose-50 text-rose-500",
-  },
-  {
-    icon: CalendarCheck,
-    title: "Google Calendar",
-    desc: "סנכרון דו-כיווני — כל התורים בגוגל, בזמן אמת",
-    color: "bg-indigo-50 text-indigo-500",
-  },
-  {
-    icon: FileText,
-    title: "טפסי קליטה דיגיטליים",
-    desc: "שלח טפסי קליטה בוואטסאפ, קבל חתימה דיגיטלית",
-    color: "bg-teal-50 text-teal-500",
-  },
-  {
-    icon: BarChart3,
-    title: "אנליטיקס ודוחות",
-    desc: "גרפי הכנסות, לקוחות חדשים, תורים — ייצוא Excel",
-    color: "bg-cyan-50 text-cyan-500",
-  },
-  {
-    icon: UserCog,
-    title: "ניהול צוות",
-    desc: "הוסף עובדים, הגדר הרשאות לפי תפקיד",
-    color: "bg-pink-50 text-pink-500",
-  },
-  {
-    icon: Layers,
-    title: "כלבי שירות",
-    desc: "מעקב שלבי הכשרה, ניהול זכאים, שיבוצים ותעודות",
-    color: "bg-lime-50 text-lime-600",
-  },
-];
 
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -205,6 +123,8 @@ export default function LandingPage() {
         דלג לתוכן הראשי
       </a>
 
+      {/* ── Sticky nav ───────────────────────────────────────────────────────── */}
+      <LandingNav />
 
       {/* ── Main ─────────────────────────────────────────────────────────────── */}
       <main id="main-content" tabIndex={-1} className="outline-none">
@@ -212,20 +132,29 @@ export default function LandingPage() {
         {/* ── Hero (split layout) ──────────────────────────────────────────────── */}
         <section
           aria-labelledby="hero-heading"
-          className="relative"
+          className="relative pt-16"
           style={{
             background:
               "radial-gradient(ellipse 90% 70% at 60% -5%, rgba(249,115,22,0.22) 0%, transparent 55%), #0F172A",
           }}
         >
-          {/* Grid pattern */}
+          {/* Dot pattern — subtle, not grid-line cliché */}
           <div
             aria-hidden="true"
-            className="absolute inset-0 opacity-[0.04]"
+            className="absolute inset-0 opacity-[0.35]"
             style={{
-              backgroundImage:
-                "linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.6) 1px, transparent 1px)",
-              backgroundSize: "40px 40px",
+              backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px)",
+              backgroundSize: "28px 28px",
+              maskImage: "radial-gradient(ellipse 80% 60% at 60% 0%, black 0%, transparent 75%)",
+            }}
+          />
+
+          {/* Warm glow accent bottom-right */}
+          <div
+            aria-hidden="true"
+            className="absolute bottom-0 left-0 w-96 h-96 pointer-events-none opacity-10"
+            style={{
+              background: "radial-gradient(circle, rgba(249,115,22,1) 0%, transparent 70%)",
             }}
           />
 
@@ -236,7 +165,7 @@ export default function LandingPage() {
               <div className="text-center lg:text-right">
                 <p
                   aria-hidden="true"
-                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/20 mb-6"
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/20 mb-6 animate-fadeIn"
                 >
                   <Zap aria-hidden="true" className="w-3.5 h-3.5 text-brand-400" />
                   <span className="text-brand-300 text-sm font-medium">
@@ -246,7 +175,7 @@ export default function LandingPage() {
 
                 <h1
                   id="hero-heading"
-                  className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-[1.18] mb-6"
+                  className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-[1.18] mb-6 animate-slideUp"
                 >
                   תפסיק לרדוף אחרי זנבות —
                   <br />
@@ -255,16 +184,22 @@ export default function LandingPage() {
                   את היומן והתשלומים
                 </h1>
 
-                <p className="text-lg md:text-xl text-slate-300 mb-8 leading-relaxed">
+                <p
+                  className="text-lg md:text-xl text-slate-300 mb-8 leading-relaxed animate-slideUp"
+                  style={{ animationDelay: "120ms" }}
+                >
                   נבנתה ע״י מומחי שטח. מיועדת למקצוענים בבעלי חיים.{" "}
                   זיקקנו ניסיון של שנים באילוף, טיפוח והכשרה לתוך מערכת אחת חכמה.{" "}
                   פטרה נותנת לכם את הכלים לנהל את העסק ביעילות, כדי שתוכלו להישאר ממוקדים בבעלי החיים.
                 </p>
 
-                <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-3">
+                <div
+                  className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-3 animate-slideUp"
+                  style={{ animationDelay: "220ms" }}
+                >
                   <Link
                     href="/register"
-                    className="btn-primary text-base px-8 py-3.5 w-full sm:w-auto justify-center"
+                    className="btn-primary text-base px-8 py-3.5 w-full sm:w-auto justify-center shadow-xl shadow-brand-500/30"
                   >
                     אני רוצה לנסות בחינם – בלי התחייבות
                   </Link>
@@ -280,40 +215,59 @@ export default function LandingPage() {
                   </a>
                 </div>
 
-                {/* Two trust signals */}
-                <ul className="mt-4 space-y-2.5 list-none p-0 m-0">
-                  <li className="flex items-center justify-center lg:justify-start gap-2.5 text-white text-base font-medium">
-                    <Check aria-hidden="true" className="w-4 h-4 text-brand-400 shrink-0" />
-                    התחל בחינם – אין צורך בכרטיס אשראי.
+                {/* Trust signals */}
+                <ul
+                  className="mt-4 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-x-6 gap-y-2 list-none p-0 m-0 animate-slideUp"
+                  style={{ animationDelay: "300ms" }}
+                >
+                  <li className="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                    <div className="w-5 h-5 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0">
+                      <Check aria-hidden="true" className="w-3 h-3 text-brand-400" />
+                    </div>
+                    ללא כרטיס אשראי
                   </li>
-                  <li className="flex items-center justify-center lg:justify-start gap-2.5 text-white text-base font-medium">
-                    <Check aria-hidden="true" className="w-4 h-4 text-brand-400 shrink-0" />
-                    מעבר קל ממערכות אחרות (אנחנו כאן לעזור).
+                  <li className="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                    <div className="w-5 h-5 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0">
+                      <Check aria-hidden="true" className="w-3 h-3 text-brand-400" />
+                    </div>
+                    מעבר קל ממערכות אחרות
+                  </li>
+                  <li className="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                    <div className="w-5 h-5 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0">
+                      <Check aria-hidden="true" className="w-3 h-3 text-brand-400" />
+                    </div>
+                    14 ימי ניסיון בחינם
                   </li>
                 </ul>
               </div>
 
-              {/* Visual col — second in DOM = left side in RTL */}
-              <div aria-hidden="true" className="relative mt-2 lg:mt-0 lg:-ml-4 lg:-mr-0">
-                <Image
-                  src="/hero-image.jpg"
-                  alt=""
-                  width={1400}
-                  height={800}
-                  className="w-full h-auto rounded-2xl shadow-2xl"
-                  priority
-                />
+              {/* Visual col — dashboard mockup */}
+              <div aria-hidden="true" className="relative mt-2 lg:mt-0 animate-fadeIn" style={{ animationDelay: "150ms" }}>
+                {/* Glow ring behind the mockup */}
+                <div className="absolute -inset-6 rounded-3xl bg-brand-500/8 blur-3xl pointer-events-none" />
+                <div className="relative">
+                  <DashboardMockup />
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ── Stats bar ────────────────────────────────────────────────────────── */}
-        <section
-          aria-label="נתונים מספריים"
-          className="bg-gradient-to-l from-brand-600 to-brand-500 py-12"
-        >
-          <AnimatedStats />
+        {/* ── Trust bar ─────────────────────────────────────────────────────────── */}
+        <section aria-label="אמינות ובטחון" className="bg-slate-900 border-y border-white/6 py-6">
+          <dl className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 md:grid-cols-4 gap-y-5 gap-x-6">
+            {[
+              { icon: "🔒", label: "נתוני הלקוחות שלך — שלך לנצח" },
+              { icon: "🇮🇱", label: "מיוצר ונתמך בישראל בעברית" },
+              { icon: "📱", label: "RTL מלא, עברית מושלמת, מובייל" },
+              { icon: "✕",  label: "ביטול פשוט בכל עת — ללא קנסות" },
+            ].map(({ icon, label }) => (
+              <div key={label} className="flex items-center gap-3">
+                <span className="text-xl shrink-0" aria-hidden="true">{icon}</span>
+                <dt className="text-slate-400 text-sm leading-snug">{label}</dt>
+              </div>
+            ))}
+          </dl>
         </section>
 
         {/* ── How it works ─────────────────────────────────────────────────────── */}
@@ -331,33 +285,33 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="relative">
-              {/* Connector line (desktop only) */}
-              <div
-                aria-hidden="true"
-                className="absolute top-10 right-[16.66%] left-[16.66%] h-0.5 bg-gradient-to-l from-brand-200 via-brand-300 to-brand-200 hidden md:block"
-              />
-
-              <ol className="grid md:grid-cols-3 gap-10 list-none p-0 m-0">
-                {HOW_IT_WORKS.map(({ n, icon: Icon, title, desc }) => (
-                  <li key={n} className="flex flex-col items-center text-center">
-                    <div className="relative mb-6 z-10">
-                      <div className="w-20 h-20 rounded-full bg-brand-500 flex items-center justify-center shadow-lg shadow-brand-200">
-                        <Icon className="w-8 h-8 text-white" aria-hidden="true" />
-                      </div>
-                      <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-white border-2 border-brand-500 flex items-center justify-center text-brand-600 text-xs font-bold shadow-sm">
-                        {n}
-                      </div>
+            <ol className="grid md:grid-cols-3 gap-8 list-none p-0 m-0">
+              {HOW_IT_WORKS.map(({ n, icon: Icon, title, desc }) => (
+                <li key={n} className="relative group">
+                  {/* Large decorative step number — editorial */}
+                  <div
+                    aria-hidden="true"
+                    className="text-[96px] font-extrabold leading-none text-brand-500/8 select-none mb-1 transition-colors duration-300 group-hover:text-brand-500/14"
+                    dir="ltr"
+                  >
+                    {n}
+                  </div>
+                  <div className="-mt-10 relative z-10">
+                    <div className="w-12 h-12 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center mb-4 group-hover:bg-brand-500 group-hover:border-brand-500 transition-colors duration-300">
+                      <Icon
+                        className="w-6 h-6 text-brand-500 group-hover:text-white transition-colors duration-300"
+                        aria-hidden="true"
+                      />
                     </div>
                     <h3 className="text-lg font-bold text-slate-900 mb-2">{title}</h3>
-                    <p className="text-slate-500 text-sm leading-relaxed max-w-xs">{desc}</p>
-                  </li>
-                ))}
-              </ol>
-            </div>
+                    <p className="text-slate-500 text-sm leading-relaxed">{desc}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
 
-            <div className="text-center mt-12">
-              <Link href="/register" className="btn-primary px-8 py-3.5 text-base">
+            <div className="text-center mt-14">
+              <Link href="/register" className="btn-primary px-8 py-3.5 text-base shadow-lg shadow-brand-200">
                 אני רוצה לנסות בחינם
               </Link>
             </div>
@@ -519,27 +473,7 @@ export default function LandingPage() {
                 12 מודולים מקצועיים שיחסכו לך שעות כל יום
               </p>
             </div>
-
-            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 list-none p-0 m-0">
-              {FEATURES.map((f) => {
-                const Icon = f.icon;
-                const [iconBg, iconColor] = f.color.split(" ");
-                return (
-                  <li key={f.title}>
-                    <div className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 h-full">
-                      <div
-                        aria-hidden="true"
-                        className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center mb-3`}
-                      >
-                        <Icon className={`w-5 h-5 ${iconColor}`} />
-                      </div>
-                      <h3 className="text-sm font-bold text-slate-900 mb-1">{f.title}</h3>
-                      <p className="text-xs text-slate-500 leading-relaxed">{f.desc}</p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            <FeaturesSection />
           </div>
         </section>
 
@@ -590,49 +524,9 @@ export default function LandingPage() {
                 </Link>
               </div>
 
-              {/* WhatsApp mockup */}
-              <div aria-hidden="true" className="flex justify-center">
-                <div className="w-72 rounded-3xl bg-[#0F172A] border border-white/10 overflow-hidden shadow-2xl">
-                  <div className="bg-[#075E54] px-4 py-3 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-emerald-300 flex items-center justify-center">
-                      <Heart className="w-4 h-4 text-emerald-800" />
-                    </div>
-                    <div>
-                      <div className="text-white text-sm font-semibold">
-                        פטרה — תזכורת תור
-                      </div>
-                      <div className="text-emerald-200 text-xs">מחובר ✓</div>
-                    </div>
-                  </div>
-                  <div
-                    className="px-3 py-4 space-y-3 min-h-[200px]"
-                    style={{ backgroundColor: "#1a2533" }}
-                  >
-                    <div className="flex justify-start">
-                      <div className="bg-[#202C33] rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[85%]">
-                        <p className="text-white text-xs leading-relaxed">
-                          שלום יעל! 👋
-                          <br />
-                          תזכורת לתור של ביסקוויט
-                          <br />
-                          <strong>מחר, 10:00</strong> — אצל מירב
-                          <br />
-                          <br />
-                          לאישור: השב ✅
-                          <br />
-                          לביטול: השב ❌
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-1 text-left">09:15 ✓✓</p>
-                      </div>
-                    </div>
-                    <div className="flex justify-end">
-                      <div className="bg-[#005C4B] rounded-2xl rounded-tl-sm px-4 py-2.5">
-                        <p className="text-white text-xs">✅</p>
-                        <p className="text-[10px] text-slate-400 mt-1 text-left">09:17 ✓✓</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              {/* WhatsApp mockup — animated */}
+              <div className="flex justify-center">
+                <WhatsAppMockupAnimated />
               </div>
             </div>
           </div>
@@ -641,10 +535,19 @@ export default function LandingPage() {
         {/* ── Testimonials carousel ────────────────────────────────────────────── */}
         <section
           aria-labelledby="testimonials-heading"
-          className="py-24 bg-slate-50"
+          className="py-24 relative overflow-hidden"
           id="testimonials"
+          style={{
+            background: "linear-gradient(160deg, #f8fafc 0%, #fff7ed 60%, #f8fafc 100%)",
+          }}
         >
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Decorative warm circle */}
+          <div
+            aria-hidden="true"
+            className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-30 pointer-events-none blur-3xl"
+            style={{ background: "radial-gradient(ellipse, rgba(249,115,22,0.15) 0%, transparent 70%)" }}
+          />
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <h2
                 id="testimonials-heading"
@@ -667,34 +570,65 @@ export default function LandingPage() {
         {/* ── Final CTA ────────────────────────────────────────────────────────── */}
         <section
           aria-labelledby="cta-heading"
-          className="py-24 relative"
+          className="py-32 relative overflow-hidden"
           style={{
             background:
-              "radial-gradient(ellipse 80% 60% at 50% 110%, rgba(249,115,22,0.2) 0%, transparent 60%), #0F172A",
+              "radial-gradient(ellipse 80% 60% at 50% 110%, rgba(249,115,22,0.25) 0%, transparent 65%), #0F172A",
           }}
         >
+          {/* Dot texture */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 opacity-20"
+            style={{
+              backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px)",
+              backgroundSize: "32px 32px",
+            }}
+          />
           <div className="relative max-w-2xl mx-auto px-4 text-center">
+            {/* Small brand badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-500/15 border border-brand-500/25 mb-8">
+              <Zap className="w-3.5 h-3.5 text-brand-400" aria-hidden="true" />
+              <span className="text-brand-300 text-sm font-medium">התחל היום — חינם לגמרי</span>
+            </div>
             <h2
               id="cta-heading"
-              className="text-3xl md:text-4xl font-bold text-white mb-4 leading-tight"
+              className="text-3xl md:text-5xl font-bold text-white mb-5 leading-tight"
             >
-              מוכן לשדרג את העסק שלך?
+              מוכן לשדרג
+              <br />
+              את העסק שלך?
             </h2>
-            <p className="text-slate-300 text-lg mb-8">
+            <p className="text-slate-300 text-lg mb-10 leading-relaxed">
               הצטרף לאלפי בעלי עסקים שכבר עובדים עם פטרה
             </p>
-            <Link href="/register" className="btn-primary text-base px-10 py-4">
+            <Link
+              href="/register"
+              className="btn-primary text-base px-10 py-4 shadow-2xl shadow-brand-500/30"
+            >
               אני רוצה לנסות בחינם
             </Link>
-            <p className="mt-4 text-slate-500 text-sm">14 ימי ניסיון חינם — ללא חיוב מיידי · בטל בכל עת בלחיצת כפתור</p>
-            <p className="mt-2 text-brand-400/80 text-sm">מעבר קל ממערכות אחרות — אנחנו נעזור לך</p>
+            <ul className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 list-none p-0 m-0">
+              <li className="flex items-center gap-1.5 text-slate-400 text-sm">
+                <Check className="w-3.5 h-3.5 text-brand-400 shrink-0" aria-hidden="true" />
+                14 ימי ניסיון ללא חיוב
+              </li>
+              <li className="flex items-center gap-1.5 text-slate-400 text-sm">
+                <Check className="w-3.5 h-3.5 text-brand-400 shrink-0" aria-hidden="true" />
+                ביטול פשוט בכל עת
+              </li>
+              <li className="flex items-center gap-1.5 text-slate-400 text-sm">
+                <Check className="w-3.5 h-3.5 text-brand-400 shrink-0" aria-hidden="true" />
+                מעבר קל ממערכות אחרות
+              </li>
+            </ul>
           </div>
         </section>
       </main>
 
       {/* ── Footer ───────────────────────────────────────────────────────────── */}
       <footer
-        className="bg-[#0F172A] border-t border-white/5 py-10"
+        className="bg-[#0F172A] border-t border-white/8 py-10"
         role="contentinfo"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -703,11 +637,14 @@ export default function LandingPage() {
               <Image
                 src="/petra-logo.png"
                 alt="לוגו פטרה"
-                width={36}
-                height={36}
+                width={32}
+                height={32}
                 className="object-contain"
               />
-              <p className="text-slate-500 text-xs">ניהול עסקי חיות מחמד</p>
+              <div>
+                <span className="text-white font-semibold text-sm block">פטרה</span>
+                <p className="text-slate-500 text-xs">ניהול עסקי חיות מחמד</p>
+              </div>
             </div>
 
             <nav aria-label="ניווט תחתון">

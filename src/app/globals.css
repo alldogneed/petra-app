@@ -289,3 +289,14 @@
 .prose a, .content-link { text-decoration: underline; }
 /* Contrast fix: placeholder text (item 5) */
 input::placeholder, textarea::placeholder { color: #64748b; }
+
+/* ─── Landing page animations ──────────────────────────── */
+@keyframes typingDot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

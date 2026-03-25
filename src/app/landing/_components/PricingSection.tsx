@@ -266,19 +266,24 @@ export function PricingSection() {
           <p className="text-slate-500 text-lg">מסלול חינמי ללא כרטיס אשראי, או נסה כל מסלול מתקדם 14 יום ללא חיוב</p>
         </div>
 
-        {/* Plan cards — snap scroll on mobile, grid on desktop */}
-        <div className="overflow-x-auto overflow-y-visible pb-4 -mx-4 px-4 snap-x snap-mandatory lg:snap-none scroll-smooth">
+        {/* Plan cards — vertical stack on mobile, 5-col grid on desktop */}
+        <div className="overflow-y-visible pt-6">
           <ul
-            className="flex gap-4 min-w-max lg:min-w-0 lg:grid lg:grid-cols-5 list-none p-0 m-0 pt-6"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 list-none p-0 m-0"
             aria-label="מסלולי מנוי"
           >
             {PLANS.map((plan) => (
-              <li key={plan.key} className="w-60 lg:w-auto flex flex-col snap-center lg:snap-align-none">
+              <li
+                key={plan.key}
+                className={`flex flex-col ${
+                  plan.highlight ? "sm:col-span-2 lg:col-span-1" : ""
+                }`}
+              >
                 <div
-                  className={`relative rounded-2xl border-2 flex flex-col h-full transition-shadow hover:shadow-md ${
+                  className={`relative rounded-2xl border-2 flex flex-col h-full transition-all ${
                     plan.highlight
-                      ? "border-brand-500 bg-gradient-to-b from-brand-50 to-white shadow-2xl shadow-brand-300/60 ring-4 ring-brand-400/40 p-5 pt-9"
-                      : "border-slate-200 bg-white p-5"
+                      ? "border-brand-500 bg-gradient-to-b from-brand-50 to-white shadow-2xl shadow-brand-400/40 ring-4 ring-brand-400/30 scale-[1.02] lg:scale-105 p-5 pt-9 hover:shadow-brand-400/50"
+                      : "border-slate-200 bg-white p-5 hover:shadow-md hover:border-slate-300"
                   }`}
                 >
                   {/* Badge */}
@@ -408,6 +413,13 @@ export function PricingSection() {
               </li>
             ))}
           </ul>
+
+          {/* Specialty plans note */}
+          <p className="mt-5 text-center text-xs text-slate-400 bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
+            <span className="font-semibold text-slate-600">Groomer+</span> ו-
+            <span className="font-semibold text-slate-600">Service Dog</span> הם מסלולים ייעודיים לתחום שלך —
+            {" "}מחליפים את Pro, לא שדרוג ממנו. בחר לפי מה שמתאים לעסק שלך.
+          </p>
         </div>
 
         {/* Toggle comparison table */}
