@@ -21,6 +21,12 @@ import { LandingNav } from "./_components/LandingNav";
 import { DashboardMockup } from "./_components/DashboardMockup";
 import { WhatsAppMockupAnimated } from "./_components/WhatsAppMockupAnimated";
 import { FeaturesSection } from "./_components/FeaturesSection";
+import {
+  TrainerMockup,
+  GroomerMockup,
+  BoardingMockup,
+  ServiceDogMockup,
+} from "./_components/AudienceMockups";
 
 export const metadata: Metadata = {
   title: "Petra — מערכת ניהול לעסקי חיות מחמד",
@@ -39,7 +45,7 @@ const AUDIENCES = [
     color: "text-orange-500",
     bg: "bg-orange-50",
     title: "מאלפי כלבים",
-    photo: "/trainer-black-shepherd.jpg",
+    mockup: <TrainerMockup />,
     features: [
       "כל תוכנית האילוף בכיס שלך – מעקב התקדמות בזמן אמת מהשטח",
       "סדר בראש: יעדים ומשימות לכל כלב בלחיצת כפתור",
@@ -51,7 +57,7 @@ const AUDIENCES = [
     color: "text-purple-500",
     bg: "bg-purple-50",
     title: "גרומרים",
-    photo: "/groomer-poodle.jpg",
+    mockup: <GroomerMockup />,
     features: [
       "די לחפירות בוואטסאפ: יומן חכם ששולח תזכורות לבד",
       "הוכחות בשטח: תיק עבודות 'לפני ואחרי' לכל לקוח",
@@ -63,8 +69,7 @@ const AUDIENCES = [
     color: "text-blue-500",
     bg: "bg-blue-50",
     title: "פנסיון לכלבים",
-    photo:
-      "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=400&q=80",
+    mockup: <BoardingMockup />,
     features: [
       "שליטה מלאה בפנסיון: ניהול חדרים ועדכוני סטטוס לבעלים",
       "ניהול צ'ק-אין מהיר ומעקב יומי אחרי כל כלב",
@@ -76,7 +81,7 @@ const AUDIENCES = [
     color: "text-emerald-500",
     bg: "bg-emerald-50",
     title: "ארגוני כלבי שירות",
-    photo: "/service-dog-training.jpg",
+    mockup: <ServiceDogMockup />,
     features: [
       "פרוטוקול הכשרה מלא: מעקב שלבים ודיווח למשרד החקלאות",
       "ניהול תיקי זכאים, שיבוצים והסמכות במקום אחד",
@@ -339,17 +344,12 @@ export default function LandingPage() {
                 return (
                   <li key={a.title}>
                     <article className="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full flex flex-col">
-                      {/* Photo header */}
-                      <div className="relative h-44 overflow-hidden">
-                        <Image
-                          src={a.photo}
-                          alt=""
-                          width={400}
-                          height={176}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-white/90 via-white/20 to-transparent" />
-                        {/* Icon badge over photo */}
+                      {/* App mockup header */}
+                      <div className="relative h-44 overflow-hidden rounded-t-2xl">
+                        {a.mockup}
+                        {/* Subtle gradient to blend mockup into card */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-white/80 via-white/10 to-transparent pointer-events-none" />
+                        {/* Icon badge */}
                         <div
                           className={`absolute bottom-3 right-3 w-11 h-11 rounded-xl ${a.bg} flex items-center justify-center shadow-lg`}
                         >
