@@ -55,6 +55,11 @@ import {
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import {
+  ADULT_TREATMENTS, PUPPY_TREATMENTS, getCellStatus, formatPlannedDisplay,
+  getEmptyAdultPlan, getEmptyPuppyPlan,
+  type VaccinePlan, type VaccinePlanEntry,
+} from "@/lib/vaccine-plan";
+import {
   SERVICE_DOG_PHASES,
   SERVICE_DOG_PHASE_MAP,
   SERVICE_DOG_PHASE_COLORS,
@@ -286,7 +291,7 @@ function ServiceDogProfilePageContent() {
   const params = useParams();
   const router = useRouter();
   const dogId = params.id as string;
-  const [activeTab, setActiveTab] = useState<"training" | "medical" | "compliance" | "placements" | "idcard" | "dogfile" | "documents" | "tests" | "insurance" | "equipment">("dogfile");
+  const [activeTab, setActiveTab] = useState<"training" | "medical" | "compliance" | "placements" | "idcard" | "dogfile" | "documents" | "tests" | "insurance" | "equipment" | "vaccinations">("dogfile");
   const [showPhaseDropdown, setShowPhaseDropdown] = useState(false);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -398,6 +403,7 @@ function ServiceDogProfilePageContent() {
     { id: "insurance" as const, label: "ביטוח", icon: ShieldCheck },
     { id: "equipment" as const, label: "ציוד", icon: Package },
     { id: "documents" as const, label: "מסמכים", icon: FileText, badge: Array.isArray(dog.documents) ? (dog.documents as unknown[]).length : 0 },
+    { id: "vaccinations" as const, label: "חיסונים וטיפולים", icon: Pill },
     { id: "idcard" as const, label: "תעודת הסמכה", icon: CreditCard },
   ];
 
@@ -693,6 +699,7 @@ function ServiceDogProfilePageContent() {
         {activeTab === "documents" && <DocumentsTab dog={dog} dogId={dogId} />}
         {activeTab === "idcard" && <IDCardTab dog={dog} dogId={dogId} allowManualCert={sdSettings.allowManualCert} trackHours={sdSettings.trackHours} />}
         {activeTab === "dogfile" && <DogFileTab dog={dog} dogId={dogId} />}
+        {activeTab === "vaccinations" && <VaccinationsTab dog={dog} dogId={dogId} />}
       </div>
 
       {/* Notes */}
@@ -5789,6 +5796,274 @@ function SDMedModal({
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Vaccinations Tab ───
+
+function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
+  const queryClient = useQueryClient();
+  const isPuppy = dog.phase === "PUPPY";
+  const planType = isPuppy ? "puppies" : "adults";
+  const treatments = isPuppy ? PUPPY_TREATMENTS : ADULT_TREATMENTS;
+
+  const [markingOpen, setMarkingOpen] = useState<string | null>(null); // "key-idx"
+  const [markDate, setMarkDate] = useState("");
+  const [setupYear, setSetupYear] = useState(new Date().getFullYear());
+
+  const { data: vaccinePlan, isLoading } = useQuery<VaccinePlan>({
+    queryKey: ["vaccine-plan", dogId],
+    queryFn: () => fetch(`/api/service-dogs/${dogId}/vaccine-plan`).then(r => r.json()),
+  });
+
+  const savePlanMutation = useMutation({
+    mutationFn: (plan: VaccinePlan) =>
+      fetch(`/api/service-dogs/${dogId}/vaccine-plan`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vaccinePlan: plan }),
+      }).then(r => { if (!r.ok) throw new Error("שגיאה"); return r.json(); }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vaccine-plan", dogId] });
+      queryClient.invalidateQueries({ queryKey: ["service-dogs-vaccinations"] });
+      toast.success("תוכנית חיסונים נוצרה");
+    },
+    onError: () => toast.error("שגיאה ביצירת תוכנית"),
+  });
+
+  const markDoneMutation = useMutation({
+    mutationFn: ({ treatmentKey, index, doneDate }: { treatmentKey: string; index: number; doneDate: string | null }) =>
+      fetch(`/api/service-dogs/${dogId}/vaccine-plan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planType, treatmentKey, index, doneDate }),
+      }).then(r => { if (!r.ok) throw new Error("שגיאה"); return r.json(); }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vaccine-plan", dogId] });
+      queryClient.invalidateQueries({ queryKey: ["service-dogs-vaccinations"] });
+      setMarkingOpen(null);
+      setMarkDate("");
+      toast.success("טיפול עודכן");
+    },
+    onError: () => toast.error("שגיאה בעדכון"),
+  });
+
+  const cellBg: Record<string, string> = {
+    done: "bg-green-50 text-green-700 border-green-200",
+    overdue: "bg-red-50 text-red-600 border-red-200",
+    soon: "bg-amber-50 text-amber-700 border-amber-200",
+    upcoming: "bg-sky-50 text-sky-700 border-sky-100",
+    unknown: "bg-slate-50 text-slate-400 border-slate-200",
+  };
+
+  if (isLoading) {
+    return <div className="card p-8 text-center text-petra-muted text-sm">טוען תוכנית חיסונים...</div>;
+  }
+
+  const section = isPuppy ? vaccinePlan?.puppies : vaccinePlan?.adults;
+  const hasPlan = !!section;
+
+  // ── No plan yet: setup screen ──
+  if (!hasPlan) {
+    return (
+      <div className="card p-8 text-center space-y-5">
+        <div className="w-12 h-12 rounded-2xl bg-sky-50 flex items-center justify-center mx-auto">
+          <Pill className="w-6 h-6 text-sky-500" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-lg">לא הוגדרה תוכנית חיסונים</h3>
+          <p className="text-petra-muted text-sm mt-1">
+            {isPuppy
+              ? "צור תוכנית חיסונים לגור — מעקב אחר סדרת החיסונים הראשונית"
+              : "צור תוכנית חיסונים שנתית לכלב"}
+          </p>
+        </div>
+        {!isPuppy && (
+          <div className="flex items-center justify-center gap-3">
+            <label className="text-sm font-medium">שנה:</label>
+            <input
+              type="number"
+              value={setupYear}
+              onChange={e => setSetupYear(Number(e.target.value))}
+              className="input w-24 text-center"
+              min={2020}
+              max={2035}
+            />
+          </div>
+        )}
+        <button
+          className="btn-primary mx-auto"
+          disabled={savePlanMutation.isPending}
+          onClick={() => {
+            const newPlan: VaccinePlan = isPuppy
+              ? { ...vaccinePlan, puppies: getEmptyPuppyPlan() }
+              : { ...vaccinePlan, adults: getEmptyAdultPlan(setupYear) };
+            savePlanMutation.mutate(newPlan);
+          }}
+        >
+          {savePlanMutation.isPending ? "יוצר..." : "צור תוכנית חיסונים"}
+        </button>
+      </div>
+    );
+  }
+
+  // ── Has plan: display table ──
+  const entries = section as Record<string, Array<{ planned: string | null; done: string | null }>>;
+
+  // Count status
+  let overdueCount = 0, soonCount = 0;
+  treatments.forEach(t => {
+    entries[t.key]?.forEach(e => {
+      const s = getCellStatus(e);
+      if (s === "overdue") overdueCount++;
+      if (s === "soon") soonCount++;
+    });
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Pill className="w-4 h-4 text-petra-muted" />
+          <span className="font-semibold text-sm">
+            {isPuppy ? "חיסונים וטיפולים גורים" : `חיסונים וטיפולים שנתיים${(vaccinePlan?.adults?.year) ? ` — ${vaccinePlan.adults.year}` : ""}`}
+          </span>
+        </div>
+        <Link
+          href="/service-dogs/vaccinations"
+          className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1"
+        >
+          ניהול מרכזי
+          <ExternalLink className="w-3 h-3" />
+        </Link>
+      </div>
+
+      {(overdueCount > 0 || soonCount > 0) && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-sm">
+          <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+          <span className="text-amber-800">
+            {overdueCount > 0 && `${overdueCount} פגי תוקף`}
+            {overdueCount > 0 && soonCount > 0 && " · "}
+            {soonCount > 0 && `${soonCount} עומדים לפוג`}
+          </span>
+        </div>
+      )}
+
+      <div className="card overflow-auto p-0">
+        <table className="w-full text-sm" dir="rtl">
+          <thead>
+            <tr className="border-b border-slate-100 bg-slate-50/50">
+              <th className="text-right p-3 font-semibold text-petra-text">טיפול</th>
+              {treatments.map(t =>
+                Array.from({ length: t.doses }, (_, i) => (
+                  <th key={`${t.key}-${i}`} className="text-center p-3 font-semibold text-petra-text min-w-[110px]">
+                    {t.doses === 1 ? t.label : `${t.label} ${i + 1}`}
+                  </th>
+                ))
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-slate-50">
+              <td className="p-3 font-medium text-petra-text">סטטוס</td>
+              {treatments.map(t =>
+                Array.from({ length: t.doses }, (_, i) => {
+                  const entry = entries[t.key]?.[i] ?? null;
+                  const status = getCellStatus(entry);
+                  const markKey = `${t.key}-${i}`;
+                  const isMarking = markingOpen === markKey;
+
+                  return (
+                    <td key={`${t.key}-${i}`} className="p-2 text-center">
+                      {isMarking ? (
+                        <div className="flex items-center gap-1 justify-center">
+                          <input
+                            type="date"
+                            value={markDate}
+                            onChange={e => setMarkDate(e.target.value)}
+                            className="input text-xs py-0.5 w-32 h-7"
+                          />
+                          <button
+                            onClick={() => {
+                              if (!markDate) return;
+                              markDoneMutation.mutate({ treatmentKey: t.key, index: i, doneDate: markDate });
+                            }}
+                            className="p-1 rounded bg-green-500 text-white hover:bg-green-600"
+                          >
+                            <Check className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => { setMarkingOpen(null); setMarkDate(""); }}
+                            className="p-1 rounded bg-slate-200 text-slate-600 hover:bg-slate-300"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className={cn(
+                            "rounded-lg px-2 py-1 text-xs font-medium border inline-block min-w-[90px] mb-1",
+                            cellBg[status]
+                          )}>
+                            {status === "done" && entry?.done
+                              ? `✓ ${new Intl.DateTimeFormat("he-IL", { month: "short", year: "numeric" }).format(new Date(entry.done))}`
+                              : status === "overdue" ? "פג תוקף"
+                              : status === "soon" && entry?.planned ? formatPlannedDisplay(entry.planned)
+                              : status === "upcoming" && entry?.planned ? formatPlannedDisplay(entry.planned)
+                              : "לא יודע"}
+                          </div>
+                          {status !== "done" && (
+                            <div>
+                              <button
+                                onClick={() => { setMarkingOpen(markKey); setMarkDate(""); }}
+                                className="text-[11px] text-orange-500 hover:text-orange-600 font-medium"
+                              >
+                                ✓ בוצע
+                              </button>
+                            </div>
+                          )}
+                          {status === "done" && entry?.done && (
+                            <div>
+                              <button
+                                onClick={() => markDoneMutation.mutate({ treatmentKey: t.key, index: i, doneDate: null })}
+                                className="text-[11px] text-slate-400 hover:text-red-500 font-medium"
+                              >
+                                בטל
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </td>
+                  );
+                })
+              )}
+            </tr>
+            {/* Planned dates row */}
+            <tr className="border-b border-slate-50 bg-slate-50/30">
+              <td className="p-3 text-xs text-petra-muted">תאריך מתוכנן</td>
+              {treatments.map(t =>
+                Array.from({ length: t.doses }, (_, i) => {
+                  const entry = entries[t.key]?.[i] ?? null;
+                  return (
+                    <td key={`${t.key}-${i}-planned`} className="p-2 text-center text-xs text-petra-muted">
+                      {entry?.planned ? formatPlannedDisplay(entry.planned) : "—"}
+                    </td>
+                  );
+                })
+              )}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-xs text-petra-muted text-center">
+        לעריכת תאריכים מתוכננים —{" "}
+        <Link href="/service-dogs/vaccinations" className="text-brand-600 hover:underline">
+          ניהול חיסונים מרכזי
+        </Link>
+      </p>
     </div>
   );
 }
