@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import {
   Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
   Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText,
-  CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles, MapPin, Tag, Download,
+  CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles, MapPin, Tag, Download, AlertCircle,
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone } from "@/lib/validation";
@@ -575,24 +575,14 @@ function DraggableLeadCard({
   const wonStage = stages.find((s) => s.isWon);
   const lostStage = stages.find((s) => s.isLost);
 
-  // Lead aging
-  const daysSinceCreation = Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / (1000 * 60 * 60 * 24));
-  const showStaleness = !isWon && !isLost;
-  const stalenessColor = daysSinceCreation >= 8
-    ? "bg-red-50 text-red-600 border border-red-100"
-    : daysSinceCreation >= 4
-      ? "bg-orange-50 text-orange-600 border border-orange-100"
-      : "bg-emerald-50 text-emerald-600 border border-emerald-100";
-
   // Follow-up date logic
   const followUpDate = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
   const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const isFollowUpToday = followUpDate
-    ? followUpDate.getFullYear() === now.getFullYear() &&
-      followUpDate.getMonth() === now.getMonth() &&
-      followUpDate.getDate() === now.getDate()
+    ? followUpDate >= todayStart && followUpDate < new Date(todayStart.getTime() + 86400000)
     : false;
-  const isFollowUpOverdue = followUpDate ? followUpDate < now && !isFollowUpToday : false;
+  const isFollowUpOverdue = followUpDate ? followUpDate < todayStart : false;
   const followUpLabel = followUpDate
     ? followUpDate.toLocaleDateString("he-IL", { day: "numeric", month: "long" })
     : null;
@@ -605,15 +595,23 @@ function DraggableLeadCard({
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
   } : undefined;
 
-  const borderAccent = isFollowUpOverdue
-    ? "border-r-[3px] border-r-red-400"
-    : isFollowUpToday
-      ? "border-r-[3px] border-r-blue-400"
-      : isWon
-        ? "border-r-[3px] border-r-green-400"
-        : isLost
-          ? "border-r-[3px] border-r-red-400"
-          : "";
+  // ── Lead status (3 clear states for active leads) ──
+  const daysSinceCreation = Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+  const hasActivity = callLogCount > 0 || !!lead.lastContactedAt;
+  const hasFutureFollowUp = !!followUpDate && !isFollowUpOverdue && lead.followUpStatus !== "completed";
+  const isHandled = hasActivity || hasFutureFollowUp || lead.followUpStatus === "completed";
+
+  type LeadStatus = "overdue" | "untouched" | "handled" | "won" | "lost";
+  const leadStatus: LeadStatus = isWon ? "won" : isLost ? "lost"
+    : isFollowUpOverdue ? "overdue"
+    : !isHandled ? "untouched"
+    : "handled";
+
+  const cardBorder = leadStatus === "overdue"
+    ? "border-2 border-red-300 bg-red-50/40"
+    : leadStatus === "untouched"
+      ? "border-2 border-amber-300 bg-amber-50/30"
+      : "border border-slate-200 bg-white";
 
   return (
     <div
@@ -622,9 +620,24 @@ function DraggableLeadCard({
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className={`card p-4 group cursor-pointer hover:shadow-md transition-shadow ${borderAccent} ${isDragging ? "opacity-50 border-2 border-brand-500 shadow-xl" : ""
-        }`}
+      className={`rounded-xl p-4 group cursor-pointer hover:shadow-md transition-shadow ${cardBorder} ${isDragging ? "opacity-50 !border-2 !border-brand-500 shadow-xl" : ""}`}
     >
+      {/* Status banner */}
+      {leadStatus === "overdue" && (
+        <div className="flex items-center gap-1.5 -mx-4 -mt-4 mb-3 px-3 py-1.5 bg-red-100 rounded-t-xl border-b border-red-200">
+          <AlertCircle className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />
+          <span className="text-xs font-semibold text-red-700">עבר מועד פולואפ</span>
+          {followUpLabel && <span className="text-xs text-red-500 mr-auto">{followUpLabel}</span>}
+        </div>
+      )}
+      {leadStatus === "untouched" && (
+        <div className="flex items-center gap-1.5 -mx-4 -mt-4 mb-3 px-3 py-1.5 bg-amber-100 rounded-t-xl border-b border-amber-200">
+          <Sparkles className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+          <span className="text-xs font-semibold text-amber-700">ליד חדש · לא טופל</span>
+          <span className="text-xs text-amber-500 mr-auto">{daysSinceCreation === 0 ? "היום" : `${daysSinceCreation} ימים`}</span>
+        </div>
+      )}
+
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
@@ -711,31 +724,27 @@ function DraggableLeadCard({
               {callLogCount}
             </span>
           )}
-          {/* Follow-up badge */}
-          {followUpLabel && (
-            lead.followUpStatus === "completed" ? (
-              <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium border bg-green-50 text-green-700 border-green-200">
-                <CheckCircle className="w-2.5 h-2.5" />
-                הושלם
-              </span>
-            ) : (
-              <span className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${
-                isFollowUpOverdue
-                  ? "bg-red-50 text-red-700 border-red-200"
-                  : isFollowUpToday
-                    ? "bg-blue-50 text-blue-700 border-blue-200"
-                    : "bg-slate-50 text-slate-600 border-slate-200"
-              }`}>
-                <CalendarClock className="w-2.5 h-2.5" />
-                {isFollowUpOverdue ? "עבר מועד" : isFollowUpToday ? "היום!" : followUpLabel}
-              </span>
-            )
+          {/* Follow-up / status badge */}
+          {leadStatus === "handled" && hasFutureFollowUp && followUpLabel && (
+            <span className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${
+              isFollowUpToday
+                ? "bg-blue-50 text-blue-700 border-blue-200"
+                : "bg-slate-50 text-slate-600 border-slate-200"
+            }`}>
+              <CalendarClock className="w-2.5 h-2.5" />
+              {isFollowUpToday ? "פולואפ היום!" : followUpLabel}
+            </span>
           )}
-          {/* Aging indicator */}
-          {showStaleness && (
-            <span className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${stalenessColor}`}>
-              <Clock className="w-2.5 h-2.5" />
-              {daysSinceCreation === 0 ? "היום" : `${daysSinceCreation} י׳`}
+          {leadStatus === "handled" && lead.followUpStatus === "completed" && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium border bg-green-50 text-green-700 border-green-200">
+              <CheckCircle className="w-2.5 h-2.5" />
+              טופל
+            </span>
+          )}
+          {leadStatus === "handled" && !hasFutureFollowUp && lead.followUpStatus !== "completed" && hasActivity && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium border bg-slate-50 text-slate-500 border-slate-200">
+              <CheckCircle className="w-2.5 h-2.5" />
+              בטיפול
             </span>
           )}
         </div>
