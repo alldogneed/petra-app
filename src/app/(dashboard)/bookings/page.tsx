@@ -369,7 +369,7 @@ function BookingsContent() {
                     הורד
                   </button>
                   <a
-                    href={`https://web.whatsapp.com/send?text=${encodeURIComponent(`הזמן תור אונליין: ${bookingLink}`)}`}
+                    href={`https://wa.me/?text=${encodeURIComponent(`הזמן תור אונליין: ${bookingLink}`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-50 text-green-700 text-sm font-medium hover:bg-green-100 transition-colors border border-green-200"
@@ -596,7 +596,7 @@ function BookingsContent() {
                                 onClick={() => {
                                   updateMutation.mutate({ id: booking.id, status: "confirmed" }, {
                                     onSuccess: () => {
-                                      window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(booking.customer.phone)}&text=${encodeURIComponent(confirmMsg)}`, "_blank", "noopener,noreferrer");
+                                      window.open(`https://wa.me/${toWhatsAppPhone(booking.customer.phone)}?text=${encodeURIComponent(confirmMsg)}`, "_blank", "noopener,noreferrer");
                                     }
                                   });
                                 }}

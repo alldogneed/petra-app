@@ -278,7 +278,7 @@ export default function IntakePage() {
                           const waMsg = encodeURIComponent(
                             `שלום ${form.customer?.name || ""}! אנא מלא את טופס הקליטה שנשלח אליך 🐾`
                           );
-                          window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(form.customer!.phone)}&text=${waMsg}`, "_blank");
+                          window.open(`https://wa.me/${toWhatsAppPhone(form.customer!.phone)}?text=${waMsg}`, "_blank");
                         }}
                         className="w-8 h-8 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
                         title="שלח תזכורת WhatsApp"
@@ -325,7 +325,7 @@ export default function IntakePage() {
                     {copiedLink ? "הועתק!" : "העתק קישור"}
                   </button>
                   <a
-                    href={`https://web.whatsapp.com/send?text=${encodeURIComponent(`מלא את טופס הקליטה שלנו: ${createdLink}`)}`}
+                    href={`https://wa.me/?text=${encodeURIComponent(`מלא את טופס הקליטה שלנו: ${createdLink}`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-50 text-green-700 text-sm font-medium hover:bg-green-100 transition-colors border border-green-200"

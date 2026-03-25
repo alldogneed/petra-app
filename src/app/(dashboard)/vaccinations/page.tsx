@@ -131,7 +131,7 @@ function buildWhatsApp(phone: string, petName: string, vaccineLabel: string, val
     const dateStr = validUntil ? new Date(validUntil).toLocaleDateString("he-IL") : "בקרוב";
     msg = `שלום! רצינו להזכיר לך שה${vaccineLabel} של הכלב ${petName} עומד לפוג בתאריך ${dateStr}. כדאי לתאם חידוש. – הצוות שלנו`;
   }
-  return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(phone)}&text=${encodeURIComponent(msg)}`;
+  return `https://wa.me/${toWhatsAppPhone(phone)}?text=${encodeURIComponent(msg)}`;
 }
 
 // ─── VaccineCell ─────────────────────────────────────────────────────────────

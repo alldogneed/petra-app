@@ -267,7 +267,7 @@ function PaymentsPageContent() {
     setIsSendingAll(true);
     for (let i = 0; i < pending.length; i++) {
       const p = pending[i];
-      const url = `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(p.customer.phone)}&text=${encodeURIComponent(buildReminderText(p))}`;
+      const url = `https://wa.me/${toWhatsAppPhone(p.customer.phone)}?text=${encodeURIComponent(buildReminderText(p))}`;
       window.open(url, "_blank");
       setSentReminders((prev) => new Set([...prev, p.id]));
       if (i < pending.length - 1) {
@@ -600,7 +600,7 @@ function PaymentsPageContent() {
                     ) : null}
                     {payment.status === "paid" && payment.customer.phone && (
                       <a
-                        href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(payment.customer.phone)}&text=${encodeURIComponent(`שלום ${payment.customer.name}!\nקיבלנו את תשלומך בסך ${formatCurrency(payment.amount)} - תודה רבה! 🙏`)}`}
+                        href={`https://wa.me/${toWhatsAppPhone(payment.customer.phone)}?text=${encodeURIComponent(`שלום ${payment.customer.name}!\nקיבלנו את תשלומך בסך ${formatCurrency(payment.amount)} - תודה רבה! 🙏`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700"
@@ -618,7 +618,7 @@ function PaymentsPageContent() {
                         </span>
                       ) : (
                         <a
-                          href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(payment.customer.phone)}&text=${encodeURIComponent(buildReminderText(payment))}`}
+                          href={`https://wa.me/${toWhatsAppPhone(payment.customer.phone)}?text=${encodeURIComponent(buildReminderText(payment))}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700"
@@ -803,7 +803,7 @@ function PaymentsPageContent() {
                           ) : null}
                           {payment.status === "paid" && payment.customer.phone && (
                             <a
-                              href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(payment.customer.phone)}&text=${encodeURIComponent(`שלום ${payment.customer.name}!\nקיבלנו את תשלומך בסך ${formatCurrency(payment.amount)} - תודה רבה! 🙏`)}`}
+                              href={`https://wa.me/${toWhatsAppPhone(payment.customer.phone)}?text=${encodeURIComponent(`שלום ${payment.customer.name}!\nקיבלנו את תשלומך בסך ${formatCurrency(payment.amount)} - תודה רבה! 🙏`)}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 hover:bg-green-50 transition-colors"
@@ -819,7 +819,7 @@ function PaymentsPageContent() {
                               </span>
                             ) : (
                               <a
-                                href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(payment.customer.phone)}&text=${encodeURIComponent(buildReminderText(payment))}`}
+                                href={`https://wa.me/${toWhatsAppPhone(payment.customer.phone)}?text=${encodeURIComponent(buildReminderText(payment))}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 hover:bg-green-50 transition-colors"

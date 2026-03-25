@@ -139,7 +139,7 @@ function NewIntakeModal({
               onClick={() => {
                 const msg = `שלום! אנא מלא/י את טופס הקבלה לפני הביקור: ${intakeUrl}`;
                 if (targetPhone) {
-                  window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(targetPhone)}&text=${encodeURIComponent(msg)}`, "_blank");
+                  window.open(`https://wa.me/${toWhatsAppPhone(targetPhone)}?text=${encodeURIComponent(msg)}`, "_blank");
                 }
               }}
             >
@@ -435,7 +435,7 @@ function IntakeFormsContent() {
                                   .then((data) => {
                                     queryClient.invalidateQueries({ queryKey: ["intakeForms"] });
                                     const msg = `שלום! אנא מלא/י את טופס הקבלה לפני הביקור: ${data.url}`;
-                                    window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(form.customer!.phone)}&text=${encodeURIComponent(msg)}`, "_blank");
+                                    window.open(`https://wa.me/${toWhatsAppPhone(form.customer!.phone)}?text=${encodeURIComponent(msg)}`, "_blank");
                                   })
                                   .catch(() => toast.error("שגיאה בשליחת הטופס מחדש"));
                               }}

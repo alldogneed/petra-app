@@ -1347,7 +1347,7 @@ function TrainingPageContent() {
               if (sessionSummarySend.rating) lines.push(`⭐ דירוג המפגש: ${"★".repeat(sessionSummarySend.rating)}`);
               lines.push("", "נתראה בפגישה הבאה! 🐾");
               const msg = lines.join("\n");
-              const url = `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(sessionSummarySend.customerPhone)}&text=${encodeURIComponent(msg)}`;
+              const url = `https://wa.me/${toWhatsAppPhone(sessionSummarySend.customerPhone)}?text=${encodeURIComponent(msg)}`;
               return (
                 <div className="space-y-2">
                   <a
@@ -1908,7 +1908,7 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
           ];
           return (
             <a
-              href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer?.phone ?? "")}&text=${encodeURIComponent(lines.join("\n"))}`}
+              href={`https://wa.me/${toWhatsAppPhone(program.customer?.phone ?? "")}?text=${encodeURIComponent(lines.join("\n"))}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[10px] text-green-700 hover:text-green-800 font-medium flex items-center gap-0.5 bg-green-50 px-1.5 py-0.5 rounded"
@@ -2712,7 +2712,7 @@ function IndividualTab({
                             if (lastSession?.summary) {
                               lines.push("", `💬 סיכום מפגש אחרון:`, lastSession.summary);
                             }
-                            return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer?.phone ?? "")}&text=${encodeURIComponent(lines.join("\n"))}`;
+                            return `https://wa.me/${toWhatsAppPhone(program.customer?.phone ?? "")}?text=${encodeURIComponent(lines.join("\n"))}`;
                           })()}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -2740,7 +2740,7 @@ function IndividualTab({
                               `🏆 ${program.dog.name} סיים/ה בהצלחה את תוכנית האילוף!`,
                               `מברכים אתכם ומאחלים המשך הנאה עם הכלב! 🐾`,
                             ].filter(Boolean);
-                            return `https://web.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer?.phone ?? "")}&text=${encodeURIComponent(lines.join("\n"))}`;
+                            return `https://wa.me/${toWhatsAppPhone(program.customer?.phone ?? "")}?text=${encodeURIComponent(lines.join("\n"))}`;
                           })()}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -3320,7 +3320,7 @@ function GroupCard({
                       const msg = encodeURIComponent(
                         `היי! תזכורת לסדנת "${group.name}"${group.location ? ` ב${group.location}` : ""}${group.defaultTime ? ` בשעה ${group.defaultTime}` : ""}. נתראה!`
                       );
-                      window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${msg}`, "_blank");
+                      window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
                     }
                   });
                 }}

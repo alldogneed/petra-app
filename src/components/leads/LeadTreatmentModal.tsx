@@ -626,7 +626,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                                 <Phone className="w-4 h-4" /> {lead.phone}
                                             </a>
                                             <a
-                                                href={`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(lead.phone)}`}
+                                                href={`https://wa.me/${toWhatsAppPhone(lead.phone)}`}
                                                 target="whatsapp_window"
                                                 rel="noopener noreferrer"
                                                 title="שלח הודעה בוואטסאפ"

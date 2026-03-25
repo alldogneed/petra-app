@@ -808,7 +808,7 @@ function OrdersPageContent() {
                                   `שלום ${order.customer.name},\nהנה פירוט ההזמנה שלך:\n${lineItems}${discountLine}${taxLine}\n\nסה"כ לתשלום: ${fmt(order.total)}`
                                 );
                                 const waPhone = toWhatsAppPhone(order.customer.phone);
-                                window.open(`https://web.whatsapp.com/send?phone=${waPhone}&text=${msg}`, "_blank");
+                                window.open(`https://wa.me/${waPhone}?text=${msg}`, "_blank");
                               }}
                             >
                               <MessageCircle className="w-3 h-3" />

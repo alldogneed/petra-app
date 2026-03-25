@@ -137,7 +137,7 @@ export function GlobalSearch() {
               color: "#94a3b8",
             }}
           >
-            חיפוש מהיר... (⌘K)
+            חיפוש מהיר... <span className="hidden sm:inline">(⌘K)</span>
           </div>
         </div>
       </button>

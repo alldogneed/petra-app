@@ -914,7 +914,7 @@ function DraggableLeadCard({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                window.open(`https://web.whatsapp.com/send?phone=${toWhatsAppPhone(lead.phone!)}`, "whatsapp_window");
+                window.open(`https://wa.me/${toWhatsAppPhone(lead.phone!)}`, "whatsapp_window");
               }}
               className="w-7 h-7 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors"
               title="שלח וואטסאפ"

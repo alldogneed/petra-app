@@ -83,6 +83,15 @@ export function toWhatsAppPhone(phone: string): string {
   return digits;
 }
 
+/** Build a WhatsApp deep-link that works on both mobile (opens app) and desktop (opens WhatsApp Web).
+ *  Uses wa.me which is the universal format recommended by WhatsApp.
+ */
+export function buildWhatsAppUrl(phone: string, text?: string): string {
+  const number = toWhatsAppPhone(phone);
+  const base = `https://wa.me/${number}`;
+  return text ? `${base}?text=${encodeURIComponent(text)}` : base;
+}
+
 /** Safe fetch that throws on non-ok responses (for use with React Query) */
 /** Copy text to clipboard — works on iOS Safari (fallback via execCommand) */
 export async function copyToClipboard(text: string): Promise<void> {
