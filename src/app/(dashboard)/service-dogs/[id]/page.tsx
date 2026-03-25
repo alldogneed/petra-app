@@ -5809,6 +5809,78 @@ function SDMedModal({
 
 // ─── Vaccinations Tab ───
 
+const HE_MONTHS = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+const YEARS = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 1 + i);
+
+function HebrewMonthPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  // value format: "YYYY-MM" or ""
+  const [y, m] = value ? value.split("-") : ["", ""];
+  const year = y ? Number(y) : "";
+  const month = m ? Number(m) : "";
+  const update = (newY: string | number, newM: string | number) => {
+    if (newY && newM) onChange(`${newY}-${String(newM).padStart(2, "0")}`);
+    else onChange("");
+  };
+  return (
+    <div className="flex gap-1 justify-center">
+      <select
+        value={month}
+        onChange={e => update(year || new Date().getFullYear(), e.target.value)}
+        className="input text-xs py-1 h-8 w-24"
+      >
+        <option value="">חודש</option>
+        {HE_MONTHS.map((name, idx) => (
+          <option key={idx + 1} value={idx + 1}>{name}</option>
+        ))}
+      </select>
+      <select
+        value={year}
+        onChange={e => update(e.target.value, month || 1)}
+        className="input text-xs py-1 h-8 w-20"
+      >
+        <option value="">שנה</option>
+        {YEARS.map(yr => <option key={yr} value={yr}>{yr}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function HebrewDatePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  // value format: "YYYY-MM-DD" or ""
+  const [y, m, d] = value ? value.split("-") : ["", "", ""];
+  const year = y ? Number(y) : "";
+  const month = m ? Number(m) : "";
+  const day = d ? Number(d) : "";
+  const daysInMonth = (month && year) ? new Date(Number(year), Number(month), 0).getDate() : 31;
+  const update = (newY: string | number, newM: string | number, newD: string | number) => {
+    if (newY && newM && newD) onChange(`${newY}-${String(newM).padStart(2, "0")}-${String(newD).padStart(2, "0")}`);
+    else onChange("");
+  };
+  return (
+    <div className="flex gap-1 justify-center flex-wrap">
+      <select value={day} onChange={e => update(year || new Date().getFullYear(), month || 1, e.target.value)}
+        className="input text-xs py-1 h-8 w-14">
+        <option value="">יום</option>
+        {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => (
+          <option key={d} value={d}>{d}</option>
+        ))}
+      </select>
+      <select value={month} onChange={e => update(year || new Date().getFullYear(), e.target.value, day || 1)}
+        className="input text-xs py-1 h-8 w-24">
+        <option value="">חודש</option>
+        {HE_MONTHS.map((name, idx) => (
+          <option key={idx + 1} value={idx + 1}>{name}</option>
+        ))}
+      </select>
+      <select value={year} onChange={e => update(e.target.value, month || 1, day || 1)}
+        className="input text-xs py-1 h-8 w-20">
+        <option value="">שנה</option>
+        {YEARS.map(yr => <option key={yr} value={yr}>{yr}</option>)}
+      </select>
+    </div>
+  );
+}
+
 function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
   const queryClient = useQueryClient();
   const isPuppy = dog.phase === "PUPPY";
@@ -6074,20 +6146,22 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
                 Array.from({ length: t.doses }, (_, i) => {
                   const entry = entries[t.key]?.[i] ?? null;
                   if (isEditing) {
+                    const draftVal = editDrafts[t.key]?.[i] ?? "";
+                    const setDraft = (v: string) => {
+                      setEditDrafts(prev => {
+                        const next = { ...prev };
+                        if (!next[t.key]) next[t.key] = Array(t.doses).fill("");
+                        next[t.key] = [...next[t.key]];
+                        next[t.key][i] = v;
+                        return next;
+                      });
+                    };
                     return (
                       <td key={`${t.key}-${i}-edit`} className="p-2 text-center">
-                        <input
-                          type={isPuppy ? "date" : "month"}
-                          value={editDrafts[t.key]?.[i] ?? ""}
-                          onChange={e => {
-                            const newDrafts = { ...editDrafts };
-                            if (!newDrafts[t.key]) newDrafts[t.key] = Array(t.doses).fill("");
-                            newDrafts[t.key] = [...newDrafts[t.key]];
-                            newDrafts[t.key][i] = e.target.value;
-                            setEditDrafts(newDrafts);
-                          }}
-                          className="input text-xs py-1 w-full max-w-[130px] h-8 text-center"
-                        />
+                        {isPuppy
+                          ? <HebrewDatePicker value={draftVal} onChange={setDraft} />
+                          : <HebrewMonthPicker value={draftVal} onChange={setDraft} />
+                        }
                       </td>
                     );
                   }
