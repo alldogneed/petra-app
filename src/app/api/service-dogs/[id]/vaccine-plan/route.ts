@@ -106,7 +106,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
-    const { vaccinePlan } = body as { vaccinePlan: VaccinePlan };
+    const { vaccinePlan, planType: bodyPlanType } = body as { vaccinePlan: VaccinePlan; planType?: "adults" | "puppies" };
 
     const dog = await prisma.serviceDogProfile.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
@@ -120,8 +120,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       select: { vaccinePlan: true },
     });
 
-    // Seed dueDate into matching medical protocols when plan is saved
-    const planType = vaccinePlan.puppies ? "puppies" : "adults";
+    // planType from client if provided, else infer (adults takes priority if both exist)
+    const planType: "adults" | "puppies" = bodyPlanType ?? (vaccinePlan.adults ? "adults" : "puppies");
     const section = planType === "adults" ? vaccinePlan.adults : vaccinePlan.puppies;
     if (section && dog.medicalProtocols.length > 0) {
       const entries = section as Record<string, Entry[]>;

@@ -5883,7 +5883,13 @@ function HebrewDatePicker({ value, onChange }: { value: string; onChange: (v: st
 
 function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
   const queryClient = useQueryClient();
-  const isPuppy = dog.phase === "PUPPY";
+  // Classify by birth date: < 12 months = puppy. Fallback to phase if no birth date.
+  const isPuppy = (() => {
+    const bd = dog.pet.birthDate;
+    if (!bd) return dog.phase === "PUPPY";
+    const ageMonths = (Date.now() - new Date(bd).getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+    return ageMonths < 12;
+  })();
   const planType = isPuppy ? "puppies" : "adults";
   const treatments = isPuppy ? PUPPY_TREATMENTS : ADULT_TREATMENTS;
 
@@ -5905,7 +5911,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
       fetch(`/api/service-dogs/${dogId}/vaccine-plan`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vaccinePlan: plan }),
+        body: JSON.stringify({ vaccinePlan: plan, planType }),
       }).then(r => { if (!r.ok) throw new Error("שגיאה"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vaccine-plan", dogId] });

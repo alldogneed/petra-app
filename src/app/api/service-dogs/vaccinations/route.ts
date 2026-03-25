@@ -13,12 +13,9 @@ export async function GET(request: NextRequest) {
     const dogType = searchParams.get("dogType"); // "adults" | "puppies"
 
     const dogs = await prisma.serviceDogProfile.findMany({
-      where: {
-        businessId: authResult.businessId,
-        ...(dogType === "puppies" ? { phase: "PUPPY" } : dogType === "adults" ? { phase: { not: "PUPPY" } } : {}),
-      },
+      where: { businessId: authResult.businessId },
       include: {
-        pet: { select: { id: true, name: true, breed: true } },
+        pet: { select: { id: true, name: true, breed: true, birthDate: true } },
         medicalProtocols: {
           select: { id: true, protocolKey: true, status: true, completedDate: true, dueDate: true, expiryDate: true },
         },
@@ -26,7 +23,19 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "asc" },
     });
 
-    const result = dogs.map((dog) => ({
+    // Classify puppy vs adult by birth date (< 12 months = puppy); fallback to phase
+    const isPuppyDog = (dog: typeof dogs[0]) => {
+      const bd = dog.pet.birthDate;
+      if (!bd) return dog.phase === "PUPPY";
+      const ageMonths = (Date.now() - new Date(bd).getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+      return ageMonths < 12;
+    };
+
+    const filtered = dogType
+      ? dogs.filter(d => dogType === "puppies" ? isPuppyDog(d) : !isPuppyDog(d))
+      : dogs;
+
+    const result = filtered.map((dog) => ({
       id: dog.id,
       petId: dog.pet.id,
       petName: dog.pet.name,
