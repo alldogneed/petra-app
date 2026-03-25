@@ -1,19 +1,30 @@
 // Vaccine plan types and helpers
 
 export interface VaccinePlanEntry {
-  planned: string | null; // "2026-04" for adults (mm/yyyy), "2026-04-15" for puppies (dd/mm/yyyy ISO)
+  planned: string | null; // "2026-04" for adults (YYYY-MM), ISO date for puppies
   done: string | null;    // ISO date string when completed
 }
 
+/** Business-level default schedule: which months each treatment is given */
+export interface VaccineSchedule {
+  RABIES_BOOSTER?: number[];   // month numbers 1-12
+  DHPP_BOOSTER?: number[];
+  DEWORMING?: number[];
+  PARK_WORM?: number[];
+  FLEA_TICK?: number[];
+}
+
+type AdultYearPlan = {
+  year: number;
+  RABIES_BOOSTER?: VaccinePlanEntry[];
+  DHPP_BOOSTER?: VaccinePlanEntry[];
+  DEWORMING?: VaccinePlanEntry[];
+  PARK_WORM?: VaccinePlanEntry[];
+  FLEA_TICK?: VaccinePlanEntry[];
+};
+
 export interface VaccinePlan {
-  adults?: {
-    year: number;
-    RABIES_BOOSTER?: VaccinePlanEntry[];
-    DHPP_BOOSTER?: VaccinePlanEntry[];
-    DEWORMING?: VaccinePlanEntry[];
-    PARK_WORM?: VaccinePlanEntry[];
-    FLEA_TICK?: VaccinePlanEntry[];
-  };
+  adults?: AdultYearPlan;
   puppies?: {
     RABIES_PRIMARY?: VaccinePlanEntry[];  // 2 doses
     DHPP_PRIMARY?: VaccinePlanEntry[];    // 3 doses
@@ -21,6 +32,8 @@ export interface VaccinePlan {
     PARK_WORM?: VaccinePlanEntry[];       // 4 doses
     FLEA_TICK?: VaccinePlanEntry[];       // 4 doses
   };
+  /** Past years archived on auto-renewal */
+  adultsHistory?: AdultYearPlan[];
 }
 
 export const ADULT_TREATMENTS = [
@@ -39,16 +52,57 @@ export const PUPPY_TREATMENTS = [
   { key: "FLEA_TICK",      label: "קרציות ופרעושים", doses: 4 },
 ] as const;
 
-export function getEmptyAdultPlan(year: number): VaccinePlan["adults"] {
-  const make = (doses: number) => Array(doses).fill(null).map(() => ({ planned: null, done: null }));
+/**
+ * Build a fresh adult plan for `year`:
+ * 1. If business schedule has months for a treatment → use those
+ * 2. Else if prevPlan has planned months → carry same months forward
+ * 3. Else → empty entries (null planned)
+ *
+ * All done dates start as null (fresh checkboxes for new year).
+ */
+export function buildAdultYearPlan(
+  year: number,
+  schedule?: VaccineSchedule | null,
+  prevPlan?: AdultYearPlan | null
+): AdultYearPlan {
+  const makeFromMonths = (months: number[]): VaccinePlanEntry[] =>
+    months.map(m => ({ planned: `${year}-${String(m).padStart(2, "0")}`, done: null }));
+
+  const makeEmpty = (doses: number): VaccinePlanEntry[] =>
+    Array(doses).fill(null).map(() => ({ planned: null, done: null }));
+
+  const resolve = (key: string, defaultDoses: number): VaccinePlanEntry[] => {
+    // 1. Business schedule
+    const schedMonths = (schedule as Record<string, number[]> | null | undefined)?.[key];
+    if (schedMonths && schedMonths.length > 0) return makeFromMonths(schedMonths);
+
+    // 2. Carry forward from previous year
+    if (prevPlan) {
+      const prevEntries = (prevPlan as unknown as Record<string, VaccinePlanEntry[]>)[key];
+      if (prevEntries && prevEntries.length > 0) {
+        const months = prevEntries
+          .map(e => e.planned ? parseInt(e.planned.split("-")[1], 10) : null)
+          .filter((m): m is number => m !== null && m >= 1 && m <= 12);
+        if (months.length > 0) return makeFromMonths(months);
+      }
+    }
+
+    // 3. Empty
+    return makeEmpty(defaultDoses);
+  };
+
   return {
     year,
-    RABIES_BOOSTER: make(1),
-    DHPP_BOOSTER:   make(1),
-    DEWORMING:      make(2),
-    PARK_WORM:      make(4),
-    FLEA_TICK:      make(4),
+    RABIES_BOOSTER: resolve("RABIES_BOOSTER", 1),
+    DHPP_BOOSTER:   resolve("DHPP_BOOSTER", 1),
+    DEWORMING:      resolve("DEWORMING", 2),
+    PARK_WORM:      resolve("PARK_WORM", 4),
+    FLEA_TICK:      resolve("FLEA_TICK", 4),
   };
+}
+
+export function getEmptyAdultPlan(year: number): VaccinePlan["adults"] {
+  return buildAdultYearPlan(year, null, null);
 }
 
 export function getEmptyPuppyPlan(): VaccinePlan["puppies"] {

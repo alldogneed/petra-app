@@ -2,25 +2,101 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import type { VaccinePlan } from "@/lib/vaccine-plan";
+import { buildAdultYearPlan, type VaccinePlan, type VaccineSchedule } from "@/lib/vaccine-plan";
+
+// ─── helpers ───
+
+type Entry = { planned: string | null; done: string | null };
+
+/**
+ * Computes the next due date for a treatment after entries are updated.
+ * Adults: finds earliest planned-but-not-done, then projects next year.
+ * Puppies: no year projection.
+ */
+function computeNextDueDate(entries: Entry[], planType: "adults" | "puppies"): Date | null {
+  const upcomingPlanned = entries
+    .filter(e => e.planned && !e.done)
+    .map(e => e.planned!)
+    .sort();
+
+  if (upcomingPlanned.length > 0) {
+    const p = upcomingPlanned[0];
+    if (p.length === 7) {
+      const [y, m] = p.split("-").map(Number);
+      return new Date(y, m - 1, 1);
+    }
+    return new Date(p);
+  }
+
+  if (planType === "adults") {
+    const allPlanned = entries.map(e => e.planned).filter(Boolean).sort() as string[];
+    if (allPlanned.length > 0) {
+      const p = allPlanned[0];
+      if (p.length === 7) {
+        const [y, m] = p.split("-").map(Number);
+        return new Date(y + 1, m - 1, 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+function latestDoneDate(entries: Entry[]): Date | null {
+  const dates = entries
+    .filter(e => e.done)
+    .map(e => new Date(e.done!))
+    .sort((a, b) => b.getTime() - a.getTime());
+  return dates[0] ?? null;
+}
+
+// ─── GET — load plan, auto-renew if year changed ───
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const dog = await prisma.serviceDogProfile.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
-      select: { vaccinePlan: true },
-    });
+    const [dogRow, biz] = await Promise.all([
+      prisma.serviceDogProfile.findFirst({
+        where: { id: params.id, businessId: authResult.businessId },
+        select: { vaccinePlan: true },
+      }),
+      prisma.business.findUnique({
+        where: { id: authResult.businessId },
+        select: { sdSettings: true },
+      }),
+    ]);
 
-    if (!dog) return NextResponse.json({ error: "כלב לא נמצא" }, { status: 404 });
-    return NextResponse.json(dog.vaccinePlan || {});
+    if (!dogRow) return NextResponse.json({ error: "כלב לא נמצא" }, { status: 404 });
+
+    const currentYear = new Date().getFullYear();
+    let plan = (dogRow.vaccinePlan as VaccinePlan) || {};
+    const sdSettings = biz?.sdSettings as { vaccinationSchedule?: VaccineSchedule } | null;
+    const schedule = sdSettings?.vaccinationSchedule ?? null;
+
+    // Auto-renewal: if adults plan exists but is from a previous year, archive and generate new year
+    if (plan.adults && plan.adults.year !== currentYear) {
+      const history = plan.adultsHistory ?? [];
+      // Only keep last 3 years to avoid unbounded growth
+      const updatedHistory = [...history, plan.adults].slice(-3);
+      const newAdults = buildAdultYearPlan(currentYear, schedule, plan.adults);
+      plan = { ...plan, adults: newAdults, adultsHistory: updatedHistory };
+
+      await prisma.serviceDogProfile.update({
+        where: { id: params.id },
+        data: { vaccinePlan: plan as object },
+      });
+    }
+
+    return NextResponse.json(plan);
   } catch (error) {
     console.error("GET /api/service-dogs/[id]/vaccine-plan error:", error);
     return NextResponse.json({ error: "שגיאה" }, { status: 500 });
   }
 }
+
+// ─── PATCH — save full plan (e.g. after editing planned dates) ───
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -42,7 +118,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       select: { vaccinePlan: true },
     });
 
-    // When a new annual plan is saved, seed dueDate into each matching medical protocol
+    // Seed dueDate into matching medical protocols when plan is saved
     const planType = vaccinePlan.puppies ? "puppies" : "adults";
     const section = planType === "adults" ? vaccinePlan.adults : vaccinePlan.puppies;
     if (section && dog.medicalProtocols.length > 0) {
@@ -55,10 +131,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         const now = new Date();
         await prisma.serviceDogMedicalProtocol.update({
           where: { id: proto.id },
-          data: {
-            dueDate: nextDue,
-            status: nextDue < now ? "OVERDUE" : "PENDING",
-          },
+          data: { dueDate: nextDue, status: nextDue < now ? "OVERDUE" : "PENDING" },
         });
       }
     }
@@ -70,57 +143,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-// ─── helpers ───
+// ─── POST — mark a specific entry as done (or undo) ───
 
-type Entry = { planned: string | null; done: string | null };
-
-/**
- * After updating entries, computes the next due date for a treatment:
- * 1. Find the earliest planned-but-not-done entry in the current plan.
- * 2. If all are done (adults), project to next year using the earliest planned month.
- * Puppies are a one-time series — no projection.
- */
-function computeNextDueDate(entries: Entry[], planType: "adults" | "puppies"): Date | null {
-  const upcomingPlanned = entries
-    .filter(e => e.planned && !e.done)
-    .map(e => e.planned!)
-    .sort();
-
-  if (upcomingPlanned.length > 0) {
-    const p = upcomingPlanned[0];
-    // "YYYY-MM" — use 1st of that month
-    if (p.length === 7) {
-      const [y, m] = p.split("-").map(Number);
-      return new Date(y, m - 1, 1);
-    }
-    return new Date(p);
-  }
-
-  // All done — adults only: project next cycle using earliest planned month
-  if (planType === "adults") {
-    const allPlanned = entries.map(e => e.planned).filter(Boolean).sort() as string[];
-    if (allPlanned.length > 0) {
-      const p = allPlanned[0];
-      if (p.length === 7) {
-        const [y, m] = p.split("-").map(Number);
-        return new Date(y + 1, m - 1, 1);
-      }
-    }
-  }
-
-  return null;
-}
-
-/** Returns the most recent completed date across all doses of a treatment. */
-function latestDoneDate(entries: Entry[]): Date | null {
-  const dates = entries
-    .filter(e => e.done)
-    .map(e => new Date(e.done!))
-    .sort((a, b) => b.getTime() - a.getTime());
-  return dates[0] ?? null;
-}
-
-// POST — mark a specific entry as done (or undo)
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const authResult = await requireBusinessAuth(request);
@@ -131,7 +155,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       planType: "adults" | "puppies";
       treatmentKey: string;
       index: number;
-      doneDate: string | null; // ISO date string or null to undo
+      doneDate: string | null;
     };
 
     const dog = await prisma.serviceDogProfile.findFirst({
@@ -159,26 +183,22 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       data: { vaccinePlan: newPlan as object },
     });
 
-    // Sync medical protocol: set dueDate to next planned date from the annual schedule
+    // Sync medical protocol dueDate to next planned date from annual schedule
     if (dog.medicalProtocols.length > 0) {
       const proto = dog.medicalProtocols[0];
       const nextDue = computeNextDueDate(entries, planType);
       const lastDone = latestDoneDate(entries);
 
-      // Determine status based on next due date
       const now = new Date();
       let status = "PENDING";
-      if (!nextDue && !lastDone) status = "PENDING";
-      else if (!nextDue && lastDone) status = "COMPLETED"; // puppies: all done
+      if (!nextDue && lastDone) status = "COMPLETED";
       else if (nextDue && nextDue < now) status = "OVERDUE";
       else status = "PENDING";
 
       await prisma.serviceDogMedicalProtocol.update({
         where: { id: proto.id },
         data: {
-          // completedDate = most recent done across all doses (for display in protocols tab)
           completedDate: lastDone,
-          // dueDate = next planned date from annual schedule
           dueDate: nextDue ?? proto.dueDate,
           status,
         },

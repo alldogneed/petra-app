@@ -65,10 +65,19 @@ import { PaywallCard } from "@/components/paywall/PaywallCard";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+interface VaccineSchedule {
+  RABIES_BOOSTER?: number[];
+  DHPP_BOOSTER?: number[];
+  DEWORMING?: number[];
+  PARK_WORM?: number[];
+  FLEA_TICK?: number[];
+}
+
 interface SdSettings {
   trackHours: boolean;
   defaultTargetHours: number;
   allowManualCert: boolean;
+  vaccinationSchedule?: VaccineSchedule;
 }
 
 const DEFAULT_SD_SETTINGS: SdSettings = {
@@ -76,6 +85,15 @@ const DEFAULT_SD_SETTINGS: SdSettings = {
   defaultTargetHours: 120,
   allowManualCert: true,
 };
+
+const SD_VACCINE_TREATMENTS = [
+  { key: "RABIES_BOOSTER" as const, label: "כלבת", doses: 1 },
+  { key: "DHPP_BOOSTER"   as const, label: "משושה", doses: 1 },
+  { key: "DEWORMING"      as const, label: "תילוע", doses: 2 },
+  { key: "PARK_WORM"      as const, label: "תולעת הפארק", doses: 4 },
+  { key: "FLEA_TICK"      as const, label: "קרציות ופרעושים", doses: 4 },
+];
+const HE_MONTHS_SETTINGS = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
 
 interface Business {
   id: string;
@@ -3031,6 +3049,62 @@ function ServiceDogsSettingsTab() {
             כשמעקב שעות כבוי, מומלץ לאפשר הסמכה ידנית כדי שניתן יהיה להסמיך כלבים
           </p>
         )}
+      </div>
+
+      {/* Vaccination schedule */}
+      <div className="card p-5">
+        <div className="mb-4">
+          <p className="font-semibold text-petra-text">לוח חיסונים שנתי ברירת מחדל</p>
+          <p className="text-sm text-petra-muted mt-0.5">
+            הגדר בכל חודש מתבצע כל טיפול — התוכנית תיושם אוטומטית על כלל הכלבים ותתחדש בתחילת כל שנה
+          </p>
+        </div>
+        <div className="space-y-4">
+          {SD_VACCINE_TREATMENTS.map(t => {
+            const currentMonths: number[] = (settings.vaccinationSchedule as Record<string, number[]> | undefined)?.[t.key] ?? Array(t.doses).fill(0);
+            const setMonths = (months: number[]) =>
+              setForm({
+                ...settings,
+                vaccinationSchedule: {
+                  ...settings.vaccinationSchedule,
+                  [t.key]: months,
+                },
+              });
+            return (
+              <div key={t.key} className="flex items-start gap-4">
+                <div className="w-36 pt-1.5 flex-shrink-0">
+                  <p className="text-sm font-medium text-petra-text">{t.label}</p>
+                  <p className="text-[11px] text-petra-muted">{t.doses} מנות בשנה</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {Array.from({ length: t.doses }, (_, i) => (
+                    <div key={i} className="flex items-center gap-1">
+                      {t.doses > 1 && <span className="text-xs text-petra-muted w-10">מנה {i + 1}:</span>}
+                      <select
+                        value={currentMonths[i] || 0}
+                        onChange={e => {
+                          const updated = [...currentMonths];
+                          while (updated.length <= i) updated.push(0);
+                          updated[i] = Number(e.target.value);
+                          setMonths(updated);
+                        }}
+                        className="input text-xs py-1 h-8 w-28"
+                      >
+                        <option value={0}>לא מוגדר</option>
+                        {HE_MONTHS_SETTINGS.map((name, idx) => (
+                          <option key={idx + 1} value={idx + 1}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-xs text-petra-muted mt-4 border-t border-slate-100 pt-3">
+          בתחילת כל שנה, תוכנית החיסונים של כל כלב תתחדש אוטומטית עם חודשים אלו. ניתן לשנות לכל כלב בנפרד מתוך תיק הכלב.
+        </p>
       </div>
 
       {/* Summary */}
