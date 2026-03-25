@@ -74,7 +74,12 @@ export function buildAdultYearPlan(
   const resolve = (key: string, defaultDoses: number): VaccinePlanEntry[] => {
     // 1. Business schedule (filter out 0 = "לא מוגדר")
     const schedMonths = (schedule as Record<string, number[]> | null | undefined)?.[key]?.filter(m => m >= 1 && m <= 12);
-    if (schedMonths && schedMonths.length > 0) return makeFromMonths(schedMonths);
+    if (schedMonths && schedMonths.length > 0) {
+      // Pad to defaultDoses so all dose slots appear in the plan
+      const entries = makeFromMonths(schedMonths);
+      while (entries.length < defaultDoses) entries.push({ planned: null, done: null });
+      return entries;
+    }
 
     // 2. Carry forward from previous year
     if (prevPlan) {

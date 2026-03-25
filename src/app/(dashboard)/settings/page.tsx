@@ -2992,6 +2992,17 @@ function ServiceDogsSettingsTab() {
     onError: () => toast.error("שגיאה בשמירה"),
   });
 
+  const applyMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/service-dogs/vaccinations/apply-schedule", { method: "POST" }).then(async r => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "שגיאה");
+        return d;
+      }),
+    onSuccess: (d) => toast.success(`לוח החיסונים הוחל על ${d.updatedCount} כלבים`),
+    onError: (e: Error) => toast.error(e.message || "שגיאה בהחלת לוח החיסונים"),
+  });
+
   if (isLoading) {
     return <div className="space-y-4 animate-pulse">{[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-slate-100 rounded-xl" />)}</div>;
   }
@@ -3176,6 +3187,29 @@ function ServiceDogsSettingsTab() {
             <p className="text-xs text-petra-muted border-t border-slate-100 pt-3">
               סיווג גורים/בוגרים מחושב לפי תאריך לידה בתיק הכלב. ניתן לשנות לכל כלב בנפרד.
             </p>
+
+            {/* Apply to all dogs */}
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-1">
+              <div>
+                <p className="text-sm font-medium text-petra-text">החל על כלל הכלבים עכשיו</p>
+                <p className="text-xs text-petra-muted mt-0.5">
+                  יעדכן את תוכניות החיסונים של כלל הכלבים לפי הלוח שהוגדר כאן
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!mutation.isPending) mutation.mutate(settings, {
+                    onSuccess: () => applyMutation.mutate(),
+                  });
+                }}
+                disabled={applyMutation.isPending || mutation.isPending}
+                className="btn-secondary text-sm flex items-center gap-2 flex-shrink-0 mr-4"
+              >
+                {applyMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                {applyMutation.isPending ? "מחיל..." : "החל על כלל הכלבים"}
+              </button>
+            </div>
           </div>
         ) : (
           <p className="text-sm text-petra-muted mt-3">
