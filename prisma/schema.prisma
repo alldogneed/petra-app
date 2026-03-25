@@ -579,6 +579,7 @@ model Lead {
   followUpStatus   String   @default("pending") // "pending" | "completed"
   followUpTaskId   String?   // ID of the auto-created follow-up Task
   googleContactId  String?   // Google People API resource name (e.g. "people/c12345678")
+  previousStageId  String?   // Last active stage before archiving (won/lost) — used for restore
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

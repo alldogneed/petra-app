@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import {
   Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
   Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText,
-  CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles, MapPin, Tag, Download, AlertCircle, RotateCcw,
+  CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles, MapPin, Tag, Download, AlertCircle, RotateCcw, ChevronDown,
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone } from "@/lib/validation";
@@ -58,6 +58,7 @@ interface Lead {
   customer: { id: string; name: string } | null;
   nextFollowUpAt: string | null;
   followUpStatus: string | null;
+  previousStageId: string | null;
   callLogs?: {
     id: string;
     summary: string;
@@ -1120,22 +1121,27 @@ function RestoreLeadModal({
   onClose: () => void;
   onRestored: () => void;
 }) {
-  const [selectedStage, setSelectedStage] = useState(activeStages[0]?.id || "");
+  // If previousStageId is set and still exists as active stage → pre-select it
+  const prevStage = lead.previousStageId
+    ? activeStages.find(s => s.id === lead.previousStageId)
+    : null;
+  const [selectedStage, setSelectedStage] = useState(prevStage?.id || activeStages[0]?.id || "");
+  const [showPicker, setShowPicker] = useState(!prevStage); // skip picker if we know previous stage
   const [saving, setSaving] = useState(false);
 
-  const handleRestore = async () => {
-    if (!selectedStage) return;
+  const handleRestore = async (stageId: string) => {
     setSaving(true);
     try {
       const res = await fetch(`/api/leads/${lead.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          stage: selectedStage,
+          stage: stageId,
           lostAt: null,
           wonAt: null,
           lostReasonCode: null,
           lostReasonText: null,
+          previousStageId: null,
         }),
       });
       if (!res.ok) throw new Error("Failed");
@@ -1156,37 +1162,66 @@ function RestoreLeadModal({
           <h2 className="text-lg font-bold">החזר ליד לקנבן</h2>
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
         </div>
-        <p className="text-sm text-petra-muted mb-4">
-          לאיזה שלב להחזיר את <span className="font-semibold text-petra-text">{lead.name}</span>?
-        </p>
-        <div className="space-y-2 mb-5">
-          {activeStages.map(stage => (
-            <button
-              key={stage.id}
-              onClick={() => setSelectedStage(stage.id)}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all text-right",
-                selectedStage === stage.id
-                  ? "border-brand-500 bg-brand-50 text-brand-700"
-                  : "border-slate-200 hover:border-slate-300 text-petra-text"
-              )}
-            >
-              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
-              {stage.name}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleRestore}
-            disabled={!selectedStage || saving}
-            className="btn-primary flex-1 flex items-center justify-center gap-2"
-          >
-            {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <RotateCcw className="w-4 h-4" />}
-            החזר ליד
-          </button>
-          <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
-        </div>
+
+        {/* Fast path: known previous stage */}
+        {!showPicker && prevStage ? (
+          <>
+            <p className="text-sm text-petra-muted mb-4">
+              להחזיר את <span className="font-semibold text-petra-text">{lead.name}</span> לשלב האחרון שלו?
+            </p>
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-brand-300 bg-brand-50 mb-5">
+              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: prevStage.color }} />
+              <span className="text-sm font-semibold text-brand-700">{prevStage.name}</span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleRestore(prevStage.id)}
+                disabled={saving}
+                className="btn-primary flex-1 flex items-center justify-center gap-2"
+              >
+                {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                החזר לשלב זה
+              </button>
+              <button onClick={() => setShowPicker(true)} className="btn-secondary px-3" title="בחר שלב אחר">
+                <ChevronDown className="w-4 h-4" />
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-petra-muted mb-4">
+              לאיזה שלב להחזיר את <span className="font-semibold text-petra-text">{lead.name}</span>?
+            </p>
+            <div className="space-y-2 mb-5">
+              {activeStages.map(stage => (
+                <button
+                  key={stage.id}
+                  onClick={() => setSelectedStage(stage.id)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all text-right",
+                    selectedStage === stage.id
+                      ? "border-brand-500 bg-brand-50 text-brand-700"
+                      : "border-slate-200 hover:border-slate-300 text-petra-text"
+                  )}
+                >
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
+                  {stage.name}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleRestore(selectedStage)}
+                disabled={!selectedStage || saving}
+                className="btn-primary flex-1 flex items-center justify-center gap-2"
+              >
+                {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                החזר ליד
+              </button>
+              <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1353,9 +1388,10 @@ function LeadsPageContent() {
   // ─── Mutations ──────────────────────────────────────────────────────────
 
   const moveMutation = useMutation({
-    mutationFn: async ({ id, stage, fromStageName, toStageName, isLost }: { id: string; stage: string; fromStageName?: string; toStageName?: string; isLost?: boolean }) => {
+    mutationFn: async ({ id, stage, fromStageName, toStageName, isLost, previousStageId }: { id: string; stage: string; fromStageName?: string; toStageName?: string; isLost?: boolean; previousStageId?: string }) => {
       const payload: Record<string, unknown> = { stage };
-      if (isLost) payload.lostAt = new Date().toISOString();
+      if (isLost) { payload.lostAt = new Date().toISOString(); }
+      if (previousStageId) payload.previousStageId = previousStageId;
       await fetch(`/api/leads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); });
       if (fromStageName && toStageName) {
         await fetch(`/api/leads/${id}/logs`, {
@@ -1460,6 +1496,7 @@ function LeadsPageContent() {
             id: activeLeadId, stage: targetStageId,
             fromStageName: fromStage?.name, toStageName: targetStage?.name,
             isLost: !!targetStage?.isLost,
+            previousStageId: (targetStage?.isLost || targetStage?.isWon) ? lead.stage : undefined,
           });
           if (targetStage?.isLost) {
             setSelectedLead({ ...lead, stage: targetStageId });
