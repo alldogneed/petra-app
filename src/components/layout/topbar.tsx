@@ -29,6 +29,7 @@ import {
   RefreshCw,
   FileText,
   ShieldCheck,
+  Check,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
@@ -248,6 +249,13 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [messagesOpen, setMessagesOpen] = useState(false);
+  const [dismissedBizIds, setDismissedBizIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const stored = sessionStorage.getItem("dismissed-biz-notifs");
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
   const [activeTab, setActiveTab] = useState<PanelTab>("profile");
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteData, setInviteData] = useState({
@@ -335,8 +343,9 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
     staleTime: 30000,
     refetchInterval: 60000,
   });
-  const bizNotifications = bizNotifsData?.items ?? [];
-  const criticalCount = bizNotifsData?.criticalCount ?? 0;
+  const allBizNotifications = bizNotifsData?.items ?? [];
+  const bizNotifications = allBizNotifications.filter((item) => !dismissedBizIds.has(item.id));
+  const criticalCount = bizNotifications.filter((item) => item.critical).length;
 
   // Mark system message as read
   const markAsRead = useMutation({
@@ -589,10 +598,26 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             {/* Business Notifications Dropdown */}
             {notificationsOpen && (
               <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:left-0 top-[68px] sm:top-full sm:mt-2 sm:w-80 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
-                <div className="px-4 py-3 border-b border-slate-100">
-                  <h3 className="text-sm font-bold text-petra-text">התראות עסקיות</h3>
-                  {criticalCount > 0 && (
-                    <p className="text-[11px] text-red-500 mt-0.5">{criticalCount} פריטים דורשים טיפול</p>
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                  <div>
+                    <h3 className="text-sm font-bold text-petra-text">התראות עסקיות</h3>
+                    {criticalCount > 0 && (
+                      <p className="text-[11px] text-red-500 mt-0.5">{criticalCount} פריטים דורשים טיפול</p>
+                    )}
+                  </div>
+                  {bizNotifications.length > 0 && (
+                    <button
+                      onClick={() => {
+                        const newDismissed = new Set([...dismissedBizIds, ...bizNotifications.map((n) => n.id)]);
+                        setDismissedBizIds(newDismissed);
+                        try { sessionStorage.setItem("dismissed-biz-notifs", JSON.stringify([...newDismissed])); } catch {}
+                        setNotificationsOpen(false);
+                      }}
+                      className="flex items-center gap-1 text-[11px] text-brand-600 hover:text-brand-700 font-medium flex-shrink-0"
+                    >
+                      <Check className="w-3 h-3" />
+                      קראתי הכל
+                    </button>
                   )}
                 </div>
                 <div className="max-h-[60vh] sm:max-h-96 overflow-y-auto">
