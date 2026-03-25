@@ -395,7 +395,7 @@ function PetsPageContent() {
                             {pet.gender && (
                               <p className="text-[10px] text-petra-muted">
                                 {GENDER_LABELS[pet.gender] ?? pet.gender}
-                                {pet.health?.neuteredSpayed ? " · מסורס/עקור" : ""}
+                                {pet.health?.neuteredSpayed ? " · מסורס/מעוקרת" : ""}
                               </p>
                             )}
                           </div>

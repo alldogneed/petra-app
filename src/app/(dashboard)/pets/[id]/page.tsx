@@ -669,7 +669,7 @@ export default function PetProfilePage() {
                 { label: "תאריך לידה", value: pet.birthDate ? formatDate(new Date(pet.birthDate)) : null },
                 { label: "משקל", value: pet.weight ? `${pet.weight} ק"ג` : null },
                 { label: "מיקרוצ'יפ", value: pet.microchip },
-                { label: "מסורס/עקור", value: pet.health?.neuteredSpayed ? "כן" : null },
+                { label: "מסורס/מעוקרת", value: pet.health?.neuteredSpayed ? "כן" : null },
               ]
                 .filter((r) => r.value)
                 .map(({ label, value }) => (

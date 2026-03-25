@@ -2980,7 +2980,7 @@ function EditHealthModal({
                   onChange={(e) => setForm({ ...form, neuteredSpayed: e.target.checked })}
                   className="w-4 h-4 accent-brand-500"
                 />
-                <span className="text-sm text-petra-text">מסורס / עקור</span>
+                <span className="text-sm text-petra-text">מסורס / מעוקרת</span>
               </label>
               <div>
                 <label className="label">מקור (מאיפה הגיע)</label>

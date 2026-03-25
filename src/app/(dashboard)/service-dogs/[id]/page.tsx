@@ -3438,7 +3438,7 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
           {pet.health?.neuteredSpayed !== undefined && (
             <div>
               <p className="text-xs text-petra-muted">מצב</p>
-              <p className="font-medium">{pet.health.neuteredSpayed ? "מסורס / עקור" : "לא מסורס"}</p>
+              <p className="font-medium">{pet.health.neuteredSpayed ? "מסורס / מעוקרת" : "לא מסורס"}</p>
             </div>
           )}
           {pet.health?.vetName && (
@@ -4043,7 +4043,7 @@ function EditPetModal({
               onChange={(e) => setNeuteredSpayed(e.target.checked)}
               className="w-4 h-4 rounded border-slate-300"
             />
-            <label htmlFor="neutered-edit" className="text-sm cursor-pointer">מסורס / עקור</label>
+            <label htmlFor="neutered-edit" className="text-sm cursor-pointer">מסורס / מעוקרת</label>
           </div>
         </div>
         <div className="flex gap-2 mt-5">
@@ -5509,7 +5509,7 @@ function SDHealthModal({
             <div className="space-y-3">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={!!form.neuteredSpayed} onChange={(e) => setForm({ ...form, neuteredSpayed: e.target.checked })} className="w-4 h-4 accent-brand-500" />
-                <span className="text-sm">מסורס / עקור</span>
+                <span className="text-sm">מסורס / מעוקרת</span>
               </label>
               <div><label className="label">מקור</label><input className="input" value={form.originInfo} onChange={(e) => setForm({ ...form, originInfo: e.target.value })} placeholder="מאמץ, מגדל..." /></div>
               <div><label className="label">זמן עם הבעלים / מטפל</label><input className="input" value={form.timeWithOwner} onChange={(e) => setForm({ ...form, timeWithOwner: e.target.value })} /></div>
