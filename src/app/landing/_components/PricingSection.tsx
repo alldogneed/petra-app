@@ -369,7 +369,7 @@ export function PricingSection() {
                   {CARDCOM_TIERS.has(plan.key) ? (
                     <div className="flex flex-col gap-1.5">
                       <Link
-                        href={user ? `/upgrade?autostart=${plan.key}` : `/checkout?tier=${plan.key}&trial=1`}
+                        href={`/checkout?tier=${plan.key}&trial=1`}
                         aria-label={`נסה 14 יום חינם — מסלול ${plan.name}`}
                         className={`text-sm py-2.5 rounded-xl text-center font-semibold transition-colors flex items-center justify-center gap-1.5 ${
                           plan.highlight
