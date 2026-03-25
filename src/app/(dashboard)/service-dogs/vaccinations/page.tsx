@@ -237,7 +237,7 @@ export default function VaccinationsPage() {
                     {col.label}
                   </th>
                 ))}
-                <th className="text-center p-3 font-semibold text-petra-text w-20 no-print">פעולות</th>
+                <th className="text-center p-3 font-semibold text-petra-text w-28 no-print">עריכה</th>
               </tr>
             </thead>
             <tbody>
@@ -301,10 +301,16 @@ export default function VaccinationsPage() {
                     );
                   })}
                   <td className="p-2 text-center no-print">
-                    <Link href={`/service-dogs/${dog.id}`}
-                      className="text-xs px-2 py-1 rounded-lg border border-slate-200 text-petra-muted hover:bg-slate-50 inline-flex items-center gap-1">
-                      תיק כלב <ChevronRight className="w-3 h-3" />
-                    </Link>
+                    <div className="flex flex-col gap-1 items-center">
+                      <Link href={`/service-dogs/${dog.id}?tab=vaccinations`}
+                        className="text-xs px-2 py-1 rounded-lg bg-brand-50 border border-brand-200 text-brand-700 hover:bg-brand-100 inline-flex items-center gap-1 font-medium">
+                        ערוך תוכנית
+                      </Link>
+                      <Link href={`/service-dogs/${dog.id}`}
+                        className="text-xs text-petra-muted hover:text-petra-text inline-flex items-center gap-0.5">
+                        תיק כלב <ChevronRight className="w-3 h-3" />
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

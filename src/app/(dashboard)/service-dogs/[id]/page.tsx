@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { usePermissions } from "@/hooks/usePermissions";
 import Link from "next/link";
 import {
@@ -290,8 +290,15 @@ interface IDCard {
 function ServiceDogProfilePageContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dogId = params.id as string;
-  const [activeTab, setActiveTab] = useState<"training" | "medical" | "compliance" | "placements" | "idcard" | "dogfile" | "documents" | "tests" | "insurance" | "equipment" | "vaccinations">("dogfile");
+
+  const VALID_TABS = ["training", "medical", "compliance", "placements", "idcard", "dogfile", "documents", "tests", "insurance", "equipment", "vaccinations"] as const;
+  type TabId = typeof VALID_TABS[number];
+  const tabParam = searchParams.get("tab") as TabId | null;
+  const initialTab: TabId = tabParam && VALID_TABS.includes(tabParam) ? tabParam : "dogfile";
+
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   const [showPhaseDropdown, setShowPhaseDropdown] = useState(false);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
