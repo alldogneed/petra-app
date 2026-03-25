@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import {
   Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
   Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText,
-  CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles, MapPin, Tag, Download, AlertCircle,
+  CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles, MapPin, Tag, Download, AlertCircle, RotateCcw,
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone } from "@/lib/validation";
@@ -962,18 +962,246 @@ function DeleteStageModal({
   );
 }
 
-// ─── Archive List ────────────────────────────────────────────────────────────
+// ─── Archive Tab ─────────────────────────────────────────────────────────────
 
-function ArchiveList({
+function ArchiveTab({
   leads,
   wonStage,
   lostStage,
+  activeStages,
+  searchQuery,
   onLeadClick,
 }: {
   leads: Lead[];
   wonStage?: LeadStage;
   lostStage?: LeadStage;
+  activeStages: LeadStage[];
+  searchQuery: string;
   onLeadClick: (l: Lead) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [restoreLead, setRestoreLead] = useState<Lead | null>(null);
+  const [filterType, setFilterType] = useState<"all" | "won" | "lost">("all");
+
+  const archivedLeads = leads.filter(l => l.stage === wonStage?.id || l.stage === lostStage?.id);
+
+  const filtered = archivedLeads
+    .filter(l => filterType === "all" || (filterType === "won" ? l.stage === wonStage?.id : l.stage === lostStage?.id))
+    .filter(l => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return l.name.toLowerCase().includes(q)
+        || (l.phone || "").includes(q)
+        || (l.email || "").toLowerCase().includes(q)
+        || (l.lostReasonText || "").toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.lostAt || a.wonAt || a.createdAt).getTime();
+      const dateB = new Date(b.lostAt || b.wonAt || b.createdAt).getTime();
+      return dateB - dateA;
+    });
+
+  return (
+    <div>
+      {/* Filter pills */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        {(["all", "lost", "won"] as const).map(f => {
+          const label = f === "all" ? "הכל" : f === "lost" ? "🔴 אבודים" : "🏆 נסגרו";
+          const count = f === "all" ? archivedLeads.length
+            : f === "lost" ? archivedLeads.filter(l => l.stage === lostStage?.id).length
+            : archivedLeads.filter(l => l.stage === wonStage?.id).length;
+          return (
+            <button
+              key={f}
+              onClick={() => setFilterType(f)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5",
+                filterType === f ? "bg-brand-500 text-white" : "bg-slate-100 text-petra-muted hover:bg-slate-200"
+              )}
+            >
+              {label}
+              <span className={cn("text-[10px] px-1.5 rounded-full", filterType === f ? "bg-white/20" : "bg-slate-200")}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        {filtered.length === 0 ? (
+          <div className="text-center py-16">
+            <Archive className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+            <p className="text-sm text-petra-muted">{searchQuery ? "לא נמצאו תוצאות" : "הארכיון ריק"}</p>
+          </div>
+        ) : (
+          <table className="w-full text-sm text-right">
+            <thead className="bg-slate-50 text-petra-muted border-b border-slate-100 text-xs">
+              <tr>
+                <th className="font-medium p-3">שם</th>
+                <th className="font-medium p-3">טלפון</th>
+                <th className="font-medium p-3">סטטוס</th>
+                <th className="font-medium p-3">סיבה / הערה</th>
+                <th className="font-medium p-3">תאריך</th>
+                <th className="font-medium p-3"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filtered.map(lead => {
+                const isWon = lead.stage === wonStage?.id;
+                const lostReasonLabel = lead.lostReasonCode
+                  ? LOST_REASON_CODES.find(r => r.id === lead.lostReasonCode)?.label
+                  : null;
+                const date = isWon ? lead.wonAt : lead.lostAt;
+                return (
+                  <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-3 font-medium text-petra-text cursor-pointer" onClick={() => onLeadClick(lead)}>
+                      {lead.name}
+                    </td>
+                    <td className="p-3 text-petra-muted text-xs" dir="ltr">{lead.phone || "—"}</td>
+                    <td className="p-3">
+                      {isWon ? (
+                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-medium">
+                          <Trophy className="w-3 h-3" /> נסגר
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 font-medium">
+                          <Archive className="w-3 h-3" /> אבוד
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3 text-xs text-petra-muted max-w-[200px] truncate">
+                      {lostReasonLabel || lead.lostReasonText || "—"}
+                    </td>
+                    <td className="p-3 text-xs text-petra-muted whitespace-nowrap">
+                      {date ? new Date(date).toLocaleDateString("he-IL") : "—"}
+                    </td>
+                    <td className="p-3">
+                      <button
+                        onClick={() => setRestoreLead(lead)}
+                        className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg bg-brand-50 text-brand-600 hover:bg-brand-100 border border-brand-200 font-medium transition-colors whitespace-nowrap"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        החזר ליד
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {restoreLead && (
+        <RestoreLeadModal
+          lead={restoreLead}
+          activeStages={activeStages}
+          onClose={() => setRestoreLead(null)}
+          onRestored={() => {
+            queryClient.invalidateQueries({ queryKey: ["leads"] });
+            setRestoreLead(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Restore Lead Modal ───────────────────────────────────────────────────────
+
+function RestoreLeadModal({
+  lead,
+  activeStages,
+  onClose,
+  onRestored,
+}: {
+  lead: Lead;
+  activeStages: LeadStage[];
+  onClose: () => void;
+  onRestored: () => void;
+}) {
+  const [selectedStage, setSelectedStage] = useState(activeStages[0]?.id || "");
+  const [saving, setSaving] = useState(false);
+
+  const handleRestore = async () => {
+    if (!selectedStage) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          stage: selectedStage,
+          lostAt: null,
+          wonAt: null,
+          lostReasonCode: null,
+          lostReasonText: null,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success(`"${lead.name}" הוחזר למערכת הלידים`);
+      onRestored();
+    } catch {
+      toast.error("שגיאה בהחזרת הליד");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-backdrop" />
+      <div className="modal-content max-w-sm mx-4 p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold">החזר ליד לקנבן</h2>
+          <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
+        </div>
+        <p className="text-sm text-petra-muted mb-4">
+          לאיזה שלב להחזיר את <span className="font-semibold text-petra-text">{lead.name}</span>?
+        </p>
+        <div className="space-y-2 mb-5">
+          {activeStages.map(stage => (
+            <button
+              key={stage.id}
+              onClick={() => setSelectedStage(stage.id)}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all text-right",
+                selectedStage === stage.id
+                  ? "border-brand-500 bg-brand-50 text-brand-700"
+                  : "border-slate-200 hover:border-slate-300 text-petra-text"
+              )}
+            >
+              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
+              {stage.name}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleRestore}
+            disabled={!selectedStage || saving}
+            className="btn-primary flex-1 flex items-center justify-center gap-2"
+          >
+            {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+            החזר ליד
+          </button>
+          <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Archive Drop Zones (DnD targets inside kanban DndContext) ────────────────
+
+function ArchiveList({
+  leads,
+  wonStage,
+  lostStage,
+}: {
+  leads: Lead[];
+  wonStage?: LeadStage;
+  lostStage?: LeadStage;
 }) {
   const { setNodeRef: setWonNodeRef, isOver: isWonOver } = useDroppable({ id: wonStage?.id || "won", disabled: !wonStage });
   const { setNodeRef: setLostNodeRef, isOver: isLostOver } = useDroppable({ id: lostStage?.id || "lost", disabled: !lostStage });
@@ -981,109 +1209,24 @@ function ArchiveList({
   if (!wonStage && !lostStage) return null;
 
   return (
-    <div className="mt-4 mb-20 space-y-4">
-      <h2 className="text-xl font-bold text-petra-text px-1">ארכיון לידים (שטופלו)</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="mt-4 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {wonStage && (
-          <div
-            ref={setWonNodeRef}
-            className={`bg-white rounded-xl shadow-sm border transition-colors flex flex-col ${isWonOver ? "border-green-400 bg-green-50 shadow-lg" : "border-slate-200"
-              }`}
-          >
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-green-50/50 rounded-t-xl">
-              <div className="flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-green-600" />
-                <h3 className="font-bold text-green-800">נסגרו (לקוחות)</h3>
-              </div>
-              <span className="badge-neutral text-xs">{leads.filter((l) => l.stage === wonStage.id).length}</span>
-            </div>
-            <div className="p-0 overflow-y-auto max-h-[400px]">
-              <table className="w-full text-sm text-right whitespace-nowrap">
-                <thead className="bg-slate-50 text-petra-muted border-b border-slate-100 sticky top-0 z-10">
-                  <tr>
-                    <th className="font-medium p-3">שם</th>
-                    <th className="font-medium p-3">טלפון</th>
-                    <th className="font-medium p-3">תאריך סגירה</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {leads
-                    .filter((l) => l.stage === wonStage.id)
-                    .sort((a, b) => new Date(b.wonAt || 0).getTime() - new Date(a.wonAt || 0).getTime())
-                    .map((lead) => (
-                      <tr key={lead.id} onClick={() => onLeadClick(lead)} className="hover:bg-slate-50 cursor-pointer transition-colors text-xs sm:text-sm">
-                        <td className="p-3 font-medium text-petra-text">{lead.name}</td>
-                        <td className="p-3 text-petra-muted" dir="ltr">{lead.phone || "-"}</td>
-                        <td className="p-3 text-petra-muted">
-                          {lead.wonAt ? new Date(lead.wonAt).toLocaleDateString("he-IL") : ""}
-                        </td>
-                      </tr>
-                    ))}
-                  {leads.filter((l) => l.stage === wonStage.id).length === 0 && (
-                    <tr>
-                      <td colSpan={3} className="p-8 text-center text-petra-muted">אין לידים שנסגרו</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+          <div ref={setWonNodeRef}
+            className={`rounded-xl border-2 border-dashed transition-colors p-4 text-center ${isWonOver ? "border-green-400 bg-green-50" : "border-slate-200 bg-slate-50/50"}`}>
+            <Trophy className={`w-5 h-5 mx-auto mb-1 ${isWonOver ? "text-green-600" : "text-slate-400"}`} />
+            <p className={`text-xs font-medium ${isWonOver ? "text-green-700" : "text-petra-muted"}`}>
+              {isWonOver ? "שחרר — סגירה!" : `גרור לכאן לסגירה · ${leads.filter(l => l.stage === wonStage.id).length} נסגרו`}
+            </p>
           </div>
         )}
-
         {lostStage && (
-          <div
-            ref={setLostNodeRef}
-            className={`bg-white rounded-xl shadow-sm border transition-colors flex flex-col ${isLostOver ? "border-red-400 bg-red-50 shadow-lg" : "border-slate-200"
-              }`}
-          >
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-red-50/50 rounded-t-xl">
-              <div className="flex items-center gap-2">
-                <Archive className="w-5 h-5 text-red-500" />
-                <h3 className="font-bold text-red-800">אבודים</h3>
-              </div>
-              <span className="badge-neutral text-xs">{leads.filter((l) => l.stage === lostStage.id).length}</span>
-            </div>
-            <div className="p-0 overflow-y-auto max-h-[400px]">
-              <table className="w-full text-sm text-right whitespace-nowrap">
-                <thead className="bg-slate-50 text-petra-muted border-b border-slate-100 sticky top-0 z-10">
-                  <tr>
-                    <th className="font-medium p-3">שם</th>
-                    <th className="font-medium p-3">סיבה</th>
-                    <th className="font-medium p-3">תאריך אובדן</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {leads
-                    .filter((l) => l.stage === lostStage.id)
-                    .sort((a, b) => new Date(b.lostAt || 0).getTime() - new Date(a.lostAt || 0).getTime())
-                    .map((lead) => {
-                      const lostReasonLabel = lead.lostReasonCode
-                        ? LOST_REASON_CODES.find((r) => r.id === lead.lostReasonCode)?.label
-                        : null;
-                      return (
-                        <tr key={lead.id} onClick={() => onLeadClick(lead)} className="hover:bg-slate-50 cursor-pointer transition-colors text-xs sm:text-sm">
-                          <td className="p-3 font-medium text-petra-text">{lead.name}</td>
-                          <td className="p-3 text-petra-muted">
-                            {lostReasonLabel && (
-                              <span className="inline-block px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-[10px] whitespace-normal max-w-[150px] leading-tight">
-                                {lostReasonLabel}
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-3 text-petra-muted">
-                            {lead.lostAt ? new Date(lead.lostAt).toLocaleDateString("he-IL") : ""}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  {leads.filter((l) => l.stage === lostStage.id).length === 0 && (
-                    <tr>
-                      <td colSpan={3} className="p-8 text-center text-petra-muted">אין לידים אבודים</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+          <div ref={setLostNodeRef}
+            className={`rounded-xl border-2 border-dashed transition-colors p-4 text-center ${isLostOver ? "border-red-400 bg-red-50" : "border-slate-200 bg-slate-50/50"}`}>
+            <Archive className={`w-5 h-5 mx-auto mb-1 ${isLostOver ? "text-red-600" : "text-slate-400"}`} />
+            <p className={`text-xs font-medium ${isLostOver ? "text-red-700" : "text-petra-muted"}`}>
+              {isLostOver ? "שחרר — ארכוב!" : `גרור לכאן לארכוב · ${leads.filter(l => l.stage === lostStage.id).length} אבודים`}
+            </p>
           </div>
         )}
       </div>
@@ -1101,7 +1244,7 @@ function LeadsPageContent() {
   const [wonToast, setWonToast] = useState<{ name: string; customerId: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"kanban" | "reports">("kanban");
+  const [activeTab, setActiveTab] = useState<"kanban" | "reports" | "archive">("kanban");
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exportFrom, setExportFrom] = useState("");
@@ -1404,6 +1547,25 @@ function LeadsPageContent() {
             קנבן
           </button>
           <button
+            onClick={() => setActiveTab("archive")}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+              activeTab === "archive" ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text"
+            )}
+          >
+            <Archive className="w-3.5 h-3.5" />
+            ארכיון
+            {(() => {
+              const count = (wonStage ? leads.filter(l => l.stage === wonStage.id).length : 0)
+                + (lostStage ? leads.filter(l => l.stage === lostStage.id).length : 0);
+              return count > 0 ? (
+                <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
+                  activeTab === "archive" ? "bg-slate-100 text-slate-600" : "bg-slate-200 text-slate-500"
+                )}>{count}</span>
+              ) : null;
+            })()}
+          </button>
+          <button
             onClick={() => setActiveTab("reports")}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
@@ -1436,23 +1598,42 @@ function LeadsPageContent() {
         )}
 
         {/* Search — right side */}
-        <div className="relative w-full sm:w-auto">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
-          <input
-            type="text"
-            placeholder="חפש ליד..."
-            className="input pr-9 pl-3 text-sm w-full sm:w-52"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <button
-              className="absolute left-2 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
-              onClick={() => setSearchQuery("")}
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+        <div className="flex flex-col gap-1 w-full sm:w-auto">
+          <div className="relative">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
+            <input
+              type="text"
+              placeholder={activeTab === "archive" ? "חפש בארכיון..." : "חפש ליד..."}
+              className="input pr-9 pl-3 text-sm w-full sm:w-52"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                className="absolute left-2 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
+                onClick={() => setSearchQuery("")}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {/* Archive hint — show when searching in kanban and archive has matches */}
+          {activeTab === "kanban" && searchQuery.trim() && (() => {
+            const q = searchQuery.toLowerCase();
+            const archiveHits = leads.filter(l =>
+              (l.stage === wonStage?.id || l.stage === lostStage?.id) &&
+              (l.name.toLowerCase().includes(q) || (l.phone || "").includes(q) || (l.email || "").toLowerCase().includes(q))
+            ).length;
+            return archiveHits > 0 ? (
+              <button
+                onClick={() => setActiveTab("archive")}
+                className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1 font-medium"
+              >
+                <Archive className="w-3 h-3" />
+                נמצא {archiveHits} בארכיון ←
+              </button>
+            ) : null;
+          })()}
         </div>
 
         {/* Export button */}
@@ -1554,6 +1735,18 @@ function LeadsPageContent() {
       {/* Reports Tab */}
       {activeTab === "reports" && (
         <LeadsReports leads={leads} stages={stages} />
+      )}
+
+      {/* Archive Tab */}
+      {activeTab === "archive" && (
+        <ArchiveTab
+          leads={leads}
+          wonStage={wonStage}
+          lostStage={lostStage}
+          activeStages={activeStages}
+          searchQuery={searchQuery}
+          onLeadClick={(lead) => setSelectedLead(lead)}
+        />
       )}
 
       {/* Kanban Tab */}
@@ -1757,7 +1950,7 @@ function LeadsPageContent() {
             <AddStageInline onAdd={handleAddStage} triggerOpen={addStageTrigger} />
           </div>
 
-          <ArchiveList leads={filteredLeads} wonStage={wonStage} lostStage={lostStage} onLeadClick={(lead) => setSelectedLead(lead)} />
+          <ArchiveList leads={leads} wonStage={wonStage} lostStage={lostStage} />
 
           <DragOverlay>
             {activeDragLead ? (
