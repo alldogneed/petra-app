@@ -1234,6 +1234,38 @@ function ArchiveList({
   );
 }
 
+// ─── Priority sort ────────────────────────────────────────────────────────────
+// Groups: 0=overdue (red) → 1=untouched (amber) → 2=handled (grey)
+// Within each group: oldest first (waiting longest = top of column)
+
+function sortLeadsByPriority(leads: Lead[]): Lead[] {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const getPriority = (lead: Lead): 0 | 1 | 2 => {
+    const followUpDate = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
+    if (followUpDate && followUpDate < todayStart && lead.followUpStatus !== "completed") return 0;
+    const hasActivity = (lead.callLogs?.length || 0) > 0 || !!lead.lastContactedAt;
+    const hasFutureFollowUp = !!followUpDate && followUpDate >= todayStart;
+    return (hasActivity || hasFutureFollowUp || lead.followUpStatus === "completed") ? 2 : 1;
+  };
+
+  const getAgeMs = (lead: Lead): number => {
+    // For overdue: how long ago was the follow-up due (most overdue = oldest = first)
+    const followUpDate = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
+    if (followUpDate && followUpDate < todayStart) return followUpDate.getTime();
+    // For untouched/handled: how long ago was the lead created
+    return new Date(lead.createdAt).getTime();
+  };
+
+  return [...leads].sort((a, b) => {
+    const pa = getPriority(a);
+    const pb = getPriority(b);
+    if (pa !== pb) return pa - pb;
+    return getAgeMs(a) - getAgeMs(b); // older = smaller timestamp = sorts first
+  });
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 function LeadsPageContent() {
@@ -1887,7 +1919,7 @@ function LeadsPageContent() {
             <SortableContext items={activeStages.map((s) => s.id)} strategy={horizontalListSortingStrategy}>
               <div ref={kanbanScrollRef} className="flex gap-4 overflow-x-auto pb-6 items-stretch mb-8 snap-x snap-mandatory scrollbar-hide" style={{ minHeight: "500px" }}>
                 {activeStages.map((stage) => {
-                  const stageLeads = filteredLeads.filter((l) => l.stage === stage.id);
+                  const stageLeads = sortLeadsByPriority(filteredLeads.filter((l) => l.stage === stage.id));
                   return (
                     <SortableColumn
                       key={stage.id}
@@ -1924,7 +1956,7 @@ function LeadsPageContent() {
         >
           <div ref={kanbanScrollRef} className="flex gap-4 overflow-x-auto pb-6 items-stretch mb-8 snap-x snap-mandatory scrollbar-hide" style={{ minHeight: "500px" }}>
             {activeStages.map((stage) => {
-              const stageLeads = leads.filter((l) => l.stage === stage.id);
+              const stageLeads = sortLeadsByPriority(filteredLeads.filter((l) => l.stage === stage.id));
               return (
                 <div key={stage.id} className="min-w-[calc(100vw-2rem)] md:min-w-[280px] flex-1 flex flex-col snap-center">
                   <KanbanColumn
