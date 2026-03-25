@@ -5812,6 +5812,10 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
   const [markDate, setMarkDate] = useState("");
   const [setupYear, setSetupYear] = useState(new Date().getFullYear());
 
+  // Edit mode: draft of planned dates per treatment key → array of values
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDrafts, setEditDrafts] = useState<Record<string, string[]>>({});
+
   const { data: vaccinePlan, isLoading } = useQuery<VaccinePlan>({
     queryKey: ["vaccine-plan", dogId],
     queryFn: () => fetch(`/api/service-dogs/${dogId}/vaccine-plan`).then(r => r.json()),
@@ -5827,9 +5831,10 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vaccine-plan", dogId] });
       queryClient.invalidateQueries({ queryKey: ["service-dogs-vaccinations"] });
-      toast.success("תוכנית חיסונים נוצרה");
+      setIsEditing(false);
+      toast.success("תוכנית חיסונים נשמרה");
     },
-    onError: () => toast.error("שגיאה ביצירת תוכנית"),
+    onError: () => toast.error("שגיאה בשמירת תוכנית"),
   });
 
   const markDoneMutation = useMutation({
@@ -5855,6 +5860,38 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
     soon: "bg-amber-50 text-amber-700 border-amber-200",
     upcoming: "bg-sky-50 text-sky-700 border-sky-100",
     unknown: "bg-slate-50 text-slate-400 border-slate-200",
+  };
+
+  // Enter edit mode: initialize drafts from current planned dates
+  const enterEditMode = (currentSection: Record<string, Array<{ planned: string | null; done: string | null }>>) => {
+    const drafts: Record<string, string[]> = {};
+    treatments.forEach(t => {
+      drafts[t.key] = Array.from({ length: t.doses }, (_, i) => {
+        const planned = currentSection[t.key]?.[i]?.planned ?? "";
+        // Adults: "YYYY-MM" → input[type=month] value is "YYYY-MM" ✓
+        // Puppies: ISO date → input[type=date] value is "YYYY-MM-DD" ✓
+        return planned;
+      });
+    });
+    setEditDrafts(drafts);
+    setIsEditing(true);
+  };
+
+  // Build updated plan from drafts, preserving existing done dates
+  const buildPlanFromDrafts = (currentSection: Record<string, Array<{ planned: string | null; done: string | null }>>): VaccinePlan => {
+    const updatedSection: Record<string, Array<{ planned: string | null; done: string | null }>> = {};
+    treatments.forEach(t => {
+      updatedSection[t.key] = Array.from({ length: t.doses }, (_, i) => ({
+        planned: editDrafts[t.key]?.[i] || null,
+        done: currentSection[t.key]?.[i]?.done ?? null,
+      }));
+    });
+    if (isPuppy) {
+      return { ...vaccinePlan, puppies: updatedSection as VaccinePlan["puppies"] };
+    } else {
+      const year = (vaccinePlan?.adults?.year) ?? setupYear;
+      return { ...vaccinePlan, adults: { year, ...updatedSection } as VaccinePlan["adults"] };
+    }
   };
 
   if (isLoading) {
@@ -5896,10 +5933,23 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
           className="btn-primary mx-auto"
           disabled={savePlanMutation.isPending}
           onClick={() => {
+            const emptySection = isPuppy ? getEmptyPuppyPlan() : getEmptyAdultPlan(setupYear);
             const newPlan: VaccinePlan = isPuppy
-              ? { ...vaccinePlan, puppies: getEmptyPuppyPlan() }
-              : { ...vaccinePlan, adults: getEmptyAdultPlan(setupYear) };
-            savePlanMutation.mutate(newPlan);
+              ? { ...vaccinePlan, puppies: emptySection as VaccinePlan["puppies"] }
+              : { ...vaccinePlan, adults: emptySection as VaccinePlan["adults"] };
+            // Enter edit mode immediately after creating
+            const emptyEntries = emptySection as Record<string, Array<{ planned: string | null; done: string | null }>>;
+            const drafts: Record<string, string[]> = {};
+            treatments.forEach(t => { drafts[t.key] = Array(t.doses).fill(""); });
+            setEditDrafts(drafts);
+            savePlanMutation.mutate(newPlan, {
+              onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ["vaccine-plan", dogId] });
+                queryClient.invalidateQueries({ queryKey: ["service-dogs-vaccinations"] });
+                setIsEditing(true);
+                toast.success("תוכנית נוצרה — הגדר תאריכים מתוכננים");
+              },
+            });
           }}
         >
           {savePlanMutation.isPending ? "יוצר..." : "צור תוכנית חיסונים"}
@@ -5908,7 +5958,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
     );
   }
 
-  // ── Has plan: display table ──
+  // ── Has plan ──
   const entries = section as Record<string, Array<{ planned: string | null; done: string | null }>>;
 
   // Count status
@@ -5923,23 +5973,65 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
 
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Pill className="w-4 h-4 text-petra-muted" />
           <span className="font-semibold text-sm">
-            {isPuppy ? "חיסונים וטיפולים גורים" : `חיסונים וטיפולים שנתיים${(vaccinePlan?.adults?.year) ? ` — ${vaccinePlan.adults.year}` : ""}`}
+            {isPuppy ? "חיסונים וטיפולים גורים" : `חיסונים וטיפולים שנתיים${vaccinePlan?.adults?.year ? ` — ${vaccinePlan.adults.year}` : ""}`}
           </span>
         </div>
-        <Link
-          href="/service-dogs/vaccinations"
-          className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1"
-        >
-          ניהול מרכזי
-          <ExternalLink className="w-3 h-3" />
-        </Link>
+        <div className="flex items-center gap-2">
+          {isEditing ? (
+            <>
+              <button
+                className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1"
+                disabled={savePlanMutation.isPending}
+                onClick={() => savePlanMutation.mutate(buildPlanFromDrafts(entries))}
+              >
+                <Check className="w-3.5 h-3.5" />
+                {savePlanMutation.isPending ? "שומר..." : "שמור תוכנית"}
+              </button>
+              <button
+                className="btn-secondary text-xs py-1.5 px-3"
+                onClick={() => setIsEditing(false)}
+              >
+                ביטול
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1"
+                onClick={() => enterEditMode(entries)}
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                ערוך תוכנית
+              </button>
+              <Link
+                href="/service-dogs/vaccinations"
+                className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1"
+              >
+                ניהול מרכזי
+                <ExternalLink className="w-3 h-3" />
+              </Link>
+            </>
+          )}
+        </div>
       </div>
 
-      {(overdueCount > 0 || soonCount > 0) && (
+      {/* Edit mode banner */}
+      {isEditing && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 text-sm">
+          <Pencil className="w-4 h-4 text-sky-500 flex-shrink-0" />
+          <span className="text-sky-800">
+            {isPuppy ? "הגדר תאריכים לכל מנה (יום/חודש/שנה)" : "הגדר חודש לכל מנה — החודש שבו מתוכנן הטיפול השנתי"}
+          </span>
+        </div>
+      )}
+
+      {/* Warning banner */}
+      {!isEditing && (overdueCount > 0 || soonCount > 0) && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-sm">
           <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
           <span className="text-amber-800">
@@ -5950,14 +6042,15 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
         </div>
       )}
 
+      {/* Table */}
       <div className="card overflow-auto p-0">
         <table className="w-full text-sm" dir="rtl">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/50">
-              <th className="text-right p-3 font-semibold text-petra-text">טיפול</th>
+              <th className="text-right p-3 font-semibold text-petra-text w-32">טיפול</th>
               {treatments.map(t =>
                 Array.from({ length: t.doses }, (_, i) => (
-                  <th key={`${t.key}-${i}`} className="text-center p-3 font-semibold text-petra-text min-w-[110px]">
+                  <th key={`${t.key}-${i}`} className="text-center p-3 font-semibold text-petra-text min-w-[120px]">
                     {t.doses === 1 ? t.label : `${t.label} ${i + 1}`}
                   </th>
                 ))
@@ -5965,105 +6058,122 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
             </tr>
           </thead>
           <tbody>
-            <tr className="border-b border-slate-50">
-              <td className="p-3 font-medium text-petra-text">סטטוס</td>
+            {/* Planned dates row — view or edit */}
+            <tr className={cn("border-b", isEditing ? "bg-sky-50/40" : "bg-slate-50/30")}>
+              <td className="p-3 text-xs font-medium text-petra-muted">
+                {isEditing ? "תאריך מתוכנן ✏️" : "תאריך מתוכנן"}
+              </td>
               {treatments.map(t =>
                 Array.from({ length: t.doses }, (_, i) => {
                   const entry = entries[t.key]?.[i] ?? null;
-                  const status = getCellStatus(entry);
-                  const markKey = `${t.key}-${i}`;
-                  const isMarking = markingOpen === markKey;
-
-                  return (
-                    <td key={`${t.key}-${i}`} className="p-2 text-center">
-                      {isMarking ? (
-                        <div className="flex items-center gap-1 justify-center">
-                          <input
-                            type="date"
-                            value={markDate}
-                            onChange={e => setMarkDate(e.target.value)}
-                            className="input text-xs py-0.5 w-32 h-7"
-                          />
-                          <button
-                            onClick={() => {
-                              if (!markDate) return;
-                              markDoneMutation.mutate({ treatmentKey: t.key, index: i, doneDate: markDate });
-                            }}
-                            className="p-1 rounded bg-green-500 text-white hover:bg-green-600"
-                          >
-                            <Check className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={() => { setMarkingOpen(null); setMarkDate(""); }}
-                            className="p-1 rounded bg-slate-200 text-slate-600 hover:bg-slate-300"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <div className={cn(
-                            "rounded-lg px-2 py-1 text-xs font-medium border inline-block min-w-[90px] mb-1",
-                            cellBg[status]
-                          )}>
-                            {status === "done" && entry?.done
-                              ? `✓ ${new Intl.DateTimeFormat("he-IL", { month: "short", year: "numeric" }).format(new Date(entry.done))}`
-                              : status === "overdue" ? "פג תוקף"
-                              : status === "soon" && entry?.planned ? formatPlannedDisplay(entry.planned)
-                              : status === "upcoming" && entry?.planned ? formatPlannedDisplay(entry.planned)
-                              : "לא יודע"}
-                          </div>
-                          {status !== "done" && (
-                            <div>
-                              <button
-                                onClick={() => { setMarkingOpen(markKey); setMarkDate(""); }}
-                                className="text-[11px] text-orange-500 hover:text-orange-600 font-medium"
-                              >
-                                ✓ בוצע
-                              </button>
-                            </div>
-                          )}
-                          {status === "done" && entry?.done && (
-                            <div>
-                              <button
-                                onClick={() => markDoneMutation.mutate({ treatmentKey: t.key, index: i, doneDate: null })}
-                                className="text-[11px] text-slate-400 hover:text-red-500 font-medium"
-                              >
-                                בטל
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </td>
-                  );
-                })
-              )}
-            </tr>
-            {/* Planned dates row */}
-            <tr className="border-b border-slate-50 bg-slate-50/30">
-              <td className="p-3 text-xs text-petra-muted">תאריך מתוכנן</td>
-              {treatments.map(t =>
-                Array.from({ length: t.doses }, (_, i) => {
-                  const entry = entries[t.key]?.[i] ?? null;
+                  if (isEditing) {
+                    return (
+                      <td key={`${t.key}-${i}-edit`} className="p-2 text-center">
+                        <input
+                          type={isPuppy ? "date" : "month"}
+                          value={editDrafts[t.key]?.[i] ?? ""}
+                          onChange={e => {
+                            const newDrafts = { ...editDrafts };
+                            if (!newDrafts[t.key]) newDrafts[t.key] = Array(t.doses).fill("");
+                            newDrafts[t.key] = [...newDrafts[t.key]];
+                            newDrafts[t.key][i] = e.target.value;
+                            setEditDrafts(newDrafts);
+                          }}
+                          className="input text-xs py-1 w-full max-w-[130px] h-8 text-center"
+                        />
+                      </td>
+                    );
+                  }
                   return (
                     <td key={`${t.key}-${i}-planned`} className="p-2 text-center text-xs text-petra-muted">
-                      {entry?.planned ? formatPlannedDisplay(entry.planned) : "—"}
+                      {entry?.planned ? formatPlannedDisplay(entry.planned) : <span className="text-slate-300">—</span>}
                     </td>
                   );
                 })
               )}
             </tr>
+
+            {/* Status row — only in view mode */}
+            {!isEditing && (
+              <tr className="border-b border-slate-50">
+                <td className="p-3 font-medium text-petra-text text-xs">סטטוס</td>
+                {treatments.map(t =>
+                  Array.from({ length: t.doses }, (_, i) => {
+                    const entry = entries[t.key]?.[i] ?? null;
+                    const status = getCellStatus(entry);
+                    const markKey = `${t.key}-${i}`;
+                    const isMarking = markingOpen === markKey;
+
+                    return (
+                      <td key={`${t.key}-${i}`} className="p-2 text-center">
+                        {isMarking ? (
+                          <div className="flex items-center gap-1 justify-center">
+                            <input
+                              type="date"
+                              value={markDate}
+                              onChange={e => setMarkDate(e.target.value)}
+                              className="input text-xs py-0.5 w-28 h-7"
+                            />
+                            <button
+                              onClick={() => {
+                                if (!markDate) return;
+                                markDoneMutation.mutate({ treatmentKey: t.key, index: i, doneDate: markDate });
+                              }}
+                              className="p-1 rounded bg-green-500 text-white hover:bg-green-600"
+                            >
+                              <Check className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => { setMarkingOpen(null); setMarkDate(""); }}
+                              className="p-1 rounded bg-slate-200 text-slate-600 hover:bg-slate-300"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className={cn(
+                              "rounded-lg px-2 py-1 text-xs font-medium border inline-block min-w-[90px] mb-1",
+                              cellBg[status]
+                            )}>
+                              {status === "done" && entry?.done
+                                ? `✓ ${new Intl.DateTimeFormat("he-IL", { month: "short", year: "numeric" }).format(new Date(entry.done))}`
+                                : status === "overdue" ? "פג תוקף"
+                                : status === "soon" && entry?.planned ? formatPlannedDisplay(entry.planned)
+                                : status === "upcoming" && entry?.planned ? formatPlannedDisplay(entry.planned)
+                                : "לא יודע"}
+                            </div>
+                            {status !== "done" && (
+                              <div>
+                                <button
+                                  onClick={() => { setMarkingOpen(markKey); setMarkDate(""); }}
+                                  className="text-[11px] text-orange-500 hover:text-orange-600 font-medium"
+                                >
+                                  ✓ בוצע
+                                </button>
+                              </div>
+                            )}
+                            {status === "done" && entry?.done && (
+                              <div>
+                                <button
+                                  onClick={() => markDoneMutation.mutate({ treatmentKey: t.key, index: i, doneDate: null })}
+                                  className="text-[11px] text-slate-400 hover:text-red-500 font-medium"
+                                >
+                                  בטל
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </td>
+                    );
+                  })
+                )}
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
-
-      <p className="text-xs text-petra-muted text-center">
-        לעריכת תאריכים מתוכננים —{" "}
-        <Link href="/service-dogs/vaccinations" className="text-brand-600 hover:underline">
-          ניהול חיסונים מרכזי
-        </Link>
-      </p>
     </div>
   );
 }
