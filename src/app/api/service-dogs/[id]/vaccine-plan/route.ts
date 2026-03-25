@@ -72,8 +72,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const currentYear = new Date().getFullYear();
     let plan = (dogRow.vaccinePlan as VaccinePlan) || {};
-    const sdSettings = biz?.sdSettings as { vaccinationSchedule?: VaccineSchedule } | null;
-    const schedule = sdSettings?.vaccinationSchedule ?? null;
+    const sdSettings = biz?.sdSettings as { vaccinationSchedule?: VaccineSchedule; vaccinationScheduleEnabled?: boolean } | null;
+    const schedule = (sdSettings?.vaccinationScheduleEnabled && sdSettings?.vaccinationSchedule)
+      ? sdSettings.vaccinationSchedule
+      : null;
 
     // Auto-renewal: if adults plan exists but is from a previous year, archive and generate new year
     if (plan.adults && plan.adults.year !== currentYear) {

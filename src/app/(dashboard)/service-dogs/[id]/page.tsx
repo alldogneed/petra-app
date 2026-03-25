@@ -6055,12 +6055,6 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Pill className="w-4 h-4 text-petra-muted" />
-          <span className="font-semibold text-sm">
-            {isPuppy ? "חיסונים וטיפולים גורים" : `חיסונים וטיפולים שנתיים${vaccinePlan?.adults?.year ? ` — ${vaccinePlan.adults.year}` : ""}`}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
           {isEditing ? (
             <>
               <button
@@ -6096,6 +6090,12 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
               </Link>
             </>
           )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Pill className="w-4 h-4 text-petra-muted" />
+          <span className="font-semibold text-sm">
+            {isPuppy ? "חיסונים וטיפולים גורים" : `חיסונים וטיפולים שנתיים${vaccinePlan?.adults?.year ? ` — ${vaccinePlan.adults.year}` : ""}`}
+          </span>
         </div>
       </div>
 

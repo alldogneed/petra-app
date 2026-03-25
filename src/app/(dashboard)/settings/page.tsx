@@ -77,13 +77,16 @@ interface SdSettings {
   trackHours: boolean;
   defaultTargetHours: number;
   allowManualCert: boolean;
+  vaccinationScheduleEnabled?: boolean;
   vaccinationSchedule?: VaccineSchedule;
+  puppyVaccinationSchedule?: Record<string, number[]>; // weeks after birth per dose
 }
 
 const DEFAULT_SD_SETTINGS: SdSettings = {
   trackHours: true,
   defaultTargetHours: 120,
   allowManualCert: true,
+  vaccinationScheduleEnabled: false,
 };
 
 const SD_VACCINE_TREATMENTS = [
@@ -93,7 +96,15 @@ const SD_VACCINE_TREATMENTS = [
   { key: "PARK_WORM"      as const, label: "תולעת הפארק", doses: 4 },
   { key: "FLEA_TICK"      as const, label: "קרציות ופרעושים", doses: 4 },
 ];
+const SD_PUPPY_TREATMENTS = [
+  { key: "RABIES_PRIMARY" as const, label: "כלבת", doses: 2 },
+  { key: "DHPP_PRIMARY"   as const, label: "משושה גורים", doses: 3 },
+  { key: "DEWORMING"      as const, label: "תילוע", doses: 4 },
+  { key: "PARK_WORM"      as const, label: "תולעת הפארק", doses: 4 },
+  { key: "FLEA_TICK"      as const, label: "קרציות ופרעושים", doses: 4 },
+];
 const HE_MONTHS_SETTINGS = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+const PUPPY_WEEKS_OPTIONS = [4,6,8,10,12,14,16,18,20,22,24,28,32,36,40,48];
 
 interface Business {
   id: string;
@@ -3053,58 +3064,124 @@ function ServiceDogsSettingsTab() {
 
       {/* Vaccination schedule */}
       <div className="card p-5">
-        <div className="mb-4">
-          <p className="font-semibold text-petra-text">לוח חיסונים שנתי ברירת מחדל</p>
-          <p className="text-sm text-petra-muted mt-0.5">
-            הגדר בכל חודש מתבצע כל טיפול — התוכנית תיושם אוטומטית על כלל הכלבים ותתחדש בתחילת כל שנה
-          </p>
+        {/* Toggle header */}
+        <div className="flex items-center justify-between mb-1">
+          <div>
+            <p className="font-semibold text-petra-text">לוח חיסונים שנתי ברירת מחדל</p>
+            <p className="text-sm text-petra-muted mt-0.5">
+              הגדר בכל חודש מתבצע כל טיפול — התוכנית תיושם אוטומטית ותתחדש בתחילת כל שנה
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setForm({ ...settings, vaccinationScheduleEnabled: !settings.vaccinationScheduleEnabled })}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${settings.vaccinationScheduleEnabled ? "bg-brand-500" : "bg-slate-200"}`}
+          >
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${settings.vaccinationScheduleEnabled ? "-translate-x-5" : "translate-x-0"}`} />
+          </button>
         </div>
-        <div className="space-y-4">
-          {SD_VACCINE_TREATMENTS.map(t => {
-            const currentMonths: number[] = (settings.vaccinationSchedule as Record<string, number[]> | undefined)?.[t.key] ?? Array(t.doses).fill(0);
-            const setMonths = (months: number[]) =>
-              setForm({
-                ...settings,
-                vaccinationSchedule: {
-                  ...settings.vaccinationSchedule,
-                  [t.key]: months,
-                },
-              });
-            return (
-              <div key={t.key} className="flex items-start gap-4">
-                <div className="w-36 pt-1.5 flex-shrink-0">
-                  <p className="text-sm font-medium text-petra-text">{t.label}</p>
-                  <p className="text-[11px] text-petra-muted">{t.doses} מנות בשנה</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {Array.from({ length: t.doses }, (_, i) => (
-                    <div key={i} className="flex items-center gap-1">
-                      {t.doses > 1 && <span className="text-xs text-petra-muted w-10">מנה {i + 1}:</span>}
-                      <select
-                        value={currentMonths[i] || 0}
-                        onChange={e => {
-                          const updated = [...currentMonths];
-                          while (updated.length <= i) updated.push(0);
-                          updated[i] = Number(e.target.value);
-                          setMonths(updated);
-                        }}
-                        className="input text-xs py-1 h-8 w-28"
-                      >
-                        <option value={0}>לא מוגדר</option>
-                        {HE_MONTHS_SETTINGS.map((name, idx) => (
-                          <option key={idx + 1} value={idx + 1}>{name}</option>
+
+        {settings.vaccinationScheduleEnabled ? (
+          <div className="mt-4 space-y-6">
+            {/* Adults section */}
+            <div>
+              <p className="text-sm font-semibold text-petra-text mb-3 pb-2 border-b border-slate-100">
+                🐕 בוגרים — שנה ומעלה
+                <span className="text-xs font-normal text-petra-muted mr-2">(לפי חודש בשנה)</span>
+              </p>
+              <div className="space-y-3">
+                {SD_VACCINE_TREATMENTS.map(t => {
+                  const currentMonths: number[] = (settings.vaccinationSchedule as Record<string, number[]> | undefined)?.[t.key] ?? Array(t.doses).fill(0);
+                  const setMonths = (months: number[]) =>
+                    setForm({ ...settings, vaccinationSchedule: { ...settings.vaccinationSchedule, [t.key]: months } });
+                  return (
+                    <div key={t.key} className="flex items-start gap-4">
+                      <div className="w-36 pt-1.5 flex-shrink-0">
+                        <p className="text-sm font-medium text-petra-text">{t.label}</p>
+                        <p className="text-[11px] text-petra-muted">{t.doses} מנות בשנה</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from({ length: t.doses }, (_, i) => (
+                          <div key={i} className="flex items-center gap-1">
+                            {t.doses > 1 && <span className="text-xs text-petra-muted w-10">מנה {i + 1}:</span>}
+                            <select
+                              value={currentMonths[i] || 0}
+                              onChange={e => {
+                                const updated = [...currentMonths];
+                                while (updated.length <= i) updated.push(0);
+                                updated[i] = Number(e.target.value);
+                                setMonths(updated);
+                              }}
+                              className="input text-xs py-1 h-8 w-28"
+                            >
+                              <option value={0}>לא מוגדר</option>
+                              {HE_MONTHS_SETTINGS.map((name, idx) => (
+                                <option key={idx + 1} value={idx + 1}>{name}</option>
+                              ))}
+                            </select>
+                          </div>
                         ))}
-                      </select>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
-        <p className="text-xs text-petra-muted mt-4 border-t border-slate-100 pt-3">
-          בתחילת כל שנה, תוכנית החיסונים של כל כלב תתחדש אוטומטית עם חודשים אלו. ניתן לשנות לכל כלב בנפרד מתוך תיק הכלב.
-        </p>
+            </div>
+
+            {/* Puppies section */}
+            <div>
+              <p className="text-sm font-semibold text-petra-text mb-3 pb-2 border-b border-slate-100">
+                🐾 גורים — עד 12 חודשים
+                <span className="text-xs font-normal text-petra-muted mr-2">(שבועות מגיל לידה)</span>
+              </p>
+              <div className="space-y-3">
+                {SD_PUPPY_TREATMENTS.map(t => {
+                  const currentWeeks: number[] = (settings.puppyVaccinationSchedule as Record<string, number[]> | undefined)?.[t.key] ?? Array(t.doses).fill(0);
+                  const setWeeks = (weeks: number[]) =>
+                    setForm({ ...settings, puppyVaccinationSchedule: { ...settings.puppyVaccinationSchedule, [t.key]: weeks } });
+                  return (
+                    <div key={t.key} className="flex items-start gap-4">
+                      <div className="w-36 pt-1.5 flex-shrink-0">
+                        <p className="text-sm font-medium text-petra-text">{t.label}</p>
+                        <p className="text-[11px] text-petra-muted">{t.doses} מנות</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from({ length: t.doses }, (_, i) => (
+                          <div key={i} className="flex items-center gap-1">
+                            {t.doses > 1 && <span className="text-xs text-petra-muted w-10">מנה {i + 1}:</span>}
+                            <select
+                              value={currentWeeks[i] || 0}
+                              onChange={e => {
+                                const updated = [...currentWeeks];
+                                while (updated.length <= i) updated.push(0);
+                                updated[i] = Number(e.target.value);
+                                setWeeks(updated);
+                              }}
+                              className="input text-xs py-1 h-8 w-28"
+                            >
+                              <option value={0}>לא מוגדר</option>
+                              {PUPPY_WEEKS_OPTIONS.map(w => (
+                                <option key={w} value={w}>שבוע {w}</option>
+                              ))}
+                            </select>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <p className="text-xs text-petra-muted border-t border-slate-100 pt-3">
+              סיווג גורים/בוגרים מחושב לפי תאריך לידה בתיק הכלב. ניתן לשנות לכל כלב בנפרד.
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-petra-muted mt-3">
+            הפעל כדי להגדיר לוח חיסונים ברירת מחדל לכלל הכלבים
+          </p>
+        )}
       </div>
 
       {/* Summary */}
