@@ -49,18 +49,18 @@ const PLANS: {
     price: 99,
     badge: null,
     highlight: false,
-    description: "לעסקים שרוצים את הכלים הבסיסיים לניהול מסודר",
+    description: "ניהול מקצועי יומיומי — יומן, תורים, לידים ותשלומים",
     features: [
-      { text: "לקוחות ללא הגבלה", star: true },
+      { text: "לקוחות, תורים ולידים ללא הגבלה", star: true },
       { text: "יומן תורים ופגישות", star: true },
-      { text: "תזכורות WhatsApp", star: true },
-      "דוחות ואנליטיקס",
-      "סנכרון Google Calendar",
+      { text: "בקשת תשלום + טפסי קליטה דיגיטליים", star: true },
+      "ניהול צוות ומשתמשים",
+      "דוחות, אנליטיקס וסנכרון Google Calendar",
     ],
     notIncluded: [
       "פנסיון",
       "אוטומציות WhatsApp מתקדמות",
-      "ניהול צוות",
+      "הזמנות אונליין",
     ],
   },
   {
@@ -75,7 +75,7 @@ const PLANS: {
       { text: "הזמנות אונליין — לקוחות קובעים לבד 24/7", star: true },
       { text: "פנסיון + ניהול חדרים", star: true },
       { text: "אוטומציות WhatsApp מתקדמות", star: true },
-      { text: "ניהול צוות ומשתמשים", star: true },
+      { text: "חשבוניות דיגיטליות + ייצוא Excel", star: true },
     ],
     notIncluded: ["מודול כלבי שירות", "תיק עבודות גרומר"],
   },
@@ -85,12 +85,12 @@ const PLANS: {
     price: 169,
     badge: null,
     highlight: false,
-    description: "מסלול ייעודי לגרומרים",
+    description: "כל מה שגרומר מקצועי צריך — בלי לשלם על פיצ'רים מיותרים",
     features: [
-      "לקוחות ללא הגבלה",
-      "יומן תורים ופגישות",
+      "לקוחות ללא הגבלה + הזמנות אונליין",
       { text: "תיק עבודות לפני/אחרי", star: true },
       { text: "אוטומציות WhatsApp מתקדמות", star: true },
+      "חשבוניות דיגיטליות",
       "ניהול צוות + ייצוא Excel",
     ],
     notIncluded: ["פנסיון", "אילוף", "כלבי שירות"],
@@ -101,7 +101,7 @@ const PLANS: {
     price: 229,
     badge: "חדש",
     highlight: false,
-    description: "המערכת המתקדמת הראשונה בישראל לניהול כלבי שירות",
+    description: "הפלטפורמה היחידה בישראל שבנויה לניהול תהליך כלב שירות מלא",
     features: [
       "הכל ב-Pro",
       { text: "ניהול כלבי שירות בתהליך", star: true },
@@ -141,7 +141,7 @@ const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
   {
     category: "WhatsApp ותקשורת",
     features: [
-      { name: "תזכורות WhatsApp", free: false, basic: true, pro: true, groomer: true, service_dog: true },
+      { name: "תזכורות WhatsApp", free: false, basic: false, pro: true, groomer: true, service_dog: true },
       { name: "בקשת תשלום WhatsApp", free: false, basic: true, pro: true, groomer: true, service_dog: true },
       { name: "אוטומציות WhatsApp מתקדמות", free: false, basic: false, pro: true, groomer: true, service_dog: true },
       { name: "הודעות מותאמות אישית", free: false, basic: false, pro: true, groomer: true, service_dog: true },
@@ -181,8 +181,8 @@ const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
   {
     category: "ניהול צוות",
     features: [
-      { name: "ניהול צוות ומשתמשים", free: false, basic: false, pro: true, groomer: true, service_dog: true },
-      { name: "הרשאות לפי תפקיד", free: false, basic: false, pro: true, groomer: true, service_dog: true },
+      { name: "ניהול צוות ומשתמשים", free: false, basic: true, pro: true, groomer: true, service_dog: true },
+      { name: "הרשאות לפי תפקיד", free: false, basic: true, pro: true, groomer: true, service_dog: true },
     ],
   },
 ];
@@ -199,7 +199,7 @@ function FeatureCell({ value }: { value: FVal }) {
 }
 
 const FAQ = [
-  { q: "איך משדרגים?", a: "שליחת הודעת WhatsApp לתמיכה — המסלול מתעדכן תוך שעות." },
+  { q: "איך משדרגים?", a: "מתוך לוח הבקרה ← הגדרות ← שדרוג מסלול. הכל מתבצע ישירות — בחר מסלול, הזן אשראי, ותוך שניות הפיצ'רים נפתחים." },
   { q: "האם ניתן לבטל?", a: "כן, ניתן לבטל בכל עת ללא קנסות." },
   { q: "מה קורה לנתונים בביטול?", a: "הנתונים נשמרים 30 יום לאחר ביטול." },
   { q: "יש ניסיון חינמי?", a: "כן! אפשר להתחיל במסלול חינמי ללא הגבלת זמן וללא אשראי. למסלולים המתקדמים אנו מציעים 14 ימי ניסיון מלאים ללא חיוב מיידי (נדרש אשראי לאימות בלבד)." },
@@ -261,9 +261,9 @@ export function PricingSection() {
             5 מסלולים — מחינמי עד כלבי שירות
           </p>
           <h2 id="pricing-heading" className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
-            מחירים שקופים, ללא הפתעות
+            מחיר שווה לכל נפש, בלי הפתעות
           </h2>
-          <p className="text-slate-500 text-lg">מסלול חינמי ללא כרטיס אשראי, או נסה כל מסלול מתקדם 14 יום ללא חיוב</p>
+          <p className="text-slate-500 text-lg">מסלול חינמי ללא כרטיס אשראי · 14 ימי ניסיון מלאים בכל מסלול בתשלום</p>
         </div>
 
         {/* Plan cards — vertical stack on mobile, 5-col grid on desktop */}
