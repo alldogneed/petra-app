@@ -1353,8 +1353,10 @@ function LeadsPageContent() {
   // ─── Mutations ──────────────────────────────────────────────────────────
 
   const moveMutation = useMutation({
-    mutationFn: async ({ id, stage, fromStageName, toStageName }: { id: string; stage: string; fromStageName?: string; toStageName?: string }) => {
-      await fetch(`/api/leads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage }) }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); });
+    mutationFn: async ({ id, stage, fromStageName, toStageName, isLost }: { id: string; stage: string; fromStageName?: string; toStageName?: string; isLost?: boolean }) => {
+      const payload: Record<string, unknown> = { stage };
+      if (isLost) payload.lostAt = new Date().toISOString();
+      await fetch(`/api/leads/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); });
       if (fromStageName && toStageName) {
         await fetch(`/api/leads/${id}/logs`, {
           method: "POST", headers: { "Content-Type": "application/json" },
@@ -1457,6 +1459,7 @@ function LeadsPageContent() {
           moveMutation.mutate({
             id: activeLeadId, stage: targetStageId,
             fromStageName: fromStage?.name, toStageName: targetStage?.name,
+            isLost: !!targetStage?.isLost,
           });
           if (targetStage?.isLost) {
             setSelectedLead({ ...lead, stage: targetStageId });
