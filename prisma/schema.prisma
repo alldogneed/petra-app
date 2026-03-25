@@ -1726,6 +1726,7 @@ model ServiceDogProfile {
   notes                 String?
   documents             Json      @default("[]")
   trainingTests         Json      @default("[]")
+  vaccinePlan           Json      @default("{}")
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 

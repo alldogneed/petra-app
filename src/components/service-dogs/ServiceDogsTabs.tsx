@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Dog, UserCheck, Activity, CreditCard, BarChart2 } from "lucide-react";
+import { LayoutDashboard, Dog, UserCheck, Activity, CreditCard, BarChart2, Syringe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -13,6 +13,7 @@ const TABS = [
   { name: "שיבוצים",        href: "/service-dogs/placements",   icon: Activity,       requirePerm: "canSeeRecipientsSensitive" as const },
   { name: "תעודות הסמכה",  href: "/service-dogs/id-cards",     icon: CreditCard      },
   { name: "דוחות פנימיים", href: "/service-dogs/reports",      icon: BarChart2       },
+  { name: "חיסונים",        href: "/service-dogs/vaccinations", icon: Syringe         },
 ];
 
 export function ServiceDogsTabs() {
