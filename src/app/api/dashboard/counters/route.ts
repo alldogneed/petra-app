@@ -21,13 +21,13 @@ export async function GET(request: NextRequest) {
         },
       }),
 
-      // Leads with a follow-up that is past-due and status is still "pending"
+      // Leads with a follow-up that is past-due, not yet marked handled, and not won/lost
       prisma.lead.count({
         where: {
           businessId: authResult.businessId,
           nextFollowUpAt: { lt: now },
-          followUpStatus: "pending",
-          stage: { not: "won" },
+          followUpStatus: { not: "completed" },
+          wonAt: null,
           lostAt: null,
         },
       }),

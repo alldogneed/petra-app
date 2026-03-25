@@ -8,7 +8,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
-  Trophy, Archive, PhoneCall, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText,
+  Trophy, Archive, PhoneCall, PhoneMissed, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText,
   CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles, MapPin, Tag, Download, AlertCircle, RotateCcw, ChevronDown,
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
@@ -561,6 +561,40 @@ function DraggableLeadCard({
     onError: () => toast.error("שגיאה בעדכון מועד המעקב"),
   });
 
+  const quickLogMutation = useMutation({
+    mutationFn: (logType: "call" | "no_answer") =>
+      fetch(`/api/leads/${lead.id}/logs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          logType === "call"
+            ? { type: "call", summary: "התקשרתי" }
+            : { type: "note", summary: "לא ענה" }
+        ),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: (_, logType) => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
+      toast.success(logType === "call" ? `✓ שיחה עם ${lead.name} נרשמה` : `✓ "לא ענה" נרשם עבור ${lead.name}`);
+    },
+    onError: () => toast.error("שגיאה ברישום הפעולה"),
+  });
+
+  const markHandledMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/leads/${lead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ followUpStatus: lead.followUpStatus === "completed" ? null : "completed" }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
+      toast.success(lead.followUpStatus === "completed" ? "סימון טופל הוסר" : `✓ ${lead.name} סומן כטופל`);
+    },
+    onError: () => toast.error("שגיאה בעדכון הסטטוס"),
+  });
+
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: lead.id,
     data: { lead },
@@ -681,6 +715,46 @@ function DraggableLeadCard({
         </div>
       </div>
 
+      {/* Quick action bar — visible on hover, active leads only */}
+      {!isWon && !isLost && (
+        <div
+          className="flex gap-1.5 mt-3 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); quickLogMutation.mutate("call"); }}
+            disabled={quickLogMutation.isPending}
+            className="flex-1 flex items-center justify-center gap-1 text-[11px] font-medium py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors disabled:opacity-50"
+            title="רשום שיחה שהתקיימה"
+          >
+            <PhoneCall className="w-3 h-3" />
+            התקשרתי
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); quickLogMutation.mutate("no_answer"); }}
+            disabled={quickLogMutation.isPending}
+            className="flex-1 flex items-center justify-center gap-1 text-[11px] font-medium py-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50"
+            title="רשום שלא ענה"
+          >
+            <PhoneMissed className="w-3 h-3" />
+            לא ענה
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); markHandledMutation.mutate(); }}
+            disabled={markHandledMutation.isPending}
+            className={`flex-1 flex items-center justify-center gap-1 text-[11px] font-medium py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
+              lead.followUpStatus === "completed"
+                ? "bg-green-100 text-green-700 border-green-300 hover:bg-green-200"
+                : "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
+            }`}
+            title={lead.followUpStatus === "completed" ? "בטל סימון טופל" : "סמן כטופל"}
+          >
+            <CheckCircle className="w-3 h-3" />
+            {lead.followUpStatus === "completed" ? "✓ טופל" : "טופל"}
+          </button>
+        </div>
+      )}
+
       {/* Last call snippet or notes preview */}
       {lead.callLogs && lead.callLogs.length > 0 ? (
         <p className="text-[10px] text-petra-muted line-clamp-1 mt-1.5 italic border-t border-slate-100 pt-1.5">
@@ -763,8 +837,35 @@ function DraggableLeadCard({
                 <CalendarClock className="w-4 h-4" />
               </button>
               {showDatePicker && (
-                <div className="absolute left-0 top-8 z-50 bg-white shadow-xl rounded-xl border border-slate-200 p-3 w-52">
+                <div className="absolute left-0 top-8 z-50 bg-white shadow-xl rounded-xl border border-slate-200 p-3 w-56">
                   <p className="text-xs font-semibold text-petra-text mb-2">מועד פולואפ</p>
+                  {/* Quick presets */}
+                  <div className="grid grid-cols-2 gap-1 mb-2">
+                    {[
+                      { label: "מחר", days: 1 },
+                      { label: "3 ימים", days: 3 },
+                      { label: "שבוע", days: 7 },
+                      { label: "חודש", days: 30 },
+                    ].map(({ label, days }) => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + days);
+                      const iso = d.toISOString().slice(0, 10);
+                      return (
+                        <button
+                          key={days}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            followUpMutation.mutate(new Date(iso).toISOString());
+                            setPickerDate(iso);
+                            setShowDatePicker(false);
+                          }}
+                          className="text-[11px] font-medium py-1 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 border border-brand-200 transition-colors"
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
                   <input
                     type="date"
                     className="input text-xs w-full"
