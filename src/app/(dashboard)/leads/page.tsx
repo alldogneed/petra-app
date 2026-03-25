@@ -1286,10 +1286,7 @@ function sortLeadsByPriority(leads: Lead[]): Lead[] {
   };
 
   const getAgeMs = (lead: Lead): number => {
-    // For overdue: how long ago was the follow-up due (most overdue = oldest = first)
-    const followUpDate = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
-    if (followUpDate && followUpDate < todayStart) return followUpDate.getTime();
-    // For untouched/handled: how long ago was the lead created
+    // Sort by lead age (createdAt) within each priority group — oldest lead first
     return new Date(lead.createdAt).getTime();
   };
 
