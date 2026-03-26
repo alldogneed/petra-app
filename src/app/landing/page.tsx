@@ -16,7 +16,6 @@ import {
 import { PricingSection } from "./_components/PricingSection";
 import { WhatsAppFAB } from "./_components/WhatsAppFAB";
 import { AccessibilityButton } from "./_components/AccessibilityButton";
-import { TestimonialsCarousel } from "./_components/TestimonialsCarousel";
 import { ClientsMarquee } from "./_components/ClientsMarquee";
 import { LandingNav } from "./_components/LandingNav";
 import { DashboardMockup } from "./_components/DashboardMockup";
@@ -402,38 +401,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-
-        {/* ── Testimonials carousel ────────────────────────────────────────────── */}
-        <section
-          aria-labelledby="testimonials-heading"
-          className="py-24 relative overflow-hidden"
-          id="testimonials"
-          style={{
-            background: "linear-gradient(160deg, #f8fafc 0%, #fff7ed 60%, #f8fafc 100%)",
-          }}
-        >
-          {/* Decorative warm circle */}
-          <div
-            aria-hidden="true"
-            className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-30 pointer-events-none blur-3xl"
-            style={{ background: "radial-gradient(ellipse, rgba(249,115,22,0.15) 0%, transparent 70%)" }}
-          />
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2
-                id="testimonials-heading"
-                className="text-3xl md:text-4xl font-bold text-slate-900 mb-4"
-              >
-                מה אומרים עלינו
-              </h2>
-              <p className="text-slate-500 text-lg">
-                בעלי עסקים שכבר עובדים עם פטרה בכל יום
-              </p>
-            </div>
-
-            <TestimonialsCarousel />
-          </div>
-        </section>
 
         {/* ── Client logos marquee ─────────────────────────────────────────────── */}
         <ClientsMarquee />
