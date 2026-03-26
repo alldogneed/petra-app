@@ -207,6 +207,7 @@ interface Pet {
   behaviorNotes: string | null;
   health: {
     neuteredSpayed: boolean | null;
+    neuteredSpayedDate: string | null;
     allergies: string | null;
     medicalConditions: string | null;
     surgeriesHistory: string | null;
@@ -2798,6 +2799,7 @@ function EditHealthModal({
     vetName: h?.vetName ?? "",
     vetPhone: h?.vetPhone ?? "",
     neuteredSpayed: h?.neuteredSpayed ?? false,
+    neuteredSpayedDate: toDateInput(h?.neuteredSpayedDate ?? null),
     originInfo: h?.originInfo ?? "",
     timeWithOwner: h?.timeWithOwner ?? "",
   });
@@ -2982,6 +2984,12 @@ function EditHealthModal({
                 />
                 <span className="text-sm text-petra-text">מסורס / מעוקרת</span>
               </label>
+              {form.neuteredSpayed && (
+                <div>
+                  <label className="label">תאריך סירוס / עיקור</label>
+                  <input type="date" className="input" value={form.neuteredSpayedDate} onChange={(e) => setForm({ ...form, neuteredSpayedDate: e.target.value })} />
+                </div>
+              )}
               <div>
                 <label className="label">מקור (מאיפה הגיע)</label>
                 <input className="input" value={form.originInfo} onChange={(e) => setForm({ ...form, originInfo: e.target.value })} placeholder="מאמץ, מגדל, רחוב..." />

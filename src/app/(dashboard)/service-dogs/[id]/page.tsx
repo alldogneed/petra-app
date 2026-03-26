@@ -91,6 +91,7 @@ import { TierGate } from "@/components/paywall/TierGate";
 
 interface PetHealth {
   neuteredSpayed: boolean;
+  neuteredSpayedDate: string | null;
   allergies: string | null;
   medicalConditions: string | null;
   surgeriesHistory: string | null;
@@ -3968,6 +3969,9 @@ function EditPetModal({
   const [color, setColor] = useState(pet.color ?? "");
   const [microchip, setMicrochip] = useState(pet.microchip ?? "");
   const [neuteredSpayed, setNeuteredSpayed] = useState(pet.health?.neuteredSpayed ?? false);
+  const [neuteredSpayedDate, setNeuteredSpayedDate] = useState(
+    pet.health?.neuteredSpayedDate ? new Date(pet.health.neuteredSpayedDate).toISOString().slice(0, 10) : ""
+  );
   const [certificationDate, setCertificationDate] = useState(
     initialCertDate ? new Date(initialCertDate).toISOString().slice(0, 10) : ""
   );
@@ -3986,6 +3990,7 @@ function EditPetModal({
           color: color.trim() || null,
           microchip: microchip.trim() || null,
           neuteredSpayed,
+          neuteredSpayedDate: neuteredSpayed ? (neuteredSpayedDate || null) : null,
         }),
       }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); });
       await fetch(`/api/service-dogs/${dogId}`, {
@@ -4059,6 +4064,12 @@ function EditPetModal({
             />
             <label htmlFor="neutered-edit" className="text-sm cursor-pointer">מסורס / מעוקרת</label>
           </div>
+          {neuteredSpayed && (
+            <div className="col-span-2">
+              <label className="label">תאריך סירוס / עיקור</label>
+              <input type="date" className="input w-full" value={neuteredSpayedDate} onChange={(e) => setNeuteredSpayedDate(e.target.value)} />
+            </div>
+          )}
         </div>
         <div className="flex gap-2 mt-5">
           <button
@@ -5416,6 +5427,7 @@ function SDHealthModal({
     vetName: h?.vetName ?? "",
     vetPhone: h?.vetPhone ?? "",
     neuteredSpayed: h?.neuteredSpayed ?? false,
+    neuteredSpayedDate: toDateInput(h?.neuteredSpayedDate ?? null),
     originInfo: h?.originInfo ?? "",
     timeWithOwner: h?.timeWithOwner ?? "",
   });
@@ -5525,6 +5537,12 @@ function SDHealthModal({
                 <input type="checkbox" checked={!!form.neuteredSpayed} onChange={(e) => setForm({ ...form, neuteredSpayed: e.target.checked })} className="w-4 h-4 accent-brand-500" />
                 <span className="text-sm">מסורס / מעוקרת</span>
               </label>
+              {form.neuteredSpayed && (
+                <div>
+                  <label className="label">תאריך סירוס / עיקור</label>
+                  <input type="date" className="input" value={form.neuteredSpayedDate} onChange={(e) => setForm({ ...form, neuteredSpayedDate: e.target.value })} />
+                </div>
+              )}
               <div><label className="label">מקור</label><input className="input" value={form.originInfo} onChange={(e) => setForm({ ...form, originInfo: e.target.value })} placeholder="מאמץ, מגדל..." /></div>
               <div><label className="label">זמן עם הבעלים / מטפל</label><input className="input" value={form.timeWithOwner} onChange={(e) => setForm({ ...form, timeWithOwner: e.target.value })} /></div>
             </div>
@@ -6192,32 +6210,37 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
                     const isMarking = markingOpen === markKey;
 
                     return (
-                      <td key={`${t.key}-${i}`} className="p-2 text-center">
-                        {isMarking ? (
-                          <div className="flex items-center gap-1 justify-center">
+                      <td key={`${t.key}-${i}`} className="p-2 text-center relative">
+                        {isMarking && <div className="h-8" />}
+                        {isMarking && (
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col gap-2 min-w-[180px]">
                             <input
                               type="date"
                               value={markDate}
                               onChange={e => setMarkDate(e.target.value)}
-                              className="input text-xs py-0.5 w-28 h-7"
+                              className="input text-xs py-0.5 h-8"
+                              autoFocus
                             />
-                            <button
-                              onClick={() => {
-                                if (!markDate) return;
-                                markDoneMutation.mutate({ treatmentKey: t.key, index: i, doneDate: markDate });
-                              }}
-                              className="p-1 rounded bg-green-500 text-white hover:bg-green-600"
-                            >
-                              <Check className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => { setMarkingOpen(null); setMarkDate(""); }}
-                              className="p-1 rounded bg-slate-200 text-slate-600 hover:bg-slate-300"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => {
+                                  if (!markDate) return;
+                                  markDoneMutation.mutate({ treatmentKey: t.key, index: i, doneDate: markDate });
+                                }}
+                                className="flex-1 flex items-center justify-center gap-1 py-1 rounded bg-green-500 text-white text-xs hover:bg-green-600"
+                              >
+                                <Check className="w-3 h-3" /> אישור
+                              </button>
+                              <button
+                                onClick={() => { setMarkingOpen(null); setMarkDate(""); }}
+                                className="flex-1 flex items-center justify-center gap-1 py-1 rounded bg-slate-100 text-slate-600 text-xs hover:bg-slate-200"
+                              >
+                                <X className="w-3 h-3" /> ביטול
+                              </button>
+                            </div>
                           </div>
-                        ) : (
+                        )}
+                        {!isMarking && (
                           <>
                             <div className={cn(
                               "rounded-lg px-2 py-1 text-xs font-medium border inline-block min-w-[90px] mb-1",

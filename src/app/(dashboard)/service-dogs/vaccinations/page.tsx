@@ -133,18 +133,20 @@ export default function VaccinationsPage() {
         });
       });
     }
-    // When "פוקע בקרוב" is active with no type filter: sort by rabies expiry (soonest first)
-    if (statusFilter === "soon" && treatmentFilter === "all") {
-      const rabiesKey = dogTab === "adults" ? "RABIES_BOOSTER" : "RABIES_PRIMARY";
-      result = [...result].sort((a, b) => {
-        const getRabies = (dog: DogRow): string => {
-          const sec = dogTab === "adults" ? dog.vaccinePlan.adults : dog.vaccinePlan.puppies;
-          const entries = sec ? (sec as Record<string, VaccinePlanEntry[]>)[rabiesKey] : null;
-          return entries?.[0]?.planned ?? "9999-99";
-        };
-        return getRabies(a).localeCompare(getRabies(b));
-      });
-    }
+    // Always sort by rabies status priority: overdue → soon → upcoming → done → unknown
+    const rabiesKey = dogTab === "adults" ? "RABIES_BOOSTER" : "RABIES_PRIMARY";
+    const STATUS_PRIORITY: Record<string, number> = { overdue: 0, soon: 1, upcoming: 2, done: 3, unknown: 4 };
+    result = [...result].sort((a, b) => {
+      const getRabiesStatus = (dog: DogRow): string => {
+        const sec = dogTab === "adults" ? dog.vaccinePlan.adults : dog.vaccinePlan.puppies;
+        const entries = sec ? (sec as Record<string, VaccinePlanEntry[]>)[rabiesKey] : null;
+        if (!entries?.[0]) return "unknown";
+        return getCellStatus(entries[0]);
+      };
+      const pa = STATUS_PRIORITY[getRabiesStatus(a)] ?? 4;
+      const pb = STATUS_PRIORITY[getRabiesStatus(b)] ?? 4;
+      return pa - pb;
+    });
     return result;
   }, [dogs, search, statusFilter, treatmentFilter, dogTab, treatments]);
 

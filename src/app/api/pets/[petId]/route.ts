@@ -77,7 +77,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { neuteredSpayed, ...petData } = body;
+    const { neuteredSpayed, neuteredSpayedDate, ...petData } = body;
 
     const pet = await prisma.pet.update({
       where: { id: params.petId },
@@ -104,12 +104,15 @@ export async function PATCH(
       },
     });
 
-    // Handle neuteredSpayed via DogHealth
-    if (neuteredSpayed !== undefined) {
+    // Handle neuteredSpayed / neuteredSpayedDate via DogHealth
+    if (neuteredSpayed !== undefined || neuteredSpayedDate !== undefined) {
+      const healthData: Record<string, unknown> = {};
+      if (neuteredSpayed !== undefined) healthData.neuteredSpayed = Boolean(neuteredSpayed);
+      if (neuteredSpayedDate !== undefined) healthData.neuteredSpayedDate = neuteredSpayedDate ? new Date(neuteredSpayedDate) : null;
       await prisma.dogHealth.upsert({
         where: { petId: params.petId },
-        create: { petId: params.petId, neuteredSpayed: Boolean(neuteredSpayed) },
-        update: { neuteredSpayed: Boolean(neuteredSpayed) },
+        create: { petId: params.petId, ...healthData },
+        update: healthData,
       });
     }
 
