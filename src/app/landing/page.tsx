@@ -182,7 +182,7 @@ export default function LandingPage() {
                   id="hero-heading"
                   className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-[1.18] mb-6 animate-slideUp"
                 >
-                  תפסיק לרדוף אחרי זנבות —
+                  תפסיק לרדוף אחרי זנבות
                   <br />
                   <span className="text-brand-400">תן לפטרה לנהל</span>
                   <br />
