@@ -373,14 +373,14 @@ export default function LandingPage() {
                             </li>
                           ))}
                         </ul>
-                        <Link
-                          href="/register"
+                        <a
+                          href="#pricing"
                           className="mt-4 inline-flex items-center gap-1 text-brand-600 text-sm font-medium hover:gap-2 transition-all focus:outline-none focus:underline"
                           aria-label={`מעבר למסלול ${a.title}`}
                         >
                           מעבר למסלול שלי
                           <ArrowLeft aria-hidden="true" className="w-4 h-4" />
-                        </Link>
+                        </a>
                       </div>
                     </article>
                   </li>
