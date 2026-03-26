@@ -505,7 +505,6 @@ export default function LandingPage() {
                     "תזכורות אוטומטיות 24/48/72 שעות לפני התור",
                     "בקשת תשלום עם לינק תשלום",
                     "הודעות מותאמות לכל עסק",
-                    "5 תבניות Meta מאושרות ומוכנות לשימוש",
                   ].map((item) => (
                     <li key={item} className="flex items-center gap-3 text-slate-300">
                       <div
