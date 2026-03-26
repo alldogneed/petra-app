@@ -405,6 +405,79 @@ export default function LandingPage() {
         {/* ── Client logos marquee ─────────────────────────────────────────────── */}
         <ClientsMarquee />
 
+        {/* ── About / Our Story ────────────────────────────────────────────────── */}
+        <section
+          aria-labelledby="about-heading"
+          id="about"
+          className="py-20 bg-orange-50/60"
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+
+              {/* Right col — Text (first in DOM = right in RTL) */}
+              <div>
+                <div className="inline-flex items-center gap-2 bg-brand-100 text-brand-700 px-3.5 py-1.5 rounded-full text-xs font-semibold mb-6">
+                  <Dog className="w-3.5 h-3.5" />
+                  הסיפור שלנו
+                </div>
+
+                <h2
+                  id="about-heading"
+                  className="text-3xl md:text-4xl font-bold text-slate-900 leading-snug mb-4"
+                >
+                  לא נולדנו במשרד ממוזג.
+                  <br />
+                  <span className="text-brand-500">באנו מהשטח.</span>
+                </h2>
+
+                <p className="text-slate-600 text-lg leading-relaxed mb-8">
+                  פטרה היא החטיבה הדיגיטלית מבית All-Dog. זיקקנו 15 שנות ניסיון בעולם הכלבים לתוך פלטפורמה אחת.
+                </p>
+
+                <ul className="space-y-5">
+                  {[
+                    {
+                      icon: <Zap className="w-5 h-5 text-brand-500 shrink-0 mt-0.5" />,
+                      text: "זה לא הפיצ׳ר, זה איך שהוא עובד: פטרה נבנתה מתוך הבנה של מה קורה כשיש לך רצועה ביד אחת וטלפון ביד שנייה. המערכת חושבת כמו איש מקצוע, לא כמו מתכנת.",
+                    },
+                    {
+                      icon: <Users className="w-5 h-5 text-brand-500 shrink-0 mt-0.5" />,
+                      text: "צוות פיתוח ומומחי שטח: המערכת משתפרת כל יום. מאלפים, גרומרים ומנהלי פנסיונים יושבים פיזית עם צוות הפיתוח שלנו כדי לדייק כל כפתור.",
+                    },
+                    {
+                      icon: <MessageCircle className="w-5 h-5 text-brand-500 shrink-0 mt-0.5" />,
+                      text: "מדברים את השפה שלכם: אנחנו מבינים את הלחץ של פנסיון בשיא העונה, ואת המחיר של תור שמתבטל. בנינו את הפתרון שאנחנו חיפשנו לעצמנו.",
+                    },
+                  ].map(({ icon, text }, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-brand-100 flex items-center justify-center shrink-0">
+                        {icon}
+                      </div>
+                      <p className="text-slate-600 text-sm leading-relaxed">{text}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Left col — Image placeholder */}
+              <div aria-hidden="true" className="relative">
+                <div className="aspect-[4/3] rounded-3xl bg-slate-200 overflow-hidden shadow-2xl shadow-slate-200 flex items-center justify-center relative">
+                  {/* Subtle gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-brand-100/40 to-slate-200/60" />
+                  <div className="relative flex flex-col items-center gap-3 text-slate-400">
+                    <Dog className="w-16 h-16 opacity-30" />
+                    <span className="text-sm font-medium opacity-50">תמונה מהשטח</span>
+                  </div>
+                </div>
+                {/* Decorative accent */}
+                <div className="absolute -bottom-4 -left-4 w-24 h-24 rounded-2xl bg-brand-400/20 -z-10" />
+                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-xl bg-amber-400/20 -z-10" />
+              </div>
+
+            </div>
+          </div>
+        </section>
+
         {/* ── Pricing (interactive client component) ───────────────────────────── */}
         <PricingSection />
 
