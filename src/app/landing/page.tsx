@@ -330,7 +330,7 @@ export default function LandingPage() {
                 id="audience-heading"
                 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4"
               >
-                מי פטרה מתאימה לך?
+                למי פטרה מתאימה?
               </h2>
               <p className="text-slate-500 text-lg max-w-xl mx-auto">
                 פטרה בנויה במיוחד לעסקי חיות מחמד — עם כלים ייעודיים לכל תחום
