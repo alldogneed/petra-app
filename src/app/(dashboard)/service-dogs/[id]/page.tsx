@@ -6224,7 +6224,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
                               cellBg[status]
                             )}>
                               {status === "done" && entry?.done
-                                ? `✓ ${new Intl.DateTimeFormat("he-IL", { month: "short", year: "numeric" }).format(new Date(entry.done))}`
+                                ? `✓ ${new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "short", year: "numeric" }).format(new Date(entry.done))}`
                                 : status === "overdue" ? "פג תוקף"
                                 : status === "soon" && entry?.planned ? formatPlannedDisplay(entry.planned)
                                 : status === "upcoming" && entry?.planned ? formatPlannedDisplay(entry.planned)

@@ -7,7 +7,6 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DOCUMENT_CATEGORIES = [
   "contract",      // חוזה
   "invoice",       // חשבונית
@@ -16,6 +15,12 @@ const DOCUMENT_CATEGORIES = [
   "medical",       // רפואי
   "insurance",     // ביטוח
   "other",         // אחר
+] as const;
+
+const ALLOWED_FILE_EXTENSIONS = [
+  "pdf", "jpg", "jpeg", "png", "gif", "webp",
+  "doc", "docx", "xls", "xlsx", "csv",
+  "txt", "rtf", "heic", "heif",
 ] as const;
 
 export async function GET(
@@ -75,6 +80,23 @@ export async function POST(
       );
     }
 
+    // Validate file extension
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    if (!ALLOWED_FILE_EXTENSIONS.includes(ext as typeof ALLOWED_FILE_EXTENSIONS[number])) {
+      return NextResponse.json(
+        { error: `סוג קובץ לא נתמך (.${ext}). סוגים מותרים: ${ALLOWED_FILE_EXTENSIONS.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate category
+    if (!DOCUMENT_CATEGORIES.includes(category as typeof DOCUMENT_CATEGORIES[number])) {
+      return NextResponse.json(
+        { error: "קטגוריה לא תקינה" },
+        { status: 400 }
+      );
+    }
+
     const customer = await prisma.customer.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
       select: { documents: true },
@@ -84,7 +106,6 @@ export async function POST(
     }
 
     // Upload to Vercel Blob
-    const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
     const fileId = crypto.randomBytes(16).toString("hex");
     const blobPath = `customers/${params.id}/${fileId}.${ext}`;
     const blob = await put(blobPath, file, { access: "public" });

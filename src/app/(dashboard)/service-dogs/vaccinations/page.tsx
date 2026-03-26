@@ -133,6 +133,18 @@ export default function VaccinationsPage() {
         });
       });
     }
+    // When "פוקע בקרוב" is active with no type filter: sort by rabies expiry (soonest first)
+    if (statusFilter === "soon" && treatmentFilter === "all") {
+      const rabiesKey = dogTab === "adults" ? "RABIES_BOOSTER" : "RABIES_PRIMARY";
+      result = [...result].sort((a, b) => {
+        const getRabies = (dog: DogRow): string => {
+          const sec = dogTab === "adults" ? dog.vaccinePlan.adults : dog.vaccinePlan.puppies;
+          const entries = sec ? (sec as Record<string, VaccinePlanEntry[]>)[rabiesKey] : null;
+          return entries?.[0]?.planned ?? "9999-99";
+        };
+        return getRabies(a).localeCompare(getRabies(b));
+      });
+    }
     return result;
   }, [dogs, search, statusFilter, treatmentFilter, dogTab, treatments]);
 
@@ -198,7 +210,7 @@ export default function VaccinationsPage() {
               className={cn("px-3 py-1 rounded-lg text-xs font-medium transition-all",
                 statusFilter === s ? "bg-brand-600 text-white" : "bg-slate-100 text-petra-muted hover:bg-slate-200"
               )}>
-              {{ all: "הכל", soon: "פוקוס בקרוב", overdue: "פג תוקף", unknown: "לא יודע" }[s]}
+              {{ all: "הכל", soon: "פוקע בקרוב", overdue: "פג תוקף", unknown: "לא יודע" }[s]}
             </button>
           ))}
         </div>
@@ -280,7 +292,7 @@ export default function VaccinationsPage() {
                               cellBg[status]
                             )}>
                               {status === "done" && entry?.done
-                                ? `✓ ${new Intl.DateTimeFormat("he-IL", { month: "short", year: "numeric" }).format(new Date(entry.done))}`
+                                ? `✓ ${new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "short", year: "numeric" }).format(new Date(entry.done))}`
                                 : status === "overdue" ? "פג תוקף"
                                 : status === "soon" && entry?.planned ? formatPlannedDisplay(entry.planned)
                                 : status === "upcoming" && entry?.planned ? formatPlannedDisplay(entry.planned)

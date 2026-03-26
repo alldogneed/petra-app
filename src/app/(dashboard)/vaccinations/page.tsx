@@ -298,6 +298,15 @@ export default function VaccinationsPage() {
         return true;
       })
       .sort((a, b) => {
+        // When "פוקע בקרוב" filter is active: sort by rabies expiry date ascending
+        if (statusFilter === "expiring_soon" && typeFilter === "all") {
+          const ra = a.vaccines.get("rabies");
+          const rb = b.vaccines.get("rabies");
+          const daysA = ra?.daysUntil ?? Infinity;
+          const daysB = rb?.daysUntil ?? Infinity;
+          if (daysA !== daysB) return daysA - daysB;
+          return a.petName.localeCompare(b.petName, "he");
+        }
         const orderA = STATUS_ORDER[worstStatus(a)] ?? 4;
         const orderB = STATUS_ORDER[worstStatus(b)] ?? 4;
         return orderA - orderB || a.petName.localeCompare(b.petName, "he");

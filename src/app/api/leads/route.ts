@@ -7,6 +7,7 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxLeads, normalizeTier } from "@/lib/feature-flags";
 import { getFirstLeadStageId } from "@/lib/lead-stages";
 import { shouldSyncContacts, upsertLeadContact } from "@/lib/google-contacts";
+import { validateIsraeliPhone, validateEmail, sanitizeName } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
   try {
@@ -67,6 +68,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate and sanitize inputs
+    const sanitizedName = sanitizeName(name);
+    if (!sanitizedName || sanitizedName.length < 2) {
+      return NextResponse.json({ error: "שם לא תקין — נא להזין לפחות 2 תווים" }, { status: 400 });
+    }
+
+    if (email) {
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        return NextResponse.json({ error: emailErr }, { status: 400 });
+      }
+    }
+
+    if (phone) {
+      const phoneErr = validateIsraeliPhone(phone);
+      if (phoneErr) {
+        return NextResponse.json({ error: phoneErr }, { status: 400 });
+      }
+    }
+
+    // Enforce string length limits to prevent abuse
+    if (notes && typeof notes === "string" && notes.length > 5000) {
+      return NextResponse.json({ error: "הערות ארוכות מדי (מקסימום 5000 תווים)" }, { status: 400 });
+    }
+
     let resolvedStage = stage;
     if (stage) {
       const validStage = await prisma.leadStage.findFirst({
@@ -83,7 +109,7 @@ export async function POST(request: NextRequest) {
     const lead = await prisma.lead.create({
       data: {
         businessId: authResult.businessId,
-        name,
+        name: sanitizedName,
         phone,
         email,
         city: city || null,

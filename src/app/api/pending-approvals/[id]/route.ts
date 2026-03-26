@@ -168,18 +168,33 @@ async function executeApprovedAction(
       break;
     }
     case "EDIT_PRICING": {
-      const { itemId, ...data } = payload as { itemId: string; [k: string]: unknown };
+      const { itemId, ...raw } = payload as { itemId: string; [k: string]: unknown };
+      // Allowlist fields to prevent mass assignment
+      const ALLOWED_PRICING_FIELDS = ["name", "basePrice", "description", "duration", "isActive", "maxParticipants", "serviceId"] as const;
+      const pricingData: Record<string, unknown> = {};
+      for (const key of ALLOWED_PRICING_FIELDS) {
+        if (key in raw) pricingData[key] = raw[key];
+      }
       await prisma.priceListItem.update({
         where: { id: itemId, businessId },
-        data: data as Parameters<typeof prisma.priceListItem.update>[0]["data"],
+        data: pricingData as Parameters<typeof prisma.priceListItem.update>[0]["data"],
       });
       break;
     }
     case "EDIT_SETTINGS": {
-      const { ...data } = payload;
+      // Allowlist fields to prevent mass assignment of sensitive business fields
+      const ALLOWED_SETTINGS_FIELDS = [
+        "name", "phone", "email", "address", "city", "description",
+        "logoUrl", "timezone", "currency", "businessType",
+        "bookingEnabled", "bookingNotes", "cancellationPolicy",
+      ] as const;
+      const settingsData: Record<string, unknown> = {};
+      for (const key of ALLOWED_SETTINGS_FIELDS) {
+        if (key in payload) settingsData[key] = payload[key];
+      }
       await prisma.business.update({
         where: { id: businessId },
-        data: data as Parameters<typeof prisma.business.update>[0]["data"],
+        data: settingsData as Parameters<typeof prisma.business.update>[0]["data"],
       });
       break;
     }

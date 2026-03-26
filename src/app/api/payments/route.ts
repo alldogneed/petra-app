@@ -87,9 +87,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (typeof amount !== "number" || amount <= 0) {
+    if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json(
         { error: "Amount must be a positive number" },
+        { status: 400 }
+      );
+    }
+
+    // Enforce reasonable amount bounds and decimal precision (2 decimal places for currency)
+    if (amount > 1_000_000) {
+      return NextResponse.json(
+        { error: "סכום חורג מהמותר (מקסימום ₪1,000,000)" },
+        { status: 400 }
+      );
+    }
+
+    if (Math.round(amount * 100) !== amount * 100) {
+      return NextResponse.json(
+        { error: "סכום לא תקין — מקסימום 2 ספרות אחרי הנקודה" },
         { status: 400 }
       );
     }

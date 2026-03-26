@@ -50,6 +50,7 @@ export const PUPPY_TREATMENTS = [
   { key: "DEWORMING",      label: "תילוע", doses: 4 },
   { key: "PARK_WORM",      label: "תולעת הפארק", doses: 4 },
   { key: "FLEA_TICK",      label: "קרציות ופרעושים", doses: 4 },
+  { key: "SPAY_NEUTER",    label: "סירוס/עיקור", doses: 1 },
 ] as const;
 
 /**
