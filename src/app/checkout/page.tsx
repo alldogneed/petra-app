@@ -8,58 +8,34 @@ import { useState, useEffect, Suspense } from "react";
 import { useAuth } from "@/providers/auth-provider";
 
 // ─── Plan details for the summary panel ───────────────────────────────────────
+// Only public tiers (Free/Basic/Pro). Legacy tiers (groomer, service_dog) are
+// no longer sold — navigating to /checkout?tier=groomer redirects to /upgrade.
 const PLAN_DETAILS = {
   basic: {
     name: "Basic",
     price: 99,
-    tagline: "לעסקים שרוצים את הכלים הבסיסיים לניהול מסודר",
+    tagline: "מושלם לגרומרים ומאלפים עצמאיים — יחיד, מקצועי, חסכוני",
     features: [
-      "לקוחות ללא הגבלה",
-      "יומן תורים ופגישות",
-      "תזכורות WhatsApp ללקוחות",
-      "דוחות ואנליטיקס מלאים",
-      "סנכרון Google Calendar",
+      "לקוחות ותורים ללא הגבלה",
+      "תזכורות WhatsApp אוטומטיות",
+      "תיק עבודות לפני/אחרי",
+      "יומן תורים + Google Calendar",
+      "בקשת תשלום, טפסי קליטה ודוחות",
     ],
     highlight: false,
   },
   pro: {
     name: "Pro",
     price: 199,
-    tagline: "שליטה מלאה — לעסק שגדל",
+    tagline: "מושלם לפנסיונים ומרכזי אילוף — צוות, גדילה, שליטה מלאה",
     features: [
       "הכל ב-Basic",
-      "הזמנות אונליין ללקוחות",
-      "פנסיון + ניהול חדרים",
-      "אוטומציות WhatsApp מתקדמות",
-      "ניהול צוות ומשתמשים",
+      "ניהול צוות והרשאות מתקדמות",
+      "ניהול פנסיון וחדרים",
+      "מודול אילוף מתקדם",
+      "הזמנות אונליין 24/7",
     ],
     highlight: true,
-  },
-  groomer: {
-    name: "Groomer+",
-    price: 169,
-    tagline: "מסלול ייעודי לגרומרים",
-    features: [
-      "לקוחות ללא הגבלה",
-      "יומן תורים ופגישות",
-      "תיק עבודות לפני/אחרי",
-      "אוטומציות WhatsApp מתקדמות",
-      "ניהול צוות + ייצוא Excel",
-    ],
-    highlight: false,
-  },
-  service_dog: {
-    name: "Service Dog",
-    price: 229,
-    tagline: "המערכת המתקדמת הראשונה בישראל לניהול כלבי שירות",
-    features: [
-      "הכל ב-Pro",
-      "ניהול כלבי שירות בתהליך",
-      "ניהול תיק זכאים",
-      "מבחני הסמכה",
-      "פרוטוקולים רפואיים",
-    ],
-    highlight: false,
   },
 } as const;
 

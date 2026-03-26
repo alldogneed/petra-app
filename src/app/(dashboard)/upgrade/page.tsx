@@ -7,6 +7,7 @@ import type { TierKey } from "@/lib/feature-flags";
 import { useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
+// ─── Public plans (sold via checkout) ────────────────────────────────────────
 const PLANS: {
   key: TierKey;
   name: string;
@@ -41,89 +42,70 @@ const PLANS: {
     key: "basic",
     name: "Basic",
     price: 99,
-    description: "לעסקים שרוצים את הכלים הבסיסיים לניהול מסודר",
+    description: "מושלם לגרומרים ומאלפים עצמאיים — יחיד, מקצועי, חסכוני",
     features: [
-      "לקוחות ללא הגבלה",
-      "יומן תורים ופגישות",
-      "מערכת ניהול תורים",
+      "לקוחות ותורים ללא הגבלה",
+      "יומן תורים ופגישות + Google Calendar",
+      "תזכורות WhatsApp אוטומטיות",
+      "תיק עבודות לפני/אחרי",
+      "בקשת תשלום + טפסי קליטה דיגיטליים",
       "CRM / לידים ללא הגבלה",
-      "ניהול תהליכי אילוף ללא הגבלה",
-      "שליחת בקשת תשלום",
-      "בקשת תשלום WhatsApp",
-      "תזכורות WhatsApp",
       "דוחות ואנליטיקס",
-      "טפסי קליטה",
-      "סנכרון Google Calendar",
     ],
     notIncluded: [
-      "פנסיון",
+      "ניהול צוות ומשתמשים",
+      "ניהול פנסיון",
+      "הזמנות אונליין",
       "אוטומציות WhatsApp מתקדמות",
-      "ניהול צוות",
     ],
   },
   {
     key: "pro",
     name: "Pro",
     price: 199,
-    description: "שליטה מלאה — לעסק שגדל",
+    description: "מושלם לפנסיונים ומרכזי אילוף — צוות, גדילה, שליטה מלאה",
     highlight: true,
     badge: "הכי פופולרי",
     features: [
       "הכל ב-Basic",
-      "הזמנות אונליין",
-      "פנסיון + ניהול חדרים",
-      "ניהול קבוצות וסדנאות אילוף",
+      "ניהול צוות והרשאות מתקדמות",
+      "ניהול פנסיון וחדרים",
+      "מודול אילוף מתקדם",
+      "הזמנות אונליין — לקוחות קובעים לבד 24/7",
       "אוטומציות WhatsApp מתקדמות",
-      "ניהול צוות ומשתמשים",
-      "ייצוא Excel",
-      "הודעות מותאמות אישית",
+      "חשבוניות דיגיטליות + ייצוא Excel",
     ],
-    notIncluded: ["מודול כלבי שירות", "תיק עבודות גרומר"],
+    notIncluded: [],
   },
+];
+
+// ─── Legacy plans (DB only — for display when user is currently on one) ───────
+const LEGACY_PLANS: typeof PLANS = [
   {
     key: "groomer",
-    name: "Groomer+",
+    name: "Groomer+ (legacy)",
     price: 169,
-    description: "מסלול ייעודי לגרומרים",
+    description: "מסלול ישן — כבר לא נמכר. ניתן לעבור ל-Basic או Pro.",
     features: [
-      "לקוחות ללא הגבלה",
-      "יומן תורים ופגישות",
-      "מערכת ניהול תורים",
-      "CRM / לידים ללא הגבלה",
-      "שליחת בקשת תשלום",
-      "בקשת תשלום WhatsApp",
-      "תזכורות WhatsApp",
-      "דוחות ואנליטיקס",
-      "טפסי קליטה",
-      "סנכרון Google Calendar",
-      "הזמנות אונליין",
-      "אוטומציות WhatsApp מתקדמות",
-      "ניהול צוות ומשתמשים",
-      "ייצוא Excel",
-      "הודעות מותאמות אישית",
       "תיק עבודות לפני/אחרי",
+      "אוטומציות WhatsApp",
+      "ניהול צוות",
+      "ייצוא Excel",
     ],
-    notIncluded: ["פנסיון", "אילוף", "כלבי שירות"],
+    notIncluded: ["פנסיון", "אילוף מתקדם"],
   },
   {
     key: "service_dog",
     name: "Service Dog",
     price: 229,
-    description: "המערכת המתקדמת הראשונה בישראל לניהול כלבי שירות, המפותחת ע״י מומחים מתוך התחום",
-    badge: "חדש",
+    description: "מסלול ארגוני לכלבי שירות — ניהול זכאים, הכשרות ורגולציה.",
     features: [
       "הכל ב-Pro",
-      "ניהול כלבי שירות בתהליך",
-      "ניהול תיק זכאים",
-      "ניהול כלבייה",
-      "ניהול משימות",
-      "מבחני הסמכה",
+      "ניהול כלבי שירות ותיק זכאים",
+      "מבחני הסמכה ופרוטוקולים רפואיים",
       "דיווח למשרד החקלאות",
-      "כרטיסי זיהוי + QR",
-      "פרוטוקולים רפואיים",
-      "120+ שעות מעקב אילוף",
     ],
-    notIncluded: ["תיק עבודות גרומר"],
+    notIncluded: [],
   },
 ];
 
@@ -132,13 +114,14 @@ const WHATSAPP_UPGRADE_PHONE = "972504828080";
 const TIER_RANK: Record<string, number> = {
   free: 0,
   basic: 1,
-  groomer: 2,
-  pro: 3,
-  service_dog: 4,
+  groomer: 1.5,      // legacy — between basic and pro
+  groomer_plus: 1.5, // legacy alias
+  pro: 2,
+  service_dog: 3,    // enterprise
 };
 
-// Tiers that support online Cardcom payment (paid tiers only)
-const CARDCOM_TIERS = new Set(["basic", "pro", "groomer", "service_dog"]);
+// Tiers that support online Cardcom checkout (public paid tiers only)
+const CARDCOM_TIERS = new Set(["basic", "pro"]);
 
 export default function UpgradePage() {
   const { tier } = usePlan();
@@ -153,6 +136,12 @@ export default function UpgradePage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // If user is on a legacy tier, append their current plan card so they see it
+  const isLegacyTier = tier && !["free", "basic", "pro"].includes(tier);
+  const visiblePlans = isLegacyTier
+    ? [...PLANS, ...(LEGACY_PLANS.filter(p => p.key === tier))]
+    : PLANS;
 
   function goToCheckout(planKey: string) {
     router.push(`/checkout?tier=${planKey}`);
@@ -181,8 +170,8 @@ export default function UpgradePage() {
       </div>
 
       {/* Plans grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-10">
-        {PLANS.map((plan) => {
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+        {visiblePlans.map((plan) => {
           const isCurrent = tier === plan.key;
           const isHighlight = plan.highlight;
           const isDowngrade = TIER_RANK[plan.key] < TIER_RANK[tier ?? "free"];
