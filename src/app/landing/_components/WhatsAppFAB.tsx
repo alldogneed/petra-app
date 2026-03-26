@@ -2,13 +2,12 @@
 
 import { MessageCircle } from "lucide-react";
 
-const WHATSAPP_DEMO =
-  "https://wa.me/972515311435?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%95%D7%A2%20%D7%93%D7%9E%D7%95%20%D7%9C%D7%A4%D7%98%D7%A8%D7%94";
+const WHATSAPP_SUPPORT = "https://wa.me/972515311435";
 
 export function WhatsAppFAB() {
   return (
     <a
-      href={WHATSAPP_DEMO}
+      href={WHATSAPP_SUPPORT}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="פתיחת שיחה ב-WhatsApp לתמיכה — נפתח בחלון חדש"

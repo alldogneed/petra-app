@@ -12,9 +12,6 @@ const NAV_LINKS = [
   { href: "#testimonials", label: "לקוחות" },
 ];
 
-const WHATSAPP_DEMO =
-  "https://wa.me/972515311435?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%95%D7%A2%20%D7%93%D7%9E%D7%95%20%D7%9C%D7%A4%D7%98%D7%A8%D7%94";
-
 export function LandingNav() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -86,16 +83,7 @@ export function LandingNav() {
             >
               כניסה
             </Link>
-            <a
-              href={WHATSAPP_DEMO}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="קבע דמו — נפתח בחלון חדש"
-              className="text-sm px-4 py-2 rounded-xl border border-white/20 text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/40"
-            >
-              דמו חינמי
-            </a>
-            <Link
+<Link
               href="/register"
               className="text-sm font-semibold px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white transition-colors shadow-lg shadow-brand-500/25 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-slate-900"
             >

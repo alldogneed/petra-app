@@ -52,8 +52,8 @@ const FEATURES = [
   },
   {
     icon: Receipt,
-    title: "תשלומים וחשבוניות",
-    desc: "שלח לינק תשלום בוואטסאפ, קבל חשבונית אוטומטית וייצא דוחות כספיים לאקסל — בלי לרדוף אחרי כסף.",
+    title: "תשלומים ודוחות",
+    desc: "שלח לינק תשלום בוואטסאפ וייצא דוחות כספיים לאקסל — בלי לרדוף אחרי כסף.",
     iconBg: "bg-rose-50",
     iconColor: "text-rose-600",
     border: "border-rose-100 hover:border-rose-200 hover:shadow-rose-50/60",

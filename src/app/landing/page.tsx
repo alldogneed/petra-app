@@ -33,8 +33,7 @@ export const metadata: Metadata = {
     "ניהול לקוחות, תורים, WhatsApp ופנסיון — כל הכלים לעסק שלך במקום אחד. התחל בחינם.",
 };
 
-const WHATSAPP_DEMO =
-  "https://wa.me/972515311435?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A7%D7%91%D7%95%D7%A2%20%D7%93%D7%9E%D7%95%20%D7%9C%D7%A4%D7%98%D7%A8%D7%94";
+const WHATSAPP_SUPPORT = "https://wa.me/972515311435";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -60,7 +59,7 @@ const AUDIENCES = [
     features: [
       "יומן חכם ששולח תזכורות לבד, בלי חפירות בוואטסאפ",
       "תיק עבודות לפני ואחרי לכל לקוח, הוכחות בשטח",
-      "לינק לתשלום וחשבונית אוטומטית נשלחים בלי מאמץ",
+      "לינק לתשלום נשלח בוואטסאפ — הכסף מגיע בלי מרדפים",
     ],
   },
   {
@@ -206,16 +205,6 @@ export default function LandingPage() {
                   >
                     התחל בחינם עכשיו
                   </Link>
-                  <a
-                    href={WHATSAPP_DEMO}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="קבע דמו — נפתח בחלון חדש"
-                    className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl border border-white/20 text-white text-base font-medium hover:bg-white/10 transition-colors w-full sm:w-auto justify-center focus:outline-none focus:ring-2 focus:ring-white/50"
-                  >
-                    <MessageCircle aria-hidden="true" className="w-5 h-5" />
-                    קבע דמו
-                  </a>
                 </div>
 
                 {/* Trust signals */}
@@ -548,7 +537,7 @@ export default function LandingPage() {
                 </li>
                 <li>
                   <a
-                    href={WHATSAPP_DEMO}
+                    href={WHATSAPP_SUPPORT}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="תמיכה — פתיחת WhatsApp בחלון חדש"
