@@ -30,18 +30,20 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const TIER_LABEL: Record<string, string> = {
-  free: "חינמי",
-  basic: "בייסיק",
-  pro: "פרו",
-  groomer: "גרומר",
-  enterprise: "ארגוני",
+  free:        "חינמי",
+  basic:       "Basic",
+  pro:         "Pro",
+  groomer:     "Groomer+ (legacy)",
+  groomer_plus:"Groomer+ (legacy)",
+  service_dog: "Service Dog (ארגוני)",
 };
 
 const TIERS = [
-  { value: "free", label: "חינמי", price: "₪0" },
-  { value: "basic", label: "בייסיק", price: "₪99" },
-  { value: "pro", label: "פרו", price: "₪199" },
-  { value: "groomer", label: "גרומר", price: "₪169" },
+  { value: "free",        label: "חינמי",                price: "₪0"   },
+  { value: "basic",       label: "Basic",                price: "₪99"  },
+  { value: "pro",         label: "Pro",                  price: "₪199" },
+  { value: "service_dog", label: "Service Dog (ארגוני)", price: "₪229" },
+  { value: "groomer",     label: "Groomer+ (legacy)",    price: "₪169" },
 ];
 
 export default function TenantsPage() {

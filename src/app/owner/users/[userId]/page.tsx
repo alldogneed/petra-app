@@ -10,11 +10,13 @@ import { type FeatureKey, type TierKey, hasFeature } from "@/lib/feature-flags";
 // ─── Feature panel definitions ────────────────────────────────────────────────
 
 const TIERS: { key: TierKey; label: string; price: string }[] = [
-  { key: "free",        label: "Free (חינמי)",  price: "₪0"   },
-  { key: "basic",       label: "Basic",         price: "₪99"  },
-  { key: "groomer",     label: "Groomer+",      price: "₪169" },
-  { key: "pro",         label: "Pro",           price: "₪199" },
-  { key: "service_dog", label: "Service Dog",   price: "₪229" },
+  // Public tiers
+  { key: "free",        label: "Free (חינמי)",           price: "₪0"   },
+  { key: "basic",       label: "Basic",                  price: "₪99"  },
+  { key: "pro",         label: "Pro",                    price: "₪199" },
+  // Enterprise / legacy
+  { key: "service_dog", label: "Service Dog (ארגוני)",   price: "₪229" },
+  { key: "groomer",     label: "Groomer+ (legacy)",      price: "₪169" },
 ];
 
 const FEATURE_ROWS: { key: FeatureKey; label: string }[] = [
@@ -30,7 +32,7 @@ const FEATURE_ROWS: { key: FeatureKey; label: string }[] = [
   { key: "leads",              label: "CRM / לידים"       },
   { key: "staff_management",   label: "ניהול עובדים"      },
   { key: "excel_export",       label: "ייצוא Excel"       },
-  { key: "groomer_portfolio",  label: "תיק עבודות גרומר"  },
+  { key: "groomer_portfolio",  label: "תיק עבודות לפני/אחרי" },
   { key: "service_dogs",       label: "כלבי שירות"        },
 ];
 

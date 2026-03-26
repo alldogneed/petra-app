@@ -15,12 +15,14 @@ import { type FeatureKey, type TierKey, hasFeature } from "@/lib/feature-flags";
 
 // ─── Tier definitions ────────────────────────────────────────────────────────
 
-const TIERS: { key: TierKey; label: string; price: string; color: string }[] = [
-  { key: "free",        label: "Free (חינמי)",       price: "₪0",   color: "bg-slate-100 text-slate-600 border-slate-300" },
-  { key: "basic",       label: "Basic",              price: "₪99",  color: "bg-blue-50 text-blue-700 border-blue-300" },
-  { key: "groomer",     label: "Groomer+",           price: "₪169", color: "bg-pink-50 text-pink-700 border-pink-300" },
-  { key: "pro",         label: "Pro",                price: "₪199", color: "bg-violet-50 text-violet-700 border-violet-300" },
-  { key: "service_dog", label: "Service Dog",        price: "₪229", color: "bg-amber-50 text-amber-700 border-amber-300" },
+const TIERS: { key: TierKey; label: string; price: string; color: string; legacy?: boolean }[] = [
+  // ── Public tiers (sold via checkout) ───────────────────────────────────────
+  { key: "free",        label: "Free (חינמי)",            price: "₪0",   color: "bg-slate-100 text-slate-600 border-slate-300" },
+  { key: "basic",       label: "Basic",                   price: "₪99",  color: "bg-blue-50 text-blue-700 border-blue-300" },
+  { key: "pro",         label: "Pro",                     price: "₪199", color: "bg-violet-50 text-violet-700 border-violet-300" },
+  // ── Enterprise / legacy (manual assignment only) ────────────────────────
+  { key: "service_dog", label: "Service Dog (ארגוני)",    price: "₪229", color: "bg-emerald-50 text-emerald-700 border-emerald-300", legacy: true },
+  { key: "groomer",     label: "Groomer+ (legacy)",       price: "₪169", color: "bg-pink-50 text-pink-700 border-pink-300", legacy: true },
 ];
 
 // ─── Feature rows ─────────────────────────────────────────────────────────────
@@ -38,7 +40,7 @@ const FEATURE_ROWS: { key: FeatureKey; label: string; description: string }[] = 
   { key: "leads",              label: "CRM / לידים",          description: "קנבן לידים ומעקב מכירות" },
   { key: "staff_management",   label: "ניהול עובדים",         description: "הוספת משתמשים, תפקידים וניהול גישה" },
   { key: "excel_export",       label: "ייצוא לאקסל",         description: "ייצוא לקוחות וחיות ל-Excel" },
-  { key: "groomer_portfolio",  label: "תיק עבודות גרומר",    description: "גלריית לפני/אחרי לגרומר" },
+  { key: "groomer_portfolio",  label: "תיק עבודות לפני/אחרי", description: "גלריית לפני/אחרי (Basic+)" },
   { key: "service_dogs",       label: "מודול כלבי שירות",    description: "ניהול כלבי שירות, זכאים, שיבוצים ו-ADI" },
   { key: "online_bookings",    label: "הזמנות אונליין",      description: "ניהול תורים אונליין ואישור הזמנות" },
   { key: "analytics",          label: "דוחות ואנליטיקס",     description: "גרפים, סטטיסטיקות ומעקב ביצועים" },
