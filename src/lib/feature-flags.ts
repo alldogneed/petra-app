@@ -40,8 +40,8 @@ export type FeatureKey =
   | "appointments";
 
 // ─── Feature access matrix ────────────────────────────────────────────────────
-// Columns match the Petra V2 pricing table (March 2026):
-//   Free | Basic (₪99) | Groomer+ (₪169) | Pro (₪199) | Service Dog (₪229)
+// Public tiers (March 2026): Free | Basic (₪99) | Pro (₪199)
+// Legacy tiers (DB only, no longer sold): groomer, groomer_plus, service_dog
 
 const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
   // ── Free ─────────────────────────────────────────────────────────────────────
@@ -75,32 +75,33 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
   },
 
   // ── Basic (₪99) ──────────────────────────────────────────────────────────────
-  // Unlimited customers, Google Calendar, payment links, basic WhatsApp reminders,
-  // 1-on-1 training (Goals/Tasks). Unlimited leads. No boarding, no groups, no invoicing.
+  // Single-user plan for independent groomers and trainers.
+  // Unlimited customers, calendar, payments, WhatsApp reminders, before/after portfolio.
+  // No team management (Pro only), no boarding, no online bookings, no groups.
   basic: {
-    leads:             true,   // ✅ leads unlimited (free is capped at 20)
-    boarding:          false,  // Boarding rooms — PRO+ only
+    leads:             true,   // ✅ leads unlimited
+    boarding:          false,  // Boarding rooms — PRO only
     training:          true,   // 1-on-1 training engine ✅
-    training_groups:   false,  // Group workshops — PRO+ only
-    automations:       false,  // Full automation rules — PRO+ only
-    custom_messages:   false,  // Custom message templates — PRO+ only
-    service_dogs:      false,  // Service dog module — SERVICE_DOG only
-    groomer_portfolio: false,  // Before/after portfolio — GROOMER+ only
-    invoicing:         false,  // Invoices — PRO+ only
-    staff_management:  true,   // ✅ Staff management — BASIC+
-    excel_export:      false,  // Excel export — PRO+ only
+    training_groups:   false,  // Group workshops — PRO only
+    automations:       false,  // Advanced automation rules — PRO only
+    custom_messages:   false,  // Custom message templates — PRO only
+    service_dogs:      false,  // Service dog module — enterprise only
+    groomer_portfolio: true,   // ✅ Before/after portfolio — BASIC+
+    invoicing:         false,  // Invoices — PRO only
+    staff_management:  false,  // Single user — team management is PRO only
+    excel_export:      false,  // Excel export — PRO only
     gcal_sync:         true,   // Google Calendar sync ✅
     payments:          true,   // Payment links ✅
     orders:            true,
     pricing:           true,
     pets_advanced:     true,
-    scheduled_messages: false, // Dashboard reminders only — WhatsApp API sending requires PRO+
-    whatsapp_reminders: false, // WhatsApp API reminders — PRO+ only
-    online_bookings:   false,  // Online booking management — PRO+ only
+    scheduled_messages: true,  // ✅ WhatsApp reminders — BASIC+
+    whatsapp_reminders: true,  // ✅ WhatsApp API reminders — BASIC+
+    online_bookings:   false,  // Online booking page — PRO only
     analytics:         true,
     intake_forms:      true,
     payment_links:     true,
-    webhook_leads:     false,  // Make.com/API webhook for leads — PRO+ only
+    webhook_leads:     false,  // Make.com/API webhook for leads — PRO only
     appointments:      true,
   },
 
@@ -163,8 +164,8 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
   },
 
   // ── Pro (₪199) ───────────────────────────────────────────────────────────────
-  // Full platform: CRM, boarding rooms, group training, full automations,
-  // invoicing, staff, Excel. No service dog module, no groomer portfolio.
+  // Team & scale plan: pension management, training centers, multi-user businesses.
+  // Everything in Basic + team management, boarding, groups, online bookings, invoicing.
   pro: {
     leads:             true,   // CRM ✅
     boarding:          true,   // Boarding rooms ✅
@@ -172,10 +173,10 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     training_groups:   true,   // Group workshops ✅
     automations:       true,   // Full automations ✅
     custom_messages:   true,
-    service_dogs:      false,  // Service dog — SERVICE_DOG only
-    groomer_portfolio: false,  // Portfolio — GROOMER track only
+    service_dogs:      false,  // Service dog module — enterprise contact-sales only
+    groomer_portfolio: true,   // ✅ Before/after portfolio (superset of Basic)
     invoicing:         true,   // Invoicing ✅
-    staff_management:  true,   // Staff ✅
+    staff_management:  true,   // ✅ Team management — PRO only
     excel_export:      true,   // Excel export ✅
     gcal_sync:         true,
     payments:          true,
@@ -283,9 +284,9 @@ const MAX_PRICE_ITEMS: Record<TierKey, number | null> = {
 const UPGRADE_SUGGESTION: Record<TierKey, TierKey | null> = {
   free:        "basic",
   basic:       "pro",
-  pro:         "service_dog",
-  groomer:     null,        // lateral track — no linear upgrade
-  groomer_plus: null,
+  pro:         null,        // top public tier — contact sales for service dog
+  groomer:     "pro",       // legacy tier — upgrade to Pro
+  groomer_plus: "pro",      // legacy tier — upgrade to Pro
   service_dog: null,
 };
 
