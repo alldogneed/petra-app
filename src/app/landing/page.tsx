@@ -234,11 +234,11 @@ export default function LandingPage() {
                 </ul>
               </div>
 
-              {/* Visual col — dashboard mockup */}
-              <div aria-hidden="true" className="relative mt-2 lg:mt-0 animate-fadeIn" style={{ animationDelay: "150ms" }}>
+              {/* Visual col — dashboard mockup (hidden on mobile) */}
+              <div aria-hidden="true" className="relative mt-2 lg:mt-0 animate-fadeIn hidden md:block" style={{ animationDelay: "150ms" }}>
                 {/* Glow ring behind the mockup */}
                 <div className="absolute -inset-6 rounded-3xl bg-brand-500/8 blur-3xl pointer-events-none" />
-                <div className="relative">
+                <div className="relative scale-90 lg:scale-100 origin-top">
                   <DashboardMockup />
                 </div>
               </div>
