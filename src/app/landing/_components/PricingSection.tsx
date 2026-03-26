@@ -2,13 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, X, ChevronDown, ChevronUp, MessageCircle, Star, Zap, Gift, Sparkles } from "lucide-react";
+import { Check, X, ChevronDown, ChevronUp, MessageCircle, Star, Zap, Gift, Sparkles, Shield } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 
-const CARDCOM_TIERS = new Set(["basic", "pro", "groomer", "service_dog"]);
+const CARDCOM_TIERS = new Set(["basic", "pro"]);
 
-// ─── Exact data from /upgrade page ────────────────────────────────────────────
-// Feature entry: plain string or highlighted (shown in bold/orange)
 type FeatureEntry = string | { text: string; star: true };
 
 const PLANS: {
@@ -27,7 +25,7 @@ const PLANS: {
     price: 0,
     badge: null,
     highlight: false,
-    description: "התחל לנהל את העסק שלך — בחינם, עד 50 לקוחות",
+    description: "התחל לנהל את העסק שלך בחינם, עד 50 לקוחות",
     features: [
       "עד 50 לקוחות",
       "CRM / לידים (עד 20)",
@@ -69,125 +67,84 @@ const PLANS: {
     price: 199,
     badge: "מומלץ · הכי משתלם",
     highlight: true,
-    description: "שליטה מלאה — לעסק שגדל",
+    description: "שליטה מלאה לעסק שגדל — כולל גרומינג, אילוף ופנסיון",
     features: [
       "הכל ב-Basic",
       { text: "הזמנות אונליין — לקוחות קובעים לבד 24/7", star: true },
       { text: "פנסיון + ניהול חדרים", star: true },
       { text: "אוטומציות WhatsApp מתקדמות", star: true },
       { text: "חשבוניות דיגיטליות + ייצוא Excel", star: true },
+      { text: "תיק עבודות לפני/אחרי לגרומרים", star: true },
+      { text: "מודול אילוף מתקדם", star: true },
     ],
-    notIncluded: ["מודול כלבי שירות", "תיק עבודות גרומר"],
-  },
-  {
-    key: "groomer",
-    name: "Groomer+",
-    price: 169,
-    badge: null,
-    highlight: false,
-    description: "כל מה שגרומר מקצועי צריך — בלי לשלם על פיצ'רים מיותרים",
-    features: [
-      "לקוחות ללא הגבלה + הזמנות אונליין",
-      { text: "תיק עבודות לפני/אחרי", star: true },
-      { text: "אוטומציות WhatsApp מתקדמות", star: true },
-      "חשבוניות דיגיטליות",
-      "ניהול צוות + ייצוא Excel",
-    ],
-    notIncluded: ["פנסיון", "אילוף", "כלבי שירות"],
-  },
-  {
-    key: "service_dog",
-    name: "Service Dog",
-    price: 229,
-    badge: "חדש",
-    highlight: false,
-    description: "הפלטפורמה היחידה בישראל שבנויה לניהול תהליך כלב שירות מלא",
-    features: [
-      "הכל ב-Pro",
-      { text: "ניהול כלבי שירות בתהליך", star: true },
-      { text: "ניהול תיק זכאים", star: true },
-      { text: "מבחני הסמכה", star: true },
-      { text: "פרוטוקולים רפואיים", star: true },
-    ],
-    notIncluded: ["תיק עבודות גרומר"],
+    notIncluded: [],
   },
 ];
 
-// ─── Full feature comparison (for toggle table) ────────────────────────────────
+// ─── Comparison table (3 tiers only) ──────────────────────────────────────────
 type FVal = boolean | string;
-interface FRow { name: string; free: FVal; basic: FVal; pro: FVal; groomer: FVal; service_dog: FVal }
+interface FRow { name: string; free: FVal; basic: FVal; pro: FVal }
 
 const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
   {
     category: "לקוחות וחיות מחמד",
     features: [
-      { name: "לקוחות", free: "עד 50", basic: "ללא הגבלה", pro: "ללא הגבלה", groomer: "ללא הגבלה", service_dog: "ללא הגבלה" },
-      { name: "CRM / לידים", free: "עד 20", basic: "ללא הגבלה", pro: "ללא הגבלה", groomer: "ללא הגבלה", service_dog: "ללא הגבלה" },
-      { name: "כרטיס בריאות לחיית מחמד", free: true, basic: true, pro: true, groomer: true, service_dog: true },
-      { name: "טפסי קליטה דיגיטליים", free: false, basic: true, pro: true, groomer: true, service_dog: true },
-      { name: "ניהול משימות", free: "עד 20", basic: "ללא הגבלה", pro: "ללא הגבלה", groomer: "ללא הגבלה", service_dog: "ללא הגבלה" },
-      { name: "מחירון שירותים", free: true, basic: true, pro: true, groomer: true, service_dog: true },
+      { name: "לקוחות", free: "עד 50", basic: "ללא הגבלה", pro: "ללא הגבלה" },
+      { name: "CRM / לידים", free: "עד 20", basic: "ללא הגבלה", pro: "ללא הגבלה" },
+      { name: "כרטיס בריאות לחיית מחמד", free: true, basic: true, pro: true },
+      { name: "טפסי קליטה דיגיטליים", free: false, basic: true, pro: true },
+      { name: "ניהול משימות", free: "עד 20", basic: "ללא הגבלה", pro: "ללא הגבלה" },
+      { name: "מחירון שירותים", free: true, basic: true, pro: true },
     ],
   },
   {
     category: "יומן ותורים",
     features: [
-      { name: "יומן תורים ופגישות", free: false, basic: true, pro: true, groomer: true, service_dog: true },
-      { name: "מערכת ניהול תורים", free: false, basic: true, pro: true, groomer: true, service_dog: true },
-      { name: "הזמנות אונליין (לקוח קובע לבד)", free: false, basic: false, pro: true, groomer: true, service_dog: true },
-      { name: "סנכרון Google Calendar", free: false, basic: true, pro: true, groomer: true, service_dog: true },
+      { name: "יומן תורים ופגישות", free: false, basic: true, pro: true },
+      { name: "מערכת ניהול תורים", free: false, basic: true, pro: true },
+      { name: "הזמנות אונליין (לקוח קובע לבד)", free: false, basic: false, pro: true },
+      { name: "סנכרון Google Calendar", free: false, basic: true, pro: true },
     ],
   },
   {
     category: "WhatsApp ותקשורת",
     features: [
-      { name: "תזכורות WhatsApp", free: false, basic: false, pro: true, groomer: true, service_dog: true },
-      { name: "בקשת תשלום WhatsApp", free: false, basic: true, pro: true, groomer: true, service_dog: true },
-      { name: "אוטומציות WhatsApp מתקדמות", free: false, basic: false, pro: true, groomer: true, service_dog: true },
-      { name: "הודעות מותאמות אישית", free: false, basic: false, pro: true, groomer: true, service_dog: true },
+      { name: "תזכורות WhatsApp", free: false, basic: false, pro: true },
+      { name: "בקשת תשלום WhatsApp", free: false, basic: true, pro: true },
+      { name: "אוטומציות WhatsApp מתקדמות", free: false, basic: false, pro: true },
+      { name: "הודעות מותאמות אישית", free: false, basic: false, pro: true },
     ],
   },
   {
-    category: "אילוף ומקצוע",
+    category: "מקצוע ותוכן",
     features: [
-      { name: "ניהול תהליכי אילוף", free: "עד 50", basic: "ללא הגבלה", pro: "ללא הגבלה", groomer: false, service_dog: "ללא הגבלה" },
-      { name: "ניהול קבוצות וסדנאות", free: false, basic: false, pro: true, groomer: false, service_dog: true },
-      { name: "ניהול פנסיון + חדרים", free: false, basic: false, pro: true, groomer: false, service_dog: true },
-      { name: "תיק עבודות גרומר לפני/אחרי", free: false, basic: false, pro: false, groomer: true, service_dog: false },
-    ],
-  },
-  {
-    category: "כלבי שירות",
-    features: [
-      { name: "ניהול כלבי שירות בתהליך", free: false, basic: false, pro: false, groomer: false, service_dog: true },
-      { name: "ניהול תיק זכאים", free: false, basic: false, pro: false, groomer: false, service_dog: true },
-      { name: "מבחני הסמכה", free: false, basic: false, pro: false, groomer: false, service_dog: true },
-      { name: "פרוטוקולים רפואיים", free: false, basic: false, pro: false, groomer: false, service_dog: true },
-      { name: "כרטיסי זיהוי + QR", free: false, basic: false, pro: false, groomer: false, service_dog: true },
-      { name: "דיווח למשרד החקלאות", free: false, basic: false, pro: false, groomer: false, service_dog: true },
-      { name: "120+ שעות מעקב אילוף", free: false, basic: false, pro: false, groomer: false, service_dog: true },
+      { name: "ניהול תהליכי אילוף", free: "עד 50", basic: "ללא הגבלה", pro: "ללא הגבלה" },
+      { name: "מודול אילוף מתקדם", free: false, basic: false, pro: true },
+      { name: "ניהול קבוצות וסדנאות", free: false, basic: false, pro: true },
+      { name: "ניהול פנסיון + חדרים", free: false, basic: false, pro: true },
+      { name: "תיק עבודות גרומר לפני/אחרי", free: false, basic: false, pro: true },
     ],
   },
   {
     category: "פיננסים ודוחות",
     features: [
-      { name: "שליחת בקשת תשלום", free: false, basic: true, pro: true, groomer: true, service_dog: true },
-      { name: "ניהול הזמנות", free: false, basic: true, pro: true, groomer: true, service_dog: true },
-      { name: "חשבוניות דיגיטליות", free: false, basic: false, pro: true, groomer: true, service_dog: true },
-      { name: "דוחות ואנליטיקס", free: false, basic: true, pro: true, groomer: true, service_dog: true },
-      { name: "ייצוא Excel", free: false, basic: false, pro: true, groomer: true, service_dog: true },
+      { name: "שליחת בקשת תשלום", free: false, basic: true, pro: true },
+      { name: "ניהול הזמנות", free: false, basic: true, pro: true },
+      { name: "חשבוניות דיגיטליות", free: false, basic: false, pro: true },
+      { name: "דוחות ואנליטיקס", free: false, basic: true, pro: true },
+      { name: "ייצוא Excel", free: false, basic: false, pro: true },
     ],
   },
   {
     category: "ניהול צוות",
     features: [
-      { name: "ניהול צוות ומשתמשים", free: false, basic: true, pro: true, groomer: true, service_dog: true },
-      { name: "הרשאות לפי תפקיד", free: false, basic: true, pro: true, groomer: true, service_dog: true },
+      { name: "ניהול צוות ומשתמשים", free: false, basic: true, pro: true },
+      { name: "הרשאות לפי תפקיד", free: false, basic: true, pro: true },
     ],
   },
 ];
 
-const PLAN_KEYS = ["free", "basic", "pro", "groomer", "service_dog"] as const;
+const PLAN_KEYS = ["free", "basic", "pro"] as const;
 
 function FeatureCell({ value }: { value: FVal }) {
   if (typeof value === "string") {
@@ -217,7 +174,7 @@ const FAQ = [
   },
   {
     q: "האם לקוחות יכולים לקבוע תורים לבד?",
-    a: "כן — עם מסלול Pro ומעלה תקבל לינק אישי לדף הזמנות אונליין. הלקוח בוחר שירות, תאריך ושעה פנויה ומאשר — הכל נכנס אוטומטית ליומן שלך. 24/7, ללא שיחות טלפון.",
+    a: "כן — עם מסלול Pro תקבל לינק אישי לדף הזמנות אונליין. הלקוח בוחר שירות, תאריך ושעה פנויה ומאשר — הכל נכנס אוטומטית ליומן שלך. 24/7, ללא שיחות טלפון.",
   },
   {
     q: "האם יש סנכרון עם Google Calendar?",
@@ -225,11 +182,7 @@ const FAQ = [
   },
   {
     q: "האם ניתן לשלוח חשבוניות דיגיטליות?",
-    a: "כן — במסלול Pro ומעלה ניתן ליצור הזמנות, לשלוח בקשות תשלום בוואטסאפ ובמייל, ולהפיק חשבוניות דיגיטליות. ניתן גם לייצא את כל הנתונים הפיננסיים לאקסל.",
-  },
-  {
-    q: "מה מיוחד במסלול Service Dog?",
-    a: "מסלול Service Dog הוא הפלטפורמה היחידה בישראל שבנויה לניהול מלא של תהליך כלב שירות: ניהול כלבים לפי שלבי אילוף (בחירה, גידול, גור, אילוף בסיסי ומתקדם, מוסמך), ניהול תיק זכאים, מבחני הסמכה ותוצאות, פרוטוקולים רפואיים (חיסונים, תרופות, בדיקות), 120+ שעות מעקב אילוף, כרטיסי זיהוי עם QR ודיווח למשרד החקלאות.",
+    a: "כן — במסלול Pro ניתן ליצור הזמנות, לשלוח בקשות תשלום בוואטסאפ ובמייל, ולהפיק חשבוניות דיגיטליות. ניתן גם לייצא את כל הנתונים הפיננסיים לאקסל.",
   },
   {
     q: "האם יש ניהול צוות?",
@@ -245,11 +198,10 @@ const FAQ = [
   },
   {
     q: "איך משדרגים מסלול?",
-    a: "מתוך לוח הבקרה → הגדרות → שדרוג מסלול. בוחרים מסלול, מזינים אשראי, ותוך שניות כל הפיצ'רים נפתחים.",
+    a: "מתוך לוח הבקרה, הגדרות, שדרוג מסלול. בוחרים מסלול, מזינים אשראי, ותוך שניות כל הפיצ'רים נפתחים.",
   },
 ];
 
-// ─── FAQ Accordion ────────────────────────────────────────────────────────────
 function FaqAccordion() {
   const [open, setOpen] = useState<string | null>(null);
   return (
@@ -285,20 +237,19 @@ function FaqAccordion() {
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
 export function PricingSection() {
   const [showComparison, setShowComparison] = useState(false);
   const { user } = useAuth();
 
   return (
     <section aria-labelledby="pricing-heading" className="py-20 bg-white" id="pricing">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Header */}
         <div className="text-center mb-12">
           <p className="inline-flex items-center gap-2 bg-brand-50 text-brand-600 px-4 py-1.5 rounded-full text-sm font-medium mb-4">
             <Zap className="w-4 h-4" aria-hidden="true" />
-            5 מסלולים — מחינמי עד כלבי שירות
+            3 מסלולים פשוטים — בחר את שמתאים לך
           </p>
           <h2 id="pricing-heading" className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
             מחיר שווה לכל נפש, בלי הפתעות
@@ -306,160 +257,176 @@ export function PricingSection() {
           <p className="text-slate-500 text-lg">מסלול חינמי ללא כרטיס אשראי · 14 ימי ניסיון מלאים בכל מסלול בתשלום</p>
         </div>
 
-        {/* Plan cards — vertical stack on mobile, 5-col grid on desktop */}
-        <div className="overflow-y-visible pt-6">
-          <ul
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 list-none p-0 m-0"
-            aria-label="מסלולי מנוי"
-          >
-            {PLANS.map((plan) => (
-              <li
-                key={plan.key}
-                className={`flex flex-col ${
-                  plan.highlight ? "sm:col-span-2 lg:col-span-1" : ""
+        {/* 3 Plan cards */}
+        <ul
+          className="grid grid-cols-1 sm:grid-cols-3 gap-4 list-none p-0 m-0 pt-6"
+          aria-label="מסלולי מנוי"
+        >
+          {PLANS.map((plan) => (
+            <li key={plan.key} className="flex flex-col">
+              <div
+                className={`relative rounded-2xl border-2 flex flex-col h-full transition-all ${
+                  plan.highlight
+                    ? "border-brand-500 bg-gradient-to-b from-brand-50 to-white shadow-2xl shadow-brand-400/40 ring-4 ring-brand-400/30 scale-[1.02] sm:scale-105 p-5 pt-9 hover:shadow-brand-400/50"
+                    : "border-slate-200 bg-white p-5 hover:shadow-md hover:border-slate-300"
                 }`}
               >
-                <div
-                  className={`relative rounded-2xl border-2 flex flex-col h-full transition-all ${
-                    plan.highlight
-                      ? "border-brand-500 bg-gradient-to-b from-brand-50 to-white shadow-2xl shadow-brand-400/40 ring-4 ring-brand-400/30 scale-[1.02] lg:scale-105 p-5 pt-9 hover:shadow-brand-400/50"
-                      : "border-slate-200 bg-white p-5 hover:shadow-md hover:border-slate-300"
-                  }`}
-                >
-                  {/* Badge */}
-                  {plan.badge && (
-                    plan.highlight ? (
-                      <div
-                        aria-hidden="true"
-                        className="absolute -top-5 right-1/2 translate-x-1/2 flex items-center gap-2 text-sm font-bold px-5 py-2 rounded-full bg-gradient-to-l from-brand-600 to-brand-500 text-white shadow-xl shadow-brand-400/60 whitespace-nowrap border border-brand-400/30"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        {plan.badge}
-                        <Sparkles className="w-3.5 h-3.5" />
-                      </div>
-                    ) : (
-                      <div
-                        aria-hidden="true"
-                        className="absolute -top-3 right-4 text-xs font-bold px-3 py-1 rounded-full bg-amber-500 text-white"
-                      >
-                        {plan.badge}
-                      </div>
-                    )
-                  )}
-
-                  {/* Plan header */}
-                  <div className="mb-4">
-                    <h3 className="text-base font-bold text-slate-900 mb-0.5">
-                      {plan.name}
-                      {plan.badge && <span className="sr-only"> — {plan.badge}</span>}
-                    </h3>
-                    <p className="text-[11px] text-slate-400 leading-snug mb-3">{plan.description}</p>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-extrabold text-slate-900">
-                        {plan.price === 0 ? "חינמי" : `₪${plan.price}`}
-                      </span>
-                      {plan.price > 0 && (
-                        <span className="text-slate-400 text-xs" aria-label="לחודש">/חודש</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Included */}
-                  <ul className="space-y-1.5 mb-3 flex-1 list-none p-0 m-0">
-                    {plan.features.map((f) => {
-                      const isHighlighted = typeof f === "object" && f.star;
-                      const label = typeof f === "object" ? f.text : f;
-                      return (
-                        <li
-                          key={label}
-                          className={`flex items-start gap-1.5 text-xs ${isHighlighted ? "text-brand-700 font-semibold" : "text-slate-700"}`}
-                        >
-                          <Check
-                            aria-hidden="true"
-                            className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${isHighlighted ? "text-brand-500" : "text-emerald-500"}`}
-                          />
-                          {isHighlighted ? (
-                            <span>
-                              {label}
-                              <span className="mr-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-brand-100 text-brand-600 align-middle">
-                                חדש
-                              </span>
-                            </span>
-                          ) : (
-                            label
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-
-                  {/* Not included */}
-                  {plan.notIncluded.length > 0 && (
-                    <ul className="space-y-1 mb-4 list-none p-0 m-0 border-t border-slate-100 pt-2 mt-1">
-                      {plan.notIncluded.map((f) => (
-                        <li key={f} className="flex items-start gap-1.5 text-xs text-slate-400">
-                          <X aria-hidden="true" className="w-3.5 h-3.5 text-red-300 mt-0.5 shrink-0" />
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {/* CTA */}
-                  {CARDCOM_TIERS.has(plan.key) ? (
-                    <div className="flex flex-col gap-1.5">
-                      <Link
-                        href={`/checkout?tier=${plan.key}&trial=1`}
-                        aria-label={`התחל בחינם עכשיו — מסלול ${plan.name}`}
-                        className={`text-sm py-2.5 rounded-xl text-center font-semibold transition-colors flex items-center justify-center gap-1.5 ${
-                          plan.highlight
-                            ? "bg-brand-500 hover:bg-brand-600 text-white"
-                            : "bg-slate-900 hover:bg-slate-800 text-white"
-                        }`}
-                      >
-                        <Gift className="w-3.5 h-3.5" aria-hidden="true" />
-                        התחל בחינם עכשיו
-                      </Link>
-                      <p className="text-[10px] text-center text-slate-400 leading-snug px-1">
-                        נדרש כרטיס אשראי לאימות. לא תחויב ב-14 הימים הראשונים. ביטול פשוט בלחיצת כפתור.
-                      </p>
-                      {!user && (
-                        <Link
-                          href="/register"
-                          aria-label={`התחל בחינם — מסלול ${plan.name}`}
-                          className="text-xs py-1.5 rounded-xl text-center font-medium text-slate-500 hover:text-slate-700 transition-colors border border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                        >
-                          או התחל בחינם ←
-                        </Link>
-                      )}
+                {/* Badge */}
+                {plan.badge && (
+                  plan.highlight ? (
+                    <div
+                      aria-hidden="true"
+                      className="absolute -top-5 right-1/2 translate-x-1/2 flex items-center gap-2 text-sm font-bold px-5 py-2 rounded-full bg-gradient-to-l from-brand-600 to-brand-500 text-white shadow-xl shadow-brand-400/60 whitespace-nowrap border border-brand-400/30"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      {plan.badge}
+                      <Sparkles className="w-3.5 h-3.5" />
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-1.5">
-                      <Link
-                        href={user ? "/upgrade" : "/register"}
-                        aria-label={`התחל בחינם — מסלול ${plan.name}`}
-                        className="text-sm py-2.5 rounded-xl text-center font-semibold transition-colors bg-slate-900 hover:bg-slate-800 text-white"
-                      >
-                        {user ? "עבור למסלולים" : "התחל בחינם עכשיו"}
-                      </Link>
-                      {!user && (
-                        <p className="text-[10px] text-center text-emerald-600 font-medium leading-snug px-1">
-                          ללא הגבלת זמן, ללא צורך בכרטיס אשראי
-                        </p>
-                      )}
+                    <div
+                      aria-hidden="true"
+                      className="absolute -top-3 right-4 text-xs font-bold px-3 py-1 rounded-full bg-amber-500 text-white"
+                    >
+                      {plan.badge}
                     </div>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+                  )
+                )}
 
-          {/* Specialty plans note */}
-          <p className="mt-5 text-center text-xs text-slate-400 bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
-            <span className="font-semibold text-slate-600">Groomer+</span> ו-
-            <span className="font-semibold text-slate-600">Service Dog</span> הם מסלולים ייעודיים לתחום שלך —
-            {" "}מחליפים את Pro, לא שדרוג ממנו. בחר לפי מה שמתאים לעסק שלך.
-          </p>
+                {/* Plan header */}
+                <div className="mb-4">
+                  <h3 className="text-base font-bold text-slate-900 mb-0.5">
+                    {plan.name}
+                    {plan.badge && <span className="sr-only"> — {plan.badge}</span>}
+                  </h3>
+                  <p className="text-[11px] text-slate-400 leading-snug mb-3">{plan.description}</p>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-extrabold text-slate-900">
+                      {plan.price === 0 ? "חינמי" : `₪${plan.price}`}
+                    </span>
+                    {plan.price > 0 && (
+                      <span className="text-slate-400 text-xs" aria-label="לחודש">/חודש</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Included */}
+                <ul className="space-y-1.5 mb-3 flex-1 list-none p-0 m-0">
+                  {plan.features.map((f) => {
+                    const isHighlighted = typeof f === "object" && f.star;
+                    const label = typeof f === "object" ? f.text : f;
+                    return (
+                      <li
+                        key={label}
+                        className={`flex items-start gap-1.5 text-xs ${isHighlighted ? "text-brand-700 font-semibold" : "text-slate-700"}`}
+                      >
+                        <Check
+                          aria-hidden="true"
+                          className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${isHighlighted ? "text-brand-500" : "text-emerald-500"}`}
+                        />
+                        {isHighlighted ? (
+                          <span>
+                            {label}
+                            <span className="mr-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-brand-100 text-brand-600 align-middle">
+                              חדש
+                            </span>
+                          </span>
+                        ) : (
+                          label
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                {/* Not included */}
+                {plan.notIncluded.length > 0 && (
+                  <ul className="space-y-1 mb-4 list-none p-0 m-0 border-t border-slate-100 pt-2 mt-1">
+                    {plan.notIncluded.map((f) => (
+                      <li key={f} className="flex items-start gap-1.5 text-xs text-slate-400">
+                        <X aria-hidden="true" className="w-3.5 h-3.5 text-red-300 mt-0.5 shrink-0" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {/* CTA */}
+                {CARDCOM_TIERS.has(plan.key) ? (
+                  <div className="flex flex-col gap-1.5">
+                    <Link
+                      href={`/checkout?tier=${plan.key}&trial=1`}
+                      aria-label={`התחל בחינם עכשיו — מסלול ${plan.name}`}
+                      className={`text-sm py-2.5 rounded-xl text-center font-semibold transition-colors flex items-center justify-center gap-1.5 ${
+                        plan.highlight
+                          ? "bg-brand-500 hover:bg-brand-600 text-white"
+                          : "bg-slate-900 hover:bg-slate-800 text-white"
+                      }`}
+                    >
+                      <Gift className="w-3.5 h-3.5" aria-hidden="true" />
+                      התחל בחינם עכשיו
+                    </Link>
+                    <p className="text-[10px] text-center text-slate-400 leading-snug px-1">
+                      נדרש כרטיס אשראי לאימות. לא תחויב ב-14 הימים הראשונים. ביטול פשוט בלחיצת כפתור.
+                    </p>
+                    {!user && (
+                      <Link
+                        href="/register"
+                        aria-label={`התחל בחינם — מסלול ${plan.name}`}
+                        className="text-xs py-1.5 rounded-xl text-center font-medium text-slate-500 hover:text-slate-700 transition-colors border border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                      >
+                        או התחל בחינם ←
+                      </Link>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    <Link
+                      href={user ? "/upgrade" : "/register"}
+                      aria-label={`התחל בחינם — מסלול ${plan.name}`}
+                      className="text-sm py-2.5 rounded-xl text-center font-semibold transition-colors bg-slate-900 hover:bg-slate-800 text-white"
+                    >
+                      {user ? "עבור למסלולים" : "התחל בחינם עכשיו"}
+                    </Link>
+                    {!user && (
+                      <p className="text-[10px] text-center text-emerald-600 font-medium leading-snug px-1">
+                        ללא הגבלת זמן, ללא צורך בכרטיס אשראי
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        {/* ── Service Dog Enterprise Banner ─────────────────────────────────────── */}
+        <div className="mt-6 rounded-2xl border border-emerald-200 bg-gradient-to-l from-emerald-50 to-white p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+          {/* Icon */}
+          <div className="shrink-0 w-14 h-14 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shadow-sm">
+            <Shield className="w-7 h-7 text-emerald-600" aria-hidden="true" />
+          </div>
+
+          {/* Text */}
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-600 mb-1">ייחודי בישראל</p>
+            <h3 className="text-lg font-bold text-slate-900 mb-1 leading-snug">
+              ארגון כלבי שירות? יש לנו פתרון ייעודי עבורך
+            </h3>
+            <p className="text-slate-500 text-sm leading-relaxed">
+              פלטפורמה מלאה לניהול זכאים, הכשרות ועמידה בדרישות משרד החקלאות.
+            </p>
+          </div>
+
+          {/* CTA */}
+          <a
+            href="https://wa.me/972504828080"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+          >
+            <MessageCircle className="w-4 h-4" aria-hidden="true" />
+            דבר איתנו להתאמת מסלול
+          </a>
         </div>
 
         {/* Toggle comparison table */}
@@ -477,7 +444,7 @@ export function PricingSection() {
           </button>
         </div>
 
-        {/* Comparison table */}
+        {/* Comparison table — 3 plans */}
         {showComparison && (
           <div
             id="comparison-table"
@@ -485,7 +452,7 @@ export function PricingSection() {
             role="region"
             aria-label="טבלת השוואת מסלולים"
           >
-            <table className="w-full min-w-[720px] text-sm border-collapse">
+            <table className="w-full min-w-[480px] text-sm border-collapse">
               <thead className="sticky top-0 z-10 shadow-sm">
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th scope="col" className="text-right px-4 py-3 font-semibold text-slate-700 w-52">פיצ'ר</th>
@@ -514,7 +481,7 @@ export function PricingSection() {
                 {FEATURE_GROUPS.map((group) => (
                   <>
                     <tr key={`cat-${group.category}`} className="bg-slate-50/80">
-                      <td colSpan={6} className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      <td colSpan={4} className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
                         {group.category}
                       </td>
                     </tr>
