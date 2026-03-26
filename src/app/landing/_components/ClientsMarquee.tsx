@@ -1,3 +1,4 @@
+"use client";
 import Image from "next/image";
 
 const CLIENTS = [
@@ -12,96 +13,65 @@ const CLIENTS = [
   { src: "/clients/simba-service.png",    alt: "סימבה כלבי שירות" },
 ];
 
-// Triple the list so the marquee fills wide screens and the loop seam is never visible
-const TRACK = [...CLIENTS, ...CLIENTS, ...CLIENTS];
-
 export function ClientsMarquee() {
+  // Duplicate twice — animation moves exactly -50% so the loop is perfectly seamless
+  const track = [...CLIENTS, ...CLIENTS];
+
   return (
     <section
       id="לקוחות"
       aria-label="לקוחות פטרה"
-      className="relative py-16 overflow-hidden bg-slate-950"
+      className="relative py-16 bg-slate-950 overflow-hidden"
     >
       <style>{`
-        @keyframes marquee-ltr {
+        @keyframes marquee {
           0%   { transform: translateX(0); }
-          100% { transform: translateX(calc(-100% / 3)); }
+          100% { transform: translateX(-50%); }
         }
-        .marquee-track {
+        .marquee-inner {
           display: flex;
-          align-items: center;
           width: max-content;
-          animation: marquee-ltr 40s linear infinite;
+          animation: marquee 36s linear infinite;
           will-change: transform;
         }
-        .marquee-track:hover {
-          animation-play-state: paused;
-        }
-        .marquee-logo {
-          flex-shrink: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 0 3rem;
-        }
-        .marquee-logo::after {
-          content: "";
-          display: block;
-          position: absolute;
-          right: 0;
-          width: 1px;
-          height: 2rem;
-          background: rgba(255,255,255,0.08);
-        }
-        .marquee-logo img {
-          filter: grayscale(1) brightness(2) opacity(0.4);
-          transition: filter 0.4s ease;
-        }
-        .marquee-logo:hover img {
-          filter: grayscale(0) brightness(1) opacity(1);
-        }
+        .marquee-inner:hover { animation-play-state: paused; }
       `}</style>
 
       {/* Header */}
       <div className="text-center mb-12 px-4">
         <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 mb-5">
           <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" />
-          <span className="text-xs font-semibold tracking-widest text-white/50 uppercase">
-            הלקוחות שלנו
-          </span>
+          <span className="text-xs font-semibold tracking-widest text-white/50 uppercase">הלקוחות שלנו</span>
         </div>
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
-          הם כבר עובדים עם פטרה
-        </h2>
-        <p className="text-slate-400 text-sm">
-          מאלפים, גרומרים ופנסיונים מובילים ברחבי הארץ
-        </p>
+        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">הם כבר עובדים עם פטרה</h2>
+        <p className="text-slate-400 text-sm">מאלפים, גרומרים ופנסיונים מובילים ברחבי הארץ</p>
       </div>
 
-      {/* Fade masks — prevent hard edge at viewport boundary */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-y-0 left-0 w-40 z-10"
-        style={{ background: "linear-gradient(to right, #020617 0%, transparent 100%)" }}
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-y-0 right-0 w-40 z-10"
-        style={{ background: "linear-gradient(to left, #020617 0%, transparent 100%)" }}
-      />
+      {/* Left/right fade */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-32 z-10"
+        style={{ background: "linear-gradient(to right, #020617, transparent)" }} />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-32 z-10"
+        style={{ background: "linear-gradient(to left, #020617, transparent)" }} />
 
-      {/* Scrolling track */}
+      {/* Track */}
       <div className="overflow-hidden" aria-hidden="true">
-        <div className="marquee-track">
-          {TRACK.map((client, i) => (
-            <div key={i} className="marquee-logo relative">
-              <div className="relative w-28 h-16 md:w-32 md:h-20">
+        <div className="marquee-inner">
+          {track.map((c, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-center flex-shrink-0"
+              style={{ width: "160px", height: "80px", padding: "0 16px" }}
+            >
+              <div style={{ position: "relative", width: "128px", height: "64px" }}>
                 <Image
-                  src={client.src}
-                  alt={client.alt}
+                  src={c.src}
+                  alt={c.alt}
                   fill
                   sizes="128px"
                   className="object-contain"
+                  style={{ filter: "grayscale(1) brightness(2) opacity(0.45)", transition: "filter .4s" }}
+                  onMouseEnter={e => (e.currentTarget.style.filter = "none")}
+                  onMouseLeave={e => (e.currentTarget.style.filter = "grayscale(1) brightness(2) opacity(0.45)")}
                 />
               </div>
             </div>
@@ -109,7 +79,7 @@ export function ClientsMarquee() {
         </div>
       </div>
 
-      {/* Stats strip */}
+      {/* Stats */}
       <div className="mt-12 flex items-center justify-center gap-10 px-4 flex-wrap">
         {[
           { num: "117", label: "עסקים פעילים" },
@@ -121,9 +91,7 @@ export function ClientsMarquee() {
               <div className="text-2xl font-bold text-brand-400">{num}</div>
               <div className="text-xs text-slate-500 mt-0.5">{label}</div>
             </div>
-            {i < arr.length - 1 && (
-              <div className="w-px h-8 bg-white/10" aria-hidden="true" />
-            )}
+            {i < arr.length - 1 && <div className="w-px h-8 bg-white/10" aria-hidden="true" />}
           </div>
         ))}
       </div>
