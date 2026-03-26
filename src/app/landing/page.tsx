@@ -19,7 +19,6 @@ import { AccessibilityButton } from "./_components/AccessibilityButton";
 import { TestimonialsCarousel } from "./_components/TestimonialsCarousel";
 import { LandingNav } from "./_components/LandingNav";
 import { DashboardMockup } from "./_components/DashboardMockup";
-import { WhatsAppMockupAnimated } from "./_components/WhatsAppMockupAnimated";
 import { FeaturesSection } from "./_components/FeaturesSection";
 import {
   TrainerMockup,
@@ -390,69 +389,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── Service Dog USP banner ───────────────────────────────────────────── */}
-        <section
-          aria-labelledby="service-dog-usp-heading"
-          className="py-16 bg-[#052E16] relative overflow-hidden"
-        >
-          {/* Subtle radial glow */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: "radial-gradient(ellipse 70% 80% at 50% 50%, rgba(16,185,129,0.12) 0%, transparent 65%)",
-            }}
-          />
-          <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col lg:flex-row items-center gap-10">
-
-              {/* Icon badge */}
-              <div className="shrink-0 flex flex-col items-center gap-3">
-                <div className="w-24 h-24 rounded-3xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-900/40">
-                  <Shield className="w-12 h-12 text-emerald-400" aria-hidden="true" />
-                </div>
-              </div>
-
-              {/* Text */}
-              <div className="text-center lg:text-right">
-                {/* Badge above heading */}
-                <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold uppercase tracking-wide mb-4">
-                  ייחודי בישראל
-                </span>
-                <h2
-                  id="service-dog-usp-heading"
-                  className="text-2xl md:text-3xl font-bold text-white mb-3 leading-snug"
-                >
-                  <span className="text-emerald-400">הבית הדיגיטלי היחיד בישראל</span>
-                  {" "}לארגוני כלבי שירות
-                </h2>
-                <p className="text-emerald-200/80 text-base mb-6 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                  בנינו את המערכת הראשונה מסוגה שדוברת את השפה שלכם. תאימות מלאה לדרישות משרד החקלאות, ניהול זכאים והסמכות – הכל במקום אחד, בלי ניירת ובלי טעויות.
-                </p>
-                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-7 max-w-xl mx-auto lg:mx-0 text-right">
-                  {[
-                    "דיווחים אוטומטיים למשרד החקלאות בפורמט הנדרש, עמידה מלאה ברגולציה.",
-                    "מעקב 8 שלבי הכשרה וצבירת 120+ שעות אילוף לכל כלב.",
-                    "תיק דיגיטלי לכל זכאי הכולל מסמכים, שיבוצים והיסטוריה רפואית.",
-                    "הנפקת תעודות זיהוי חכמות עם QR לסריקה מהירה בשטח.",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-emerald-100 text-sm">
-                      <Check aria-hidden="true" className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href="/register?plan=service_dog"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-emerald-950"
-                >
-                  <Shield className="w-4 h-4" aria-hidden="true" />
-                  גלה את המודול המלא
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
 
         {/* ── Features grid ────────────────────────────────────────────────────── */}
         <section
@@ -469,66 +405,13 @@ export default function LandingPage() {
                 כל מה שצריך — באחד
               </h2>
               <p className="text-slate-500 text-lg">
-                12 מודולים מקצועיים שיחסכו לך שעות כל יום
+                6 יכולות ליבה — WhatsApp, יומן, הזמנות, פנסיון, אילוף ותשלומים
               </p>
             </div>
             <FeaturesSection />
           </div>
         </section>
 
-        {/* ── WhatsApp highlight ───────────────────────────────────────────────── */}
-        <section aria-labelledby="whatsapp-heading" className="py-24 bg-slate-900">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              <div>
-                <p
-                  aria-hidden="true"
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-6"
-                >
-                  <MessageCircle aria-hidden="true" className="w-4 h-4 text-emerald-400" />
-                  <span className="text-emerald-300 text-sm font-medium">WhatsApp API</span>
-                </p>
-                <h2
-                  id="whatsapp-heading"
-                  className="text-3xl md:text-4xl font-bold text-white mb-4 leading-tight"
-                >
-                  שלח תזכורות ב-WhatsApp
-                  <br />
-                  <span className="text-emerald-400">בלחיצה אחת</span>
-                </h2>
-                <p className="text-slate-400 text-lg mb-8 leading-relaxed">
-                  הלקוחות שלך מקבלים תזכורת אוטומטית לפני כל תור ישירות לוואטסאפ.
-                  שיעור ביטול מינימלי, הכנסה מקסימלית.
-                </p>
-                <ul className="space-y-3 mb-8 list-none p-0 m-0">
-                  {[
-                    "תזכורות אוטומטיות 24/48/72 שעות לפני התור",
-                    "בקשת תשלום עם לינק תשלום",
-                    "הודעות מותאמות לכל עסק",
-                  ].map((item) => (
-                    <li key={item} className="flex items-center gap-3 text-slate-300">
-                      <div
-                        aria-hidden="true"
-                        className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0"
-                      >
-                        <Check className="w-3 h-3 text-emerald-400" />
-                      </div>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <Link href="/register" className="btn-primary">
-                  התחל בחינם עכשיו
-                </Link>
-              </div>
-
-              {/* WhatsApp mockup — animated */}
-              <div className="flex justify-center">
-                <WhatsAppMockupAnimated />
-              </div>
-            </div>
-          </div>
-        </section>
 
         {/* ── Testimonials carousel ────────────────────────────────────────────── */}
         <section
