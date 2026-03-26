@@ -99,7 +99,7 @@ export function LandingNav() {
               href="/register"
               className="text-sm font-semibold px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white transition-colors shadow-lg shadow-brand-500/25 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-slate-900"
             >
-              התחל בחינם
+              התחל בחינם עכשיו
             </Link>
           </div>
 
@@ -137,7 +137,7 @@ export function LandingNav() {
                 onClick={() => setMenuOpen(false)}
                 className="text-sm font-semibold px-4 py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-center transition-colors"
               >
-                התחל בחינם
+                התחל בחינם עכשיו
               </Link>
               <Link
                 href="/login"

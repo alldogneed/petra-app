@@ -410,7 +410,7 @@ export function PricingSection() {
                     <div className="flex flex-col gap-1.5">
                       <Link
                         href={`/checkout?tier=${plan.key}&trial=1`}
-                        aria-label={`נסה 14 יום חינם — מסלול ${plan.name}`}
+                        aria-label={`התחל בחינם עכשיו — מסלול ${plan.name}`}
                         className={`text-sm py-2.5 rounded-xl text-center font-semibold transition-colors flex items-center justify-center gap-1.5 ${
                           plan.highlight
                             ? "bg-brand-500 hover:bg-brand-600 text-white"
@@ -418,7 +418,7 @@ export function PricingSection() {
                         }`}
                       >
                         <Gift className="w-3.5 h-3.5" aria-hidden="true" />
-                        נסה 14 יום חינם
+                        התחל בחינם עכשיו
                       </Link>
                       <p className="text-[10px] text-center text-slate-400 leading-snug px-1">
                         נדרש כרטיס אשראי לאימות. לא תחויב ב-14 הימים הראשונים. ביטול פשוט בלחיצת כפתור.

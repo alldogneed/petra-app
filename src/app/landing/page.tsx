@@ -71,9 +71,9 @@ const AUDIENCES = [
     title: "פנסיון לכלבים",
     mockup: <BoardingMockup />,
     features: [
-      "שליטה מלאה בפנסיון: ניהול חדרים ועדכוני סטטוס לבעלים",
-      "ניהול צ'ק-אין מהיר ומעקב יומי אחרי כל כלב",
-      "ראש שקט ללקוח: עדכוני WhatsApp אוטומטיים מהפנסיון",
+      "אפס כפל הזמנות: ניהול חדרים בזמן אמת — המערכת נועלת לפני שזה קורה",
+      "צ'ק-אין בשניות: פרטי הכלב, הרגלים ובריאות — מוכנים לפני שנכנסים",
+      "ראש שקט לבעלים: תמונות ועדכוני WhatsApp יוצאים לבד — בלי שתזכר",
     ],
   },
   {
@@ -101,7 +101,7 @@ const HOW_IT_WORKS = [
     n: "02",
     icon: Zap,
     title: "מנקים את השולחן",
-    desc: "מעבירים את כל הלקוחות מהסמארטפון או מהמחברת הישנה למקום אחד מסודר. אנחנו נעשה את העבודה השחורה בשבילך.",
+    desc: "שלחו לנו את רשימת הלקוחות — נייבא הכל בשבילכם תוך 24 שעות. ממחברת ישנה, מאקסל, מגוגל קונטקטס או מכל קובץ CSV.",
   },
   {
     n: "03",
@@ -193,9 +193,8 @@ export default function LandingPage() {
                   className="text-lg md:text-xl text-slate-300 mb-8 leading-relaxed animate-slideUp"
                   style={{ animationDelay: "120ms" }}
                 >
-                  נבנתה ע״י מומחי שטח. מיועדת למקצוענים בבעלי חיים.{" "}
-                  זיקקנו ניסיון של שנים באילוף, טיפוח והכשרה לתוך מערכת אחת חכמה.{" "}
-                  פטרה נותנת לכם את הכלים לנהל את העסק ביעילות, כדי שתוכלו להישאר ממוקדים בבעלי החיים.
+                  כדי שתפסיקו לאבד לקוחות מתזכורות שנשכחו, ולא תטבעו בהודעות וואטסאפ —
+                  {" "}ותחזרו לעשות את מה שאתם באמת אוהבים: לעבוד עם כלבים.
                 </p>
 
                 <div
@@ -206,7 +205,7 @@ export default function LandingPage() {
                     href="/register"
                     className="btn-primary text-base px-8 py-3.5 w-full sm:w-auto justify-center shadow-xl shadow-brand-500/30"
                   >
-                    אני רוצה לנסות בחינם – בלי התחייבות
+                    התחל בחינם עכשיו
                   </Link>
                   <a
                     href={WHATSAPP_DEMO}
@@ -317,7 +316,7 @@ export default function LandingPage() {
 
             <div className="text-center mt-14">
               <Link href="/register" className="btn-primary px-8 py-3.5 text-base shadow-lg shadow-brand-200">
-                אני רוצה לנסות בחינם
+                התחל בחינם עכשיו
               </Link>
             </div>
           </div>
@@ -520,7 +519,7 @@ export default function LandingPage() {
                   ))}
                 </ul>
                 <Link href="/register" className="btn-primary">
-                  נסה בחינם
+                  התחל בחינם עכשיו
                 </Link>
               </div>
 
@@ -606,7 +605,7 @@ export default function LandingPage() {
               href="/register"
               className="btn-primary text-base px-10 py-4 shadow-2xl shadow-brand-500/30"
             >
-              אני רוצה לנסות בחינם
+              התחל בחינם עכשיו
             </Link>
             <ul className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 list-none p-0 m-0">
               <li className="flex items-center gap-1.5 text-slate-400 text-sm">
