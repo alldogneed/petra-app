@@ -461,13 +461,15 @@ export default function LandingPage() {
 
               {/* Left col — Image placeholder */}
               <div aria-hidden="true" className="relative">
-                <div className="aspect-[4/3] rounded-3xl bg-slate-200 overflow-hidden shadow-2xl shadow-slate-200 flex items-center justify-center relative">
-                  {/* Subtle gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-brand-100/40 to-slate-200/60" />
-                  <div className="relative flex flex-col items-center gap-3 text-slate-400">
-                    <Dog className="w-16 h-16 opacity-30" />
-                    <span className="text-sm font-medium opacity-50">תמונה מהשטח</span>
-                  </div>
+                <div className="aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl shadow-slate-300 relative">
+                  <Image
+                    src="/about-field.png"
+                    alt="גרומרת עובדת עם כלב פודל בסטודיו — Petra ו-All-Dog"
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    className="object-cover"
+                    priority
+                  />
                 </div>
                 {/* Decorative accent */}
                 <div className="absolute -bottom-4 -left-4 w-24 h-24 rounded-2xl bg-brand-400/20 -z-10" />
