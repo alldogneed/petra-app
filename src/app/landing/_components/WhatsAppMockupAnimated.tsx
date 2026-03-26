@@ -6,7 +6,9 @@ import { Heart } from "lucide-react";
 type Phase = "idle" | "typing" | "message" | "delivered" | "reply";
 
 export function WhatsAppMockupAnimated() {
-  const [phase, setPhase] = useState<Phase>("idle");
+  // Start in "reply" (completed conversation) so there's always visible content.
+  // The IntersectionObserver will replay the animation when scrolled into view.
+  const [phase, setPhase] = useState<Phase>("reply");
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,14 +29,14 @@ export function WhatsAppMockupAnimated() {
   }, []);
 
   function runSequence() {
-    // typing dots appear
-    setTimeout(() => setPhase("typing"), 400);
+    // Jump straight to typing (skip idle blank state)
+    setPhase("typing");
     // message slides in
-    setTimeout(() => setPhase("message"), 2000);
+    setTimeout(() => setPhase("message"), 1600);
     // double-check (delivered)
-    setTimeout(() => setPhase("delivered"), 2700);
+    setTimeout(() => setPhase("delivered"), 2300);
     // customer replies ✅
-    setTimeout(() => setPhase("reply"), 3800);
+    setTimeout(() => setPhase("reply"), 3400);
   }
 
   return (
