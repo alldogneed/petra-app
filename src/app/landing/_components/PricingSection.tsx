@@ -12,6 +12,7 @@ type FeatureEntry = string | { text: string; star: true };
 const PLANS: {
   key: string;
   name: string;
+  subtitle?: string;
   price: number;
   badge: string | null;
   highlight: boolean;
@@ -44,38 +45,43 @@ const PLANS: {
   {
     key: "basic",
     name: "Basic",
+    subtitle: "מושלם לגרומרים ומאלפים עצמאיים",
     price: 99,
     badge: null,
     highlight: false,
-    description: "ניהול מקצועי יומיומי — יומן, תורים, לידים ותשלומים",
+    description: "ניהול מקצועי יומיומי — יומן, תורים, תשלומים ותזכורות",
     features: [
-      { text: "לקוחות, תורים ולידים ללא הגבלה", star: true },
-      { text: "יומן תורים ופגישות", star: true },
+      { text: "לקוחות ותורים ללא הגבלה", star: true },
+      { text: "יומן תורים ופגישות + Google Calendar", star: true },
+      { text: "תזכורות WhatsApp אוטומטיות", star: true },
       { text: "בקשת תשלום + טפסי קליטה דיגיטליים", star: true },
-      "ניהול צוות ומשתמשים",
-      "דוחות, אנליטיקס וסנכרון Google Calendar",
+      { text: "תיק עבודות לפני/אחרי", star: true },
+      "משתמש יחיד (ללא ניהול צוות)",
+      "דוחות ואנליטיקס",
     ],
     notIncluded: [
-      "פנסיון",
-      "אוטומציות WhatsApp מתקדמות",
+      "ניהול צוות ומשתמשים",
+      "ניהול פנסיון",
       "הזמנות אונליין",
+      "אוטומציות WhatsApp מתקדמות",
     ],
   },
   {
     key: "pro",
     name: "Pro",
+    subtitle: "מושלם לפנסיונים ומרכזי אילוף",
     price: 199,
     badge: "מומלץ · הכי משתלם",
     highlight: true,
-    description: "שליטה מלאה לעסק שגדל — כולל גרומינג, אילוף ופנסיון",
+    description: "שליטה מלאה לעסק שגדל — צוות, פנסיון ואוטומציה",
     features: [
       "הכל ב-Basic",
+      { text: "ניהול צוות והרשאות מתקדמות", star: true },
+      { text: "ניהול פנסיון וחדרים", star: true },
+      { text: "מודול אילוף מתקדם", star: true },
       { text: "הזמנות אונליין — לקוחות קובעים לבד 24/7", star: true },
-      { text: "פנסיון + ניהול חדרים", star: true },
       { text: "אוטומציות WhatsApp מתקדמות", star: true },
       { text: "חשבוניות דיגיטליות + ייצוא Excel", star: true },
-      { text: "תיק עבודות לפני/אחרי לגרומרים", star: true },
-      { text: "מודול אילוף מתקדם", star: true },
     ],
     notIncluded: [],
   },
@@ -109,7 +115,7 @@ const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
   {
     category: "WhatsApp ותקשורת",
     features: [
-      { name: "תזכורות WhatsApp", free: false, basic: false, pro: true },
+      { name: "תזכורות WhatsApp", free: false, basic: true, pro: true },
       { name: "בקשת תשלום WhatsApp", free: false, basic: true, pro: true },
       { name: "אוטומציות WhatsApp מתקדמות", free: false, basic: false, pro: true },
       { name: "הודעות מותאמות אישית", free: false, basic: false, pro: true },
@@ -122,7 +128,7 @@ const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
       { name: "מודול אילוף מתקדם", free: false, basic: false, pro: true },
       { name: "ניהול קבוצות וסדנאות", free: false, basic: false, pro: true },
       { name: "ניהול פנסיון + חדרים", free: false, basic: false, pro: true },
-      { name: "תיק עבודות גרומר לפני/אחרי", free: false, basic: false, pro: true },
+      { name: "תיק עבודות גרומר לפני/אחרי", free: false, basic: true, pro: true },
     ],
   },
   {
@@ -138,8 +144,8 @@ const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
   {
     category: "ניהול צוות",
     features: [
-      { name: "ניהול צוות ומשתמשים", free: false, basic: true, pro: true },
-      { name: "הרשאות לפי תפקיד", free: false, basic: true, pro: true },
+      { name: "ניהול צוות ומשתמשים", free: false, basic: false, pro: true },
+      { name: "הרשאות לפי תפקיד", free: false, basic: false, pro: true },
     ],
   },
 ];
@@ -170,7 +176,7 @@ const FAQ = [
   },
   {
     q: "איך עובדות תזכורות WhatsApp אוטומטיות?",
-    a: "פטרה שולחת תזכורות WhatsApp ללקוחות אוטומטית לפני תורים, אישורי כניסה/יציאה מפנסיון ועוד — דרך ה-API הרשמי של Meta (לא wa.me). ניתן לקבוע כמה שעות מראש לשלוח (24/48/72/96 שעות) ולהתאים את נוסח ההודעה. הפיצ'ר זמין במסלול Pro ומעלה.",
+    a: "פטרה שולחת תזכורות WhatsApp ללקוחות אוטומטית לפני תורים, אישורי כניסה/יציאה מפנסיון ועוד — דרך ה-API הרשמי של Meta (לא wa.me). ניתן לקבוע כמה שעות מראש לשלוח (24/48/72/96 שעות) ולהתאים את נוסח ההודעה. הפיצ'ר זמין במסלול Basic ומעלה.",
   },
   {
     q: "האם לקוחות יכולים לקבוע תורים לבד?",
@@ -186,7 +192,7 @@ const FAQ = [
   },
   {
     q: "האם יש ניהול צוות?",
-    a: "כן — מסלול Basic ומעלה כולל ניהול צוות עם הרשאות לפי תפקיד: בעלים, מנהל וצוות. כל עובד נכנס עם אישורי הגישה שלו, ורואה רק את מה שרלוונטי לתפקידו.",
+    a: "כן — מסלול Pro כולל ניהול צוות עם הרשאות לפי תפקיד: בעלים, מנהל וצוות. כל עובד נכנס עם אישורי הגישה שלו, ורואה רק את מה שרלוונטי לתפקידו. מסלול Basic מיועד למשתמש יחיד.",
   },
   {
     q: "מה קורה אם יש לי כבר נתונים בטלפון או במערכת אחרת?",
@@ -298,6 +304,9 @@ export function PricingSection() {
                     {plan.name}
                     {plan.badge && <span className="sr-only"> — {plan.badge}</span>}
                   </h3>
+                  {plan.subtitle && (
+                    <p className="text-xs font-medium text-brand-600 mb-1 leading-snug">{plan.subtitle}</p>
+                  )}
                   <p className="text-[11px] text-slate-400 leading-snug mb-3">{plan.description}</p>
                   <div className="flex items-baseline gap-1">
                     <span className="text-2xl font-extrabold text-slate-900">
