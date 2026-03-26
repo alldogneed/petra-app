@@ -17,6 +17,7 @@ import { PricingSection } from "./_components/PricingSection";
 import { WhatsAppFAB } from "./_components/WhatsAppFAB";
 import { AccessibilityButton } from "./_components/AccessibilityButton";
 import { TestimonialsCarousel } from "./_components/TestimonialsCarousel";
+import { ClientsMarquee } from "./_components/ClientsMarquee";
 import { LandingNav } from "./_components/LandingNav";
 import { DashboardMockup } from "./_components/DashboardMockup";
 import { FeaturesSection } from "./_components/FeaturesSection";
@@ -433,6 +434,9 @@ export default function LandingPage() {
             <TestimonialsCarousel />
           </div>
         </section>
+
+        {/* ── Client logos marquee ─────────────────────────────────────────────── */}
+        <ClientsMarquee />
 
         {/* ── Pricing (interactive client component) ───────────────────────────── */}
         <PricingSection />
