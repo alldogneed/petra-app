@@ -61,7 +61,7 @@ export function LandingNav() {
               className="object-contain"
             />
             <span className="text-white font-bold text-lg tracking-tight">
-              פטרה
+              Petra
             </span>
           </Link>
 
