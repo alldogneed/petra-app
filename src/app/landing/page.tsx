@@ -516,7 +516,7 @@ export default function LandingPage() {
               את העסק שלך?
             </h2>
             <p className="text-slate-300 text-lg mb-10 leading-relaxed">
-              הצטרף לאלפי בעלי עסקים שכבר עובדים עם פטרה
+              הצטרף לבעלי עסקים שכבר עובדים עם פטרה
             </p>
             <Link
               href="/register"

@@ -1,4 +1,3 @@
-"use client";
 import Image from "next/image";
 
 const CLIENTS = [
@@ -14,7 +13,6 @@ const CLIENTS = [
 ];
 
 export function ClientsMarquee() {
-  // Duplicate twice — animation moves exactly -50% so the loop is perfectly seamless
   const track = [...CLIENTS, ...CLIENTS];
 
   return (
@@ -24,17 +22,39 @@ export function ClientsMarquee() {
       className="relative py-16 bg-slate-950 overflow-hidden"
     >
       <style>{`
-        @keyframes marquee {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
+        @keyframes petra-marquee {
+          from { transform: translateX(0); }
+          to   { transform: translateX(-50%); }
         }
-        .marquee-inner {
+        .petra-track {
           display: flex;
+          align-items: center;
           width: max-content;
-          animation: marquee 36s linear infinite;
+          animation: petra-marquee 36s linear infinite;
           will-change: transform;
         }
-        .marquee-inner:hover { animation-play-state: paused; }
+        .petra-track:hover {
+          animation-play-state: paused;
+        }
+        .petra-logo-item {
+          flex-shrink: 0;
+          width: 160px;
+          height: 80px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .petra-logo-item img {
+          filter: grayscale(100%) brightness(200%) opacity(40%);
+          transition: filter 0.4s ease;
+          object-fit: contain;
+          width: 120px !important;
+          height: 60px !important;
+          position: relative !important;
+        }
+        .petra-logo-item:hover img {
+          filter: grayscale(0%) brightness(100%) opacity(100%);
+        }
       `}</style>
 
       {/* Header */}
@@ -47,7 +67,7 @@ export function ClientsMarquee() {
         <p className="text-slate-400 text-sm">מאלפים, גרומרים ופנסיונים מובילים ברחבי הארץ</p>
       </div>
 
-      {/* Left/right fade */}
+      {/* Fade edges */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-32 z-10"
         style={{ background: "linear-gradient(to right, #020617, transparent)" }} />
       <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-32 z-10"
@@ -55,25 +75,16 @@ export function ClientsMarquee() {
 
       {/* Track */}
       <div className="overflow-hidden" aria-hidden="true">
-        <div className="marquee-inner">
+        <div className="petra-track">
           {track.map((c, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-center flex-shrink-0"
-              style={{ width: "160px", height: "80px", padding: "0 16px" }}
-            >
-              <div style={{ position: "relative", width: "128px", height: "64px" }}>
-                <Image
-                  src={c.src}
-                  alt={c.alt}
-                  fill
-                  sizes="128px"
-                  className="object-contain"
-                  style={{ filter: "grayscale(1) brightness(2) opacity(0.45)", transition: "filter .4s" }}
-                  onMouseEnter={e => (e.currentTarget.style.filter = "none")}
-                  onMouseLeave={e => (e.currentTarget.style.filter = "grayscale(1) brightness(2) opacity(0.45)")}
-                />
-              </div>
+            <div key={i} className="petra-logo-item">
+              <Image
+                src={c.src}
+                alt={c.alt}
+                width={120}
+                height={60}
+                className="object-contain"
+              />
             </div>
           ))}
         </div>
