@@ -56,7 +56,7 @@ function CheckoutContent() {
   const [iframeLoading, setIframeLoading] = useState(false);
   const [iframeError, setIframeError] = useState<string | null>(null);
 
-  // ── Step 1 form state (unauthenticated trial only) ────────────────────────
+  // ── Step 1 form state ────────────────────────────────────────────────────
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
@@ -68,53 +68,30 @@ function CheckoutContent() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formErrorCode, setFormErrorCode] = useState<string | null>(null);
   const [onStep2, setOnStep2] = useState(false);
-
-  // Fetch payment URL for authenticated users
-  function fetchPaymentUrl() {
-    setIframeLoading(true);
-    setIframeError(null);
-
-    const endpoint = isTrial
-      ? "/api/cardcom/create-tokenization"
-      : "/api/cardcom/create-payment";
-
-    fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tier }),
-    })
-      .then((r) => {
-        if (r.status === 401) {
-          router.replace(`/login?redirect=/checkout?tier=${tier}${isTrial ? "&trial=1" : ""}`);
-          return null;
-        }
-        return r.json();
-      })
-      .then((data) => {
-        if (!data) return;
-        if (data.url) {
-          setCardcomUrl(data.url);
-        } else {
-          setIframeError(data.error ?? "שגיאה ביצירת דף תשלום");
-        }
-      })
-      .catch(() => setIframeError("שגיאה בחיבור לשרת. נסה שוב."))
-      .finally(() => setIframeLoading(false));
-  }
+  // Pre-fill loading for authenticated users
+  const [authPrefillLoaded, setAuthPrefillLoaded] = useState(false);
 
   useEffect(() => {
     if (!plan) {
       router.replace("/upgrade");
       return;
     }
-    // Unauthenticated user: show step 1 form first (don't fetch)
-    if (!authLoading && !user) return;
-    // Authenticated or non-trial: fetch payment URL
-    if (!authLoading) fetchPaymentUrl();
+    if (authLoading) return;
+    // Unauthenticated: show step 1 form — nothing to pre-fetch
+    if (!user) return;
+    // Authenticated: pre-fill address/vatNumber from settings
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.address)   setFormAddress(data.address);
+        if (data.vatNumber) setFormVatNumber(data.vatNumber);
+      })
+      .catch(() => {})
+      .finally(() => setAuthPrefillLoaded(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user]);
 
-  // Submit step 1 form (unauthenticated checkout-first)
+  // Submit step 1 form
   async function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
@@ -122,12 +99,39 @@ function CheckoutContent() {
     setFormSubmitting(true);
 
     try {
-      const endpoint = isTrial ? "/api/cardcom/create-trial" : "/api/cardcom/create-checkout";
+      let endpoint: string;
+      let body: Record<string, unknown>;
+
+      if (user) {
+        // Authenticated user — invoice fields only
+        endpoint = isTrial ? "/api/cardcom/create-tokenization" : "/api/cardcom/create-payment";
+        body = { tier, address: formAddress || undefined, vatNumber: formVatNumber || undefined };
+      } else {
+        // New user — full checkout-first form
+        endpoint = isTrial ? "/api/cardcom/create-trial" : "/api/cardcom/create-checkout";
+        body = {
+          name: formName,
+          email: formEmail,
+          phone: formPhone || undefined,
+          businessName: formBusinessName || undefined,
+          address: formAddress || undefined,
+          vatNumber: formVatNumber || undefined,
+          tier,
+          tosAccepted: formTos,
+        };
+      }
+
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: formName, email: formEmail, phone: formPhone || undefined, businessName: formBusinessName || undefined, address: formAddress || undefined, vatNumber: formVatNumber || undefined, tier, tosAccepted: formTos }),
+        body: JSON.stringify(body),
       });
+
+      if (res.status === 401) {
+        router.replace(`/login?redirect=/checkout?tier=${tier}${isTrial ? "&trial=1" : ""}`);
+        return;
+      }
+
       const data = await res.json();
 
       if (!res.ok) {
@@ -153,9 +157,10 @@ function CheckoutContent() {
 
   // Determine what to render in the right panel
   const isNewUser = !authLoading && !user;
-  const showStep1 = isNewUser && !onStep2;
-  const showIframe = cardcomUrl && (!isNewUser || onStep2);
-  const showAuthLoading = authLoading;
+  // Step 1: show for everyone until they advance to step 2
+  const showStep1 = !authLoading && (!user || authPrefillLoaded) && !onStep2;
+  const showIframe = !!cardcomUrl && onStep2;
+  const showAuthLoading = authLoading || (!!user && !authPrefillLoaded && !onStep2);
 
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
@@ -295,8 +300,8 @@ function CheckoutContent() {
                     {isTrial ? "אימות כרטיס — לא יחויב עכשיו" : "פרטי תשלום"}
                   </h2>
                 </div>
-                {/* Step indicator for new (unauthenticated) user */}
-                {isNewUser && (
+                {/* Step indicator */}
+                {!authLoading && (
                   <div className="flex items-center gap-1.5 text-xs">
                     <span className={`px-2.5 py-0.5 rounded-full font-semibold transition-colors ${!onStep2 ? "bg-brand-500 text-white" : "bg-emerald-100 text-emerald-600"}`}>
                       1 פרטים
@@ -320,75 +325,83 @@ function CheckoutContent() {
               {showStep1 && (
                 <form onSubmit={handleFormSubmit} className="p-6 space-y-4">
                   <p className="text-sm text-slate-600 leading-relaxed mb-2">
-                    {isTrial
-                      ? "הזן את הפרטים שלך — נשלח לך כניסה למערכת באימייל לאחר שמירת הכרטיס."
-                      : "הזן את הפרטים שלך — נשלח לך כניסה למערכת באימייל לאחר השלמת התשלום."}
+                    {user
+                      ? "אנא אמת/י את פרטי החשבונית לפני המשך לתשלום."
+                      : isTrial
+                        ? "הזן את הפרטים שלך — נשלח לך כניסה למערכת באימייל לאחר שמירת הכרטיס."
+                        : "הזן את הפרטים שלך — נשלח לך כניסה למערכת באימייל לאחר השלמת התשלום."}
                   </p>
 
-                  {/* Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      שם מלא <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      minLength={2}
-                      value={formName}
-                      onChange={(e) => setFormName(e.target.value)}
-                      placeholder="ישראל ישראלי"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
-                    />
-                  </div>
+                  {/* ── New-user only fields ── */}
+                  {!user && (
+                    <>
+                      {/* Name */}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                          שם מלא <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          minLength={2}
+                          value={formName}
+                          onChange={(e) => setFormName(e.target.value)}
+                          placeholder="ישראל ישראלי"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
+                        />
+                      </div>
 
-                  {/* Email */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      אימייל <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={formEmail}
-                      onChange={(e) => { setFormEmail(e.target.value); setFormError(null); setFormErrorCode(null); }}
-                      placeholder="name@example.com"
-                      dir="ltr"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
-                    />
-                  </div>
+                      {/* Email */}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                          אימייל <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          value={formEmail}
+                          onChange={(e) => { setFormEmail(e.target.value); setFormError(null); setFormErrorCode(null); }}
+                          placeholder="name@example.com"
+                          dir="ltr"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
+                        />
+                      </div>
 
-                  {/* Phone */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      טלפון נייד <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={formPhone}
-                      onChange={(e) => setFormPhone(e.target.value)}
-                      placeholder="05X-XXXXXXX"
-                      dir="ltr"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
-                    />
-                  </div>
+                      {/* Phone */}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                          טלפון נייד <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          value={formPhone}
+                          onChange={(e) => setFormPhone(e.target.value)}
+                          placeholder="05X-XXXXXXX"
+                          dir="ltr"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
+                        />
+                      </div>
 
-                  {/* Business Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      שם העסק <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      minLength={2}
-                      value={formBusinessName}
-                      onChange={(e) => setFormBusinessName(e.target.value)}
-                      placeholder='למשל: "טיפוח פאו"'
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
-                    />
-                  </div>
+                      {/* Business Name */}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                          שם העסק <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          minLength={2}
+                          value={formBusinessName}
+                          onChange={(e) => setFormBusinessName(e.target.value)}
+                          placeholder='למשל: "טיפוח פאו"'
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
+                        />
+                      </div>
+                    </>
+                  )}
 
+                  {/* ── Invoice fields (everyone) ── */}
                   {/* Address */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -422,24 +435,26 @@ function CheckoutContent() {
                     />
                   </div>
 
-                  {/* TOS */}
-                  <div className="flex items-start gap-2.5">
-                    <input
-                      id="tos"
-                      type="checkbox"
-                      required
-                      checked={formTos}
-                      onChange={(e) => setFormTos(e.target.checked)}
-                      className="mt-0.5 w-4 h-4 rounded border-slate-300 text-brand-500 focus:ring-brand-400 flex-shrink-0"
-                    />
-                    <label htmlFor="tos" className="text-xs text-slate-600 leading-relaxed cursor-pointer">
-                      קראתי ואני מסכים/ה ל
-                      <Link href="/tos" target="_blank" className="text-brand-600 hover:underline mx-1">תנאי השימוש</Link>
-                      ול
-                      <Link href="/privacy" target="_blank" className="text-brand-600 hover:underline mx-1">מדיניות הפרטיות</Link>
-                      של פטרה
-                    </label>
-                  </div>
+                  {/* TOS — new users only */}
+                  {!user && (
+                    <div className="flex items-start gap-2.5">
+                      <input
+                        id="tos"
+                        type="checkbox"
+                        required
+                        checked={formTos}
+                        onChange={(e) => setFormTos(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded border-slate-300 text-brand-500 focus:ring-brand-400 flex-shrink-0"
+                      />
+                      <label htmlFor="tos" className="text-xs text-slate-600 leading-relaxed cursor-pointer">
+                        קראתי ואני מסכים/ה ל
+                        <Link href="/tos" target="_blank" className="text-brand-600 hover:underline mx-1">תנאי השימוש</Link>
+                        ול
+                        <Link href="/privacy" target="_blank" className="text-brand-600 hover:underline mx-1">מדיניות הפרטיות</Link>
+                        של פטרה
+                      </label>
+                    </div>
+                  )}
 
                   {/* Error */}
                   {formError && (
@@ -456,8 +471,8 @@ function CheckoutContent() {
                     </div>
                   )}
 
-                  {/* Trial note — only shown when isTrial */}
-                  {isTrial && (
+                  {/* Trial note — only shown when isTrial and new user */}
+                  {isTrial && !user && (
                     <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl">
                       <Gift className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                       <p className="text-xs text-amber-700">
@@ -471,7 +486,7 @@ function CheckoutContent() {
                   {/* Submit */}
                   <button
                     type="submit"
-                    disabled={formSubmitting || !formTos}
+                    disabled={formSubmitting || (!user && !formTos)}
                     className="w-full py-3 rounded-xl bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
                   >
                     {formSubmitting ? (
@@ -481,12 +496,14 @@ function CheckoutContent() {
                     )}
                   </button>
 
-                  <p className="text-center text-xs text-slate-400">
-                    כבר יש לך חשבון?{" "}
-                    <Link href="/login" className="text-brand-600 hover:underline font-medium">
-                      התחבר
-                    </Link>
-                  </p>
+                  {!user && (
+                    <p className="text-center text-xs text-slate-400">
+                      כבר יש לך חשבון?{" "}
+                      <Link href="/login" className="text-brand-600 hover:underline font-medium">
+                        התחבר
+                      </Link>
+                    </p>
+                  )}
                 </form>
               )}
 
@@ -503,7 +520,7 @@ function CheckoutContent() {
                 <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
                   <p className="text-sm text-red-600">{iframeError}</p>
                   <button
-                    onClick={fetchPaymentUrl}
+                    onClick={() => setOnStep2(false)}
                     className="text-xs px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors"
                   >
                     נסה שוב

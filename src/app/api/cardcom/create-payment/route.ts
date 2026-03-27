@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const tier: string = body.tier;
+    const address: string | undefined = body.address?.trim() || undefined;
+    const vatNumber: string | undefined = body.vatNumber?.trim() || undefined;
 
     if (!isValidTier(tier) || !(tier in CARDCOM_PLANS)) {
       return NextResponse.json({ error: "מסלול לא תקין" }, { status: 400 });
@@ -33,13 +35,24 @@ export async function POST(request: NextRequest) {
 
     const plan = CARDCOM_PLANS[tier];
 
-    // Fetch business email for pre-filling Cardcom form
+    // Fetch business email for pre-filling Cardcom form + save invoice fields
     const business = await prisma.business.findUnique({
       where: { id: businessId },
       select: { email: true, name: true },
     });
     if (!business) {
       return NextResponse.json({ error: "עסק לא נמצא" }, { status: 404 });
+    }
+
+    // Save invoice fields if provided
+    if (address || vatNumber) {
+      await prisma.business.update({
+        where: { id: businessId },
+        data: {
+          ...(address   ? { address }   : {}),
+          ...(vatNumber ? { vatNumber } : {}),
+        },
+      });
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://petra-app.vercel.app";
