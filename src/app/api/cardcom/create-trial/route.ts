@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, email, tier, tosAccepted } = body;
+    const { name, email, phone, businessName, tier, tosAccepted } = body;
 
     // ── Validate inputs ───────────────────────────────────────────────────────
     const cleanName = sanitizeName(name ?? "");
@@ -53,6 +53,14 @@ export async function POST(request: NextRequest) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(emailNorm)) {
       return NextResponse.json({ error: "כתובת אימייל לא תקינה" }, { status: 400 });
+    }
+    const phoneClean = (phone ?? "").replace(/[\s\-]/g, "");
+    if (!phoneClean || !/^0[5][0-9]{8}$/.test(phoneClean)) {
+      return NextResponse.json({ error: "נא להזין מספר נייד ישראלי תקין (05X-XXXXXXX)" }, { status: 400 });
+    }
+    const cleanBusiness = sanitizeName(businessName ?? "");
+    if (cleanBusiness.length < 2 || cleanBusiness.length > 100) {
+      return NextResponse.json({ error: "נא להזין שם עסק (עד 100 תווים)" }, { status: 400 });
     }
     if (!isValidTier(tier) || !(tier in CARDCOM_PLANS)) {
       return NextResponse.json({ error: "מסלול לא תקין" }, { status: 400 });
@@ -81,6 +89,8 @@ export async function POST(request: NextRequest) {
         email: emailNorm,
         tier,
         tosAccepted: true,
+        phone: phoneClean,
+        businessName: cleanBusiness,
         expiresAt,
       },
     });
@@ -110,6 +120,7 @@ export async function POST(request: NextRequest) {
       UserId:           encodedUserId,
       ShowLogoutButton: "false",
       Email:            emailNorm,
+      PhoneNumber:      phoneClean,
     });
 
     const cardcomRes = await fetch(

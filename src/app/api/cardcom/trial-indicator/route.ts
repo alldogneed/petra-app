@@ -206,7 +206,7 @@ export async function GET(request: NextRequest) {
     }).catch(() => null);
 
     // Create Business + BusinessUser membership
-    const businessId = await ensureUserHasBusiness(user.id, checkout.name);
+    const businessId = await ensureUserHasBusiness(user.id, checkout.businessName || checkout.name);
 
     // Create OnboardingProgress
     await prisma.onboardingProgress.create({
@@ -224,6 +224,7 @@ export async function GET(request: NextRequest) {
         cardcomToken:       data.Token ?? null,
         cardcomTokenExpiry: data.TokenExDate ?? null,
         cardcomDealId:      data.DealNumber ?? null,
+        ...(checkout.phone ? { phone: checkout.phone } : {}),
       },
     });
 

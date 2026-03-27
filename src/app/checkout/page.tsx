@@ -59,6 +59,8 @@ function CheckoutContent() {
   // ── Step 1 form state (unauthenticated trial only) ────────────────────────
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
+  const [formPhone, setFormPhone] = useState("");
+  const [formBusinessName, setFormBusinessName] = useState("");
   const [formTos, setFormTos] = useState(false);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -122,7 +124,7 @@ function CheckoutContent() {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: formName, email: formEmail, tier, tosAccepted: formTos }),
+        body: JSON.stringify({ name: formName, email: formEmail, phone: formPhone || undefined, businessName: formBusinessName || undefined, tier, tosAccepted: formTos }),
       });
       const data = await res.json();
 
@@ -349,6 +351,38 @@ function CheckoutContent() {
                       onChange={(e) => { setFormEmail(e.target.value); setFormError(null); setFormErrorCode(null); }}
                       placeholder="name@example.com"
                       dir="ltr"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
+                    />
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      טלפון נייד <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={formPhone}
+                      onChange={(e) => setFormPhone(e.target.value)}
+                      placeholder="05X-XXXXXXX"
+                      dir="ltr"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
+                    />
+                  </div>
+
+                  {/* Business Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      שם העסק <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      minLength={2}
+                      value={formBusinessName}
+                      onChange={(e) => setFormBusinessName(e.target.value)}
+                      placeholder='למשל: "טיפוח פאו"'
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
                     />
                   </div>
