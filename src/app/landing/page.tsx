@@ -216,7 +216,7 @@ export default function LandingPage() {
                     <div className="w-5 h-5 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0">
                       <Check aria-hidden="true" className="w-3 h-3 text-brand-400" />
                     </div>
-                    ללא כרטיס אשראי
+                    ללא כרטיס אשראי למנוי החינמי
                   </li>
                   <li className="flex items-center gap-2 text-slate-300 text-sm font-medium">
                     <div className="w-5 h-5 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0">
@@ -228,7 +228,7 @@ export default function LandingPage() {
                     <div className="w-5 h-5 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0">
                       <Check aria-hidden="true" className="w-3 h-3 text-brand-400" />
                     </div>
-                    14 ימי ניסיון בחינם
+                    14 ימי ניסיון בחינם למנויים המתקדמים
                   </li>
                 </ul>
               </div>
@@ -527,7 +527,7 @@ export default function LandingPage() {
             <ul className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 list-none p-0 m-0">
               <li className="flex items-center gap-1.5 text-slate-400 text-sm">
                 <Check className="w-3.5 h-3.5 text-brand-400 shrink-0" aria-hidden="true" />
-                14 ימי ניסיון ללא חיוב
+                14 ימי ניסיון למנויים המתקדמים
               </li>
               <li className="flex items-center gap-1.5 text-slate-400 text-sm">
                 <Check className="w-3.5 h-3.5 text-brand-400 shrink-0" aria-hidden="true" />
