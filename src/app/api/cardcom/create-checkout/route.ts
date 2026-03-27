@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, email, phone, businessName, tier, tosAccepted } = body;
+    const { name, email, phone, businessName, address, vatNumber, tier, tosAccepted } = body;
 
     // ── Validate inputs ───────────────────────────────────────────────────────
     const cleanName = sanitizeName(name ?? "");
@@ -60,6 +60,11 @@ export async function POST(request: NextRequest) {
     if (cleanBusiness.length < 2 || cleanBusiness.length > 100) {
       return NextResponse.json({ error: "נא להזין שם עסק (עד 100 תווים)" }, { status: 400 });
     }
+    const cleanAddress = (address ?? "").trim().slice(0, 200);
+    if (cleanAddress.length < 2) {
+      return NextResponse.json({ error: "נא להזין כתובת לצורך חשבונית" }, { status: 400 });
+    }
+    const cleanVatNumber = (vatNumber ?? "").trim().slice(0, 20);
     if (!isValidTier(tier) || !(tier in CARDCOM_PLANS)) {
       return NextResponse.json({ error: "מסלול לא תקין" }, { status: 400 });
     }
@@ -89,6 +94,8 @@ export async function POST(request: NextRequest) {
         tosAccepted: true,
         phone: phoneClean,
         businessName: cleanBusiness,
+        address: cleanAddress,
+        vatNumber: cleanVatNumber || null,
         expiresAt,
       },
     });

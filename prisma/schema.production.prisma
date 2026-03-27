@@ -2182,6 +2182,8 @@ model PendingCheckout {
   tosAccepted  Boolean   @default(false)
   phone        String?   // optional mobile number
   businessName String?   // optional business name (defaults to name if absent)
+  address      String?   // optional billing address (for invoice)
+  vatNumber    String?   // optional VAT / business reg number (ח.פ / עוסק מורשה)
   expiresAt    DateTime                       // 2 hours after creation
   processed    Boolean   @default(false)
   processedAt  DateTime?

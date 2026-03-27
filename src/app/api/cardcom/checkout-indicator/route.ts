@@ -226,7 +226,9 @@ export async function GET(request: NextRequest) {
         cardcomToken:        data.Token ?? null,
         cardcomTokenExpiry:  data.TokenExDate ?? null,
         cardcomDealId:       data.DealNumber ?? null,
-        ...(checkout.phone ? { phone: checkout.phone } : {}),
+        ...(checkout.phone       ? { phone:      checkout.phone }       : {}),
+        ...(checkout.address     ? { address:    checkout.address }     : {}),
+        ...(checkout.vatNumber   ? { vatNumber:  checkout.vatNumber }   : {}),
       },
     });
 

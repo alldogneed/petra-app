@@ -61,6 +61,8 @@ function CheckoutContent() {
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formBusinessName, setFormBusinessName] = useState("");
+  const [formAddress, setFormAddress] = useState("");
+  const [formVatNumber, setFormVatNumber] = useState("");
   const [formTos, setFormTos] = useState(false);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -124,7 +126,7 @@ function CheckoutContent() {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: formName, email: formEmail, phone: formPhone || undefined, businessName: formBusinessName || undefined, tier, tosAccepted: formTos }),
+        body: JSON.stringify({ name: formName, email: formEmail, phone: formPhone || undefined, businessName: formBusinessName || undefined, address: formAddress || undefined, vatNumber: formVatNumber || undefined, tier, tosAccepted: formTos }),
       });
       const data = await res.json();
 
@@ -383,6 +385,39 @@ function CheckoutContent() {
                       value={formBusinessName}
                       onChange={(e) => setFormBusinessName(e.target.value)}
                       placeholder='למשל: "טיפוח פאו"'
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
+                    />
+                  </div>
+
+                  {/* Address */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      כתובת <span className="text-red-500">*</span>
+                      <span className="text-xs font-normal text-slate-400 mr-1">(לצורך חשבונית)</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      minLength={2}
+                      value={formAddress}
+                      onChange={(e) => setFormAddress(e.target.value)}
+                      placeholder='למשל: רחוב הרצל 12, תל אביב'
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
+                    />
+                  </div>
+
+                  {/* VAT / business reg number */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      מספר עוסק / ח.פ
+                      <span className="text-xs font-normal text-slate-400 mr-1">(אופציונלי)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formVatNumber}
+                      onChange={(e) => setFormVatNumber(e.target.value)}
+                      placeholder="למשל: 012345678"
+                      dir="ltr"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
                     />
                   </div>
