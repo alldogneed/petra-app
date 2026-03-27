@@ -304,7 +304,7 @@ export default function LandingPage() {
 
             <div className="text-center mt-14">
               <Link href="/register" className="btn-primary px-8 py-3.5 text-base shadow-lg shadow-brand-200">
-                התחל בחינם עכשיו
+                בוא נראה איך זה עובד
               </Link>
             </div>
           </div>
@@ -522,7 +522,7 @@ export default function LandingPage() {
               href="/register"
               className="btn-primary text-base px-10 py-4 shadow-2xl shadow-brand-500/30"
             >
-              התחל בחינם עכשיו
+              תעבירו אותי לפטרה
             </Link>
             <ul className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 list-none p-0 m-0">
               <li className="flex items-center gap-1.5 text-slate-400 text-sm">
