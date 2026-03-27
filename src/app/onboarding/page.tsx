@@ -59,7 +59,7 @@ function OnboardingInner() {
 
   // Load business info (tier, name, trial)
   useEffect(() => {
-    fetch("/api/settings")
+    fetch("/api/settings", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         setBusiness({
