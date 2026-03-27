@@ -141,8 +141,8 @@ export async function POST(request: NextRequest) {
       metadata: { email: user.email, name: user.name, method: "self_register" },
     });
 
-    // Notify owner (fire-and-forget — never blocks the response)
-    notifyOwnerNewUser({ name: user.name, email: user.email, plan }).catch(() => {});
+    // Notify owner (awaited so Vercel doesn't kill it before completion)
+    await notifyOwnerNewUser({ name: user.name, email: user.email, plan });
 
     return NextResponse.json({
       user: {
