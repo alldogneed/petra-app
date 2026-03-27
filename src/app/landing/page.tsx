@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     "ניהול לקוחות, תורים, WhatsApp ופנסיון — כל הכלים לעסק שלך במקום אחד. התחל בחינם.",
 };
 
-const WHATSAPP_SUPPORT = "https://wa.me/972515311435";
+const WHATSAPP_SUPPORT = "https://wa.me/972542560964";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 

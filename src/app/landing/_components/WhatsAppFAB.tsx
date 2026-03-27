@@ -2,7 +2,7 @@
 
 import { MessageCircle } from "lucide-react";
 
-const WHATSAPP_SUPPORT = "https://wa.me/972515311435";
+const WHATSAPP_SUPPORT = "https://wa.me/972542560964";
 
 export function WhatsAppFAB() {
   return (

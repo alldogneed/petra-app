@@ -368,30 +368,23 @@ export function PricingSection() {
                 {/* CTA */}
                 {CARDCOM_TIERS.has(plan.key) ? (
                   <div className="flex flex-col gap-1.5">
-                    <Link
-                      href={`/checkout?tier=${plan.key}&trial=1`}
-                      aria-label={`התחל בחינם עכשיו — מסלול ${plan.name}`}
+                    <a
+                      href={`https://wa.me/972542560964?text=${encodeURIComponent(`שלום, אני מעוניין במסלול ${plan.name} של פטרה`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`צרו קשר להצטרפות — מסלול ${plan.name}`}
                       className={`text-sm py-2.5 rounded-xl text-center font-semibold transition-colors flex items-center justify-center gap-1.5 ${
                         plan.highlight
                           ? "bg-brand-500 hover:bg-brand-600 text-white"
                           : "bg-slate-900 hover:bg-slate-800 text-white"
                       }`}
                     >
-                      <Gift className="w-3.5 h-3.5" aria-hidden="true" />
-                      התחל בחינם עכשיו
-                    </Link>
+                      <MessageCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                      צרו קשר להצטרפות
+                    </a>
                     <p className="text-[10px] text-center text-slate-400 leading-snug px-1">
-                      נדרש כרטיס אשראי לאימות. לא תחויב ב-14 הימים הראשונים. ביטול פשוט בלחיצת כפתור.
+                      נענה תוך שעות ספורות בימי עסקים
                     </p>
-                    {!user && (
-                      <Link
-                        href="/register"
-                        aria-label={`התחל בחינם — מסלול ${plan.name}`}
-                        className="text-xs py-1.5 rounded-xl text-center font-medium text-slate-500 hover:text-slate-700 transition-colors border border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                      >
-                        או התחל בחינם ←
-                      </Link>
-                    )}
                   </div>
                 ) : (
                   <div className="flex flex-col gap-1.5">
@@ -434,7 +427,7 @@ export function PricingSection() {
 
           {/* CTA */}
           <a
-            href="https://wa.me/972504828080"
+            href="https://wa.me/972542560964"
             target="_blank"
             rel="noopener noreferrer"
             className="shrink-0 inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
@@ -527,7 +520,7 @@ export function PricingSection() {
         <div className="mt-6 text-center">
           <p className="text-sm text-slate-400 mb-3">שאלות? נשמח לעזור בבחירת המסלול המתאים</p>
           <a
-            href="https://wa.me/972504828080"
+            href="https://wa.me/972542560964"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="צור קשר בוואטסאפ — נפתח בחלון חדש"

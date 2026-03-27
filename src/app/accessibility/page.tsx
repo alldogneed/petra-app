@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 const LAST_UPDATED = "מרץ 2026";
 const CONTACT_EMAIL = "support@petra-app.com";
 const CONTACT_PHONE = "051-531-1435";
-const CONTACT_WHATSAPP = "https://wa.me/972515311435";
+const CONTACT_WHATSAPP = "https://wa.me/972542560964";
 
 // ── Section component ─────────────────────────────────────────────────────────
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
