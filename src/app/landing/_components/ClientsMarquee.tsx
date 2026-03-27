@@ -73,8 +73,8 @@ export function ClientsMarquee() {
       <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-32 z-10"
         style={{ background: "linear-gradient(to left, #020617, transparent)" }} />
 
-      {/* Track */}
-      <div className="overflow-hidden" aria-hidden="true">
+      {/* Track — force LTR so translateX(-50%) works correctly on RTL pages */}
+      <div className="overflow-hidden" aria-hidden="true" dir="ltr">
         <div className="petra-track">
           {track.map((c, i) => (
             <div key={i} className="petra-logo-item">
