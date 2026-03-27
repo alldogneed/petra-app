@@ -249,13 +249,13 @@ export default function LandingPage() {
         <section aria-label="אמינות ובטחון" className="bg-slate-900 border-y border-white/6 py-6">
           <dl className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 md:grid-cols-4 gap-y-5 gap-x-6">
             {[
-              { icon: "🔒", label: "נתוני הלקוחות שלך — שלך לנצח" },
-              { icon: "🇮🇱", label: "מיוצר ונתמך בישראל בעברית" },
-              { icon: "📱", label: "RTL מלא, עברית מושלמת, מובייל" },
-              { icon: "✕",  label: "ביטול פשוט בכל עת — ללא קנסות" },
-            ].map(({ icon, label }) => (
-              <div key={label} className="flex items-center gap-3">
-                <span className="text-xl shrink-0" aria-hidden="true">{icon}</span>
+              "נתוני הלקוחות שלך — שלך לנצח",
+              "מיוצר ונתמך בישראל בעברית",
+              "המידע שלך מאובטח ברמה הגבוהה",
+              "ביטול פשוט בכל עת — ללא קנסות",
+            ].map((label) => (
+              <div key={label} className="flex items-center gap-2.5">
+                <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-brand-400 shrink-0" />
                 <dt className="text-slate-400 text-sm leading-snug">{label}</dt>
               </div>
             ))}
