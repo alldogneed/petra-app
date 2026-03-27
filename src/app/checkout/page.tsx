@@ -103,14 +103,14 @@ function CheckoutContent() {
       router.replace("/upgrade");
       return;
     }
-    // Unauthenticated trial: show step 1 form first (don't fetch)
-    if (isTrial && !authLoading && !user) return;
+    // Unauthenticated user: show step 1 form first (don't fetch)
+    if (!authLoading && !user) return;
     // Authenticated or non-trial: fetch payment URL
     if (!authLoading) fetchPaymentUrl();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user]);
 
-  // Submit step 1 form (unauthenticated checkout-first trial)
+  // Submit step 1 form (unauthenticated checkout-first)
   async function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
@@ -118,7 +118,8 @@ function CheckoutContent() {
     setFormSubmitting(true);
 
     try {
-      const res = await fetch("/api/cardcom/create-trial", {
+      const endpoint = isTrial ? "/api/cardcom/create-trial" : "/api/cardcom/create-checkout";
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: formName, email: formEmail, tier, tosAccepted: formTos }),
@@ -147,10 +148,10 @@ function CheckoutContent() {
   if (!plan) return null;
 
   // Determine what to render in the right panel
-  const isNewUserTrial = isTrial && !authLoading && !user;
-  const showStep1 = isNewUserTrial && !onStep2;
-  const showIframe = cardcomUrl && (!isNewUserTrial || onStep2);
-  const showAuthLoading = isTrial && authLoading;
+  const isNewUser = !authLoading && !user;
+  const showStep1 = isNewUser && !onStep2;
+  const showIframe = cardcomUrl && (!isNewUser || onStep2);
+  const showAuthLoading = authLoading;
 
   return (
     <div className="min-h-screen bg-slate-50" dir="rtl">
@@ -167,7 +168,7 @@ function CheckoutContent() {
           />
           <span className="text-slate-300 mx-0.5 hidden sm:inline">·</span>
           <span className="text-slate-500 text-sm hidden sm:inline">
-            {isTrial ? "ניסיון חינמי 14 יום" : "שדרוג מנוי"}
+            {isTrial ? "ניסיון חינמי 14 יום" : isNewUser ? "רכישת מנוי" : "שדרוג מנוי"}
           </span>
         </div>
         <button
@@ -290,8 +291,8 @@ function CheckoutContent() {
                     {isTrial ? "אימות כרטיס — לא יחויב עכשיו" : "פרטי תשלום"}
                   </h2>
                 </div>
-                {/* Step indicator for new-user trial */}
-                {isNewUserTrial && (
+                {/* Step indicator for new (unauthenticated) user */}
+                {isNewUser && (
                   <div className="flex items-center gap-1.5 text-xs">
                     <span className={`px-2.5 py-0.5 rounded-full font-semibold transition-colors ${!onStep2 ? "bg-brand-500 text-white" : "bg-emerald-100 text-emerald-600"}`}>
                       1 פרטים
@@ -315,7 +316,9 @@ function CheckoutContent() {
               {showStep1 && (
                 <form onSubmit={handleFormSubmit} className="p-6 space-y-4">
                   <p className="text-sm text-slate-600 leading-relaxed mb-2">
-                    הזן את הפרטים שלך — נשלח לך כניסה למערכת באימייל לאחר שמירת הכרטיס.
+                    {isTrial
+                      ? "הזן את הפרטים שלך — נשלח לך כניסה למערכת באימייל לאחר שמירת הכרטיס."
+                      : "הזן את הפרטים שלך — נשלח לך כניסה למערכת באימייל לאחר השלמת התשלום."}
                   </p>
 
                   {/* Name */}
@@ -375,7 +378,7 @@ function CheckoutContent() {
                       <p className="text-sm text-red-600">{formError}</p>
                       {formErrorCode === "email_exists" && (
                         <Link
-                          href={`/login?redirect=/checkout?tier=${tier}&trial=1`}
+                          href={`/login?redirect=/checkout?tier=${tier}${isTrial ? "&trial=1" : ""}`}
                           className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline"
                         >
                           כבר יש לך חשבון? התחבר ←
@@ -384,15 +387,17 @@ function CheckoutContent() {
                     </div>
                   )}
 
-                  {/* Trial note */}
-                  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl">
-                    <Gift className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-amber-700">
-                      לאחר שמירת הכרטיס תקבל אימייל עם פרטי הכניסה למערכת.
-                      <br />
-                      <span className="font-semibold">לא תחויב כלום עד תום 14 ימי הניסיון.</span>
-                    </p>
-                  </div>
+                  {/* Trial note — only shown when isTrial */}
+                  {isTrial && (
+                    <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                      <Gift className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-700">
+                        לאחר שמירת הכרטיס תקבל אימייל עם פרטי הכניסה למערכת.
+                        <br />
+                        <span className="font-semibold">לא תחויב כלום עד תום 14 ימי הניסיון.</span>
+                      </p>
+                    </div>
+                  )}
 
                   {/* Submit */}
                   <button
@@ -403,7 +408,7 @@ function CheckoutContent() {
                     {formSubmitting ? (
                       <><Loader2 className="w-4 h-4 animate-spin" /> טוען...</>
                     ) : (
-                      <><CreditCard className="w-4 h-4" /> המשך לאימות כרטיס</>
+                      <><CreditCard className="w-4 h-4" /> {isTrial ? "המשך לאימות כרטיס" : "המשך לתשלום"}</>
                     )}
                   </button>
 

@@ -35,6 +35,8 @@ const PUBLIC_PATHS = [
   "/checkout",
   "/payment/trial-success",
   "/api/cardcom/create-trial",
+  "/api/cardcom/create-checkout",
+  "/api/cardcom/checkout-indicator",
   "/api/test-notify",
 ];
 
