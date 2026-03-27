@@ -163,7 +163,7 @@ const TIER_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
 function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: string; customerCount: number; appointmentCount: number }) {
   const queryClient = useQueryClient();
   const { refreshUser } = useAuth();
-  const { subscriptionEndsAt, subscriptionDaysLeft, subscriptionExpired, subscriptionActive, trialActive, trialDaysLeft, trialEndsAt } = usePlan();
+  const { subscriptionEndsAt, subscriptionDaysLeft, subscriptionExpired, subscriptionActive, cancelPending, trialActive, trialDaysLeft, trialEndsAt } = usePlan();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
@@ -171,25 +171,31 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
   const tierInfo = TIERS[tier as keyof typeof TIERS];
   const isFree = tier === "free";
 
+  const endsAtFormatted = subscriptionEndsAt ? new Date(subscriptionEndsAt).toLocaleDateString("he-IL") : "";
+
   const statusLabel = isFree
     ? "חינמי"
+    : cancelPending
+    ? `בתהליך ביטול — גישה מלאה עד ${endsAtFormatted}`
     : trialActive
     ? `ניסיון חינמי — נשארו ${trialDaysLeft} ימים`
     : subscriptionExpired
     ? "פג תוקף"
     : subscriptionActive
-    ? `פעיל עד ${subscriptionEndsAt ? new Date(subscriptionEndsAt).toLocaleDateString("he-IL") : ""}`
+    ? `פעיל עד ${endsAtFormatted}`
     : "לא פעיל";
 
   const statusColor = subscriptionExpired
     ? "text-red-500"
+    : cancelPending
+    ? "text-amber-600"
     : trialActive
     ? "text-amber-600"
     : subscriptionActive && subscriptionDaysLeft <= 7
     ? "text-amber-500"
     : "text-emerald-500";
 
-  const canCancel = !isFree && (trialActive || subscriptionActive);
+  const canCancel = !isFree && !cancelPending && (trialActive || subscriptionActive);
 
   async function handleCancel() {
     setCancelling(true);
@@ -200,7 +206,7 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
         toast.error(d.error ?? "שגיאה בביטול המנוי");
         return;
       }
-      toast.success("המנוי בוטל בהצלחה. עברת למסלול חינמי.");
+      toast.success(`הביטול נקלט. תמשיך ליהנות מהמנוי עד ${endsAtFormatted}.`);
       setShowCancelConfirm(false);
       await refreshUser();
       queryClient.invalidateQueries({ queryKey: ["settings"] });
@@ -231,6 +237,13 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
         </a>
       </div>
 
+      {/* Cancel pending banner */}
+      {cancelPending && (
+        <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 flex items-center justify-between">
+          <span>הביטול נקלט — גישה מלאה עד <strong>{endsAtFormatted}</strong>. לאחר מכן תעבור למסלול חינמי.</span>
+        </div>
+      )}
+
       {/* Trial active info */}
       {trialActive && (
         <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 flex items-center justify-between">
@@ -241,16 +254,16 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
         </div>
       )}
 
-      {subscriptionActive && subscriptionDaysLeft <= 7 && (
+      {subscriptionActive && !cancelPending && subscriptionDaysLeft <= 7 && (
         <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 flex items-center justify-between">
           <span>המנוי שלך יפוג בעוד {subscriptionDaysLeft} ימים</span>
-          <a href="/upgrade" className="font-semibold underline">חדש עכשיו</a>
+          <a href="/checkout?tier=basic" className="font-semibold underline">חדש עכשיו</a>
         </div>
       )}
       {subscriptionExpired && !isFree && (
         <div className="px-4 py-2 bg-red-50 border-t border-red-100 text-xs text-red-700 flex items-center justify-between">
           <span>המנוי שלך פג — חזרת למסלול חינמי</span>
-          <a href="/upgrade" className="font-semibold underline">חדש עכשיו</a>
+          <a href="/checkout?tier=basic" className="font-semibold underline">חדש עכשיו</a>
         </div>
       )}
 
@@ -269,9 +282,7 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
       {canCancel && showCancelConfirm && (
         <div className="px-4 py-3 border-t border-red-100 bg-red-50 flex flex-col gap-2">
           <p className="text-xs text-red-700 font-medium">
-            {trialActive
-              ? "ביטול הניסיון יסיר את הגישה לתכונות מתקדמות מיידית. הכרטיס לא יחויב."
-              : "ביטול המנוי יסיר את הגישה לתכונות מתקדמות מיידית."}
+            המנוי יבוטל בסוף תקופת החיוב ({endsAtFormatted}). עד אז תמשיך ליהנות מכל התכונות — ללא חיוב נוסף.
           </p>
           <div className="flex gap-2">
             <button

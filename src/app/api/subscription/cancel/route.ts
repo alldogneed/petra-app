@@ -6,13 +6,12 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 /**
  * POST /api/subscription/cancel
  *
- * Cancels the current subscription or trial for the authenticated business.
- * - Clears the stored Cardcom token (no future auto-charges)
- * - Sets subscriptionStatus to "cancelled"
- * - Clears trialEndsAt
- * - Downgrades tier to "free"
+ * Schedules cancellation at end of current billing period.
+ * - Sets subscriptionStatus to "cancel_pending"
+ * - Clears the stored Cardcom token (prevents future auto-charges)
+ * - Keeps tier + subscriptionEndsAt intact → user retains full access until period ends
  *
- * Note: this is immediate. The business loses paid features right away.
+ * The daily cron (charge-trials) downgrades tier → "free" once subscriptionEndsAt passes.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -22,17 +21,18 @@ export async function POST(request: NextRequest) {
 
     const business = await prisma.business.findUnique({
       where: { id: businessId },
-      select: { tier: true, subscriptionStatus: true, trialEndsAt: true, cardcomToken: true },
+      select: { tier: true, subscriptionStatus: true, subscriptionEndsAt: true, cardcomToken: true },
     });
 
     if (!business) {
       return NextResponse.json({ error: "עסק לא נמצא" }, { status: 404 });
     }
 
-    const wasTrial = business.trialEndsAt !== null && business.trialEndsAt > new Date();
-    const wasActive = business.subscriptionStatus === "active";
+    if (business.tier === "free" || business.subscriptionStatus === "cancel_pending") {
+      return NextResponse.json({ error: "אין מנוי פעיל לביטול" }, { status: 400 });
+    }
 
-    if (!wasTrial && !wasActive && business.tier === "free") {
+    if (business.subscriptionStatus !== "active") {
       return NextResponse.json({ error: "אין מנוי פעיל לביטול" }, { status: 400 });
     }
 
@@ -41,29 +41,26 @@ export async function POST(request: NextRequest) {
     await prisma.business.update({
       where: { id: businessId },
       data: {
-        tier:               "free",
-        subscriptionStatus: "cancelled",
-        subscriptionEndsAt: null,
-        trialEndsAt:        null,
+        subscriptionStatus: "cancel_pending",
         cardcomToken:       null,
         cardcomTokenExpiry: null,
+        // tier + subscriptionEndsAt stay as-is — access continues until period ends
       },
     });
 
     await prisma.subscriptionEvent.create({
       data: {
         businessId,
-        eventType: "cancelled",
+        eventType: "cancel_requested",
         tier:      previousTier,
         metadata: {
-          cancelledAt: new Date().toISOString(),
-          wasTrial,
-          wasActive,
+          requestedAt:       new Date().toISOString(),
+          accessUntil:       business.subscriptionEndsAt?.toISOString() ?? null,
         },
       },
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, accessUntil: business.subscriptionEndsAt?.toISOString() ?? null });
   } catch (error) {
     console.error("POST /api/subscription/cancel error:", error);
     return NextResponse.json({ error: "שגיאה בביטול המנוי" }, { status: 500 });

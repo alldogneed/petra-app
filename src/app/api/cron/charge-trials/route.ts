@@ -183,11 +183,51 @@ export async function GET(request: NextRequest) {
 
     console.log(`charge-trials: done. charged=${charged}, errors=${errors}, total=${businesses.length}`);
 
+    // ── Downgrade cancel_pending businesses whose billing period has ended ───
+    const toDowngrade = await prisma.business.findMany({
+      where: {
+        subscriptionStatus: "cancel_pending",
+        subscriptionEndsAt: { lt: now },
+      },
+      select: { id: true, tier: true },
+    });
+
+    let downgraded = 0;
+    for (const biz of toDowngrade) {
+      try {
+        await prisma.business.update({
+          where: { id: biz.id },
+          data: {
+            tier:               "free",
+            subscriptionStatus: "cancelled",
+            subscriptionEndsAt: null,
+          },
+        });
+        await prisma.subscriptionEvent.create({
+          data: {
+            businessId: biz.id,
+            eventType:  "cancelled",
+            tier:       biz.tier,
+            metadata:   { cancelledAt: now.toISOString(), reason: "billing_period_ended" },
+          },
+        });
+        downgraded++;
+        console.log(`charge-trials: downgraded business ${biz.id} from ${biz.tier} to free`);
+      } catch (err) {
+        console.error(`charge-trials: error downgrading business ${biz.id}:`, err);
+      }
+    }
+
+    if (downgraded > 0) {
+      console.log(`charge-trials: downgraded ${downgraded} cancel_pending businesses`);
+    }
+
     return NextResponse.json({
       ok: true,
       charged,
       errors,
       total: businesses.length,
+      downgraded,
       timestamp: now.toISOString(),
     });
   } catch (error) {

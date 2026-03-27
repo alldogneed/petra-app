@@ -43,6 +43,8 @@ export function usePlan() {
 
   // Subscription info
   const subscriptionEndsAt = user?.businessSubscriptionEndsAt ? new Date(user.businessSubscriptionEndsAt) : null;
+  const subscriptionStatus = user?.businessSubscriptionStatus ?? null;
+  const cancelPending = subscriptionStatus === "cancel_pending";
   const subscriptionActive = subscriptionEndsAt !== null && subscriptionEndsAt > now;
   const subscriptionExpired = subscriptionEndsAt !== null && subscriptionEndsAt <= now;
   const subscriptionDaysLeft = subscriptionActive
@@ -65,6 +67,8 @@ export function usePlan() {
     trialDaysLeft,
     // Subscription
     subscriptionEndsAt,
+    subscriptionStatus,
+    cancelPending,
     subscriptionActive,
     subscriptionExpired,
     subscriptionDaysLeft,
