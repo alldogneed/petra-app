@@ -463,7 +463,7 @@ export default function LandingPage() {
               <div aria-hidden="true" className="relative">
                 <div className="aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl shadow-slate-300 relative">
                   <Image
-                    src="/about-field.png"
+                    src="/about-field-2.png"
                     alt="גרומרת עובדת עם כלב פודל בסטודיו — Petra ו-All-Dog"
                     fill
                     sizes="(max-width: 1024px) 100vw, 50vw"
