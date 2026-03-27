@@ -6,6 +6,7 @@ import { createSession, setSessionCookie, ensureUserHasBusiness } from "@/lib/au
 import { rateLimit } from "@/lib/rate-limit";
 import { logAudit, AUDIT_ACTIONS, getRequestContext } from "@/lib/audit";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
+import { notifyOwnerNewUser } from "@/lib/notify-owner";
 
 const REGISTER_RATE_LIMIT = { max: 5, windowMs: 15 * 60 * 1000 }; // 5 per 15 min per IP
 
@@ -139,6 +140,9 @@ export async function POST(request: NextRequest) {
       userAgent: auditUserAgent,
       metadata: { email: user.email, name: user.name, method: "self_register" },
     });
+
+    // Notify owner (fire-and-forget — never blocks the response)
+    notifyOwnerNewUser({ name: user.name, email: user.email, plan }).catch(() => {});
 
     return NextResponse.json({
       user: {
