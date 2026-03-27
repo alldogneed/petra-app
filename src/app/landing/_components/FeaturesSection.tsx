@@ -7,6 +7,9 @@ import {
   Home,
   BookOpen,
   Receipt,
+  Shield,
+  Smartphone,
+  ClipboardList,
 } from "lucide-react";
 
 const FEATURES = [
@@ -43,9 +46,9 @@ const FEATURES = [
     border: "border-sky-100 hover:border-sky-200 hover:shadow-sky-50/60",
   },
   {
-    icon: BookOpen,
-    title: "מודול אילוף מתקדם",
-    desc: "תוכניות אילוף אישיות, קבוצות, יעדים ומעקב התקדמות — כל כלב, כל שלב, מהשטח או מהמשרד.",
+    icon: ClipboardList,
+    title: "ניהול תהליכי אילוף",
+    desc: "תוכניות אישיות לכל כלב, מעקב יעדים והתקדמות שלב-אחר-שלב, קבוצות אילוף וצ'ק-ליסטים — מהשטח או מהמשרד.",
     iconBg: "bg-amber-50",
     iconColor: "text-amber-600",
     border: "border-amber-100 hover:border-amber-200 hover:shadow-amber-50/60",
@@ -57,6 +60,30 @@ const FEATURES = [
     iconBg: "bg-rose-50",
     iconColor: "text-rose-600",
     border: "border-rose-100 hover:border-rose-200 hover:shadow-rose-50/60",
+  },
+  {
+    icon: Shield,
+    title: "כלבי שירות — מקצה לקצה",
+    desc: "ניהול מלא של כלבי שירות: שלבי אילוף, בחינות כשירות, שיבוצים לנכים, רשומות בריאות ודוחות לארגון — מערכת ייעודית לגופים מוסמכים.",
+    iconBg: "bg-indigo-50",
+    iconColor: "text-indigo-600",
+    border: "border-indigo-100 hover:border-indigo-200 hover:shadow-indigo-50/60",
+  },
+  {
+    icon: Smartphone,
+    title: "מובייל מלא — מכל מקום",
+    desc: "ממשק מותאם לנייד לחלוטין. נהל תורים, שלח הודעות ועקוב אחר הכלבים — מהשטח, מהמכונית, מכל מקום.",
+    iconBg: "bg-teal-50",
+    iconColor: "text-teal-600",
+    border: "border-teal-100 hover:border-teal-200 hover:shadow-teal-50/60",
+  },
+  {
+    icon: BookOpen,
+    title: "ניהול לקוחות וכלבים",
+    desc: "תיק דיגיטלי מלא לכל לקוח וכל כלב: היסטוריית טיפולים, חיסונים, מסמכים ותשלומים — הכל במקום אחד.",
+    iconBg: "bg-fuchsia-50",
+    iconColor: "text-fuchsia-600",
+    border: "border-fuchsia-100 hover:border-fuchsia-200 hover:shadow-fuchsia-50/60",
   },
 ];
 

@@ -394,7 +394,7 @@ export default function LandingPage() {
                 כל מה שצריך — באחד
               </h2>
               <p className="text-slate-500 text-lg">
-                6 יכולות ליבה — WhatsApp, יומן, הזמנות, פנסיון, אילוף ותשלומים
+                WhatsApp, יומן, הזמנות, פנסיון, אילוף, כלבי שירות, מובייל ועוד
               </p>
             </div>
             <FeaturesSection />
