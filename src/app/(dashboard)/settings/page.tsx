@@ -163,7 +163,7 @@ const TIER_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
 function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: string; customerCount: number; appointmentCount: number }) {
   const queryClient = useQueryClient();
   const { refreshUser } = useAuth();
-  const { subscriptionEndsAt, subscriptionDaysLeft, subscriptionExpired, subscriptionActive, cancelPending, trialActive, trialDaysLeft, trialEndsAt } = usePlan();
+  const { subscriptionEndsAt, subscriptionDaysLeft, subscriptionExpired, subscriptionActive, cancelPending, subscriptionStatus, trialActive, trialDaysLeft, trialEndsAt } = usePlan();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
@@ -195,7 +195,7 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
     ? "text-amber-500"
     : "text-emerald-500";
 
-  const canCancel = !isFree && !cancelPending && (trialActive || subscriptionActive);
+  const canCancel = !isFree && !cancelPending && (trialActive || subscriptionActive || subscriptionStatus === "active");
 
   async function handleCancel() {
     setCancelling(true);

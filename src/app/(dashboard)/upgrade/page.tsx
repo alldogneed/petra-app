@@ -1,11 +1,13 @@
 "use client";
 
-import { Check, X, MessageCircle, Crown, Zap, CreditCard } from "lucide-react";
+import { Check, X, MessageCircle, Crown, Zap, CreditCard, Loader2 } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
 import { cn } from "@/lib/utils";
 import type { TierKey } from "@/lib/feature-flags";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useAuth } from "@/providers/auth-provider";
 
 // ─── Public plans (sold via checkout) ────────────────────────────────────────
 const PLANS: {
@@ -124,9 +126,35 @@ const TIER_RANK: Record<string, number> = {
 const CARDCOM_TIERS = new Set(["basic", "pro"]);
 
 export default function UpgradePage() {
-  const { tier } = usePlan();
+  const { tier, subscriptionStatus, cancelPending, subscriptionActive, trialActive, subscriptionEndsAt } = usePlan();
+  const { refreshUser } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  const endsAtFormatted = subscriptionEndsAt ? new Date(subscriptionEndsAt).toLocaleDateString("he-IL") : "";
+  const isFree = tier === "free";
+  const canCancel = !isFree && !cancelPending && (trialActive || subscriptionActive || subscriptionStatus === "active");
+
+  async function handleCancel() {
+    setCancelling(true);
+    try {
+      const res = await fetch("/api/subscription/cancel", { method: "POST" });
+      if (!res.ok) {
+        const d = await res.json();
+        toast.error(d.error ?? "שגיאה בביטול המנוי");
+        return;
+      }
+      toast.success(endsAtFormatted ? `הביטול נקלט. תמשיך ליהנות מהמנוי עד ${endsAtFormatted}.` : "הביטול נקלט.");
+      setShowCancelConfirm(false);
+      await refreshUser();
+    } catch {
+      toast.error("שגיאת רשת. נסה שוב.");
+    } finally {
+      setCancelling(false);
+    }
+  }
 
   // Auto-redirect to checkout if ?autostart=plan is present (e.g. after registration)
   useEffect(() => {
@@ -288,6 +316,48 @@ export default function UpgradePage() {
         })}
       </div>
 
+      {/* Cancel subscription */}
+      {cancelPending && (
+        <div className="mb-6 rounded-xl bg-amber-50 border border-amber-200 px-5 py-4 text-sm text-amber-700">
+          הביטול נקלט — גישה מלאה עד <strong>{endsAtFormatted}</strong>. לאחר מכן תעבור למסלול חינמי.
+        </div>
+      )}
+
+      {canCancel && !showCancelConfirm && (
+        <div className="mb-6 text-center">
+          <button
+            onClick={() => setShowCancelConfirm(true)}
+            className="text-sm text-slate-400 hover:text-red-500 transition-colors underline"
+          >
+            רוצה לבטל את המנוי?
+          </button>
+        </div>
+      )}
+
+      {canCancel && showCancelConfirm && (
+        <div className="mb-6 rounded-xl bg-red-50 border border-red-200 px-5 py-4">
+          <p className="text-sm text-red-700 font-medium mb-3">
+            המנוי יבוטל בסוף תקופת החיוב{endsAtFormatted ? ` (${endsAtFormatted})` : ""}. עד אז תמשיך ליהנות מכל התכונות — ללא חיוב נוסף.
+          </p>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="text-sm px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {cancelling && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {cancelling ? "מבטל..." : "כן, בטל מנוי"}
+            </button>
+            <button
+              onClick={() => setShowCancelConfirm(false)}
+              className="text-sm px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              חזרה
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* FAQ */}
       <div className="card p-6">
         <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -297,7 +367,7 @@ export default function UpgradePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[
             { q: "איך משדרגים?", a: "לחץ על \"שלם עכשיו\" — תועבר לדף תשלום מאובטח. המסלול יתעדכן מיד לאחר אישור התשלום." },
-            { q: "האם ניתן לבטל?", a: "כן, ניתן לבטל בכל עת ללא קנסות. לביטול פנה לתמיכה בWhatsApp." },
+            { q: "האם ניתן לבטל?", a: "כן, ניתן לבטל בכל עת ללא קנסות. לחץ \"רוצה לבטל את המנוי?\" למעלה, או עבור להגדרות ← ניהול מנוי." },
             { q: "מה קורה לנתונים בביטול?", a: "הנתונים נשמרים. בתום המנוי תחזור לסלול החינמי עם הגבלות הרגילות שלו." },
             { q: "האם התשלום מאובטח?", a: "כן. פרטי הכרטיס מוזנים ישירות בסביבה המאובטחת של Cardcom (PCI DSS). Petra אינה רואה את פרטי הכרטיס." },
           ].map(({ q, a }) => (
