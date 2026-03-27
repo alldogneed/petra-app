@@ -261,7 +261,7 @@ export function PricingSection() {
             3 מסלולים פשוטים — בחר את שמתאים לך
           </p>
           <h2 id="pricing-heading" className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
-            מחיר שווה לכל נפש, בלי הפתעות
+            מחיר ששווה לכל עסק, בלי הפתעות
           </h2>
           <p className="text-slate-500 text-lg">מסלול חינמי ללא כרטיס אשראי · 14 ימי ניסיון מלאים בכל מסלול בתשלום</p>
         </div>
