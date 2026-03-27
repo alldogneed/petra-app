@@ -184,7 +184,7 @@ export default function LandingPage() {
                   <br />
                   <span className="text-brand-400">תן לפטרה לנהל</span>
                   <br />
-                  את היומן והתשלומים
+                  את העסק שלכם
                 </h1>
 
                 <p
