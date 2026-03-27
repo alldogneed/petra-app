@@ -244,6 +244,9 @@ export const FREE_APPOINTMENT_LIMIT = 20;
 /** Hard limit on orders (total cumulative) for the FREE tier. BASIC+ is unlimited. */
 export const FREE_ORDER_LIMIT = 15;
 
+/** Hard limit on training groups for the FREE tier. BASIC+ is unlimited. */
+export const FREE_TRAINING_GROUP_LIMIT = 3;
+
 // ─── Entity limits ───────────────────────────────────────────────────────────
 
 const MAX_CUSTOMERS: Record<TierKey, number | null> = {
@@ -384,6 +387,14 @@ export function getMaxAppointments(tier: string | null | undefined): number | nu
 /** Max number of orders (cumulative total) for a tier. null = unlimited. */
 export function getMaxOrders(tier: string | null | undefined): number | null {
   return MAX_ORDERS[normalizeTier(tier)];
+}
+
+/** Max number of training groups for a tier. null = unlimited. */
+export function getMaxTrainingGroups(tier: string | null | undefined): number | null {
+  const map: Record<TierKey, number | null> = {
+    free: FREE_TRAINING_GROUP_LIMIT, basic: null, pro: null, groomer: null, groomer_plus: null, service_dog: null,
+  };
+  return map[normalizeTier(tier)];
 }
 
 /** The tier to suggest upgrading to when a feature is locked. */
