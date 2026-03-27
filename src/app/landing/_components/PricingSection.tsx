@@ -368,22 +368,20 @@ export function PricingSection() {
                 {/* CTA */}
                 {CARDCOM_TIERS.has(plan.key) ? (
                   <div className="flex flex-col gap-1.5">
-                    <a
-                      href={`https://wa.me/972542560964?text=${encodeURIComponent(`שלום, אני מעוניין במסלול ${plan.name} של פטרה`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`צרו קשר להצטרפות — מסלול ${plan.name}`}
+                    <Link
+                      href={user ? "/upgrade" : `/checkout?tier=${plan.key}&trial=1`}
+                      aria-label={`התחל ניסיון 14 יום — מסלול ${plan.name}`}
                       className={`text-sm py-2.5 rounded-xl text-center font-semibold transition-colors flex items-center justify-center gap-1.5 ${
                         plan.highlight
                           ? "bg-brand-500 hover:bg-brand-600 text-white"
                           : "bg-slate-900 hover:bg-slate-800 text-white"
                       }`}
                     >
-                      <MessageCircle className="w-3.5 h-3.5" aria-hidden="true" />
-                      צרו קשר להצטרפות
-                    </a>
-                    <p className="text-[10px] text-center text-slate-400 leading-snug px-1">
-                      נענה תוך שעות ספורות בימי עסקים
+                      <Gift className="w-3.5 h-3.5" aria-hidden="true" />
+                      {user ? "שדרג עכשיו" : "התחל ניסיון 14 יום"}
+                    </Link>
+                    <p className="text-[10px] text-center text-emerald-600 font-medium leading-snug px-1">
+                      ללא חיוב עכשיו · ביטול בכל עת
                     </p>
                   </div>
                 ) : (
