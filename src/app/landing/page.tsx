@@ -609,6 +609,14 @@ export default function LandingPage() {
                     תנאי שימוש
                   </Link>
                 </li>
+                <li>
+                  <Link
+                    href="/accessibility"
+                    className="hover:text-white transition-colors focus:outline-none focus:underline"
+                  >
+                    נגישות
+                  </Link>
+                </li>
               </ul>
             </nav>
 
