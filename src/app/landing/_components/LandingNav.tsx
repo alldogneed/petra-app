@@ -9,7 +9,7 @@ const NAV_LINKS = [
   { href: "#how", label: "איך זה עובד" },
   { href: "#features", label: "מאפיינים" },
   { href: "#pricing", label: "מחירים" },
-  { href: "#testimonials", label: "לקוחות" },
+  { href: "#לקוחות", label: "לקוחות" },
 ];
 
 export function LandingNav() {
