@@ -257,7 +257,7 @@ export default function LandingPage() {
                     <div className="w-5 h-5 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0">
                       <Check aria-hidden="true" className="w-3 h-3 text-brand-400" />
                     </div>
-                    14 ימי ניסיון בחינם למנויים המתקדמים
+                    מסלול חינמי לצמיתות — ללא כרטיס אשראי
                   </li>
                 </ul>
               </div>
@@ -556,7 +556,7 @@ export default function LandingPage() {
             <ul className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 list-none p-0 m-0">
               <li className="flex items-center gap-1.5 text-slate-400 text-sm">
                 <Check className="w-3.5 h-3.5 text-brand-400 shrink-0" aria-hidden="true" />
-                14 ימי ניסיון למנויים המתקדמים
+                מסלול חינמי לצמיתות — ללא כרטיס אשראי
               </li>
               <li className="flex items-center gap-1.5 text-slate-400 text-sm">
                 <Check className="w-3.5 h-3.5 text-brand-400 shrink-0" aria-hidden="true" />
