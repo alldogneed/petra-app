@@ -24,16 +24,18 @@ const PLANS: {
     key: "free",
     name: "חינמי",
     price: 0,
-    description: "התחל לנהל את העסק שלך — בחינם, עד 50 לקוחות",
+    description: "התחל לנהל את העסק שלך — בחינם, ללא הגבלת זמן",
     features: [
-      "עד 50 לקוחות",
-      "CRM / לידים (עד 20)",
-      "מערכת ניהול תהליכי אילוף (עד 50 תוכניות)",
+      "עד 30 לקוחות",
+      "CRM / לידים (עד 15)",
+      "מערכת ניהול תהליכי אילוף (עד 10 תוכניות)",
+      "תורים (עד 20 סה״כ)",
+      "הזמנות (עד 15 סה״כ)",
       "ניהול משימות (עד 20 פתוחות)",
-      "מחירון שירותים",
+      "מחירון שירותים (עד 8 פריטים)",
     ],
     notIncluded: [
-      "מערכת קביעת תורים",
+      "מערכת תורים + Google Calendar ללא הגבלה",
       "תזכורות WhatsApp ללקוחות",
       "ניהול פנסיון",
       "שליחת טפסי קליטה ללקוח",
@@ -263,6 +265,18 @@ export default function UpgradePage() {
                 <div className="w-full py-2.5 rounded-xl text-center text-sm font-semibold bg-green-100 text-green-700">
                   ✓ המסלול שלך
                 </div>
+              ) : plan.key === "free" && !isFree ? (
+                // Downgrade to free = cancellation, not a plan switch
+                <button
+                  onClick={() => {
+                    const el = document.getElementById("cancel-section");
+                    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    setShowCancelConfirm(true);
+                  }}
+                  className="w-full py-2.5 rounded-xl text-sm font-semibold transition-colors bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200"
+                >
+                  בטל מנוי ← מעבר לחינמי
+                </button>
               ) : isDowngrade ? (
                 <button
                   onClick={() => openWhatsApp(plan.name, plan.price, true)}
@@ -317,6 +331,7 @@ export default function UpgradePage() {
       </div>
 
       {/* Cancel subscription */}
+      <div id="cancel-section" />
       {cancelPending && (
         <div className="mb-6 rounded-xl bg-amber-50 border border-amber-200 px-5 py-4 text-sm text-amber-700">
           הביטול נקלט — גישה מלאה עד <strong>{endsAtFormatted}</strong>. לאחר מכן תעבור למסלול חינמי.
