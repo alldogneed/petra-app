@@ -8,7 +8,7 @@
  */
 
 const OWNER_WHATSAPP = "972542560964"; // Or's personal WhatsApp
-const OWNER_EMAIL = "or@all-dog.co.il"; // Or's email
+const OWNER_EMAIL = "alldogneed@gmail.com"; // Or's email
 const OWNER_NAME = "אור";
 
 // ── WhatsApp ─────────────────────────────────────────────────────────────────
