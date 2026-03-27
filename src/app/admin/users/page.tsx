@@ -12,12 +12,14 @@ import { type FeatureKey, type TierKey, hasFeature } from "@/lib/feature-flags";
 
 // ─── Tier / Feature definitions ──────────────────────────────────────────────
 
-const TIERS: { key: TierKey; label: string; price: string }[] = [
-  { key: "free",        label: "Free (חינמי)",  price: "₪0"   },
-  { key: "basic",       label: "Basic",         price: "₪99"  },
-  { key: "groomer",     label: "Groomer+",      price: "₪169" },
-  { key: "pro",         label: "Pro",           price: "₪199" },
-  { key: "service_dog", label: "Service Dog",   price: "₪229" },
+const TIERS: { key: TierKey; label: string; price: string; legacy?: boolean }[] = [
+  // ── Public tiers ─────────────────────────────────────
+  { key: "free",        label: "Free (חינמי)",           price: "₪0"   },
+  { key: "basic",       label: "Basic",                  price: "₪99"  },
+  { key: "pro",         label: "Pro",                    price: "₪199" },
+  // ── Legacy / enterprise ──────────────────────────────
+  { key: "groomer",     label: "Groomer+ (legacy)",      price: "₪169", legacy: true },
+  { key: "service_dog", label: "Service Dog (ארגוני)",   price: "₪229", legacy: true },
 ];
 
 const FEATURE_ROWS: { key: FeatureKey; label: string }[] = [
@@ -33,7 +35,7 @@ const FEATURE_ROWS: { key: FeatureKey; label: string }[] = [
   { key: "leads",              label: "CRM / לידים"       },
   { key: "staff_management",   label: "ניהול עובדים"      },
   { key: "excel_export",       label: "ייצוא Excel"       },
-  { key: "groomer_portfolio",  label: "תיק עבודות גרומר"  },
+  { key: "groomer_portfolio",  label: "תיק עבודות לפני/אחרי" },
   { key: "service_dogs",       label: "כלבי שירות"        },
 ];
 
@@ -187,23 +189,30 @@ function FeaturePanel({ business, onRefresh }: { business: BusinessInfo; onRefre
       {/* Tier selector */}
       <div>
         <div className="text-xs font-semibold mb-2" style={{ color: "#64748B" }}>מנוי</div>
-        <div className="flex flex-wrap gap-1.5">
-          {TIERS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => tierMutation.mutate(t.key)}
-              disabled={tierMutation.isPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={
-                t.key === activeTier
-                  ? { background: "rgba(6,182,212,0.2)", color: "#06B6D4", border: "1px solid rgba(6,182,212,0.4)" }
-                  : { background: "#12121A", color: "#94A3B8", border: "1px solid #1E1E2E" }
-              }
-            >
-              {t.key === activeTier && <Check className="w-3 h-3" />}
-              {t.label}
-              <span style={{ color: "#475569" }}>{t.price}</span>
-            </button>
+        <div className="flex flex-wrap gap-1.5 items-center">
+          {TIERS.map((t, i) => (
+            <React.Fragment key={t.key}>
+              {/* Separator before first legacy tier */}
+              {t.legacy && !TIERS[i - 1]?.legacy && (
+                <div className="w-px h-5 mx-0.5" style={{ background: "#1E1E2E" }} />
+              )}
+              <button
+                onClick={() => tierMutation.mutate(t.key)}
+                disabled={tierMutation.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                style={
+                  t.key === activeTier
+                    ? { background: "rgba(6,182,212,0.2)", color: "#06B6D4", border: "1px solid rgba(6,182,212,0.4)" }
+                    : t.legacy
+                    ? { background: "#0D0D14", color: "#64748B", border: "1px solid #1A1A28" }
+                    : { background: "#12121A", color: "#94A3B8", border: "1px solid #1E1E2E" }
+                }
+              >
+                {t.key === activeTier && <Check className="w-3 h-3" />}
+                {t.label}
+                <span style={{ color: "#475569" }}>{t.price}</span>
+              </button>
+            </React.Fragment>
           ))}
         </div>
         {tierMutation.isPending && (
