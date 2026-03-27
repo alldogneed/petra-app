@@ -48,9 +48,9 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
   // Customers capped at 50, leads capped at 20, training programs capped at 20.
   // Basic calendar, finance, leads, and training included. Advanced features locked.
   free: {
-    leads:             true,   // ✅ open, max 20 leads (FREE_LEAD_LIMIT)
+    leads:             true,   // ✅ open, max 15 leads (FREE_LEAD_LIMIT)
     boarding:          false,
-    training:          true,   // ✅ open, max 50 programs (FREE_TRAINING_LIMIT)
+    training:          true,   // ✅ open, max 10 programs (FREE_TRAINING_LIMIT)
     training_groups:   false,
     automations:       false,
     custom_messages:   false,
@@ -60,18 +60,18 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     staff_management:  false,
     excel_export:      false,
     gcal_sync:         false,
-    payments:          false,  // Payments locked — BASIC+ only
-    orders:            false,  // Orders locked — BASIC+ only
-    pricing:           true,   // ✅ price management (free tier only finance feature)
+    payments:          true,   // ✅ basic payment recording — BASIC+ unlocks payment links
+    orders:            true,   // ✅ open, max 15 orders (FREE_ORDER_LIMIT)
+    pricing:           true,   // ✅ price management, max 8 items (FREE_PRICE_ITEM_LIMIT)
     pets_advanced:     false,
     scheduled_messages: false,
-    whatsapp_reminders: false, // WhatsApp API reminders — PRO+ only
+    whatsapp_reminders: false, // WhatsApp API reminders — BASIC+ only
     online_bookings:   false,
     analytics:         false,
     intake_forms:      false,
-    payment_links:     false,  // Payment request links — BASIC+ only
+    payment_links:     false,  // Cardcom payment request links — BASIC+ only
     webhook_leads:     false,
-    appointments:      false,
+    appointments:      true,   // ✅ open, max 20 total (FREE_APPOINTMENT_LIMIT)
   },
 
   // ── Basic (₪99) ──────────────────────────────────────────────────────────────
@@ -224,27 +224,30 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
 };
 
 /** Hard limit on customer count for the FREE tier. BASIC+ is unlimited. */
-export const FREE_CUSTOMER_LIMIT = 50;
+export const FREE_CUSTOMER_LIMIT = 30;
 
 /** Hard limit on lead count for the FREE tier. BASIC+ is unlimited. */
-export const FREE_LEAD_LIMIT = 20;
+export const FREE_LEAD_LIMIT = 15;
 
 /** Hard limit on training programs for the FREE tier. BASIC+ is unlimited. */
-export const FREE_TRAINING_LIMIT = 50;
+export const FREE_TRAINING_LIMIT = 10;
 
 /** Hard limit on price list items for the FREE tier. BASIC+ is unlimited. */
-export const FREE_PRICE_ITEM_LIMIT = 4;
+export const FREE_PRICE_ITEM_LIMIT = 8;
 
 /** Hard limit on open tasks for the FREE tier. BASIC+ is unlimited. */
 export const FREE_TASK_LIMIT = 20;
 
-/** Hard limit on appointments for the FREE tier. BASIC+ is unlimited. */
-export const FREE_APPOINTMENT_LIMIT = 50;
+/** Hard limit on appointments (total cumulative) for the FREE tier. BASIC+ is unlimited. */
+export const FREE_APPOINTMENT_LIMIT = 20;
+
+/** Hard limit on orders (total cumulative) for the FREE tier. BASIC+ is unlimited. */
+export const FREE_ORDER_LIMIT = 15;
 
 // ─── Entity limits ───────────────────────────────────────────────────────────
 
 const MAX_CUSTOMERS: Record<TierKey, number | null> = {
-  free: 50,
+  free: FREE_CUSTOMER_LIMIT,
   basic: null,
   pro: null,
   groomer: null,
@@ -253,7 +256,7 @@ const MAX_CUSTOMERS: Record<TierKey, number | null> = {
 };
 
 const MAX_LEADS: Record<TierKey, number | null> = {
-  free: 20,
+  free: FREE_LEAD_LIMIT,
   basic: null,
   pro: null,
   groomer: null,
@@ -262,7 +265,7 @@ const MAX_LEADS: Record<TierKey, number | null> = {
 };
 
 const MAX_TRAINING_PROGRAMS: Record<TierKey, number | null> = {
-  free: 50,
+  free: FREE_TRAINING_LIMIT,
   basic: null,
   pro: null,
   groomer: null,
@@ -271,7 +274,16 @@ const MAX_TRAINING_PROGRAMS: Record<TierKey, number | null> = {
 };
 
 const MAX_PRICE_ITEMS: Record<TierKey, number | null> = {
-  free: 4,
+  free: FREE_PRICE_ITEM_LIMIT,
+  basic: null,
+  pro: null,
+  groomer: null,
+  groomer_plus: null,
+  service_dog: null,
+};
+
+const MAX_ORDERS: Record<TierKey, number | null> = {
+  free: FREE_ORDER_LIMIT,
   basic: null,
   pro: null,
   groomer: null,
@@ -356,17 +368,22 @@ export function getMaxPriceItems(tier: string | null | undefined): number | null
 /** Max number of open tasks for a tier. null = unlimited. */
 export function getMaxTasks(tier: string | null | undefined): number | null {
   const map: Record<TierKey, number | null> = {
-    free: 20, basic: null, pro: null, groomer: null, groomer_plus: null, service_dog: null,
+    free: FREE_TASK_LIMIT, basic: null, pro: null, groomer: null, groomer_plus: null, service_dog: null,
   };
   return map[normalizeTier(tier)];
 }
 
-/** Max number of appointments for a tier. null = unlimited. */
+/** Max number of appointments (cumulative total) for a tier. null = unlimited. */
 export function getMaxAppointments(tier: string | null | undefined): number | null {
   const map: Record<TierKey, number | null> = {
-    free: 50, basic: null, pro: null, groomer: null, groomer_plus: null, service_dog: null,
+    free: FREE_APPOINTMENT_LIMIT, basic: null, pro: null, groomer: null, groomer_plus: null, service_dog: null,
   };
   return map[normalizeTier(tier)];
+}
+
+/** Max number of orders (cumulative total) for a tier. null = unlimited. */
+export function getMaxOrders(tier: string | null | undefined): number | null {
+  return MAX_ORDERS[normalizeTier(tier)];
 }
 
 /** The tier to suggest upgrading to when a feature is locked. */

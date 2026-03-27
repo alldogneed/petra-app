@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       });
       if (totalCount >= maxAppts) {
         return NextResponse.json(
-          { error: `מנוי חינמי מוגבל ל-${maxAppts} פגישות. שדרג לבייסיק כדי להוסיף עוד.` },
+          { error: `הגעת לתקרת ${maxAppts} התורים במסלול החינמי. שדרג לבייסיק כדי להוסיף ללא הגבלה.`, code: "LIMIT_REACHED" },
           { status: 403 }
         );
       }

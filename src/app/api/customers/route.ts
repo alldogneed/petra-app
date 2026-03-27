@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
       const count = await prisma.customer.count({ where: { businessId } });
       if (count >= maxCustomers) {
         return NextResponse.json(
-          { error: `הגעת למגבלת הלקוחות (${maxCustomers}) בחבילה החינמית. שדרג/י לחבילת בייסיק להוספת לקוחות ללא הגבלה.`, code: "CUSTOMER_LIMIT_REACHED" },
+          { error: `הגעת לתקרת ${maxCustomers} הלקוחות במסלול החינמי. שדרג לבייסיק כדי להוסיף ללא הגבלה.`, code: "LIMIT_REACHED" },
           { status: 403 }
         );
       }

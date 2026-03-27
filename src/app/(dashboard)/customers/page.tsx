@@ -37,6 +37,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { cn, toWhatsAppPhone, fetchJSON, formatCurrency } from "@/lib/utils";
+import { triggerLimitModal } from "@/lib/limit-reached";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone, isValidEmail } from "@/lib/validation";
 import { SERVICE_TYPES } from "@/lib/constants";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -1278,8 +1279,13 @@ function NewCustomerModal({
           tags: JSON.stringify(data.selectedTags),
           source: data.source || null,
         }),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Failed");
+      }).then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({ error: "שגיאה" }));
+          const err = new Error(body.error || "שגיאה");
+          if (body.code) (err as unknown as Record<string, unknown>).code = body.code;
+          throw err;
+        }
         return r.json();
       }),
     onSuccess: () => {
@@ -1290,7 +1296,13 @@ function NewCustomerModal({
       setFieldErrors({});
       toast.success("הלקוח נוצר בהצלחה");
     },
-    onError: () => toast.error("שגיאה ביצירת הלקוח. נסה שוב."),
+    onError: (err: Error) => {
+      if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
+        triggerLimitModal(err.message);
+      } else {
+        toast.error("שגיאה ביצירת הלקוח. נסה שוב.");
+      }
+    },
   });
 
   const modalRef = useFocusTrap(isOpen);

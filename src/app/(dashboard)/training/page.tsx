@@ -41,6 +41,7 @@ import {
   LayoutList,
 } from "lucide-react";
 import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
+import { triggerLimitModal } from "@/lib/limit-reached";
 import { toast } from "sonner";
 import {
   GROUP_TYPE_LABELS,
@@ -786,7 +787,13 @@ function TrainingPageContent() {
       setShowManualAdd(false);
       toast.success("תוכנית אילוף נוצרה בהצלחה");
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת תוכנית אימון. נסה שוב."),
+    onError: (err: Error) => {
+      if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
+        triggerLimitModal(err.message);
+      } else {
+        toast.error(err.message || "שגיאה ביצירת תוכנית אימון. נסה שוב.");
+      }
+    },
   });
 
   const createPackageMutation = useMutation({

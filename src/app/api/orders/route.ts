@@ -9,6 +9,7 @@ import { syncAppointmentToGcal, syncBoardingToGcal } from "@/lib/google-calendar
 import { sendWhatsAppTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
+import { getMaxOrders, normalizeTier } from "@/lib/feature-flags";
 
 export async function GET(request: NextRequest) {
   try {
@@ -76,6 +77,19 @@ export async function POST(request: NextRequest) {
 
     if (!customerId || !lines || lines.length === 0) {
       return NextResponse.json({ error: "customerId and at least one line are required" }, { status: 400 });
+    }
+
+    // ── Enforce order limit for free tier ───────────────────────────────────
+    const biz = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true } });
+    const maxOrders = getMaxOrders(normalizeTier(biz?.tier));
+    if (maxOrders !== null) {
+      const orderCount = await prisma.order.count({ where: { businessId: authResult.businessId } });
+      if (orderCount >= maxOrders) {
+        return NextResponse.json(
+          { error: `הגעת לתקרת ${maxOrders} ההזמנות במסלול החינמי. שדרג לבייסיק כדי להוסיף ללא הגבלה.`, code: "LIMIT_REACHED" },
+          { status: 403 }
+        );
+      }
     }
 
     // Fetch business VAT settings

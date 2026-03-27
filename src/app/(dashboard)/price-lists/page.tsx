@@ -7,6 +7,8 @@ import {
   CheckCircle2, XCircle, Layers, Link2, Share2, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { triggerLimitModal } from "@/lib/limit-reached";
+import { toast } from "sonner";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -92,12 +94,27 @@ function ItemFormModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...data, basePrice: parseFloat(data.basePrice) }),
-      }).then((r) => r.json());
+      }).then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({ error: "שגיאה" }));
+          const err = new Error(body.error || "שגיאה");
+          if (body.code) (err as unknown as Record<string, unknown>).code = body.code;
+          throw err;
+        }
+        return r.json();
+      });
     },
     onSuccess: (res) => {
       if (res.error) { setErrors({ general: res.error }); return; }
       qc.invalidateQueries({ queryKey: ["price-list-items", priceListId] });
       onClose();
+    },
+    onError: (err: Error) => {
+      if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
+        triggerLimitModal(err.message);
+      } else {
+        toast.error(err.message || "שגיאה בהוספת פריט. נסה שוב.");
+      }
     },
   });
 

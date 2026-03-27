@@ -12,6 +12,7 @@ import {
   CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles, MapPin, Tag, Download, AlertCircle, RotateCcw, ChevronDown,
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
+import { triggerLimitModal } from "@/lib/limit-reached";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone } from "@/lib/validation";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -94,15 +95,27 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
 
   const mutation = useMutation({
     mutationFn: (data: typeof form) =>
-      fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => {
-        if (!r.ok) throw new Error("Failed"); return r.json();
+      fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({ error: "שגיאה" }));
+          const err = new Error(body.error || "שגיאה");
+          if (body.code) (err as unknown as Record<string, unknown>).code = body.code;
+          throw err;
+        }
+        return r.json();
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       onClose();
       toast.success("הליד נוצר בהצלחה");
     },
-    onError: () => toast.error("שגיאה ביצירת הליד. נסה שוב."),
+    onError: (err: Error) => {
+      if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
+        triggerLimitModal(err.message);
+      } else {
+        toast.error("שגיאה ביצירת הליד. נסה שוב.");
+      }
+    },
   });
 
   const [leadFieldErrors, setLeadFieldErrors] = useState<{ name?: string; phone?: string; email?: string }>({});

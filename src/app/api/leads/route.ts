@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       const currentCount = await prisma.lead.count({ where: { businessId: authResult.businessId } });
       if (currentCount >= maxLeads) {
         return NextResponse.json(
-          { error: `מנוי חינמי מוגבל ל-${maxLeads} לידים. שדרג כדי להוסיף עוד.` },
+          { error: `הגעת לתקרת ${maxLeads} הלידים במסלול החינמי. שדרג לבייסיק כדי להוסיף ללא הגבלה.`, code: "LIMIT_REACHED" },
           { status: 403 }
         );
       }

@@ -55,6 +55,7 @@ const CreateOrderModal = dynamic(
 import { useAuth } from "@/providers/auth-provider";
 import { usePlan } from "@/hooks/usePlan";
 import { usePermissions } from "@/hooks/usePermissions";
+import { triggerLimitModal } from "@/lib/limit-reached";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import {
   cn,
@@ -2517,6 +2518,13 @@ function NewAppointmentModal({
       toast.success(`תור נקבע עבור ${customer.name}`);
       onSuccess();
       onClose();
+    },
+    onError: (err: Error) => {
+      if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
+        triggerLimitModal(err.message);
+      } else {
+        toast.error("שגיאה בקביעת התור. נסה שוב.");
+      }
     },
   });
 

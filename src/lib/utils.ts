@@ -119,7 +119,9 @@ export async function fetchJSON<T = unknown>(url: string, init?: RequestInit): P
   const res = await fetch(url, init);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Request failed (${res.status})`);
+    const err = new Error(body.error || `Request failed (${res.status})`);
+    if (body.code) (err as unknown as Record<string, unknown>).code = body.code;
+    throw err;
   }
   return res.json();
 }

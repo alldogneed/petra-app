@@ -9,6 +9,8 @@ import {
   CreditCard, ChevronDown, ChevronUp, CheckCircle2,
 } from "lucide-react";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
+import { triggerLimitModal } from "@/lib/limit-reached";
+import { toast } from "sonner";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
 import { usePlan } from "@/hooks/usePlan";
 
@@ -518,8 +520,10 @@ export function CreateOrderModal({
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "שגיאה ביצירת ההזמנה" }));
-        throw new Error(err.error || "שגיאה ביצירת ההזמנה");
+        const body = await res.json().catch(() => ({ error: "שגיאה ביצירת ההזמנה" }));
+        const orderErr = new Error(body.error || "שגיאה ביצירת ההזמנה");
+        if (body.code) (orderErr as unknown as Record<string, unknown>).code = body.code;
+        throw orderErr;
       }
 
       const order = await res.json();
@@ -586,6 +590,13 @@ export function CreateOrderModal({
         setStep("payment");
       } else {
         handleClose();
+      }
+    },
+    onError: (err: Error) => {
+      if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
+        triggerLimitModal(err.message);
+      } else {
+        toast.error(err.message || "שגיאה ביצירת ההזמנה. נסה שוב.");
       }
     },
   });

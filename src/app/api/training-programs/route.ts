@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       });
       if (currentCount >= maxPrograms) {
         return NextResponse.json(
-          { error: `מנוי חינמי מוגבל ל-${maxPrograms} תוכניות אילוף. שדרג כדי להוסיף עוד.` },
+          { error: `הגעת לתקרת ${maxPrograms} תוכניות האילוף במסלול החינמי. שדרג לבייסיק כדי להוסיף ללא הגבלה.`, code: "LIMIT_REACHED" },
           { status: 403 }
         );
       }

@@ -8,6 +8,7 @@ import { HelpCircle } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlan } from "@/hooks/usePlan";
+import { LimitReachedModal } from "@/components/paywall/LimitReachedModal";
 
 const TIER_LABEL: Record<string, string> = {
   basic: "בייסיק",
@@ -106,6 +107,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </button>
 
       <HelpCenter open={helpOpen} onOpenChange={setHelpOpen} />
+      <LimitReachedModal />
     </div>
   );
 }
