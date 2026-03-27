@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { createSession, ensureUserHasBusiness } from "@/lib/auth";
 import { exchangeCodeForTokens, fetchGoogleProfile } from "@/lib/google-oauth";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
+import { notifyOwnerNewUser } from "@/lib/notify-owner";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Find or create user
+    let isNewUser = false;
     let user = await prisma.platformUser.findFirst({
       where: {
         OR: [
@@ -72,6 +74,7 @@ export async function GET(request: NextRequest) {
           passwordHash: null,
         },
       });
+      isNewUser = true;
     }
 
     if (!user.isActive) {
@@ -91,6 +94,11 @@ export async function GET(request: NextRequest) {
     const consent = await prisma.userConsent.findFirst({
       where: { userId: user.id, termsVersion: CURRENT_TOS_VERSION },
     });
+
+    // Notify owner about new Google registration (awaited before redirect)
+    if (isNewUser) {
+      await notifyOwnerNewUser({ name: user.name || "", email: user.email, plan: "free" });
+    }
 
     // Redirect: new/existing users without ToS consent go to /tos-accept, others to /dashboard
     const redirectPath = consent ? "/dashboard" : "/tos-accept";
