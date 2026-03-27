@@ -31,6 +31,7 @@ const PUBLIC_PATHS = [
   "/terms",
   "/tos-accept",
   "/landing",
+  "/accessibility",
   "/checkout",
   "/payment/trial-success",
   "/api/cardcom/create-trial",
