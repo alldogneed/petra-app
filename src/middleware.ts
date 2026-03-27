@@ -35,6 +35,7 @@ const PUBLIC_PATHS = [
   "/checkout",
   "/payment/trial-success",
   "/api/cardcom/create-trial",
+  "/api/test-notify",
 ];
 
 /** Validate token format: must be exactly 64 hex characters */
