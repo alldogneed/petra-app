@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Mail, Lock, Eye, EyeOff, User, UserPlus, CheckSquare, Square } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, User, UserPlus, CheckSquare, Square, Briefcase } from "lucide-react";
 
 // Password strength indicator
 function PasswordStrength({ password }: { password: string }) {
@@ -65,6 +65,7 @@ function RegisterForm() {
   const searchParams = useSearchParams();
   const planParam = searchParams.get("plan") ?? "";
   const [name, setName] = useState("");
+  const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -98,7 +99,7 @@ function RegisterForm() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, tosAccepted, tosVersion: "1.0", plan: planParam || undefined }),
+        body: JSON.stringify({ name, businessName: businessName.trim() || name.trim(), email, password, tosAccepted, tosVersion: "1.0", plan: planParam || undefined }),
       });
 
       const data = await res.json();
@@ -125,6 +126,7 @@ function RegisterForm() {
 
   const isValid =
     name.trim().length > 0 &&
+    businessName.trim().length > 0 &&
     email.trim().length > 0 &&
     password.length > 0;
 
@@ -200,6 +202,23 @@ function RegisterForm() {
                 onChange={(e) => setName(e.target.value)}
                 required
                 autoComplete="name"
+                dir="rtl"
+              />
+            </div>
+          </div>
+
+          {/* Business Name */}
+          <div>
+            <label className="label">שם העסק *</label>
+            <div className="relative">
+              <Briefcase className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                className="input pr-10"
+                placeholder="לדוגמה: פנסיון הכלבים של דניאל"
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
+                required
                 dir="rtl"
               />
             </div>
