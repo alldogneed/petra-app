@@ -57,7 +57,7 @@ export async function sendTrialWelcomeEmail(params: TrialWelcomeEmailParams): Pr
   await resend.emails.send({
     from: getFromEmail(),
     to,
-    subject: `🎉 ברוכים הבאים ל-Petra! — פרטי הכניסה שלך`,
+    subject: `\u200F🎉 ברוכים הבאים ל-Petra! — פרטי הכניסה שלך`,
     html: `
       <div dir="rtl" style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;color:#1e293b;background:#ffffff;">
         <!-- Header -->
@@ -149,7 +149,7 @@ export async function sendCheckoutWelcomeEmail(params: CheckoutWelcomeEmailParam
   await resend.emails.send({
     from: getFromEmail(),
     to,
-    subject: `🎉 המנוי שלך ב-Petra פעיל! — פרטי הכניסה`,
+    subject: `\u200F🎉 המנוי שלך ב-Petra פעיל! — פרטי הכניסה`,
     html: `
       <div dir="rtl" style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;color:#1e293b;background:#ffffff;">
         <!-- Header -->
@@ -375,7 +375,7 @@ export async function sendTeamInvitationEmail(params: TeamInvitationEmailParams)
   const { error } = await getResend().emails.send({
     from: getFromEmail(),
     to: params.to,
-    subject: `הוזמנת להצטרף ל-${params.businessName} ב-Petra 🐾`,
+    subject: `\u200Fהוזמנת להצטרף ל-${params.businessName} ב-Petra 🐾`,
     html: `<!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head><meta charset="utf-8" /></head>

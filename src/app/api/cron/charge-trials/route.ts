@@ -172,7 +172,7 @@ export async function GET(request: NextRequest) {
           const safeName = (biz.name ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
           await sendEmail({
             to: recipientEmail,
-            subject: `✅ תשלום התקבל — מנוי Petra ${tierName} פעיל`,
+            subject: `\u200F✅ תשלום התקבל — מנוי Petra ${tierName} פעיל`,
             html: `<!DOCTYPE html>
 <html dir="rtl" lang="he">
 <body style="margin:0;padding:0;background-color:#F8FAFC;font-family:'Segoe UI',Arial,sans-serif;direction:rtl;">
