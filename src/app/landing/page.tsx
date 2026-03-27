@@ -612,7 +612,20 @@ export default function LandingPage() {
               </ul>
             </nav>
 
-            <p className="text-slate-500 text-sm">© 2026 Petra</p>
+            <p className="text-slate-500 text-sm text-center">
+              © 2026 Petra
+              <span className="block text-xs text-slate-600 mt-0.5">
+                הוקמה על ידי החטיבה הדיגיטלית של{" "}
+                <a
+                  href="https://all-dog.co.il"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-slate-400 transition-colors underline underline-offset-2"
+                >
+                  All-Dog
+                </a>
+              </span>
+            </p>
           </div>
         </div>
       </footer>
