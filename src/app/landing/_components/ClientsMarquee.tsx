@@ -30,7 +30,7 @@ export function ClientsMarquee() {
           display: flex;
           align-items: center;
           width: max-content;
-          animation: petra-marquee 36s linear infinite;
+          animation: petra-marquee 40s linear infinite;
           will-change: transform;
         }
         .petra-track:hover {
@@ -38,18 +38,29 @@ export function ClientsMarquee() {
         }
         .petra-logo-item {
           flex-shrink: 0;
-          width: 160px;
-          height: 80px;
+          width: 168px;
+          height: 88px;
+          margin: 0 10px;
           display: flex;
           align-items: center;
           justify-content: center;
+          border-radius: 16px;
+          border: 1px solid rgba(255,255,255,0.09);
+          background: rgba(255,255,255,0.04);
+          backdrop-filter: blur(4px);
+          transition: border-color 0.35s ease, background 0.35s ease, box-shadow 0.35s ease;
+        }
+        .petra-logo-item:hover {
+          border-color: rgba(255,255,255,0.2);
+          background: rgba(255,255,255,0.09);
+          box-shadow: 0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
         }
         .petra-logo-item img {
-          filter: grayscale(100%) brightness(200%) opacity(40%);
-          transition: filter 0.4s ease;
+          filter: grayscale(100%) brightness(190%) opacity(55%);
+          transition: filter 0.35s ease;
           object-fit: contain;
-          width: 120px !important;
-          height: 60px !important;
+          width: 116px !important;
+          height: 52px !important;
           position: relative !important;
         }
         .petra-logo-item:hover img {
