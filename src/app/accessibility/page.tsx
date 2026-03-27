@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
+import { LandingNav } from "@/app/landing/_components/LandingNav";
 
 export const metadata: Metadata = {
   title: "הצהרת נגישות — Petra",
@@ -27,7 +28,7 @@ function Section({ id, title, children }: { id: string; title: string; children:
 function CheckItem({ children }: { children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-3">
-      <span aria-hidden="true" className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-xs font-bold">✓</span>
+      <span aria-hidden="true" className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 text-xs font-bold">✓</span>
       <span>{children}</span>
     </li>
   );
@@ -49,36 +50,25 @@ export default function AccessibilityPage() {
   return (
     <div className="min-h-screen bg-slate-50" style={{ fontFamily: "var(--font-heebo), sans-serif" }}>
 
-      {/* Header */}
-      <header className="bg-[#0F172A] border-b border-white/8">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <Link href="/landing" className="flex items-center gap-2.5 focus:outline-none focus:ring-2 focus:ring-brand-400 rounded-lg" aria-label="פטרה — חזרה לדף הבית">
-            <Image src="/petra-logo.png" alt="" width={32} height={32} className="object-contain" />
-            <span className="text-white font-bold text-lg">Petra</span>
-          </Link>
-          <Link href="/landing" className="text-sm text-slate-400 hover:text-white transition-colors focus:outline-none focus:underline">
-            ← חזרה לאתר
-          </Link>
-        </div>
-      </header>
+      <LandingNav />
 
-      {/* Hero strip */}
-      <div className="bg-blue-600 text-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
-              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      {/* Hero strip — matches landing dark style */}
+      <div className="bg-slate-950 border-b border-white/8 pt-16">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-brand-500/15 border border-brand-500/25 flex items-center justify-center">
+              <svg className="w-5 h-5 text-brand-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <circle cx="12" cy="5" r="1.5"/>
                 <path d="M9 19l3-8 3 8M9 12h6M5 8l2 2M19 8l-2 2"/>
               </svg>
             </div>
-            <span className="text-sm font-semibold text-blue-200 tracking-wide uppercase">הצהרת נגישות</span>
+            <span className="text-xs font-semibold text-brand-400 tracking-widest uppercase">הצהרת נגישות</span>
           </div>
-          <h1 className="text-2xl md:text-4xl font-bold mb-3">נגישות דיגיטלית — Petra</h1>
-          <p className="text-blue-100 text-base md:text-lg max-w-2xl leading-relaxed">
-            פטרה מחויבת לנגישות דיגיטלית מלאה לכלל המשתמשים, לרבות אנשים עם מוגבלויות, בהתאם לחוק שוויון זכויות לאנשים עם מוגבלות (תשנ"ח–1998) ותקנותיו.
+          <h1 className="text-2xl md:text-4xl font-bold text-white mb-3">נגישות דיגיטלית — Petra</h1>
+          <p className="text-slate-400 text-base md:text-lg max-w-2xl leading-relaxed">
+            פטרה מחויבת לנגישות דיגיטלית מלאה לכלל המשתמשים, לרבות אנשים עם מוגבלויות, בהתאם לחוק שוויון זכויות לאנשים עם מוגבלות (תשנ&quot;ח–1998) ותקנותיו.
           </p>
-          <p className="mt-4 text-blue-200 text-sm">עודכן לאחרונה: {LAST_UPDATED}</p>
+          <p className="mt-4 text-slate-500 text-sm">עודכן לאחרונה: {LAST_UPDATED}</p>
         </div>
       </div>
 
@@ -86,12 +76,12 @@ export default function AccessibilityPage() {
       <main id="main-content" className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-10">
 
-          {/* WCAG badge */}
+          {/* WCAG badges */}
           <div className="flex flex-wrap gap-3 mb-10">
             {[
-              { label: "WCAG 2.1", sub: "Web Content Accessibility Guidelines", color: "bg-blue-50 border-blue-200 text-blue-800" },
+              { label: "WCAG 2.1", sub: "Web Content Accessibility Guidelines", color: "bg-brand-50 border-brand-200 text-brand-800" },
               { label: "רמה AA", sub: "רמת ציות מלאה", color: "bg-emerald-50 border-emerald-200 text-emerald-800" },
-              { label: "AA-IL", sub: "תקן ישראלי IS 5568", color: "bg-violet-50 border-violet-200 text-violet-800" },
+              { label: "AA-IL", sub: "תקן ישראלי IS 5568", color: "bg-slate-100 border-slate-200 text-slate-700" },
             ].map((b) => (
               <div key={b.label} className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border ${b.color}`}>
                 <div>
@@ -106,7 +96,7 @@ export default function AccessibilityPage() {
             <p>
               פטרה היא מערכת ניהול עסקי B2B לעסקי חיות מחמד בישראל — מאלפי כלבים, גרומרים, פנסיונים וארגוני כלבי שירות.
               המערכת מפותחת ומתוחזקת על ידי החטיבה הדיגיטלית של{" "}
-              <a href="https://all-dog.co.il" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">All-Dog</a>.
+              <a href="https://all-dog.co.il" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline font-medium">All-Dog</a>.
             </p>
             <p>
               כתובת האתר: <span className="font-mono text-sm bg-slate-100 px-1.5 py-0.5 rounded">petra-app.com</span>
@@ -130,7 +120,7 @@ export default function AccessibilityPage() {
               <CheckItem>תוויות ARIA מלאות על כל הרכיבים האינטראקטיביים</CheckItem>
               <CheckItem>גודל טקסט מינימלי 14px, עם תמיכה בהגדלה עד 200% ללא אובדן תוכן</CheckItem>
               <CheckItem>קישור "דלג לתוכן הראשי" בתחילת כל דף</CheckItem>
-              <CheckItem>כל התמונות מכילות טקסט חלופי (alt) מתאים, ותמונות דקורטיביות מסומנות <span className="font-mono text-xs bg-slate-100 px-1 rounded">alt=""</span></CheckItem>
+              <CheckItem>כל התמונות מכילות טקסט חלופי (alt) מתאים, ותמונות דקורטיביות מסומנות <span className="font-mono text-xs bg-slate-100 px-1 rounded">alt=&quot;&quot;</span></CheckItem>
               <CheckItem>כלי נגישות מובנה עם פרופילים: קוגניטיבי, לקויי ראייה, אפילפסיה, מוגבלות מוטורית</CheckItem>
               <CheckItem>שינוי גודל טקסט, ניגודיות, רוויית צבע ויישור ישירות מתפריט הנגישות</CheckItem>
               <CheckItem>עמודים ממובנים נכון עם כותרות היררכיות (h1–h4)</CheckItem>
@@ -170,7 +160,7 @@ export default function AccessibilityPage() {
                   <ul className="space-y-1 list-none p-0">
                     {group.items.map((item) => (
                       <li key={item} className="text-sm text-slate-500 flex items-center gap-1.5">
-                        <span aria-hidden="true" className="text-blue-400">•</span>
+                        <span aria-hidden="true" className="text-brand-400">•</span>
                         {item}
                       </li>
                     ))}
@@ -187,22 +177,22 @@ export default function AccessibilityPage() {
             <div className="mt-5 grid sm:grid-cols-3 gap-4">
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors text-center group"
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-slate-200 hover:border-brand-300 hover:bg-brand-50 transition-colors text-center group"
               >
-                <div className="w-10 h-10 rounded-full bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center text-xl transition-colors">📧</div>
+                <div className="w-10 h-10 rounded-full bg-slate-100 group-hover:bg-brand-100 flex items-center justify-center text-xl transition-colors">📧</div>
                 <div>
                   <div className="text-xs font-semibold text-slate-700 mb-0.5">אימייל</div>
-                  <div className="text-xs text-blue-600 break-all">{CONTACT_EMAIL}</div>
+                  <div className="text-xs text-brand-600 break-all">{CONTACT_EMAIL}</div>
                 </div>
               </a>
               <a
                 href={`tel:${CONTACT_PHONE.replace(/-/g, "")}`}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors text-center group"
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border border-slate-200 hover:border-brand-300 hover:bg-brand-50 transition-colors text-center group"
               >
-                <div className="w-10 h-10 rounded-full bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center text-xl transition-colors">📞</div>
+                <div className="w-10 h-10 rounded-full bg-slate-100 group-hover:bg-brand-100 flex items-center justify-center text-xl transition-colors">📞</div>
                 <div>
                   <div className="text-xs font-semibold text-slate-700 mb-0.5">טלפון</div>
-                  <div className="text-xs text-blue-600" dir="ltr">{CONTACT_PHONE}</div>
+                  <div className="text-xs text-brand-600" dir="ltr">{CONTACT_PHONE}</div>
                 </div>
               </a>
               <a
@@ -220,7 +210,7 @@ export default function AccessibilityPage() {
             </div>
             <p className="mt-5 text-sm text-slate-500">
               אם לא קיבלתם מענה מספק, ניתן לפנות לנציבות שוויון זכויות לאנשים עם מוגבלות במשרד המשפטים:{" "}
-              <a href="https://www.gov.il/he/departments/units/commissioner-equal-rights-disabilities" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              <a href="https://www.gov.il/he/departments/units/commissioner-equal-rights-disabilities" target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">
                 אתר הנציבות
               </a>.
             </p>
@@ -246,7 +236,7 @@ export default function AccessibilityPage() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-[#0F172A] border-t border-white/8 py-6 mt-8">
+      <footer className="bg-slate-950 border-t border-white/8 py-6 mt-8">
         <div className="max-w-5xl mx-auto px-4 text-center text-slate-500 text-sm">
           © 2026 Petra — החטיבה הדיגיטלית של All-Dog
         </div>
