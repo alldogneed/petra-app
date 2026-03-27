@@ -13,8 +13,66 @@ const heebo = Heebo({
 });
 
 export const metadata: Metadata = {
-  title: "Petra - ניהול עסקי חיות מחמד",
-  description: "מערכת ניהול מתקדמת לעסקי חיות מחמד - אילוף, פנסיון, טיפוח",
+  metadataBase: new URL("https://petra-app.com"),
+  title: {
+    default: "Petra — מערכת ניהול לעסקי חיות מחמד",
+    template: "%s | Petra",
+  },
+  description:
+    "ניהול לקוחות, תורים, WhatsApp ופנסיון — כל הכלים לעסק שלך במקום אחד. מסלול חינמי ללא כרטיס אשראי. מאלפי כלבים, גרומרים, פנסיונים וארגוני כלבי שירות.",
+  keywords: [
+    "מערכת ניהול כלבים",
+    "תוכנה לאלף כלבים",
+    "ניהול פנסיון כלבים",
+    "תוכנה לגרומרים",
+    "ניהול תורים לאלפים",
+    "CRM לעסקי חיות מחמד",
+    "תוכנת ניהול לקוחות לאלפים",
+    "אילוף כלבים תוכנה",
+    "ניהול עסק כלבים ישראל",
+    "petra app",
+    "פטרה",
+  ],
+  authors: [{ name: "Petra — All-Dog", url: "https://petra-app.com" }],
+  creator: "All-Dog",
+  publisher: "All-Dog",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  openGraph: {
+    type: "website",
+    locale: "he_IL",
+    url: "https://petra-app.com/landing",
+    siteName: "Petra",
+    title: "Petra — מערכת ניהול לעסקי חיות מחמד",
+    description:
+      "ניהול לקוחות, תורים, WhatsApp ופנסיון — כל הכלים לעסק שלך במקום אחד. התחל בחינם.",
+    images: [
+      {
+        url: "/hero-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Petra — מערכת ניהול לעסקי חיות מחמד",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Petra — מערכת ניהול לעסקי חיות מחמד",
+    description:
+      "ניהול לקוחות, תורים, WhatsApp ופנסיון — כל הכלים לעסק שלך במקום אחד.",
+    images: ["/hero-image.png"],
+  },
+  alternates: {
+    canonical: "https://petra-app.com/landing",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

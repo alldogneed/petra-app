@@ -28,9 +28,38 @@ import {
 } from "./_components/AudienceMockups";
 
 export const metadata: Metadata = {
-  title: "Petra — מערכת ניהול לעסקי חיות מחמד",
+  title: "Petra — מערכת ניהול לעסקי חיות מחמד | אילוף, פנסיון, גרומינג",
   description:
-    "ניהול לקוחות, תורים, WhatsApp ופנסיון — כל הכלים לעסק שלך במקום אחד. התחל בחינם.",
+    "מערכת ניהול חכמה לאלפי כלבים, גרומרים ופנסיונים בישראל. ניהול לקוחות, תורים, תזכורות WhatsApp אוטומטיות, יומן דיגיטלי ועוד — במקום אחד. מסלול חינמי ללא כרטיס אשראי.",
+  keywords: [
+    "מערכת ניהול אלוף כלבים",
+    "תוכנה לאילוף כלבים",
+    "ניהול פנסיון כלבים",
+    "תוכנה לגרומרים",
+    "CRM לאלפים",
+    "ניהול תורים לאלפים",
+    "תזכורות WhatsApp אוטומטיות",
+    "אילוף כלבים תוכנה ישראל",
+    "ניהול לקוחות לעסקי כלבים",
+    "פטרה",
+  ],
+  alternates: {
+    canonical: "https://petra-app.com/landing",
+  },
+  openGraph: {
+    title: "Petra — מערכת ניהול לעסקי חיות מחמד",
+    description:
+      "ניהול לקוחות, תורים, WhatsApp ופנסיון — כל הכלים לעסק שלך במקום אחד. התחל בחינם.",
+    url: "https://petra-app.com/landing",
+    images: [
+      {
+        url: "/hero-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Petra — מערכת ניהול לעסקי חיות מחמד",
+      },
+    ],
+  },
 };
 
 const WHATSAPP_SUPPORT = "https://wa.me/972542560964";
@@ -641,6 +670,86 @@ export default function LandingPage() {
       {/* ── Floating buttons (right side) ────────────────────────────────────── */}
       <WhatsAppFAB />
       <AccessibilityButton />
+
+      {/* ── JSON-LD Structured Data ───────────────────────────────────────────── */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "SoftwareApplication",
+                "@id": "https://petra-app.com/#app",
+                name: "Petra",
+                url: "https://petra-app.com/landing",
+                description:
+                  "מערכת ניהול חכמה לאלפי כלבים, גרומרים ופנסיונים בישראל. ניהול לקוחות, תורים, תזכורות WhatsApp אוטומטיות ויומן דיגיטלי.",
+                applicationCategory: "BusinessApplication",
+                operatingSystem: "Web, iOS, Android",
+                inLanguage: "he",
+                offers: [
+                  {
+                    "@type": "Offer",
+                    name: "חינמי",
+                    price: "0",
+                    priceCurrency: "ILS",
+                    description: "עד 50 לקוחות, ללא כרטיס אשראי",
+                  },
+                  {
+                    "@type": "Offer",
+                    name: "Basic",
+                    price: "99",
+                    priceCurrency: "ILS",
+                    billingDuration: "P1M",
+                    description: "לקוחות ותורים ללא הגבלה, WhatsApp אוטומטי",
+                  },
+                  {
+                    "@type": "Offer",
+                    name: "Pro",
+                    price: "199",
+                    priceCurrency: "ILS",
+                    billingDuration: "P1M",
+                    description: "כולל ניהול פנסיון, הזמנות אונליין וניהול צוות",
+                  },
+                ],
+                publisher: {
+                  "@type": "Organization",
+                  "@id": "https://petra-app.com/#org",
+                  name: "Petra — All-Dog",
+                  url: "https://petra-app.com",
+                  logo: {
+                    "@type": "ImageObject",
+                    url: "https://petra-app.com/petra-logo.png",
+                  },
+                  contactPoint: {
+                    "@type": "ContactPoint",
+                    telephone: "+972-54-256-0964",
+                    contactType: "customer support",
+                    availableLanguage: "Hebrew",
+                  },
+                },
+              },
+              {
+                "@type": "Organization",
+                "@id": "https://petra-app.com/#org",
+                name: "Petra",
+                url: "https://petra-app.com",
+                logo: "https://petra-app.com/petra-logo.png",
+                sameAs: ["https://all-dog.co.il"],
+              },
+              {
+                "@type": "WebSite",
+                "@id": "https://petra-app.com/#website",
+                url: "https://petra-app.com",
+                name: "Petra",
+                inLanguage: "he",
+                publisher: { "@id": "https://petra-app.com/#org" },
+              },
+            ],
+          }),
+        }}
+      />
     </div>
   );
 }
