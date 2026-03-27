@@ -26,19 +26,21 @@ const PLANS: {
     price: 0,
     badge: null,
     highlight: false,
-    description: "התחל לנהל את העסק שלך בחינם, עד 50 לקוחות",
+    description: "התחל לנהל את העסק שלך בחינם — ללא כרטיס אשראי",
     features: [
-      "עד 50 לקוחות",
-      "CRM / לידים (עד 20)",
-      "מערכת ניהול תהליכי אילוף (עד 50 תוכניות)",
-      "ניהול משימות (עד 20 פתוחות)",
-      "מחירון שירותים",
-      "תמיכה טכנית בלבד (ללא תמיכה אישית בוואטסאפ)",
+      "עד 30 לקוחות",
+      "עד 20 תורים (סה\"כ)",
+      "עד 15 הזמנות (סה\"כ)",
+      "CRM / לידים (עד 15)",
+      "ניהול תהליכי אילוף (עד 10 תוכניות)",
+      "מחירון שירותים (עד 8 פריטים)",
+      "ניהול משימות",
     ],
     notIncluded: [
-      "מערכת קביעת תורים",
       "תזכורות WhatsApp ללקוחות",
-      "שליחת טפסי קליטה ללקוח",
+      "Google Calendar סנכרון",
+      "אנליטיקס ודוחות",
+      "לינקי תשלום ללקוחות",
     ],
   },
   {
@@ -93,8 +95,8 @@ const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
   {
     category: "לקוחות וחיות מחמד",
     features: [
-      { name: "לקוחות", free: "עד 50", basic: "ללא הגבלה", pro: "ללא הגבלה" },
-      { name: "CRM / לידים", free: "עד 20", basic: "ללא הגבלה", pro: "ללא הגבלה" },
+      { name: "לקוחות", free: "עד 30", basic: "ללא הגבלה", pro: "ללא הגבלה" },
+      { name: "CRM / לידים", free: "עד 15", basic: "ללא הגבלה", pro: "ללא הגבלה" },
       { name: "כרטיס בריאות לחיית מחמד", free: true, basic: true, pro: true },
       { name: "טפסי קליטה דיגיטליים", free: false, basic: true, pro: true },
       { name: "ניהול משימות", free: "עד 20", basic: "ללא הגבלה", pro: "ללא הגבלה" },
@@ -104,8 +106,8 @@ const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
   {
     category: "יומן ותורים",
     features: [
-      { name: "יומן תורים ופגישות", free: false, basic: true, pro: true },
-      { name: "מערכת ניהול תורים", free: false, basic: true, pro: true },
+      { name: "יומן תורים ופגישות", free: "עד 20 תורים", basic: true, pro: true },
+      { name: "מערכת ניהול תורים", free: "עד 20 תורים", basic: true, pro: true },
       { name: "הזמנות אונליין (לקוח קובע לבד)", free: false, basic: false, pro: true },
       { name: "סנכרון Google Calendar", free: false, basic: true, pro: true },
     ],
@@ -122,7 +124,7 @@ const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
   {
     category: "מקצוע ותוכן",
     features: [
-      { name: "ניהול תהליכי אילוף", free: "עד 50", basic: "ללא הגבלה", pro: "ללא הגבלה" },
+      { name: "ניהול תהליכי אילוף", free: "עד 10", basic: "ללא הגבלה", pro: "ללא הגבלה" },
       { name: "מודול אילוף מתקדם", free: false, basic: false, pro: true },
       { name: "ניהול קבוצות וסדנאות", free: false, basic: false, pro: true },
       { name: "ניהול פנסיון + חדרים", free: false, basic: false, pro: true },
@@ -133,7 +135,7 @@ const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
     category: "פיננסים ודוחות",
     features: [
       { name: "שליחת בקשת תשלום", free: false, basic: true, pro: true },
-      { name: "ניהול הזמנות", free: false, basic: true, pro: true },
+      { name: "ניהול הזמנות", free: "עד 15", basic: true, pro: true },
       { name: "דוחות כספיים + ייצוא Excel", free: false, basic: false, pro: true },
       { name: "דוחות ואנליטיקס", free: false, basic: true, pro: true },
       { name: "ייצוא Excel", free: false, basic: false, pro: true },
@@ -162,7 +164,7 @@ function FeatureCell({ value }: { value: FVal }) {
 const FAQ = [
   {
     q: "יש ניסיון חינמי? צריך להזין כרטיס אשראי?",
-    a: "יש מסלול חינמי לצמיתות ללא אשראי — מתחילים מיד עם עד 50 לקוחות. למסלולים המשולמים (Basic ו-Pro) מציעים 14 ימי ניסיון מלאים: מזינים כרטיס לאימות בלבד, אין חיוב מיידי. מבטלים תוך 14 הימים — לא משלמים כלום.",
+    a: "יש מסלול חינמי לצמיתות ללא אשראי — מתחילים מיד עם עד 30 לקוחות, 20 תורים ו-15 הזמנות. למסלולים המשולמים (Basic ו-Pro) החיוב מיידי עם הרישום — ניתן לבטל בכל עת ממסך ההגדרות ללא קנסות.",
   },
   {
     q: "מה ניתן לנהל עם פטרה?",
@@ -266,7 +268,7 @@ export function PricingSection() {
           <h2 id="pricing-heading" className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
             מחיר ששווה לכל עסק, בלי הפתעות
           </h2>
-          <p className="text-slate-500 text-lg">מסלול חינמי ללא כרטיס אשראי · 14 ימי ניסיון מלאים בכל מסלול בתשלום</p>
+          <p className="text-slate-500 text-lg">מסלול חינמי ללא כרטיס אשראי · חיוב מיידי בתשלום · ביטול בכל עת ללא קנסות</p>
         </div>
 
         {/* 3 Plan cards */}
@@ -369,7 +371,7 @@ export function PricingSection() {
                 {CARDCOM_TIERS.has(plan.key) ? (
                   <div className="flex flex-col gap-1.5">
                     <Link
-                      href={user ? "/upgrade" : `/checkout?tier=${plan.key}`}
+                      href={user ? `/checkout?tier=${plan.key}` : `/checkout?tier=${plan.key}`}
                       aria-label={`רכוש עכשיו — מסלול ${plan.name}`}
                       className={`text-sm py-2.5 rounded-xl text-center font-semibold transition-colors flex items-center justify-center gap-1.5 ${
                         plan.highlight
@@ -380,8 +382,8 @@ export function PricingSection() {
                       <CreditCard className="w-3.5 h-3.5" aria-hidden="true" />
                       {user ? "שדרג עכשיו" : "רכוש עכשיו"}
                     </Link>
-                    <p className="text-[10px] text-center text-emerald-600 font-medium leading-snug px-1">
-                      ביטול בכל עת · ללא קנסות
+                    <p className="text-[10px] text-center text-slate-400 leading-snug px-1">
+                      חיוב מיידי · ביטול בכל עת · חשבונית במייל
                     </p>
                   </div>
                 ) : (
