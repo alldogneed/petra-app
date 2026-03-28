@@ -3368,9 +3368,13 @@ function ContractsTab() {
 
 // ─── Contract field types ────────────────────────────────────────────────────
 
+type ContractFieldType =
+  | "customer_name" | "id_number" | "address" | "phone" | "signature"
+  | "pet_name" | "pet_breed" | "pet_microchip" | "pet_birthdate" | "pet_gender" | "pet_color";
+
 interface ContractField {
   id: string;
-  type: "customer_name" | "id_number" | "address" | "phone" | "signature";
+  type: ContractFieldType;
   page: number;
   x: number;
   y: number;
@@ -3378,27 +3382,45 @@ interface ContractField {
   height: number;
 }
 
-const FIELD_TYPES: { type: ContractField["type"]; label: string; color: string; bgColor: string }[] = [
-  { type: "customer_name", label: "👤 שם לקוח", color: "#2563eb", bgColor: "rgba(37,99,235,0.12)" },
-  { type: "id_number",     label: "🆔 ת.ז.",     color: "#7c3aed", bgColor: "rgba(124,58,237,0.12)" },
-  { type: "address",       label: "🏠 כתובת",    color: "#16a34a", bgColor: "rgba(22,163,74,0.12)" },
-  { type: "phone",         label: "📞 טלפון",    color: "#0891b2", bgColor: "rgba(8,145,178,0.12)" },
-  { type: "signature",     label: "✍️ חתימה",    color: "#ea580c", bgColor: "rgba(234,88,12,0.12)" },
+const FIELD_TYPES: { type: ContractFieldType; label: string; color: string; bgColor: string }[] = [
+  { type: "customer_name",  label: "👤 שם לקוח",  color: "#2563eb", bgColor: "rgba(37,99,235,0.12)" },
+  { type: "id_number",      label: "🆔 ת.ז.",      color: "#7c3aed", bgColor: "rgba(124,58,237,0.12)" },
+  { type: "address",        label: "🏠 כתובת",     color: "#16a34a", bgColor: "rgba(22,163,74,0.12)" },
+  { type: "phone",          label: "📞 טלפון",     color: "#0891b2", bgColor: "rgba(8,145,178,0.12)" },
+  { type: "pet_name",       label: "🐕 שם הכלב",   color: "#b45309", bgColor: "rgba(180,83,9,0.12)" },
+  { type: "pet_breed",      label: "🐾 גזע",       color: "#a16207", bgColor: "rgba(161,98,7,0.12)" },
+  { type: "pet_microchip",  label: "📟 מס׳ שבב",   color: "#dc2626", bgColor: "rgba(220,38,38,0.12)" },
+  { type: "pet_birthdate",  label: "📅 תאריך לידה", color: "#9333ea", bgColor: "rgba(147,51,234,0.12)" },
+  { type: "pet_gender",     label: "⚥ מין הכלב",    color: "#0d9488", bgColor: "rgba(13,148,136,0.12)" },
+  { type: "pet_color",      label: "🎨 צבע/סימנים", color: "#c026d3", bgColor: "rgba(192,38,211,0.12)" },
+  { type: "signature",      label: "✍️ חתימה",     color: "#ea580c", bgColor: "rgba(234,88,12,0.12)" },
 ];
 
-const FIELD_DEFAULTS: Record<ContractField["type"], { width: number; height: number }> = {
-  customer_name: { width: 0.3,  height: 0.04 },
-  id_number:     { width: 0.2,  height: 0.04 },
-  address:       { width: 0.4,  height: 0.04 },
-  phone:         { width: 0.2,  height: 0.04 },
-  signature:     { width: 0.35, height: 0.07 },
+const FIELD_DEFAULTS: Record<ContractFieldType, { width: number; height: number }> = {
+  customer_name:  { width: 0.3,  height: 0.04 },
+  id_number:      { width: 0.2,  height: 0.04 },
+  address:        { width: 0.4,  height: 0.04 },
+  phone:          { width: 0.2,  height: 0.04 },
+  pet_name:       { width: 0.25, height: 0.04 },
+  pet_breed:      { width: 0.25, height: 0.04 },
+  pet_microchip:  { width: 0.25, height: 0.04 },
+  pet_birthdate:  { width: 0.2,  height: 0.04 },
+  pet_gender:     { width: 0.15, height: 0.04 },
+  pet_color:      { width: 0.25, height: 0.04 },
+  signature:      { width: 0.35, height: 0.07 },
 };
 
-const FIELD_SHORT_LABELS: Record<ContractField["type"], string> = {
+const FIELD_SHORT_LABELS: Record<ContractFieldType, string> = {
   customer_name: "שם לקוח",
   id_number: "ת.ז.",
   address: "כתובת",
   phone: "טלפון",
+  pet_name: "שם הכלב",
+  pet_breed: "גזע",
+  pet_microchip: "מס׳ שבב",
+  pet_birthdate: "תאריך לידה",
+  pet_gender: "מין",
+  pet_color: "צבע/סימנים",
   signature: "חתימה",
 };
 

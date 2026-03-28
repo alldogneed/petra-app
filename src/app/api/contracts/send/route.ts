@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { customerId, templateId } = body;
+    const { customerId, templateId, petId } = body;
 
     if (!customerId || !templateId) {
       return NextResponse.json({ error: "חסרים פרמטרים" }, { status: 400 });
@@ -30,6 +30,14 @@ export async function POST(request: NextRequest) {
       where: { id: customerId, businessId: authResult.businessId },
     });
     if (!customer) return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
+
+    // Verify pet belongs to this customer (if provided)
+    if (petId) {
+      const pet = await prisma.pet.findFirst({
+        where: { id: petId, customerId },
+      });
+      if (!pet) return NextResponse.json({ error: "חיית המחמד לא נמצאה" }, { status: 404 });
+    }
 
     const business = await prisma.business.findUnique({
       where: { id: authResult.businessId },
@@ -49,6 +57,7 @@ export async function POST(request: NextRequest) {
         businessId: authResult.businessId,
         customerId,
         templateId,
+        petId: petId || null,
         tokenHash,
         expiresAt,
         sentAt: new Date(),

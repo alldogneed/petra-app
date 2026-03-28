@@ -10,7 +10,8 @@ import { join } from "path";
 
 interface ContractField {
   id: string;
-  type: "customer_name" | "id_number" | "address" | "phone" | "signature";
+  type: "customer_name" | "id_number" | "address" | "phone" | "signature"
+    | "pet_name" | "pet_breed" | "pet_microchip" | "pet_birthdate" | "pet_gender" | "pet_color";
   page: number;
   x: number;
   y: number;
@@ -48,6 +49,7 @@ export async function GET(
         },
         business: { select: { name: true } },
         customer: { select: { name: true, phone: true, idNumber: true, address: true } },
+        pet: { select: { name: true, breed: true, microchip: true, birthDate: true, gender: true, color: true } },
       },
     });
 
@@ -78,6 +80,21 @@ export async function GET(
       fields = [];
     }
 
+    // Build data map — includes customer + pet fields
+    const pet = contractRequest.pet;
+    const customerData: Record<string, string> = {
+      customer_name: contractRequest.customer.name,
+      phone: contractRequest.customer.phone ?? "",
+      id_number: contractRequest.customer.idNumber ?? "",
+      address: contractRequest.customer.address ?? "",
+      pet_name: pet?.name ?? "",
+      pet_breed: pet?.breed ?? "",
+      pet_microchip: pet?.microchip ?? "",
+      pet_birthdate: pet?.birthDate ? new Date(pet.birthDate).toLocaleDateString("he-IL") : "",
+      pet_gender: pet?.gender === "male" ? "זכר" : pet?.gender === "female" ? "נקבה" : (pet?.gender ?? ""),
+      pet_color: pet?.color ?? "",
+    };
+
     return NextResponse.json({
       customerName: contractRequest.customer.name,
       businessName: contractRequest.business.name,
@@ -89,14 +106,8 @@ export async function GET(
       signatureWidth: contractRequest.template.signatureWidth,
       signatureHeight: contractRequest.template.signatureHeight,
       status: contractRequest.status,
-      // New: multi-field support
       fields,
-      customerData: {
-        customer_name: contractRequest.customer.name,
-        phone: contractRequest.customer.phone ?? "",
-        id_number: contractRequest.customer.idNumber ?? "",
-        address: contractRequest.customer.address ?? "",
-      },
+      customerData,
     });
   } catch (error) {
     console.error("GET sign error:", error);
@@ -122,6 +133,7 @@ export async function POST(
       include: {
         template: true,
         customer: { select: { id: true, businessId: true, documents: true, name: true, phone: true, idNumber: true, address: true } },
+        pet: { select: { name: true, breed: true, microchip: true, birthDate: true, gender: true, color: true } },
         business: { select: { id: true } },
       },
     });
@@ -161,12 +173,19 @@ export async function POST(
     const sigBytes = Buffer.from(base64Data, "base64");
     const sigImage = await pdfDoc.embedPng(sigBytes);
 
-    // Build customer data map
+    // Build customer + pet data map
+    const pet = contractRequest.pet;
     const customerDataMap: Record<string, string> = {
       customer_name: contractRequest.customer.name,
       phone: contractRequest.customer.phone ?? "",
       id_number: contractRequest.customer.idNumber ?? "",
       address: contractRequest.customer.address ?? "",
+      pet_name: pet?.name ?? "",
+      pet_breed: pet?.breed ?? "",
+      pet_microchip: pet?.microchip ?? "",
+      pet_birthdate: pet?.birthDate ? new Date(pet.birthDate).toLocaleDateString("he-IL") : "",
+      pet_gender: pet?.gender === "male" ? "זכר" : pet?.gender === "female" ? "נקבה" : (pet?.gender ?? ""),
+      pet_color: pet?.color ?? "",
     };
 
     // Try to parse multi-field layout

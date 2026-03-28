@@ -1626,10 +1626,11 @@ function getDaysUntilExpiry(expiresAt: string): number {
   return Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
-function SendContractSection({ customerId, customerName }: { customerId: string; customerName: string }) {
+function SendContractSection({ customerId, customerName, pets }: { customerId: string; customerName: string; pets: { id: string; name: string }[] }) {
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [selectedPetId, setSelectedPetId] = useState("");
   const [deletingContract, setDeletingContract] = useState<ContractReq | null>(null);
 
   const { data: templates = [] } = useQuery<ContractTemplate[]>({
@@ -1647,7 +1648,7 @@ function SendContractSection({ customerId, customerName }: { customerId: string;
       fetch("/api/contracts/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId, templateId: selectedTemplateId }),
+        body: JSON.stringify({ customerId, templateId: selectedTemplateId, petId: selectedPetId || undefined }),
       }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contract-requests", customerId] });
@@ -1827,6 +1828,16 @@ function SendContractSection({ customerId, customerName }: { customerId: string;
                   {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               </div>
+              {pets.length > 0 && (
+                <div>
+                  <label className="label">שייך לכלב (אופציונלי)</label>
+                  <select className="input w-full" value={selectedPetId} onChange={(e) => setSelectedPetId(e.target.value)}>
+                    <option value="">ללא שיוך לכלב</option>
+                    {pets.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <p className="text-xs text-petra-muted mt-1">פרטי הכלב (שם, גזע, שבב, מין, צבע) יוטבעו אוטומטית בחוזה</p>
+                </div>
+              )}
               <div className="text-sm text-petra-muted bg-slate-50 rounded-xl p-3">
                 ישלח ל: <span className="font-medium text-petra-text">{customerName}</span> ב-WhatsApp
               </div>
@@ -4886,7 +4897,7 @@ export default function CustomerProfilePage() {
           )}
 
           {/* Contracts */}
-          <SendContractSection customerId={customerId} customerName={customer.name} />
+          <SendContractSection customerId={customerId} customerName={customer.name} pets={customer.pets.map((p) => ({ id: p.id, name: p.name }))} />
 
           {/* Customer Documents */}
           <CustomerDocumentsSection

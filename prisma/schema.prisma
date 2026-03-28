@@ -398,6 +398,7 @@ model Pet {
   careLogs       BoardingCareLog[]
   serviceDogProfile ServiceDogProfile?
   weightHistory  PetWeightEntry[]
+  contractRequests ContractRequest[]
 
   @@index([customerId])
   @@index([businessId])
@@ -2113,6 +2114,7 @@ model ContractRequest {
   businessId    String
   customerId    String
   templateId    String
+  petId         String?   // Optional — links contract to a specific pet for legal identification
   tokenHash     String    @unique  // SHA-256 of plain token — never store plain
   status        String    @default("PENDING")  // PENDING | SIGNED | EXPIRED
   expiresAt     DateTime
@@ -2129,6 +2131,7 @@ model ContractRequest {
   business  Business         @relation(fields: [businessId], references: [id])
   customer  Customer         @relation(fields: [customerId], references: [id])
   template  ContractTemplate @relation(fields: [templateId], references: [id])
+  pet       Pet?             @relation(fields: [petId], references: [id])
 
   @@index([businessId])
   @@index([customerId])
