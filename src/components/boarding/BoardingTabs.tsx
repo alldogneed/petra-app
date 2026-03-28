@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Hotel, UtensilsCrossed, Pill, Syringe, ClipboardList, ClipboardCheck } from "lucide-react";
+import { Hotel, UtensilsCrossed, Pill, Syringe, ClipboardList, ClipboardCheck, TreePine } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { name: "לוח יומי",    href: "/boarding/daily", icon: ClipboardCheck  },
-  { name: "ניהול חדרים", href: "/boarding",        icon: Hotel           },
-  { name: "האכלה",       href: "/feeding",         icon: UtensilsCrossed },
-  { name: "תרופות",      href: "/medications",     icon: Pill            },
-  { name: "חיסונים",     href: "/vaccinations",    icon: Syringe         },
-  { name: "טפסי קליטה",  href: "/intake-forms",    icon: ClipboardList   },
+  { name: "לוח יומי",      href: "/boarding/daily", icon: ClipboardCheck  },
+  { name: "ניהול חדרים",   href: "/boarding",        icon: Hotel           },
+  { name: "ניהול חצרות",   href: "/boarding/yards",  icon: TreePine        },
+  { name: "האכלה",         href: "/feeding",         icon: UtensilsCrossed },
+  { name: "תרופות",        href: "/medications",     icon: Pill            },
+  { name: "חיסונים",       href: "/vaccinations",    icon: Syringe         },
+  { name: "טפסי קליטה",    href: "/intake-forms",    icon: ClipboardList   },
 ];
 
 export function BoardingTabs() {
@@ -23,8 +24,6 @@ export function BoardingTabs() {
         const isActive =
           tab.href === "/boarding"
             ? pathname === "/boarding"
-            : tab.href === "/boarding/daily"
-            ? pathname === "/boarding/daily"
             : pathname === tab.href || pathname.startsWith(tab.href + "/");
         const Icon = tab.icon;
         return (
