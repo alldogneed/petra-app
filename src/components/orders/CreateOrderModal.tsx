@@ -680,7 +680,7 @@ export function CreateOrderModal({
           <div>
             <label className="label text-xs text-petra-muted mb-1">תאריך</label>
             <input
-              type="date"
+              type="date" lang="he"
               className="input text-sm"
               value={apptDate}
               onChange={(e) => setApptDate(e.target.value)}
@@ -741,7 +741,7 @@ export function CreateOrderModal({
             </label>
             <div className="grid grid-cols-2 gap-2">
               <input
-                type="date"
+                type="date" lang="he"
                 className="input text-sm"
                 value={boardingCheckInDate}
                 onChange={(e) => {
@@ -770,7 +770,7 @@ export function CreateOrderModal({
             </label>
             <div className="grid grid-cols-2 gap-2">
               <input
-                type="date"
+                type="date" lang="he"
                 className="input text-sm"
                 value={boardingCheckOutDate}
                 onChange={(e) => setBoardingCheckOutDate(e.target.value)}
@@ -1138,11 +1138,11 @@ export function CreateOrderModal({
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-[11px] font-semibold text-petra-muted block mb-1">כניסה לפנסיון</label>
-                    <input type="date" className="input text-sm" value={trainingBoardingStart} onChange={(e) => setTrainingBoardingStart(e.target.value)} />
+                    <input type="date" lang="he" className="input text-sm" value={trainingBoardingStart} onChange={(e) => setTrainingBoardingStart(e.target.value)} />
                   </div>
                   <div>
                     <label className="text-[11px] font-semibold text-petra-muted block mb-1">יציאה מהפנסיון</label>
-                    <input type="date" className="input text-sm" value={trainingBoardingEnd} onChange={(e) => setTrainingBoardingEnd(e.target.value)} />
+                    <input type="date" lang="he" className="input text-sm" value={trainingBoardingEnd} onChange={(e) => setTrainingBoardingEnd(e.target.value)} />
                   </div>
                 </div>
                 <div>

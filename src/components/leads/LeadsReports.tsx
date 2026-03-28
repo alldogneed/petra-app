@@ -288,7 +288,7 @@ export function LeadsReports({ leads, stages }: LeadsReportsProps) {
                         <div>
                             <label className="text-[11px] font-medium text-petra-muted block mb-1">מתאריך</label>
                             <input
-                                type="date"
+                                type="date" lang="he"
                                 className="input h-9 text-sm w-36"
                                 value={customFrom}
                                 max={customTo || undefined}
@@ -298,7 +298,7 @@ export function LeadsReports({ leads, stages }: LeadsReportsProps) {
                         <div>
                             <label className="text-[11px] font-medium text-petra-muted block mb-1">עד תאריך</label>
                             <input
-                                type="date"
+                                type="date" lang="he"
                                 className="input h-9 text-sm w-36"
                                 value={customTo}
                                 min={customFrom || undefined}

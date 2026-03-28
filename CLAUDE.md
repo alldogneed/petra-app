@@ -157,3 +157,7 @@ import { prisma } from "@/lib/prisma"
 | Current user (client) | `useAuth().user` — has `isAdmin: boolean`, NOT `platformRole` |
 | Orders API date filters | `from`/`to` → filter by `createdAt` (orders list); `startFrom`/`startTo` → filter by `startAt` (calendar view) |
 | Owner stats API | `GET /api/owner/stats` — includes `gcalConnectedCount` (Business.gcalConnected=true count, limit 100 in Testing mode) |
+| Owner notifications | `src/lib/notify-owner.ts` — `notifyOwnerNewUser()` sends WhatsApp + email on new registration |
+| SEO sitemap | `src/app/sitemap.ts` — 6 public URLs, `/landing` priority 1.0 |
+| SEO robots | `src/app/robots.ts` — allows landing/register/login, disallows api/admin/dashboard |
+| Test notify endpoint | `GET /api/test-notify?secret=CRON_SECRET` — triggers fake registration notification (temporary) |

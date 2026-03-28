@@ -259,7 +259,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                 <div>
                   <label className="text-xs font-medium text-slate-600 block mb-1">תאריך לידה</label>
                   <input
-                    type="date"
+                    type="date" lang="he"
                     className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                     value={dog.birthDate}
                     onChange={(e) => setDog({ ...dog, birthDate: e.target.value })}

@@ -349,7 +349,7 @@ function SessionLogModal({
           <div>
             <label className="label">{L.dateLabel}</label>
             <input
-              type="date"
+              type="date" lang="he"
               className="input"
               value={sessionDate}
               onChange={(e) => setSessionDate(e.target.value)}
@@ -3346,7 +3346,7 @@ function GroupCard({
                 <div className="flex-1">
                   <label className="label text-[10px]">תאריך</label>
                   <input
-                    type="date"
+                    type="date" lang="he"
                     className="input text-xs py-1.5"
                     value={newSessionDate}
                     onChange={(e) => setNewSessionDate(e.target.value)}
@@ -3643,7 +3643,7 @@ function ManualAddProgramModal({
             <div>
               <label className="label">תאריך התחלה</label>
               <input
-                type="date"
+                type="date" lang="he"
                 className="input"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
@@ -4596,11 +4596,11 @@ function BoardingTrainingModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">התחלת תוכנית *</label>
-              <input type="date" className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <input type="date" lang="he" className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
             <div>
               <label className="label">סיום תוכנית *</label>
-              <input type="date" className="input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <input type="date" lang="he" className="input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
           </div>
           {(!startDate || !endDate) && (
@@ -4754,7 +4754,7 @@ function ProgramSettingsModal({
             <div>
               <label className="label">תאריך התחלה *</label>
               <input
-                type="date"
+                type="date" lang="he"
                 className="input"
                 value={form.startDate}
                 onChange={(e) => setForm({ ...form, startDate: e.target.value })}
@@ -4763,7 +4763,7 @@ function ProgramSettingsModal({
             <div>
               <label className="label">יעד סיום משוער</label>
               <input
-                type="date"
+                type="date" lang="he"
                 className="input"
                 value={form.endDate}
                 onChange={(e) => setForm({ ...form, endDate: e.target.value })}
@@ -5015,9 +5015,9 @@ function ArchiveTab({ programs, isLoading }: { programs: TrainingProgram[]; isLo
         {/* Date range */}
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-petra-muted whitespace-nowrap">מ-</span>
-          <input type="date" className="input text-xs h-8 px-2 w-32" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          <input type="date" lang="he" className="input text-xs h-8 px-2 w-32" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
           <span className="text-xs text-petra-muted whitespace-nowrap">עד-</span>
-          <input type="date" className="input text-xs h-8 px-2 w-32" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          <input type="date" lang="he" className="input text-xs h-8 px-2 w-32" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
           {(dateFrom || dateTo) && (
             <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-[10px] text-petra-muted hover:text-red-500 px-1">✕</button>
           )}
@@ -5180,7 +5180,7 @@ function AddStandaloneServiceDogModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">תאריך לידה</label>
-              <input type="date" className="input" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+              <input type="date" lang="he" className="input" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
             </div>
             <div>
               <label className="label">משקל (ק״ג)</label>
@@ -5324,7 +5324,7 @@ function CreateServiceDogProgramModal({
           </div>
           <div>
             <label className="label">תאריך התחלה</label>
-            <input type="date" className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <input type="date" lang="he" className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           </div>
         </div>
         <div className="flex gap-3 mt-6">

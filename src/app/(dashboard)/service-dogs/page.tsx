@@ -708,7 +708,7 @@ function AddServiceDogModal({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">תאריך לידה</label>
-              <input type="date" className="input" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+              <input type="date" lang="he" className="input" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
             </div>
             <div>
               <label className="label">משקל (ק״ג)</label>

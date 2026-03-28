@@ -776,7 +776,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                     <div>
                       <label className="block text-xs font-medium text-petra-muted mb-1">תאריך *</label>
                       <input
-                        type="date"
+                        type="date" lang="he"
                         className="input"
                         value={boardingCheckInDate}
                         min={toDateStr(new Date())}
@@ -813,7 +813,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                     <div>
                       <label className="block text-xs font-medium text-petra-muted mb-1">תאריך *</label>
                       <input
-                        type="date"
+                        type="date" lang="he"
                         className="input"
                         value={boardingCheckOutDate}
                         min={boardingCheckInDate || toDateStr(new Date())}

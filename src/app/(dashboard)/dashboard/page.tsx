@@ -1977,7 +1977,7 @@ function NewAppointmentModal({
             <div className="col-span-3 sm:col-span-1">
               <label className="label">תאריך *</label>
               <input
-                type="date"
+                type="date" lang="he"
                 className="input"
                 value={form.date}
                 onChange={(e) => setField("date", e.target.value)}

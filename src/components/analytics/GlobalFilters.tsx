@@ -71,14 +71,14 @@ export function GlobalFilters() {
         {filters.preset === "custom" && (
           <div className="flex items-center gap-2">
             <input
-              type="date"
+              type="date" lang="he"
               value={filters.from}
               onChange={(e) => filters.setCustomRange(e.target.value, filters.to)}
               className="text-xs border border-petra-border rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
             />
             <span className="text-xs text-gray-400">עד</span>
             <input
-              type="date"
+              type="date" lang="he"
               value={filters.to}
               onChange={(e) => filters.setCustomRange(filters.from, e.target.value)}
               className="text-xs border border-petra-border rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"

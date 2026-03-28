@@ -274,7 +274,7 @@ export default function VaccinationsPage() {
                       <td key={ci} className="p-2 text-center">
                         {isMarking ? (
                           <div className="flex items-center gap-1 justify-center no-print">
-                            <input type="date" value={markDate} onChange={e => setMarkDate(e.target.value)}
+                            <input type="date" lang="he" value={markDate} onChange={e => setMarkDate(e.target.value)}
                               className="input text-xs py-0.5 w-32 h-7" />
                             <button onClick={() => {
                               if (!markDate) return;

@@ -572,7 +572,7 @@ function AddPetModal({
               <label className="label">תאריך לידה</label>
               <input
                 className="input"
-                type="date"
+                type="date" lang="he"
                 value={form.birthDate}
                 onChange={(e) =>
                   setForm({ ...form, birthDate: e.target.value })
@@ -1342,7 +1342,7 @@ function EditPetModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">תאריך לידה</label>
-              <input className="input" type="date" value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} />
+              <input className="input" type="date" lang="he" value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} />
             </div>
             <div>
               <label className="label">מיקרוצ׳יפ</label>
@@ -1560,7 +1560,7 @@ function MedicationModal({
               <label className="label">תאריך התחלה</label>
               <input
                 className="input"
-                type="date"
+                type="date" lang="he"
                 value={form.startDate}
                 onChange={(e) => setForm({ ...form, startDate: e.target.value })}
               />
@@ -1569,7 +1569,7 @@ function MedicationModal({
               <label className="label">תאריך סיום</label>
               <input
                 className="input"
-                type="date"
+                type="date" lang="he"
                 value={form.endDate}
                 onChange={(e) => setForm({ ...form, endDate: e.target.value })}
               />
@@ -2450,7 +2450,7 @@ function QuickTaskModal({
           <div>
             <label className="label">תאריך יעד</label>
             <input
-              type="date"
+              type="date" lang="he"
               className="input w-full"
               value={form.dueDate}
               min={today}
@@ -2597,7 +2597,7 @@ function NewAppointmentModal({
           <div>
             <label className="label">תאריך *</label>
             <input
-              type="date"
+              type="date" lang="he"
               className="input w-full"
               value={form.date}
               min={today}
@@ -2861,11 +2861,11 @@ function EditHealthModal({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">תאריך חיסון</label>
-                  <input className="input" type="date" value={form.rabiesLastDate} onChange={(e) => setForm({ ...form, rabiesLastDate: e.target.value })} />
+                  <input className="input" type="date" lang="he" value={form.rabiesLastDate} onChange={(e) => setForm({ ...form, rabiesLastDate: e.target.value })} />
                 </div>
                 <div>
                   <label className="label">תוקף עד</label>
-                  <input className="input" type="date" value={form.rabiesValidUntil} onChange={(e) => setForm({ ...form, rabiesValidUntil: e.target.value })} />
+                  <input className="input" type="date" lang="he" value={form.rabiesValidUntil} onChange={(e) => setForm({ ...form, rabiesValidUntil: e.target.value })} />
                 </div>
               </div>
             </div>
@@ -2876,15 +2876,15 @@ function EditHealthModal({
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="label">מנה 1</label>
-                  <input className="input" type="date" value={form.dhppPuppy1Date} onChange={(e) => setForm({ ...form, dhppPuppy1Date: e.target.value })} />
+                  <input className="input" type="date" lang="he" value={form.dhppPuppy1Date} onChange={(e) => setForm({ ...form, dhppPuppy1Date: e.target.value })} />
                 </div>
                 <div>
                   <label className="label">מנה 2</label>
-                  <input className="input" type="date" value={form.dhppPuppy2Date} onChange={(e) => setForm({ ...form, dhppPuppy2Date: e.target.value })} />
+                  <input className="input" type="date" lang="he" value={form.dhppPuppy2Date} onChange={(e) => setForm({ ...form, dhppPuppy2Date: e.target.value })} />
                 </div>
                 <div>
                   <label className="label">מנה 3</label>
-                  <input className="input" type="date" value={form.dhppPuppy3Date} onChange={(e) => setForm({ ...form, dhppPuppy3Date: e.target.value })} />
+                  <input className="input" type="date" lang="he" value={form.dhppPuppy3Date} onChange={(e) => setForm({ ...form, dhppPuppy3Date: e.target.value })} />
                 </div>
               </div>
             </div>
@@ -2895,7 +2895,7 @@ function EditHealthModal({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">תאריך חיסון</label>
-                  <input className="input" type="date" value={form.dhppLastDate} onChange={(e) => setForm({ ...form, dhppLastDate: e.target.value })} />
+                  <input className="input" type="date" lang="he" value={form.dhppLastDate} onChange={(e) => setForm({ ...form, dhppLastDate: e.target.value })} />
                 </div>
               </div>
             </div>
@@ -2906,7 +2906,7 @@ function EditHealthModal({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">תאריך תילוע</label>
-                  <input className="input" type="date" value={form.dewormingLastDate} onChange={(e) => setForm({ ...form, dewormingLastDate: e.target.value })} />
+                  <input className="input" type="date" lang="he" value={form.dewormingLastDate} onChange={(e) => setForm({ ...form, dewormingLastDate: e.target.value })} />
                 </div>
               </div>
             </div>
@@ -2917,7 +2917,7 @@ function EditHealthModal({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">תאריך טיפול</label>
-                  <input className="input" type="date" value={form.parkWormDate} onChange={(e) => setForm({ ...form, parkWormDate: e.target.value })} />
+                  <input className="input" type="date" lang="he" value={form.parkWormDate} onChange={(e) => setForm({ ...form, parkWormDate: e.target.value })} />
                 </div>
               </div>
             </div>
@@ -2933,11 +2933,11 @@ function EditHealthModal({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="label">תאריך טיפול</label>
-                    <input className="input" type="date" value={form.fleaTickDate} onChange={(e) => setForm({ ...form, fleaTickDate: e.target.value })} />
+                    <input className="input" type="date" lang="he" value={form.fleaTickDate} onChange={(e) => setForm({ ...form, fleaTickDate: e.target.value })} />
                   </div>
                   <div>
                     <label className="label">תוקף עד</label>
-                    <input className="input" type="date" value={form.fleaTickExpiryDate} onChange={(e) => setForm({ ...form, fleaTickExpiryDate: e.target.value })} />
+                    <input className="input" type="date" lang="he" value={form.fleaTickExpiryDate} onChange={(e) => setForm({ ...form, fleaTickExpiryDate: e.target.value })} />
                   </div>
                 </div>
               </div>
@@ -2949,7 +2949,7 @@ function EditHealthModal({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">תאריך קבלה</label>
-                  <input className="input" type="date" value={form.bordatellaDate} onChange={(e) => setForm({ ...form, bordatellaDate: e.target.value })} />
+                  <input className="input" type="date" lang="he" value={form.bordatellaDate} onChange={(e) => setForm({ ...form, bordatellaDate: e.target.value })} />
                 </div>
               </div>
             </div>
@@ -3006,7 +3006,7 @@ function EditHealthModal({
               {form.neuteredSpayed && (
                 <div>
                   <label className="label">תאריך סירוס / עיקור</label>
-                  <input type="date" className="input" value={form.neuteredSpayedDate} onChange={(e) => setForm({ ...form, neuteredSpayedDate: e.target.value })} />
+                  <input type="date" lang="he" className="input" value={form.neuteredSpayedDate} onChange={(e) => setForm({ ...form, neuteredSpayedDate: e.target.value })} />
                 </div>
               )}
               <div>

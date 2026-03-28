@@ -2490,11 +2490,11 @@ function DataTab() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[11px] text-petra-muted mb-1 block">מתאריך</label>
-                  <input className="input text-sm" type="date" value={filterFromDate} onChange={(e) => setFilterFromDate(e.target.value)} />
+                  <input className="input text-sm" type="date" lang="he" value={filterFromDate} onChange={(e) => setFilterFromDate(e.target.value)} />
                 </div>
                 <div>
                   <label className="text-[11px] text-petra-muted mb-1 block">עד תאריך</label>
-                  <input className="input text-sm" type="date" value={filterToDate} onChange={(e) => setFilterToDate(e.target.value)} />
+                  <input className="input text-sm" type="date" lang="he" value={filterToDate} onChange={(e) => setFilterToDate(e.target.value)} />
                 </div>
               </div>
             </div>

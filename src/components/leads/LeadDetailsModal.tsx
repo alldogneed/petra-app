@@ -506,7 +506,7 @@ export default function LeadDetailsModal({
               <div>
                 <label className="label">תאריך הטיפול *</label>
                 <input
-                  type="date"
+                  type="date" lang="he"
                   className="input"
                   value={taskForm.dueDate}
                   onChange={(e) =>

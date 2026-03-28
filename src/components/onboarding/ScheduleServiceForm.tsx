@@ -143,7 +143,7 @@ export function ScheduleServiceForm({
           <div>
             <label className="label">תאריך</label>
             <input
-              type="date"
+              type="date" lang="he"
               className="input"
               value={date}
               onChange={(e) => setDate(e.target.value)}

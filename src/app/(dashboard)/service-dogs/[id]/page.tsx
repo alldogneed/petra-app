@@ -1089,7 +1089,7 @@ function AddTrainingForm({ dogId, onDone }: { dogId: string; onDone: () => void 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
         <div>
           <label className="label">תאריך *</label>
-          <input type="date" value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} className="input w-full" />
+          <input type="date" lang="he" value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} className="input w-full" />
         </div>
         <div>
           <label className="label">משך (דקות) *</label>
@@ -1776,11 +1776,11 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">תאריך שיבוץ</label>
-                  <input type="date" value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
+                  <input type="date" lang="he" value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
                 </div>
                 <div>
                   <label className="label">תאריך הסמכה</label>
-                  <input type="date" value={certifiedAt} onChange={(e) => setCertifiedAt(e.target.value)} className="input w-full" />
+                  <input type="date" lang="he" value={certifiedAt} onChange={(e) => setCertifiedAt(e.target.value)} className="input w-full" />
                 </div>
               </div>
               <div className="flex gap-2 pt-1">
@@ -2393,7 +2393,7 @@ function AddTrainingTestModal({
             </div>
             <div>
               <label className="label">תאריך</label>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input w-full" />
+              <input type="date" lang="he" value={date} onChange={(e) => setDate(e.target.value)} className="input w-full" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -2596,7 +2596,7 @@ function AddTrainingTestModal({
             <div>
               <label className="label">תאריך חידוש (בעוד שנה)</label>
               <input
-                type="date"
+                type="date" lang="he"
                 value={nextRenewalDate}
                 onChange={(e) => setNextRenewalDate(e.target.value)}
                 className="input w-full"
@@ -3121,7 +3121,7 @@ function IDCardTab({ dog, dogId, allowManualCert, trackHours }: { dog: ServiceDo
           <div>
             <label className="label">תאריך הסמכה</label>
             <input
-              type="date"
+              type="date" lang="he"
               className="input"
               value={certForm.certificationDate}
               onChange={(e) => setCertForm({ ...certForm, certificationDate: e.target.value })}
@@ -3130,7 +3130,7 @@ function IDCardTab({ dog, dogId, allowManualCert, trackHours }: { dog: ServiceDo
           <div>
             <label className="label">תפוגת הסמכה</label>
             <input
-              type="date"
+              type="date" lang="he"
               className="input"
               value={certForm.certificationExpiry}
               onChange={(e) => setCertForm({ ...certForm, certificationExpiry: e.target.value })}
@@ -4036,7 +4036,7 @@ function EditPetModal({
           </div>
           <div>
             <label className="label text-xs">תאריך לידה</label>
-            <input type="date" className="input w-full" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+            <input type="date" lang="he" className="input w-full" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
           </div>
           <div>
             <label className="label text-xs">משקל (ק״ג)</label>
@@ -4052,7 +4052,7 @@ function EditPetModal({
           </div>
           <div>
             <label className="label text-xs">תאריך הסמכה</label>
-            <input type="date" className="input w-full" value={certificationDate} onChange={(e) => setCertificationDate(e.target.value)} />
+            <input type="date" lang="he" className="input w-full" value={certificationDate} onChange={(e) => setCertificationDate(e.target.value)} />
           </div>
           <div className="col-span-2 flex items-center gap-2 pt-1">
             <input
@@ -4067,7 +4067,7 @@ function EditPetModal({
           {neuteredSpayed && (
             <div className="col-span-2">
               <label className="label">תאריך סירוס / עיקור</label>
-              <input type="date" className="input w-full" value={neuteredSpayedDate} onChange={(e) => setNeuteredSpayedDate(e.target.value)} />
+              <input type="date" lang="he" className="input w-full" value={neuteredSpayedDate} onChange={(e) => setNeuteredSpayedDate(e.target.value)} />
             </div>
           )}
         </div>
@@ -4161,7 +4161,7 @@ function SDExtraInfoSection({ dog, dogId }: { dog: ServiceDogDetail; dogId: stri
             </div>
             <div>
               <label className="label text-xs">תוקף רשיון</label>
-              <input type="date" className="input w-full text-sm" value={form.licenseExpiry} onChange={(e) => setForm((p) => ({ ...p, licenseExpiry: e.target.value }))} />
+              <input type="date" lang="he" className="input w-full text-sm" value={form.licenseExpiry} onChange={(e) => setForm((p) => ({ ...p, licenseExpiry: e.target.value }))} />
             </div>
             <div>
               <label className="label text-xs">קבוצת חצר</label>
@@ -4473,14 +4473,14 @@ function ClaimCard({
             {editMode ? (
               <div className="space-y-2">
                 <div className="grid grid-cols-2 gap-2">
-                  <div><label className="label text-xs">תאריך אירוע</label><input type="date" className="input w-full text-xs" value={editForm.incidentDate} onChange={(e) => setEditForm((p) => ({ ...p, incidentDate: e.target.value }))} /></div>
+                  <div><label className="label text-xs">תאריך אירוע</label><input type="date" lang="he" className="input w-full text-xs" value={editForm.incidentDate} onChange={(e) => setEditForm((p) => ({ ...p, incidentDate: e.target.value }))} /></div>
                   <div><label className="label text-xs">מספר תביעה</label><input className="input w-full text-xs" value={editForm.claimNumber} onChange={(e) => setEditForm((p) => ({ ...p, claimNumber: e.target.value }))} /></div>
                   <div><label className="label text-xs">וטרינר</label><input className="input w-full text-xs" value={editForm.vetName} onChange={(e) => setEditForm((p) => ({ ...p, vetName: e.target.value }))} /></div>
                   <div><label className="label text-xs">סכום תביעה (₪)</label><input type="number" className="input w-full text-xs" value={editForm.amount} onChange={(e) => setEditForm((p) => ({ ...p, amount: e.target.value }))} /></div>
                   <div><label className="label text-xs">השתתפות עצמית (₪)</label><input type="number" className="input w-full text-xs" value={editForm.deductiblePaid} onChange={(e) => setEditForm((p) => ({ ...p, deductiblePaid: e.target.value }))} /></div>
                   <div><label className="label text-xs">סכום שהוחזר (₪)</label><input type="number" className="input w-full text-xs" value={editForm.reimbursedAmount} onChange={(e) => setEditForm((p) => ({ ...p, reimbursedAmount: e.target.value }))} /></div>
-                  <div><label className="label text-xs">תאריך הגשה</label><input type="date" className="input w-full text-xs" value={editForm.submittedAt} onChange={(e) => setEditForm((p) => ({ ...p, submittedAt: e.target.value }))} /></div>
-                  <div><label className="label text-xs">🔔 תאריך מעקב</label><input type="date" className="input w-full text-xs" value={editForm.followUpAt} onChange={(e) => setEditForm((p) => ({ ...p, followUpAt: e.target.value }))} /></div>
+                  <div><label className="label text-xs">תאריך הגשה</label><input type="date" lang="he" className="input w-full text-xs" value={editForm.submittedAt} onChange={(e) => setEditForm((p) => ({ ...p, submittedAt: e.target.value }))} /></div>
+                  <div><label className="label text-xs">🔔 תאריך מעקב</label><input type="date" lang="he" className="input w-full text-xs" value={editForm.followUpAt} onChange={(e) => setEditForm((p) => ({ ...p, followUpAt: e.target.value }))} /></div>
                 </div>
                 <div><label className="label text-xs">תיאור האירוע</label><textarea className="input w-full text-xs" rows={2} value={editForm.description} onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))} /></div>
                 <div className="flex gap-2">
@@ -4931,8 +4931,8 @@ function EditInsuranceModal({
             </div>
             <div><label className="label text-xs">פרמיה שנתית (₪)</label><input type="number" className="input w-full text-sm" value={form.premium} onChange={f("premium")} /></div>
             <div><label className="label text-xs">השתתפות עצמית (₪)</label><input type="number" className="input w-full text-sm" value={form.deductible} onChange={f("deductible")} /></div>
-            <div><label className="label text-xs">תחילת כיסוי</label><input type="date" className="input w-full text-sm" value={form.startDate} onChange={f("startDate")} /></div>
-            <div><label className="label text-xs">תאריך חידוש</label><input type="date" className="input w-full text-sm" value={form.renewalDate} onChange={f("renewalDate")} /></div>
+            <div><label className="label text-xs">תחילת כיסוי</label><input type="date" lang="he" className="input w-full text-sm" value={form.startDate} onChange={f("startDate")} /></div>
+            <div><label className="label text-xs">תאריך חידוש</label><input type="date" lang="he" className="input w-full text-sm" value={form.renewalDate} onChange={f("renewalDate")} /></div>
             <div className="flex items-center gap-2 pt-4">
               <input
                 type="checkbox"
@@ -4987,8 +4987,8 @@ function AddInsuranceForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<s
         </div>
         <div><label className="label text-xs">פרמיה שנתית (₪)</label><input type="number" className="input w-full text-sm" value={form.premium} onChange={f("premium")} /></div>
         <div><label className="label text-xs">השתתפות עצמית (₪)</label><input type="number" className="input w-full text-sm" value={form.deductible} onChange={f("deductible")} /></div>
-        <div><label className="label text-xs">תחילת כיסוי</label><input type="date" className="input w-full text-sm" value={form.startDate} onChange={f("startDate")} /></div>
-        <div><label className="label text-xs">תאריך חידוש</label><input type="date" className="input w-full text-sm" value={form.renewalDate} onChange={f("renewalDate")} /></div>
+        <div><label className="label text-xs">תחילת כיסוי</label><input type="date" lang="he" className="input w-full text-sm" value={form.startDate} onChange={f("startDate")} /></div>
+        <div><label className="label text-xs">תאריך חידוש</label><input type="date" lang="he" className="input w-full text-sm" value={form.renewalDate} onChange={f("renewalDate")} /></div>
       </div>
       <div><label className="label text-xs">הערות</label><textarea className="input w-full text-sm" rows={2} value={form.notes} onChange={f("notes")} /></div>
       {/* File upload */}
@@ -5040,7 +5040,7 @@ function AddClaimForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<strin
         <FileTextIcon className="w-4 h-4" /> תביעה חדשה
       </h4>
       <div className="grid grid-cols-2 gap-2">
-        <div><label className="label text-xs">תאריך אירוע *</label><input type="date" className="input w-full text-sm" value={form.incidentDate} onChange={f("incidentDate")} /></div>
+        <div><label className="label text-xs">תאריך אירוע *</label><input type="date" lang="he" className="input w-full text-sm" value={form.incidentDate} onChange={f("incidentDate")} /></div>
         <div><label className="label text-xs">סטטוס</label>
           <select className="input w-full text-sm" value={form.status} onChange={f("status")}>
             {CLAIM_STATUSES.filter((s) => (CLAIM_OPEN_STATUSES as readonly string[]).includes(s.id)).map((s) => (
@@ -5052,8 +5052,8 @@ function AddClaimForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<strin
         <div><label className="label text-xs">וטרינר</label><input className="input w-full text-sm" value={form.vetName} onChange={f("vetName")} /></div>
         <div><label className="label text-xs">סכום תביעה (₪)</label><input type="number" className="input w-full text-sm" value={form.amount} onChange={f("amount")} /></div>
         <div><label className="label text-xs">השתתפות עצמית (₪)</label><input type="number" className="input w-full text-sm" value={form.deductiblePaid} onChange={f("deductiblePaid")} /></div>
-        <div><label className="label text-xs">תאריך הגשה</label><input type="date" className="input w-full text-sm" value={form.submittedAt} onChange={f("submittedAt")} /></div>
-        <div><label className="label text-xs">🔔 תאריך מעקב</label><input type="date" className="input w-full text-sm" value={form.followUpAt} onChange={f("followUpAt")} /></div>
+        <div><label className="label text-xs">תאריך הגשה</label><input type="date" lang="he" className="input w-full text-sm" value={form.submittedAt} onChange={f("submittedAt")} /></div>
+        <div><label className="label text-xs">🔔 תאריך מעקב</label><input type="date" lang="he" className="input w-full text-sm" value={form.followUpAt} onChange={f("followUpAt")} /></div>
       </div>
       <div><label className="label text-xs">תיאור האירוע</label><textarea className="input w-full text-sm" rows={2} value={form.description} onChange={f("description")} /></div>
       {/* Document uploads */}
@@ -5302,11 +5302,11 @@ function VaccineRenewalModal({
         <div className="space-y-3">
           <div>
             <label className="label">תאריך חיסון חדש *</label>
-            <input type="date" className="input" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+            <input type="date" lang="he" className="input" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
           </div>
           <div>
             <label className="label">תוקף עד</label>
-            <input type="date" className="input" value={newValidUntil} onChange={(e) => setNewValidUntil(e.target.value)} />
+            <input type="date" lang="he" className="input" value={newValidUntil} onChange={(e) => setNewValidUntil(e.target.value)} />
           </div>
           <p className="text-xs text-petra-muted bg-slate-50 rounded-lg p-2.5">
             החיסון הנוכחי יישמר בהיסטוריה ויוצג ניתן לצפייה תחת שורת החיסון.
@@ -5375,11 +5375,11 @@ function TreatmentRenewalModal({
         <div className="space-y-3">
           <div>
             <label className="label">תאריך טיפול חדש *</label>
-            <input type="date" className="input" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+            <input type="date" lang="he" className="input" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
           </div>
           <div>
             <label className="label">תוקף עד</label>
-            <input type="date" className="input" value={newValidUntil} onChange={(e) => setNewValidUntil(e.target.value)} />
+            <input type="date" lang="he" className="input" value={newValidUntil} onChange={(e) => setNewValidUntil(e.target.value)} />
           </div>
         </div>
         <div className="flex gap-3 mt-5">
@@ -5463,44 +5463,44 @@ function SDHealthModal({
             <div>
               <p className="text-xs font-medium mb-2">כלבת — אחת לשנה</p>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">תאריך חיסון</label><input className="input" type="date" value={form.rabiesLastDate} onChange={(e) => setForm({ ...form, rabiesLastDate: e.target.value })} /></div>
-                <div><label className="label">תוקף עד</label><input className="input" type="date" value={form.rabiesValidUntil} onChange={(e) => setForm({ ...form, rabiesValidUntil: e.target.value })} /></div>
+                <div><label className="label">תאריך חיסון</label><input className="input" type="date" lang="he" value={form.rabiesLastDate} onChange={(e) => setForm({ ...form, rabiesLastDate: e.target.value })} /></div>
+                <div><label className="label">תוקף עד</label><input className="input" type="date" lang="he" value={form.rabiesValidUntil} onChange={(e) => setForm({ ...form, rabiesValidUntil: e.target.value })} /></div>
               </div>
             </div>
             <div>
               <p className="text-xs font-medium mb-2">משושה גורים — 3 מנות</p>
               <div className="grid grid-cols-3 gap-3">
-                <div><label className="label">מנה 1</label><input className="input" type="date" value={form.dhppPuppy1Date} onChange={(e) => setForm({ ...form, dhppPuppy1Date: e.target.value })} /></div>
-                <div><label className="label">מנה 2</label><input className="input" type="date" value={form.dhppPuppy2Date} onChange={(e) => setForm({ ...form, dhppPuppy2Date: e.target.value })} /></div>
-                <div><label className="label">מנה 3</label><input className="input" type="date" value={form.dhppPuppy3Date} onChange={(e) => setForm({ ...form, dhppPuppy3Date: e.target.value })} /></div>
+                <div><label className="label">מנה 1</label><input className="input" type="date" lang="he" value={form.dhppPuppy1Date} onChange={(e) => setForm({ ...form, dhppPuppy1Date: e.target.value })} /></div>
+                <div><label className="label">מנה 2</label><input className="input" type="date" lang="he" value={form.dhppPuppy2Date} onChange={(e) => setForm({ ...form, dhppPuppy2Date: e.target.value })} /></div>
+                <div><label className="label">מנה 3</label><input className="input" type="date" lang="he" value={form.dhppPuppy3Date} onChange={(e) => setForm({ ...form, dhppPuppy3Date: e.target.value })} /></div>
               </div>
             </div>
             <div>
               <p className="text-xs font-medium mb-2">משושה בוגר (DHPP)</p>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">תאריך חיסון</label><input className="input" type="date" value={form.dhppLastDate} onChange={(e) => setForm({ ...form, dhppLastDate: e.target.value })} /></div>
-                <div><label className="label">תוקף עד</label><input className="input" type="date" value={form.dhppValidUntil} onChange={(e) => setForm({ ...form, dhppValidUntil: e.target.value })} /></div>
+                <div><label className="label">תאריך חיסון</label><input className="input" type="date" lang="he" value={form.dhppLastDate} onChange={(e) => setForm({ ...form, dhppLastDate: e.target.value })} /></div>
+                <div><label className="label">תוקף עד</label><input className="input" type="date" lang="he" value={form.dhppValidUntil} onChange={(e) => setForm({ ...form, dhppValidUntil: e.target.value })} /></div>
               </div>
             </div>
             <div>
               <p className="text-xs font-medium mb-2">שעלת מכלאות</p>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">תאריך קבלה</label><input className="input" type="date" value={form.bordatellaDate} onChange={(e) => setForm({ ...form, bordatellaDate: e.target.value })} /></div>
-                <div><label className="label">תוקף עד</label><input className="input" type="date" value={form.bordatellaValidUntil} onChange={(e) => setForm({ ...form, bordatellaValidUntil: e.target.value })} /></div>
+                <div><label className="label">תאריך קבלה</label><input className="input" type="date" lang="he" value={form.bordatellaDate} onChange={(e) => setForm({ ...form, bordatellaDate: e.target.value })} /></div>
+                <div><label className="label">תוקף עד</label><input className="input" type="date" lang="he" value={form.bordatellaValidUntil} onChange={(e) => setForm({ ...form, bordatellaValidUntil: e.target.value })} /></div>
               </div>
             </div>
             <div>
               <p className="text-xs font-medium mb-2">תולעת הפארק</p>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">תאריך טיפול</label><input className="input" type="date" value={form.parkWormDate} onChange={(e) => setForm({ ...form, parkWormDate: e.target.value })} /></div>
-                <div><label className="label">תוקף עד</label><input className="input" type="date" value={(form as unknown as Record<string, string>).parkWormValidUntil ?? ""} onChange={(e) => setForm({ ...form, parkWormValidUntil: e.target.value })} /></div>
+                <div><label className="label">תאריך טיפול</label><input className="input" type="date" lang="he" value={form.parkWormDate} onChange={(e) => setForm({ ...form, parkWormDate: e.target.value })} /></div>
+                <div><label className="label">תוקף עד</label><input className="input" type="date" lang="he" value={(form as unknown as Record<string, string>).parkWormValidUntil ?? ""} onChange={(e) => setForm({ ...form, parkWormValidUntil: e.target.value })} /></div>
               </div>
             </div>
             <div>
               <p className="text-xs font-medium mb-2">תילוע</p>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">תאריך תילוע</label><input className="input" type="date" value={form.dewormingLastDate} onChange={(e) => setForm({ ...form, dewormingLastDate: e.target.value })} /></div>
-                <div><label className="label">תוקף עד</label><input className="input" type="date" value={(form as unknown as Record<string, string>).dewormingValidUntil ?? ""} onChange={(e) => setForm({ ...form, dewormingValidUntil: e.target.value })} /></div>
+                <div><label className="label">תאריך תילוע</label><input className="input" type="date" lang="he" value={form.dewormingLastDate} onChange={(e) => setForm({ ...form, dewormingLastDate: e.target.value })} /></div>
+                <div><label className="label">תוקף עד</label><input className="input" type="date" lang="he" value={(form as unknown as Record<string, string>).dewormingValidUntil ?? ""} onChange={(e) => setForm({ ...form, dewormingValidUntil: e.target.value })} /></div>
               </div>
             </div>
             <div>
@@ -5508,8 +5508,8 @@ function SDHealthModal({
               <div className="space-y-2">
                 <div><label className="label">סוג טיפול</label><input className="input" placeholder="Nexgard, Bravecto..." value={form.fleaTickType} onChange={(e) => setForm({ ...form, fleaTickType: e.target.value })} /></div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div><label className="label">תאריך טיפול</label><input className="input" type="date" value={form.fleaTickDate} onChange={(e) => setForm({ ...form, fleaTickDate: e.target.value })} /></div>
-                  <div><label className="label">תוקף עד</label><input className="input" type="date" value={form.fleaTickExpiryDate} onChange={(e) => setForm({ ...form, fleaTickExpiryDate: e.target.value })} /></div>
+                  <div><label className="label">תאריך טיפול</label><input className="input" type="date" lang="he" value={form.fleaTickDate} onChange={(e) => setForm({ ...form, fleaTickDate: e.target.value })} /></div>
+                  <div><label className="label">תוקף עד</label><input className="input" type="date" lang="he" value={form.fleaTickExpiryDate} onChange={(e) => setForm({ ...form, fleaTickExpiryDate: e.target.value })} /></div>
                 </div>
               </div>
             </div>
@@ -5540,7 +5540,7 @@ function SDHealthModal({
               {form.neuteredSpayed && (
                 <div>
                   <label className="label">תאריך סירוס / עיקור</label>
-                  <input type="date" className="input" value={form.neuteredSpayedDate} onChange={(e) => setForm({ ...form, neuteredSpayedDate: e.target.value })} />
+                  <input type="date" lang="he" className="input" value={form.neuteredSpayedDate} onChange={(e) => setForm({ ...form, neuteredSpayedDate: e.target.value })} />
                 </div>
               )}
               <div><label className="label">מקור</label><input className="input" value={form.originInfo} onChange={(e) => setForm({ ...form, originInfo: e.target.value })} placeholder="מאמץ, מגדל..." /></div>
@@ -5810,8 +5810,8 @@ function SDMedModal({
           <div><label className="label">שעות מתן</label><input className="input" value={form.times} onChange={(e) => setForm({ ...form, times: e.target.value })} placeholder="07:00, 19:00" /></div>
           <div><label className="label">הוראות</label><input className="input" value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} /></div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="label">תאריך התחלה</label><input className="input" type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} /></div>
-            <div><label className="label">תאריך סיום</label><input className="input" type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} /></div>
+            <div><label className="label">תאריך התחלה</label><input className="input" type="date" lang="he" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} /></div>
+            <div><label className="label">תאריך סיום</label><input className="input" type="date" lang="he" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} /></div>
           </div>
         </div>
         <div className="flex gap-3 mt-6">
@@ -6215,7 +6215,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
                         {isMarking && (
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col gap-2 min-w-[180px]">
                             <input
-                              type="date"
+                              type="date" lang="he"
                               value={markDate}
                               onChange={e => setMarkDate(e.target.value)}
                               className="input text-xs py-0.5 h-8"

@@ -1477,7 +1477,7 @@ function ExtendStayDialog({
           <div>
             <label className="label">{hasCheckout ? "תאריך יציאה חדש *" : "תאריך יציאה *"}</label>
             <input
-              type="date"
+              type="date" lang="he"
               className="input"
               value={newCheckout}
               min={minDate}
@@ -2694,13 +2694,13 @@ function BoardingPageContent() {
           <div className="flex items-center gap-1.5 flex-wrap">
             <Calendar className="w-3.5 h-3.5 text-petra-muted flex-shrink-0" />
             <input
-              type="date" value={occDraftFrom}
+              type="date" lang="he" value={occDraftFrom}
               onChange={e => setOccDraftFrom(e.target.value)}
               className="text-xs border border-petra-border rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400 h-7 w-32"
             />
             <span className="text-xs text-petra-muted">—</span>
             <input
-              type="date" value={occDraftTo} min={occDraftFrom}
+              type="date" lang="he" value={occDraftTo} min={occDraftFrom}
               onChange={e => setOccDraftTo(e.target.value)}
               className="text-xs border border-petra-border rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400 h-7 w-32"
             />
@@ -3520,7 +3520,7 @@ function BoardingPageContent() {
                 <label className="label">צ׳ק-אין *</label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
-                    type="date"
+                    type="date" lang="he"
                     className="input"
                     value={form.checkIn}
                     onChange={(e) => setForm({ ...form, checkIn: e.target.value })}
@@ -3542,7 +3542,7 @@ function BoardingPageContent() {
                 <label className="label">צ׳ק-אאוט</label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
-                    type="date"
+                    type="date" lang="he"
                     className="input"
                     value={form.checkOut}
                     onChange={(e) => setForm({ ...form, checkOut: e.target.value })}

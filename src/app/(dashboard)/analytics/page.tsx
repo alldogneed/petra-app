@@ -197,14 +197,14 @@ function AnalyticsContent() {
           {dateMode === "custom" && (
             <>
               <input
-                type="date"
+                type="date" lang="he"
                 value={customFrom}
                 onChange={(e) => setCustomFrom(e.target.value)}
                 className="input px-3 py-1.5 text-sm w-36"
               />
               <span className="text-xs text-petra-muted">עד</span>
               <input
-                type="date"
+                type="date" lang="he"
                 value={customTo}
                 onChange={(e) => setCustomTo(e.target.value)}
                 className="input px-3 py-1.5 text-sm w-36"

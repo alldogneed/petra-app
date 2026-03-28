@@ -323,7 +323,7 @@ function WeightSection({ petId }: { petId: string }) {
               <label className="label text-xs">תאריך</label>
               <input
                 className="input text-sm"
-                type="date"
+                type="date" lang="he"
                 value={form.recordedAt}
                 onChange={(e) => setForm({ ...form, recordedAt: e.target.value })}
               />

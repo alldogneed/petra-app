@@ -880,7 +880,7 @@ function DraggableLeadCard({
                     })}
                   </div>
                   <input
-                    type="date"
+                    type="date" lang="he"
                     className="input text-xs w-full"
                     value={pickerDate}
                     min={new Date().toISOString().slice(0, 10)}
@@ -1836,7 +1836,7 @@ function LeadsPageContent() {
                 <div>
                   <label className="text-xs text-petra-muted mb-1 block">מתאריך</label>
                   <input
-                    type="date"
+                    type="date" lang="he"
                     className="input text-sm py-1.5"
                     value={exportFrom}
                     onChange={(e) => setExportFrom(e.target.value)}
@@ -1845,7 +1845,7 @@ function LeadsPageContent() {
                 <div>
                   <label className="text-xs text-petra-muted mb-1 block">עד תאריך</label>
                   <input
-                    type="date"
+                    type="date" lang="he"
                     className="input text-sm py-1.5"
                     value={exportTo}
                     onChange={(e) => setExportTo(e.target.value)}

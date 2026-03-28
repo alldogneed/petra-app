@@ -209,7 +209,7 @@ function BookingsContent() {
         </div>
         <div className="flex gap-2 items-center">
           <input
-            type="date"
+            type="date" lang="he"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
             className="input text-xs py-1.5 px-2"
@@ -217,7 +217,7 @@ function BookingsContent() {
           />
           <span className="text-xs text-petra-muted">עד</span>
           <input
-            type="date"
+            type="date" lang="he"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
             className="input text-xs py-1.5 px-2"

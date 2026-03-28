@@ -690,7 +690,7 @@ export default function TasksPage() {
         <div className="flex items-center gap-2">
           <Calendar className="w-3.5 h-3.5 text-petra-muted flex-shrink-0" />
           <input
-            type="date"
+            type="date" lang="he"
             className="input text-xs py-1.5 px-2 w-[130px]"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
@@ -698,7 +698,7 @@ export default function TasksPage() {
           />
           <span className="text-xs text-petra-muted">עד</span>
           <input
-            type="date"
+            type="date" lang="he"
             className="input text-xs py-1.5 px-2 w-[130px]"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
@@ -1122,11 +1122,11 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label">תחילה מ *</label>
-                <input type="date" className="input w-full" value={ruleForm.startAt} onChange={(e) => setRuleForm({ ...ruleForm, startAt: e.target.value })} />
+                <input type="date" lang="he" className="input w-full" value={ruleForm.startAt} onChange={(e) => setRuleForm({ ...ruleForm, startAt: e.target.value })} />
               </div>
               <div>
                 <label className="label">סיום (אופציונלי)</label>
-                <input type="date" className="input w-full" value={ruleForm.endAt} onChange={(e) => setRuleForm({ ...ruleForm, endAt: e.target.value })} />
+                <input type="date" lang="he" className="input w-full" value={ruleForm.endAt} onChange={(e) => setRuleForm({ ...ruleForm, endAt: e.target.value })} />
               </div>
             </div>
             <div className="flex gap-2">
@@ -1678,7 +1678,7 @@ function NewTaskModal({
             <div>
               <label className="label">תאריך יעד *</label>
               <input
-                type="date"
+                type="date" lang="he"
                 className="input"
                 value={form.dueDate}
                 onChange={(e) =>
@@ -1838,7 +1838,7 @@ function EditTaskModal({
             <div>
               <label className="label">תאריך יעד</label>
               <input
-                type="date"
+                type="date" lang="he"
                 className="input"
                 value={form.dueDate}
                 onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
@@ -1960,7 +1960,7 @@ function PostponeModal({
           <div>
             <label className="label">תאריך חדש</label>
             <input
-              type="date"
+              type="date" lang="he"
               className="input"
               value={newDate}
               onChange={(e) => setNewDate(e.target.value)}

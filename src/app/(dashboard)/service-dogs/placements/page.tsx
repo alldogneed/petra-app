@@ -559,17 +559,17 @@ function EditPlacementModal({
 
           <div>
             <label className="label">תאריך שיבוץ</label>
-            <input type="date" value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
+            <input type="date" lang="he" value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
           </div>
 
           <div>
             <label className="label">תאריך הסמכה</label>
-            <input type="date" value={certifiedAt} onChange={(e) => setCertifiedAt(e.target.value)} className="input w-full" />
+            <input type="date" lang="he" value={certifiedAt} onChange={(e) => setCertifiedAt(e.target.value)} className="input w-full" />
           </div>
 
           <div>
             <label className="label">בדיקת מעקב הבאה</label>
-            <input type="date" value={nextCheckInAt} onChange={(e) => setNextCheckInAt(e.target.value)} className="input w-full" />
+            <input type="date" lang="he" value={nextCheckInAt} onChange={(e) => setNextCheckInAt(e.target.value)} className="input w-full" />
           </div>
 
           <div>
@@ -706,12 +706,12 @@ function AddPlacementModal({
 
           <div>
             <label className="label">תאריך שיבוץ</label>
-            <input type="date" value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
+            <input type="date" lang="he" value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
           </div>
 
           <div>
             <label className="label">תאריך הסמכה</label>
-            <input type="date" value={certifiedAt} onChange={(e) => setCertifiedAt(e.target.value)} className="input w-full" />
+            <input type="date" lang="he" value={certifiedAt} onChange={(e) => setCertifiedAt(e.target.value)} className="input w-full" />
           </div>
 
           <div>

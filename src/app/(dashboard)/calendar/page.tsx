@@ -578,7 +578,7 @@ function NewAppointmentModal({
             <div>
               <label className="label">תאריך *</label>
               <input
-                type="date"
+                type="date" lang="he"
                 className="input"
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
@@ -2298,7 +2298,7 @@ function CalendarContent() {
                   <div>
                     <label className="label text-[10px]">תאריך</label>
                     <input
-                      type="date"
+                      type="date" lang="he"
                       className="input text-xs py-1.5"
                       value={rescheduleForm.date}
                       onChange={(e) => setRescheduleForm({ ...rescheduleForm, date: e.target.value })}

@@ -1146,7 +1146,7 @@ function QuickBookModal({
             <div>
               <label className="label">תאריך *</label>
               <input
-                type="date"
+                type="date" lang="he"
                 className="input"
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}

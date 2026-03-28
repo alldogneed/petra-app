@@ -571,7 +571,7 @@ function OrdersPageContent() {
                 מתאריך
               </p>
               <input
-                type="date"
+                type="date" lang="he"
                 className="input text-sm py-2"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
@@ -580,7 +580,7 @@ function OrdersPageContent() {
             <div>
               <p className="text-xs font-medium text-petra-muted mb-1.5">עד תאריך</p>
               <input
-                type="date"
+                type="date" lang="he"
                 className="input text-sm py-2"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}

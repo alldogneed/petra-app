@@ -184,7 +184,7 @@ function VaccineCell({
         ) : (
           <div className="flex items-center gap-1">
             <input
-              type="date"
+              type="date" lang="he"
               value={confirmDate}
               onChange={(e) => setConfirmDate(e.target.value)}
               className="text-[10px] border border-slate-300 rounded px-1 py-0.5 w-[90px] focus:outline-none focus:ring-1 focus:ring-brand-400"

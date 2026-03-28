@@ -1020,7 +1020,7 @@ function EditRecipientModal({
             </div>
             <div>
               <label className="label text-xs">תאריך הסמכה</label>
-              <input type="date" className="input w-full" value={handoverDate} onChange={(e) => setHandoverDate(e.target.value)} />
+              <input type="date" lang="he" className="input w-full" value={handoverDate} onChange={(e) => setHandoverDate(e.target.value)} />
             </div>
           </div>
         </div>
@@ -1269,7 +1269,7 @@ function MeetingModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">תאריך</label>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input w-full" />
+              <input type="date" lang="he" value={date} onChange={(e) => setDate(e.target.value)} className="input w-full" />
             </div>
             <div>
               <label className="label">משך (דקות)</label>

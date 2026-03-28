@@ -189,7 +189,7 @@ function EditModal({
             <div>
               <label className="label">תאריך התחלה</label>
               <input
-                type="date"
+                type="date" lang="he"
                 className="input w-full"
                 value={form.startDate}
                 onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
@@ -198,7 +198,7 @@ function EditModal({
             <div>
               <label className="label">תאריך סיום</label>
               <input
-                type="date"
+                type="date" lang="he"
                 className="input w-full"
                 value={form.endDate}
                 onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
@@ -385,7 +385,7 @@ function AddModal({ onClose }: { onClose: () => void }) {
             <div>
               <label className="label">תאריך התחלה</label>
               <input
-                type="date"
+                type="date" lang="he"
                 className="input w-full"
                 value={form.startDate}
                 onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
@@ -394,7 +394,7 @@ function AddModal({ onClose }: { onClose: () => void }) {
             <div>
               <label className="label">תאריך סיום</label>
               <input
-                type="date"
+                type="date" lang="he"
                 className="input w-full"
                 value={form.endDate}
                 onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
