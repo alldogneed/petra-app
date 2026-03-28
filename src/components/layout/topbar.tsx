@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import NextImage from "next/image";
 import {
   Menu,
   LogOut,
@@ -706,25 +707,15 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             aria-label={`תפריט משתמש — ${displayName}`}
             className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition-all duration-150 group"
           >
-            <div aria-hidden="true" className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
+            <div aria-hidden="true" className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 bg-white border border-slate-200">
               {businessInfo?.logo ? (
-                <img
+                <NextImage
                   src={businessInfo.logo}
                   alt="לוגו"
-                  className="w-full h-full object-contain bg-white border border-slate-200 rounded-lg p-0.5"
-                  onError={(e) => {
-                    const el = e.target as HTMLImageElement;
-                    el.style.display = "none";
-                    const parent = el.parentElement!;
-                    parent.style.background = "linear-gradient(135deg, #F97316 0%, #FB923C 100%)";
-                    parent.style.display = "flex";
-                    parent.style.alignItems = "center";
-                    parent.style.justifyContent = "center";
-                    parent.style.color = "white";
-                    parent.style.fontWeight = "700";
-                    parent.style.fontSize = "14px";
-                    parent.innerHTML = initials;
-                  }}
+                  width={32}
+                  height={32}
+                  className="w-full h-full object-contain p-0.5"
+                  unoptimized
                 />
               ) : (
                 <div
@@ -776,18 +767,15 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             <div className="p-6 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 {/* Avatar: business logo if exists, otherwise initials */}
-                <div className="w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden">
+                <div className="w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden bg-white border border-slate-200">
                   {businessInfo?.logo ? (
-                    <img
+                    <NextImage
                       src={businessInfo.logo}
                       alt="לוגו עסק"
-                      className="w-full h-full object-contain bg-white border border-slate-200 rounded-xl p-1"
-                      onError={(e) => {
-                        const el = e.target as HTMLImageElement;
-                        el.style.display = "none";
-                        el.parentElement!.style.background = "linear-gradient(135deg, #F97316 0%, #FB923C 100%)";
-                        el.parentElement!.innerHTML = `<span style="color:white;font-size:18px;font-weight:700;width:100%;height:100%;display:flex;align-items:center;justify-content:center">${initials}</span>`;
-                      }}
+                      width={48}
+                      height={48}
+                      className="w-full h-full object-contain p-1"
+                      unoptimized
                     />
                   ) : (
                     <div
