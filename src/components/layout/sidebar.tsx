@@ -33,7 +33,6 @@ import {
   Activity,
   AlertTriangle,
   ShieldCheck,
-  MessageSquare,
   Lock,
 } from "lucide-react";
 import { hasFeatureWithOverrides, type FeatureKey, type TierKey } from "@/lib/feature-flags";
@@ -91,7 +90,6 @@ const navEntries: NavEntry[] = [
   { name: "ניהול תהליכי אילוף", href: "/training", icon: Dog, hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "חיות מחמד", href: "/pets", icon: PawPrint, minRole: "manager", lockedFeature: "pets_advanced" },
   { name: "יומן", href: "/calendar", icon: Calendar, minRole: "manager" },
-  { name: "הודעות", href: "/messages", icon: MessageSquare, minRole: "manager", lockedFeature: "custom_messages" },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner", lockedFeature: "analytics" },
   { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner", lockedFeature: "staff_management" },
   { name: "הגדרות", href: "/settings", icon: Settings, minRole: "owner" },
