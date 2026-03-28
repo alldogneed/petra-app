@@ -11,9 +11,9 @@ const TABS = [
   { name: "כלבים",          href: "/service-dogs/dogs",         icon: Dog             },
   { name: "זכאים",          href: "/service-dogs/recipients",   icon: UserCheck,      requirePerm: "canSeeRecipientsSensitive" as const },
   { name: "שיבוצים",        href: "/service-dogs/placements",   icon: Activity,       requirePerm: "canSeeRecipientsSensitive" as const },
+  { name: "חיסונים",        href: "/service-dogs/vaccinations", icon: Syringe         },
   { name: "תעודות הסמכה",  href: "/service-dogs/id-cards",     icon: CreditCard      },
   { name: "דוחות פנימיים", href: "/service-dogs/reports",      icon: BarChart2       },
-  { name: "חיסונים",        href: "/service-dogs/vaccinations", icon: Syringe         },
 ];
 
 export function ServiceDogsTabs() {

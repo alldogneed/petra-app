@@ -87,22 +87,7 @@ function ServiceDogsReportsPageContent() {
   const inTraining = dogs.filter((d) => ["IN_TRAINING", "ADVANCED_TRAINING"].includes(d.phase));
   const placed = dogs.filter((d) => d.activePlacement?.status === "ACTIVE");
 
-  const medicalRedDogs = dogs.filter((d) => d.medicalCompliance.status === "red");
-  const medicalAmberDogs = dogs.filter((d) => d.medicalCompliance.status === "amber");
-
-  const avgCompliance = totalDogs > 0
-    ? Math.round(dogs.reduce((sum, d) => sum + d.medicalCompliance.compliancePercent, 0) / totalDogs)
-    : 0;
-
-  const activePrograms = programs.filter((p) => p.status === "ACTIVE");
   const now = new Date();
-  const ago14 = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-  const stalePrograms = activePrograms.filter((p) => {
-    const lastDone = p.sessions.filter((s) => s.status === "COMPLETED").sort((a, b) =>
-      new Date(b.sessionDate).getTime() - new Date(a.sessionDate).getTime()
-    )[0];
-    return !lastDone || new Date(lastDone.sessionDate) < ago14;
-  });
 
   // Upcoming renewals (next 90 days)
   const in90Days = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
@@ -154,7 +139,7 @@ function ServiceDogsReportsPageContent() {
             <BarChart2 className="w-6 h-6 text-brand-500" />
             דוחות פנימיים — כלבי שירות
           </h1>
-          <p className="text-sm text-petra-muted mt-1">סיכום תפעולי · ציות רפואי · אימונים · שיבוצים</p>
+          <p className="text-sm text-petra-muted mt-1">סיכום תפעולי · אימונים · שיבוצים</p>
         </div>
         <div className="flex items-center gap-2">
           <a
@@ -207,7 +192,6 @@ function ServiceDogsReportsPageContent() {
                   <span class="stat">מוסמכים: <strong>${certified.length}</strong></span>
                   <span class="stat">באימון: <strong>${inTraining.length}</strong></span>
                   <span class="stat">משובצים: <strong>${placed.length}</strong></span>
-                  <span class="stat">ציות רפואי ממוצע: <strong>${avgCompliance}%</strong></span>
                 </div>
                 <h2>כלבים מוסמכים (${certified.length})</h2>
                 <table><thead><tr><th>שם</th><th>גזע</th><th>תאריך הסמכה</th><th>שיבוץ</th></tr></thead><tbody>${certRows}</tbody></table>
@@ -336,134 +320,6 @@ function ServiceDogsReportsPageContent() {
                   );
                 })}
               </div>
-            </div>
-
-            {/* ── Medical Compliance ─────────────────────────────────────── */}
-            <div className="card p-5">
-              <h2 className="font-semibold mb-4 flex items-center gap-2">
-                <Heart className="w-4 h-4 text-red-500" />
-                ציות רפואי
-              </h2>
-              <div className="flex items-center gap-4 mb-4">
-                <div className={cn(
-                  "w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold border-4",
-                  avgCompliance >= 80 ? "border-emerald-400 text-emerald-700 bg-emerald-50"
-                    : avgCompliance >= 60 ? "border-amber-400 text-amber-700 bg-amber-50"
-                    : "border-red-400 text-red-700 bg-red-50"
-                )}>
-                  {avgCompliance}%
-                </div>
-                <div>
-                  <p className="font-semibold">ציות ממוצע</p>
-                  <p className="text-xs text-petra-muted mt-0.5">מכלל הפרוטוקולים הרפואיים</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {medicalRedDogs.length > 0 && (
-                  <div className="flex items-center justify-between p-2.5 bg-red-50 rounded-lg border border-red-200">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-red-500" />
-                      <span className="text-sm text-red-700">פרוטוקולים באיחור</span>
-                    </div>
-                    <span className="font-bold text-red-600">{medicalRedDogs.length} כלבים</span>
-                  </div>
-                )}
-                {medicalAmberDogs.length > 0 && (
-                  <div className="flex items-center justify-between p-2.5 bg-amber-50 rounded-lg border border-amber-200">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-amber-500" />
-                      <span className="text-sm text-amber-700">פרוטוקולים ממתינים</span>
-                    </div>
-                    <span className="font-bold text-amber-600">{medicalAmberDogs.length} כלבים</span>
-                  </div>
-                )}
-                {medicalRedDogs.length === 0 && medicalAmberDogs.length === 0 && (
-                  <div className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-lg border border-emerald-200">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    <span className="text-sm text-emerald-700">כל הפרוטוקולים תקינים</span>
-                  </div>
-                )}
-              </div>
-              {/* Per-dog breakdown */}
-              <div className="mt-4 divide-y max-h-48 overflow-y-auto">
-                {dogs.map((dog) => (
-                  <Link
-                    key={dog.id}
-                    href={`/service-dogs/${dog.id}?tab=medical`}
-                    className="flex items-center justify-between py-2 hover:bg-slate-50 px-1 rounded transition-colors"
-                  >
-                    <span className="text-sm">{dog.pet.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-petra-muted">
-                        {dog.medicalCompliance.completedCount}/{dog.medicalCompliance.totalProtocols}
-                      </span>
-                      <span className={cn(
-                        "text-xs font-bold px-1.5 py-0.5 rounded-full",
-                        dog.medicalCompliance.status === "green" ? "bg-emerald-100 text-emerald-700"
-                          : dog.medicalCompliance.status === "amber" ? "bg-amber-100 text-amber-700"
-                          : "bg-red-100 text-red-700"
-                      )}>
-                        {dog.medicalCompliance.compliancePercent}%
-                      </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* ── Training Progress ─────────────────────────────────────── */}
-            <div className="card p-5">
-              <h2 className="font-semibold mb-4 flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-brand-500" />
-                התקדמות אימונים
-              </h2>
-              {activePrograms.length === 0 ? (
-                <p className="text-sm text-petra-muted">אין תוכניות אימון פעילות</p>
-              ) : (
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {activePrograms.map((prog) => {
-                    const completedSessions = prog.sessions.filter((s) => s.status === "COMPLETED").length;
-                    const totalSessions = prog.totalSessions ?? 0;
-                    const pct = totalSessions > 0
-                      ? Math.min(100, Math.round((completedSessions / totalSessions) * 100))
-                      : 0;
-                    const isStale = stalePrograms.some((s) => s.id === prog.id);
-                    return (
-                      <div key={prog.id} className={cn("p-3 rounded-xl border", isStale ? "border-amber-200 bg-amber-50" : "border-petra-border bg-slate-50/40")}>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-sm font-medium">
-                            {prog.dog?.name || prog.name}
-                          </span>
-                          <span className="text-xs text-petra-muted">{completedSessions} / {totalSessions || "—"} מפגשים</span>
-                        </div>
-                        <div className="h-2 bg-white border rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-brand-500 transition-all"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        {isStale && (
-                          <div className="flex items-center justify-between mt-1.5">
-                            <p className="text-xs text-amber-600 flex items-center gap-1">
-                              <Clock className="w-3 h-3" /> ללא אימון ב-14 ימים האחרונים
-                            </p>
-                            {prog.dog && (
-                              <Link
-                                href={`/training?dogId=${prog.dog.id}&dogName=${encodeURIComponent(prog.dog.name)}`}
-                                className="text-xs px-2.5 py-1 rounded-lg font-medium bg-brand-500 text-white hover:bg-brand-600 transition-colors flex items-center gap-1"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Plus className="w-3 h-3" />
-                                תזמן אימון
-                              </Link>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
 
             {/* ── Certified Dogs Detail ─────────────────────────────────── */}

@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { buildAdultYearPlan, type VaccinePlan, type VaccineSchedule } from "@/lib/vaccine-plan";
+import { buildAdultYearPlan, ADULT_TREATMENTS, PUPPY_TREATMENTS, type VaccinePlan, type VaccineSchedule } from "@/lib/vaccine-plan";
 
 // ─── helpers ───
 
@@ -170,8 +170,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const section = planType === "adults" ? currentPlan.adults : currentPlan.puppies;
     if (!section) return NextResponse.json({ error: "תוכנית לא נמצאה" }, { status: 400 });
 
-    const entries = (section as Record<string, Entry[]>)[treatmentKey];
-    if (!entries || index >= entries.length) return NextResponse.json({ error: "ערך לא נמצא" }, { status: 400 });
+    let entries = (section as Record<string, Entry[]>)[treatmentKey];
+    if (!entries) {
+      // Auto-initialize missing treatment (e.g. SPAY_NEUTER added after plan was created)
+      const allTreatments = [...ADULT_TREATMENTS, ...PUPPY_TREATMENTS] as readonly { key: string; doses: number }[];
+      const treatment = allTreatments.find(t => t.key === treatmentKey);
+      if (!treatment) return NextResponse.json({ error: "ערך לא נמצא" }, { status: 400 });
+      entries = Array.from({ length: treatment.doses }, () => ({ planned: null, done: null }));
+    }
+    if (index >= entries.length) return NextResponse.json({ error: "ערך לא נמצא" }, { status: 400 });
 
     // Update the specific dose — preserves all other done dates (history)
     entries[index] = { ...entries[index], done: doneDate };

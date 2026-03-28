@@ -171,7 +171,7 @@ export default function VaccinationsPage() {
               className={cn("px-5 py-2.5 text-sm font-semibold transition-colors",
                 dogTab === tab ? "bg-brand-600 text-white" : "bg-white text-petra-muted hover:bg-slate-50"
               )}>
-              {tab === "adults" ? "חיסונים וטיפולים בוגרים" : "חיסונים וטיפולים גורים"}
+              {tab === "adults" ? "חיסונים וטיפולים בוגרים" : "חיסונים וטיפולים צעירים"}
             </button>
           ))}
         </div>

@@ -12,8 +12,16 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const dogType = searchParams.get("dogType"); // "adults" | "puppies"
 
+    // Exclude retired/decertified dogs from vaccinations view
+    const EXCLUDED_PHASES = ["RETIRED", "DECERTIFIED"];
+    // Young group: גור + באימון; Adult group: everything else (except excluded)
+    const YOUNG_PHASES = ["PUPPY", "IN_TRAINING"];
+
     const dogs = await prisma.serviceDogProfile.findMany({
-      where: { businessId: authResult.businessId },
+      where: {
+        businessId: authResult.businessId,
+        phase: { notIn: EXCLUDED_PHASES },
+      },
       include: {
         pet: { select: { id: true, name: true, breed: true, birthDate: true } },
         medicalProtocols: {
@@ -23,16 +31,10 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "asc" },
     });
 
-    // Classify puppy vs adult by birth date (< 12 months = puppy); fallback to phase
-    const isPuppyDog = (dog: typeof dogs[0]) => {
-      const bd = dog.pet.birthDate;
-      if (!bd) return dog.phase === "PUPPY";
-      const ageMonths = (Date.now() - new Date(bd).getTime()) / (1000 * 60 * 60 * 24 * 30.44);
-      return ageMonths < 12;
-    };
+    const isYoungDog = (dog: typeof dogs[0]) => YOUNG_PHASES.includes(dog.phase);
 
     const filtered = dogType
-      ? dogs.filter(d => dogType === "puppies" ? isPuppyDog(d) : !isPuppyDog(d))
+      ? dogs.filter(d => dogType === "puppies" ? isYoungDog(d) : !isYoungDog(d))
       : dogs;
 
     const result = filtered.map((dog) => ({

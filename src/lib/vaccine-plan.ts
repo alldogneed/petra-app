@@ -31,6 +31,7 @@ export interface VaccinePlan {
     DEWORMING?: VaccinePlanEntry[];       // 4 doses
     PARK_WORM?: VaccinePlanEntry[];       // 4 doses
     FLEA_TICK?: VaccinePlanEntry[];       // 4 doses
+    SPAY_NEUTER?: VaccinePlanEntry[];     // 1 dose
   };
   /** Past years archived on auto-renewal */
   adultsHistory?: AdultYearPlan[];
@@ -119,6 +120,7 @@ export function getEmptyPuppyPlan(): VaccinePlan["puppies"] {
     DEWORMING:      make(4),
     PARK_WORM:      make(4),
     FLEA_TICK:      make(4),
+    SPAY_NEUTER:    make(1),
   };
 }
 
