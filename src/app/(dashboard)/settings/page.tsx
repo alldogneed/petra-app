@@ -3544,44 +3544,50 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
   const [selectedType, setSelectedType] = useState<ContractField["type"]>("signature");
   const [saving, setSaving] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pdfDocRef = useRef<any>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null);
+  const [pageBlobUrl, setPageBlobUrl] = useState<string | null>(null);
+  const [pageDims, setPageDims] = useState({ width: 595, height: 842 }); // A4 default
   const overlayRef = useRef<HTMLDivElement>(null);
-  const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const renderPage = useCallback(async (doc: NonNullable<typeof pdfDocRef.current>, pageNum: number) => {
-    if (!canvasRef.current) return;
-    if (renderTaskRef.current) { renderTaskRef.current.cancel(); renderTaskRef.current = null; }
-    const page = await doc.getPage(pageNum);
-    const containerWidth = Math.max(400, canvasRef.current.parentElement?.clientWidth ?? 600);
-    const unscaled = page.getViewport({ scale: 1 });
-    const scale = containerWidth / unscaled.width;
-    const viewport = page.getViewport({ scale });
-    canvasRef.current.width = viewport.width;
-    canvasRef.current.height = viewport.height;
-    const ctx = canvasRef.current.getContext("2d");
-    if (!ctx) return;
-    const task = page.render({ canvasContext: ctx, viewport });
-    renderTaskRef.current = task;
-    try { await task.promise; } catch { /* cancelled */ }
+  // Extract a single page as a blob URL using pdf-lib (browser's native viewer handles Hebrew fonts)
+  const extractPageBlob = useCallback(async (bytes: ArrayBuffer, pageNum: number) => {
+    const { PDFDocument } = await import("pdf-lib");
+    const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+    const dest = await PDFDocument.create();
+    const [page] = await dest.copyPages(src, [Math.min(pageNum - 1, src.getPageCount() - 1)]);
+    dest.addPage(page);
+    const singleBytes = await dest.save();
+    return new Blob([new Uint8Array(singleBytes) as BlobPart], { type: "application/pdf" });
   }, []);
 
+  // Load PDF metadata + first page
   useEffect(() => {
     if (!file) return;
     setPdfLoading(true);
     let cancelled = false;
     (async () => {
       try {
+        const ab = await file.arrayBuffer();
+        if (cancelled) return;
+        setPdfBytes(ab);
+
+        // Use pdfjs just for metadata (page count + dimensions)
         const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
         GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-        const ab = await file.arrayBuffer();
-        const doc = await getDocument({ data: new Uint8Array(ab), cMapUrl: "/cmaps/", cMapPacked: true, standardFontDataUrl: "/standard_fonts/" }).promise;
-        if (cancelled) return;
-        pdfDocRef.current = doc;
+        const doc = await getDocument({ data: new Uint8Array(ab) }).promise;
+        if (cancelled) { doc.destroy(); return; }
         setTotalPages(doc.numPages);
         setSignaturePage(1);
-        await renderPage(doc, 1);
+        const page = await doc.getPage(1);
+        const vp = page.getViewport({ scale: 1 });
+        setPageDims({ width: vp.width, height: vp.height });
+        doc.destroy();
+
+        // Extract first page for native rendering
+        const blob = await extractPageBlob(ab, 1);
+        if (cancelled) return;
+        setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); });
       } catch (e) {
         console.error("PDF load error", e);
       } finally {
@@ -3589,20 +3595,33 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
       }
     })();
     return () => { cancelled = true; };
-  }, [file, renderPage]);
+  }, [file, extractPageBlob]);
 
+  // Extract page on navigation
   useEffect(() => {
-    if (!pdfDocRef.current || signaturePage < 1) return;
-    renderPage(pdfDocRef.current, signaturePage);
-  }, [signaturePage, renderPage]);
+    if (!pdfBytes || signaturePage < 1) return;
+    let cancelled = false;
+    (async () => {
+      const blob = await extractPageBlob(pdfBytes, signaturePage);
+      if (cancelled) return;
+      setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); });
+    })();
+    return () => { cancelled = true; };
+  }, [pdfBytes, signaturePage, extractPageBlob]);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => { setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; }); };
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     setFile(f);
     setFields([]);
-    pdfDocRef.current = null;
+    setPdfBytes(null);
     setTotalPages(0);
+    setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
   };
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -3726,15 +3745,28 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
                 </div>
               </div>
 
-              {/* Canvas PDF viewer with field overlays */}
+              {/* PDF viewer (native browser rendering) with field overlays */}
               <div>
-                <div className="relative border border-slate-200 rounded-xl overflow-hidden bg-slate-100" style={{ minHeight: 300 }}>
+                <div
+                  ref={containerRef}
+                  className="relative border border-slate-200 rounded-xl overflow-hidden bg-white"
+                  style={{ aspectRatio: `${pageDims.width} / ${pageDims.height}`, minHeight: 300 }}
+                >
                   {pdfLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
                       <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
                     </div>
                   )}
-                  <canvas ref={canvasRef} className="w-full block" style={{ display: pdfLoading ? "none" : "block" }} />
+                  {pageBlobUrl && !pdfLoading && (
+                    <object
+                      key={signaturePage}
+                      data={`${pageBlobUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                      type="application/pdf"
+                      className="absolute inset-0 w-full h-full"
+                    >
+                      <p className="text-center text-sm text-petra-muted p-4">לא ניתן להציג את המסמך</p>
+                    </object>
+                  )}
                   <div
                     ref={overlayRef}
                     className="absolute inset-0 cursor-crosshair"
@@ -3794,47 +3826,51 @@ function EditContractTemplateModal({
   const [saving, setSaving] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(true);
   const [pdfError, setPdfError] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pdfDocRef = useRef<any>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null);
+  const [pageBlobUrl, setPageBlobUrl] = useState<string | null>(null);
+  const [pageDims, setPageDims] = useState({ width: 595, height: 842 });
   const overlayRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const renderTaskRef = useRef<{ cancel: () => void } | null>(null);
 
-  const renderPage = useCallback(async (doc: NonNullable<typeof pdfDocRef.current>, pageNum: number) => {
-    if (!canvasRef.current || !containerRef.current) return;
-    if (renderTaskRef.current) { renderTaskRef.current.cancel(); renderTaskRef.current = null; }
-    const page = await doc.getPage(pageNum);
-    const containerWidth = Math.max(400, containerRef.current.clientWidth || 600);
-    const unscaled = page.getViewport({ scale: 1 });
-    const scale = containerWidth / unscaled.width;
-    const viewport = page.getViewport({ scale });
-    canvasRef.current.width = viewport.width;
-    canvasRef.current.height = viewport.height;
-    const ctx = canvasRef.current.getContext("2d");
-    if (!ctx) return;
-    const task = page.render({ canvasContext: ctx, viewport });
-    renderTaskRef.current = task;
-    try { await task.promise; } catch { /* cancelled */ }
+  // Extract a single page as a blob URL using pdf-lib (browser's native viewer handles Hebrew fonts)
+  const extractPageBlob = useCallback(async (bytes: ArrayBuffer, pageNum: number) => {
+    const { PDFDocument } = await import("pdf-lib");
+    const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+    const dest = await PDFDocument.create();
+    const [page] = await dest.copyPages(src, [Math.min(pageNum - 1, src.getPageCount() - 1)]);
+    dest.addPage(page);
+    const singleBytes = await dest.save();
+    return new Blob([new Uint8Array(singleBytes) as BlobPart], { type: "application/pdf" });
   }, []);
 
-  // Load PDF from existing URL — delay slightly so container has width
+  // Load PDF from existing URL
   useEffect(() => {
     setPdfLoading(true);
     setPdfError(false);
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
-        const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
-        GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
         const resp = await fetch(template.fileUrl);
         if (!resp.ok) throw new Error(`PDF fetch failed: ${resp.status}`);
         const ab = await resp.arrayBuffer();
-        const doc = await getDocument({ data: new Uint8Array(ab), cMapUrl: "/cmaps/", cMapPacked: true, standardFontDataUrl: "/standard_fonts/" }).promise;
         if (cancelled) return;
-        pdfDocRef.current = doc;
+        setPdfBytes(ab);
+
+        // Use pdfjs just for metadata
+        const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
+        GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        const doc = await getDocument({ data: new Uint8Array(ab) }).promise;
+        if (cancelled) { doc.destroy(); return; }
         setTotalPages(doc.numPages);
-        await renderPage(doc, signaturePage);
+        const page = await doc.getPage(1);
+        const vp = page.getViewport({ scale: 1 });
+        setPageDims({ width: vp.width, height: vp.height });
+        doc.destroy();
+
+        // Extract current page for native rendering
+        const blob = await extractPageBlob(ab, signaturePage);
+        if (cancelled) return;
+        setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); });
       } catch (e) {
         console.error("PDF load error", e);
         if (!cancelled) setPdfError(true);
@@ -3846,10 +3882,22 @@ function EditContractTemplateModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template.fileUrl]);
 
+  // Extract page on navigation
   useEffect(() => {
-    if (!pdfDocRef.current || signaturePage < 1) return;
-    renderPage(pdfDocRef.current, signaturePage);
-  }, [signaturePage, renderPage]);
+    if (!pdfBytes || signaturePage < 1) return;
+    let cancelled = false;
+    (async () => {
+      const blob = await extractPageBlob(pdfBytes, signaturePage);
+      if (cancelled) return;
+      setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); });
+    })();
+    return () => { cancelled = true; };
+  }, [pdfBytes, signaturePage, extractPageBlob]);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => { setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; }); };
+  }, []);
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!overlayRef.current) return;
@@ -3944,18 +3992,27 @@ function EditContractTemplateModal({
               </div>
             </div>
 
-            {/* Canvas + overlays */}
+            {/* PDF viewer (native browser rendering) + overlays */}
             <div>
-              <div ref={containerRef} className="relative border border-slate-200 rounded-xl overflow-hidden bg-slate-100" style={{ minHeight: 300 }}>
-                {pdfLoading && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>}
+              <div ref={containerRef} className="relative border border-slate-200 rounded-xl overflow-hidden bg-white" style={{ aspectRatio: `${pageDims.width} / ${pageDims.height}`, minHeight: 300 }}>
+                {pdfLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-50"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>}
                 {pdfError && !pdfLoading && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-red-500">
                     <FileText className="w-8 h-8" />
                     <p className="text-sm">שגיאה בטעינת המסמך</p>
-                    <button type="button" className="text-xs underline" onClick={() => { setPdfLoading(true); setPdfError(false); setTimeout(async () => { try { const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist"); GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"; const resp = await fetch(template.fileUrl); const ab = await resp.arrayBuffer(); const doc = await getDocument({ data: new Uint8Array(ab), cMapUrl: "/cmaps/", cMapPacked: true, standardFontDataUrl: "/standard_fonts/" }).promise; pdfDocRef.current = doc; setTotalPages(doc.numPages); await renderPage(doc, signaturePage); setPdfError(false); } catch { setPdfError(true); } finally { setPdfLoading(false); } }, 100); }}>נסה שוב</button>
+                    <button type="button" className="text-xs underline" onClick={() => { setPdfLoading(true); setPdfError(false); setTimeout(async () => { try { const resp = await fetch(template.fileUrl); if (!resp.ok) throw new Error("fetch failed"); const ab = await resp.arrayBuffer(); setPdfBytes(ab); const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist"); GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"; const doc = await getDocument({ data: new Uint8Array(ab) }).promise; setTotalPages(doc.numPages); const pg = await doc.getPage(1); const vp = pg.getViewport({ scale: 1 }); setPageDims({ width: vp.width, height: vp.height }); doc.destroy(); const blob = await extractPageBlob(ab, signaturePage); setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); }); setPdfError(false); } catch { setPdfError(true); } finally { setPdfLoading(false); } }, 100); }}>נסה שוב</button>
                   </div>
                 )}
-                <canvas ref={canvasRef} className="w-full block" style={{ display: pdfLoading || pdfError ? "none" : "block" }} />
+                {pageBlobUrl && !pdfLoading && !pdfError && (
+                  <object
+                    key={signaturePage}
+                    data={`${pageBlobUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                    type="application/pdf"
+                    className="absolute inset-0 w-full h-full"
+                  >
+                    <p className="text-center text-sm text-petra-muted p-4">לא ניתן להציג את המסמך</p>
+                  </object>
+                )}
                 {!pdfLoading && !pdfError && (
                   <div ref={overlayRef} className="absolute inset-0 cursor-crosshair" style={{ zIndex: 10 }} onClick={handleOverlayClick}>
                     {currentPageFields.map((f) => (
