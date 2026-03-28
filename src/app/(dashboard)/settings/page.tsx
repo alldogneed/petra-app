@@ -49,6 +49,7 @@ import {
   RefreshCw,
   CalendarRange,
   AlertTriangle,
+  ImagePlus,
 } from "lucide-react";
 
 const RepeatIcon = Repeat;
@@ -445,13 +446,11 @@ function BusinessTab() {
           <input className="input" value={editing.address ?? ""} onChange={(e) => setForm({ ...editing, address: e.target.value })} />
         </div>
         <div>
-          <label className="label">לוגו העסק (כתובת URL לתמונה)</label>
-          <div className="flex items-center gap-3">
-            {editing.logo && (
-              <img src={editing.logo} alt="לוגו" className="w-8 h-8 rounded object-contain border border-slate-200 flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-            )}
-            <input type="url" className="input flex-1" placeholder="https://example.com/logo.png" value={editing.logo ?? ""} onChange={(e) => setForm({ ...editing, logo: e.target.value })} />
-          </div>
+          <label className="label">לוגו העסק</label>
+          <LogoUpload
+            currentLogo={editing.logo ?? null}
+            onUploaded={(url) => setForm({ ...editing, logo: url })}
+          />
         </div>
         <div>
           <label className="label">מספר עוסק מורשה</label>
@@ -4095,6 +4094,96 @@ function EditContractTemplateModal({
 // ─── Main Settings Page ──────────────────────────────────────────────────────
 
 import AvailabilityTab from "./availability-tab";
+
+// ─── LogoUpload Component ─────────────────────────────────────────────────────
+
+function LogoUpload({
+  currentLogo,
+  onUploaded,
+}: {
+  currentLogo: string | null;
+  onUploaded: (url: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/settings/logo", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שגיאה");
+      onUploaded(data.url);
+      toast.success("הלוגו עודכן בהצלחה");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "שגיאה בהעלאת הלוגו");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-4">
+      {/* Logo preview */}
+      <div
+        className={`w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center flex-shrink-0 overflow-hidden transition-colors ${
+          currentLogo ? "border-slate-200 bg-white" : "border-slate-200 bg-slate-50"
+        }`}
+      >
+        {currentLogo ? (
+          <img
+            src={currentLogo}
+            alt="לוגו"
+            className="w-full h-full object-contain p-1"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        ) : (
+          <ImagePlus className="w-7 h-7 text-slate-300" />
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
+        >
+          {uploading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Upload className="w-4 h-4" />
+          )}
+          {uploading ? "מעלה..." : currentLogo ? "החלף לוגו" : "העלה לוגו"}
+        </button>
+        <p className="text-xs text-petra-muted">PNG, JPG, WebP, SVG · עד 5MB</p>
+        {currentLogo && (
+          <button
+            type="button"
+            onClick={() => onUploaded("")}
+            className="text-xs text-red-500 hover:text-red-700 text-right"
+          >
+            הסר לוגו
+          </button>
+        )}
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFile(file);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const searchParams = useSearchParams();
