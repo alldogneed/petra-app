@@ -4125,49 +4125,68 @@ function LogoUpload({
   };
 
   return (
-    <div className="flex items-center gap-4">
-      {/* Logo preview */}
-      <div
-        className={`w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center flex-shrink-0 overflow-hidden transition-colors ${
-          currentLogo ? "border-slate-200 bg-white" : "border-slate-200 bg-slate-50"
+    <div className="flex flex-col gap-3">
+      {/* Logo preview box — clickable to upload */}
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className={`relative w-28 h-28 rounded-xl border-2 border-dashed flex items-center justify-center overflow-hidden transition-all group ${
+          currentLogo
+            ? "border-slate-200 bg-white hover:border-brand-300"
+            : "border-slate-200 bg-slate-50 hover:border-brand-300 hover:bg-brand-50/30"
         }`}
       >
         {currentLogo ? (
-          <img
-            src={currentLogo}
-            alt="לוגו"
-            className="w-full h-full object-contain p-1"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-          />
+          <>
+            <img
+              src={currentLogo}
+              alt="לוגו"
+              className="w-full h-full object-contain p-2"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              {uploading ? (
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              ) : (
+                <Upload className="w-5 h-5 text-white" />
+              )}
+            </div>
+          </>
         ) : (
-          <ImagePlus className="w-7 h-7 text-slate-300" />
+          <div className="flex flex-col items-center gap-1.5">
+            {uploading ? (
+              <Loader2 className="w-7 h-7 text-slate-300 animate-spin" />
+            ) : (
+              <ImagePlus className="w-7 h-7 text-slate-300 group-hover:text-brand-400 transition-colors" />
+            )}
+            <span className="text-[10px] text-slate-400 group-hover:text-brand-500 transition-colors">
+              {uploading ? "מעלה..." : "לחץ להעלאה"}
+            </span>
+          </div>
         )}
-      </div>
+      </button>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
+          className="btn-secondary flex items-center gap-2 text-sm px-3 py-1.5"
         >
-          {uploading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Upload className="w-4 h-4" />
-          )}
+          {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
           {uploading ? "מעלה..." : currentLogo ? "החלף לוגו" : "העלה לוגו"}
         </button>
-        <p className="text-xs text-petra-muted">PNG, JPG, WebP, SVG · עד 5MB</p>
         {currentLogo && (
           <button
             type="button"
             onClick={() => onUploaded("")}
-            className="text-xs text-red-500 hover:text-red-700 text-right"
+            className="text-xs text-red-500 hover:text-red-700"
           >
-            הסר לוגו
+            הסר
           </button>
         )}
+        <span className="text-xs text-petra-muted">PNG, JPG, WebP, SVG · עד 5MB</span>
       </div>
 
       <input
