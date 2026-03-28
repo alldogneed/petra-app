@@ -470,7 +470,7 @@ model Appointment {
 
   service       Service?       @relation(fields: [serviceId], references: [id])
   priceListItem PriceListItem? @relation(fields: [priceListItemId], references: [id])
-  customer   Customer  @relation(fields: [customerId], references: [id])
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   pet        Pet?      @relation(fields: [petId], references: [id])
   staff      User?     @relation("AssignedStaff", fields: [staffId], references: [id])
   business   Business  @relation(fields: [businessId], references: [id])
@@ -643,7 +643,7 @@ model Payment {
   appointment      Appointment?     @relation(fields: [appointmentId], references: [id])
   boardingStay     BoardingStay?    @relation(fields: [boardingStayId], references: [id])
   order            Order?           @relation(fields: [orderId], references: [id])
-  customer         Customer         @relation(fields: [customerId], references: [id])
+  customer         Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
   business         Business         @relation(fields: [businessId], references: [id])
   invoiceJobs      InvoiceJob[]
   invoiceDocuments InvoiceDocument[]
@@ -861,7 +861,7 @@ model Order {
   updatedAt       DateTime @updatedAt
 
   business         Business          @relation(fields: [businessId], references: [id])
-  customer         Customer          @relation(fields: [customerId], references: [id])
+  customer         Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
   createdBy        User?             @relation("CreatedByUser", fields: [createdByUserId], references: [id])
   lines            OrderLine[]
   payments         Payment[]
@@ -1062,7 +1062,7 @@ model Booking {
   business      Business       @relation(fields: [businessId], references: [id])
   service       Service?       @relation(fields: [serviceId], references: [id])
   priceListItem PriceListItem? @relation(fields: [priceListItemId], references: [id])
-  customer      Customer       @relation(fields: [customerId], references: [id])
+  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
   dogs         BookingDog[]
   syncJobs     SyncJob[]
   boardingStay BoardingStay?
@@ -1348,7 +1348,7 @@ model TrainingGroupParticipant {
 
   trainingGroup TrainingGroup             @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
   dog           Pet                       @relation(fields: [dogId], references: [id])
-  customer      Customer                  @relation(fields: [customerId], references: [id])
+  customer      Customer                  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   attendance    TrainingGroupAttendance[]
 
   @@unique([trainingGroupId, dogId])
@@ -1624,7 +1624,7 @@ model InvoiceJob {
 
   business Business @relation(fields: [businessId], references: [id])
   payment  Payment  @relation(fields: [paymentId], references: [id])
-  customer Customer @relation(fields: [customerId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([businessId, status, nextRunAt])
   @@index([paymentId])
@@ -1660,7 +1660,7 @@ model InvoiceDocument {
 
   business        Business         @relation(fields: [businessId], references: [id])
   payment         Payment?         @relation(fields: [paymentId], references: [id])
-  customer        Customer         @relation(fields: [customerId], references: [id])
+  customer        Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
   order           Order?           @relation(fields: [orderId], references: [id])
   originalInvoice InvoiceDocument? @relation("CreditNoteRelation", fields: [originalInvoiceId], references: [id])
   creditNotes     InvoiceDocument[] @relation("CreditNoteRelation")
@@ -2129,7 +2129,7 @@ model ContractRequest {
   updatedAt     DateTime  @updatedAt
 
   business  Business         @relation(fields: [businessId], references: [id])
-  customer  Customer         @relation(fields: [customerId], references: [id])
+  customer  Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
   template  ContractTemplate @relation(fields: [templateId], references: [id])
   pet       Pet?             @relation(fields: [petId], references: [id])
 
