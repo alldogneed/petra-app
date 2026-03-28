@@ -3700,6 +3700,7 @@ export default function BoardingPage() {
           [data-print-rooms] { display: block !important; }
           aside, nav, header, [data-sidebar], [data-topbar] { display: none !important; }
           .no-print { display: none !important; }
+          .modal-overlay { display: none !important; }
           [data-print-rooms] .card { break-inside: avoid; box-shadow: none; border: 1px solid #e2e8f0; }
           [data-print-rooms] button { display: none !important; }
         }

@@ -14,6 +14,7 @@ import {
   PawPrint,
   ClipboardCheck,
   RefreshCw,
+  Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
@@ -501,6 +502,7 @@ export default function DailyCarePage() {
 
   return (
     <div className="space-y-4">
+      <style>{`@media print { aside,nav,header,[data-topbar],[data-sidebar],.no-print{display:none!important} body{font-size:11px} .modal-overlay{display:none!important} }`}</style>
       <BoardingTabs />
 
       {/* Date navigator */}
@@ -534,6 +536,12 @@ export default function DailyCarePage() {
           className={cn("w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 transition-colors", isFetching && "animate-spin")}
         >
           <RefreshCw className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => window.print()}
+          className="no-print flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-200 text-petra-muted hover:bg-slate-50"
+        >
+          <Printer className="w-4 h-4" />הדפס
         </button>
       </div>
 

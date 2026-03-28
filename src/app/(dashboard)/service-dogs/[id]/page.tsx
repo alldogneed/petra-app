@@ -404,14 +404,14 @@ function ServiceDogProfilePageContent() {
 
   const tabs = [
     { id: "dogfile" as const, label: "תיק כלב", icon: Stethoscope },
-    { id: "medical" as const, label: "פרוטוקולים רפואיים", icon: Heart },
-    { id: "training" as const, label: "יומן אימונים", icon: Clock },
-    { id: "tests" as const, label: "מבחני הכשרה", icon: GraduationCap, badge: Array.isArray(dog.trainingTests) ? (dog.trainingTests as unknown[]).length : 0 },
+    { id: "vaccinations" as const, label: "חיסונים וטיפולים", icon: Pill },
     { id: "placements" as const, label: "שיבוצים", icon: Activity },
+    { id: "tests" as const, label: "מבחני הסמכה", icon: GraduationCap, badge: Array.isArray(dog.trainingTests) ? (dog.trainingTests as unknown[]).length : 0 },
+    { id: "documents" as const, label: "מסמכים", icon: FileText, badge: Array.isArray(dog.documents) ? (dog.documents as unknown[]).length : 0 },
     { id: "insurance" as const, label: "ביטוח", icon: ShieldCheck },
     { id: "equipment" as const, label: "ציוד", icon: Package },
-    { id: "documents" as const, label: "מסמכים", icon: FileText, badge: Array.isArray(dog.documents) ? (dog.documents as unknown[]).length : 0 },
-    { id: "vaccinations" as const, label: "חיסונים וטיפולים", icon: Pill },
+    { id: "medical" as const, label: "פרוטוקולים רפואיים", icon: Heart },
+    { id: "training" as const, label: "יומן אימונים", icon: Clock },
     { id: "idcard" as const, label: "תעודת הסמכה", icon: CreditCard },
   ];
 
