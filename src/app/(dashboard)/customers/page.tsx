@@ -1532,6 +1532,7 @@ export default function CustomersPage() {
   const [editingCustomer, setEditingCustomer] = useState<EnhancedCustomer | null>(null);
   const [bookingCustomer, setBookingCustomer] = useState<EnhancedCustomer | null>(null);
   const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
+  const [bulkDeleteStep, setBulkDeleteStep] = useState<0 | 1 | 2>(0);
   const [bulkWaMessage, setBulkWaMessage] = useState("");
 
   // ── Business settings (for customer tags) ──
@@ -1693,6 +1694,35 @@ export default function CustomersPage() {
       toast.success(addVip ? "VIP הוסף ללקוחות הנבחרים" : "VIP הוסר מהלקוחות הנבחרים");
     },
     onError: () => toast.error("שגיאה בעדכון הלקוחות. נסה שוב."),
+  });
+
+  // ── Bulk Delete mutation ──
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          fetch(`/api/customers/${id}`, {
+            method: "DELETE",
+            headers: { "x-confirm-action": `DELETE_CUSTOMER_${id}` },
+          }).then(async (r) => {
+            if (!r.ok) {
+              const d = await r.json().catch(() => ({}));
+              throw new Error(d.error || `שגיאה ${r.status}`);
+            }
+          })
+        )
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      return { total: ids.length, failed };
+    },
+    onSuccess: ({ total, failed }) => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      clearSelection();
+      setBulkDeleteStep(0);
+      if (failed === 0) toast.success(`${total} לקוחות נמחקו בהצלחה`);
+      else toast.error(`${total - failed} נמחקו, ${failed} נכשלו`);
+    },
+    onError: () => toast.error("שגיאה במחיקת הלקוחות. נסה שוב."),
   });
 
   // ── Avatar colors ──
@@ -2037,6 +2067,14 @@ export default function CustomersPage() {
             הסר VIP
           </button>
           <div className="flex-1" />
+          <button
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors"
+            onClick={() => setBulkDeleteStep(1)}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            מחק נבחרים
+          </button>
+          <div className="w-px h-5 bg-brand-200" />
           <button
             className="text-xs text-petra-muted hover:text-petra-text transition-colors"
             onClick={clearSelection}
@@ -2474,6 +2512,59 @@ export default function CustomersPage() {
           </div>
         );
       })()}
+      {/* ─── Bulk Delete Step 1 — First Confirmation ─── */}
+      {bulkDeleteStep === 1 && (
+        <div className="modal-overlay" onClick={() => setBulkDeleteStep(0)}>
+          <div className="modal-content max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <h2 className="text-lg font-bold text-slate-900 mb-2">מחיקת לקוחות</h2>
+              <p className="text-sm text-petra-muted mb-1">
+                אתה עומד למחוק <span className="font-semibold text-slate-900">{selectedIds.size} לקוחות</span>.
+              </p>
+              <p className="text-sm text-petra-muted mb-6">
+                פעולה זו תמחק גם את כל חיות המחמד, התורים, ונתוני הלקוח לצמיתות.
+              </p>
+              <div className="flex gap-3">
+                <button className="flex-1 btn-secondary" onClick={() => setBulkDeleteStep(0)}>ביטול</button>
+                <button className="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 transition-colors" onClick={() => setBulkDeleteStep(2)}>
+                  המשך
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Bulk Delete Step 2 — Final Confirmation ─── */}
+      {bulkDeleteStep === 2 && (
+        <div className="modal-overlay" onClick={() => setBulkDeleteStep(0)}>
+          <div className="modal-content max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <h2 className="text-lg font-bold text-red-700 mb-2">⚠️ אישור סופי</h2>
+              <p className="text-sm text-petra-muted mb-6">
+                האם אתה בטוח שברצונך למחוק <span className="font-bold text-red-700">{selectedIds.size} לקוחות</span> לצמיתות?<br />
+                לא ניתן לשחזר פעולה זו.
+              </p>
+              <div className="flex gap-3">
+                <button className="flex-1 btn-secondary" onClick={() => setBulkDeleteStep(0)} disabled={bulkDeleteMutation.isPending}>ביטול</button>
+                <button
+                  className="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-red-700 text-white hover:bg-red-800 transition-colors disabled:opacity-50"
+                  disabled={bulkDeleteMutation.isPending}
+                  onClick={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
+                >
+                  {bulkDeleteMutation.isPending ? "מוחק..." : `מחק ${selectedIds.size} לקוחות`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </CustomersPermGate>
   );

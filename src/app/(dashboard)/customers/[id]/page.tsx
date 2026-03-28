@@ -46,6 +46,7 @@ import {
   RefreshCw,
   RotateCcw,
   Eye,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
@@ -3619,6 +3620,9 @@ export default function CustomerProfilePage() {
                   >
                     <FileText className="w-4 h-4 text-slate-400" />{intakeSending ? "שולח..." : "טופס קבלה"}
                   </button>
+                  <button onClick={() => { setShowMobileActions(false); window.print(); }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 text-right">
+                    <Printer className="w-4 h-4 text-slate-400" />הדפס
+                  </button>
                 </div>
               </>
             )}
@@ -3686,6 +3690,14 @@ export default function CustomerProfilePage() {
               קישור הזמנה
             </a>
           )}
+          <button
+            onClick={() => window.print()}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
+            title="הדפס דף לקוח"
+          >
+            <Printer className="w-4 h-4" />
+            הדפס
+          </button>
           {/* Delete button — hidden for staff, "send for approval" for manager, confirm modal for owner */}
           {!perms.isStaff && !perms.isVolunteer && (
             <button
