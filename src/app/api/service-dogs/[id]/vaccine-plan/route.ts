@@ -52,6 +52,9 @@ function latestDoneDate(entries: Entry[]): Date | null {
 
 // ─── GET — load plan, auto-renew if year changed ───
 
+// Phases that should use the adult vaccine plan
+const ADULT_PHASES = ["ADVANCED_TRAINING", "CERTIFIED", "RETIRED", "DECERTIFIED", "SELECTION", "RAISING"];
+
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const authResult = await requireBusinessAuth(request);
@@ -60,7 +63,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const [dogRow, biz] = await Promise.all([
       prisma.serviceDogProfile.findFirst({
         where: { id: params.id, businessId: authResult.businessId },
-        select: { vaccinePlan: true },
+        select: { vaccinePlan: true, phase: true },
       }),
       prisma.business.findUnique({
         where: { id: authResult.businessId },
@@ -77,6 +80,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       ? sdSettings.vaccinationSchedule
       : null;
 
+    let dirty = false;
+
+    // Auto-init adult plan: dog reached adult phase but has no adult plan yet
+    if (ADULT_PHASES.includes(dogRow.phase) && !plan.adults) {
+      plan = { ...plan, adults: buildAdultYearPlan(currentYear, schedule, null) };
+      dirty = true;
+    }
+
     // Auto-renewal: if adults plan exists but is from a previous year, archive and generate new year
     if (plan.adults && plan.adults.year !== currentYear) {
       const history = plan.adultsHistory ?? [];
@@ -84,7 +95,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       const updatedHistory = [...history, plan.adults].slice(-3);
       const newAdults = buildAdultYearPlan(currentYear, schedule, plan.adults);
       plan = { ...plan, adults: newAdults, adultsHistory: updatedHistory };
+      dirty = true;
+    }
 
+    if (dirty) {
       await prisma.serviceDogProfile.update({
         where: { id: params.id },
         data: { vaccinePlan: plan as object },
