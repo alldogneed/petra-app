@@ -165,14 +165,14 @@ export function AccessibilityButton() {
   const isModified = JSON.stringify(state) !== JSON.stringify(DEFAULTS);
 
   return (
-    <div className="fixed bottom-[88px] right-5 z-50 flex flex-col items-end">
+    <div className="fixed bottom-[72px] right-4 sm:bottom-[88px] sm:right-5 z-50 flex flex-col items-end">
       {/* Panel */}
       {open && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label="הגדרות נגישות"
-          className="mb-3 bg-white rounded-2xl shadow-2xl border border-slate-200 w-72 max-h-[75vh] overflow-y-auto"
+          className="mb-3 bg-white rounded-2xl shadow-2xl border border-slate-200 w-[calc(100vw-2rem)] max-w-[288px] max-h-[75vh] overflow-y-auto"
         >
           {/* Header */}
           <div className="sticky top-0 bg-blue-600 text-white rounded-t-2xl px-4 py-3 flex items-center justify-between">
@@ -296,9 +296,9 @@ export function AccessibilityButton() {
         aria-label={open ? "סגור תפריט נגישות" : "פתח תפריט נגישות"}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="h-14 w-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
+        className="h-10 w-10 sm:h-14 sm:w-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
       >
-        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <svg className="w-4 h-4 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <circle cx="12" cy="5" r="1.5"/>
           <path d="M9 19l3-8 3 8M9 12h6M5 8l2 2M19 8l-2 2"/>
         </svg>
