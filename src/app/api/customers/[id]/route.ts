@@ -274,47 +274,42 @@ export async function DELETE(
       );
     }
 
-    // Manually delete all related records in correct order to avoid FK constraint failures
-    // (DB-level cascade may differ from Prisma schema depending on migration history)
-    await prisma.$transaction(async (tx) => {
-      const cid = params.id;
+    // Delete all related records sequentially (no $transaction — incompatible with Supabase PgBouncer)
+    const cid = params.id;
 
-      // 1. Null self-referencing credit notes before deleting InvoiceDocuments
-      await tx.invoiceDocument.updateMany({ where: { customerId: cid }, data: { originalInvoiceId: null } });
-      // 2. Delete invoice docs + jobs (reference payments, must go before payments)
-      await tx.invoiceDocument.deleteMany({ where: { customerId: cid } });
-      await tx.invoiceJob.deleteMany({ where: { customerId: cid } });
-      // 3. Payments (must go before appointments/orders/boarding that reference them)
-      await tx.payment.deleteMany({ where: { customerId: cid } });
-      // 4. Appointments (required FK to customer)
-      await tx.appointment.deleteMany({ where: { customerId: cid } });
-      // 5. Orders + their lines
-      const orders = await tx.order.findMany({ where: { customerId: cid }, select: { id: true } });
-      if (orders.length > 0) {
-        const orderIds = orders.map((o) => o.id);
-        await tx.orderLine.deleteMany({ where: { orderId: { in: orderIds } } });
-      }
-      await tx.order.deleteMany({ where: { customerId: cid } });
-      // 6. Null optional FK relations; delete required-FK relations
-      await tx.boardingStay.updateMany({ where: { customerId: cid }, data: { customerId: null } });
-      await tx.lead.updateMany({ where: { customerId: cid }, data: { customerId: null } });
-      await tx.trainingProgram.updateMany({ where: { customerId: cid }, data: { customerId: null } });
-      // Booking.customerId is non-nullable — delete bookings (BookingDog cascades from Booking)
-      await tx.booking.deleteMany({ where: { customerId: cid } });
-      // 7. Other cascade records
-      await tx.scheduledMessage.deleteMany({ where: { customerId: cid } });
-      await tx.contractRequest.deleteMany({ where: { customerId: cid } });
-      await tx.intakeForm.deleteMany({ where: { customerId: cid } });
-      await tx.timelineEvent.deleteMany({ where: { customerId: cid } });
-      await tx.serviceDogRecipient.deleteMany({ where: { customerId: cid } });
-      await tx.trainingGroupParticipant.deleteMany({ where: { customerId: cid } });
-      // 8. Tasks linked via relatedEntityId (no FK, just string reference)
-      await tx.task.deleteMany({ where: { relatedEntityType: "CUSTOMER", relatedEntityId: cid } });
-      // 9. Pets
-      await tx.pet.deleteMany({ where: { customerId: cid } });
-      // 10. Delete customer
-      await tx.customer.delete({ where: { id: cid } });
-    });
+    // 1. Null self-referencing credit notes before deleting InvoiceDocuments
+    await prisma.invoiceDocument.updateMany({ where: { customerId: cid }, data: { originalInvoiceId: null } });
+    // 2. Delete invoice docs + jobs (reference payments, must go before payments)
+    await prisma.invoiceDocument.deleteMany({ where: { customerId: cid } });
+    await prisma.invoiceJob.deleteMany({ where: { customerId: cid } });
+    // 3. Payments
+    await prisma.payment.deleteMany({ where: { customerId: cid } });
+    // 4. Appointments
+    await prisma.appointment.deleteMany({ where: { customerId: cid } });
+    // 5. Orders + their lines
+    const orders = await prisma.order.findMany({ where: { customerId: cid }, select: { id: true } });
+    if (orders.length > 0) {
+      await prisma.orderLine.deleteMany({ where: { orderId: { in: orders.map((o) => o.id) } } });
+    }
+    await prisma.order.deleteMany({ where: { customerId: cid } });
+    // 6. Null optional FK relations; delete required-FK relations
+    await prisma.boardingStay.updateMany({ where: { customerId: cid }, data: { customerId: null } });
+    await prisma.lead.updateMany({ where: { customerId: cid }, data: { customerId: null } });
+    await prisma.trainingProgram.updateMany({ where: { customerId: cid }, data: { customerId: null } });
+    await prisma.booking.deleteMany({ where: { customerId: cid } });
+    // 7. Other cascade records
+    await prisma.scheduledMessage.deleteMany({ where: { customerId: cid } });
+    await prisma.contractRequest.deleteMany({ where: { customerId: cid } });
+    await prisma.intakeForm.deleteMany({ where: { customerId: cid } });
+    await prisma.timelineEvent.deleteMany({ where: { customerId: cid } });
+    await prisma.serviceDogRecipient.deleteMany({ where: { customerId: cid } });
+    await prisma.trainingGroupParticipant.deleteMany({ where: { customerId: cid } });
+    // 8. Tasks (relatedEntityId — string ref, no FK constraint)
+    await prisma.task.deleteMany({ where: { relatedEntityType: "CUSTOMER", relatedEntityId: cid } });
+    // 9. Pets (their sub-records cascade from Pet at DB level)
+    await prisma.pet.deleteMany({ where: { customerId: cid } });
+    // 10. Delete customer
+    await prisma.customer.delete({ where: { id: cid } });
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_CUSTOMER);
 
     return NextResponse.json({ success: true });
