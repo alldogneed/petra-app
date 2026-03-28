@@ -1185,24 +1185,9 @@ export function MessagesPanel() {
             תבניות
           </span>
         </button>
-        <button
-          onClick={() => setActiveTab("bulk")}
-          className={cn(
-            "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-            activeTab === "bulk"
-              ? "bg-white text-petra-text shadow-sm"
-              : "text-petra-muted hover:text-petra-text"
-          )}
-        >
-          <span className="flex items-center gap-2">
-            <Send className="w-4 h-4" />
-            שליחה מרוכזת
-          </span>
-        </button>
       </div>
 
       {activeTab === "templates" && <TemplatesTab />}
-      {activeTab === "bulk" && <BulkSendTab />}
     </div>
   );
 }
