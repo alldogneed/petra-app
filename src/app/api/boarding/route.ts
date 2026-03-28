@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         room: true,
+        yard: { select: { id: true, name: true } },
         pet: {
           select: {
             id: true, name: true, species: true, breed: true, foodNotes: true, foodBrand: true, foodGramsPerDay: true, foodFrequency: true, medicalNotes: true,
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { checkIn, checkOut, petId, customerId, roomId, status, notes } = body;
+    const { checkIn, checkOut, petId, customerId, roomId, yardId, status, notes } = body;
 
     if (!checkIn || !petId) {
       return NextResponse.json(
@@ -115,11 +116,13 @@ export async function POST(request: NextRequest) {
           petId,
           customerId: resolvedCustomerId,
           roomId: roomId || null,
+          yardId: yardId || null,
           status: status || "reserved",
           notes,
         },
         include: {
           room: true,
+          yard: { select: { id: true, name: true } },
           pet: {
             select: {
               id: true, name: true, species: true, breed: true, foodNotes: true, foodBrand: true, foodGramsPerDay: true, foodFrequency: true, medicalNotes: true,

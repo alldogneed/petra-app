@@ -251,6 +251,7 @@ model Business {
   appointments      Appointment[]
   boardingStays     BoardingStay[]
   rooms             Room[]
+  yards             Yard[]
   leads             Lead[]
   payments          Payment[]
   messageTemplates  MessageTemplate[]
@@ -494,6 +495,7 @@ model BoardingStay {
   dailyTrainingMinutes  Int?
   status                String    @default("reserved")
   roomId       String?
+  yardId       String?   // optional yard assignment (independent of room)
   petId        String
   customerId   String?
   businessId   String
@@ -503,6 +505,7 @@ model BoardingStay {
   updatedAt    DateTime  @updatedAt
 
   room       Room?     @relation(fields: [roomId], references: [id])
+  yard       Yard?     @relation(fields: [yardId], references: [id])
   pet        Pet       @relation(fields: [petId], references: [id])
   customer   Customer? @relation(fields: [customerId], references: [id])
   business   Business  @relation(fields: [businessId], references: [id])
@@ -513,6 +516,7 @@ model BoardingStay {
   @@index([businessId])
   @@index([businessId, checkIn, checkOut])
   @@index([roomId, status])
+  @@index([yardId, status])
   @@index([petId])
   @@index([customerId])
 }
@@ -533,6 +537,26 @@ model Room {
 
   business      Business       @relation(fields: [businessId], references: [id])
   boardingStays BoardingStay[]
+}
+
+model Yard {
+  id              String   @id @default(uuid())
+  name            String
+  capacity        Int      @default(1)
+  type            String   @default("standard")
+  status          String   @default("available")  // available | needs_cleaning
+  notes           String?
+  pricePerSession Float?
+  businessId      String
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  business      Business       @relation(fields: [businessId], references: [id])
+  boardingStays BoardingStay[]
+
+  @@index([businessId])
 }
 
 model BoardingCareLog {

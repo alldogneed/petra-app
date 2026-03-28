@@ -53,6 +53,7 @@ import {
   ClipboardList,
   Printer,
   GripVertical,
+  TreePine,
 } from "lucide-react";
 import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
@@ -81,6 +82,18 @@ interface Room {
   boardingStays: RoomStay[];
 }
 
+interface Yard {
+  id: string;
+  name: string;
+  capacity: number;
+  type: string;
+  status: string;
+  isActive: boolean;
+  pricePerSession: number | null;
+  _count: { boardingStays: number };
+  boardingStays: RoomStay[];
+}
+
 interface BoardingStay {
   id: string;
   checkIn: string;
@@ -89,6 +102,7 @@ interface BoardingStay {
   notes: string | null;
   dailyTrainingMinutes: number | null;
   room: { id: string; name: string } | null;
+  yard: { id: string; name: string } | null;
   pet: {
     id: string; name: string; species: string; breed: string | null;
     foodNotes: string | null;
@@ -135,6 +149,12 @@ const ROOM_TYPE_LABELS: Record<string, string> = {
   standard: "רגיל",
   premium: "פרמיום",
   suite: "סוויט",
+};
+
+const YARD_TYPE_LABELS: Record<string, string> = {
+  standard: "רגילה",
+  large: "גדולה",
+  group: "קבוצתית",
 };
 
 const ACTIVE_STATUSES = ["reserved", "checked_in"];
@@ -1242,6 +1262,12 @@ function CheckinDialog({
               <span className="text-petra-muted">חדר:</span>
               <span className="font-medium">{stay.room?.name || "לא שובץ"}</span>
             </div>
+            {stay.yard && (
+              <div className="flex justify-between">
+                <span className="text-petra-muted">חצר:</span>
+                <span className="font-medium text-teal-700">{stay.yard.name}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-petra-muted">תאריך כניסה:</span>
               <span className="font-medium">{formatDateFull(stay.checkIn)}</span>
@@ -1361,6 +1387,12 @@ function CheckoutDialog({
               <span className="text-petra-muted">חדר:</span>
               <span className="font-medium">{stay.room?.name || "—"}</span>
             </div>
+            {stay.yard && (
+              <div className="flex justify-between">
+                <span className="text-petra-muted">חצר:</span>
+                <span className="font-medium text-teal-700">{stay.yard.name}</span>
+              </div>
+            )}
             <div className="divider" />
             <div className="flex justify-between">
               <span className="text-petra-muted">כניסה:</span>
@@ -1850,7 +1882,7 @@ function BoardingPageContent() {
   const [showNewStay, setShowNewStay] = useState(false);
   const [careLogStay, setCareLogStay] = useState<{ id: string; petName: string } | null>(null);
   const [form, setForm] = useState({
-    customerId: "", petIds: [] as string[], roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "", pricePerNight: 0,
+    customerId: "", petIds: [] as string[], roomId: "", yardId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "", pricePerNight: 0,
   });
   const [serviceDogMode, setServiceDogMode] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
@@ -1887,6 +1919,12 @@ function BoardingPageContent() {
   const [editRoomForm, setEditRoomForm] = useState({ name: "", capacity: 1, type: "standard", pricePerNight: "" as string | number });
   const [newRoomForm, setNewRoomForm] = useState({ name: "", capacity: 1, type: "standard", pricePerNight: "" as string | number });
 
+  // Yards manager
+  const [showYardsManager, setShowYardsManager] = useState(false);
+  const [editingYardId, setEditingYardId] = useState<string | null>(null);
+  const [editYardForm, setEditYardForm] = useState({ name: "", capacity: 1, type: "standard", pricePerSession: "" as string | number });
+  const [newYardForm, setNewYardForm] = useState({ name: "", capacity: 1, type: "standard", pricePerSession: "" as string | number });
+
   const queryClient = useQueryClient();
 
   const sensors = useSensors(
@@ -1898,6 +1936,11 @@ function BoardingPageContent() {
   const { data: rooms = [] } = useQuery<Room[]>({
     queryKey: ["rooms"],
     queryFn: () => fetchJSON<Room[]>("/api/boarding/rooms"),
+  });
+
+  const { data: yards = [] } = useQuery<Yard[]>({
+    queryKey: ["yards"],
+    queryFn: () => fetchJSON<Yard[]>("/api/boarding/yards"),
   });
 
   const { data: stays = [], isLoading, isError, isFetching: isBoardingFetching } = useQuery<BoardingStay[]>({
@@ -1978,6 +2021,7 @@ function BoardingPageContent() {
             customerId: data.customerId || null,
             petId,
             roomId: data.roomId || null,
+            yardId: data.yardId || null,
             checkIn: checkInDT,
             checkOut: checkOutDT || null,
             notes: data.notes || null,
@@ -1989,8 +2033,9 @@ function BoardingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      queryClient.invalidateQueries({ queryKey: ["yards"] });
       setShowNewStay(false);
-      setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150 });
+      setForm({ customerId: "", petIds: [], roomId: "", yardId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150 });
       setCustomerSearch("");
       setServiceDogMode(false);
       toast.success("ההשמה נוצרה בהצלחה");
@@ -2280,6 +2325,52 @@ function BoardingPageContent() {
   function startEditRoom(room: Room) {
     setEditingRoomId(room.id);
     setEditRoomForm({ name: room.name, capacity: room.capacity, type: room.type, pricePerNight: room.pricePerNight ?? "" });
+  }
+
+  const createYardMutation = useMutation({
+    mutationFn: (data: { name: string; capacity: number; type: string; pricePerSession: string | number }) =>
+      fetch("/api/boarding/yards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, pricePerSession: data.pricePerSession !== "" ? Number(data.pricePerSession) : null }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["yards"] });
+      setNewYardForm({ name: "", capacity: 1, type: "standard", pricePerSession: "" });
+      toast.success("החצר נוצרה בהצלחה");
+    },
+    onError: () => toast.error("שגיאה ביצירת החצר. נסה שוב."),
+  });
+
+  const updateYardMutation = useMutation({
+    mutationFn: ({ id, ...data }: { id: string; name: string; capacity: number; type: string; pricePerSession: string | number }) =>
+      fetch(`/api/boarding/yards/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, pricePerSession: data.pricePerSession !== "" ? Number(data.pricePerSession) : null }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["yards"] });
+      setEditingYardId(null);
+      toast.success("החצר עודכנה בהצלחה");
+    },
+    onError: () => toast.error("שגיאה בעדכון החצר. נסה שוב."),
+  });
+
+  const deleteYardMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/boarding/yards/${id}`, { method: "DELETE" })
+        .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקת החצר"); return d; }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["yards"] });
+      toast.success("החצר נמחקה");
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת החצר. נסה שוב."),
+  });
+
+  function startEditYard(yard: Yard) {
+    setEditingYardId(yard.id);
+    setEditYardForm({ name: yard.name, capacity: yard.capacity, type: yard.type, pricePerSession: yard.pricePerSession ?? "" });
   }
 
   // ── Check-in/out via dialog ──
@@ -2609,6 +2700,9 @@ function BoardingPageContent() {
           <button className="btn-secondary" onClick={() => setShowRoomsManager(true)}>
             <Settings2 className="w-4 h-4" />ניהול חדרים
           </button>
+          <button className="btn-secondary !text-teal-700 !border-teal-200 hover:!bg-teal-50" onClick={() => setShowYardsManager(true)}>
+            <TreePine className="w-4 h-4 text-teal-600" />ניהול חצרות
+          </button>
           <button className="btn-primary" onClick={() => { setForm((f) => ({ ...f, pricePerNight: settings.boardingPricePerNight || 150, checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00" })); setShowNewStay(true); }}>
             <Plus className="w-4 h-4" />שהייה חדשה
           </button>
@@ -2838,6 +2932,77 @@ function BoardingPageContent() {
             ) : null}
           </DragOverlay>
         </DndContext>
+      )}
+
+      {/* ── Yards Map ── */}
+      {viewMode === "grid" && yards.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <TreePine className="w-4 h-4 text-teal-600" />
+            <h3 className="text-sm font-semibold text-teal-700">חצרות</h3>
+            <span className="text-xs text-teal-500 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded-full">
+              {yards.reduce((sum, y) => sum + y._count.boardingStays, 0)} כלבים כעת
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {yards.map((yard) => {
+              const checkedIn = yard.boardingStays.filter((s) => s.status === "checked_in");
+              const reserved = yard.boardingStays.filter((s) => s.status === "reserved");
+              const isOccupied = checkedIn.length > 0;
+              const needsCleaning = yard.status === "needs_cleaning";
+              const displayStatus = isOccupied ? "occupied" : needsCleaning ? "needs_cleaning" : "available";
+              const statusInfo = ROOM_STATUS_MAP[displayStatus];
+              return (
+                <div
+                  key={yard.id}
+                  className="card p-4 border-l-4"
+                  style={{ borderLeftColor: isOccupied ? "#14b8a6" : needsCleaning ? "#EAB308" : "#22C55E" }}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">
+                        <TreePine className="w-4 h-4 text-teal-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-petra-text leading-tight">{yard.name}</p>
+                        <p className="text-[10px] text-petra-muted">{YARD_TYPE_LABELS[yard.type] || yard.type} · קיבולת {yard.capacity}</p>
+                      </div>
+                    </div>
+                    <span
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full border flex-shrink-0"
+                      style={{ color: statusInfo.color, backgroundColor: statusInfo.bg, borderColor: statusInfo.border }}
+                    >
+                      {statusInfo.label}
+                    </span>
+                  </div>
+                  {yard.boardingStays.length === 0 ? (
+                    <p className="text-xs text-petra-muted text-center py-2">ריקה</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {checkedIn.map((s) => (
+                        <div key={s.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-teal-50 border border-teal-100">
+                          <PawPrint className="w-3 h-3 text-teal-500 flex-shrink-0" />
+                          <span className="text-xs font-medium text-teal-800 truncate">{s.pet.name}</span>
+                          {s.customer && <span className="text-[10px] text-teal-600 truncate mr-auto">{s.customer.name}</span>}
+                        </div>
+                      ))}
+                      {reserved.map((s) => (
+                        <div key={s.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-100">
+                          <PawPrint className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                          <span className="text-xs text-slate-600 truncate">{s.pet.name}</span>
+                          <span className="text-[10px] text-slate-400 mr-auto">הזמנה</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {yard.pricePerSession != null && (
+                    <p className="text-[10px] text-teal-600 mt-2">₪{yard.pricePerSession}/שהייה</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {/* ── Timeline View ── */}
@@ -3215,6 +3380,189 @@ function BoardingPageContent() {
         </div>
       )}
 
+      {/* ── Yards Manager Modal ── */}
+      {showYardsManager && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => { setShowYardsManager(false); setEditingYardId(null); }} />
+          <div className="modal-content max-w-lg mx-4 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-petra-text flex items-center gap-2">
+                  <TreePine className="w-5 h-5 text-teal-600" />ניהול חצרות
+                </h2>
+                <p className="text-sm text-petra-muted mt-0.5">הוסף, ערוך או מחק חצרות</p>
+              </div>
+              <button
+                onClick={() => { setShowYardsManager(false); setEditingYardId(null); }}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 mb-6">
+              {yards.length === 0 ? (
+                <p className="text-sm text-petra-muted text-center py-4">אין חצרות עדיין</p>
+              ) : (
+                yards.map((yard) => (
+                  <div key={yard.id} className="card p-3">
+                    {editingYardId === yard.id ? (
+                      <div className="space-y-2">
+                        <input
+                          className="input"
+                          placeholder="שם החצר"
+                          value={editYardForm.name}
+                          onChange={(e) => setEditYardForm({ ...editYardForm, name: e.target.value })}
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <label className="label text-[11px]">קיבולת</label>
+                            <input
+                              type="number"
+                              min={1}
+                              className="input"
+                              value={editYardForm.capacity}
+                              onChange={(e) => setEditYardForm({ ...editYardForm, capacity: Number(e.target.value) })}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="label text-[11px]">סוג</label>
+                            <select
+                              className="input"
+                              value={editYardForm.type}
+                              onChange={(e) => setEditYardForm({ ...editYardForm, type: e.target.value })}
+                            >
+                              <option value="standard">רגילה</option>
+                              <option value="large">גדולה</option>
+                              <option value="group">קבוצתית</option>
+                            </select>
+                          </div>
+                          <div className="flex-1">
+                            <label className="label text-[11px]">מחיר/שהייה (₪)</label>
+                            <input
+                              type="number"
+                              min={0}
+                              className="input"
+                              placeholder="אופציונלי"
+                              value={editYardForm.pricePerSession}
+                              onChange={(e) => setEditYardForm({ ...editYardForm, pricePerSession: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            className="btn-primary text-xs flex-1"
+                            disabled={!editYardForm.name.trim() || updateYardMutation.isPending}
+                            onClick={() => updateYardMutation.mutate({ id: yard.id, ...editYardForm })}
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            {updateYardMutation.isPending ? "שומר..." : "שמור"}
+                          </button>
+                          <button
+                            className="btn-secondary text-xs"
+                            onClick={() => setEditingYardId(null)}
+                          >
+                            ביטול
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <TreePine className="w-4 h-4 text-teal-500 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-semibold text-petra-text">{yard.name}</span>
+                          <span className="text-xs text-petra-muted mr-2">· קיבולת {yard.capacity}</span>
+                          <span className="text-xs text-petra-muted">· {yard._count.boardingStays} פעילות</span>
+                          {yard.pricePerSession != null && (
+                            <span className="text-xs text-teal-600 mr-2">· ₪{yard.pricePerSession}/שהייה</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted hover:text-petra-text transition-colors"
+                            onClick={() => startEditYard(yard)}
+                            title="ערוך"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            onClick={() => deleteYardMutation.mutate(yard.id)}
+                            disabled={yard._count.boardingStays > 0 || deleteYardMutation.isPending}
+                            title={yard._count.boardingStays > 0 ? "לא ניתן למחוק חצר עם שהיות פעילות" : "מחק חצר"}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="border-t border-slate-100 pt-5">
+              <h3 className="text-sm font-semibold text-petra-text mb-3">הוסף חצר חדשה</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="label">שם החצר *</label>
+                  <input
+                    className="input"
+                    placeholder='לדוגמה: חצר A, חצר גדולה...'
+                    value={newYardForm.name}
+                    onChange={(e) => setNewYardForm({ ...newYardForm, name: e.target.value })}
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="label">קיבולת</label>
+                    <input
+                      type="number"
+                      min={1}
+                      className="input"
+                      value={newYardForm.capacity}
+                      onChange={(e) => setNewYardForm({ ...newYardForm, capacity: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="label">סוג</label>
+                    <select
+                      className="input"
+                      value={newYardForm.type}
+                      onChange={(e) => setNewYardForm({ ...newYardForm, type: e.target.value })}
+                    >
+                      <option value="standard">רגילה</option>
+                      <option value="large">גדולה</option>
+                      <option value="group">קבוצתית</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="label">מחיר/שהייה (₪)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="input"
+                      placeholder="אופציונלי"
+                      value={newYardForm.pricePerSession}
+                      onChange={(e) => setNewYardForm({ ...newYardForm, pricePerSession: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <button
+                  className="btn-primary w-full !bg-teal-600 hover:!bg-teal-700 !border-teal-600"
+                  disabled={!newYardForm.name.trim() || createYardMutation.isPending}
+                  onClick={() => createYardMutation.mutate(newYardForm)}
+                >
+                  <Plus className="w-4 h-4" />
+                  {createYardMutation.isPending ? "מוסיף..." : "הוסף חצר"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── New Stay Modal ── */}
       {showNewStay && (
         <div className="modal-overlay">
@@ -3518,6 +3866,31 @@ function BoardingPageContent() {
                   </select>
                 )}
               </div>
+
+              {/* Yard selector */}
+              {yards.length > 0 && (
+                <div>
+                  <label className="label">
+                    חצר
+                    <span className="text-[10px] font-normal text-teal-500 mr-2">אופציונלי — בנוסף לחדר</span>
+                  </label>
+                  <select
+                    className="input !border-teal-200 focus:!border-teal-400"
+                    value={form.yardId}
+                    onChange={(e) => setForm({ ...form, yardId: e.target.value })}
+                  >
+                    <option value="">ללא חצר</option>
+                    {yards.map((y) => {
+                      const isFull = y._count.boardingStays >= y.capacity;
+                      return (
+                        <option key={y.id} value={y.id} disabled={isFull}>
+                          {y.name} ({y._count.boardingStays}/{y.capacity}){isFull ? " — מלאה" : y.status === "needs_cleaning" ? " — דרוש ניקיון" : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              )}
 
               {/* Check-in */}
               <div>
