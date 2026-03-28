@@ -292,11 +292,9 @@ function WhatsAppIcon({ className }: { className?: string }) {
 function QuickActions({
   customer,
   onEdit,
-  onBook,
 }: {
   customer: EnhancedCustomer;
   onEdit: () => void;
-  onBook: () => void;
 }) {
   const waPhone = toWhatsAppPhone(customer.phone);
   const isValidPhone = customer.phone.replace(/\D/g, "").length >= 9;
@@ -333,18 +331,6 @@ function QuickActions({
       ) : (
         <span className="w-8 h-8" />
       )}
-
-      {/* Quick book */}
-      <button
-        className="w-8 h-8 rounded-lg flex items-center justify-center text-brand-500 hover:bg-brand-50 transition-colors"
-        title="קביעת תור מהיר"
-        onClick={(e) => {
-          e.stopPropagation();
-          onBook();
-        }}
-      >
-        <Calendar className="w-4 h-4" />
-      </button>
 
       {/* Edit */}
       <button
@@ -1530,7 +1516,6 @@ export default function CustomersPage() {
   const [showNewModal, setShowNewModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<EnhancedCustomer | null>(null);
-  const [bookingCustomer, setBookingCustomer] = useState<EnhancedCustomer | null>(null);
   const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
   const [bulkDeleteStep, setBulkDeleteStep] = useState<0 | 1 | 2>(0);
   const [bulkWaMessage, setBulkWaMessage] = useState("");
@@ -2216,7 +2201,6 @@ export default function CustomersPage() {
                         <QuickActions
                           customer={customer}
                           onEdit={() => setEditingCustomer(customer)}
-                          onBook={() => setBookingCustomer(customer)}
                         />
                       </div>
                     </div>
@@ -2350,7 +2334,6 @@ export default function CustomersPage() {
                         <QuickActions
                           customer={customer}
                           onEdit={() => setEditingCustomer(customer)}
-                          onBook={() => setBookingCustomer(customer)}
                         />
                       </td>
                     </tr>
@@ -2415,11 +2398,6 @@ export default function CustomersPage() {
         onClose={() => setEditingCustomer(null)}
         customer={editingCustomer}
         presetTags={customerPresetTags}
-      />
-      <QuickBookModal
-        isOpen={!!bookingCustomer}
-        onClose={() => setBookingCustomer(null)}
-        customer={bookingCustomer}
       />
       <CreateOrderModal
         isOpen={showOrderModal}
