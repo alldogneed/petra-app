@@ -92,6 +92,25 @@ No PENDING / TRIAL / SUSPENDED / COMPLETED. New placements default to `ACTIVE`.
 ### 16. `shadcn init` destroys utils.ts
 Restore: `DEMO_BUSINESS_ID`, `formatCurrency`, `formatDate`, `formatTime`, `getStatusColor`, `getStatusLabel`, `toWhatsAppPhone`, `getTimelineIcon`
 
+### 17. Customer DELETE — sequential, NO $transaction
+Supabase PgBouncer (transaction pooling) is incompatible with Prisma interactive transactions. Customer delete runs all cleanup sequentially:
+```
+InvoiceDocument.updateMany(originalInvoiceId→null) → InvoiceDocument.deleteMany → InvoiceJob.deleteMany
+→ Payment.deleteMany → Appointment.deleteMany → OrderLine.deleteMany → Order.deleteMany
+→ BoardingStay.updateMany(customerId→null) → Lead.updateMany(customerId→null)
+→ TrainingProgram.updateMany(customerId→null) → Booking.deleteMany
+→ ScheduledMessage/ContractRequest/IntakeForm/TimelineEvent/ServiceDogRecipient/TrainingGroupParticipant.deleteMany
+→ Task.deleteMany(relatedEntityType="CUSTOMER") → Pet.deleteMany → Customer.delete
+```
+`Booking.customerId` is non-nullable → must deleteMany, not updateMany(null).
+`Task` has no `customerId` FK — uses `relatedEntityType`/`relatedEntityId` strings.
+`InvoiceDocument` has self-referencing credit note → must null `originalInvoiceId` before deleteMany.
+
+### 18. Leads Kanban — sort vs badge must match
+`sortLeadsByPriority()` at bottom of `leads/page.tsx`: priority 0 = overdue.
+Overdue condition: `followUpDate && followUpDate < todayStart` (no `followUpStatus` check).
+Card badge uses identical condition — never add extra conditions to one without updating the other.
+
 ---
 
 ## Key Patterns
@@ -161,3 +180,9 @@ import { prisma } from "@/lib/prisma"
 | SEO sitemap | `src/app/sitemap.ts` — 6 public URLs, `/landing` priority 1.0 |
 | SEO robots | `src/app/robots.ts` — allows landing/register/login, disallows api/admin/dashboard |
 | Test notify endpoint | `GET /api/test-notify?secret=CRON_SECRET` — triggers fake registration notification (temporary) |
+| In-app notifications bell | `src/components/layout/InAppNotificationBell.tsx` — title "הודעות מערכת"; per-message "קראתי" button (dismiss); "קראתי הכל" dismisses all |
+| Customers page | Selection mode: "בחר" button toggles `selectionMode`; checkboxes hidden by default. Email badge → Gmail compose (`https://mail.google.com/mail/?view=cm&to=...`). No quick-book button. |
+| Tasks page | Same selection mode pattern as customers (`selectionMode` state, "בחר" button, "בטל בחירה" exits mode) |
+| Service dog tabs order | תיק כלב → חיסונים וטיפולים → שיבוצים → מבחני הסמכה → מסמכים → ביטוח → ציוד → פרוטוקולים רפואיים → יומן אימונים → תעודת הסמכה |
+| Boarding room map print | `@media print` in `boarding/page.tsx` hides `.modal-overlay` — prevents "לקוח חדש" modal appearing in print |
+| Feeding board print | `boarding/daily/page.tsx` has print button + `@media print` CSS hiding nav/modals |
