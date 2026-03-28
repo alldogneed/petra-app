@@ -44,6 +44,7 @@ import {
   Sparkles,
   Download,
   FileSpreadsheet,
+  CheckSquare,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -180,6 +181,7 @@ export default function TasksPage() {
   const [postponeTask, setPostponeTask] = useState<Task | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Task | null>(null);
   const [editTask, setEditTask] = useState<Task | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [tick, setTick] = useState(0);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -721,6 +723,21 @@ export default function TasksPage() {
           <Download className="w-3.5 h-3.5" />
           ייצוא לאקסל
         </button>
+        <button
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+            selectionMode
+              ? "bg-brand-600 text-white border-brand-600 hover:bg-brand-700"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200"
+          )}
+          onClick={() => {
+            setSelectionMode(!selectionMode);
+            if (selectionMode) setSelectedTaskIds(new Set());
+          }}
+        >
+          <CheckSquare className="w-3.5 h-3.5" />
+          {selectionMode ? "בטל" : "בחר"}
+        </button>
       </div>
 
       {/* Bulk Action Bar */}
@@ -737,7 +754,7 @@ export default function TasksPage() {
           </button>
           <button
             className="text-xs text-petra-muted hover:text-petra-text ms-auto"
-            onClick={() => setSelectedTaskIds(new Set())}
+            onClick={() => { setSelectedTaskIds(new Set()); setSelectionMode(false); }}
           >
             בטל בחירה
           </button>
@@ -773,7 +790,7 @@ export default function TasksPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {sortedTasks.length > 1 && activeFilter !== "COMPLETED" && (
+          {selectionMode && sortedTasks.length > 1 && activeFilter !== "COMPLETED" && (
             <div className="flex justify-end">
               <button
                 className="text-xs text-petra-muted hover:text-brand-600"
@@ -794,6 +811,7 @@ export default function TasksPage() {
               key={task.id}
               task={task}
               isSelected={selectedTaskIds.has(task.id)}
+              selectionMode={selectionMode}
               onSelect={(id) => setSelectedTaskIds((prev) => {
                 const next = new Set(prev);
                 if (next.has(id)) next.delete(id); else next.add(id);
@@ -1256,6 +1274,7 @@ function humanizeRrule(rrule: string): string {
 function TaskCard({
   task,
   isSelected,
+  selectionMode,
   onSelect,
   onToggle,
   onPostpone,
@@ -1265,6 +1284,7 @@ function TaskCard({
 }: {
   task: Task;
   isSelected: boolean;
+  selectionMode: boolean;
   onSelect: (id: string) => void;
   onToggle: (id: string, status: string) => void;
   onPostpone: (task: Task) => void;
@@ -1288,15 +1308,14 @@ function TaskCard({
       )}
     >
       <div className="flex items-start gap-3">
-        {/* Selection checkbox */}
-        {!isCompleted && (
+        {/* Selection checkbox — only in selection mode */}
+        {selectionMode && !isCompleted && (
           <input
             type="checkbox"
             checked={isSelected}
             onChange={() => onSelect(task.id)}
             onClick={(e) => e.stopPropagation()}
-            className="flex-shrink-0 mt-1 w-4 h-4 rounded accent-brand-500 opacity-0 group-hover:opacity-100 transition-opacity"
-            style={{ opacity: isSelected ? 1 : undefined }}
+            className="flex-shrink-0 mt-1 w-4 h-4 rounded accent-brand-500"
           />
         )}
 

@@ -1551,6 +1551,7 @@ export default function CustomersPage() {
   const [financialFilter, setFinancialFilter] = useState<"all" | "debt" | "balanced">("all");
   const [lastVisitFilter, setLastVisitFilter] = useState<"" | "30" | "60" | "90" | "never">("");
   const [filtersCollapsed, setFiltersCollapsed] = useState(true);
+  const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showNewModal, setShowNewModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -1821,6 +1822,21 @@ export default function CustomersPage() {
           >
             <FileDown className="w-4 h-4" />
             ייצוא CSV
+          </button>
+          <button
+            className={cn(
+              "hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-colors",
+              selectionMode
+                ? "bg-brand-600 text-white border-brand-600 hover:bg-brand-700"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200"
+            )}
+            onClick={() => {
+              setSelectionMode(!selectionMode);
+              if (selectionMode) setSelectedIds(new Set());
+            }}
+          >
+            <CheckSquare className="w-4 h-4" />
+            {selectionMode ? "בטל בחירה" : "בחר"}
           </button>
         </div>
         <div className="flex items-center gap-2">
@@ -2100,7 +2116,7 @@ export default function CustomersPage() {
           <div className="w-px h-5 bg-brand-200" />
           <button
             className="text-xs text-petra-muted hover:text-petra-text transition-colors"
-            onClick={clearSelection}
+            onClick={() => { clearSelection(); setSelectionMode(false); }}
           >
             בטל בחירה
           </button>
@@ -2161,22 +2177,24 @@ export default function CustomersPage() {
         <div className="card overflow-hidden">
           {/* ── Mobile card list (< md) ── */}
           <div className="md:hidden divide-y divide-slate-50">
-            {/* Mobile select-all header */}
-            <div className="flex items-center gap-3 px-4 py-2.5 bg-[#FAF7F3] border-b border-[#E8DFD5]">
-              <button
-                onClick={toggleSelectAll}
-                className="text-slate-400 hover:text-petra-text transition-colors"
-              >
-                {allSelected ? (
-                  <CheckSquare className="w-4 h-4 text-brand-500" />
-                ) : someSelected ? (
-                  <MinusSquare className="w-4 h-4 text-brand-400" />
-                ) : (
-                  <Square className="w-4 h-4" />
-                )}
-              </button>
-              <span className="text-xs text-[#8B7355]">בחר הכל</span>
-            </div>
+            {/* Mobile select-all header — only in selection mode */}
+            {selectionMode && (
+              <div className="flex items-center gap-3 px-4 py-2.5 bg-[#FAF7F3] border-b border-[#E8DFD5]">
+                <button
+                  onClick={toggleSelectAll}
+                  className="text-slate-400 hover:text-petra-text transition-colors"
+                >
+                  {allSelected ? (
+                    <CheckSquare className="w-4 h-4 text-brand-500" />
+                  ) : someSelected ? (
+                    <MinusSquare className="w-4 h-4 text-brand-400" />
+                  ) : (
+                    <Square className="w-4 h-4" />
+                  )}
+                </button>
+                <span className="text-xs text-[#8B7355]">בחר הכל</span>
+              </div>
+            )}
 
             {customers.map((customer) => {
               const isSelected = selectedIds.has(customer.id);
@@ -2186,17 +2204,19 @@ export default function CustomersPage() {
                   className={`px-4 py-3.5 transition-colors ${isSelected ? "bg-[#FEF9F4]" : "hover:bg-[#FDFBF8]"}`}
                 >
                   <div className="flex items-start gap-3">
-                    {/* Checkbox */}
-                    <button
-                      onClick={() => toggleSelect(customer.id)}
-                      className="mt-1 flex-shrink-0 text-slate-400 hover:text-petra-text transition-colors"
-                    >
-                      {isSelected ? (
-                        <CheckSquare className="w-4 h-4 text-brand-500" />
-                      ) : (
-                        <Square className="w-4 h-4" />
-                      )}
-                    </button>
+                    {/* Checkbox — only in selection mode */}
+                    {selectionMode && (
+                      <button
+                        onClick={() => toggleSelect(customer.id)}
+                        className="mt-1 flex-shrink-0 text-slate-400 hover:text-petra-text transition-colors"
+                      >
+                        {isSelected ? (
+                          <CheckSquare className="w-4 h-4 text-brand-500" />
+                        ) : (
+                          <Square className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
@@ -2255,21 +2275,23 @@ export default function CustomersPage() {
               <caption className="sr-only">רשימת לקוחות</caption>
               <thead>
                 <tr className="bg-[#FAF7F3] border-b border-[#E8DFD5]">
-                  <th scope="col" className="text-right px-3 py-3 w-10">
-                    <button
-                      onClick={toggleSelectAll}
-                      className="text-slate-400 hover:text-petra-text transition-colors"
-                      aria-label="בחר הכל"
-                    >
-                      {allSelected ? (
-                        <CheckSquare className="w-4 h-4 text-brand-500" aria-hidden="true" />
-                      ) : someSelected ? (
-                        <MinusSquare className="w-4 h-4 text-brand-400" aria-hidden="true" />
-                      ) : (
-                        <Square className="w-4 h-4" aria-hidden="true" />
-                      )}
-                    </button>
-                  </th>
+                  {selectionMode && (
+                    <th scope="col" className="text-right px-3 py-3 w-10">
+                      <button
+                        onClick={toggleSelectAll}
+                        className="text-slate-400 hover:text-petra-text transition-colors"
+                        aria-label="בחר הכל"
+                      >
+                        {allSelected ? (
+                          <CheckSquare className="w-4 h-4 text-brand-500" aria-hidden="true" />
+                        ) : someSelected ? (
+                          <MinusSquare className="w-4 h-4 text-brand-400" aria-hidden="true" />
+                        ) : (
+                          <Square className="w-4 h-4" aria-hidden="true" />
+                        )}
+                      </button>
+                    </th>
+                  )}
                   <th scope="col" className="table-header-cell">שם</th>
                   <th scope="col" className="table-header-cell">סטטוס</th>
                   <th scope="col" className="table-header-cell hidden md:table-cell">חיות</th>
@@ -2287,19 +2309,21 @@ export default function CustomersPage() {
                       key={customer.id}
                       className={`border-b border-slate-50 hover:bg-[#FDFBF8] transition-colors ${isSelected ? "bg-[#FEF9F4]" : ""}`}
                     >
-                      {/* Checkbox */}
-                      <td className="px-3 py-3.5">
-                        <button
-                          onClick={() => toggleSelect(customer.id)}
-                          className="text-slate-400 hover:text-petra-text transition-colors"
-                        >
-                          {isSelected ? (
-                            <CheckSquare className="w-4 h-4 text-brand-500" />
-                          ) : (
-                            <Square className="w-4 h-4" />
-                          )}
-                        </button>
-                      </td>
+                      {/* Checkbox — only in selection mode */}
+                      {selectionMode && (
+                        <td className="px-3 py-3.5">
+                          <button
+                            onClick={() => toggleSelect(customer.id)}
+                            className="text-slate-400 hover:text-petra-text transition-colors"
+                          >
+                            {isSelected ? (
+                              <CheckSquare className="w-4 h-4 text-brand-500" />
+                            ) : (
+                              <Square className="w-4 h-4" />
+                            )}
+                          </button>
+                        </td>
+                      )}
 
                       {/* Name + phone + tags */}
                       <td className="table-cell">
