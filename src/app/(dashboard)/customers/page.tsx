@@ -325,7 +325,7 @@ function QuickActions({
           title={`שלח אימייל ל־${customer.email}`}
           onClick={(e) => {
             e.stopPropagation();
-            window.location.href = `mailto:${customer.email}`;
+            window.open(`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(customer.email!)}`, "_blank");
           }}
         >
           <Mail className="w-4 h-4" />
@@ -2306,7 +2306,7 @@ export default function CustomersPage() {
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    window.location.href = `mailto:${customer.email}`;
+                                    window.open(`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(customer.email!)}`, "_blank");
                                   }}
                                   className="text-[11px] text-petra-muted hover:text-brand-600 hidden sm:flex items-center gap-1 transition-colors cursor-pointer"
                                 >
