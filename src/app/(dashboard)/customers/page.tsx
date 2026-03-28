@@ -300,7 +300,7 @@ function QuickActions({
   const isValidPhone = customer.phone.replace(/\D/g, "").length >= 9;
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1 flex-nowrap">
       {/* WhatsApp — only for valid phone numbers */}
       {isValidPhone && (
         <a
@@ -2310,7 +2310,7 @@ export default function CustomersPage() {
                   <th scope="col" className="table-header-cell hidden md:table-cell">חיות</th>
                   <th scope="col" className="table-header-cell hidden lg:table-cell">פגישות</th>
                   <th scope="col" className="table-header-cell hidden lg:table-cell">כספי</th>
-                  <th scope="col" className="table-header-cell w-36">פעולות</th>
+                  <th scope="col" className="table-header-cell w-44">פעולות</th>
                 </tr>
               </thead>
               <tbody>
