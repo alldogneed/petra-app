@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   Plus,
   X,
@@ -12,7 +12,6 @@ import {
   Clock,
   ToggleLeft,
   ToggleRight,
-  AlertCircle,
   Send,
   Users,
   ExternalLink,
@@ -21,6 +20,11 @@ import {
   Check,
   Wand2,
   Eye,
+  CheckCircle2,
+  CreditCard,
+  UserPlus,
+  Gift,
+  Home,
 } from "lucide-react";
 import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
@@ -383,9 +387,23 @@ function BulkSendModal({ template, onClose }: { template: MessageTemplate; onClo
   );
 }
 
+// ─── Trigger icon map ─────────────────────────────────────────────────────────
+
+const TRIGGER_ICONS: Record<string, React.ElementType> = {
+  appointment_confirmation: CheckCircle2,
+  appointment_reminder: Clock,
+  appointment_followup: MessageSquare,
+  payment_request: CreditCard,
+  new_customer: UserPlus,
+  lead_followup: Users,
+  birthday_reminder: Gift,
+  boarding_pickup: Home,
+};
+
 // ─── Templates Tab ────────────────────────────────────────────────────────────
 
 function TemplatesTab() {
+  const [innerTab, setInnerTab] = useState<"auto" | "manual">("auto");
   const [showEditor, setShowEditor] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   const [sendingTemplate, setSendingTemplate] = useState<MessageTemplate | null>(null);
@@ -480,139 +498,203 @@ function TemplatesTab() {
     setShowEditor(true);
   }
 
+  const manualTemplates = templates.filter(t => !t.automationRules?.length);
+
+  // ─── Manual template card ──────────────────────────────────────────────────
+  const renderManualCard = (template: MessageTemplate) => (
+    <div key={template.id} className="card p-4 group">
+      <div className="flex items-start justify-between mb-2">
+        <h3 className="text-sm font-semibold text-petra-text">{template.name}</h3>
+        <div className="flex gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+          <button
+            onClick={() => setSendingTemplate(template)}
+            className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
+            title="שלח ללקוח בודד"
+          >
+            <Send className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => setBulkSendingTemplate(template)}
+            className="p-1.5 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600"
+            title="שלח לקבוצת לקוחות"
+          >
+            <Users className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => openEditor(template)}
+            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
+            title="ערוך תבנית"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => { if (confirm("למחוק תבנית זו?")) deleteMutation.mutate(template.id); }}
+            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+      <p className="text-xs text-petra-muted line-clamp-2 whitespace-pre-wrap">{template.body}</p>
+    </div>
+  );
+
   return (
     <>
-      <div className="flex items-center justify-end mb-4">
-        <button className="btn-primary" onClick={() => openEditor()}>
-          <Plus className="w-4 h-4" />תבנית חדשה
+      {/* Inner sub-tabs */}
+      <div className="flex gap-1 mb-5 bg-slate-100 p-1 rounded-xl w-fit">
+        <button
+          onClick={() => setInnerTab("auto")}
+          className={cn(
+            "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+            innerTab === "auto"
+              ? "bg-white text-petra-text shadow-sm"
+              : "text-petra-muted hover:text-petra-text"
+          )}
+        >
+          <Zap className="w-4 h-4" />
+          אוטומציות
+        </button>
+        <button
+          onClick={() => setInnerTab("manual")}
+          className={cn(
+            "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+            innerTab === "manual"
+              ? "bg-white text-petra-text shadow-sm"
+              : "text-petra-muted hover:text-petra-text"
+          )}
+        >
+          <Send className="w-4 h-4" />
+          ידני
         </button>
       </div>
 
-      {/* Templates grid */}
-      {isLoading ? (
+      {/* ── Automations tab ── */}
+      {innerTab === "auto" && (
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => <div key={i} className="card p-4 animate-pulse h-24" />)}
-        </div>
-      ) : templates.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon"><MessageSquare className="w-6 h-6 text-slate-400" /></div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">אין תבניות</h3>
-          <p className="text-sm text-petra-muted mb-4">צור תבנית הודעה ראשונה</p>
-          <button className="btn-primary" onClick={() => openEditor()}><Plus className="w-4 h-4" />תבנית חדשה</button>
-        </div>
-      ) : (() => {
-        const autoTemplates = templates.filter(t => t.automationRules?.length > 0);
-        const manualTemplates = templates.filter(t => !t.automationRules?.length);
+          {isLoading ? (
+            [1, 2, 3, 4].map((i) => <div key={i} className="card p-4 animate-pulse h-16" />)
+          ) : (
+            AUTOMATION_TRIGGERS.map((trigger) => {
+              const linked = templates.find(
+                (t) => t.automationRules?.[0]?.trigger === trigger.id
+              );
+              const rule = linked?.automationRules?.[0];
+              const TriggerIcon = TRIGGER_ICONS[trigger.id] ?? Zap;
 
-        const renderCard = (template: MessageTemplate) => {
-          const rule = template.automationRules?.[0];
-          const isAuto = !!rule;
-          return (
-            <div key={template.id} className="card p-4 group">
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="text-sm font-semibold text-petra-text">{template.name}</h3>
-                <div className="flex gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-                  {!isAuto && (
-                    <>
-                      <button
-                        onClick={() => setSendingTemplate(template)}
-                        className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
-                        title="שלח ללקוח בודד"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setBulkSendingTemplate(template)}
-                        className="p-1.5 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600"
-                        title="שלח לקבוצת לקוחות"
-                      >
-                        <Users className="w-3.5 h-3.5" />
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={() => openEditor(template)}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
-                    title="ערוך תבנית"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => { if (confirm("למחוק תבנית זו?")) deleteMutation.mutate(template.id); }}
-                    className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-              <p className="text-xs text-petra-muted line-clamp-2 whitespace-pre-wrap mb-3">{template.body}</p>
+              let statusBadge: React.ReactNode;
+              if (!linked) {
+                statusBadge = (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
+                    לא מוגדר
+                  </span>
+                );
+              } else if (rule?.isActive) {
+                statusBadge = (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-50 text-green-700 border border-green-200 whitespace-nowrap">
+                    פעיל
+                  </span>
+                );
+              } else {
+                statusBadge = (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200 whitespace-nowrap">
+                    מושבת
+                  </span>
+                );
+              }
 
-              {/* Automation row */}
-              <div className="border-t border-slate-100 pt-2.5">
-                {rule ? (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs min-w-0">
-                      <Zap className="w-3 h-3 text-brand-500 flex-shrink-0" />
-                      <span className={cn("truncate", rule.isActive ? "text-petra-text font-medium" : "text-petra-muted line-through")}>
-                        {triggerOffsetLabel(rule.trigger, rule.triggerOffset)} · {TRIGGER_LABEL[rule.trigger] ?? rule.trigger}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => toggleRuleMutation.mutate({ ruleId: rule.id, isActive: !rule.isActive })}
-                      className="p-0.5 hover:opacity-75 transition-opacity flex-shrink-0"
-                      title={rule.isActive ? "כבה אוטומציה" : "הפעל אוטומציה"}
-                    >
-                      {rule.isActive
-                        ? <ToggleRight className="w-5 h-5 text-brand-500" />
-                        : <ToggleLeft className="w-5 h-5 text-slate-400" />}
-                    </button>
+              return (
+                <div key={trigger.id} className="card p-4 flex items-center gap-4">
+                  {/* Icon */}
+                  <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
+                    <TriggerIcon className="w-4 h-4 text-brand-600" />
                   </div>
-                ) : (
-                  <button
-                    onClick={() => openEditor(template, true)}
-                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-brand-500 transition-colors"
-                  >
-                    <Plus className="w-3 h-3" />
-                    הוסף אוטומציה
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        };
 
-        return (
-          <div className="space-y-8">
-            {/* Automatic messages section */}
-            {autoTemplates.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Zap className="w-4 h-4 text-brand-500" />
-                  <h3 className="text-sm font-semibold text-petra-text">הודעות אוטומטיות</h3>
-                  <span className="text-xs text-petra-muted">נשלחות על ידי המערכת אוטומטית</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {autoTemplates.map(renderCard)}
-                </div>
-              </div>
-            )}
+                  {/* Name + description */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-petra-text leading-snug">{trigger.label}</p>
+                    <p className="text-xs text-petra-muted mt-0.5 leading-snug">{trigger.description}</p>
+                  </div>
 
-            {/* Manual templates section */}
-            {manualTemplates.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Send className="w-4 h-4 text-petra-muted" />
-                  <h3 className="text-sm font-semibold text-petra-text">תבניות לשליחה ידנית</h3>
-                  <span className="text-xs text-petra-muted">שלח ידנית ללקוחות לפי בחירה</span>
+                  {/* Status badge */}
+                  <div className="flex-shrink-0">
+                    {statusBadge}
+                  </div>
+
+                  {/* Template name */}
+                  <div className="hidden sm:block w-44 flex-shrink-0 text-xs text-petra-muted truncate text-left">
+                    {linked ? linked.name : <span className="italic">אין תבנית מקושרת</span>}
+                  </div>
+
+                  {/* Action */}
+                  <div className="flex-shrink-0">
+                    {linked && rule ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openEditor(linked)}
+                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
+                          title="ערוך תבנית"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => toggleRuleMutation.mutate({ ruleId: rule.id, isActive: !rule.isActive })}
+                          className="p-0.5 hover:opacity-75 transition-opacity"
+                          title={rule.isActive ? "כבה אוטומציה" : "הפעל אוטומציה"}
+                        >
+                          {rule.isActive
+                            ? <ToggleRight className="w-6 h-6 text-brand-500" />
+                            : <ToggleLeft className="w-6 h-6 text-slate-400" />}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setEditingTemplate(null);
+                          setForm({ ...emptyForm, autoEnabled: true, autoTrigger: trigger.id });
+                          setShowEditor(true);
+                        }}
+                        className="btn-secondary text-xs py-1.5 px-3 whitespace-nowrap"
+                      >
+                        <Plus className="w-3 h-3" />
+                        הגדר תבנית
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {manualTemplates.map(renderCard)}
-                </div>
-              </div>
-            )}
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* ── Manual tab ── */}
+      {innerTab === "manual" && (
+        <>
+          <div className="flex items-center justify-end mb-4">
+            <button className="btn-primary" onClick={() => openEditor()}>
+              <Plus className="w-4 h-4" />תבנית חדשה
+            </button>
           </div>
-        );
-      })()}
+
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => <div key={i} className="card p-4 animate-pulse h-24" />)}
+            </div>
+          ) : manualTemplates.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon"><MessageSquare className="w-6 h-6 text-slate-400" /></div>
+              <h3 className="text-base font-semibold text-petra-text mb-1">אין תבניות ידניות</h3>
+              <p className="text-sm text-petra-muted mb-4">צור תבנית לשליחה ידנית</p>
+              <button className="btn-primary" onClick={() => openEditor()}><Plus className="w-4 h-4" />תבנית חדשה</button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {manualTemplates.map(renderManualCard)}
+            </div>
+          )}
+        </>
+      )}
 
       {/* Editor Modal */}
       {showEditor && (

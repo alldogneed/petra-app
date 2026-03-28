@@ -4,6 +4,8 @@ import prisma from "@/lib/prisma";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { type TenantRole } from "@/lib/permissions";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { toWhatsAppPhone } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -61,6 +63,8 @@ export async function PATCH(request: NextRequest) {
     const existing = await prisma.business.findUnique({
       where: { id: authResult.businessId },
     });
+
+    const wasPhoneEmpty = !existing?.phone;
 
     if (!existing) {
       return NextResponse.json(
@@ -131,6 +135,16 @@ export async function PATCH(request: NextRequest) {
         },
       },
     });
+
+    if (wasPhoneEmpty && phone) {
+      const phoneFormatted = toWhatsAppPhone(String(phone));
+      if (phoneFormatted) {
+        sendWhatsAppMessage({
+          to: phoneFormatted,
+          body: `שלום מ-Petra! 👋\n\nהודעות ה-WhatsApp שלך פועלות בהצלחה.\nלקוחות יקבלו תזכורות ועדכונים אוטומטית ישירות לנייד. 🐾\n\n— הצוות של Petra`,
+        }).catch(() => {});
+      }
+    }
 
     logCurrentUserActivity("UPDATE_SETTINGS");
     return NextResponse.json(business);

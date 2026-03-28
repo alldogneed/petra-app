@@ -5,7 +5,7 @@ import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { scheduleAppointmentReminder } from "@/lib/reminder-service";
 import { syncAppointmentToGcal } from "@/lib/google-calendar";
-import { sendWhatsAppTemplate } from "@/lib/whatsapp";
+import { sendWhatsAppTemplate, sendWhatsAppMessage, interpolateTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxAppointments, normalizeTier } from "@/lib/feature-flags";
@@ -159,11 +159,30 @@ export async function POST(request: NextRequest) {
           weekday: "long", day: "numeric", month: "long",
         }).format(apptDate);
         const serviceName = appointment.service?.name ?? appointment.priceListItem?.name ?? "תור";
-        sendWhatsAppTemplate({
-          to: phone,
-          templateName: "petra_appointment_confirmation",
-          bodyParams: [appointment.customer.name, formattedDate, appointment.startTime, serviceName],
-        }).catch((err) => console.error("Appointment confirmation WA failed:", err));
+
+        // Check for active appointment_confirmation automation rule with custom template
+        const confirmationRule = await prisma.automationRule.findFirst({
+          where: { businessId: authResult.businessId, trigger: "appointment_confirmation", isActive: true },
+          include: { template: true },
+        });
+
+        if (confirmationRule?.template?.body) {
+          const body = interpolateTemplate(confirmationRule.template.body, {
+            customerName: appointment.customer.name,
+            date: formattedDate,
+            time: appointment.startTime,
+            serviceName,
+          });
+          sendWhatsAppMessage({ to: phone, body }).catch((err) =>
+            console.error("Appointment confirmation WA (custom) failed:", err)
+          );
+        } else {
+          sendWhatsAppTemplate({
+            to: phone,
+            templateName: "petra_appointment_confirmation",
+            bodyParams: [appointment.customer.name, formattedDate, appointment.startTime, serviceName],
+          }).catch((err) => console.error("Appointment confirmation WA failed:", err));
+        }
       }
     }
 
