@@ -310,12 +310,11 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
     }
   }, [profileOpen]);
 
-  // Business info — logo + name for profile panel header
+  // Business info — logo + name for avatar + profile panel header
   const { data: businessInfo } = useQuery<{ name: string; logo: string | null }>({
     queryKey: ["business-info-topbar"],
     queryFn: () => fetch("/api/settings").then((r) => r.ok ? r.json() : null),
-    enabled: profileOpen,
-    staleTime: 5 * 60_000,
+    staleTime: 10 * 60_000,
   });
 
   // Integrations query — only when panel is open
