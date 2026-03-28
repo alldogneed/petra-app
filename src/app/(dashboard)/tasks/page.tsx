@@ -1303,35 +1303,38 @@ function TaskCard({
       className={cn(
         "card p-4 transition-all group",
         isCompleted && "opacity-50",
-        computed === "active" && "ring-1 ring-green-200",
-        computed === "overdue" && "ring-1 ring-red-200"
+        !selectionMode && computed === "active" && "ring-1 ring-green-200",
+        !selectionMode && computed === "overdue" && "ring-1 ring-red-200",
+        selectionMode && !isCompleted && "cursor-pointer hover:bg-brand-50/40",
+        selectionMode && isSelected && "ring-2 ring-brand-500 bg-brand-50/60"
       )}
+      onClick={selectionMode && !isCompleted ? () => onSelect(task.id) : undefined}
     >
       <div className="flex items-start gap-3">
-        {/* Selection checkbox — only in selection mode */}
-        {selectionMode && !isCompleted && (
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onSelect(task.id)}
-            onClick={(e) => e.stopPropagation()}
-            className="flex-shrink-0 mt-1 w-4 h-4 rounded accent-brand-500"
-          />
+        {/* Complete toggle / selection checkbox */}
+        {selectionMode && !isCompleted ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); onSelect(task.id); }}
+            className="flex-shrink-0 mt-0.5"
+          >
+            {isSelected ? (
+              <CheckCircle2 className="w-5 h-5 text-brand-500" />
+            ) : (
+              <Circle className="w-5 h-5 text-slate-300" />
+            )}
+          </button>
+        ) : (
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggle(task.id, isCompleted ? "OPEN" : "COMPLETED"); }}
+            className="flex-shrink-0 mt-0.5"
+          >
+            {isCompleted ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+            ) : (
+              <Circle className="w-5 h-5 text-slate-300 hover:text-brand-400 transition-colors" />
+            )}
+          </button>
         )}
-
-        {/* Complete toggle */}
-        <button
-          onClick={() =>
-            onToggle(task.id, isCompleted ? "OPEN" : "COMPLETED")
-          }
-          className="flex-shrink-0 mt-0.5"
-        >
-          {isCompleted ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-          ) : (
-            <Circle className="w-5 h-5 text-slate-300 hover:text-brand-400 transition-colors" />
-          )}
-        </button>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
