@@ -29,7 +29,14 @@ export async function GET() {
     // Smart detection: check DB state for each step
     const businessId = currentUser.businessId;
 
-    const [servicesCount, customersCount, appointmentsCount] = await Promise.all([
+    const [
+      servicesCount,
+      customersCount,
+      appointmentsCount,
+      ordersCount,
+      contractTemplatesCount,
+      business,
+    ] = await Promise.all([
       businessId
         ? prisma.service.count({ where: { businessId, isActive: true } })
         : Promise.resolve(0),
@@ -39,12 +46,18 @@ export async function GET() {
       businessId
         ? prisma.appointment.count({ where: { service: { businessId } } })
         : Promise.resolve(0),
+      businessId
+        ? prisma.order.count({ where: { businessId } })
+        : Promise.resolve(0),
+      businessId
+        ? prisma.contractTemplate.count({ where: { businessId } })
+        : Promise.resolve(0),
+      businessId
+        ? prisma.business.findUnique({ where: { id: businessId }, select: { phone: true, whatsappRemindersEnabled: true } })
+        : Promise.resolve(null),
     ]);
 
-    const businessComplete = !!(
-      businessId &&
-      (await prisma.business.findUnique({ where: { id: businessId } }))?.phone
-    );
+    const businessComplete = !!business?.phone;
 
     // Merge DB flags with live detection (either source can mark complete)
     const enriched = {
@@ -53,17 +66,24 @@ export async function GET() {
       stepCompleted2: progress.stepCompleted2 || servicesCount > 0,
       stepCompleted3: progress.stepCompleted3 || customersCount > 0,
       stepCompleted4: progress.stepCompleted4 || appointmentsCount > 0,
+      // Advanced steps — computed live only (no DB flags for these)
+      stepCompleted5: ordersCount > 0,
+      stepCompleted6: contractTemplatesCount > 0,
+      stepCompleted7: business?.whatsappRemindersEnabled === true,
     };
 
-    // If all steps are now complete but completedAt isn't set yet, set it
+    // Only mark completedAt when ALL 7 steps are done (including advanced)
     const allDone =
       enriched.stepCompleted1 &&
       enriched.stepCompleted2 &&
       enriched.stepCompleted3 &&
-      enriched.stepCompleted4;
+      enriched.stepCompleted4 &&
+      enriched.stepCompleted5 &&
+      enriched.stepCompleted6 &&
+      enriched.stepCompleted7;
 
     if (allDone && !progress.completedAt) {
-      const updated = await prisma.onboardingProgress.update({
+      await prisma.onboardingProgress.update({
         where: { userId: currentUser.id },
         data: {
           stepCompleted1: enriched.stepCompleted1,
@@ -73,7 +93,7 @@ export async function GET() {
           completedAt: new Date(),
         },
       });
-      return NextResponse.json({ progress: updated });
+      return NextResponse.json({ progress: { ...enriched, completedAt: new Date().toISOString() } });
     }
 
     // Persist any newly detected completions back to DB
