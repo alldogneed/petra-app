@@ -707,18 +707,38 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             aria-label={`תפריט משתמש — ${displayName}`}
             className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition-all duration-150 group"
           >
-            <div
-              aria-hidden="true"
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-              style={{
-                background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",
-              }}
-            >
-              {initials}
+            <div aria-hidden="true" className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
+              {businessInfo?.logo ? (
+                <img
+                  src={businessInfo.logo}
+                  alt="לוגו"
+                  className="w-full h-full object-contain bg-white border border-slate-200 rounded-lg p-0.5"
+                  onError={(e) => {
+                    const el = e.target as HTMLImageElement;
+                    el.style.display = "none";
+                    const parent = el.parentElement!;
+                    parent.style.background = "linear-gradient(135deg, #F97316 0%, #FB923C 100%)";
+                    parent.style.display = "flex";
+                    parent.style.alignItems = "center";
+                    parent.style.justifyContent = "center";
+                    parent.style.color = "white";
+                    parent.style.fontWeight = "700";
+                    parent.style.fontSize = "14px";
+                    parent.innerHTML = initials;
+                  }}
+                />
+              ) : (
+                <div
+                  className="w-full h-full flex items-center justify-center text-white text-sm font-bold"
+                  style={{ background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)" }}
+                >
+                  {initials}
+                </div>
+              )}
             </div>
             <div className="hidden md:flex flex-col items-start">
               <span className="text-[13px] font-semibold text-petra-text leading-tight">
-                {displayName}
+                {businessInfo?.name || displayName}
               </span>
               <span className="text-[11px] text-petra-muted leading-tight">
                 {roleLabel}
@@ -756,44 +776,41 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             {/* User Info Header */}
             <div className="p-6 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-lg font-bold flex-shrink-0"
-                  style={{
-                    background:
-                      "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",
-                  }}
-                >
-                  {initials}
+                {/* Avatar: business logo if exists, otherwise initials */}
+                <div className="w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden">
+                  {businessInfo?.logo ? (
+                    <img
+                      src={businessInfo.logo}
+                      alt="לוגו עסק"
+                      className="w-full h-full object-contain bg-white border border-slate-200 rounded-xl p-1"
+                      onError={(e) => {
+                        const el = e.target as HTMLImageElement;
+                        el.style.display = "none";
+                        el.parentElement!.style.background = "linear-gradient(135deg, #F97316 0%, #FB923C 100%)";
+                        el.parentElement!.innerHTML = `<span style="color:white;font-size:18px;font-weight:700;width:100%;height:100%;display:flex;align-items:center;justify-content:center">${initials}</span>`;
+                      }}
+                    />
+                  ) : (
+                    <div
+                      className="w-full h-full flex items-center justify-center text-white text-lg font-bold"
+                      style={{ background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)" }}
+                    >
+                      {initials}
+                    </div>
+                  )}
                 </div>
                 <div className="min-w-0">
                   <p className="text-[15px] font-bold text-petra-text truncate">
-                    {displayName}
+                    {businessInfo?.name || displayName}
                   </p>
                   <p className="text-xs text-petra-muted truncate">
-                    {user?.email}
+                    {displayName}
                   </p>
                   <span className="inline-block mt-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-brand-50 text-brand-600">
                     {roleLabel}
                   </span>
                 </div>
               </div>
-
-              {/* Business logo + name */}
-              {(businessInfo?.logo || businessInfo?.name) && (
-                <div className="mt-3 flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-50 border border-slate-100">
-                  {businessInfo.logo && (
-                    <img
-                      src={businessInfo.logo}
-                      alt="לוגו עסק"
-                      className="w-8 h-8 rounded-lg object-contain bg-white border border-slate-200 flex-shrink-0 p-0.5"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                    />
-                  )}
-                  <span className="text-sm font-semibold text-petra-text truncate">
-                    {businessInfo.name}
-                  </span>
-                </div>
-              )}
             </div>
 
             {/* Tab Bar — only show tabs if owner */}
