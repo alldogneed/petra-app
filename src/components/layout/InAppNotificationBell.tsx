@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { BellRing, Check, X, ExternalLink } from "lucide-react";
+import { BellRing, Check, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SystemMessage {
@@ -117,7 +117,7 @@ export function InAppNotificationBell() {
       <button
         onClick={() => setOpen((p) => !p)}
         className="relative flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-        aria-label="הודעות מפטרה"
+        aria-label="הודעות מערכת"
       >
         <BellRing className="w-[18px] h-[18px]" />
         {unreadCount > 0 && (
@@ -131,7 +131,7 @@ export function InAppNotificationBell() {
         <div className="absolute left-0 top-full mt-2 w-80 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <div>
-              <h3 className="text-sm font-bold text-petra-text">הודעות מפטרה</h3>
+              <h3 className="text-sm font-bold text-petra-text">הודעות מערכת</h3>
               <p className="text-[11px] text-petra-muted mt-0.5">עדכונים ממנהלי המערכת</p>
             </div>
             {messages.length > 0 && (
@@ -182,10 +182,9 @@ export function InAppNotificationBell() {
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); dismiss.mutate(m.id); }}
-                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-slate-600 mt-0.5"
-                    title="הסר"
+                    className="flex-shrink-0 text-[11px] font-medium text-brand-600 hover:text-brand-700 px-2 py-1 rounded hover:bg-brand-50 transition-colors mt-0.5 whitespace-nowrap"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    קראתי
                   </button>
                 </div>
               ))
