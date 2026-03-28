@@ -215,11 +215,6 @@ export function Sidebar({
     staleTime: 3 * 60_000,
   });
 
-  const { data: businessInfo } = useQuery<{ name: string; logo: string | null }>({
-    queryKey: ["business-info-sidebar"],
-    queryFn: () => fetch("/api/settings").then((r) => r.ok ? r.json() : null),
-    staleTime: 5 * 60_000,
-  });
 
   const BADGES: Record<string, number> = {
     "/tasks": counters?.openTasks || 0,
@@ -437,17 +432,13 @@ export function Sidebar({
             !isMobile && collapsed ? "justify-center px-0" : "px-4 gap-3"
           )}
         >
-          <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 bg-white/10 flex items-center justify-center">
-            {businessInfo?.logo ? (
-              <img src={businessInfo.logo} alt="לוגו" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-            ) : (
-              <Image src="/logo.svg" alt="Petra" width={36} height={36} className="w-full h-full object-cover" priority />
-            )}
+          <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0">
+            <Image src="/logo.svg" alt="Petra" width={36} height={36} className="w-full h-full object-cover" priority />
           </div>
           {isExpanded && (
-            <div className="flex-1 min-w-0">
-              <span className="text-white font-bold text-[17px] tracking-tight leading-none block truncate">
-                {businessInfo?.name || "Petra"}
+            <div className="flex-1">
+              <span className="text-white font-bold text-[17px] tracking-tight leading-none">
+                Petra
               </span>
               <span className="block text-[10px] text-slate-500 font-medium leading-none mt-0.5 tracking-wider uppercase">
                 Pet Business

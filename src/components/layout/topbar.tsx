@@ -310,6 +310,14 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
     }
   }, [profileOpen]);
 
+  // Business info — logo + name for profile panel header
+  const { data: businessInfo } = useQuery<{ name: string; logo: string | null }>({
+    queryKey: ["business-info-topbar"],
+    queryFn: () => fetch("/api/settings").then((r) => r.ok ? r.json() : null),
+    enabled: profileOpen,
+    staleTime: 5 * 60_000,
+  });
+
   // Integrations query — only when panel is open
   const { data: integrations } = useQuery<IntegrationStatus[]>({
     queryKey: ["integrations"],
@@ -769,6 +777,23 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                   </span>
                 </div>
               </div>
+
+              {/* Business logo + name */}
+              {(businessInfo?.logo || businessInfo?.name) && (
+                <div className="mt-3 flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-50 border border-slate-100">
+                  {businessInfo.logo && (
+                    <img
+                      src={businessInfo.logo}
+                      alt="לוגו עסק"
+                      className="w-8 h-8 rounded-lg object-contain bg-white border border-slate-200 flex-shrink-0 p-0.5"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                  )}
+                  <span className="text-sm font-semibold text-petra-text truncate">
+                    {businessInfo.name}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Tab Bar — only show tabs if owner */}
