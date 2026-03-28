@@ -39,10 +39,16 @@ export async function GET(
       .replace(/[<>:"/\\|?*]/g, "-")
       .replace(/\s+/g, "-");
 
+    // ?inline=1 → display in browser (for viewer modal); default → force download
+    const inline = new URL(request.url).searchParams.get("inline") === "1";
+    const disposition = inline
+      ? `inline; filename*=UTF-8''${encodeURIComponent(filename)}`
+      : `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
+
     return new NextResponse(pdfBytes, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        "Content-Disposition": disposition,
         "Cache-Control": "private, max-age=300",
       },
     });

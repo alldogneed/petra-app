@@ -1918,7 +1918,7 @@ function SendContractSection({ customerId, customerName, pets }: { customerId: s
             {/* PDF viewer */}
             <div className="flex-1 overflow-hidden bg-slate-50">
               <object
-                data={viewingContract.signedFileUrl}
+                data={`/api/contracts/requests/${viewingContract.id}/download?inline=1`}
                 type="application/pdf"
                 className="w-full h-full"
               >
