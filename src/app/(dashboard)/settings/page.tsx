@@ -3544,16 +3544,17 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
   const [selectedType, setSelectedType] = useState<ContractField["type"]>("signature");
   const [saving, setSaving] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null);
   const [pageBlobUrl, setPageBlobUrl] = useState<string | null>(null);
   const [pageDims, setPageDims] = useState({ width: 595, height: 842 }); // A4 default
+  const [pdfReady, setPdfReady] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const pdfBytesRef = useRef<Uint8Array | null>(null);
 
-  // Extract a single page as a blob URL using pdf-lib (browser's native viewer handles Hebrew fonts)
-  const extractPageBlob = useCallback(async (bytes: ArrayBuffer, pageNum: number) => {
+  // Extract a single page as a blob URL using pdf-lib
+  const extractPageBlob = useCallback(async (bytes: Uint8Array, pageNum: number) => {
     const { PDFDocument } = await import("pdf-lib");
-    const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+    const src = await PDFDocument.load(bytes.slice(), { ignoreEncryption: true });
     const dest = await PDFDocument.create();
     const [page] = await dest.copyPages(src, [Math.min(pageNum - 1, src.getPageCount() - 1)]);
     dest.addPage(page);
@@ -3570,13 +3571,14 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
       try {
         const ab = await file.arrayBuffer();
         if (cancelled) return;
-        setPdfBytes(ab);
+        // Store immutable copy as Uint8Array
+        const bytes = new Uint8Array(ab);
+        pdfBytesRef.current = bytes;
 
         // Use pdfjs just for metadata (page count + dimensions)
-        // Pass a COPY to pdfjs — it may transfer the buffer to a worker, detaching the original
         const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
         GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-        const doc = await getDocument({ data: new Uint8Array(ab.slice(0)) }).promise;
+        const doc = await getDocument({ data: bytes.slice() }).promise;
         if (cancelled) { doc.destroy(); return; }
         setTotalPages(doc.numPages);
         setSignaturePage(1);
@@ -3586,9 +3588,10 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
         doc.destroy();
 
         // Extract first page for native rendering
-        const blob = await extractPageBlob(ab, 1);
+        const blob = await extractPageBlob(bytes, 1);
         if (cancelled) return;
         setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); });
+        setPdfReady(true);
       } catch (e) {
         console.error("PDF load error", e);
       } finally {
@@ -3598,23 +3601,25 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
     return () => { cancelled = true; };
   }, [file, extractPageBlob]);
 
-  // Extract page on navigation — clear old URL immediately so <object> remounts
-  const prevPageRef = useRef(signaturePage);
+  // Extract page on navigation
   useEffect(() => {
-    if (!pdfBytes || signaturePage < 1) return;
-    // Clear immediately to force remount with loading state
-    if (prevPageRef.current !== signaturePage) {
-      setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
-      prevPageRef.current = signaturePage;
-    }
+    const bytes = pdfBytesRef.current;
+    if (!bytes || !pdfReady || signaturePage < 1) return;
+    // Clear immediately to show loading spinner
+    setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
     let cancelled = false;
     (async () => {
-      const blob = await extractPageBlob(pdfBytes, signaturePage);
-      if (cancelled) return;
-      setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); });
+      try {
+        const blob = await extractPageBlob(bytes, signaturePage);
+        if (cancelled) return;
+        setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); });
+      } catch (e) {
+        console.error("Page extraction error", e);
+      }
     })();
     return () => { cancelled = true; };
-  }, [pdfBytes, signaturePage, extractPageBlob]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signaturePage]);
 
   // Cleanup blob URL on unmount
   useEffect(() => {
@@ -3626,7 +3631,8 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
     if (!f) return;
     setFile(f);
     setFields([]);
-    setPdfBytes(null);
+    pdfBytesRef.current = null;
+    setPdfReady(false);
     setTotalPages(0);
     setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
   };
@@ -3835,16 +3841,17 @@ function EditContractTemplateModal({
   const [saving, setSaving] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(true);
   const [pdfError, setPdfError] = useState(false);
-  const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null);
   const [pageBlobUrl, setPageBlobUrl] = useState<string | null>(null);
   const [pageDims, setPageDims] = useState({ width: 595, height: 842 });
+  const [pdfReady, setPdfReady] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const pdfBytesRef = useRef<Uint8Array | null>(null);
 
-  // Extract a single page as a blob URL using pdf-lib (browser's native viewer handles Hebrew fonts)
-  const extractPageBlob = useCallback(async (bytes: ArrayBuffer, pageNum: number) => {
+  // Extract a single page as a blob URL using pdf-lib
+  const extractPageBlob = useCallback(async (bytes: Uint8Array, pageNum: number) => {
     const { PDFDocument } = await import("pdf-lib");
-    const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+    const src = await PDFDocument.load(bytes.slice(), { ignoreEncryption: true });
     const dest = await PDFDocument.create();
     const [page] = await dest.copyPages(src, [Math.min(pageNum - 1, src.getPageCount() - 1)]);
     dest.addPage(page);
@@ -3856,6 +3863,7 @@ function EditContractTemplateModal({
   useEffect(() => {
     setPdfLoading(true);
     setPdfError(false);
+    setPdfReady(false);
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
@@ -3863,12 +3871,13 @@ function EditContractTemplateModal({
         if (!resp.ok) throw new Error(`PDF fetch failed: ${resp.status}`);
         const ab = await resp.arrayBuffer();
         if (cancelled) return;
-        setPdfBytes(ab);
+        const bytes = new Uint8Array(ab);
+        pdfBytesRef.current = bytes;
 
-        // Use pdfjs just for metadata — pass a COPY so worker doesn't detach our buffer
+        // Use pdfjs just for metadata
         const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
         GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-        const doc = await getDocument({ data: new Uint8Array(ab.slice(0)) }).promise;
+        const doc = await getDocument({ data: bytes.slice() }).promise;
         if (cancelled) { doc.destroy(); return; }
         setTotalPages(doc.numPages);
         const page = await doc.getPage(1);
@@ -3877,9 +3886,10 @@ function EditContractTemplateModal({
         doc.destroy();
 
         // Extract current page for native rendering
-        const blob = await extractPageBlob(ab, signaturePage);
+        const blob = await extractPageBlob(bytes, signaturePage);
         if (cancelled) return;
         setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); });
+        setPdfReady(true);
       } catch (e) {
         console.error("PDF load error", e);
         if (!cancelled) setPdfError(true);
@@ -3891,22 +3901,24 @@ function EditContractTemplateModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template.fileUrl]);
 
-  // Extract page on navigation — clear old URL immediately so <object> remounts
-  const prevPageRef = useRef(signaturePage);
+  // Extract page on navigation
   useEffect(() => {
-    if (!pdfBytes || signaturePage < 1) return;
-    if (prevPageRef.current !== signaturePage) {
-      setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
-      prevPageRef.current = signaturePage;
-    }
+    const bytes = pdfBytesRef.current;
+    if (!bytes || !pdfReady || signaturePage < 1) return;
+    setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
     let cancelled = false;
     (async () => {
-      const blob = await extractPageBlob(pdfBytes, signaturePage);
-      if (cancelled) return;
-      setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); });
+      try {
+        const blob = await extractPageBlob(bytes, signaturePage);
+        if (cancelled) return;
+        setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); });
+      } catch (e) {
+        console.error("Page extraction error", e);
+      }
     })();
     return () => { cancelled = true; };
-  }, [pdfBytes, signaturePage, extractPageBlob]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signaturePage]);
 
   // Cleanup blob URL on unmount
   useEffect(() => {
@@ -4014,7 +4026,7 @@ function EditContractTemplateModal({
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-red-500">
                     <FileText className="w-8 h-8" />
                     <p className="text-sm">שגיאה בטעינת המסמך</p>
-                    <button type="button" className="text-xs underline" onClick={() => { setPdfLoading(true); setPdfError(false); setTimeout(async () => { try { const resp = await fetch(template.fileUrl); if (!resp.ok) throw new Error("fetch failed"); const ab = await resp.arrayBuffer(); setPdfBytes(ab); const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist"); GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"; const doc = await getDocument({ data: new Uint8Array(ab) }).promise; setTotalPages(doc.numPages); const pg = await doc.getPage(1); const vp = pg.getViewport({ scale: 1 }); setPageDims({ width: vp.width, height: vp.height }); doc.destroy(); const blob = await extractPageBlob(ab, signaturePage); setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); }); setPdfError(false); } catch { setPdfError(true); } finally { setPdfLoading(false); } }, 100); }}>נסה שוב</button>
+                    <button type="button" className="text-xs underline" onClick={() => { setPdfLoading(true); setPdfError(false); setTimeout(async () => { try { const resp = await fetch(template.fileUrl); if (!resp.ok) throw new Error("fetch failed"); const ab = await resp.arrayBuffer(); const bytes = new Uint8Array(ab); pdfBytesRef.current = bytes; const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist"); GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"; const doc = await getDocument({ data: bytes.slice() }).promise; setTotalPages(doc.numPages); const pg = await doc.getPage(1); const vp = pg.getViewport({ scale: 1 }); setPageDims({ width: vp.width, height: vp.height }); doc.destroy(); const blob = await extractPageBlob(bytes, signaturePage); setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); }); setPdfReady(true); setPdfError(false); } catch { setPdfError(true); } finally { setPdfLoading(false); } }, 100); }}>נסה שוב</button>
                   </div>
                 )}
                 {pageBlobUrl && !pdfLoading && !pdfError && (
