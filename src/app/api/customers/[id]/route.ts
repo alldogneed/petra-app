@@ -212,9 +212,10 @@ export async function PATCH(
 
     return NextResponse.json(customer);
   } catch (error) {
-    console.error("Customer PATCH error:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Customer PATCH error:", msg, error);
     return NextResponse.json(
-      { error: "Failed to update customer" },
+      { error: `שגיאה בעדכון הלקוח: ${msg}` },
       { status: 500 }
     );
   }

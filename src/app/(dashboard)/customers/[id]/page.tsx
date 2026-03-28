@@ -1092,20 +1092,23 @@ function EditCustomerModal({
   };
 
   const mutation = useMutation({
-    mutationFn: (data: Record<string, unknown>) =>
-      fetch(`/api/customers/${customer.id}`, {
+    mutationFn: async (data: Record<string, unknown>) => {
+      const r = await fetch(`/api/customers/${customer.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Failed");
-        return r.json();
-      }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || "שגיאה בעדכון הלקוח");
+      }
+      return r.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", customer.id] });
       onClose();
     },
-    onError: () => toast.error("שגיאה בעדכון הלקוח. נסה שוב."),
+    onError: (e: Error) => toast.error(e.message || "שגיאה בעדכון הלקוח. נסה שוב."),
   });
 
   if (!isOpen) return null;
