@@ -28,7 +28,7 @@ import {
   ShoppingCart,
   ArrowLeft,
   MessageCircle,
-
+  Phone,
   Tag,
   Settings2,
   Trash2,
@@ -313,6 +313,19 @@ function QuickActions({
           onClick={(e) => e.stopPropagation()}
         >
           <WhatsAppIcon className="w-4 h-4" />
+        </a>
+      )}
+
+      {/* Phone call */}
+      {isValidPhone && (
+        <a
+          href={`tel:${customer.phone}`}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 transition-colors"
+          title={`התקשר ל־${customer.phone}`}
+          aria-label={`התקשר ל־${customer.phone}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Phone className="w-4 h-4" />
         </a>
       )}
 
