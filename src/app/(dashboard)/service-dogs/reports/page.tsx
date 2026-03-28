@@ -127,6 +127,7 @@ function ServiceDogsReportsPageContent() {
 
   return (
     <div className="animate-fade-in space-y-6">
+      <style>{`@media print { aside,nav,header,[data-topbar],[data-sidebar],.print\\:hidden{display:none!important} body{font-size:12px} .card{break-inside:avoid} }`}</style>
       <ServiceDogsTabs />
       <div className="page-header">
         <div>
@@ -142,6 +143,13 @@ function ServiceDogsReportsPageContent() {
           <p className="text-sm text-petra-muted mt-1">סיכום תפעולי · אימונים · שיבוצים</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.print()}
+            className="btn-secondary flex items-center gap-2 text-sm px-3 py-2 print:hidden"
+          >
+            <Printer className="w-4 h-4" />
+            הדפס
+          </button>
           <a
             href="/api/service-dogs/export/government"
             download
@@ -166,6 +174,22 @@ function ServiceDogsReportsPageContent() {
           >
             <Download className="w-4 h-4" />
             ייצוא זכאים לאקסל
+          </a>
+          <a
+            href="/api/service-recipients/export/by-funding?source=BITUACH_LEUMI"
+            download
+            className="btn-outline flex items-center gap-2 text-sm px-3 py-2"
+          >
+            <Download className="w-4 h-4" />
+            ייצוא ביטוח לאומי
+          </a>
+          <a
+            href="/api/service-recipients/export/by-funding?source=MINISTRY_OF_DEFENSE"
+            download
+            className="btn-outline flex items-center gap-2 text-sm px-3 py-2"
+          >
+            <Download className="w-4 h-4" />
+            ייצוא משרד הביטחון
           </a>
           <a
             href="/api/service-dogs/export/care"
@@ -292,6 +316,105 @@ function ServiceDogsReportsPageContent() {
             </div>
           </div>
 
+          {/* ── Recipients Summary ────────────────────────────────────── */}
+          {recipients.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Pipeline */}
+              <div className="card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-semibold flex items-center gap-2">
+                    <UserCheck className="w-4 h-4 text-brand-500" />
+                    פיפליין זכאים ({recipients.length})
+                  </h2>
+                  <button
+                    onClick={() => {
+                      const rows = recipientsByStage.filter(s => s.count > 0)
+                        .map(s => `<tr><td>${s.label}</td><td>${s.count}</td></tr>`).join("");
+                      const win = window.open("", "_blank");
+                      if (!win) return;
+                      win.document.write(`<html dir="rtl"><head><title>פיפליין זכאים</title>
+                        <style>body{font-family:Arial,sans-serif;padding:32px;direction:rtl}h2{font-size:18px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ddd;padding:8px 10px;text-align:right}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
+                      </head><body>
+                        <h2>פיפליין זכאים (${recipients.length})</h2>
+                        <table><thead><tr><th>שלב</th><th>כמות</th></tr></thead><tbody>${rows}</tbody></table>
+                        <footer>הופק ממערכת Petra · ${new Date().toLocaleDateString("he-IL")}</footer>
+                      </body></html>`);
+                      win.document.close();
+                      win.print();
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors print:hidden"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    הדפס
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {recipientsByStage.filter((s) => s.count > 0).map((stage) => {
+                    const pct = recipients.length > 0 ? Math.round((stage.count / recipients.length) * 100) : 0;
+                    return (
+                      <div key={stage.id}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", stage.color)}>{stage.label}</span>
+                          <span className="text-sm font-bold">{stage.count}</span>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* By funding source */}
+              <div className="card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-semibold flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-brand-500" />
+                    לפי מקור מימון
+                  </h2>
+                  <button
+                    onClick={() => {
+                      const rows = Object.entries(byFunding)
+                        .map(([source, count]) => `<tr><td>${FUNDING_SOURCE_MAP[source] || "לא ידוע"}</td><td>${count}</td></tr>`).join("");
+                      const win = window.open("", "_blank");
+                      if (!win) return;
+                      win.document.write(`<html dir="rtl"><head><title>לפי מקור מימון</title>
+                        <style>body{font-family:Arial,sans-serif;padding:32px;direction:rtl}h2{font-size:18px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ddd;padding:8px 10px;text-align:right}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
+                      </head><body>
+                        <h2>זכאים לפי מקור מימון</h2>
+                        <table><thead><tr><th>מקור מימון</th><th>כמות</th></tr></thead><tbody>${rows}</tbody></table>
+                        <footer>הופק ממערכת Petra · ${new Date().toLocaleDateString("he-IL")}</footer>
+                      </body></html>`);
+                      win.document.close();
+                      win.print();
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors print:hidden"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    הדפס
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {Object.entries(byFunding).map(([source, count]) => {
+                    const pct = recipients.length > 0 ? Math.round((count / recipients.length) * 100) : 0;
+                    return (
+                      <div key={source}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm">{FUNDING_SOURCE_MAP[source] || "לא ידוע"}</span>
+                          <span className="text-sm font-bold">{count} ({pct}%)</span>
+                        </div>
+                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-indigo-400 transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* ── Phase Distribution ─────────────────────────────────────── */}
             <div className="card p-5">
@@ -337,7 +460,6 @@ function ServiceDogsReportsPageContent() {
                         <td>${dog.pet.breed || "—"}</td>
                         <td>${dog.certificationDate ? new Date(dog.certificationDate).toLocaleDateString("he-IL") : "—"}</td>
                         <td>${dog.activePlacement ? `משובץ — ${dog.activePlacement.recipientName}` : "ללא שיבוץ"}</td>
-                        <td>${dog.licenseNumber || "—"}</td>
                       </tr>`).join("");
                     const win = window.open("", "_blank");
                     if (!win) return;
@@ -345,7 +467,7 @@ function ServiceDogsReportsPageContent() {
                       <style>body{font-family:Arial,sans-serif;padding:32px;direction:rtl}h2{font-size:18px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ddd;padding:8px 10px;text-align:right}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
                     </head><body>
                       <h2>כלבים מוסמכים (${certified.length})</h2>
-                      <table><thead><tr><th>שם הכלב</th><th>גזע</th><th>תאריך הסמכה</th><th>שיבוץ</th><th>מספר רישיון</th></tr></thead>
+                      <table><thead><tr><th>שם הכלב</th><th>גזע</th><th>תאריך הסמכה</th><th>שיבוץ</th></tr></thead>
                       <tbody>${rows}</tbody></table>
                       <footer>הופק ממערכת Petra · ${new Date().toLocaleDateString("he-IL")}</footer>
                     </body></html>`);
@@ -393,13 +515,38 @@ function ServiceDogsReportsPageContent() {
           {/* ── Upcoming Renewals ────────────────────────────────────── */}
           {upcomingRenewals.length > 0 && (
             <div className="card p-5">
-              <h2 className="font-semibold mb-4 flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 text-amber-500" />
-                חידושים קרובים — 90 יום
-                <span className="text-xs font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
-                  {upcomingRenewals.length} פריטים
-                </span>
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 text-amber-500" />
+                  חידושים קרובים — 90 יום
+                  <span className="text-xs font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                    {upcomingRenewals.length} פריטים
+                  </span>
+                </h2>
+                <button
+                  onClick={() => {
+                    const rows = upcomingRenewals.map(r =>
+                      `<tr><td>${r.dogName}</td><td>${r.label}</td><td>${r.urgency === "overdue" ? "פג תוקף" : r.expiry.toLocaleDateString("he-IL")}</td></tr>`
+                    ).join("");
+                    const win = window.open("", "_blank");
+                    if (!win) return;
+                    win.document.write(`<html dir="rtl"><head><title>חידושים קרובים</title>
+                      <style>body{font-family:Arial,sans-serif;padding:32px;direction:rtl}h2{font-size:18px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ddd;padding:8px 10px;text-align:right}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
+                    </head><body>
+                      <h2>חידושים קרובים — 90 יום (${upcomingRenewals.length} פריטים)</h2>
+                      <table><thead><tr><th>שם הכלב</th><th>סוג חידוש</th><th>תאריך</th></tr></thead>
+                      <tbody>${rows}</tbody></table>
+                      <footer>הופק ממערכת Petra · ${new Date().toLocaleDateString("he-IL")}</footer>
+                    </body></html>`);
+                    win.document.close();
+                    win.print();
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors print:hidden"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  הדפס
+                </button>
+              </div>
               <div className="divide-y max-h-64 overflow-y-auto">
                 {upcomingRenewals.map((r, i) => (
                   <Link
@@ -427,58 +574,6 @@ function ServiceDogsReportsPageContent() {
             </div>
           )}
 
-          {/* ── Recipients Summary ────────────────────────────────────── */}
-          {recipients.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Pipeline */}
-              <div className="card p-5">
-                <h2 className="font-semibold mb-4 flex items-center gap-2">
-                  <UserCheck className="w-4 h-4 text-brand-500" />
-                  פיפליין זכאים ({recipients.length})
-                </h2>
-                <div className="space-y-2">
-                  {recipientsByStage.filter((s) => s.count > 0).map((stage) => {
-                    const pct = recipients.length > 0 ? Math.round((stage.count / recipients.length) * 100) : 0;
-                    return (
-                      <div key={stage.id}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", stage.color)}>{stage.label}</span>
-                          <span className="text-sm font-bold">{stage.count}</span>
-                        </div>
-                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${pct}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* By funding source */}
-              <div className="card p-5">
-                <h2 className="font-semibold mb-4 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-brand-500" />
-                  לפי מקור מימון
-                </h2>
-                <div className="space-y-3">
-                  {Object.entries(byFunding).map(([source, count]) => {
-                    const pct = recipients.length > 0 ? Math.round((count / recipients.length) * 100) : 0;
-                    return (
-                      <div key={source}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm">{FUNDING_SOURCE_MAP[source] || "לא ידוע"}</span>
-                          <span className="text-sm font-bold">{count} ({pct}%)</span>
-                        </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-indigo-400 transition-all" style={{ width: `${pct}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>
