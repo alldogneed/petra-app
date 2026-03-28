@@ -10,8 +10,9 @@ import * as XLSX from "xlsx";
 import { computeMedicalComplianceStatus } from "@/lib/service-dog-engine";
 
 const PHASE_LABELS: Record<string, string> = {
-  PUPPY: "גור",
   SELECTION: "בחירה",
+  RAISING: "גידול",
+  PUPPY: "גור",
   IN_TRAINING: "באימון",
   ADVANCED_TRAINING: "אימון מתקדם",
   CERTIFIED: "מוסמך",
@@ -30,6 +31,7 @@ const TRAINING_STATUS_LABELS: Record<string, string> = {
 const SERVICE_TYPE_LABELS: Record<string, string> = {
   MOBILITY: "ניידות",
   PSYCHIATRIC: "פסיכיאטרי",
+  PTSD: "PTSD",
   GUIDE: "נחייה",
   AUTISM: "אוטיזם",
   ALERT: "התרעה",
@@ -85,7 +87,7 @@ export async function GET(request: NextRequest) {
         },
         medicalProtocols: true,
         placements: {
-          where: { status: { in: ["ACTIVE", "TRIAL"] } },
+          where: { status: "ACTIVE" },
           include: { recipient: { select: { name: true } } },
           take: 1,
         },

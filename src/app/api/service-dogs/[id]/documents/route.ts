@@ -71,7 +71,7 @@ export async function POST(
     docs = [newDoc, ...docs];
 
     await prisma.serviceDogProfile.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: { documents: JSON.stringify(docs) },
     });
 

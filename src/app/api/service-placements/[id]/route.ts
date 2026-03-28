@@ -136,7 +136,7 @@ export async function DELETE(
       return NextResponse.json({ error: "שיבוץ לא נמצא" }, { status: 404 });
     }
 
-    await prisma.serviceDogPlacement.delete({ where: { id: params.id } });
+    await prisma.serviceDogPlacement.delete({ where: { id: params.id, businessId: authResult.businessId } });
 
     // If it was an active placement, revert recipient to LEAD
     if (placement.status === "ACTIVE") {

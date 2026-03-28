@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       include: {
         customer: true,
         placements: {
-          where: { status: { in: ["ACTIVE", "TRIAL"] } },
+          where: { status: "ACTIVE" },
           include: { serviceDog: { include: { pet: true } } },
           take: 1,
         },

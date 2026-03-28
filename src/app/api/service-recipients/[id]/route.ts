@@ -88,7 +88,7 @@ export async function PATCH(
     const body = await request.json();
 
     const updated = await prisma.serviceDogRecipient.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId },
       data: {
         ...(body.name !== undefined && { name: body.name }),
         ...(body.phone !== undefined && { phone: body.phone || null }),
@@ -166,7 +166,7 @@ export async function DELETE(
       );
     }
 
-    await prisma.serviceDogRecipient.delete({ where: { id: params.id } });
+    await prisma.serviceDogRecipient.delete({ where: { id: params.id, businessId } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
