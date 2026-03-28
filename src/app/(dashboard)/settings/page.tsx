@@ -3573,9 +3573,10 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
         setPdfBytes(ab);
 
         // Use pdfjs just for metadata (page count + dimensions)
+        // Pass a COPY to pdfjs — it may transfer the buffer to a worker, detaching the original
         const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
         GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-        const doc = await getDocument({ data: new Uint8Array(ab) }).promise;
+        const doc = await getDocument({ data: new Uint8Array(ab.slice(0)) }).promise;
         if (cancelled) { doc.destroy(); return; }
         setTotalPages(doc.numPages);
         setSignaturePage(1);
@@ -3864,10 +3865,10 @@ function EditContractTemplateModal({
         if (cancelled) return;
         setPdfBytes(ab);
 
-        // Use pdfjs just for metadata
+        // Use pdfjs just for metadata — pass a COPY so worker doesn't detach our buffer
         const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
         GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-        const doc = await getDocument({ data: new Uint8Array(ab) }).promise;
+        const doc = await getDocument({ data: new Uint8Array(ab.slice(0)) }).promise;
         if (cancelled) { doc.destroy(); return; }
         setTotalPages(doc.numPages);
         const page = await doc.getPage(1);
