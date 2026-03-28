@@ -45,6 +45,7 @@ export default function SignContractPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [signed, setSigned] = useState(false);
+  const [signedFileUrl, setSignedFileUrl] = useState<string | null>(null);
   const [hasSignature, setHasSignature] = useState(false);
   const [readConfirmed, setReadConfirmed] = useState(false);
   const [pdfLoaded, setPdfLoaded] = useState(false);
@@ -200,7 +201,7 @@ export default function SignContractPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ signatureBase64: canvasRef.current.toDataURL("image/png") }),
       });
-      if (r.ok) setSigned(true);
+      if (r.ok) { const d = await r.json(); setSigned(true); setSignedFileUrl(d.signedFileUrl ?? null); }
       else { const d = await r.json(); alert(d.error || "שגיאה. נסה שוב."); }
     } catch { alert("שגיאת רשת. נסה שוב."); }
     finally { setSubmitting(false); }
@@ -257,6 +258,18 @@ export default function SignContractPage() {
               <span className="text-xs text-slate-400">סטטוס</span>
             </div>
           </div>
+          {signedFileUrl && (
+            <a
+              href={signedFileUrl}
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-2xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 active:scale-95 transition-all"
+            >
+              <Download className="w-4 h-4" />
+              הורד עותק של החוזה החתום
+            </a>
+          )}
           <p className="text-xs text-slate-400 text-center">ניתן לסגור את הדף</p>
           <div className="pt-6 border-t border-slate-100 text-center">
             <div className="flex items-center justify-center gap-2">
