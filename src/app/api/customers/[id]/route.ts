@@ -15,6 +15,8 @@ const PatchCustomerSchema = z.object({
   email: z.string().email().max(100).nullable().optional(),
   address: z.string().max(500).nullable().optional(),
   idNumber: z.string().max(20).nullable().optional(),
+  secondContactName: z.string().max(100).nullable().optional(),
+  secondContactPhone: z.string().max(20).nullable().optional(),
   notes: z.string().max(5000).nullable().optional(),
   tags: z.string().max(1000).nullable().optional(),
   source: z.string().max(50).nullable().optional(),

@@ -91,7 +91,6 @@ export function ConfirmDeleteModal({
                 : "border-slate-300 bg-white text-slate-800 focus:border-red-400"
             )}
             autoFocus
-            dir="ltr"
           />
           {typed.length > 0 && !isMatch && (
             <p className="text-xs text-red-500 mt-1">הטקסט אינו תואם</p>
@@ -102,19 +101,12 @@ export function ConfirmDeleteModal({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 justify-end">
-          <button
-            onClick={handleClose}
-            disabled={loading}
-            className="btn-secondary px-4 py-2 text-sm"
-          >
-            ביטול
-          </button>
+        <div className="flex gap-3">
           <button
             onClick={handleConfirm}
             disabled={!isMatch || loading}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+              "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all",
               isMatch && !loading
                 ? "bg-red-600 hover:bg-red-700 text-white shadow-sm"
                 : "bg-slate-200 text-slate-400 cursor-not-allowed"
@@ -122,6 +114,13 @@ export function ConfirmDeleteModal({
           >
             <Trash2 className="w-4 h-4" />
             {loading ? "מוחק..." : "מחק לצמיתות"}
+          </button>
+          <button
+            onClick={handleClose}
+            disabled={loading}
+            className="btn-secondary px-5 py-2.5 text-sm"
+          >
+            ביטול
           </button>
         </div>
       </div>

@@ -330,7 +330,9 @@ model Customer {
   phoneNorm String?
   email     String?
   address   String?
-  idNumber  String?  // תעודת זהות
+  idNumber           String?  // תעודת זהות
+  secondContactName  String?  // איש קשר נוסף — שם
+  secondContactPhone String?  // איש קשר נוסף — טלפון
   notes     String?
   tags      String   @default("[]")
   documents String   @default("[]")
@@ -1623,7 +1625,7 @@ model InvoiceJob {
   updatedAt   DateTime @updatedAt
 
   business Business @relation(fields: [businessId], references: [id])
-  payment  Payment  @relation(fields: [paymentId], references: [id])
+  payment  Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([businessId, status, nextRunAt])

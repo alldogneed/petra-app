@@ -1235,6 +1235,9 @@ function NewCustomerModal({
     phone: "",
     email: "",
     address: "",
+    idNumber: "",
+    secondContactName: "",
+    secondContactPhone: "",
     notes: "",
     selectedTags: [] as string[],
     source: "",
@@ -1261,6 +1264,9 @@ function NewCustomerModal({
           phone: data.phone,
           email: data.email || null,
           address: data.address || null,
+          idNumber: data.idNumber || null,
+          secondContactName: data.secondContactName || null,
+          secondContactPhone: data.secondContactPhone || null,
           notes: data.notes || null,
           tags: JSON.stringify(data.selectedTags),
           source: data.source || null,
@@ -1278,7 +1284,7 @@ function NewCustomerModal({
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       onClose();
-      setForm({ name: "", phone: "", email: "", address: "", notes: "", selectedTags: [], source: "" });
+      setForm({ name: "", phone: "", email: "", address: "", idNumber: "", secondContactName: "", secondContactPhone: "", notes: "", selectedTags: [], source: "" });
       setFieldErrors({});
       toast.success("הלקוח נוצר בהצלחה");
     },
@@ -1401,6 +1407,39 @@ function NewCustomerModal({
               onChange={(e) => setForm({ ...form, address: e.target.value })}
               placeholder="עיר, רחוב"
             />
+          </div>
+          <div>
+            <label htmlFor="nc-idNumber" className="label">
+              תעודת זהות
+              <span className="text-[11px] text-brand-500 font-normal mr-1.5">חשוב לשליחת חוזים דיגיטליים</span>
+            </label>
+            <input
+              id="nc-idNumber"
+              className="input"
+              value={form.idNumber}
+              onChange={(e) => setForm({ ...form, idNumber: e.target.value })}
+              placeholder="000000000"
+              inputMode="numeric"
+              maxLength={9}
+            />
+          </div>
+          <div>
+            <label className="label">איש קשר נוסף <span className="text-[11px] text-petra-muted font-normal">(אופציונלי)</span></label>
+            <div className="flex gap-3">
+              <input
+                className="input flex-1"
+                value={form.secondContactName}
+                onChange={(e) => setForm({ ...form, secondContactName: e.target.value })}
+                placeholder="שם איש הקשר"
+              />
+              <input
+                className="input flex-1"
+                value={form.secondContactPhone}
+                onChange={(e) => setForm({ ...form, secondContactPhone: e.target.value })}
+                placeholder="050-0000000"
+                inputMode="tel"
+              />
+            </div>
           </div>
           <div>
             <label className="label">תגיות לקוח</label>

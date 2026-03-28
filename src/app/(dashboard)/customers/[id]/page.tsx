@@ -3494,9 +3494,9 @@ export default function CustomerProfilePage() {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       router.push("/customers");
     },
-    onError: () => {
-      setConfirmDelete(false);
+    onError: (e: Error) => {
       setShowConfirmDeleteModal(false);
+      toast.error(e?.message || "שגיאה במחיקת הלקוח. נסה שוב.");
     },
   });
 
