@@ -3889,7 +3889,8 @@ function EditContractTemplateModal({
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
-        const resp = await fetch(template.fileUrl, { mode: "cors", credentials: "omit" });
+        // Proxy through our API to avoid CORS issues with Vercel Blob
+        const resp = await fetch(`/api/contracts/templates/${template.id}/pdf`);
         if (!resp.ok) throw new Error(`PDF fetch failed: ${resp.status}`);
         const ab = await resp.arrayBuffer();
         if (cancelled) return;
@@ -4048,7 +4049,7 @@ function EditContractTemplateModal({
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-red-500">
                     <FileText className="w-8 h-8" />
                     <p className="text-sm">שגיאה בטעינת המסמך</p>
-                    <button type="button" className="text-xs underline" onClick={() => { setPdfLoading(true); setPdfError(false); setTimeout(async () => { try { const resp = await fetch(template.fileUrl, { mode: "cors", credentials: "omit" }); if (!resp.ok) throw new Error("fetch failed"); const ab = await resp.arrayBuffer(); const bytes = new Uint8Array(ab); pdfBytesRef.current = bytes; const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist"); GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"; const doc = await getDocument({ data: bytes.slice() }).promise; setTotalPages(doc.numPages); const pg = await doc.getPage(1); const vp = pg.getViewport({ scale: 1 }); setPageDims({ width: vp.width, height: vp.height }); doc.destroy(); const blob = await extractPageBlob(bytes, signaturePage); setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); }); setPdfReady(true); setPdfError(false); } catch { setPdfError(true); } finally { setPdfLoading(false); } }, 100); }}>נסה שוב</button>
+                    <button type="button" className="text-xs underline" onClick={() => { setPdfLoading(true); setPdfError(false); setTimeout(async () => { try { const resp = await fetch(`/api/contracts/templates/${template.id}/pdf`); if (!resp.ok) throw new Error("fetch failed"); const ab = await resp.arrayBuffer(); const bytes = new Uint8Array(ab); pdfBytesRef.current = bytes; const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist"); GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"; const doc = await getDocument({ data: bytes.slice() }).promise; setTotalPages(doc.numPages); const pg = await doc.getPage(1); const vp = pg.getViewport({ scale: 1 }); setPageDims({ width: vp.width, height: vp.height }); doc.destroy(); const blob = await extractPageBlob(bytes, signaturePage); setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); }); setPdfReady(true); setPdfError(false); } catch { setPdfError(true); } finally { setPdfLoading(false); } }, 100); }}>נסה שוב</button>
                   </div>
                 )}
                 {pageBlobUrl && !pdfLoading && !pdfError && (
