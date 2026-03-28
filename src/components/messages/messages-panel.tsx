@@ -148,7 +148,7 @@ const STARTER_TEMPLATES = [
 ];
 
 // Default templates shown in the ידני tab — always visible, user can only edit body
-const MANUAL_STARTERS = STARTER_TEMPLATES.map(({ label, body }) => ({ label, body }));
+const MANUAL_STARTERS = STARTER_TEMPLATES.map(({ label, body, trigger }) => ({ label, body, trigger }));
 
 // ─── Send Modal ───────────────────────────────────────────────────────────────
 
@@ -545,7 +545,7 @@ function TemplatesTab() {
   return (
     <>
       {/* Inner sub-tabs */}
-      <div className="flex gap-1 mb-5 bg-slate-100 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 mb-3 bg-slate-100 p-1 rounded-xl w-fit">
         <button
           onClick={() => setInnerTab("auto")}
           className={cn(
@@ -571,6 +571,18 @@ function TemplatesTab() {
           ידני
         </button>
       </div>
+
+      {/* Tab description */}
+      {innerTab === "auto" && (
+        <p className="text-xs text-petra-muted mb-4">
+          הודעות שנשלחות אוטומטית על ידי המערכת בהתאם לאירועים — למשל אישור תור, תזכורת לפני פגישה, או יום הולדת. הגדר תבנית לכל אירוע שרוצים לפעיל.
+        </p>
+      )}
+      {innerTab === "manual" && (
+        <p className="text-xs text-petra-muted mb-4">
+          תבניות מוכנות לשליחה ידנית ללקוח בודד — לחץ על אייקון השליחה בשורה ובחר לקוח. ניתן לערוך את תוכן כל תבנית.
+        </p>
+      )}
 
       {/* ── Automations tab ── */}
       {innerTab === "auto" && (
@@ -673,59 +685,64 @@ function TemplatesTab() {
 
       {/* ── Manual tab ── */}
       {innerTab === "manual" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-3">
           {isLoading
-            ? [1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="card p-4 animate-pulse h-24" />)
+            ? [1, 2, 3, 4].map((i) => <div key={i} className="card p-4 animate-pulse h-16" />)
             : MANUAL_STARTERS.map((starter) => {
                 const dbVersion = manualTemplates.find((t) => t.name === starter.label);
-                const displayBody = dbVersion?.body ?? starter.body;
+                const isCustomized = !!dbVersion;
+                const StarterIcon = TRIGGER_ICONS[starter.trigger] ?? MessageSquare;
                 const templateForModal: MessageTemplate = dbVersion ?? {
                   id: "", name: starter.label, channel: "whatsapp", subject: null,
                   body: starter.body, variables: "", isActive: true,
                   createdAt: "", automationRules: [],
                 };
                 return (
-                  <div key={starter.label} className="card p-4 group">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h3 className="text-sm font-semibold text-petra-text">{starter.label}</h3>
-                        {!dbVersion && (
-                          <span className="text-[10px] text-petra-muted">ברירת מחדל</span>
-                        )}
-                      </div>
-                      <div className="flex gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-                        <button
-                          onClick={() => setSendingTemplate(templateForModal)}
-                          className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
-                          title="שלח ללקוח בודד"
-                        >
-                          <Send className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setBulkSendingTemplate(templateForModal)}
-                          className="p-1.5 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600"
-                          title="שלח לקבוצת לקוחות"
-                        >
-                          <Users className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (dbVersion) {
-                              openEditor(dbVersion);
-                            } else {
-                              setEditingTemplate(null);
-                              setForm({ ...emptyForm, name: starter.label, body: starter.body });
-                              setShowEditor(true);
-                            }
-                          }}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
-                          title="ערוך תבנית"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                  <div key={starter.label} className="card p-4 flex items-center gap-4">
+                    <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
+                      <StarterIcon className="w-4 h-4 text-brand-600" />
                     </div>
-                    <p className="text-xs text-petra-muted line-clamp-2 whitespace-pre-wrap">{displayBody}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-petra-text leading-snug">{starter.label}</p>
+                      <p className="text-xs text-petra-muted mt-0.5 leading-snug truncate">
+                        {(dbVersion?.body ?? starter.body).split("\n")[0]}
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      {isCustomized ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-50 text-green-700 border border-green-200 whitespace-nowrap">
+                          מותאם
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
+                          ברירת מחדל
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => setSendingTemplate(templateForModal)}
+                        className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
+                        title="שלח ללקוח בודד"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (dbVersion) {
+                            openEditor(dbVersion);
+                          } else {
+                            setEditingTemplate(null);
+                            setForm({ ...emptyForm, name: starter.label, body: starter.body });
+                            setShowEditor(true);
+                          }
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
+                        title="ערוך תבנית"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
