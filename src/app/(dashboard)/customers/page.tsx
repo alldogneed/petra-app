@@ -2066,9 +2066,8 @@ export default function CustomersPage() {
             <X className="w-3.5 h-3.5" />
             הסר VIP
           </button>
-          <div className="flex-1" />
           <button
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors"
+            className="ms-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors"
             onClick={() => setBulkDeleteStep(1)}
           >
             <Trash2 className="w-3.5 h-3.5" />
