@@ -1875,6 +1875,7 @@ function BoardingPageContent() {
   // Dialog state
   const shouldCreateMedTasksRef = useRef(false);
   const checkinStayRef = useRef<BoardingStay | null>(null);
+  const staysListRef = useRef<HTMLDivElement>(null);
   const [checkinDialogStay, setCheckinDialogStay] = useState<BoardingStay | null>(null);
   const [checkoutDialogStay, setCheckoutDialogStay] = useState<BoardingStay | null>(null);
   const [extendDialogStay, setExtendDialogStay] = useState<BoardingStay | null>(null);
@@ -2678,7 +2679,10 @@ function BoardingPageContent() {
             </p>
           </div>
           <button
-            onClick={() => setActiveTab("active")}
+            onClick={() => {
+              setActiveTab("active");
+              setTimeout(() => staysListRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+            }}
             className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors"
           >
             טפל עכשיו
@@ -2862,7 +2866,7 @@ function BoardingPageContent() {
       )}
 
       {/* ── Stays List with Tabs ── */}
-      <div>
+      <div ref={staysListRef}>
         {/* Date filter banner */}
         {selectedCalendarDate && (
           <div className="flex items-center gap-2 px-3 py-2 mb-3 bg-brand-50 border border-brand-100 rounded-xl text-sm text-brand-700">
