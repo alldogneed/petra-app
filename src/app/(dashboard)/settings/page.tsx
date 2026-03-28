@@ -3597,9 +3597,15 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
     return () => { cancelled = true; };
   }, [file, extractPageBlob]);
 
-  // Extract page on navigation
+  // Extract page on navigation — clear old URL immediately so <object> remounts
+  const prevPageRef = useRef(signaturePage);
   useEffect(() => {
     if (!pdfBytes || signaturePage < 1) return;
+    // Clear immediately to force remount with loading state
+    if (prevPageRef.current !== signaturePage) {
+      setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+      prevPageRef.current = signaturePage;
+    }
     let cancelled = false;
     (async () => {
       const blob = await extractPageBlob(pdfBytes, signaturePage);
@@ -3752,14 +3758,14 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
                   className="relative border border-slate-200 rounded-xl overflow-hidden bg-white"
                   style={{ aspectRatio: `${pageDims.width} / ${pageDims.height}`, minHeight: 300 }}
                 >
-                  {pdfLoading && (
+                  {(pdfLoading || !pageBlobUrl) && (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
                       <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
                     </div>
                   )}
                   {pageBlobUrl && !pdfLoading && (
                     <object
-                      key={signaturePage}
+                      key={pageBlobUrl}
                       data={`${pageBlobUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
                       type="application/pdf"
                       className="absolute inset-0 w-full h-full"
@@ -3767,6 +3773,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
                       <p className="text-center text-sm text-petra-muted p-4">לא ניתן להציג את המסמך</p>
                     </object>
                   )}
+                  {pageBlobUrl && !pdfLoading && (
                   <div
                     ref={overlayRef}
                     className="absolute inset-0 cursor-crosshair"
@@ -3783,6 +3790,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
                       />
                     ))}
                   </div>
+                  )}
                 </div>
                 <FieldsSummary fields={fields} onClear={() => setFields([])} />
               </div>
@@ -3882,9 +3890,14 @@ function EditContractTemplateModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template.fileUrl]);
 
-  // Extract page on navigation
+  // Extract page on navigation — clear old URL immediately so <object> remounts
+  const prevPageRef = useRef(signaturePage);
   useEffect(() => {
     if (!pdfBytes || signaturePage < 1) return;
+    if (prevPageRef.current !== signaturePage) {
+      setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+      prevPageRef.current = signaturePage;
+    }
     let cancelled = false;
     (async () => {
       const blob = await extractPageBlob(pdfBytes, signaturePage);
@@ -3995,7 +4008,7 @@ function EditContractTemplateModal({
             {/* PDF viewer (native browser rendering) + overlays */}
             <div>
               <div ref={containerRef} className="relative border border-slate-200 rounded-xl overflow-hidden bg-white" style={{ aspectRatio: `${pageDims.width} / ${pageDims.height}`, minHeight: 300 }}>
-                {pdfLoading && <div className="absolute inset-0 flex items-center justify-center bg-slate-50"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>}
+                {(pdfLoading || (!pageBlobUrl && !pdfError)) && <div className="absolute inset-0 flex items-center justify-center bg-slate-50"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>}
                 {pdfError && !pdfLoading && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-red-500">
                     <FileText className="w-8 h-8" />
@@ -4005,7 +4018,7 @@ function EditContractTemplateModal({
                 )}
                 {pageBlobUrl && !pdfLoading && !pdfError && (
                   <object
-                    key={signaturePage}
+                    key={pageBlobUrl}
                     data={`${pageBlobUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
                     type="application/pdf"
                     className="absolute inset-0 w-full h-full"
@@ -4013,7 +4026,7 @@ function EditContractTemplateModal({
                     <p className="text-center text-sm text-petra-muted p-4">לא ניתן להציג את המסמך</p>
                   </object>
                 )}
-                {!pdfLoading && !pdfError && (
+                {pageBlobUrl && !pdfLoading && !pdfError && (
                   <div ref={overlayRef} className="absolute inset-0 cursor-crosshair" style={{ zIndex: 10 }} onClick={handleOverlayClick}>
                     {currentPageFields.map((f) => (
                       <ContractFieldOverlay
