@@ -28,7 +28,6 @@ import {
   ShoppingCart,
   ArrowLeft,
   MessageCircle,
-  Phone,
   Tag,
   Settings2,
   Trash2,
