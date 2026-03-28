@@ -1393,7 +1393,7 @@ function sortLeadsByPriority(leads: Lead[]): Lead[] {
 
   const getPriority = (lead: Lead): 0 | 1 | 2 => {
     const followUpDate = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
-    if (followUpDate && followUpDate < todayStart && lead.followUpStatus !== "completed") return 0;
+    if (followUpDate && followUpDate < todayStart) return 0;
     const hasActivity = (lead.callLogs?.length || 0) > 0 || !!lead.lastContactedAt;
     const hasFutureFollowUp = !!followUpDate && followUpDate >= todayStart;
     return (hasActivity || hasFutureFollowUp || lead.followUpStatus === "completed") ? 2 : 1;
