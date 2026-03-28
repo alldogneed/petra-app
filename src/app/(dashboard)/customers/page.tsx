@@ -2406,7 +2406,7 @@ export default function CustomersPage() {
                       </td>
 
                       {/* Quick Actions */}
-                      <td className="table-cell">
+                      <td className="px-2 py-3.5 whitespace-nowrap">
                         <QuickActions
                           customer={customer}
                           onEdit={() => setEditingCustomer(customer)}
