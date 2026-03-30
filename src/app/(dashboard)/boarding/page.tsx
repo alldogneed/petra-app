@@ -53,7 +53,7 @@ import {
   ClipboardList,
   Printer,
   GripVertical,
-  TreePine,
+  Fence,
 } from "lucide-react";
 import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
@@ -1172,7 +1172,7 @@ function StayRow({
               onClick={() => onAssignYard(stay.id)}
               title={stay.yard ? `חצר: ${stay.yard.name} — לחץ לשינוי` : "שבץ לחצר"}
             >
-              <TreePine className="w-3.5 h-3.5" />
+              <Fence className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{stay.yard ? stay.yard.name : "חצר"}</span>
             </button>
           )}
@@ -1917,7 +1917,7 @@ function AssignYardModal({
       <div className="modal-content max-w-sm mx-4 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
-            <TreePine className="w-5 h-5 text-teal-600" />שיבוץ לחצר
+            <Fence className="w-5 h-5 text-teal-600" />שיבוץ לחצר
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -1952,7 +1952,7 @@ function AssignYardModal({
                   disabled={(isFull && !isCurrent) || isPending}
                   onClick={() => (!isFull || isCurrent) ? onAssign(stayId, yard.id) : undefined}
                 >
-                  <TreePine className={cn("w-4 h-4 flex-shrink-0", isCurrent ? "text-teal-600" : "text-teal-400")} />
+                  <Fence className={cn("w-4 h-4 flex-shrink-0", isCurrent ? "text-teal-600" : "text-teal-400")} />
                   <span className="flex-1 font-medium">{yard.name}</span>
                   <span className="text-xs text-petra-muted">{occupied}/{yard.capacity}</span>
                   {isCurrent && <Check className="w-4 h-4 text-teal-600" />}

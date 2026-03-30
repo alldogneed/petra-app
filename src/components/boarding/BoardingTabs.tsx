@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Hotel, UtensilsCrossed, Pill, Syringe, ClipboardList, ClipboardCheck, TreePine } from "lucide-react";
+import { Hotel, UtensilsCrossed, Pill, Syringe, ClipboardList, ClipboardCheck, Fence } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
   { name: "לוח יומי",      href: "/boarding/daily", icon: ClipboardCheck  },
   { name: "ניהול חדרים",   href: "/boarding",        icon: Hotel           },
-  { name: "ניהול חצרות",   href: "/boarding/yards",  icon: TreePine        },
+  { name: "ניהול חצרות",   href: "/boarding/yards",  icon: Fence           },
   { name: "האכלה",         href: "/feeding",         icon: UtensilsCrossed },
   { name: "תרופות",        href: "/medications",     icon: Pill            },
   { name: "חיסונים",       href: "/vaccinations",    icon: Syringe         },
