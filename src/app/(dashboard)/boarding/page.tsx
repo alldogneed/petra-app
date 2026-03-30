@@ -2013,6 +2013,12 @@ function BoardingPageContent() {
   const [editRoomForm, setEditRoomForm] = useState({ name: "", capacity: 1, type: "standard", pricePerNight: "" as string | number });
   const [newRoomForm, setNewRoomForm] = useState({ name: "", capacity: 1, type: "standard", pricePerNight: "" as string | number });
 
+  // Yards manager
+  const [showYardsManager, setShowYardsManager] = useState(false);
+  const [editingYardId, setEditingYardId] = useState<string | null>(null);
+  const [editYardForm, setEditYardForm] = useState({ name: "", capacity: 1, type: "standard", pricePerSession: "" as string | number });
+  const [newYardForm, setNewYardForm] = useState({ name: "", capacity: 1, type: "standard", pricePerSession: "" as string | number });
+
 
   const queryClient = useQueryClient();
 
@@ -2404,8 +2410,9 @@ function BoardingPageContent() {
       fetch(`/api/boarding/${id}`, { method: "DELETE" })
         .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקת השהות"); return d; }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["boarding-stays"] });
+      queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      queryClient.invalidateQueries({ queryKey: ["yards"] });
       toast.success("השהות נמחקה");
       setDeleteDialogStay(null);
     },
@@ -2415,6 +2422,52 @@ function BoardingPageContent() {
   function startEditRoom(room: Room) {
     setEditingRoomId(room.id);
     setEditRoomForm({ name: room.name, capacity: room.capacity, type: room.type, pricePerNight: room.pricePerNight ?? "" });
+  }
+
+  const createYardMutation = useMutation({
+    mutationFn: (data: { name: string; capacity: number; type: string; pricePerSession: string | number }) =>
+      fetch("/api/boarding/yards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, pricePerSession: data.pricePerSession !== "" ? Number(data.pricePerSession) : null }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["yards"] });
+      setNewYardForm({ name: "", capacity: 1, type: "standard", pricePerSession: "" });
+      toast.success("החצר נוצרה בהצלחה");
+    },
+    onError: () => toast.error("שגיאה ביצירת החצר. נסה שוב."),
+  });
+
+  const updateYardMutation = useMutation({
+    mutationFn: ({ id, ...data }: { id: string; name: string; capacity: number; type: string; pricePerSession: string | number }) =>
+      fetch(`/api/boarding/yards/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, pricePerSession: data.pricePerSession !== "" ? Number(data.pricePerSession) : null }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["yards"] });
+      setEditingYardId(null);
+      toast.success("החצר עודכנה בהצלחה");
+    },
+    onError: () => toast.error("שגיאה בעדכון החצר. נסה שוב."),
+  });
+
+  const deleteYardMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/boarding/yards/${id}`, { method: "DELETE" })
+        .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקת החצר"); return d; }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["yards"] });
+      toast.success("החצר נמחקה");
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת החצר. נסה שוב."),
+  });
+
+  function startEditYard(yard: Yard) {
+    setEditingYardId(yard.id);
+    setEditYardForm({ name: yard.name, capacity: yard.capacity, type: yard.type, pricePerSession: yard.pricePerSession ?? "" });
   }
 
   const assignYardMutation = useMutation({
@@ -2761,6 +2814,12 @@ function BoardingPageContent() {
           <button className="btn-secondary" onClick={() => setShowRoomsManager(true)}>
             <Settings2 className="w-4 h-4" />ניהול חדרים
           </button>
+          <button
+            className="btn-secondary !border-teal-200 !text-teal-700 hover:!bg-teal-50"
+            onClick={() => setShowYardsManager(true)}
+          >
+            <Fence className="w-4 h-4" />ניהול חצרות
+          </button>
 <button className="btn-primary" onClick={() => { setForm((f) => ({ ...f, pricePerNight: settings.boardingPricePerNight || 150, checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00" })); setShowNewStay(true); }}>
             <Plus className="w-4 h-4" />שהייה חדשה
           </button>
@@ -2990,6 +3049,58 @@ function BoardingPageContent() {
             ) : null}
           </DragOverlay>
         </DndContext>
+      )}
+
+      {/* ── Yards Map (Grid View) ── */}
+      {viewMode === "grid" && yards.filter(y => y.isActive).length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <Fence className="w-4 h-4 text-teal-600" />
+            <h2 className="text-sm font-semibold text-teal-700">מפת חצרות</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            {yards.filter(y => y.isActive).map((yard) => {
+              const activeInYard = occStays.filter(s => s.yard?.id === yard.id && ["reserved","checked_in"].includes(s.status));
+              const isFull = activeInYard.length >= yard.capacity;
+              return (
+                <div
+                  key={yard.id}
+                  className="card p-3 border-t-2"
+                  style={{ borderTopColor: isFull ? "#F97316" : "#14B8A6" }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Fence className="w-4 h-4 text-teal-500 flex-shrink-0" />
+                    <span className="text-sm font-semibold text-petra-text truncate">{yard.name}</span>
+                    <span className={cn(
+                      "text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ms-auto",
+                      isFull
+                        ? "text-orange-700 bg-orange-50 border-orange-200"
+                        : "text-teal-700 bg-teal-50 border-teal-200"
+                    )}>
+                      {isFull ? "מלאה" : "פנוי"}
+                    </span>
+                  </div>
+                  <div className="text-xs text-petra-muted mb-2">
+                    {activeInYard.length}/{yard.capacity} · {YARD_TYPE_LABELS[yard.type] || yard.type}
+                    {yard.pricePerSession != null && (
+                      <span className="ms-1 text-teal-600 font-medium">· ₪{yard.pricePerSession}</span>
+                    )}
+                  </div>
+                  {activeInYard.length > 0 && (
+                    <div className="space-y-1">
+                      {activeInYard.map(s => (
+                        <div key={s.id} className="flex items-center gap-1 text-[10px] text-petra-text">
+                          <PawPrint className="w-2.5 h-2.5 text-teal-400 flex-shrink-0" />
+                          <span className="truncate">{s.pet.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {/* ── Timeline View ── */}
@@ -3362,6 +3473,182 @@ function BoardingPageContent() {
                 >
                   <Plus className="w-4 h-4" />
                   {createRoomMutation.isPending ? "מוסיף..." : "הוסף חדר"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Yards Manager Modal ── */}
+      {showYardsManager && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => { setShowYardsManager(false); setEditingYardId(null); }} />
+          <div className="modal-content max-w-lg mx-4 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-petra-text">ניהול חצרות</h2>
+                <p className="text-sm text-petra-muted mt-0.5">הוסף, ערוך או מחק חצרות</p>
+              </div>
+              <button
+                onClick={() => { setShowYardsManager(false); setEditingYardId(null); }}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 mb-6">
+              {yards.length === 0 ? (
+                <p className="text-sm text-petra-muted text-center py-4">אין חצרות עדיין</p>
+              ) : (
+                yards.map((yard) => (
+                  <div key={yard.id} className="card p-3 border-r-2 border-teal-200">
+                    {editingYardId === yard.id ? (
+                      <div className="space-y-2">
+                        <input
+                          className="input"
+                          placeholder="שם החצר"
+                          value={editYardForm.name}
+                          onChange={(e) => setEditYardForm({ ...editYardForm, name: e.target.value })}
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <label className="label text-[11px]">קיבולת</label>
+                            <input
+                              type="number"
+                              min={1}
+                              className="input"
+                              value={editYardForm.capacity}
+                              onChange={(e) => setEditYardForm({ ...editYardForm, capacity: Number(e.target.value) })}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="label text-[11px]">סוג</label>
+                            <select
+                              className="input"
+                              value={editYardForm.type}
+                              onChange={(e) => setEditYardForm({ ...editYardForm, type: e.target.value })}
+                            >
+                              <option value="standard">רגילה</option>
+                              <option value="large">גדולה</option>
+                              <option value="group">קבוצתית</option>
+                            </select>
+                          </div>
+                          <div className="flex-1">
+                            <label className="label text-[11px]">מחיר/ביקור (₪)</label>
+                            <input
+                              type="number"
+                              min={0}
+                              className="input"
+                              placeholder="אופציונלי"
+                              value={editYardForm.pricePerSession}
+                              onChange={(e) => setEditYardForm({ ...editYardForm, pricePerSession: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            className="btn-primary text-xs flex-1"
+                            disabled={!editYardForm.name.trim() || updateYardMutation.isPending}
+                            onClick={() => updateYardMutation.mutate({ id: yard.id, ...editYardForm })}
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            {updateYardMutation.isPending ? "שומר..." : "שמור"}
+                          </button>
+                          <button className="btn-secondary text-xs" onClick={() => setEditingYardId(null)}>
+                            ביטול
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <Fence className="w-4 h-4 text-teal-500 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-semibold text-petra-text">{yard.name}</span>
+                          <span className="text-xs text-petra-muted mr-2">· קיבולת {yard.capacity}</span>
+                          <span className="text-xs text-petra-muted">· {yard._count.boardingStays} פעילות</span>
+                          {yard.pricePerSession != null && (
+                            <span className="text-xs text-teal-600 mr-2">· ₪{yard.pricePerSession}/ביקור</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted hover:text-petra-text transition-colors"
+                            onClick={() => startEditYard(yard)}
+                            title="ערוך"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            onClick={() => deleteYardMutation.mutate(yard.id)}
+                            disabled={yard._count.boardingStays > 0 || deleteYardMutation.isPending}
+                            title={yard._count.boardingStays > 0 ? "לא ניתן למחוק חצר עם שהיות פעילות" : "מחק חצר"}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Add new yard */}
+            <div className="border-t border-petra-border pt-5">
+              <h3 className="text-sm font-semibold text-petra-text mb-3">הוסף חצר חדשה</h3>
+              <div className="space-y-3">
+                <input
+                  className="input"
+                  placeholder="שם החצר *"
+                  value={newYardForm.name}
+                  onChange={(e) => setNewYardForm({ ...newYardForm, name: e.target.value })}
+                />
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="label">קיבולת</label>
+                    <input
+                      type="number"
+                      min={1}
+                      className="input"
+                      value={newYardForm.capacity}
+                      onChange={(e) => setNewYardForm({ ...newYardForm, capacity: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="label">סוג</label>
+                    <select
+                      className="input"
+                      value={newYardForm.type}
+                      onChange={(e) => setNewYardForm({ ...newYardForm, type: e.target.value })}
+                    >
+                      <option value="standard">רגילה</option>
+                      <option value="large">גדולה</option>
+                      <option value="group">קבוצתית</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="label">מחיר/ביקור (₪)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="input"
+                      placeholder="אופציונלי"
+                      value={newYardForm.pricePerSession}
+                      onChange={(e) => setNewYardForm({ ...newYardForm, pricePerSession: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <button
+                  className="btn-primary w-full !bg-teal-600 hover:!bg-teal-700"
+                  disabled={!newYardForm.name.trim() || createYardMutation.isPending}
+                  onClick={() => createYardMutation.mutate(newYardForm)}
+                >
+                  <Plus className="w-4 h-4" />
+                  {createYardMutation.isPending ? "מוסיף..." : "הוסף חצר"}
                 </button>
               </div>
             </div>
