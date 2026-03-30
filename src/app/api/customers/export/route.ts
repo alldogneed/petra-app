@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
   const { session } = authResult;
   logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.EXPORT_CUSTOMERS);
 
+  try {
   const customers = await prisma.customer.findMany({
     where: { businessId: authResult.businessId },
     orderBy: { name: "asc" },
@@ -112,4 +113,8 @@ export async function GET(request: NextRequest) {
       "Content-Disposition": `attachment; filename="customers_${today}.csv"`,
     },
   });
+  } catch (error) {
+    console.error("Customer export error:", error);
+    return NextResponse.json({ error: "שגיאה בייצוא לקוחות" }, { status: 500 });
+  }
 }

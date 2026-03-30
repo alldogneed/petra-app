@@ -249,11 +249,11 @@ export default function VaccinationsPage() {
           <p>לא נמצאו כלבים</p>
         </div>
       ) : (
-        <div className="card overflow-auto">
-          <table className="w-full text-sm" dir="rtl">
+        <div className="card overflow-x-auto">
+          <table className="text-sm" style={{ minWidth: "max-content", width: "100%" }} dir="rtl">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/50">
-                <th className="text-right p-3 font-semibold text-petra-text w-32">שם הכלב</th>
+                <th className="text-right p-3 font-semibold text-petra-text w-32 sticky right-0 bg-slate-50/95 z-10 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">שם הכלב</th>
                 <th className="text-right p-3 font-semibold text-petra-text w-24">מיקום הכלב</th>
                 {columns.map((col, ci) => (
                   <th key={ci} className="text-center p-3 font-semibold text-petra-text min-w-[110px]">
@@ -265,8 +265,8 @@ export default function VaccinationsPage() {
             </thead>
             <tbody>
               {filteredDogs.map(dog => (
-                <tr key={dog.id} className="border-b border-slate-100 hover:bg-slate-50/30 transition-colors">
-                  <td className="p-3">
+                <tr key={dog.id} className="border-b border-slate-100 hover:bg-slate-50/30 transition-colors group">
+                  <td className="p-3 sticky right-0 bg-white group-hover:bg-slate-50/30 z-10 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)]">
                     <div className="font-semibold text-petra-text">{dog.petName}</div>
                     {dog.petBreed && <div className="text-[11px] text-petra-muted">{dog.petBreed}</div>}
                   </td>

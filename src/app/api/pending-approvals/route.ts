@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
   if (isGuardError(authResult)) return authResult;
   const { session, businessId } = authResult;
 
+  try {
   // Expire stale approvals on every fetch (cheap cleanup)
   await expireOldApprovals(businessId);
 
@@ -47,4 +48,8 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.json({ approvals });
+  } catch (error) {
+    console.error("Pending approvals error:", error);
+    return NextResponse.json({ error: "שגיאה בטעינת אישורים" }, { status: 500 });
+  }
 }

@@ -15,6 +15,19 @@ export function WhatsAppMockupAnimated() {
     const el = ref.current;
     if (!el) return;
 
+    const timeoutIds: ReturnType<typeof setTimeout>[] = [];
+
+    function runSequence() {
+      // Jump straight to typing (skip idle blank state)
+      setPhase("typing");
+      // message slides in
+      timeoutIds.push(setTimeout(() => setPhase("message"), 1600));
+      // double-check (delivered)
+      timeoutIds.push(setTimeout(() => setPhase("delivered"), 2300));
+      // customer replies ✅
+      timeoutIds.push(setTimeout(() => setPhase("reply"), 3400));
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -25,19 +38,11 @@ export function WhatsAppMockupAnimated() {
       { threshold: 0.4 }
     );
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      timeoutIds.forEach(clearTimeout);
+    };
   }, []);
-
-  function runSequence() {
-    // Jump straight to typing (skip idle blank state)
-    setPhase("typing");
-    // message slides in
-    setTimeout(() => setPhase("message"), 1600);
-    // double-check (delivered)
-    setTimeout(() => setPhase("delivered"), 2300);
-    // customer replies ✅
-    setTimeout(() => setPhase("reply"), 3400);
-  }
 
   return (
     <div

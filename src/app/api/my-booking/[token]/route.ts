@@ -1,12 +1,20 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 // GET /api/my-booking/[token] — fetch booking by customerToken (public)
 export async function GET(
   _req: NextRequest,
   { params }: { params: { token: string } }
 ) {
+  // Rate limit to prevent token enumeration
+  const ip = _req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const rl = rateLimit("api:my-booking", ip, RATE_LIMITS.STRICT_TOKEN);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const booking = await prisma.booking.findUnique({
     where: { customerToken: params.token },
     select: {
@@ -36,6 +44,13 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { token: string } }
 ) {
+  // Rate limit to prevent abuse
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const rl = rateLimit("api:my-booking:write", ip, RATE_LIMITS.STRICT_TOKEN);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   let body: { action?: string };
   try {
     body = await req.json();

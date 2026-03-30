@@ -165,7 +165,7 @@ function DroppableColumn({
   };
 
   return (
-    <div className="flex flex-col min-w-[240px] w-[240px] shrink-0">
+    <div className="flex flex-col w-full min-w-[200px] sm:min-w-[240px] sm:w-[240px] shrink-0">
       {/* Column header */}
       <div className={cn(
         "flex items-center justify-between px-3 py-2 rounded-t-xl border-b font-semibold text-sm",

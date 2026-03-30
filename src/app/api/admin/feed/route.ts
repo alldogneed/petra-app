@@ -9,22 +9,28 @@ export async function GET(request: NextRequest) {
   if (isGuardError(guard)) return guard;
 
   const { searchParams } = new URL(request.url);
-  const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
+  const parsedLimit = parseInt(searchParams.get("limit") || "50", 10);
+  const limit = Math.min(Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 50, 100);
   const action = searchParams.get("action"); // optional filter
 
   const where = action ? { action } : {};
 
-  const feed = await prisma.activityLog.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: limit,
-    select: {
-      id: true,
-      userName: true,
-      action: true,
-      createdAt: true,
-    },
-  });
+  try {
+    const feed = await prisma.activityLog.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        userName: true,
+        action: true,
+        createdAt: true,
+      },
+    });
 
-  return NextResponse.json(feed);
+    return NextResponse.json(feed);
+  } catch (error) {
+    console.error("Admin feed error:", error);
+    return NextResponse.json({ error: "שגיאה בטעינת פיד" }, { status: 500 });
+  }
 }

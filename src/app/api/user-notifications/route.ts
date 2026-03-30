@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
   if (isGuardError(authResult)) return authResult;
   const userId = authResult.session.user.id;
 
+  try {
   const notifications = await prisma.notification.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
@@ -26,4 +27,8 @@ export async function GET(request: NextRequest) {
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return NextResponse.json({ notifications, unreadCount });
+  } catch (error) {
+    console.error("User notifications error:", error);
+    return NextResponse.json({ error: "שגיאה בטעינת התראות" }, { status: 500 });
+  }
 }

@@ -58,7 +58,13 @@ export async function POST(request: NextRequest) {
 
   // Try backup codes if TOTP failed
   if (!verified && user.twoFaBackupCodes) {
-    const codes: string[] = JSON.parse(user.twoFaBackupCodes);
+    let codes: string[];
+    try {
+      codes = JSON.parse(user.twoFaBackupCodes);
+    } catch {
+      console.error(`[2FA] Corrupted twoFaBackupCodes for user ${user.id}`);
+      codes = [];
+    }
     for (let i = 0; i < codes.length; i++) {
       const match = await bcrypt.compare(normalizedCode.toUpperCase(), codes[i]);
       if (match) {

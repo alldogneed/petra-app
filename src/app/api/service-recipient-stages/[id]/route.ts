@@ -26,8 +26,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       }
     }
 
-    const updated = await prisma.serviceRecipientStage.update({
-      where: { id: params.id },
+    // Defence-in-depth: include businessId in the mutation WHERE clause
+    await prisma.serviceRecipientStage.updateMany({
+      where: { id: params.id, businessId: auth.businessId },
       data: {
         ...(body.name !== undefined && { name: body.name }),
         ...(body.color !== undefined && { color: body.color }),
@@ -35,6 +36,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       },
     });
 
+    // Re-fetch to return the updated stage
+    const updated = await prisma.serviceRecipientStage.findUnique({ where: { id: params.id } });
     return NextResponse.json(updated);
   } catch (e) {
     console.error("PATCH stage error:", e);
@@ -53,7 +56,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     if (!stage) return NextResponse.json({ error: "Not found" }, { status: 404 });
     if (stage.isBuiltIn) return NextResponse.json({ error: "לא ניתן למחוק שלב מובנה" }, { status: 400 });
 
-    await prisma.serviceRecipientStage.delete({ where: { id: params.id } });
+    // Defence-in-depth: include businessId in the mutation WHERE clause
+    await prisma.serviceRecipientStage.deleteMany({ where: { id: params.id, businessId: auth.businessId } });
 
     return NextResponse.json({ ok: true });
   } catch (e) {

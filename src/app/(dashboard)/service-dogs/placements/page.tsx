@@ -205,7 +205,8 @@ function PlacementsPageContent() {
                       }}
                       disabled={deleteMutation.isPending}
                       title="מחיקה"
-                      className="p-1 rounded hover:bg-red-50 text-emerald-500 hover:text-red-500 transition-colors"
+                      aria-label="מחק שיבוץ"
+                      className="p-2 rounded hover:bg-red-50 text-emerald-500 hover:text-red-500 transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

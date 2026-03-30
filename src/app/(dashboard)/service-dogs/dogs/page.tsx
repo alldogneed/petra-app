@@ -101,10 +101,11 @@ function ServiceDogsListPageContent() {
 
   const filteredDogs = dogs
     .filter((d) => {
+      const lc = search.toLowerCase();
       const matchSearch =
         !search ||
-        d.pet.name.includes(search) ||
-        (d.pet.breed || "").includes(search);
+        d.pet.name.toLowerCase().includes(lc) ||
+        (d.pet.breed || "").toLowerCase().includes(lc);
       const matchPhase = !phaseFilter || d.phase === phaseFilter;
       const matchArchive = showArchive
         ? ARCHIVE_PHASES.includes(d.phase)
@@ -242,11 +243,32 @@ function ServiceDogsListPageContent() {
 
       {/* Dogs List */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="card animate-pulse h-52" />
-          ))}
-        </div>
+        view === "table" ? (
+          <div className="card overflow-hidden">
+            <table className="w-full text-sm">
+              <tbody className="divide-y">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="p-3"><div className="h-4 w-24 bg-slate-200 animate-pulse rounded" /></td>
+                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 animate-pulse rounded" /></td>
+                    <td className="p-3"><div className="h-4 w-20 bg-slate-200 animate-pulse rounded" /></td>
+                    <td className="p-3"><div className="h-4 w-20 bg-slate-200 animate-pulse rounded" /></td>
+                    <td className="p-3"><div className="h-5 w-16 bg-slate-200 animate-pulse rounded-full" /></td>
+                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 animate-pulse rounded" /></td>
+                    <td className="p-3"><div className="h-4 w-20 bg-slate-200 animate-pulse rounded" /></td>
+                    <td className="p-3"><div className="h-4 w-16 bg-slate-200 animate-pulse rounded" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="card animate-pulse h-52" />
+            ))}
+          </div>
+        )
       ) : filteredDogs.length === 0 ? (
         <div className="empty-state">
           <Dog className="empty-state-icon" />

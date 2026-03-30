@@ -43,7 +43,7 @@ export async function GET(
       action: log.action,
       actionLabel: ACTION_LABELS[log.action] ?? log.action,
       userId: log.userId,
-      payload: JSON.parse(log.payload || "{}"),
+      payload: (() => { try { return JSON.parse(log.payload || "{}"); } catch { return {}; } })(),
       createdAt: log.createdAt,
     }));
 
