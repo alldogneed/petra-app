@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import NextImage from "next/image";
 import {
   Menu,
   LogOut,
@@ -317,6 +316,10 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
     queryFn: () => fetch("/api/settings").then((r) => r.ok ? r.json() : null),
     staleTime: 10 * 60_000,
   });
+  const [logoError, setLogoError] = useState(false);
+  // Reset error state when logo URL changes (e.g. user uploads a new logo)
+  const logoUrl = businessInfo?.logo ?? null;
+  const showLogo = !!logoUrl && !logoError;
 
   // Integrations query — only when panel is open
   const { data: integrations } = useQuery<IntegrationStatus[]>({
@@ -708,14 +711,12 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition-all duration-150 group"
           >
             <div aria-hidden="true" className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 bg-white border border-slate-200">
-              {businessInfo?.logo ? (
-                <NextImage
-                  src={businessInfo.logo}
+              {showLogo ? (
+                <img
+                  src={logoUrl!}
                   alt="לוגו"
-                  width={32}
-                  height={32}
                   className="w-full h-full object-contain p-0.5"
-                  unoptimized
+                  onError={() => setLogoError(true)}
                 />
               ) : (
                 <div
@@ -768,14 +769,12 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
               <div className="flex items-center gap-3">
                 {/* Avatar: business logo if exists, otherwise initials */}
                 <div className="w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden bg-white border border-slate-200">
-                  {businessInfo?.logo ? (
-                    <NextImage
-                      src={businessInfo.logo}
+                  {showLogo ? (
+                    <img
+                      src={logoUrl!}
                       alt="לוגו עסק"
-                      width={48}
-                      height={48}
                       className="w-full h-full object-contain p-1"
-                      unoptimized
+                      onError={() => setLogoError(true)}
                     />
                   ) : (
                     <div
