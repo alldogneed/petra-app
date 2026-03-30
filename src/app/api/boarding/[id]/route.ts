@@ -93,6 +93,16 @@ export async function PATCH(
       notesUpdate = prev ? `${prev}\n${prefix}${body.checkoutNotes}` : `${prefix}${body.checkoutNotes}`;
     }
 
+    // Verify roomId/yardId belong to this business (prevent IDOR cross-business assignment)
+    if (body.roomId) {
+      const room = await prisma.room.findFirst({ where: { id: body.roomId, businessId: authResult.businessId } });
+      if (!room) return NextResponse.json({ error: "חדר לא נמצא" }, { status: 404 });
+    }
+    if (body.yardId) {
+      const yard = await prisma.yard.findFirst({ where: { id: body.yardId, businessId: authResult.businessId } });
+      if (!yard) return NextResponse.json({ error: "חצר לא נמצאה" }, { status: 404 });
+    }
+
     // If actualCheckinTime provided, use it as checkIn
     // If actualCheckoutTime provided, use it for actual checkout
     const stay = await prisma.boardingStay.update({

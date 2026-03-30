@@ -2879,15 +2879,19 @@ function BoardingPageContent() {
             <p className="text-sm font-bold text-red-700">
               {overdueStays.length} שהיות עם איחור בצ׳ק-אאוט
             </p>
-            <p className="text-xs text-red-600 mt-0.5">
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-0.5">
               {overdueStays.map((s) => {
                 const checkOutDate = new Date(s.checkOut!);
                 const [h, m] = (settings.boardingCheckOutTime || "11:00").split(":").map(Number);
                 checkOutDate.setHours(h, m, 0, 0);
                 const hoursOverdue = Math.floor((Date.now() - checkOutDate.getTime()) / (1000 * 60 * 60));
-                return `${s.pet.name} (באיחור ${hoursOverdue}${hoursOverdue === 1 ? " שעה" : " שעות"})`;
-              }).join(" · ")}
-            </p>
+                return (
+                  <span key={s.id} className="text-xs text-red-600">
+                    {s.pet.name} ({hoursOverdue}{hoursOverdue === 1 ? " שעה" : " שעות"} איחור)
+                  </span>
+                );
+              })}
+            </div>
           </div>
           <button
             onClick={() => {
@@ -3993,7 +3997,10 @@ function BoardingPageContent() {
                     type="date" lang="he"
                     className="input"
                     value={form.checkIn}
-                    onChange={(e) => setForm({ ...form, checkIn: e.target.value })}
+                    onChange={(e) => {
+                      const newCheckIn = e.target.value;
+                      setForm({ ...form, checkIn: newCheckIn, checkOut: form.checkOut && form.checkOut <= newCheckIn ? "" : form.checkOut });
+                    }}
                   />
                   <div className="relative">
                     <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
