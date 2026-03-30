@@ -7,7 +7,6 @@ import {
   DndContext, DragOverlay, useDraggable, useDroppable,
   PointerSensor, useSensor, useSensors, type DragEndEvent,
 } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
 import { cn, fetchJSON } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { toast } from "sonner";
@@ -60,19 +59,16 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string; bor
 // ─── Draggable stay card ──────────────────────────────────────────────────────
 
 function DraggableStayCard({ stay }: { stay: ActiveStay }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: stay.id });
-  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: stay.id });
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
       className={cn(
-        "flex items-center gap-2 px-2.5 py-2 rounded-lg border cursor-grab active:cursor-grabbing transition-all select-none",
-        stay.yard
-          ? "bg-teal-50 border-teal-200 text-teal-800"
-          : "bg-white border-slate-200 text-petra-text hover:border-brand-300",
-        isDragging && "opacity-40 shadow-sm"
+        "flex items-center gap-2 px-2.5 py-2 rounded-lg border cursor-grab active:cursor-grabbing select-none touch-none",
+        isDragging
+          ? "opacity-0"
+          : "bg-white border-slate-200 text-petra-text hover:border-brand-300 hover:shadow-sm"
       )}
       {...listeners}
       {...attributes}
@@ -86,14 +82,6 @@ function DraggableStayCard({ stay }: { stay: ActiveStay }) {
           {stay.room && <span className="text-slate-400"> · {stay.room.name}</span>}
         </p>
       </div>
-      {stay.yard && (
-        <span className="text-[10px] font-medium text-teal-600 bg-teal-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
-          {stay.yard.name}
-        </span>
-      )}
-      {stay.status === "checked_in" && (
-        <span className="text-[10px] font-medium text-emerald-600 flex-shrink-0">נוכח</span>
-      )}
     </div>
   );
 }
@@ -258,11 +246,11 @@ export default function YardsPage() {
     queryFn: () => fetchJSON<Yard[]>("/api/boarding/yards"),
   });
 
-  // Fetch ALL boarding stays (active) for the DnD panel
+  // Fetch only checked_in boarding stays for the DnD panel
   const { data: allStays = [] } = useQuery<ActiveStay[]>({
     queryKey: ["boarding-all-stays"],
     queryFn: () => fetch("/api/boarding").then((r) => r.json()),
-    select: (data) => data.filter((s: ActiveStay) => s.status === "checked_in" || s.status === "reserved"),
+    select: (data) => data.filter((s: ActiveStay) => s.status === "checked_in"),
   });
 
   // ── Computed ──
@@ -294,7 +282,6 @@ export default function YardsPage() {
   }, [enrichedStays, search]);
 
   const unassignedStays = filteredStays.filter((s) => !yardStayMap.has(s.id));
-  const assignedStays   = filteredStays.filter((s) =>  yardStayMap.has(s.id));
   const draggedStay     = activeId ? enrichedStays.find((s) => s.id === activeId) : null;
 
   // ── Mutations ──
@@ -490,8 +477,8 @@ export default function YardsPage() {
               <div className="card p-3 sticky top-4">
                 <div className="flex items-center gap-2 mb-3">
                   <PawPrint className="w-4 h-4 text-brand-500" />
-                  <h2 className="text-sm font-bold text-petra-text">כלבים בפנסיון</h2>
-                  <span className="text-xs text-petra-muted ms-auto">{enrichedStays.length}</span>
+                  <h2 className="text-sm font-bold text-petra-text">ממתינים לחצר</h2>
+                  <span className="text-xs font-semibold text-brand-500 ms-auto">{unassignedStays.length}</span>
                 </div>
 
                 {/* Search */}
@@ -505,37 +492,19 @@ export default function YardsPage() {
                   />
                 </div>
 
-                {/* Unassigned */}
-                {unassignedStays.length > 0 && (
-                  <div className="mb-3">
-                    <p className="text-[10px] font-semibold text-petra-muted uppercase mb-1.5">ללא חצר ({unassignedStays.length})</p>
-                    <div className="space-y-1.5">
-                      {unassignedStays.map((s) => (
-                        <DraggableStayCard key={s.id} stay={s} />
-                      ))}
-                    </div>
+                {/* Only unassigned checked-in dogs */}
+                {unassignedStays.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {unassignedStays.map((s) => (
+                      <DraggableStayCard key={s.id} stay={s} />
+                    ))}
                   </div>
+                ) : (
+                  <p className="text-xs text-center text-petra-muted py-4">
+                    {enrichedStays.length > 0 ? "כל הכלבים שובצו לחצר ✓" : "אין כלבים שעשו צ׳ק אין"}
+                  </p>
                 )}
 
-                {/* Assigned */}
-                {assignedStays.length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-semibold text-petra-muted uppercase mb-1.5">בחצרות ({assignedStays.length})</p>
-                    <div className="space-y-1.5">
-                      {assignedStays.map((s) => (
-                        <DraggableStayCard key={s.id} stay={s} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {enrichedStays.length === 0 && (
-                  <p className="text-xs text-center text-petra-muted py-4">אין כלבים פעילים בפנסיון</p>
-                )}
-
-                <p className="text-[10px] text-petra-muted text-center mt-3 opacity-60">
-                  גרור כלב לחצר לשיבוץ
-                </p>
               </div>
             </div>
 
