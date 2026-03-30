@@ -1,6 +1,6 @@
 "use client";
 import { PageTitle } from "@/components/ui/PageTitle";
-
+import NextImage from "next/image";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
@@ -4139,11 +4139,12 @@ function LogoUpload({
       >
         {currentLogo ? (
           <>
-            <img
+            <NextImage
               src={currentLogo}
               alt="לוגו"
+              width={112}
+              height={112}
               className="w-full h-full object-contain p-2"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               {uploading ? (

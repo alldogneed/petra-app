@@ -712,9 +712,11 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
           >
             <div aria-hidden="true" className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 bg-white border border-slate-200">
               {showLogo ? (
-                <img
+                <NextImage
                   src={logoUrl!}
                   alt="לוגו"
+                  width={32}
+                  height={32}
                   className="w-full h-full object-contain p-0.5"
                   onError={() => setLogoError(true)}
                 />
@@ -770,9 +772,11 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                 {/* Avatar: business logo if exists, otherwise initials */}
                 <div className="w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden bg-white border border-slate-200">
                   {showLogo ? (
-                    <img
+                    <NextImage
                       src={logoUrl!}
                       alt="לוגו עסק"
+                      width={48}
+                      height={48}
                       className="w-full h-full object-contain p-1"
                       onError={() => setLogoError(true)}
                     />
