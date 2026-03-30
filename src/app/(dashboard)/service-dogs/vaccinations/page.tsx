@@ -87,14 +87,16 @@ export default function VaccinationsPage() {
     const entries = (section as Record<string, VaccinePlanEntry[]>)[key];
     if (!entries) return null;
     if (idx === null) {
-      // "all" view: if any entries are done → show the most recently completed dose
-      // otherwise show the most urgent pending/overdue entry
-      const doneDoses = entries.filter(e => e.done);
-      if (doneDoses.length > 0) {
-        return doneDoses.sort((a, b) =>
-          new Date(b.done!).getTime() - new Date(a.done!).getTime()
-        )[0];
+      if (dogTab === "puppies") {
+        // Puppies: show the most recently completed dose (last performed)
+        const doneDoses = entries.filter(e => e.done);
+        if (doneDoses.length > 0) {
+          return doneDoses.sort((a, b) =>
+            new Date(b.done!).getTime() - new Date(a.done!).getTime()
+          )[0];
+        }
       }
+      // Adults (and puppies with no done doses): show the most urgent upcoming/expiring entry
       const sorted = [...entries].sort((a, b) => {
         const sa = getCellStatus(a), sb = getCellStatus(b);
         const order: Record<string, number> = { overdue: 0, soon: 1, upcoming: 2, unknown: 4 };
