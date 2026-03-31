@@ -402,7 +402,7 @@ export default function YardsPage() {
       <BoardingTabs />
 
       {/* Page header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-bold text-petra-text flex items-center gap-2">
             <Fence className="w-5 h-5 text-teal-600" />
@@ -427,6 +427,35 @@ export default function YardsPage() {
             הוסף חצר
           </button>
         </div>
+      </div>
+
+      {/* Date range strip — like boarding rooms */}
+      <div className="flex items-center gap-2 mb-6 flex-wrap no-print">
+        <Calendar className="w-3.5 h-3.5 text-petra-muted flex-shrink-0" />
+        <input
+          type="date"
+          lang="he"
+          value={fromDate}
+          onChange={(e) => {
+            setFromDate(e.target.value);
+            if (e.target.value > toDate) setToDate(e.target.value);
+          }}
+          className="text-xs border border-petra-border rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 h-7 w-32"
+        />
+        <span className="text-xs text-petra-muted">—</span>
+        <input
+          type="date"
+          lang="he"
+          value={toDate}
+          min={fromDate}
+          onChange={(e) => setToDate(e.target.value)}
+          className="text-xs border border-petra-border rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 h-7 w-32"
+        />
+        {unassignedStays.length > 0 && (
+          <span className="text-xs font-medium text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-lg">
+            {unassignedStays.length} ממתינים לשיבוץ
+          </span>
+        )}
       </div>
 
       {/* Add yard form */}
@@ -506,41 +535,17 @@ export default function YardsPage() {
           onDragCancel={() => setActiveId(null)}
         >
           <div className="flex gap-6">
-            {/* Left: Dog panel (draggable stays) */}
-            <div className="w-64 flex-shrink-0 no-print">
+            {/* Left: Dog panel */}
+            <div className="w-52 flex-shrink-0 no-print">
               <div className="card p-3 sticky top-4">
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
                   <PawPrint className="w-4 h-4 text-brand-500" />
                   <h2 className="text-sm font-bold text-petra-text">ממתינים לחצר</h2>
-                  <span className="text-xs font-semibold text-brand-500 ms-auto">{unassignedStays.length}</span>
-                </div>
-
-                {/* Date range */}
-                <div className="flex items-center gap-1.5 mb-3 flex-wrap">
-                  <Calendar className="w-3.5 h-3.5 text-petra-muted flex-shrink-0" />
-                  <input
-                    type="date"
-                    lang="he"
-                    value={fromDate}
-                    onChange={(e) => {
-                      setFromDate(e.target.value);
-                      if (e.target.value > toDate) setToDate(e.target.value);
-                    }}
-                    className="text-xs border border-petra-border rounded-lg px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 h-7 flex-1 min-w-0"
-                  />
-                  <span className="text-xs text-petra-muted">—</span>
-                  <input
-                    type="date"
-                    lang="he"
-                    value={toDate}
-                    min={fromDate}
-                    onChange={(e) => setToDate(e.target.value)}
-                    className="text-xs border border-petra-border rounded-lg px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 h-7 flex-1 min-w-0"
-                  />
+                  <span className="ms-auto text-xs font-bold px-1.5 py-0.5 rounded-full bg-brand-50 text-brand-600">{unassignedStays.length}</span>
                 </div>
 
                 {/* Search */}
-                <div className="relative mb-3">
+                <div className="relative mb-2">
                   <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted" />
                   <input
                     className="input pr-8 text-xs h-8"
@@ -552,17 +557,16 @@ export default function YardsPage() {
 
                 {/* Unassigned dogs */}
                 {unassignedStays.length > 0 ? (
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 max-h-[calc(100vh-280px)] overflow-y-auto">
                     {unassignedStays.map((s) => (
                       <DraggableStayCard key={s.id} stay={s} />
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-center text-petra-muted py-4">
-                    {allStays.length > 0 ? "כל הכלבים שובצו לחצר ✓" : "אין כלבים בתאריכים אלו"}
+                  <p className="text-xs text-center text-petra-muted py-6">
+                    {allStays.length > 0 ? "כל הכלבים שובצו ✓" : "אין כלבים בתאריכים אלו"}
                   </p>
                 )}
-
               </div>
             </div>
 
