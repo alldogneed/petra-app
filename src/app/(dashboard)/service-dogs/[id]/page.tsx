@@ -5924,12 +5924,20 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
     queryFn: () => fetch(`/api/service-dogs/${dogId}/vaccine-plan`).then(r => r.json()),
   });
 
+  // When a dog has BOTH plans (e.g., ADVANCED_TRAINING dogs migrated to adult central schedule),
+  // show the adult plan as primary and puppy plan below as historical archive.
+  const hasBothPlans = !!(vaccinePlan?.adults) && !!(vaccinePlan?.puppies);
+  // effectiveIsPuppy: if dog has both plans, always treat adult as the active plan
+  const effectiveIsPuppy = hasBothPlans ? false : isPuppy;
+  const effectivePlanType = effectiveIsPuppy ? "puppies" : "adults";
+  const effectiveTreatments = effectiveIsPuppy ? PUPPY_TREATMENTS : ADULT_TREATMENTS;
+
   const savePlanMutation = useMutation({
     mutationFn: (plan: VaccinePlan) =>
       fetch(`/api/service-dogs/${dogId}/vaccine-plan`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vaccinePlan: plan, planType }),
+        body: JSON.stringify({ vaccinePlan: plan, planType: effectivePlanType }),
       }).then(r => { if (!r.ok) throw new Error("שגיאה"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vaccine-plan", dogId] });
@@ -5945,7 +5953,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
       fetch(`/api/service-dogs/${dogId}/vaccine-plan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planType, treatmentKey, index, doneDate }),
+        body: JSON.stringify({ planType: effectivePlanType, treatmentKey, index, doneDate }),
       }).then(r => { if (!r.ok) throw new Error("שגיאה"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vaccine-plan", dogId] });
@@ -5968,7 +5976,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
   // Enter edit mode: initialize drafts from current planned dates
   const enterEditMode = (currentSection: Record<string, Array<{ planned: string | null; done: string | null }>>) => {
     const drafts: Record<string, string[]> = {};
-    treatments.forEach(t => {
+    effectiveTreatments.forEach(t => {
       drafts[t.key] = Array.from({ length: t.doses }, (_, i) => {
         const planned = currentSection[t.key]?.[i]?.planned ?? "";
         // Adults: "YYYY-MM" → input[type=month] value is "YYYY-MM" ✓
@@ -5983,13 +5991,13 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
   // Build updated plan from drafts, preserving existing done dates
   const buildPlanFromDrafts = (currentSection: Record<string, Array<{ planned: string | null; done: string | null }>>): VaccinePlan => {
     const updatedSection: Record<string, Array<{ planned: string | null; done: string | null }>> = {};
-    treatments.forEach(t => {
+    effectiveTreatments.forEach(t => {
       updatedSection[t.key] = Array.from({ length: t.doses }, (_, i) => ({
         planned: editDrafts[t.key]?.[i] || null,
         done: currentSection[t.key]?.[i]?.done ?? null,
       }));
     });
-    if (isPuppy) {
+    if (effectiveIsPuppy) {
       return { ...vaccinePlan, puppies: updatedSection as VaccinePlan["puppies"] };
     } else {
       const year = (vaccinePlan?.adults?.year) ?? setupYear;
@@ -6001,7 +6009,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
     return <div className="card p-8 text-center text-petra-muted text-sm">טוען תוכנית חיסונים...</div>;
   }
 
-  const section = isPuppy ? vaccinePlan?.puppies : vaccinePlan?.adults;
+  const section = vaccinePlan?.[effectivePlanType];
   const hasPlan = !!section;
 
   // ── No plan yet: setup screen ──
@@ -6014,12 +6022,12 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
         <div>
           <h3 className="font-semibold text-lg">לא הוגדרה תוכנית חיסונים</h3>
           <p className="text-petra-muted text-sm mt-1">
-            {isPuppy
+            {effectiveIsPuppy
               ? "צור תוכנית חיסונים לגור — מעקב אחר סדרת החיסונים הראשונית"
               : "צור תוכנית חיסונים שנתית לכלב"}
           </p>
         </div>
-        {!isPuppy && (
+        {!effectiveIsPuppy && (
           <div className="flex items-center justify-center gap-3">
             <label className="text-sm font-medium">שנה:</label>
             <input
@@ -6036,8 +6044,8 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
           className="btn-primary mx-auto"
           disabled={savePlanMutation.isPending}
           onClick={() => {
-            const emptySection = isPuppy ? getEmptyPuppyPlan() : getEmptyAdultPlan(setupYear);
-            const newPlan: VaccinePlan = isPuppy
+            const emptySection = effectiveIsPuppy ? getEmptyPuppyPlan() : getEmptyAdultPlan(setupYear);
+            const newPlan: VaccinePlan = effectiveIsPuppy
               ? { ...vaccinePlan, puppies: emptySection as VaccinePlan["puppies"] }
               : { ...vaccinePlan, adults: emptySection as VaccinePlan["adults"] };
             // Enter edit mode immediately after creating
@@ -6066,7 +6074,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
 
   // Count status
   let overdueCount = 0, soonCount = 0;
-  treatments.forEach(t => {
+  effectiveTreatments.forEach(t => {
     entries[t.key]?.forEach(e => {
       const s = getCellStatus(e);
       if (s === "overdue") overdueCount++;
@@ -6118,7 +6126,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
         <div className="flex items-center gap-2">
           <Pill className="w-4 h-4 text-petra-muted" />
           <span className="font-semibold text-sm">
-            {isPuppy ? "חיסונים וטיפולים גורים" : `חיסונים וטיפולים שנתיים${vaccinePlan?.adults?.year ? ` — ${vaccinePlan.adults.year}` : ""}`}
+            {effectiveIsPuppy ? "חיסונים וטיפולים גורים" : `חיסונים וטיפולים שנתיים${vaccinePlan?.adults?.year ? ` — ${vaccinePlan.adults.year}` : ""}`}
           </span>
         </div>
       </div>
@@ -6128,7 +6136,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 text-sm">
           <Pencil className="w-4 h-4 text-sky-500 flex-shrink-0" />
           <span className="text-sky-800">
-            {isPuppy ? "הגדר תאריכים לכל מנה (יום/חודש/שנה)" : "הגדר חודש לכל מנה — החודש שבו מתוכנן הטיפול השנתי"}
+            {effectiveIsPuppy ? "הגדר תאריכים לכל מנה (יום/חודש/שנה)" : "הגדר חודש לכל מנה — החודש שבו מתוכנן הטיפול השנתי"}
           </span>
         </div>
       )}
@@ -6151,7 +6159,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/50">
               <th className="text-right p-3 font-semibold text-petra-text w-32">טיפול</th>
-              {treatments.map(t =>
+              {effectiveTreatments.map(t =>
                 Array.from({ length: t.doses }, (_, i) => (
                   <th key={`${t.key}-${i}`} className="text-center p-3 font-semibold text-petra-text min-w-[120px]">
                     {t.doses === 1 ? t.label : `${t.label} ${i + 1}`}
@@ -6166,7 +6174,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
               <td className="p-3 text-xs font-medium text-petra-muted">
                 {isEditing ? "תאריך מתוכנן ✏️" : "תאריך מתוכנן"}
               </td>
-              {treatments.map(t =>
+              {effectiveTreatments.map(t =>
                 Array.from({ length: t.doses }, (_, i) => {
                   const entry = entries[t.key]?.[i] ?? null;
                   if (isEditing) {
@@ -6182,7 +6190,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
                     };
                     return (
                       <td key={`${t.key}-${i}-edit`} className="p-2 text-center">
-                        {isPuppy
+                        {effectiveIsPuppy
                           ? <HebrewDatePicker value={draftVal} onChange={setDraft} />
                           : <HebrewMonthPicker value={draftVal} onChange={setDraft} />
                         }
@@ -6202,7 +6210,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
             {!isEditing && (
               <tr className="border-b border-slate-50">
                 <td className="p-3 font-medium text-petra-text text-xs">סטטוס</td>
-                {treatments.map(t =>
+                {effectiveTreatments.map(t =>
                   Array.from({ length: t.doses }, (_, i) => {
                     const entry = entries[t.key]?.[i] ?? null;
                     const status = getCellStatus(entry);
@@ -6284,6 +6292,81 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
           </tbody>
         </table>
       </div>
+
+      {/* ── Historical Puppy Plan (shown below when dog has both plans) ── */}
+      {hasBothPlans && vaccinePlan?.puppies && (
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center gap-2">
+            <div className="h-px flex-1 bg-slate-100" />
+            <span className="text-xs font-medium text-petra-muted px-2 py-1 bg-slate-50 rounded-full border border-slate-100">
+              תוכנית גורים — ארכיון
+            </span>
+            <div className="h-px flex-1 bg-slate-100" />
+          </div>
+          <div className="card overflow-auto p-0 opacity-75">
+            <table className="w-full text-sm" dir="rtl">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/50">
+                  <th className="text-right p-3 font-semibold text-petra-muted w-32 text-xs">טיפול</th>
+                  {PUPPY_TREATMENTS.map(t =>
+                    Array.from({ length: t.doses }, (_, i) => (
+                      <th key={`puppy-${t.key}-${i}`} className="text-center p-3 font-semibold text-petra-muted min-w-[100px] text-xs">
+                        {t.doses === 1 ? t.label : `${t.label} ${i + 1}`}
+                      </th>
+                    ))
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-slate-50 bg-slate-50/30">
+                  <td className="p-3 text-xs font-medium text-petra-muted">תאריך מתוכנן</td>
+                  {PUPPY_TREATMENTS.map(t =>
+                    Array.from({ length: t.doses }, (_, i) => {
+                      const puppySec = vaccinePlan.puppies as Record<string, Array<{ planned: string | null; done: string | null }>>;
+                      const entry = puppySec[t.key]?.[i] ?? null;
+                      return (
+                        <td key={`puppy-${t.key}-${i}-p`} className="p-2 text-center text-xs text-petra-muted">
+                          {entry?.planned ? formatPlannedDisplay(entry.planned) : <span className="text-slate-300">—</span>}
+                        </td>
+                      );
+                    })
+                  )}
+                </tr>
+                <tr className="border-b border-slate-50">
+                  <td className="p-3 font-medium text-petra-text text-xs">סטטוס</td>
+                  {PUPPY_TREATMENTS.map(t =>
+                    Array.from({ length: t.doses }, (_, i) => {
+                      const puppySec = vaccinePlan.puppies as Record<string, Array<{ planned: string | null; done: string | null }>>;
+                      const entry = puppySec[t.key]?.[i] ?? null;
+                      const status = getCellStatus(entry);
+                      return (
+                        <td key={`puppy-${t.key}-${i}-s`} className="p-2 text-center">
+                          {entry?.done ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-lg border bg-green-50 text-green-700 border-green-200">
+                              ✓ {formatDate(entry.done)}
+                            </span>
+                          ) : entry?.planned ? (
+                            <span className={cn(
+                              "inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-lg border",
+                              status === "overdue" ? "bg-red-50 text-red-600 border-red-200" :
+                              status === "soon" ? "bg-amber-50 text-amber-700 border-amber-200" :
+                              "bg-slate-50 text-slate-400 border-slate-200"
+                            )}>
+                              בטל
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 text-xs">—</span>
+                          )}
+                        </td>
+                      );
+                    })
+                  )}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
