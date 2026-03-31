@@ -1656,6 +1656,7 @@ function TrainingMinutesField({ stay }: { stay: BoardingStay }) {
       }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setEditing(false);
     },
     onError: () => toast.error("שגיאה בשמירת דקות אימון"),
@@ -2844,7 +2845,7 @@ function BoardingPageContent() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" data-print-rooms>
                 {/* Unassigned stays drop zone — first = rightmost in RTL */}
                 <UnassignedGridCard
-                  stays={activeStays.filter((s) => !s.room)}
+                  stays={occStays.filter((s) => !s.room)}
                   onCheckin={handleCheckin}
                   onCheckout={handleCheckout}
                 />
