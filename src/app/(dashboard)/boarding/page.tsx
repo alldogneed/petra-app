@@ -2634,46 +2634,6 @@ function BoardingPageContent() {
       {/* Vaccination Alert Banner */}
       <VaccinationAlertBanner />
 
-      {/* Room Stats Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <div className="card p-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-green-50">
-            <Check className="w-4 h-4 text-green-500" />
-          </div>
-          <div>
-            <p className="text-lg font-bold text-petra-text">{availableRooms}</p>
-            <p className="text-[10px] text-petra-muted">פנויים</p>
-          </div>
-        </div>
-        <div className="card p-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-orange-50">
-            <PawPrint className="w-4 h-4 text-orange-500" />
-          </div>
-          <div>
-            <p className="text-lg font-bold text-petra-text">{occupiedRooms}</p>
-            <p className="text-[10px] text-petra-muted">תפוסים</p>
-          </div>
-        </div>
-        <div className="card p-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-yellow-50">
-            <Sparkles className="w-4 h-4 text-yellow-500" />
-          </div>
-          <div>
-            <p className="text-lg font-bold text-petra-text">{cleaningRooms}</p>
-            <p className="text-[10px] text-petra-muted">דרוש ניקיון</p>
-          </div>
-        </div>
-        <div className="card p-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-red-50">
-            <AlertTriangle className="w-4 h-4 text-red-500" />
-          </div>
-          <div>
-            <p className="text-lg font-bold text-petra-text">{overdueStays.length}</p>
-            <p className="text-[10px] text-petra-muted">איחור צ׳ק-אאוט</p>
-          </div>
-        </div>
-      </div>
-
       {/* Overdue Banner */}
       {overdueStays.length > 0 && (
         <div className="mb-4 p-4 rounded-xl bg-red-50 border-2 border-red-300 flex items-center gap-3">
@@ -2822,6 +2782,46 @@ function BoardingPageContent() {
             >
               <Calendar className="w-3.5 h-3.5" />זמינות
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Room Stats Bar — below room map heading + dates */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <div className="card p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-green-50">
+            <Check className="w-4 h-4 text-green-500" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-petra-text">{availableRooms}</p>
+            <p className="text-[10px] text-petra-muted">פנויים</p>
+          </div>
+        </div>
+        <div className="card p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-orange-50">
+            <PawPrint className="w-4 h-4 text-orange-500" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-petra-text">{occupiedRooms}</p>
+            <p className="text-[10px] text-petra-muted">תפוסים</p>
+          </div>
+        </div>
+        <div className="card p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-yellow-50">
+            <Sparkles className="w-4 h-4 text-yellow-500" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-petra-text">{cleaningRooms}</p>
+            <p className="text-[10px] text-petra-muted">דרוש ניקיון</p>
+          </div>
+        </div>
+        <div className="card p-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-red-50">
+            <AlertTriangle className="w-4 h-4 text-red-500" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-petra-text">{overdueStays.length}</p>
+            <p className="text-[10px] text-petra-muted">איחור צ׳ק-אאוט</p>
           </div>
         </div>
       </div>

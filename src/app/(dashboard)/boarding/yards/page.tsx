@@ -281,28 +281,32 @@ export default function YardsPage() {
     return map;
   }, [yards]);
 
-  // All stays enriched with yard info from yards data
-  const enrichedStays = useMemo(() =>
-    allStays.map((s) => ({
-      ...s,
-      yard: yards.find((y) => y.boardingStays.some((ys) => ys.id === s.id))
-        ? { id: yardStayMap.get(s.id)!, name: yards.find((y) => y.boardingStays.some((ys) => ys.id === s.id))!.name }
-        : s.yard,
-    })),
-    [allStays, yards, yardStayMap]
-  );
-
+  // Panel: stays for the selected date range that have no yard
   const filteredStays = useMemo(() => {
-    if (!search.trim()) return enrichedStays;
+    const base = allStays.filter((s) => !yardStayMap.has(s.id));
+    if (!search.trim()) return base;
     const q = search.toLowerCase();
-    return enrichedStays.filter((s) =>
+    return base.filter((s) =>
       s.pet.name.toLowerCase().includes(q) ||
       s.customer?.name.toLowerCase().includes(q)
     );
-  }, [enrichedStays, search]);
+  }, [allStays, yardStayMap, search]);
 
-  const unassignedStays = filteredStays.filter((s) => !yardStayMap.has(s.id));
-  const draggedStay     = activeId ? enrichedStays.find((s) => s.id === activeId) : null;
+  const unassignedStays = filteredStays;
+
+  // For the drag overlay: search both panel stays and all yard occupants
+  const allKnownStays = useMemo(() => {
+    const map = new Map<string, ActiveStay>();
+    allStays.forEach((s) => map.set(s.id, s));
+    yards.forEach((y) =>
+      y.boardingStays.forEach((s) => {
+        if (!map.has(s.id)) map.set(s.id, s as unknown as ActiveStay);
+      })
+    );
+    return map;
+  }, [allStays, yards]);
+
+  const draggedStay = activeId ? allKnownStays.get(activeId) ?? null : null;
 
   // ── Mutations ──
   const assignYardMutation = useMutation({
@@ -383,8 +387,8 @@ export default function YardsPage() {
     const currentYardId = yardStayMap.get(stayId) ?? null;
     if (currentYardId === targetYardId) return; // no change
 
-    // Check capacity (count enrichedStays assigned to targetYard)
-    const occupants = enrichedStays.filter((s) => yardStayMap.get(s.id) === targetYardId);
+    // Check capacity (count stays already in target yard)
+    const occupants = yards.find((y) => y.id === targetYardId)?.boardingStays ?? [];
     if (occupants.length >= targetYard.capacity) {
       toast.error(`החצר ${targetYard.name} מלאה (קיבולת ${targetYard.capacity})`);
       return;
@@ -555,7 +559,7 @@ export default function YardsPage() {
                   </div>
                 ) : (
                   <p className="text-xs text-center text-petra-muted py-4">
-                    {enrichedStays.length > 0 ? "כל הכלבים שובצו לחצר ✓" : "אין כלבים בתאריכים אלו"}
+                    {allStays.length > 0 ? "כל הכלבים שובצו לחצר ✓" : "אין כלבים בתאריכים אלו"}
                   </p>
                 )}
 
@@ -615,14 +619,11 @@ export default function YardsPage() {
                     );
                   }
 
-                  // Get occupants for this yard from enriched stays
-                  const occupants = enrichedStays.filter((s) => yardStayMap.get(s.id) === yard.id);
-
                   return (
                     <DroppableYardCard
                       key={yard.id}
                       yard={yard}
-                      occupants={occupants}
+                      occupants={yard.boardingStays as unknown as ActiveStay[]}
                       onEdit={() => startEditYard(yard)}
                       onDelete={() => deleteYardMutation.mutate(yard.id)}
                       onRemoveDog={(stayId) => assignYardMutation.mutate({ stayId, yardId: null })}

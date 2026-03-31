@@ -18,6 +18,7 @@ import {
   Plus,
   Pill,
   Clock,
+  Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
@@ -565,21 +566,11 @@ export default function FeedingPage() {
           לוח האכלה
         </button>
         <button
-          onClick={() => setActiveTab("medications")}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-            activeTab === "medications"
-              ? "bg-white text-petra-text shadow-sm"
-              : "text-petra-muted hover:text-petra-text"
-          )}
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-petra-muted hover:text-petra-text transition-all"
         >
-          <Pill className="w-4 h-4" />
-          לוח תרופות
-          {activePets.filter((s) => s.pet.medications.length > 0).length > 0 && (
-            <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-1.5 py-0.5 rounded-full">
-              {activePets.filter((s) => s.pet.medications.length > 0).length}
-            </span>
-          )}
+          <Printer className="w-4 h-4" />
+          הדפסה
         </button>
       </div>
 
@@ -651,11 +642,7 @@ export default function FeedingPage() {
         </div>
       </div>
 
-      {activeTab === "medications" && !isLoading && !isError && (
-        <MedicationsBoard stays={activePets} onLog={handleLog} onDelete={handleDelete} />
-      )}
-
-      {activeTab === "feeding" && <>
+      {<>
 
       {/* Progress bar */}
       {!isLoading && totalMeals > 0 && (
