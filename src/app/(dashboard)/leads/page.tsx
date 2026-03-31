@@ -681,8 +681,8 @@ function DraggableLeadCard({
       {/* Row 1: status icon + name + call count */}
       <div className="flex items-center gap-1 mb-1">
         <GripVertical className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 cursor-grab" />
-        {leadStatus === "overdue" && <AlertCircle className="w-3 h-3 text-red-500 flex-shrink-0" title="עבר מועד פולואפ" />}
-        {leadStatus === "untouched" && <Sparkles className="w-3 h-3 text-amber-500 flex-shrink-0" title={`ליד חדש · ${daysSinceCreation === 0 ? "היום" : `${daysSinceCreation} ימים`}`} />}
+        {leadStatus === "overdue" && <AlertCircle className="w-3 h-3 text-red-500 flex-shrink-0" />}
+        {leadStatus === "untouched" && <Sparkles className="w-3 h-3 text-amber-500 flex-shrink-0" />}
         <span className="text-sm font-bold text-petra-text truncate flex-1">{lead.name}</span>
         {callLogCount > 0 && (
           <span className="flex items-center gap-0.5 text-[10px] text-brand-500 flex-shrink-0 font-medium">
