@@ -316,12 +316,56 @@ export default function YardsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ yardId }),
       }).then((r) => { if (!r.ok) throw new Error("שגיאה"); return r.json(); }),
-    onSuccess: () => {
+    onMutate: async ({ stayId, yardId }) => {
+      const yardsKey = ["yards"];
+      const staysKey = ["boarding-all-stays", fromDate, toDate];
+
+      await queryClient.cancelQueries({ queryKey: yardsKey });
+      await queryClient.cancelQueries({ queryKey: staysKey });
+
+      const prevYards = queryClient.getQueryData<Yard[]>(yardsKey);
+      const prevStays = queryClient.getQueryData<ActiveStay[]>(staysKey);
+
+      // Find the stay in any of our caches
+      const stay =
+        prevStays?.find((s) => s.id === stayId) ??
+        prevYards?.flatMap((y) => y.boardingStays).find((s) => s.id === stayId) ??
+        null;
+
+      const targetYard = yardId ? (prevYards?.find((y) => y.id === yardId) ?? null) : null;
+
+      // Optimistically update yards cache (source of truth for yard card display)
+      queryClient.setQueryData<Yard[]>(yardsKey, (old) => {
+        if (!old) return old;
+        return old.map((y) => {
+          const withoutStay = y.boardingStays.filter((s) => s.id !== stayId);
+          if (yardId && y.id === yardId && stay) {
+            // Add to target yard
+            return { ...y, boardingStays: [...withoutStay, { ...stay, yard: { id: y.id, name: y.name } }] };
+          }
+          return { ...y, boardingStays: withoutStay };
+        });
+      });
+
+      // Optimistically update stays cache (keeps panel in sync)
+      queryClient.setQueryData<ActiveStay[]>(staysKey, (old) => {
+        if (!old) return old;
+        return old.map((s) =>
+          s.id !== stayId ? s : { ...s, yard: targetYard ? { id: targetYard.id, name: targetYard.name } : null }
+        );
+      });
+
+      return { prevYards, prevStays };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prevYards) queryClient.setQueryData(["yards"], ctx.prevYards);
+      if (ctx?.prevStays) queryClient.setQueryData(["boarding-all-stays", fromDate, toDate], ctx.prevStays);
+      toast.error("שגיאה בשיבוץ הכלב");
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["yards"] });
       queryClient.invalidateQueries({ queryKey: ["boarding-all-stays"] });
-      toast.success("השיבוץ עודכן");
     },
-    onError: () => toast.error("שגיאה בשיבוץ הכלב"),
   });
 
   const createYardMutation = useMutation({
