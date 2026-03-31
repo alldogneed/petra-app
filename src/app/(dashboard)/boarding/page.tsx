@@ -2710,6 +2710,26 @@ function BoardingPageContent() {
         </div>
       )}
 
+      {/* Search — above room map */}
+      <div className="relative mb-4 max-w-sm">
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
+        <input
+          type="text"
+          value={staySearch}
+          onChange={(e) => setStaySearch(e.target.value)}
+          placeholder="חפש לפי חיה, לקוח, חדר..."
+          className="input pr-8 text-sm h-8"
+        />
+        {staySearch && (
+          <button
+            onClick={() => setStaySearch("")}
+            className="absolute left-2 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
       {/* View Toggle + Occupancy strip */}
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
@@ -2903,26 +2923,8 @@ function BoardingPageContent() {
             </button>
           </div>
         )}
-        <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+        <div className="mb-3">
           <h2 className="text-sm font-semibold text-petra-text">לוח שהיות</h2>
-          <div className="relative flex-1 min-w-[180px] max-w-xs">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
-            <input
-              type="text"
-              value={staySearch}
-              onChange={(e) => setStaySearch(e.target.value)}
-              placeholder="חפש לפי חיה, לקוח, חדר..."
-              className="input pr-8 text-sm h-8"
-            />
-            {staySearch && (
-              <button
-                onClick={() => setStaySearch("")}
-                className="absolute left-2 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
         </div>
 
         <div className="flex gap-1 mb-4 flex-wrap">

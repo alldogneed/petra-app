@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { Fence, Plus, Pencil, Trash2, Check, X, PawPrint, Search, GripVertical, Printer } from "lucide-react";
+import { Fence, Plus, Pencil, Trash2, Check, X, PawPrint, Search, GripVertical, Printer, Calendar } from "lucide-react";
 import {
   DndContext, DragOverlay, useDraggable, useDroppable,
   PointerSensor, useSensor, useSensors, type DragEndEvent,
@@ -56,7 +56,11 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string; bor
   needs_cleaning: { label: "דרוש ניקיון", color: "#EAB308", bg: "#FEFCE8", border: "#FDE047" },
 };
 
-// ─── Draggable stay card ──────────────────────────────────────────────────────
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// ─── Draggable stay card (panel) ──────────────────────────────────────────────
 
 function DraggableStayCard({ stay }: { stay: ActiveStay }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: stay.id });
@@ -82,6 +86,46 @@ function DraggableStayCard({ stay }: { stay: ActiveStay }) {
           {stay.room && <span className="text-slate-400"> · {stay.room.name}</span>}
         </p>
       </div>
+      {stay.status === "reserved" && (
+        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 flex-shrink-0">
+          הזמנה
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── Draggable occupant card (inside yard) ────────────────────────────────────
+
+function DraggableOccupantCard({ stay, onRemove }: { stay: ActiveStay; onRemove: () => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: stay.id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "p-2 rounded-lg group cursor-grab active:cursor-grabbing select-none touch-none",
+        isDragging ? "opacity-0" : ""
+      )}
+      style={{ background: "#F0FDFA", border: "1px solid #99F6E4" }}
+      {...listeners}
+      {...attributes}
+    >
+      <div className="flex items-center gap-1 mb-0.5">
+        <GripVertical className="w-2.5 h-2.5 text-teal-400 flex-shrink-0" />
+        <PawPrint className="w-3 h-3 text-teal-500 flex-shrink-0" />
+        <span className="text-xs font-semibold text-teal-900 truncate flex-1">{stay.pet.name}</span>
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={onRemove}
+          className="no-print opacity-0 group-hover:opacity-100 w-3.5 h-3.5 flex items-center justify-center rounded text-red-400 hover:text-red-600 transition-all flex-shrink-0"
+          title="הסר מהחצר"
+        >
+          <X className="w-2.5 h-2.5" />
+        </button>
+      </div>
+      <div className="text-[10px] text-teal-700 truncate">{stay.customer?.name ?? "כלב שירות"}</div>
+      {stay.room && <div className="text-[10px] text-teal-600/70 truncate">{stay.room.name}</div>}
     </div>
   );
 }
@@ -167,24 +211,14 @@ function DroppableYardCard({
         </div>
 
         {/* Dogs — 2-column grid like rooms */}
-        {checkedIn.length > 0 ? (
+        {occupants.length > 0 ? (
           <div className="grid grid-cols-2 gap-1.5">
-            {checkedIn.map((s) => (
-              <div key={s.id} className="p-2 rounded-lg group" style={{ background: "#F0FDFA", border: "1px solid #99F6E4" }}>
-                <div className="flex items-center gap-1 mb-0.5">
-                  <PawPrint className="w-3 h-3 text-teal-500 flex-shrink-0" />
-                  <span className="text-xs font-semibold text-teal-900 truncate flex-1">{s.pet.name}</span>
-                  <button
-                    onClick={() => onRemoveDog(s.id)}
-                    className="no-print opacity-0 group-hover:opacity-100 w-3.5 h-3.5 flex items-center justify-center rounded text-red-400 hover:text-red-600 transition-all flex-shrink-0"
-                    title="הסר מהחצר"
-                  >
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                </div>
-                <div className="text-[10px] text-teal-700 truncate">{s.customer?.name ?? "כלב שירות"}</div>
-                {s.room && <div className="text-[10px] text-teal-600/70 truncate">{s.room.name}</div>}
-              </div>
+            {occupants.map((s) => (
+              <DraggableOccupantCard
+                key={s.id}
+                stay={s}
+                onRemove={() => onRemoveDog(s.id)}
+              />
             ))}
             {isOver && !isFull && (
               <div className="p-2 rounded-lg border-2 border-dashed border-teal-300 bg-teal-50/50 flex items-center justify-center">
@@ -219,17 +253,24 @@ export default function YardsPage() {
   const [search, setSearch] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
 
+  // Date range — defaults to today
+  const [fromDate, setFromDate] = useState(todayStr());
+  const [toDate, setToDate] = useState(todayStr());
+
   // ── Data ──
   const { data: yards = [], isLoading: yardsLoading } = useQuery<Yard[]>({
     queryKey: ["yards"],
     queryFn: () => fetchJSON<Yard[]>("/api/boarding/yards"),
   });
 
-  // Fetch only checked_in boarding stays for the DnD panel
+  // Fetch boarding stays for selected date range (reserved + checked_in)
   const { data: allStays = [] } = useQuery<ActiveStay[]>({
-    queryKey: ["boarding-all-stays"],
-    queryFn: () => fetch("/api/boarding").then((r) => r.json()),
-    select: (data) => data.filter((s: ActiveStay) => s.status === "checked_in"),
+    queryKey: ["boarding-all-stays", fromDate, toDate],
+    queryFn: () =>
+      fetch(`/api/boarding?from=${fromDate}&to=${toDate}`)
+        .then((r) => r.json()),
+    select: (data: ActiveStay[]) =>
+      data.filter((s) => s.status === "reserved" || s.status === "checked_in"),
   });
 
   // ── Computed ──
@@ -240,7 +281,7 @@ export default function YardsPage() {
     return map;
   }, [yards]);
 
-  // All stays enriched with yard info from yards data (more up-to-date than allStays.yard)
+  // All stays enriched with yard info from yards data
   const enrichedStays = useMemo(() =>
     allStays.map((s) => ({
       ...s,
@@ -342,8 +383,8 @@ export default function YardsPage() {
     const currentYardId = yardStayMap.get(stayId) ?? null;
     if (currentYardId === targetYardId) return; // no change
 
-    // Check capacity
-    const occupants = allStays.filter((s) => yardStayMap.get(s.id) === targetYardId);
+    // Check capacity (count enrichedStays assigned to targetYard)
+    const occupants = enrichedStays.filter((s) => yardStayMap.get(s.id) === targetYardId);
     if (occupants.length >= targetYard.capacity) {
       toast.error(`החצר ${targetYard.name} מלאה (קיבולת ${targetYard.capacity})`);
       return;
@@ -462,12 +503,36 @@ export default function YardsPage() {
         >
           <div className="flex gap-6">
             {/* Left: Dog panel (draggable stays) */}
-            <div className="w-64 flex-shrink-0">
+            <div className="w-64 flex-shrink-0 no-print">
               <div className="card p-3 sticky top-4">
                 <div className="flex items-center gap-2 mb-3">
                   <PawPrint className="w-4 h-4 text-brand-500" />
                   <h2 className="text-sm font-bold text-petra-text">ממתינים לחצר</h2>
                   <span className="text-xs font-semibold text-brand-500 ms-auto">{unassignedStays.length}</span>
+                </div>
+
+                {/* Date range */}
+                <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                  <Calendar className="w-3.5 h-3.5 text-petra-muted flex-shrink-0" />
+                  <input
+                    type="date"
+                    lang="he"
+                    value={fromDate}
+                    onChange={(e) => {
+                      setFromDate(e.target.value);
+                      if (e.target.value > toDate) setToDate(e.target.value);
+                    }}
+                    className="text-xs border border-petra-border rounded-lg px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 h-7 flex-1 min-w-0"
+                  />
+                  <span className="text-xs text-petra-muted">—</span>
+                  <input
+                    type="date"
+                    lang="he"
+                    value={toDate}
+                    min={fromDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="text-xs border border-petra-border rounded-lg px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 h-7 flex-1 min-w-0"
+                  />
                 </div>
 
                 {/* Search */}
@@ -481,7 +546,7 @@ export default function YardsPage() {
                   />
                 </div>
 
-                {/* Only unassigned checked-in dogs */}
+                {/* Unassigned dogs */}
                 {unassignedStays.length > 0 ? (
                   <div className="space-y-1.5">
                     {unassignedStays.map((s) => (
@@ -490,7 +555,7 @@ export default function YardsPage() {
                   </div>
                 ) : (
                   <p className="text-xs text-center text-petra-muted py-4">
-                    {enrichedStays.length > 0 ? "כל הכלבים שובצו לחצר ✓" : "אין כלבים שעשו צ׳ק אין"}
+                    {enrichedStays.length > 0 ? "כל הכלבים שובצו לחצר ✓" : "אין כלבים בתאריכים אלו"}
                   </p>
                 )}
 
