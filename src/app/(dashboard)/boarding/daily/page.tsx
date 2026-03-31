@@ -539,9 +539,9 @@ export default function DailyCarePage() {
         </button>
         <button
           onClick={() => window.print()}
-          className="no-print flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-200 text-petra-muted hover:bg-slate-50"
+          className="no-print btn-primary flex items-center gap-1.5"
         >
-          <Printer className="w-4 h-4" />הדפס
+          <Printer className="w-4 h-4" />הדפסה
         </button>
       </div>
 

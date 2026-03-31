@@ -522,7 +522,7 @@ export default function YardsPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-all border border-slate-200"
+            className="btn-primary flex items-center gap-1.5 text-sm"
             title="הדפס מפת חצרות"
           >
             <Printer className="w-3.5 h-3.5" />הדפסה

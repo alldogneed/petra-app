@@ -431,7 +431,6 @@ export default function FeedingPage() {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const dateStr = dateToISO(currentDate);
   const [editPlanStay, setEditPlanStay] = useState<BoardingStay | null>(null);
-  const [activeTab, setActiveTab] = useState<"feeding" | "medications">("feeding");
 
   const queryClient = useQueryClient();
 
@@ -552,27 +551,6 @@ export default function FeedingPage() {
       <BoardingTabs />
 
       {/* Tab switcher */}
-      <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit">
-        <button
-          onClick={() => setActiveTab("feeding")}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-            activeTab === "feeding"
-              ? "bg-white text-petra-text shadow-sm"
-              : "text-petra-muted hover:text-petra-text"
-          )}
-        >
-          <UtensilsCrossed className="w-4 h-4" />
-          לוח האכלה
-        </button>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-petra-muted hover:text-petra-text transition-all"
-        >
-          <Printer className="w-4 h-4" />
-          הדפסה
-        </button>
-      </div>
 
       {/* Header */}
       <div className="page-header">
@@ -638,6 +616,13 @@ export default function FeedingPage() {
               className={cn("w-4 h-4", isFetching && "animate-spin")}
             />
             רענן
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="no-print btn-primary flex items-center gap-2"
+          >
+            <Printer className="w-4 h-4" />
+            הדפסה
           </button>
         </div>
       </div>
@@ -888,7 +873,7 @@ export default function FeedingPage() {
         </div>
       )}
 
-      </> /* end activeTab === "feeding" */}
+      </>}
 
       {/* Feeding plan modal */}
       {editPlanStay && (
