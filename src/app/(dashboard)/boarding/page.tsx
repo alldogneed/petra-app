@@ -2842,6 +2842,12 @@ function BoardingPageContent() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" data-print-rooms>
+                {/* Unassigned stays drop zone — first = rightmost in RTL */}
+                <UnassignedGridCard
+                  stays={activeStays.filter((s) => !s.room)}
+                  onCheckin={handleCheckin}
+                  onCheckout={handleCheckout}
+                />
                 {rooms.map((room) => (
                   <RoomStatusCard
                     key={room.id}
@@ -2853,12 +2859,6 @@ function BoardingPageContent() {
                     sortedStayIds={roomSlotOrders[room.id] ?? occStays.filter(s => s.room?.id === room.id).map(s => s.id)}
                   />
                 ))}
-                {/* Unassigned stays drop zone */}
-                <UnassignedGridCard
-                  stays={activeStays.filter((s) => !s.room)}
-                  onCheckin={handleCheckin}
-                  onCheckout={handleCheckout}
-                />
               </div>
             )}
           </div>

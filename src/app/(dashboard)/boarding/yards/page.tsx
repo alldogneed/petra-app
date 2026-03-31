@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { Fence, Plus, Pencil, Trash2, Check, X, PawPrint, Search, GripVertical, Printer, Calendar, Share2 } from "lucide-react";
+import { Fence, Plus, Pencil, Trash2, Check, X, PawPrint, Search, GripVertical, Printer, Calendar, Share2, LayoutGrid } from "lucide-react";
 import {
   DndContext, DragOverlay, useDraggable, useDroppable,
   PointerSensor, useSensor, useSensors, type DragEndEvent,
@@ -435,14 +435,6 @@ export default function YardsPage() {
             );
           })()}
           <button
-            className="btn-secondary no-print"
-            onClick={() => window.print()}
-            title="הדפס מפת חצרות"
-          >
-            <Printer className="w-4 h-4" />
-            הדפסה
-          </button>
-          <button
             className="btn-primary !bg-teal-600 hover:!bg-teal-700 !border-teal-600 no-print"
             onClick={() => setShowAddForm((v) => !v)}
           >
@@ -479,6 +471,24 @@ export default function YardsPage() {
             {unassignedStays.length} ממתינים לשיבוץ
           </span>
         )}
+      </div>
+
+      {/* View toggle bar — matches boarding rooms style */}
+      <div className="flex items-center justify-between mb-4 no-print">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-all border border-slate-200"
+            title="הדפס מפת חצרות"
+          >
+            <Printer className="w-3.5 h-3.5" />הדפסה
+          </button>
+          <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all bg-white shadow-sm text-petra-text">
+              <LayoutGrid className="w-3.5 h-3.5" />כרטיסים
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Add yard form */}
