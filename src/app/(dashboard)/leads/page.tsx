@@ -668,7 +668,7 @@ function DraggableLeadCard({
       style={style}
       {...attributes}
       {...listeners}
-      onClick={() => setIsExpanded((prev) => !prev)}
+      onClick={onClick}
       className={`rounded-lg px-2 py-1.5 group cursor-pointer hover:shadow-md transition-shadow relative overflow-hidden ${cardBorder} ${isDragging ? "opacity-50 !border-2 !border-brand-500 shadow-xl" : ""}`}
     >
       {/* Thin colored left-edge status strip */}
@@ -731,186 +731,179 @@ function DraggableLeadCard({
         )}
       </div>
 
-      {/* Expanded section — shown on click */}
-      {isExpanded && (
-        <div onClick={(e) => e.stopPropagation()}>
-          {/* Snippet */}
-          {(lead.callLogs?.length ?? 0) > 0 ? (
-            <p className="text-[10px] text-petra-muted line-clamp-1 mt-1 italic">
-              &ldquo;{lead.callLogs![0].summary}&rdquo;
-            </p>
-          ) : cleanNotes ? (
-            <p className="text-[10px] text-petra-muted line-clamp-1 mt-1">{cleanNotes}</p>
-          ) : null}
+      {/* Snippet (last call or notes) */}
+      {(lead.callLogs?.length ?? 0) > 0 ? (
+        <p className="text-[10px] text-petra-muted line-clamp-1 mt-0.5 italic">
+          &ldquo;{lead.callLogs![0].summary}&rdquo;
+        </p>
+      ) : cleanNotes ? (
+        <p className="text-[10px] text-petra-muted line-clamp-1 mt-0.5">{cleanNotes}</p>
+      ) : null}
 
-          {/* Last contact date */}
-          {lead.lastContactedAt && (
-            <p className="flex items-center gap-0.5 text-[10px] text-brand-500 mt-0.5">
-              <PhoneCall className="w-2.5 h-2.5" />
-              שיחה אחרונה: {new Date(lead.lastContactedAt).toLocaleDateString("he-IL")}
-            </p>
-          )}
-
-          {/* Quick action buttons (active leads only) */}
-          {!isWon && !isLost && (
-            <div className="flex gap-1 mt-1.5">
-              <button
-                onClick={(e) => { e.stopPropagation(); quickLogMutation.mutate("call"); }}
-                disabled={quickLogMutation.isPending}
-                className="flex-1 flex items-center justify-center gap-1 text-[11px] font-medium py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors disabled:opacity-50"
-              >
-                <PhoneCall className="w-3 h-3" />התקשרתי
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); quickLogMutation.mutate("no_answer"); }}
-                disabled={quickLogMutation.isPending}
-                className="flex-1 flex items-center justify-center gap-1 text-[11px] font-medium py-1 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50"
-              >
-                <PhoneMissed className="w-3 h-3" />לא ענה
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); markHandledMutation.mutate(); }}
-                disabled={markHandledMutation.isPending}
-                className={`flex-1 flex items-center justify-center gap-1 text-[11px] font-medium py-1 rounded-lg border transition-colors disabled:opacity-50 ${
-                  lead.followUpStatus === "completed"
-                    ? "bg-green-100 text-green-700 border-green-300 hover:bg-green-200"
-                    : "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
-                }`}
-              >
-                <CheckCircle className="w-3 h-3" />
-                {lead.followUpStatus === "completed" ? "✓ טופל" : "טופל"}
-              </button>
-            </div>
-          )}
-
-          {/* Icon actions row */}
-          <div className="flex items-center justify-end gap-0.5 mt-1">
-            {!isWon && !isLost && (
-              <div className="relative">
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowDatePicker(!showDatePicker); }}
-                  className={`w-6 h-6 flex items-center justify-center rounded-full transition-colors ${
-                    followUpDate ? "text-blue-600 hover:bg-blue-100" : "text-petra-muted hover:bg-slate-100"
-                  }`}
-                  title="קבע מועד פולואפ"
-                >
-                  <CalendarClock className="w-3.5 h-3.5" />
-                </button>
-                {showDatePicker && (
-                  <div className="absolute left-0 top-7 z-50 bg-white shadow-xl rounded-xl border border-slate-200 p-3 w-56">
-                    <p className="text-xs font-semibold text-petra-text mb-2">מועד פולואפ</p>
-                    <div className="grid grid-cols-2 gap-1 mb-2">
-                      {[
-                        { label: "מחר", days: 1 },
-                        { label: "3 ימים", days: 3 },
-                        { label: "שבוע", days: 7 },
-                        { label: "חודש", days: 30 },
-                      ].map(({ label, days }) => {
-                        const d = new Date();
-                        d.setDate(d.getDate() + days);
-                        const iso = d.toISOString().slice(0, 10);
-                        return (
-                          <button
-                            key={days}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              followUpMutation.mutate(new Date(iso).toISOString());
-                              setPickerDate(iso);
-                              setShowDatePicker(false);
-                            }}
-                            className="text-[11px] font-medium py-1 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 border border-brand-200 transition-colors"
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <input
-                      type="date" lang="he"
-                      className="input text-xs w-full"
-                      value={pickerDate}
-                      min={new Date().toISOString().slice(0, 10)}
-                      onChange={(e) => setPickerDate(e.target.value)}
-                    />
-                    <div className="flex gap-2 mt-2">
-                      <button
-                        className="btn-primary text-xs flex-1 py-1.5"
-                        disabled={followUpMutation.isPending}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          followUpMutation.mutate(pickerDate ? new Date(pickerDate).toISOString() : null);
-                          setShowDatePicker(false);
-                        }}
-                      >
-                        {followUpMutation.isPending ? "..." : "שמור"}
-                      </button>
-                      {followUpDate && (
-                        <button
-                          className="btn-secondary text-xs py-1.5"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPickerDate("");
-                            followUpMutation.mutate(null);
-                            setShowDatePicker(false);
-                          }}
-                        >
-                          נקה
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            <button
-              onClick={(e) => { e.stopPropagation(); onDetails(); }}
-              className="w-6 h-6 flex items-center justify-center rounded-full text-brand-600 hover:bg-brand-100 transition-colors"
-              title="פרטי ליד"
-            >
-              <FileText className="w-3.5 h-3.5" />
-            </button>
-            {lead.phone && !isWon && !isLost && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  window.open(`https://wa.me/${toWhatsAppPhone(lead.phone!)}`, "whatsapp_window");
-                }}
-                className="w-6 h-6 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors"
-                title="שלח וואטסאפ"
-              >
-                <MessageCircle className="w-3.5 h-3.5" />
-              </button>
-            )}
-            {!isWon && !isLost && wonStage && lostStage && (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (converting) return;
-                    setConverting(true);
-                    onWon();
-                    setTimeout(() => setConverting(false), 4000);
-                  }}
-                  disabled={converting}
-                  className="w-6 h-6 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors disabled:opacity-50"
-                  title="לקוח נסגר — ממיר ללקוח"
-                >
-                  {converting
-                    ? <span className="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-                    : <Check className="w-3.5 h-3.5" />}
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onQuickAction(lostStage.id); }}
-                  className="w-6 h-6 flex items-center justify-center rounded-full text-red-600 hover:bg-red-100 transition-colors"
-                  title="זרוק לאבודים"
-                >
-                  <XCircle className="w-3.5 h-3.5" />
-                </button>
-              </>
-            )}
-          </div>
+      {/* Hover: quick action buttons (active leads only) */}
+      {!isWon && !isLost && (
+        <div
+          className="flex gap-1 mt-1.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); quickLogMutation.mutate("call"); }}
+            disabled={quickLogMutation.isPending}
+            className="flex-1 flex items-center justify-center gap-1 text-[11px] font-medium py-0.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors disabled:opacity-50"
+          >
+            <PhoneCall className="w-3 h-3" />התקשרתי
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); quickLogMutation.mutate("no_answer"); }}
+            disabled={quickLogMutation.isPending}
+            className="flex-1 flex items-center justify-center gap-1 text-[11px] font-medium py-0.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50"
+          >
+            <PhoneMissed className="w-3 h-3" />לא ענה
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); markHandledMutation.mutate(); }}
+            disabled={markHandledMutation.isPending}
+            className={`flex-1 flex items-center justify-center gap-1 text-[11px] font-medium py-0.5 rounded-lg border transition-colors disabled:opacity-50 ${
+              lead.followUpStatus === "completed"
+                ? "bg-green-100 text-green-700 border-green-300 hover:bg-green-200"
+                : "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
+            }`}
+          >
+            <CheckCircle className="w-3 h-3" />
+            {lead.followUpStatus === "completed" ? "✓ טופל" : "טופל"}
+          </button>
         </div>
       )}
+
+      {/* Hover: icon actions */}
+      <div
+        className="flex items-center justify-end gap-0.5 mt-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {!isWon && !isLost && (
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowDatePicker(!showDatePicker); }}
+              className={`w-6 h-6 flex items-center justify-center rounded-full transition-colors ${
+                followUpDate ? "text-blue-600 hover:bg-blue-100" : "text-petra-muted hover:bg-slate-100"
+              }`}
+              title="קבע מועד פולואפ"
+            >
+              <CalendarClock className="w-3.5 h-3.5" />
+            </button>
+            {showDatePicker && (
+              <div className="absolute left-0 top-7 z-50 bg-white shadow-xl rounded-xl border border-slate-200 p-3 w-56">
+                <p className="text-xs font-semibold text-petra-text mb-2">מועד פולואפ</p>
+                <div className="grid grid-cols-2 gap-1 mb-2">
+                  {[
+                    { label: "מחר", days: 1 },
+                    { label: "3 ימים", days: 3 },
+                    { label: "שבוע", days: 7 },
+                    { label: "חודש", days: 30 },
+                  ].map(({ label, days }) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + days);
+                    const iso = d.toISOString().slice(0, 10);
+                    return (
+                      <button
+                        key={days}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          followUpMutation.mutate(new Date(iso).toISOString());
+                          setPickerDate(iso);
+                          setShowDatePicker(false);
+                        }}
+                        className="text-[11px] font-medium py-1 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 border border-brand-200 transition-colors"
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <input
+                  type="date" lang="he"
+                  className="input text-xs w-full"
+                  value={pickerDate}
+                  min={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setPickerDate(e.target.value)}
+                />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    className="btn-primary text-xs flex-1 py-1.5"
+                    disabled={followUpMutation.isPending}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      followUpMutation.mutate(pickerDate ? new Date(pickerDate).toISOString() : null);
+                      setShowDatePicker(false);
+                    }}
+                  >
+                    {followUpMutation.isPending ? "..." : "שמור"}
+                  </button>
+                  {followUpDate && (
+                    <button
+                      className="btn-secondary text-xs py-1.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPickerDate("");
+                        followUpMutation.mutate(null);
+                        setShowDatePicker(false);
+                      }}
+                    >
+                      נקה
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        <button
+          onClick={(e) => { e.stopPropagation(); onDetails(); }}
+          className="w-6 h-6 flex items-center justify-center rounded-full text-brand-600 hover:bg-brand-100 transition-colors"
+          title="פרטי ליד"
+        >
+          <FileText className="w-3.5 h-3.5" />
+        </button>
+        {lead.phone && !isWon && !isLost && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(`https://wa.me/${toWhatsAppPhone(lead.phone!)}`, "whatsapp_window");
+            }}
+            className="w-6 h-6 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors"
+            title="שלח וואטסאפ"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {!isWon && !isLost && wonStage && lostStage && (
+          <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (converting) return;
+                setConverting(true);
+                onWon();
+                setTimeout(() => setConverting(false), 4000);
+              }}
+              disabled={converting}
+              className="w-6 h-6 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors disabled:opacity-50"
+              title="לקוח נסגר — ממיר ללקוח"
+            >
+              {converting
+                ? <span className="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                : <Check className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onQuickAction(lostStage.id); }}
+              className="w-6 h-6 flex items-center justify-center rounded-full text-red-600 hover:bg-red-100 transition-colors"
+              title="זרוק לאבודים"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
