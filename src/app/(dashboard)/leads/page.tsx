@@ -1367,6 +1367,7 @@ function LeadsPageContent() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exportFrom, setExportFrom] = useState("");
   const [exportTo, setExportTo] = useState("");
+  const [statsFilter, setStatsFilter] = useState<"all" | "month">("all");
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const { maxLeads, tier } = useSubscription();
 
@@ -1427,11 +1428,16 @@ function LeadsPageContent() {
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      result = result.filter((l) =>
-        l.name.toLowerCase().includes(q) ||
-        (l.phone?.includes(q) ?? false) ||
-        (l.email?.toLowerCase().includes(q) ?? false)
-      );
+      result = result.filter((l) => {
+        if (l.name.toLowerCase().includes(q)) return true;
+        if (l.phone?.includes(q)) return true;
+        if (l.email?.toLowerCase().includes(q)) return true;
+        const meta = parseLeadMeta(l.notes);
+        if (meta.city?.toLowerCase().includes(q)) return true;
+        if (meta.service?.toLowerCase().includes(q)) return true;
+        if (l.callLogs?.some((log) => log.summary?.toLowerCase().includes(q))) return true;
+        return false;
+      });
     }
     return result;
   }, [leads, searchQuery, sourceFilter]);
@@ -1622,9 +1628,16 @@ function LeadsPageContent() {
   const activeStages = stages.filter((s) => !s.isWon && !s.isLost);
 
   const funnelStats = useMemo(() => {
-    const wonCount = wonStage ? leads.filter((l) => l.stage === wonStage.id).length : 0;
-    const lostCount = lostStage ? leads.filter((l) => l.stage === lostStage.id).length : 0;
-    const activeCount = leads.filter((l) => {
+    let statsLeads = leads;
+    if (statsFilter === "month") {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      statsLeads = leads.filter((l) => new Date(l.createdAt) >= monthStart);
+    }
+
+    const wonCount = wonStage ? statsLeads.filter((l) => l.stage === wonStage.id).length : 0;
+    const lostCount = lostStage ? statsLeads.filter((l) => l.stage === lostStage.id).length : 0;
+    const activeCount = statsLeads.filter((l) => {
       const s = stages.find((s) => s.id === l.stage);
       return s && !s.isWon && !s.isLost;
     }).length;
@@ -1634,11 +1647,11 @@ function LeadsPageContent() {
       id: s.id,
       name: s.name,
       color: s.color,
-      count: leads.filter((l) => l.stage === s.id).length,
+      count: statsLeads.filter((l) => l.stage === s.id).length,
     }));
 
     const sourceCounts: Record<string, number> = {};
-    for (const l of leads) {
+    for (const l of statsLeads) {
       if (l.source) sourceCounts[l.source] = (sourceCounts[l.source] || 0) + 1;
     }
     const topSourceId = Object.entries(sourceCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
@@ -1647,7 +1660,7 @@ function LeadsPageContent() {
       : null;
 
     return { wonCount, lostCount, activeCount, conversionRate, stageBreakdown, topSource };
-  }, [leads, stages, activeStages, wonStage, lostStage]);
+  }, [leads, stages, activeStages, wonStage, lostStage, statsFilter]);
 
   return (
     <div>
@@ -1936,7 +1949,30 @@ function LeadsPageContent() {
 
       {/* Lead Funnel Stats */}
       {!editMode && leads.length > 0 && (
-        <div className="mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="mb-5">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex bg-slate-100 p-0.5 rounded-lg gap-0.5">
+            <button
+              onClick={() => setStatsFilter("all")}
+              className={cn(
+                "px-3 py-1 rounded-md text-xs font-medium transition-all",
+                statsFilter === "all" ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text"
+              )}
+            >
+              הכל
+            </button>
+            <button
+              onClick={() => setStatsFilter("month")}
+              className={cn(
+                "px-3 py-1 rounded-md text-xs font-medium transition-all",
+                statsFilter === "month" ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text"
+              )}
+            >
+              החודש
+            </button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <p className="text-2xl font-bold text-petra-text">{funnelStats.activeCount}</p>
             <p className="text-xs text-petra-muted mt-0.5">סה"כ לידים בטיפול</p>
@@ -1960,6 +1996,7 @@ function LeadsPageContent() {
               </p>
             </div>
           )}
+        </div>
         </div>
       )}
 
