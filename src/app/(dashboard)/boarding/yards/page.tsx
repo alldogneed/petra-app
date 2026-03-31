@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { Fence, Plus, Pencil, Trash2, Check, X, PawPrint, Search, GripVertical, Printer, Calendar } from "lucide-react";
+import { Fence, Plus, Pencil, Trash2, Check, X, PawPrint, Search, GripVertical, Printer, Calendar, Share2 } from "lucide-react";
 import {
   DndContext, DragOverlay, useDraggable, useDroppable,
   PointerSensor, useSensor, useSensors, type DragEndEvent,
@@ -401,16 +401,39 @@ export default function YardsPage() {
     <div>
       <BoardingTabs />
 
-      {/* Page header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-bold text-petra-text flex items-center gap-2">
-            <Fence className="w-5 h-5 text-teal-600" />
-            ניהול חצרות
-          </h1>
-          <p className="text-sm text-petra-muted mt-0.5">הוסף, ערוך ונהל את החצרות שלך</p>
-        </div>
-        <div className="flex items-center gap-2">
+      {/* Page header — matches boarding rooms style */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <h1 className="page-title">ניהול חצרות</h1>
+        <p className="text-sm text-petra-muted">
+          {yards.length} חצרות · {yards.reduce((n, y) => n + y.boardingStays.length, 0)} כלבים בחצרות
+        </p>
+        <div className="flex gap-2 ms-auto flex-wrap">
+          {/* סבב חצרות — WhatsApp share, only when dogs are assigned */}
+          {yards.some((y) => y.boardingStays.length > 0) && (() => {
+            const todayStr3 = new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
+            const lines = [`🌿 סבב חצרות — ${todayStr3}`, ""];
+            for (const yard of yards) {
+              if (yard.boardingStays.length === 0) continue;
+              lines.push(`📍 *${yard.name}* (${yard.boardingStays.length}/${yard.capacity}):`);
+              for (const s of yard.boardingStays) {
+                lines.push(`  🐾 ${s.pet.name}${s.customer ? ` — ${s.customer.name}` : ""}`);
+              }
+              lines.push("");
+            }
+            const waUrl = `https://wa.me/?text=${encodeURIComponent(lines.join("\n").trim())}`;
+            return (
+              <a
+                href={waUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary hidden sm:flex no-print"
+                title="שתף סבב חצרות"
+              >
+                <Share2 className="w-4 h-4" />
+                סבב חצרות
+              </a>
+            );
+          })()}
           <button
             className="btn-secondary no-print"
             onClick={() => window.print()}
