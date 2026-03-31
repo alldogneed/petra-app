@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { Fence, Plus, Pencil, Trash2, Check, X, PawPrint, Search, GripVertical } from "lucide-react";
+import { Fence, Plus, Pencil, Trash2, Check, X, PawPrint, Search, GripVertical, Printer } from "lucide-react";
 import {
   DndContext, DragOverlay, useDraggable, useDroppable,
   PointerSensor, useSensor, useSensors, type DragEndEvent,
@@ -106,122 +106,101 @@ function DroppableYardCard({
   const { setNodeRef, isOver } = useDroppable({ id: yard.id });
 
   const checkedIn = occupants.filter((s) => s.status === "checked_in");
-  const reserved  = occupants.filter((s) => s.status === "reserved");
   const isFull    = occupants.length >= yard.capacity;
   const displayStatus =
     checkedIn.length > 0 ? "occupied" :
     yard.status === "needs_cleaning" ? "needs_cleaning" : "available";
   const statusInfo = STATUS_MAP[displayStatus];
+  const barColor = checkedIn.length > 0 ? statusInfo.color : yard.status === "needs_cleaning" ? "#EAB308" : "#22C55E";
 
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "card p-4 border-l-4 transition-all min-h-[160px] flex flex-col",
-        isOver && !isFull && "ring-2 ring-teal-400 bg-teal-50/30",
+        "card overflow-hidden transition-all",
+        isOver && !isFull ? "ring-2 ring-teal-400 shadow-lg scale-[1.02]" : "hover:shadow-md",
         isOver && isFull && "ring-2 ring-red-300"
       )}
-      style={{ borderLeftColor: checkedIn.length > 0 ? "#14b8a6" : yard.status === "needs_cleaning" ? "#EAB308" : "#22C55E" }}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center flex-shrink-0">
-            <Fence className="w-4 h-4 text-teal-500" />
+      {/* Color bar — matches room card style */}
+      <div className="h-1.5" style={{ backgroundColor: barColor }} />
+
+      <div className="p-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Fence className="w-5 h-5" style={{ color: barColor }} />
+            <span className="font-bold text-petra-text">{yard.name}</span>
           </div>
-          <div>
-            <p className="text-sm font-bold text-petra-text leading-tight">{yard.name}</p>
-            <p className="text-[10px] text-petra-muted">
-              {YARD_TYPE_LABELS[yard.type] || yard.type} · קיבולת {yard.capacity}
-            </p>
+          <div className="flex items-center gap-1">
+            <span
+              className="text-[10px] font-semibold px-2 py-0.5 rounded-full border"
+              style={{ background: statusInfo.bg, color: statusInfo.color, borderColor: statusInfo.border }}
+            >
+              {statusInfo.label}
+            </span>
+            <button
+              className="no-print w-6 h-6 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted hover:text-petra-text transition-colors"
+              onClick={onEdit} title="ערוך"
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+            <button
+              className="no-print w-6 h-6 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors disabled:opacity-40"
+              onClick={onDelete}
+              disabled={yard._count.boardingStays > 0 || isDeleting}
+              title={yard._count.boardingStays > 0 ? "לא ניתן למחוק חצר עם שהיות פעילות" : "מחק"}
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted hover:text-petra-text transition-colors"
-            onClick={onEdit}
-            title="ערוך"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-          <button
-            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            onClick={onDelete}
-            disabled={yard._count.boardingStays > 0 || isDeleting}
-            title={yard._count.boardingStays > 0 ? "לא ניתן למחוק חצר עם שהיות פעילות" : "מחק"}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+
+        {/* Meta */}
+        <div className="flex items-center gap-2 text-xs text-petra-muted mb-3">
+          <span>{occupants.length}/{yard.capacity}</span>
+          <span className="badge-neutral text-[10px]">{YARD_TYPE_LABELS[yard.type] || yard.type}</span>
+          {yard.pricePerSession != null && (
+            <span className="ms-auto text-[10px] font-semibold text-teal-600">₪{yard.pricePerSession}/שהייה</span>
+          )}
+          {isFull && <span className="ms-auto text-[10px] font-semibold text-red-500">מלאה</span>}
         </div>
-      </div>
 
-      {/* Status badge */}
-      <div className="mb-2">
-        <span
-          className="text-[10px] font-semibold px-2 py-0.5 rounded-full border"
-          style={{ color: statusInfo.color, backgroundColor: statusInfo.bg, borderColor: statusInfo.border }}
-        >
-          {statusInfo.label}
-        </span>
-      </div>
-
-      {/* Occupants */}
-      <div className="flex-1 space-y-1">
-        {occupants.length === 0 ? (
-          <div className={cn(
-            "flex flex-col items-center justify-center py-4 rounded-lg border-2 border-dashed transition-colors",
-            isOver && !isFull ? "border-teal-400 bg-teal-50/50" : "border-slate-200"
-          )}>
-            <Fence className="w-4 h-4 text-slate-300 mb-1" />
-            <p className="text-[10px] text-slate-400">
-              {isOver ? "שחרר כאן להוספה" : "גרור כלב לכאן"}
-            </p>
-          </div>
-        ) : (
-          <>
+        {/* Dogs — 2-column grid like rooms */}
+        {checkedIn.length > 0 ? (
+          <div className="grid grid-cols-2 gap-1.5">
             {checkedIn.map((s) => (
-              <div key={s.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-teal-50 border border-teal-100 group">
-                <PawPrint className="w-3 h-3 text-teal-500 flex-shrink-0" />
-                <span className="text-xs font-medium text-teal-800 truncate flex-1">{s.pet.name}</span>
-                {s.customer && <span className="text-[10px] text-teal-600 truncate">{s.customer.name}</span>}
-                <button
-                  onClick={() => onRemoveDog(s.id)}
-                  className="opacity-0 group-hover:opacity-100 w-4 h-4 flex items-center justify-center rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-all flex-shrink-0"
-                  title="הסר מהחצר"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-            {reserved.map((s) => (
-              <div key={s.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-100 group">
-                <PawPrint className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                <span className="text-xs text-slate-600 truncate flex-1">{s.pet.name}</span>
-                <span className="text-[10px] text-slate-400">הזמנה</span>
-                <button
-                  onClick={() => onRemoveDog(s.id)}
-                  className="opacity-0 group-hover:opacity-100 w-4 h-4 flex items-center justify-center rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-all flex-shrink-0"
-                  title="הסר מהחצר"
-                >
-                  <X className="w-3 h-3" />
-                </button>
+              <div key={s.id} className="p-2 rounded-lg group" style={{ background: "#F0FDFA", border: "1px solid #99F6E4" }}>
+                <div className="flex items-center gap-1 mb-0.5">
+                  <PawPrint className="w-3 h-3 text-teal-500 flex-shrink-0" />
+                  <span className="text-xs font-semibold text-teal-900 truncate flex-1">{s.pet.name}</span>
+                  <button
+                    onClick={() => onRemoveDog(s.id)}
+                    className="no-print opacity-0 group-hover:opacity-100 w-3.5 h-3.5 flex items-center justify-center rounded text-red-400 hover:text-red-600 transition-all flex-shrink-0"
+                    title="הסר מהחצר"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+                <div className="text-[10px] text-teal-700 truncate">{s.customer?.name ?? "כלב שירות"}</div>
+                {s.room && <div className="text-[10px] text-teal-600/70 truncate">{s.room.name}</div>}
               </div>
             ))}
             {isOver && !isFull && (
-              <div className="px-2 py-1.5 rounded-lg bg-teal-50/60 border-2 border-dashed border-teal-300 text-[10px] text-teal-600 text-center">
-                שחרר כאן
+              <div className="p-2 rounded-lg border-2 border-dashed border-teal-300 bg-teal-50/50 flex items-center justify-center">
+                <span className="text-[10px] text-teal-500">שחרר כאן</span>
               </div>
             )}
-          </>
+          </div>
+        ) : (
+          <div className={cn(
+            "flex flex-col items-center justify-center py-5 rounded-lg border-2 border-dashed transition-colors",
+            isOver ? "border-teal-400 bg-teal-50/50" : "border-slate-200"
+          )}>
+            <Fence className="w-4 h-4 text-slate-300 mb-1" />
+            <p className="text-[10px] text-slate-400">{isOver ? "שחרר כאן להוספה" : "גרור כלב לכאן"}</p>
+          </div>
         )}
-      </div>
-
-      {/* Footer */}
-      {yard.pricePerSession != null && (
-        <p className="text-[10px] text-teal-600 mt-2">₪{yard.pricePerSession}/שהייה</p>
-      )}
-      <div className="mt-2 text-[10px] text-petra-muted">
-        {occupants.length}/{yard.capacity} כלבים · {isFull ? <span className="text-red-500 font-medium">מלאה</span> : <span className="text-emerald-600">{yard.capacity - occupants.length} מקומות פנויים</span>}
       </div>
     </div>
   );
@@ -386,13 +365,23 @@ export default function YardsPage() {
           </h1>
           <p className="text-sm text-petra-muted mt-0.5">הוסף, ערוך ונהל את החצרות שלך</p>
         </div>
-        <button
-          className="btn-primary !bg-teal-600 hover:!bg-teal-700 !border-teal-600"
-          onClick={() => setShowAddForm((v) => !v)}
-        >
-          <Plus className="w-4 h-4" />
-          הוסף חצר
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className="btn-secondary no-print"
+            onClick={() => window.print()}
+            title="הדפס מפת חצרות"
+          >
+            <Printer className="w-4 h-4" />
+            הדפסה
+          </button>
+          <button
+            className="btn-primary !bg-teal-600 hover:!bg-teal-700 !border-teal-600 no-print"
+            onClick={() => setShowAddForm((v) => !v)}
+          >
+            <Plus className="w-4 h-4" />
+            הוסף חצר
+          </button>
+        </div>
       </div>
 
       {/* Add yard form */}
@@ -600,6 +589,17 @@ export default function YardsPage() {
           </DragOverlay>
         </DndContext>
       )}
+
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          .modal-overlay { display: none !important; }
+          body > *:not(#__next) { display: none !important; }
+          nav, header, aside, [data-sidebar], [data-sonner-toaster] { display: none !important; }
+          .card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; break-inside: avoid; }
+        }
+      `}</style>
     </div>
   );
 }
