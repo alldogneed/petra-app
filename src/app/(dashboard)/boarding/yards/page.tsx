@@ -648,7 +648,7 @@ export default function YardsPage() {
             </div>
 
             {/* Right: Yards grid */}
-            <div className="flex-1">
+            <div className="flex-1" data-print-yards>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {yards.map((yard) => {
                   if (editingYardId === yard.id) {
@@ -740,11 +740,14 @@ export default function YardsPage() {
       {/* Print styles */}
       <style>{`
         @media print {
+          body > * { display: none !important; }
+          body > div:has([data-print-yards]) { display: block !important; }
+          [data-print-yards] { display: block !important; }
+          aside, nav, header, [data-sidebar], [data-topbar] { display: none !important; }
           .no-print { display: none !important; }
           .modal-overlay { display: none !important; }
-          body > *:not(#__next) { display: none !important; }
-          nav, header, aside, [data-sidebar], [data-sonner-toaster] { display: none !important; }
-          .card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; break-inside: avoid; }
+          [data-print-yards] .card { break-inside: avoid; box-shadow: none; border: 1px solid #e2e8f0; }
+          [data-print-yards] button { display: none !important; }
         }
       `}</style>
     </div>
