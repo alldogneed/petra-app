@@ -123,9 +123,10 @@ function ItemModal({
   });
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
       <div
-        className="modal-content max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
+        className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
