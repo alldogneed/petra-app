@@ -127,6 +127,7 @@ interface DashboardStats {
     startTime: string;
     status: string;
     service: { id: string; name: string; color: string | null; type?: string } | null;
+    priceListItem: { id: string; name: string; category: string | null } | null;
     customer: { name: string; phone: string };
     pet: { name: string; species: string } | null;
     notes: string | null;
@@ -247,6 +248,22 @@ const SERVICE_TYPE_TABS = [
   { key: "grooming", label: "טיפוח" },
 ];
 
+// Maps Hebrew price-list category names → filter key
+const CATEGORY_TO_FILTER: Record<string, string> = {
+  "אילוף": "training",
+  "פנסיון": "boarding",
+  "טיפוח": "grooming",
+};
+
+// Maps filter key → Hebrew label for badge display
+const FILTER_TO_LABEL: Record<string, string> = {
+  training: "אילוף",
+  boarding: "פנסיון",
+  grooming: "טיפוח",
+  consultation: "ייעוץ",
+  daycare: "דיי קר",
+};
+
 const ORDER_TYPE_INFO: Record<string, { label: string; icon: React.ElementType }> = {
   sale: { label: "מוצרים", icon: Package },
   products: { label: "מוצרים", icon: Package },
@@ -366,6 +383,14 @@ function AppointmentRow({
     month: "short",
   });
 
+  // Determine display name and type label
+  const itemName = appointment.priceListItem?.name ?? appointment.service?.name ?? appointment.notes ?? "תור";
+  const rawCategory = appointment.priceListItem?.category;
+  const rawServiceType = appointment.service?.type;
+  const typeLabel = rawCategory
+    ? rawCategory
+    : rawServiceType ? (FILTER_TO_LABEL[rawServiceType] ?? rawServiceType) : null;
+
   return (
     <div className="flex items-center gap-3 py-3 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 px-1 rounded-lg transition-colors">
       <div
@@ -387,7 +412,14 @@ function AppointmentRow({
             </span>
           )}
         </div>
-        <div className="text-xs text-petra-muted mt-0.5">{appointment.service?.name ?? appointment.notes ?? "תור"}</div>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className="text-xs text-petra-muted truncate">{itemName}</span>
+          {typeLabel && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-brand-50 text-brand-600 font-medium shrink-0">
+              {typeLabel}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="text-right flex-shrink-0">
@@ -2129,9 +2161,13 @@ export default function DashboardPage() {
   const filteredAppointments =
     serviceFilter === "all"
       ? data.upcomingAppointments
-      : data.upcomingAppointments.filter(
-        (a) => a.service?.type === serviceFilter
-      );
+      : data.upcomingAppointments.filter((a) => {
+          // Price-list path: check category → filter key mapping
+          if (a.priceListItem?.category && CATEGORY_TO_FILTER[a.priceListItem.category] === serviceFilter) return true;
+          // Legacy service path: check service.type directly
+          if (a.service?.type === serviceFilter) return true;
+          return false;
+        });
 
   return (
     <div className="space-y-6">

@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
           customer: { select: { name: true, phone: true } },
           pet: { select: { name: true, species: true } },
           service: { select: { id: true, name: true, color: true, type: true } },
+          priceListItem: { select: { id: true, name: true, category: true } },
         },
         orderBy: [{ date: "asc" }, { startTime: "asc" }],
         take: 8,
