@@ -1515,13 +1515,13 @@ function PetBirthdaysWidget({ birthdays }: { birthdays: DashboardStats["upcoming
                   )}
                 </div>
                 <p className="text-xs text-petra-muted">
-                  {pet.customer.name}
+                  {pet.customer?.name ?? ""}
                   {" · "}
                   {pet.age + 1} שנ׳
                   {pet.daysUntil > 0 && ` · בעוד ${pet.daysUntil} ימים`}
                 </p>
               </div>
-              {pet.customer.phone && (
+              {pet.customer?.phone && (
                 <a
                   href={`https://wa.me/${toWhatsAppPhone(pet.customer.phone)}?text=${encodeURIComponent(greetingLines)}`}
                   target="_blank"
@@ -1590,17 +1590,19 @@ function NewCustomerModal({
       const customer = await res.json();
       // Optionally create pet
       if (petForm.name.trim()) {
-        await fetch("/api/pets", {
+        const petRes = await fetch(`/api/customers/${customer.id}/pets`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            customerId: customer.id,
             name: petForm.name,
             species: petForm.species || "dog",
             breed: petForm.breed || null,
             age: petForm.age ? parseInt(petForm.age) : null,
           }),
         });
+        if (!petRes.ok) {
+          console.error("Pet creation failed:", await petRes.text().catch(() => ""));
+        }
       }
       return customer;
     },
