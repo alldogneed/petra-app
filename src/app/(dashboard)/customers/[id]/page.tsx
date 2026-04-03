@@ -793,6 +793,7 @@ function PetDocumentsModal({
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { data: docs = [], isLoading } = useQuery<PetDoc[]>({
     queryKey: ["petDocs", petId],
@@ -885,12 +886,29 @@ function PetDocumentsModal({
                 >
                   <Download className="w-3.5 h-3.5" />
                 </a>
-                <button
-                  onClick={() => deleteMutation.mutate(doc.id)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {confirmDeleteId === doc.id ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => { deleteMutation.mutate(doc.id); setConfirmDeleteId(null); }}
+                      className="px-2 py-1 text-[10px] font-medium bg-red-500 text-white rounded-md hover:bg-red-600"
+                    >
+                      מחק
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="px-2 py-1 text-[10px] font-medium bg-slate-100 text-slate-600 rounded-md hover:bg-slate-200"
+                    >
+                      ביטול
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDeleteId(doc.id)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             ))}
           </div>
