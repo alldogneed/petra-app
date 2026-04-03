@@ -3765,25 +3765,16 @@ export default function CustomerProfilePage() {
               <div className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-petra-muted flex-shrink-0" />
                 <a href={`tel:${customer.phone}`} className="text-sm hover:underline">{customer.phone}</a>
-                <div className="ms-auto flex items-center gap-1.5">
-                  <button
-                    onClick={() => setShowWaCompose(true)}
-                    className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 transition-colors"
-                    title="כתוב הודעת WhatsApp"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    שלח
-                  </button>
-                  <a
-                    href={`https://wa.me/${toWhatsAppPhone(customer.phone)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 transition-colors"
-                    title="פתח WhatsApp Web"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                  </a>
-                </div>
+                <a
+                  href={`https://wa.me/${toWhatsAppPhone(customer.phone)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ms-auto flex items-center gap-1 text-xs text-green-600 hover:text-green-700 transition-colors"
+                  title="שלח הודעת WhatsApp"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  WhatsApp
+                </a>
               </div>
               {customer.email && (
                 <a
