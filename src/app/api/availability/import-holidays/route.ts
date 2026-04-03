@@ -22,34 +22,39 @@ const HOLIDAYS: { label: string; dates: string[][] }[] = [
 ]
 
 export async function POST(request: NextRequest) {
-  const auth = await requireBusinessAuth(request)
-  if (isGuardError(auth)) return auth
-  const { businessId } = auth
+  try {
+    const auth = await requireBusinessAuth(request)
+    if (isGuardError(auth)) return auth
+    const { businessId } = auth
 
-  let created = 0
+    let created = 0
 
-  for (const holiday of HOLIDAYS) {
-    for (const [startDate, endDate] of holiday.dates) {
-      const startAt = new Date(`${startDate}T00:00:00Z`)
-      const endAt = new Date(`${endDate}T23:59:59Z`)
+    for (const holiday of HOLIDAYS) {
+      for (const [startDate, endDate] of holiday.dates) {
+        const startAt = new Date(`${startDate}T00:00:00Z`)
+        const endAt = new Date(`${endDate}T23:59:59Z`)
 
-      // Skip if a block with the exact same businessId+startAt+endAt already exists
-      const existing = await prisma.availabilityBlock.findFirst({
-        where: { businessId, startAt, endAt },
-      })
-      if (existing) continue
+        // Skip if a block with the exact same businessId+startAt+endAt already exists
+        const existing = await prisma.availabilityBlock.findFirst({
+          where: { businessId, startAt, endAt },
+        })
+        if (existing) continue
 
-      await prisma.availabilityBlock.create({
-        data: {
-          businessId,
-          startAt,
-          endAt,
-          reason: holiday.label,
-        },
-      })
-      created++
+        await prisma.availabilityBlock.create({
+          data: {
+            businessId,
+            startAt,
+            endAt,
+            reason: holiday.label,
+          },
+        })
+        created++
+      }
     }
-  }
 
-  return NextResponse.json({ created })
+    return NextResponse.json({ created })
+  } catch (error) {
+    console.error("POST /api/availability/import-holidays error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
 }

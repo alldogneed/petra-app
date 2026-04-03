@@ -29,16 +29,32 @@ export async function PATCH(
     const body = await request.json();
     const { medName, dosage, frequency, times, instructions, startDate, endDate } = body;
 
+    // Validate dates before parsing
+    const safeDate = (v: unknown): Date | null | undefined => {
+      if (v === undefined) return undefined;
+      if (!v) return null;
+      const d = new Date(String(v));
+      return isNaN(d.getTime()) ? undefined : d;
+    };
+    const parsedStart = safeDate(startDate);
+    const parsedEnd = safeDate(endDate);
+    if (startDate !== undefined && parsedStart === undefined) {
+      return NextResponse.json({ error: "תאריך התחלה לא חוקי" }, { status: 400 });
+    }
+    if (endDate !== undefined && parsedEnd === undefined) {
+      return NextResponse.json({ error: "תאריך סיום לא חוקי" }, { status: 400 });
+    }
+
     const updated = await prisma.dogMedication.update({
-      where: { id: params.medId },
+      where: { id: existing.id },
       data: {
         ...(medName !== undefined && { medName: medName.trim() }),
         ...(dosage !== undefined && { dosage: dosage?.trim() || null }),
         ...(frequency !== undefined && { frequency: frequency?.trim() || null }),
         ...(times !== undefined && { times: times?.trim() || null }),
         ...(instructions !== undefined && { instructions: instructions?.trim() || null }),
-        ...(startDate !== undefined && { startDate: startDate ? new Date(startDate) : null }),
-        ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
+        ...(startDate !== undefined && { startDate: parsedStart }),
+        ...(endDate !== undefined && { endDate: parsedEnd }),
       },
     });
 
@@ -62,7 +78,7 @@ export async function DELETE(
     const existing = await verifyMed(params.petId, params.medId, businessId);
     if (!existing) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
 
-    await prisma.dogMedication.delete({ where: { id: params.medId } });
+    await prisma.dogMedication.delete({ where: { id: existing.id } });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

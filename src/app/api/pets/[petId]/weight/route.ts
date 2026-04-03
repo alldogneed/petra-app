@@ -52,7 +52,7 @@ export async function POST(
 
   const body = await request.json();
   const weight = parseFloat(body.weight);
-  if (!weight || weight <= 0) {
+  if (!Number.isFinite(weight) || weight <= 0) {
     return NextResponse.json({ error: "משקל לא תקין" }, { status: 400 });
   }
 

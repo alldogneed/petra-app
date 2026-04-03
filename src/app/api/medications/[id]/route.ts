@@ -43,19 +43,26 @@ export async function PATCH(
     if (body.endDate !== undefined)
       data.endDate = body.endDate ? new Date(body.endDate) : null;
 
+    // Defence-in-depth: use the verified existing record's id
     const updated = await prisma.dogMedication.update({
-      where: { id: params.id },
+      where: { id: existing.id },
       data,
       include: {
         pet: {
           select: {
             id: true,
             name: true,
-            customer: { select: { id: true, name: true } },
+            customer: { select: { id: true, name: true, businessId: true } },
           },
         },
       },
     });
+
+    // Strip businessId from response
+    if (updated.pet?.customer) {
+      const { businessId: _bId, ...safeCustomer } = updated.pet.customer;
+      (updated as any).pet.customer = safeCustomer;
+    }
 
     return NextResponse.json(updated);
   } catch (error) {
@@ -79,7 +86,8 @@ export async function DELETE(
       return NextResponse.json({ error: "תרופה לא נמצאה" }, { status: 404 });
     }
 
-    await prisma.dogMedication.delete({ where: { id: params.id } });
+    // Defence-in-depth: use the verified existing record's id
+    await prisma.dogMedication.delete({ where: { id: existing.id } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE /api/medications/[id] error:", error);

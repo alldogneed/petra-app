@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isValidTier } from "@/lib/feature-flags";
 import { checkRateLimit } from "@/lib/security/rateLimiter";
+import { timingSafeEqual } from "crypto";
 
 const TIER_DAYS: Record<string, number> = {
   basic: 30, pro: 30, groomer: 30, service_dog: 30,
@@ -34,11 +35,18 @@ function getClientIp(request: NextRequest): string {
  * Cardcom returns it as-is in the indicator.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
   const ip = getClientIp(request);
+  try {
+  const { searchParams } = new URL(request.url);
 
-  // ── Layer 1: Secret validation ───────────────────────────────────────────
-  if (searchParams.get("secret") !== process.env.CARDCOM_WEBHOOK_SECRET) {
+  // ── Layer 1: Secret validation (constant-time) ──────────────────────────
+  const providedSecret = searchParams.get("secret") ?? "";
+  const expectedSecret = process.env.CARDCOM_WEBHOOK_SECRET ?? "";
+  const secretsMatch =
+    providedSecret.length === expectedSecret.length &&
+    expectedSecret.length > 0 &&
+    timingSafeEqual(Buffer.from(providedSecret), Buffer.from(expectedSecret));
+  if (!secretsMatch) {
     console.error(`Cardcom indicator [Layer 1]: invalid secret from IP ${ip}`);
     // Log security event (best-effort — no businessId yet)
     await prisma.subscriptionEvent.create({
@@ -166,4 +174,9 @@ export async function GET(request: NextRequest) {
 
   console.log(`Cardcom: activated ${tier} for business ${businessId}, deal ${data.DealNumber}`);
   return new Response("OK");
+  } catch (error) {
+    console.error("Cardcom indicator: unhandled error:", error);
+    // Always return OK to Cardcom to prevent retries on server errors
+    return new Response("OK");
+  }
 }

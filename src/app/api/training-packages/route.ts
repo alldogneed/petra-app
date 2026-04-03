@@ -49,10 +49,10 @@ export async function POST(request: NextRequest) {
 
     const parsedSessions = parseInt(sessions);
     const parsedPrice = parseFloat(price);
-    if (isNaN(parsedSessions) || parsedSessions < 1) {
+    if (!Number.isFinite(parsedSessions) || parsedSessions < 1) {
       return NextResponse.json({ error: "מספר מפגשים חייב להיות מספר חיובי" }, { status: 400 });
     }
-    if (isNaN(parsedPrice) || parsedPrice < 0) {
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
       return NextResponse.json({ error: "מחיר לא תקין" }, { status: 400 });
     }
 

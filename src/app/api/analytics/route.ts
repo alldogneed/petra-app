@@ -50,6 +50,14 @@ export async function GET(request: NextRequest) {
     const prevFrom = new Date(fromDate.getTime() - periodLength);
     const prevTo = fromDate;
 
+    // Query lead stages to get their IDs (for analytics queries)
+    const leadStages = await prisma.leadStage.findMany({
+      where: { businessId: authResult.businessId },
+    });
+    const activeStageIds = leadStages.filter((s) => !s.isWon && !s.isLost).map((s) => s.id);
+    const wonStageIds = leadStages.filter((s) => s.isWon).map((s) => s.id);
+    const lostStageIds = leadStages.filter((s) => s.isLost).map((s) => s.id);
+
     // Gather all stats in parallel
     const [
       totalCustomers,
@@ -115,17 +123,17 @@ export async function GET(request: NextRequest) {
       prisma.task.count({
         where: { businessId: authResult.businessId, status: "COMPLETED", completedAt: { gte: fromDate } },
       }),
-      // Active leads
+      // Active leads (non-won, non-lost stages)
       prisma.lead.count({
-        where: { businessId: authResult.businessId, stage: { in: ["new", "contacted", "qualified"] } },
+        where: { businessId: authResult.businessId, stage: { in: activeStageIds } },
       }),
       // Won leads this period
       prisma.lead.count({
-        where: { businessId: authResult.businessId, stage: "won", updatedAt: { gte: fromDate } },
+        where: { businessId: authResult.businessId, stage: { in: wonStageIds }, updatedAt: { gte: fromDate } },
       }),
       // Lost leads this period
       prisma.lead.count({
-        where: { businessId: authResult.businessId, stage: "lost", lostAt: { gte: fromDate } },
+        where: { businessId: authResult.businessId, stage: { in: lostStageIds }, lostAt: { gte: fromDate } },
       }),
       // Active training programs
       prisma.trainingProgram.count({

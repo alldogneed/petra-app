@@ -233,6 +233,15 @@ export async function rescheduleBoardingCheckoutReminder(stay: BoardingStayForRe
  */
 export async function scheduleBoardingThankYou(stay: BoardingStayForReminder) {
   if (!stay.customerId) return null;
+
+  // Enforce tier gate: thank-you messages require PRO+ (same as reminders)
+  const bizSettings = await prisma.business.findUnique({
+    where: { id: stay.businessId },
+    select: { tier: true, featureOverrides: true },
+  });
+  const overrides = (bizSettings?.featureOverrides as Record<string, boolean> | null) ?? null;
+  if (!hasFeatureWithOverrides(bizSettings?.tier ?? "free", "whatsapp_reminders", overrides)) return null;
+
   const relatedEntityId = `boarding-thankyou-${stay.id}`;
 
   const existing = await prisma.scheduledMessage.findFirst({

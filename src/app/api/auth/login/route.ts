@@ -61,6 +61,11 @@ export async function POST(request: NextRequest) {
       await ensureUserHasBusiness(user.id, user.name);
     }
 
+    // Invalidate all existing sessions for this user to prevent session fixation
+    await prisma.adminSession.deleteMany({
+      where: { userId: user.id }
+    });
+
     // Create session (rememberMe=true → 30-day DB session + cookie)
     const { token } = await createSession(user.id, request, !!rememberMe);
     setSessionCookie(token, !!rememberMe);

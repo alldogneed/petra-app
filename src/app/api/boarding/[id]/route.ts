@@ -106,7 +106,7 @@ export async function PATCH(
     // If actualCheckinTime provided, use it as checkIn
     // If actualCheckoutTime provided, use it for actual checkout
     const stay = await prisma.boardingStay.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: {
         ...(body.checkIn !== undefined && { checkIn: new Date(body.checkIn) }),
         ...(body.actualCheckinTime && { checkIn: new Date(body.actualCheckinTime) }),
@@ -237,7 +237,7 @@ export async function DELETE(
     // Cancel any pending reminders before deleting
     await cancelBoardingCheckoutReminders(params.id);
 
-    await prisma.boardingStay.delete({ where: { id: params.id } });
+    await prisma.boardingStay.delete({ where: { id: params.id, businessId: authResult.businessId } });
 
     const { session } = authResult;
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_BOARDING);

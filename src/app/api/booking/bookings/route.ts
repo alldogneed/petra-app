@@ -13,8 +13,15 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
 
+    const VALID_BOOKING_STATUSES = ["pending", "confirmed", "declined", "cancelled"];
+
     const where: any = { businessId: authResult.businessId };
-    if (status) where.status = status;
+    if (status) {
+      if (!VALID_BOOKING_STATUSES.includes(status)) {
+        return NextResponse.json({ error: "סטטוס לא חוקי" }, { status: 400 });
+      }
+      where.status = status;
+    }
     if (from || to) {
       where.startAt = {};
       if (from) where.startAt.gte = new Date(from);

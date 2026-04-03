@@ -32,17 +32,35 @@ export async function PATCH(
             practiceItems, nextSessionGoals, homeworkForCustomer, trainerName } = body;
 
     const data: Record<string, unknown> = {};
-    if (sessionDate !== undefined) data.sessionDate = new Date(sessionDate);
-    if (durationMinutes !== undefined) data.durationMinutes = parseInt(durationMinutes) || 60;
+    if (sessionDate !== undefined) {
+      const d = new Date(sessionDate);
+      if (isNaN(d.getTime())) return NextResponse.json({ error: "תאריך לא חוקי" }, { status: 400 });
+      data.sessionDate = d;
+    }
+    if (durationMinutes !== undefined) {
+      const parsed = parseInt(durationMinutes, 10);
+      data.durationMinutes = Number.isFinite(parsed) && parsed > 0 ? parsed : 60;
+    }
     if (summary !== undefined) data.summary = summary || null;
-    if (rating !== undefined) data.rating = rating != null ? parseInt(rating) : null;
+    if (rating !== undefined) {
+      if (rating == null) {
+        data.rating = null;
+      } else {
+        const parsedRating = parseInt(rating, 10);
+        if (!Number.isFinite(parsedRating) || parsedRating < 1 || parsedRating > 5) {
+          return NextResponse.json({ error: "דירוג חייב להיות בין 1 ל-5" }, { status: 400 });
+        }
+        data.rating = parsedRating;
+      }
+    }
     if (practiceItems !== undefined) data.practiceItems = practiceItems || null;
     if (nextSessionGoals !== undefined) data.nextSessionGoals = nextSessionGoals || null;
     if (homeworkForCustomer !== undefined) data.homeworkForCustomer = homeworkForCustomer || null;
     if (trainerName !== undefined) data.trainerName = trainerName || null;
 
+    // Defence-in-depth: use the verified session's id
     const updated = await prisma.trainingProgramSession.update({
-      where: { id: params.sessionId },
+      where: { id: session.id },
       data,
     });
 
@@ -90,8 +108,9 @@ export async function DELETE(
       }
     }
 
+    // Defence-in-depth: use the verified session's id
     await prisma.trainingProgramSession.delete({
-      where: { id: params.sessionId },
+      where: { id: session.id },
     });
 
     return NextResponse.json({ success: true });

@@ -21,7 +21,7 @@ export async function DELETE(
       return NextResponse.json({ error: "חוזה לא נמצא" }, { status: 404 });
     }
 
-    await prisma.contractRequest.delete({ where: { id: params.id } });
+    await prisma.contractRequest.delete({ where: { id: params.id, businessId } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

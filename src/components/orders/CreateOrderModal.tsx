@@ -6,7 +6,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   X, Search, Plus, Minus, Trash2, CalendarDays, Clock,
   Send, MessageCircle, Building2, GraduationCap, Package, Scissors, Users,
-  CreditCard, ChevronDown, ChevronUp, CheckCircle2,
+  CreditCard, CheckCircle2, RefreshCw,
 } from "lucide-react";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { triggerLimitModal } from "@/lib/limit-reached";
@@ -230,6 +230,12 @@ export function CreateOrderModal({
   const [payAtCheckout, setPayAtCheckout] = useState(false);
   const [checkoutPayMethod, setCheckoutPayMethod] = useState("cash");
   const [checkoutPayAmount, setCheckoutPayAmount] = useState("");
+  const [checkoutCardLast4, setCheckoutCardLast4] = useState("");
+  const [checkoutCardType, setCheckoutCardType] = useState("visa");
+  const [checkoutCheckNumber, setCheckoutCheckNumber] = useState("");
+  const [checkoutCheckBank, setCheckoutCheckBank] = useState("");
+  const [checkoutCheckBranch, setCheckoutCheckBranch] = useState("");
+  const [checkoutCheckDate, setCheckoutCheckDate] = useState("");
 
   // Lines
   const [lines, setLines] = useState<OrderLineForm[]>([]);
@@ -479,7 +485,7 @@ export function CreateOrderModal({
 
   // Mutation — accepts explicit status to avoid stale-closure race condition
   const mutation = useMutation({
-    mutationFn: async (opts: { status: "draft" | "confirmed"; payNow?: { amount: number; method: string } }) => {
+    mutationFn: async (opts: { status: "draft" | "confirmed"; payNow?: { amount: number; method: string; cardLast4?: string; cardType?: string; checkNumber?: string; checkBank?: string; checkBranch?: string; checkDate?: string } }) => {
       const statusOverride = opts.status;
       // 1. Create the order (+ linked Appointment for service types, via API transaction)
       const res = await fetch("/api/orders", {
@@ -575,6 +581,12 @@ export function CreateOrderModal({
             status: "paid",
             customerId,
             orderId: order.id,
+            cardLast4: opts.payNow.cardLast4 || null,
+            cardType: opts.payNow.cardType || null,
+            checkNumber: opts.payNow.checkNumber || null,
+            checkBank: opts.payNow.checkBank || null,
+            checkBranch: opts.payNow.checkBranch || null,
+            checkDate: opts.payNow.checkDate || null,
           }),
         });
       }
@@ -1264,7 +1276,21 @@ export function CreateOrderModal({
         {addCat && !addCustomMode && (
           <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-petra-border">
             <div>
-              <p className="text-sm font-semibold text-petra-text mb-1.5">שירות נבחר</p>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-sm font-semibold text-petra-text">שירות נבחר</p>
+                <button
+                  type="button"
+                  title="רענן רשימת שירותים"
+                  onClick={() => {
+                    qc.invalidateQueries({ queryKey: ["price-list-items-all-active"] });
+                    qc.invalidateQueries({ queryKey: ["price-lists"] });
+                  }}
+                  className="flex items-center gap-1 text-xs text-petra-muted hover:text-brand-600 transition-colors"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  רענן
+                </button>
+              </div>
               {catItems.length === 0 ? (
                 <div className="text-sm text-petra-muted p-3 bg-white border border-dashed border-petra-border rounded-xl text-center">
                   אין שירותים בקטגוריה &quot;{addCat}&quot;.{" "}
@@ -1686,25 +1712,23 @@ export function CreateOrderModal({
 
       {/* ── Pay at checkout ── */}
       <div className="rounded-xl border border-emerald-200 overflow-hidden">
-        <button
-          type="button"
-          className="w-full flex items-center justify-between px-3 py-2.5 bg-emerald-50 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors"
-          onClick={() => {
-            setPayAtCheckout((v) => !v);
-            if (!checkoutPayAmount) setCheckoutPayAmount(calc.total.toFixed(2));
-          }}
-        >
-          <span className="flex items-center gap-2">
+        <label className="flex items-center gap-3 px-3 py-2.5 bg-emerald-50 cursor-pointer hover:bg-emerald-100 transition-colors">
+          <input
+            type="checkbox"
+            checked={payAtCheckout}
+            onChange={(e) => {
+              setPayAtCheckout(e.target.checked);
+              if (e.target.checked && !checkoutPayAmount) setCheckoutPayAmount(calc.total.toFixed(2));
+            }}
+            className="w-4 h-4 rounded accent-emerald-600 cursor-pointer"
+          />
+          <span className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
             <CreditCard className="w-4 h-4" />
             הלקוח שילם עכשיו
           </span>
-          {payAtCheckout
-            ? <ChevronUp className="w-4 h-4" />
-            : <ChevronDown className="w-4 h-4" />
-          }
-        </button>
+        </label>
         {payAtCheckout && (
-          <div className="px-3 pb-3 pt-2 space-y-2 bg-white border-t border-emerald-100">
+          <div className="px-3 pb-3 pt-2 space-y-2.5 bg-white border-t border-emerald-100">
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="label text-xs">סכום שהתקבל (₪)</label>
@@ -1722,7 +1746,7 @@ export function CreateOrderModal({
                 <select
                   className="input text-sm"
                   value={checkoutPayMethod}
-                  onChange={(e) => setCheckoutPayMethod(e.target.value)}
+                  onChange={(e) => { setCheckoutPayMethod(e.target.value); }}
                 >
                   <option value="cash">מזומן</option>
                   <option value="credit_card">כרטיס אשראי</option>
@@ -1733,6 +1757,55 @@ export function CreateOrderModal({
                 </select>
               </div>
             </div>
+            {/* Credit card details */}
+            {checkoutPayMethod === "credit_card" && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="label text-xs">4 ספרות אחרונות</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    placeholder="1234"
+                    className="input text-sm"
+                    value={checkoutCardLast4}
+                    onChange={(e) => setCheckoutCardLast4(e.target.value.replace(/\D/g, ""))}
+                  />
+                </div>
+                <div>
+                  <label className="label text-xs">סוג כרטיס</label>
+                  <select className="input text-sm" value={checkoutCardType} onChange={(e) => setCheckoutCardType(e.target.value)}>
+                    <option value="visa">Visa</option>
+                    <option value="mastercard">Mastercard</option>
+                    <option value="amex">Amex</option>
+                    <option value="diners">Diners</option>
+                    <option value="isracard">Isracard</option>
+                    <option value="other">אחר</option>
+                  </select>
+                </div>
+              </div>
+            )}
+            {/* Check details */}
+            {checkoutPayMethod === "check" && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="label text-xs">מספר המחאה</label>
+                  <input type="text" placeholder="12345" className="input text-sm" value={checkoutCheckNumber} onChange={(e) => setCheckoutCheckNumber(e.target.value)} />
+                </div>
+                <div>
+                  <label className="label text-xs">תאריך פירעון</label>
+                  <input type="date" className="input text-sm" value={checkoutCheckDate} onChange={(e) => setCheckoutCheckDate(e.target.value)} />
+                </div>
+                <div>
+                  <label className="label text-xs">בנק</label>
+                  <input type="text" placeholder="לאומי" className="input text-sm" value={checkoutCheckBank} onChange={(e) => setCheckoutCheckBank(e.target.value)} />
+                </div>
+                <div>
+                  <label className="label text-xs">סניף</label>
+                  <input type="text" placeholder="900" className="input text-sm" value={checkoutCheckBranch} onChange={(e) => setCheckoutCheckBranch(e.target.value)} />
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1769,7 +1842,16 @@ export function CreateOrderModal({
           disabled={mutation.isPending || calc.total <= 0}
           onClick={() => mutation.mutate({
             status: "confirmed",
-            payNow: payAtCheckout ? { amount: parseFloat(checkoutPayAmount) || calc.total, method: checkoutPayMethod } : undefined,
+            payNow: payAtCheckout ? {
+              amount: parseFloat(checkoutPayAmount) || calc.total,
+              method: checkoutPayMethod,
+              cardLast4: checkoutCardLast4 || undefined,
+              cardType: checkoutPayMethod === "credit_card" ? checkoutCardType : undefined,
+              checkNumber: checkoutCheckNumber || undefined,
+              checkBank: checkoutCheckBank || undefined,
+              checkBranch: checkoutCheckBranch || undefined,
+              checkDate: checkoutCheckDate || undefined,
+            } : undefined,
           })}
         >
           {mutation.isPending ? "שומר..." : payAtCheckout

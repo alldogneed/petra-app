@@ -25,7 +25,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Block not found" }, { status: 404 })
   }
 
-  await prisma.availabilityBlock.delete({ where: { id: params.id } })
+  await prisma.availabilityBlock.delete({ where: { id: params.id, businessId } })
   return NextResponse.json({ ok: true })
 }
 
@@ -71,7 +71,7 @@ export async function PATCH(
   const { startAt, endAt, reason } = validationResult.data
 
   const updated = await prisma.availabilityBlock.update({
-    where: { id: params.id },
+    where: { id: params.id, businessId },
     data: {
       ...(startAt ? { startAt: new Date(startAt) } : {}),
       ...(endAt ? { endAt: new Date(endAt) } : {}),

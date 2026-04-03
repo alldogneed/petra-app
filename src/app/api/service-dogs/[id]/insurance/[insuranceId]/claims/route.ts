@@ -24,22 +24,47 @@ export async function POST(
       return NextResponse.json({ error: "סטטוס תביעה לא חוקי" }, { status: 400 });
     }
 
+    // Validate required date
+    const incidentDate = new Date(body.incidentDate);
+    if (isNaN(incidentDate.getTime())) {
+      return NextResponse.json({ error: "תאריך אירוע לא חוקי" }, { status: 400 });
+    }
+
+    // Validate optional dates
+    let submittedAt: Date | null = null;
+    if (body.submittedAt) {
+      submittedAt = new Date(body.submittedAt);
+      if (isNaN(submittedAt.getTime())) return NextResponse.json({ error: "תאריך הגשה לא חוקי" }, { status: 400 });
+    }
+    let followUpAt: Date | null = null;
+    if (body.followUpAt) {
+      followUpAt = new Date(body.followUpAt);
+      if (isNaN(followUpAt.getTime())) return NextResponse.json({ error: "תאריך מעקב לא חוקי" }, { status: 400 });
+    }
+
+    // Validate numeric amounts
+    const parseAmount = (val: unknown): number | null => {
+      if (val == null || val === "") return null;
+      const n = parseFloat(String(val));
+      return Number.isFinite(n) && n >= 0 ? n : null;
+    };
+
     const claim = await prisma.serviceDogClaim.create({
       data: {
         insuranceId: params.insuranceId,
         businessId: auth.businessId,
-        incidentDate: new Date(body.incidentDate),
+        incidentDate,
         description: body.description || null,
-        amount: body.amount ? parseFloat(body.amount) : null,
-        deductiblePaid: body.deductiblePaid ? parseFloat(body.deductiblePaid) : null,
-        reimbursedAmount: body.reimbursedAmount ? parseFloat(body.reimbursedAmount) : null,
+        amount: parseAmount(body.amount),
+        deductiblePaid: parseAmount(body.deductiblePaid),
+        reimbursedAmount: parseAmount(body.reimbursedAmount),
         vetName: body.vetName || null,
         claimNumber: body.claimNumber || null,
         invoiceAttached: body.invoiceAttached ?? false,
         visitSummaryAttached: body.visitSummaryAttached ?? false,
         documents: body.documents ?? [],
-        submittedAt: body.submittedAt ? new Date(body.submittedAt) : null,
-        followUpAt: body.followUpAt ? new Date(body.followUpAt) : null,
+        submittedAt,
+        followUpAt,
         status: body.status || "PENDING",
         notes: body.notes || null,
       },

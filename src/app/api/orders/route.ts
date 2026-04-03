@@ -9,7 +9,7 @@ import { syncAppointmentToGcal, syncBoardingToGcal } from "@/lib/google-calendar
 import { sendWhatsAppTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
-import { getMaxOrders, normalizeTier } from "@/lib/feature-flags";
+import { getMaxOrders, normalizeTier, hasFeatureWithOverrides } from "@/lib/feature-flags";
 
 export async function GET(request: NextRequest) {
   try {
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Enforce order limit for free tier ───────────────────────────────────
-    const biz = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true } });
+    const biz = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true, featureOverrides: true } });
     const maxOrders = getMaxOrders(normalizeTier(biz?.tier));
     if (maxOrders !== null) {
       const orderCount = await prisma.order.count({ where: { businessId: authResult.businessId } });
@@ -321,8 +321,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Send immediate WhatsApp confirmation for linked appointment (fire-and-forget)
-    if (linkedAppointmentId && appointmentData) {
+    // Send immediate WhatsApp confirmation for linked appointment (PRO+ only, fire-and-forget)
+    const bizOverrides = (biz?.featureOverrides as Record<string, boolean> | null) ?? null;
+    const canSendConfirmation = hasFeatureWithOverrides(biz?.tier ?? "free", "whatsapp_reminders", bizOverrides);
+    if (canSendConfirmation && linkedAppointmentId && appointmentData) {
       const customer = await prisma.customer.findUnique({
         where: { id: customerId },
         select: { name: true, phone: true },

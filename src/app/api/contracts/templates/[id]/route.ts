@@ -31,7 +31,7 @@ export async function PATCH(
     if (!template) return NextResponse.json({ error: "תבנית לא נמצאה" }, { status: 404 });
 
     const updated = await prisma.contractTemplate.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: {
         ...(body.name !== undefined && { name: body.name }),
         ...(body.signaturePage !== undefined && { signaturePage: Math.max(1, Number(body.signaturePage)) }),

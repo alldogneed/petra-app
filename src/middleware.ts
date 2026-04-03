@@ -1,44 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PATHS = [
+/**
+ * Paths that allow unauthenticated access.
+ *
+ * PREFIX paths (matched with startsWith — any sub-path is also public):
+ */
+const PUBLIC_PREFIX_PATHS = [
+  "/book",          // /book/[slug], /book/[slug]/success, etc.
+  "/api/book",      // /api/book/[slug]
+  "/my-booking",    // /my-booking/[token]
+  "/api/my-booking", // /api/my-booking/[token]
+  "/api/cron/",     // /api/cron/* — trailing slash ensures /api/cronXXX won't match
+  "/api/webhooks/", // /api/webhooks/* — trailing slash prevents prefix collision
+  "/api/service-dogs/id-card", // /api/service-dogs/id-card/[token]
+];
+
+/**
+ * EXACT paths (matched with === or === path + "/"):
+ */
+const PUBLIC_EXACT_PATHS = new Set([
   "/login",
   "/register",
   "/forgot-password",
   "/reset-password",
-  "/api/auth/login",
-  "/api/auth/register",
-  "/api/auth/forgot-password",
-  "/api/auth/reset-password",
-  "/api/auth/logout",
-  "/book",
-  "/api/book",
-  "/my-booking",
-  "/api/my-booking",
-  // NOTE: /intake and /api/intake are handled below with regex
-  // to allow /intake/[token] only — NOT /intake or /intake/ (admin pages)
-  "/api/booking/availability",
-  "/api/booking/slots",
-  "/api/booking/book",
-  "/api/cron",
-  "/api/webhooks/invoices",
-  "/api/webhooks/lead",
-  "/api/cardcom/indicator", // Cardcom server-to-server webhook — no session cookie
-  "/api/service-dogs/id-card",
-  "/api/integrations/google/callback", // Google Calendar OAuth callback
-  "/payment/success",
-  "/payment/error",
   "/privacy",
   "/terms",
   "/tos-accept",
   "/landing",
   "/accessibility",
   "/checkout",
+  "/payment/success",
+  "/payment/error",
   "/payment/trial-success",
+  "/api/auth/login",
+  "/api/auth/register",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password",
+  "/api/auth/logout",
+  "/api/booking/availability",
+  "/api/booking/slots",
+  "/api/booking/book",
+  "/api/cardcom/indicator",
   "/api/cardcom/create-trial",
   "/api/cardcom/create-checkout",
   "/api/cardcom/checkout-indicator",
+  "/api/cardcom/trial-indicator",
+  "/api/integrations/google/callback",
   "/api/test-notify",
-];
+]);
 
 /** Validate token format: must be exactly 64 hex characters */
 function isValidTokenFormat(token: string): boolean {
@@ -58,8 +67,13 @@ export function middleware(request: NextRequest) {
   // Allow public sign API: /api/sign/[token]
   if (/^\/api\/sign\/[^/]+/.test(pathname)) return NextResponse.next();
 
-  // Allow other public paths
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+  // Allow exact public paths
+  if (PUBLIC_EXACT_PATHS.has(pathname)) {
+    return NextResponse.next();
+  }
+
+  // Allow prefix-based public paths
+  if (PUBLIC_PREFIX_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
@@ -68,8 +82,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow all /api/auth/* paths
-  if (pathname.startsWith("/api/auth")) {
+  // Allow specific /api/auth/* sub-paths that need public access (2FA, Google OAuth, me, session)
+  // These have their own internal auth checks, but must pass through middleware
+  // because they're called from both authenticated and unauthenticated contexts
+  if (pathname.startsWith("/api/auth/")) {
     return NextResponse.next();
   }
 

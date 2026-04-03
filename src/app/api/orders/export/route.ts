@@ -31,8 +31,14 @@ export async function GET(request: NextRequest) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
 
+  const VALID_ORDER_STATUSES = ["draft", "confirmed", "completed", "cancelled", "canceled"];
   const where: Record<string, unknown> = { businessId: authResult.businessId };
-  if (status && status !== "ALL") where.status = status;
+  if (status && status !== "ALL") {
+    if (!VALID_ORDER_STATUSES.includes(status)) {
+      return NextResponse.json({ error: "סטטוס לא חוקי" }, { status: 400 });
+    }
+    where.status = status;
+  }
   if (from || to) {
     const createdAt: Record<string, Date> = {};
     if (from) createdAt.gte = new Date(from);

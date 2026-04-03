@@ -8,6 +8,7 @@ import { scheduleBoardingCheckoutReminder } from "@/lib/reminder-service";
 import { syncBoardingToGcal } from "@/lib/google-calendar";
 import { sendWhatsAppTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
+import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 
 export async function GET(request: NextRequest) {
   try {
@@ -139,8 +140,14 @@ export async function POST(request: NextRequest) {
 
     logCurrentUserActivity("CREATE_BOARDING_STAY");
 
-    // Send immediate WhatsApp booking confirmation (fire-and-forget)
-    if (stay.customer?.phone) {
+    // Send immediate WhatsApp booking confirmation (PRO+ only, fire-and-forget)
+    const bizForWa = await prisma.business.findUnique({
+      where: { id: authResult.businessId },
+      select: { tier: true, featureOverrides: true },
+    });
+    const waOverrides = (bizForWa?.featureOverrides as Record<string, boolean> | null) ?? null;
+    const canSendBoardingWa = hasFeatureWithOverrides(bizForWa?.tier ?? "free", "whatsapp_reminders", waOverrides);
+    if (canSendBoardingWa && stay.customer?.phone) {
       const phone = toWhatsAppPhone(stay.customer.phone);
       if (phone) {
         const checkInStr = stay.checkIn.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });

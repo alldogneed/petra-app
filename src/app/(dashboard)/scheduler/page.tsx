@@ -132,9 +132,9 @@ function formatHebDate(dateString: string): string {
 export default function SchedulerPage() {
   return (
     <TierGate
-      feature="appointments"
-      title="יומן פגישות"
-      description="קבע וניהל פגישות עם לקוחות — זמין במנוי בייסיק ומעלה."
+      feature="online_bookings"
+      title="ניהול תורים אונליין"
+      description="אפשר ללקוחות לקבוע תורים בעצמם — זמין במנוי פרו ומעלה."
     >
       <SchedulerContent />
     </TierGate>

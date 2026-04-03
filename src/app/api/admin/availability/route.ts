@@ -16,65 +16,75 @@ const DEFAULT_RULES = [
 
 // GET /api/admin/availability
 export async function GET(request: NextRequest) {
-  const guard = await requirePlatformPermission(request, PLATFORM_PERMS.TENANTS_READ);
-  if (isGuardError(guard)) return guard;
+  try {
+    const guard = await requirePlatformPermission(request, PLATFORM_PERMS.TENANTS_READ);
+    if (isGuardError(guard)) return guard;
 
-  const { searchParams } = new URL(request.url);
-  const session = await resolveSession(request);
-  const businessId =
-    searchParams.get("businessId") ||
-    session?.memberships.find((m) => m.isActive)?.businessId ||
-    ""
-  if (!businessId) {
-    return NextResponse.json({ error: "businessId required" }, { status: 400 });
-  }
-  let rules = await prisma.availabilityRule.findMany({
-    where: { businessId },
-    orderBy: { dayOfWeek: "asc" },
-  })
+    const { searchParams } = new URL(request.url);
+    const session = await resolveSession(request);
+    const businessId =
+      searchParams.get("businessId") ||
+      session?.memberships.find((m) => m.isActive)?.businessId ||
+      ""
+    if (!businessId) {
+      return NextResponse.json({ error: "businessId required" }, { status: 400 });
+    }
+    let rules = await prisma.availabilityRule.findMany({
+      where: { businessId },
+      orderBy: { dayOfWeek: "asc" },
+    })
 
-  // Seed defaults if none exist
-  if (rules.length === 0) {
-    rules = await Promise.all(
-      DEFAULT_RULES.map((r) =>
-        prisma.availabilityRule.create({ data: { ...r, businessId } })
+    // Seed defaults if none exist
+    if (rules.length === 0) {
+      rules = await Promise.all(
+        DEFAULT_RULES.map((r) =>
+          prisma.availabilityRule.create({ data: { ...r, businessId } })
+        )
       )
-    )
-  }
+    }
 
-  return NextResponse.json({ rules })
+    return NextResponse.json({ rules })
+  } catch (error) {
+    console.error("GET /api/admin/availability error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 // PUT /api/admin/availability
 // Body: { rules: [{ dayOfWeek, isOpen, openTime, closeTime }], businessId? }
 export async function PUT(req: NextRequest) {
-  const guard = await requirePlatformPermission(req, PLATFORM_PERMS.TENANTS_WRITE);
-  if (isGuardError(guard)) return guard;
+  try {
+    const guard = await requirePlatformPermission(req, PLATFORM_PERMS.TENANTS_WRITE);
+    if (isGuardError(guard)) return guard;
 
-  const body = await req.json();
-  const { rules } = body;
-  const session = await resolveSession(req);
-  const businessId =
-    body.businessId ||
-    session?.memberships.find((m) => m.isActive)?.businessId ||
-    ""
-  if (!businessId) {
-    return NextResponse.json({ error: "businessId required" }, { status: 400 });
-  }
+    const body = await req.json();
+    const { rules } = body;
+    const session = await resolveSession(req);
+    const businessId =
+      body.businessId ||
+      session?.memberships.find((m) => m.isActive)?.businessId ||
+      ""
+    if (!businessId) {
+      return NextResponse.json({ error: "businessId required" }, { status: 400 });
+    }
 
-  if (!Array.isArray(rules)) {
-    return NextResponse.json({ error: "rules must be an array" }, { status: 400 })
-  }
+    if (!Array.isArray(rules)) {
+      return NextResponse.json({ error: "rules must be an array" }, { status: 400 })
+    }
 
-  const updated = await prisma.$transaction(
-    rules.map((r: { dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string }) =>
-      prisma.availabilityRule.upsert({
-        where: { businessId_dayOfWeek: { businessId, dayOfWeek: r.dayOfWeek } },
-        update: { isOpen: r.isOpen, openTime: r.openTime, closeTime: r.closeTime },
-        create: { businessId, dayOfWeek: r.dayOfWeek, isOpen: r.isOpen, openTime: r.openTime, closeTime: r.closeTime },
-      })
+    const updated = await prisma.$transaction(
+      rules.map((r: { dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string }) =>
+        prisma.availabilityRule.upsert({
+          where: { businessId_dayOfWeek: { businessId, dayOfWeek: r.dayOfWeek } },
+          update: { isOpen: r.isOpen, openTime: r.openTime, closeTime: r.closeTime },
+          create: { businessId, dayOfWeek: r.dayOfWeek, isOpen: r.isOpen, openTime: r.openTime, closeTime: r.closeTime },
+        })
+      )
     )
-  )
 
-  return NextResponse.json({ rules: updated })
+    return NextResponse.json({ rules: updated })
+  } catch (error) {
+    console.error("PUT /api/admin/availability error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

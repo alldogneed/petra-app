@@ -23,48 +23,53 @@ function extractToken(request: NextRequest): string | null {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await resolveSession(request);
-  if (!session) {
-    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-  }
+  try {
+    const session = await resolveSession(request);
+    if (!session) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
 
-  // Only super_admin can exit impersonation (it's their session feature)
-  if (session.user.platformRole !== "super_admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+    // Only super_admin can exit impersonation (it's their session feature)
+    if (session.user.platformRole !== "super_admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
-  if (!session.impersonatedBusinessId) {
-    return NextResponse.json({ error: "Not currently impersonating" }, { status: 400 });
-  }
+    if (!session.impersonatedBusinessId) {
+      return NextResponse.json({ error: "Not currently impersonating" }, { status: 400 });
+    }
 
-  const token = extractToken(request);
-  if (!token) {
-    return NextResponse.json({ error: "No session token" }, { status: 401 });
-  }
+    const token = extractToken(request);
+    if (!token) {
+      return NextResponse.json({ error: "No session token" }, { status: 401 });
+    }
 
-  const impersonatedBusinessId = session.impersonatedBusinessId;
+    const impersonatedBusinessId = session.impersonatedBusinessId;
 
-  const tokenHashed = hashToken(token);
-  await prisma.adminSession.updateMany({
-    where: { token: tokenHashed },
-    data: {
-      impersonatedBusinessId: null,
-      impersonatedByAdminId: null,
-    } as Record<string, unknown>,
-  });
-
-  if (impersonatedBusinessId) {
-    const { ip, userAgent } = getRequestContext(request);
-    await logAudit({
-      actorUserId: session.user.id,
-      actorPlatformRole: session.user.platformRole,
-      action: "IMPERSONATION_ENDED",
-      targetType: "business",
-      targetId: impersonatedBusinessId,
-      ip,
-      userAgent,
+    const tokenHashed = hashToken(token);
+    await prisma.adminSession.updateMany({
+      where: { token: tokenHashed },
+      data: {
+        impersonatedBusinessId: null,
+        impersonatedByAdminId: null,
+      } as Record<string, unknown>,
     });
-  }
 
-  return NextResponse.json({ ok: true });
+    if (impersonatedBusinessId) {
+      const { ip, userAgent } = getRequestContext(request);
+      await logAudit({
+        actorUserId: session.user.id,
+        actorPlatformRole: session.user.platformRole,
+        action: "IMPERSONATION_ENDED",
+        targetType: "business",
+        targetId: impersonatedBusinessId,
+        ip,
+        userAgent,
+      });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("exit-impersonation POST error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

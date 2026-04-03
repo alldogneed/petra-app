@@ -39,12 +39,8 @@ const DISABILITY_LABELS: Record<string, string> = {
 };
 
 const PLACEMENT_STATUS_LABELS: Record<string, string> = {
-  PENDING: "ממתין",
-  TRIAL: "תקופת ניסיון",
   ACTIVE: "פעיל",
-  SUSPENDED: "מושהה",
   TERMINATED: "הסתיים",
-  COMPLETED: "הושלם",
 };
 
 function fmt(d: Date | string | null | undefined): string {
@@ -68,7 +64,7 @@ export async function GET(request: NextRequest) {
       include: {
         customer: { select: { name: true, phone: true } },
         placements: {
-          where: { status: { in: ["ACTIVE", "TRIAL"] } },
+          where: { status: "ACTIVE" },
           include: {
             serviceDog: {
               include: {

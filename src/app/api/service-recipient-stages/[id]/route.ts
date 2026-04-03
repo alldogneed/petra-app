@@ -36,8 +36,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       },
     });
 
-    // Re-fetch to return the updated stage
-    const updated = await prisma.serviceRecipientStage.findUnique({ where: { id: params.id } });
+    // Re-fetch to return the updated stage (include businessId for defence-in-depth)
+    const updated = await prisma.serviceRecipientStage.findFirst({ where: { id: params.id, businessId: auth.businessId } });
     return NextResponse.json(updated);
   } catch (e) {
     console.error("PATCH stage error:", e);

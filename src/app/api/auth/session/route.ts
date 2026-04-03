@@ -9,22 +9,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveSession } from "@/lib/auth-guards";
 
 export async function GET(request: NextRequest) {
-  const session = await resolveSession(request);
+  try {
+    const session = await resolveSession(request);
 
-  if (!session || !session.user.isActive) {
-    return NextResponse.json({ error: "No active session" }, { status: 401 });
+    if (!session || !session.user.isActive) {
+      return NextResponse.json({ error: "No active session" }, { status: 401 });
+    }
+
+    return NextResponse.json({
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+      isAdmin: session.user.platformRole === "super_admin" || session.user.platformRole === "admin",
+      twoFaEnabled: session.user.twoFaEnabled,
+      twoFaVerified: session.twoFaVerified,
+      memberships: session.memberships.map((m) => ({
+        businessId: m.businessId,
+        role: m.role,
+      })),
+    });
+  } catch (error) {
+    console.error("auth/session GET error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  return NextResponse.json({
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name,
-    isAdmin: session.user.platformRole === "super_admin" || session.user.platformRole === "admin",
-    twoFaEnabled: session.user.twoFaEnabled,
-    twoFaVerified: session.twoFaVerified,
-    memberships: session.memberships.map((m) => ({
-      businessId: m.businessId,
-      role: m.role,
-    })),
-  });
 }

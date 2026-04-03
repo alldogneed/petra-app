@@ -51,6 +51,14 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    // Validate actionUrl format if provided
+    if (body.actionUrl?.trim()) {
+      const trimmedUrl = body.actionUrl.trim();
+      if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://")) {
+        return NextResponse.json({ error: "actionUrl must start with http:// or https://" }, { status: 400 });
+      }
+    }
+
     // Whitelist allowed fields to prevent mass assignment
     const message = await prisma.systemMessage.create({
       data: {

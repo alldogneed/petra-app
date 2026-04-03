@@ -33,6 +33,12 @@ interface OrderPayment {
   paidAt: string | null;
   createdAt: string;
   isDeposit: boolean;
+  cardLast4: string | null;
+  cardType: string | null;
+  checkNumber: string | null;
+  checkBank: string | null;
+  checkBranch: string | null;
+  checkDate: string | null;
 }
 
 interface Order {
@@ -102,6 +108,12 @@ function AddPaymentModal({
   const [notes, setNotes] = useState("");
   const [isDeposit, setIsDeposit] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [cardLast4, setCardLast4] = useState("");
+  const [cardType, setCardType] = useState("visa");
+  const [checkNumber, setCheckNumber] = useState("");
+  const [checkBank, setCheckBank] = useState("");
+  const [checkBranch, setCheckBranch] = useState("");
+  const [checkDate, setCheckDate] = useState("");
 
   async function save() {
     const parsed = parseFloat(amount);
@@ -110,7 +122,16 @@ function AddPaymentModal({
     const res = await fetch("/api/payments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: parsed, method, status: "paid", customerId, orderId, notes: notes || null, isDeposit }),
+      body: JSON.stringify({
+        amount: parsed, method, status: "paid", customerId, orderId,
+        notes: notes || null, isDeposit,
+        cardLast4: method === "credit_card" ? (cardLast4 || null) : null,
+        cardType: method === "credit_card" ? cardType : null,
+        checkNumber: method === "check" ? (checkNumber || null) : null,
+        checkBank: method === "check" ? (checkBank || null) : null,
+        checkBranch: method === "check" ? (checkBranch || null) : null,
+        checkDate: method === "check" ? (checkDate || null) : null,
+      }),
     });
     setSaving(false);
     if (!res.ok) { toast.error("שגיאה ברישום תשלום"); return; }
@@ -126,15 +147,7 @@ function AddPaymentModal({
         <div className="space-y-4">
           <div>
             <label className="label">סכום (₪)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              className="input"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              autoFocus
-            />
+            <input type="number" min="0" step="0.01" className="input" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
           </div>
           <div>
             <label className="label">אמצעי תשלום</label>
@@ -144,33 +157,58 @@ function AddPaymentModal({
               ))}
             </select>
           </div>
+          {method === "credit_card" && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">4 ספרות אחרונות</label>
+                <input type="text" inputMode="numeric" maxLength={4} placeholder="1234" className="input"
+                  value={cardLast4} onChange={(e) => setCardLast4(e.target.value.replace(/\D/g, ""))} />
+              </div>
+              <div>
+                <label className="label">סוג כרטיס</label>
+                <select className="input" value={cardType} onChange={(e) => setCardType(e.target.value)}>
+                  <option value="visa">Visa</option>
+                  <option value="mastercard">Mastercard</option>
+                  <option value="amex">Amex</option>
+                  <option value="diners">Diners</option>
+                  <option value="isracard">Isracard</option>
+                  <option value="other">אחר</option>
+                </select>
+              </div>
+            </div>
+          )}
+          {method === "check" && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">מספר המחאה</label>
+                <input type="text" placeholder="12345" className="input" value={checkNumber} onChange={(e) => setCheckNumber(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">תאריך פירעון</label>
+                <input type="date" className="input" value={checkDate} onChange={(e) => setCheckDate(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">בנק</label>
+                <input type="text" placeholder="לאומי" className="input" value={checkBank} onChange={(e) => setCheckBank(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">סניף</label>
+                <input type="text" placeholder="900" className="input" value={checkBranch} onChange={(e) => setCheckBranch(e.target.value)} />
+              </div>
+            </div>
+          )}
           <div>
             <label className="label">הערות (אופציונלי)</label>
-            <input
-              type="text"
-              className="input"
-              placeholder="מס' המחאה, אסמכתא..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
+            <input type="text" className="input" placeholder="אסמכתא..." value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
           <div className="flex items-center gap-2 pt-1">
-            <input
-              type="checkbox"
-              id="isDeposit"
-              checked={isDeposit}
-              onChange={(e) => setIsDeposit(e.target.checked)}
-              className="w-4 h-4 rounded accent-petra-primary cursor-pointer"
-            />
-            <label htmlFor="isDeposit" className="text-sm text-petra-text cursor-pointer">
-              סמן כמקדמה
-            </label>
+            <input type="checkbox" id="isDeposit" checked={isDeposit} onChange={(e) => setIsDeposit(e.target.checked)}
+              className="w-4 h-4 rounded accent-petra-primary cursor-pointer" />
+            <label htmlFor="isDeposit" className="text-sm text-petra-text cursor-pointer">סמן כמקדמה</label>
           </div>
         </div>
         <div className="flex gap-3 mt-5">
-          <button className="btn-primary flex-1" onClick={save} disabled={saving}>
-            {saving ? "שומר..." : "רשום תשלום"}
-          </button>
+          <button className="btn-primary flex-1" onClick={save} disabled={saving}>{saving ? "שומר..." : "רשום תשלום"}</button>
           <button className="btn-secondary flex-1" onClick={onClose}>ביטול</button>
         </div>
       </div>
@@ -578,8 +616,16 @@ export default function OrderDetailPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-petra-text">
                         {METHOD_LABEL[p.method] ?? p.method}
+                        {p.method === "credit_card" && p.cardType && (
+                          <span className="mr-1 text-xs text-petra-muted capitalize">{p.cardType}{p.cardLast4 ? ` ****${p.cardLast4}` : ""}</span>
+                        )}
                         {p.isDeposit && <span className="mr-1.5 text-xs text-petra-muted">(מקדמה)</span>}
                       </p>
+                      {p.method === "check" && (p.checkNumber || p.checkBank || p.checkDate) && (
+                        <p className="text-xs text-petra-muted">
+                          {[p.checkNumber && `המחאה #${p.checkNumber}`, p.checkBank, p.checkBranch && `סניף ${p.checkBranch}`, p.checkDate].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
                       {p.notes && (
                         <p className="text-xs text-petra-muted truncate">{p.notes}</p>
                       )}

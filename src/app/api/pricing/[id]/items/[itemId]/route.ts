@@ -38,7 +38,7 @@ export async function PATCH(
     if (body.sortOrder !== undefined) data.sortOrder = Number(body.sortOrder);
 
     const item = await prisma.priceListItem.update({
-      where: { id: params.itemId },
+      where: { id: params.itemId, businessId },
       data,
     });
 
@@ -71,7 +71,7 @@ export async function DELETE(
       return NextResponse.json({ error: "פריט לא נמצא" }, { status: 404 });
     }
 
-    await prisma.priceListItem.delete({ where: { id: params.itemId } });
+    await prisma.priceListItem.delete({ where: { id: params.itemId, businessId } });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

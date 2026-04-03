@@ -8,7 +8,7 @@ import { syncAppointmentToGcal } from "@/lib/google-calendar";
 import { sendWhatsAppTemplate, sendWhatsAppMessage, interpolateTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
-import { getMaxAppointments, normalizeTier } from "@/lib/feature-flags";
+import { getMaxAppointments, normalizeTier, hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { localTimeToUtc } from "@/lib/slots";
 
 export async function GET(request: NextRequest) {
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Enforce appointment limit for free tier
-    const business = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true, timezone: true } });
+    const business = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true, timezone: true, featureOverrides: true } });
     const maxAppts = getMaxAppointments(normalizeTier(business?.tier));
     if (maxAppts !== null) {
       const totalCount = await prisma.appointment.count({
@@ -148,8 +148,10 @@ export async function POST(request: NextRequest) {
 
     logCurrentUserActivity("CREATE_APPOINTMENT");
 
-    // Send immediate WhatsApp confirmation (fire-and-forget)
-    if (appointment.customer?.phone) {
+    // Send immediate WhatsApp confirmation (PRO+ only, fire-and-forget)
+    const bizOverrides = (business?.featureOverrides as Record<string, boolean> | null) ?? null;
+    const canSendConfirmation = hasFeatureWithOverrides(business?.tier ?? "free", "whatsapp_reminders", bizOverrides);
+    if (canSendConfirmation && appointment.customer?.phone) {
       const phone = toWhatsAppPhone(appointment.customer.phone);
       if (phone) {
         const [h, m] = appointment.startTime.split(":").map(Number);

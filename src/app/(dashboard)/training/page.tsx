@@ -985,10 +985,10 @@ function TrainingPageContent() {
         <h1 className="page-title">אימונים וניהול כלבים</h1>
 
         {/* Refresh controls */}
-        <div className="flex items-center gap-2 mr-auto">
+        <div className="flex items-center gap-2 ms-auto">
           <button
             onClick={() => setShowManualAdd(true)}
-            className="btn-secondary text-sm"
+            className="btn-primary text-sm"
             title="הוסף תהליך אילוף ידני ללא הזמנה"
           >
             <Plus className="w-4 h-4" />
@@ -1928,10 +1928,10 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
           );
         })()}
         <button
-          className="text-[10px] text-brand-600 hover:text-brand-700 font-medium flex items-center gap-0.5"
+          className="me-0 ms-auto flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors border border-brand-200"
           onClick={() => setShowAdd((v) => !v)}
         >
-          <Plus className="w-3 h-3" />
+          <Plus className="w-3.5 h-3.5" />
           הוסף
         </button>
       </div>
@@ -2039,10 +2039,10 @@ function GoalSection({ program, label = "יעדי אילוף" }: { program: Trai
           {label} ({program.goals.length})
         </h4>
         <button
-          className="text-[10px] text-brand-600 hover:text-brand-700 font-medium flex items-center gap-0.5"
+          className="me-0 ms-auto flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors border border-brand-200"
           onClick={() => setShowAdd((v) => !v)}
         >
-          <Plus className="w-3 h-3" />
+          <Plus className="w-3.5 h-3.5" />
           הוסף יעד
         </button>
       </div>

@@ -77,8 +77,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { amount, method, status, customerId, appointmentId, boardingStayId, orderId, notes, isDeposit } =
-      body;
+    const { amount, method, status, customerId, appointmentId, boardingStayId, orderId, notes, isDeposit,
+      cardLast4, cardType, checkNumber, checkBank, checkBranch, checkDate } = body;
 
     if (!amount || !method || !status || !customerId) {
       return NextResponse.json(
@@ -138,6 +138,12 @@ export async function POST(request: NextRequest) {
         isDeposit: isDeposit === true,
         paidAt: status === "paid" ? new Date() : null,
         businessId: authResult.businessId,
+        cardLast4: method === "credit_card" ? (cardLast4 || null) : null,
+        cardType: method === "credit_card" ? (cardType || null) : null,
+        checkNumber: method === "check" ? (checkNumber || null) : null,
+        checkBank: method === "check" ? (checkBank || null) : null,
+        checkBranch: method === "check" ? (checkBranch || null) : null,
+        checkDate: method === "check" ? (checkDate || null) : null,
       },
       include: {
         customer: {

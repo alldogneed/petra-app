@@ -61,8 +61,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "name and basePrice are required" }, { status: 400 });
     }
 
-    if (Number(basePrice) < 0) {
-      return NextResponse.json({ error: "basePrice must be >= 0" }, { status: 400 });
+    const parsedBasePrice = Number(basePrice);
+    if (!Number.isFinite(parsedBasePrice) || parsedBasePrice < 0) {
+      return NextResponse.json({ error: "basePrice must be a valid number >= 0" }, { status: 400 });
     }
 
     // Auto-create default PriceList if none exists
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
         name: name.trim(),
         category: category || null,
         unit: unit || "per_session",
-        basePrice: Number(basePrice),
+        basePrice: parsedBasePrice,
         description: description || null,
         type: type || "service",
         taxMode: taxMode || "inherit",

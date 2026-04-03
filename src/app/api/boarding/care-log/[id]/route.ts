@@ -24,7 +24,7 @@ export async function DELETE(
       return NextResponse.json({ error: "רשומה לא נמצאה" }, { status: 404 });
     }
 
-    await prisma.boardingCareLog.delete({ where: { id: params.id } });
+    await prisma.boardingCareLog.delete({ where: { id: params.id, businessId } });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

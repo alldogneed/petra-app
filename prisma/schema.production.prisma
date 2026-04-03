@@ -663,6 +663,12 @@ model Payment {
   customerId      String
   businessId      String
   paidAt          DateTime?
+  cardLast4       String?
+  cardType        String?
+  checkNumber     String?
+  checkBank       String?
+  checkBranch     String?
+  checkDate       String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

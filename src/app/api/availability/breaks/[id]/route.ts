@@ -17,7 +17,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
-  await prisma.availabilityBreak.delete({ where: { id: params.id } })
+  await prisma.availabilityBreak.delete({ where: { id: params.id, businessId } })
 
   return NextResponse.json({ ok: true })
 }

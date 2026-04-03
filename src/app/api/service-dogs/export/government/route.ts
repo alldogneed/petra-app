@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
           },
         },
         placements: {
-          where: { status: { in: ["ACTIVE", "TRIAL"] } },
+          where: { status: "ACTIVE" },
           include: {
             recipient: {
               select: {

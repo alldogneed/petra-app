@@ -30,7 +30,7 @@ export async function PATCH(
     if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
 
     const priceList = await prisma.priceList.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId },
       data,
       include: {
         items: {
@@ -70,7 +70,7 @@ export async function DELETE(
       where: { priceListId: params.id, businessId },
     });
 
-    await prisma.priceList.delete({ where: { id: params.id } });
+    await prisma.priceList.delete({ where: { id: params.id, businessId } });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -9,6 +9,11 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const status = url.searchParams.get("status"); // "open" | "in_progress" | "resolved" | null (all)
 
+  const VALID_TICKET_STATUSES = ["open", "in_progress", "resolved"];
+  if (status && !VALID_TICKET_STATUSES.includes(status)) {
+    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  }
+
   const tickets = await prisma.supportTicket.findMany({
     where: status ? { status } : undefined,
     orderBy: { createdAt: "desc" },
