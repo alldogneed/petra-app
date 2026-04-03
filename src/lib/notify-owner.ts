@@ -13,7 +13,7 @@ const OWNER_NAME = "אור";
 
 // ── WhatsApp ─────────────────────────────────────────────────────────────────
 
-async function sendOwnerWhatsApp(message: string): Promise<void> {
+async function sendOwnerWhatsApp(message: string, templateParams?: string[]): Promise<void> {
   const token = process.env.META_WHATSAPP_TOKEN;
   const phoneNumberId = process.env.META_PHONE_NUMBER_ID;
 
@@ -22,30 +22,57 @@ async function sendOwnerWhatsApp(message: string): Promise<void> {
     return;
   }
 
-  try {
+  const send = async (body: object) => {
     const res = await fetch(
       `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
       {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          to: OWNER_WHATSAPP,
-          type: "text",
-          text: { body: message },
-        }),
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       }
     );
-
     if (!res.ok) {
-      const err = await res.text();
-      console.error("[notify-owner] WhatsApp send failed:", err);
+      const errText = await res.text();
+      throw new Error(errText);
     }
+    return res;
+  };
+
+  try {
+    // Try template first (works outside the 24h window — business-initiated)
+    if (templateParams && templateParams.length > 0) {
+      await send({
+        messaging_product: "whatsapp",
+        to: OWNER_WHATSAPP,
+        type: "template",
+        template: {
+          name: "petra_owner_alert",
+          language: { code: "he" },
+          components: [
+            {
+              type: "body",
+              parameters: templateParams.map((p) => ({ type: "text", text: p })),
+            },
+          ],
+        },
+      });
+      return; // template succeeded
+    }
+  } catch (templateErr) {
+    console.warn("[notify-owner] Template send failed, falling back to free-form text:", templateErr);
+  }
+
+  // Fallback: free-form text (works within 24h window only)
+  try {
+    await send({
+      messaging_product: "whatsapp",
+      to: OWNER_WHATSAPP,
+      type: "text",
+      text: { body: message },
+    });
   } catch (err) {
-    console.error("[notify-owner] WhatsApp error:", err);
+    console.error("[notify-owner] WhatsApp free-form send also failed:", err);
+    console.error("[notify-owner] TIP: Approve 'petra_owner_alert' template in Meta Business Manager to fix this permanently");
   }
 }
 
@@ -170,9 +197,12 @@ export async function notifyOwnerNewUser(params: NewUserParams): Promise<void> {
     </div>
   `;
 
+  // Template params for petra_owner_alert (business-initiated — no 24h window restriction)
+  const templateParams = [name, email, planLabel, dateLabel];
+
   // Send both in parallel, fire-and-forget
   await Promise.allSettled([
-    sendOwnerWhatsApp(waMessage),
+    sendOwnerWhatsApp(waMessage, templateParams),
     sendOwnerEmail(emailSubject, emailHtml),
   ]);
 }

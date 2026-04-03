@@ -470,7 +470,7 @@ function BusinessTab() {
         </div>
         {isFree && (
           <p className="text-sm text-petra-muted bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
-            <a href="/upgrade" className="text-brand-600 hover:underline font-medium">שדרג לבייסיק</a> כדי להגדיר שעות צ׳ק-אין/אאוט ופנסיון.
+            <a href="/upgrade" className="text-brand-600 hover:underline font-medium">שדרג לפרו</a> כדי להגדיר שעות צ׳ק-אין/אאוט ופנסיון.
           </p>
         )}
         {!isFree && (
@@ -4217,8 +4217,8 @@ export default function SettingsPage() {
 
   // Tabs locked per tier
   const FREE_LOCKED_TABS = new Set(["availability", "team", "messages", "service-dogs", "data", "integrations", "contracts"]);
-  // Basic: open business, data, integrations, team — lock availability, messages, service-dogs
-  const BASIC_LOCKED_TABS = new Set(["availability", "messages", "service-dogs"]);
+  // Basic: open business, data, integrations, contracts — lock availability, team, messages, service-dogs
+  const BASIC_LOCKED_TABS = new Set(["availability", "team", "messages", "service-dogs"]);
 
   const tabs = [
     { id: "business" as const, label: "פרטי העסק", icon: Building2 },
@@ -4270,8 +4270,8 @@ export default function SettingsPage() {
           : <AvailabilityTab />
       )}
       {activeTab === "team" && isOwner && (
-        isFree
-          ? <PaywallCard title="ניהול צוות" description="הוסף חברי צוות ונהל הרשאות — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
+        (isFree || isBasic)
+          ? <PaywallCard title="ניהול צוות" description="הוסף חברי צוות ונהל הרשאות — זמין במנוי פרו ומעלה." requiredTier="pro" variant="page" />
           : <TeamTab />
       )}
       {activeTab === "invoicing" && <InvoicingTab />}

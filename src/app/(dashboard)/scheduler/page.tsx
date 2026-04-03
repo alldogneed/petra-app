@@ -134,7 +134,7 @@ export default function SchedulerPage() {
     <TierGate
       feature="online_bookings"
       title="ניהול תורים אונליין"
-      description="אפשר ללקוחות לקבוע תורים בעצמם — זמין במנוי פרו ומעלה."
+      description="אפשר ללקוחות לקבוע תורים בעצמם — זמין במנוי בייסיק ומעלה."
     >
       <SchedulerContent />
     </TierGate>

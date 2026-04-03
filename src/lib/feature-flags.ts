@@ -77,7 +77,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
   // ── Basic (₪99) ──────────────────────────────────────────────────────────────
   // Single-user plan for independent groomers and trainers.
   // Unlimited customers, calendar, payments, WhatsApp reminders, before/after portfolio.
-  // No team management (Pro only), no boarding, no online bookings, no groups.
+  // No team management (Pro only), no boarding, no groups.
   basic: {
     leads:             true,   // ✅ leads unlimited
     boarding:          false,  // Boarding rooms — PRO only
@@ -97,7 +97,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     pets_advanced:     true,
     scheduled_messages: true,  // ✅ WhatsApp reminders — BASIC+
     whatsapp_reminders: true,  // ✅ WhatsApp API reminders — BASIC+
-    online_bookings:   false,  // Online booking page — PRO only
+    online_bookings:   true,   // ✅ Online booking page — BASIC+
     analytics:         true,
     intake_forms:      true,
     payment_links:     true,
