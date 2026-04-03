@@ -1208,24 +1208,6 @@ export function CreateOrderModal({
           </div>
         )}
 
-        {/* Training program type selector */}
-        {orderType === "training" && (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 flex items-center gap-3">
-            <span className="text-xs font-semibold text-petra-muted flex-shrink-0">סוג תוכנית:</span>
-            <select
-              className="input text-xs flex-1 py-1"
-              value={trainingProgramType}
-              onChange={(e) => setTrainingProgramType(e.target.value)}
-            >
-              <option value="BASIC_OBEDIENCE">משמעת בסיסית</option>
-              <option value="REACTIVITY">תגובתיות</option>
-              <option value="PUPPY">גורים</option>
-              <option value="BEHAVIOR">בעיות התנהגות</option>
-              <option value="ADVANCED">מתקדם</option>
-              <option value="CUSTOM">מותאם אישית</option>
-            </select>
-          </div>
-        )}
 
         {/* Boarding dates reminder */}
         {isBoardingOrder && boardingNights !== null && (
