@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { isValidTier } from "@/lib/feature-flags";
+import { createOwnerLead } from "@/lib/owner-lead";
 
 const CARDCOM_PLANS: Record<string, { label: string }> = {
   basic:       { label: "Petra בייסיק — אימות כרטיס לניסיון" },
@@ -28,6 +29,10 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const tier: string = body.tier;
+    const businessType: string | undefined = body.businessType?.trim() || undefined;
+    const vatNumber: string | undefined = body.vatNumber?.trim() || undefined;
+    const address: string | undefined = body.address?.trim() || undefined;
+    const billingEmail: string | undefined = body.billingEmail?.toLowerCase().trim() || undefined;
 
     if (!isValidTier(tier) || !(tier in CARDCOM_PLANS)) {
       return NextResponse.json({ error: "מסלול לא תקין" }, { status: 400 });
@@ -37,11 +42,37 @@ export async function POST(request: NextRequest) {
 
     const business = await prisma.business.findUnique({
       where: { id: businessId },
-      select: { email: true, name: true },
+      select: { email: true, name: true, phone: true },
     });
     if (!business) {
       return NextResponse.json({ error: "עסק לא נמצא" }, { status: 404 });
     }
+
+    // Save billing fields to Business if provided
+    if (address || vatNumber || businessType) {
+      await prisma.business.update({
+        where: { id: businessId },
+        data: {
+          ...(address      ? { address }      : {}),
+          ...(vatNumber    ? { vatNumber }    : {}),
+          ...(businessType ? { businessRegNumber: businessType } : {}),
+        },
+      });
+    }
+
+    // Create lead in owner's Petra account (fire-and-forget)
+    const { session } = authResult;
+    createOwnerLead({
+      name: session.user.name,
+      email: billingEmail ?? business.email ?? undefined,
+      phone: business.phone ?? undefined,
+      businessName: business.name,
+      tier,
+      businessType,
+      vatNumber,
+      address,
+      billingEmail,
+    }).catch(() => null);
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://petra-app.vercel.app";
     const encodedUserId = `${businessId}::${tier}`;
@@ -63,7 +94,7 @@ export async function POST(request: NextRequest) {
       IndicatorURL:     `${appUrl}/api/cardcom/trial-indicator?secret=${process.env.CARDCOM_WEBHOOK_SECRET ?? ""}`,
       UserId:           encodedUserId,
       ShowLogoutButton: "false",
-      ...(business.email ? { Email: business.email } : {}),
+      ...(billingEmail ?? business.email ?? undefined ? { Email: (billingEmail ?? business.email)! } : {}),
     });
 
     const cardcomRes = await fetch(

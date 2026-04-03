@@ -63,6 +63,8 @@ function CheckoutContent() {
   const [formBusinessName, setFormBusinessName] = useState("");
   const [formAddress, setFormAddress] = useState("");
   const [formVatNumber, setFormVatNumber] = useState("");
+  const [formBusinessType, setFormBusinessType] = useState("");
+  const [formBillingEmail, setFormBillingEmail] = useState("");
   const [formTos, setFormTos] = useState(false);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -79,12 +81,14 @@ function CheckoutContent() {
     if (authLoading) return;
     // Unauthenticated: show step 1 form — nothing to pre-fetch
     if (!user) return;
-    // Authenticated: pre-fill address/vatNumber from settings
+    // Authenticated: pre-fill billing email + address/vatNumber from settings
+    if (user.email) setFormBillingEmail(user.email);
     fetch("/api/settings")
       .then((r) => r.json())
       .then((data) => {
         if (data.address)   setFormAddress(data.address);
         if (data.vatNumber) setFormVatNumber(data.vatNumber);
+        if (data.businessRegNumber) setFormBusinessType(data.businessRegNumber);
       })
       .catch(() => {})
       .finally(() => setAuthPrefillLoaded(true));
@@ -96,6 +100,13 @@ function CheckoutContent() {
     e.preventDefault();
     setFormError(null);
     setFormErrorCode(null);
+
+    // Client-side validation for businessType (not covered by native required)
+    if (!formBusinessType) {
+      setFormError("נא לבחור סוג עוסק");
+      return;
+    }
+
     setFormSubmitting(true);
 
     try {
@@ -105,7 +116,13 @@ function CheckoutContent() {
       if (user) {
         // Authenticated user — invoice fields only
         endpoint = isTrial ? "/api/cardcom/create-tokenization" : "/api/cardcom/create-payment";
-        body = { tier, address: formAddress || undefined, vatNumber: formVatNumber || undefined };
+        body = {
+          tier,
+          address: formAddress || undefined,
+          vatNumber: formVatNumber || undefined,
+          businessType: formBusinessType || undefined,
+          billingEmail: formBillingEmail || undefined,
+        };
       } else {
         // New user — full checkout-first form
         endpoint = isTrial ? "/api/cardcom/create-trial" : "/api/cardcom/create-checkout";
@@ -116,6 +133,8 @@ function CheckoutContent() {
           businessName: formBusinessName || undefined,
           address: formAddress || undefined,
           vatNumber: formVatNumber || undefined,
+          businessType: formBusinessType || undefined,
+          billingEmail: formBillingEmail || undefined,
           tier,
           tosAccepted: formTos,
         };
@@ -402,10 +421,79 @@ function CheckoutContent() {
                   )}
 
                   {/* ── Invoice fields (everyone) ── */}
+
+                  {/* Billing Email (authenticated users only — show their email) */}
+                  {user && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                        אימייל לחשבונית <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={formBillingEmail}
+                        onChange={(e) => setFormBillingEmail(e.target.value)}
+                        placeholder="name@example.com"
+                        dir="ltr"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
+                      />
+                    </div>
+                  )}
+
+                  {/* Business Type */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      סוג עוסק <span className="text-red-500">*</span>
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["חברה (ח.פ)", "עוסק מורשה (ע.מ)", "עוסק פטור"] as const).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setFormBusinessType(type)}
+                          className={`py-2.5 px-2 rounded-xl border text-xs font-medium text-center transition-colors ${
+                            formBusinessType === type
+                              ? "border-brand-500 bg-brand-50 text-brand-700"
+                              : "border-slate-200 text-slate-600 hover:border-slate-300"
+                          }`}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Hidden required input for native form validation */}
+                    <input
+                      type="text"
+                      required
+                      value={formBusinessType}
+                      onChange={() => {}}
+                      className="sr-only"
+                      tabIndex={-1}
+                    />
+                  </div>
+
+                  {/* VAT / business reg number */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      מספר ח.פ / ע.מ / עוסק פטור <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      minLength={8}
+                      maxLength={15}
+                      value={formVatNumber}
+                      onChange={(e) => setFormVatNumber(e.target.value.replace(/\D/g, ""))}
+                      placeholder="למשל: 012345678"
+                      dir="ltr"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
+                    />
+                  </div>
+
                   {/* Address */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      כתובת <span className="text-red-500">*</span>
+                      כתובת העסק <span className="text-red-500">*</span>
                       <span className="text-xs font-normal text-slate-400 mr-1">(לצורך חשבונית)</span>
                     </label>
                     <input
@@ -415,22 +503,6 @@ function CheckoutContent() {
                       value={formAddress}
                       onChange={(e) => setFormAddress(e.target.value)}
                       placeholder='למשל: רחוב הרצל 12, תל אביב'
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
-                    />
-                  </div>
-
-                  {/* VAT / business reg number */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      מספר עוסק / ח.פ
-                      <span className="text-xs font-normal text-slate-400 mr-1">(אופציונלי)</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={formVatNumber}
-                      onChange={(e) => setFormVatNumber(e.target.value)}
-                      placeholder="למשל: 012345678"
-                      dir="ltr"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
                     />
                   </div>

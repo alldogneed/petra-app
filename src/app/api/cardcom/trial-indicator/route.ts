@@ -66,8 +66,9 @@ const TIER_PRICE: Record<string, number> = {
  * Same 5-layer security as /api/cardcom/indicator.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
   const ip = getClientIp(request);
+  try {
+  const { searchParams } = new URL(request.url);
 
   // ── Layer 1: Secret validation (constant-time) ───────────────────────────
   const providedSecret = searchParams.get("secret") ?? "";
@@ -224,7 +225,10 @@ export async function GET(request: NextRequest) {
         cardcomToken:       data.Token ?? null,
         cardcomTokenExpiry: data.TokenExDate ?? null,
         cardcomDealId:      data.DealNumber ?? null,
-        ...(checkout.phone ? { phone: checkout.phone } : {}),
+        ...(checkout.phone        ? { phone:             checkout.phone }        : {}),
+        ...(checkout.address      ? { address:           checkout.address }      : {}),
+        ...(checkout.vatNumber    ? { vatNumber:         checkout.vatNumber }    : {}),
+        ...(checkout.businessType ? { businessRegNumber: checkout.businessType } : {}),
       },
     });
 
@@ -323,4 +327,8 @@ export async function GET(request: NextRequest) {
 
   console.log(`trial-indicator [FlowB]: started ${tier} trial for business ${businessId}`);
   return new Response("OK");
+  } catch (error) {
+    console.error("trial-indicator: unhandled error:", error);
+    return new Response("OK");
+  }
 }

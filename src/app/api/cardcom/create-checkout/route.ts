@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { isValidTier } from "@/lib/feature-flags";
 import { rateLimit } from "@/lib/rate-limit";
 import { sanitizeName } from "@/lib/validation";
+import { createOwnerLead } from "@/lib/owner-lead";
 
 const CARDCOM_PLANS: Record<string, { label: string; price: number }> = {
   basic: { label: "Petra Basic",  price: 99  },
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, email, phone, businessName, address, vatNumber, tier, tosAccepted } = body;
+    const { name, email, phone, businessName, address, vatNumber, businessType, billingEmail, tier, tosAccepted } = body;
 
     // ── Validate inputs ───────────────────────────────────────────────────────
     const cleanName = sanitizeName(name ?? "");
@@ -64,7 +65,16 @@ export async function POST(request: NextRequest) {
     if (cleanAddress.length < 2) {
       return NextResponse.json({ error: "נא להזין כתובת לצורך חשבונית" }, { status: 400 });
     }
-    const cleanVatNumber = (vatNumber ?? "").trim().slice(0, 20);
+    const cleanVatNumber = (vatNumber ?? "").replace(/\D/g, "");
+    if (cleanVatNumber.length < 8 || cleanVatNumber.length > 15) {
+      return NextResponse.json({ error: "נא להזין מספר ח.פ / ע.מ תקין (8-15 ספרות)" }, { status: 400 });
+    }
+    const VALID_BUSINESS_TYPES = ["חברה (ח.פ)", "עוסק מורשה (ע.מ)", "עוסק פטור"];
+    const cleanBusinessType = (businessType ?? "").trim();
+    if (!VALID_BUSINESS_TYPES.includes(cleanBusinessType)) {
+      return NextResponse.json({ error: "נא לבחור סוג עוסק" }, { status: 400 });
+    }
+    const cleanBillingEmail = (billingEmail ?? "").toLowerCase().trim();
     if (!isValidTier(tier) || !(tier in CARDCOM_PLANS)) {
       return NextResponse.json({ error: "מסלול לא תקין" }, { status: 400 });
     }
@@ -96,9 +106,24 @@ export async function POST(request: NextRequest) {
         businessName: cleanBusiness,
         address: cleanAddress,
         vatNumber: cleanVatNumber || null,
+        businessType: cleanBusinessType || null,
+        billingEmail: cleanBillingEmail || null,
         expiresAt,
       },
     });
+
+    // ── Create lead in owner's Petra account (fire-and-forget) ───────────────
+    createOwnerLead({
+      name: cleanName,
+      email: emailNorm,
+      phone: phoneClean,
+      businessName: cleanBusiness,
+      tier,
+      businessType: cleanBusinessType,
+      vatNumber: cleanVatNumber,
+      address: cleanAddress,
+      billingEmail: cleanBillingEmail || emailNorm,
+    }).catch(() => null);
 
     // ── Build Cardcom LowProfile immediate-charge request ─────────────────────
     const plan = CARDCOM_PLANS[tier];
@@ -124,7 +149,7 @@ export async function POST(request: NextRequest) {
       IndicatorURL:     `${appUrl}/api/cardcom/checkout-indicator?secret=${process.env.CARDCOM_WEBHOOK_SECRET ?? ""}`,
       UserId:           encodedUserId,
       ShowLogoutButton: "false",
-      Email:            emailNorm,
+      Email:            cleanBillingEmail || emailNorm,
       PhoneNumber:      phoneClean,
     });
 
