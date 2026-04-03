@@ -3,56 +3,35 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import * as XLSX from "xlsx";
 
 // GET /api/customers/export
-// Returns a UTF-8 CSV (with BOM for Excel) of all customers.
+// Returns an XLSX workbook with all customers and their pets.
 export async function GET(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
 
-  // Audit log: record who exported customer data and when
   const { session } = authResult;
   logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.EXPORT_CUSTOMERS);
 
   try {
-  const customers = await prisma.customer.findMany({
-    where: { businessId: authResult.businessId },
-    orderBy: { name: "asc" },
-    include: {
-      pets: {
-        select: {
-          name: true,
-          species: true,
-          breed: true,
-          gender: true,
-          weight: true,
+    const customers = await prisma.customer.findMany({
+      where: { businessId: authResult.businessId },
+      orderBy: { name: "asc" },
+      include: {
+        pets: {
+          select: {
+            name: true,
+            species: true,
+            breed: true,
+            gender: true,
+            weight: true,
+          },
+        },
+        _count: {
+          select: { appointments: true },
         },
       },
-      _count: {
-        select: { appointments: true },
-      },
-    },
-  });
-
-  const headers = [
-    "שם לקוח", "טלפון", "אימייל", "כתובת", "תגיות", "מקור הגעה", "הערות", "תורים", "תאריך הצטרפות",
-    "שם חיית מחמד", "סוג", "גזע", "מין", "משקל (ק״ג)",
-  ];
-
-  const rows: string[][] = [];
-  for (const c of customers) {
-    let tags = "";
-    try {
-      const parsed = JSON.parse(c.tags || "[]");
-      tags = Array.isArray(parsed) ? parsed.join(", ") : String(parsed);
-    } catch {
-      tags = "";
-    }
-
-    const joinedDate = new Date(c.createdAt).toLocaleDateString("he-IL", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
     });
 
     const SOURCE_LABELS: Record<string, string> = {
@@ -60,59 +39,89 @@ export async function GET(request: NextRequest) {
       facebook: "פייסבוק", tiktok: "טיקטוק", signage: "שלט / מעבר ברחוב", other: "אחר",
     };
 
-    const customerBase = [
-      c.name,
-      c.phone,
-      c.email ?? "",
-      c.address ?? "",
-      tags,
-      c.source ? (SOURCE_LABELS[c.source] ?? c.source) : "",
-      c.notes ?? "",
-      String(c._count.appointments),
-      joinedDate,
+    const headers = [
+      "שם לקוח", "טלפון", "אימייל", "כתובת", "תגיות", "מקור הגעה",
+      "הערות", "תורים", "תאריך הצטרפות",
+      "שם חיית מחמד", "סוג", "גזע", "מין", "משקל (ק״ג)",
     ];
 
-    if (c.pets.length === 0) {
-      rows.push([...customerBase, "", "", "", "", ""]);
-    } else {
-      for (const pet of c.pets) {
-        const speciesLabel = pet.species === "dog" ? "כלב" : pet.species === "cat" ? "חתול" : "אחר";
-        rows.push([
-          ...customerBase,
-          pet.name,
-          speciesLabel,
-          pet.breed ?? "",
-          pet.gender === "male" ? "זכר" : pet.gender === "female" ? "נקבה" : pet.gender ?? "",
-          pet.weight != null ? String(pet.weight) : "",
-        ]);
+    const rows: (string | number)[][] = [headers];
+
+    for (const c of customers) {
+      let tags = "";
+      try {
+        const parsed = JSON.parse(c.tags || "[]");
+        tags = Array.isArray(parsed) ? parsed.join(", ") : String(parsed);
+      } catch {
+        tags = "";
+      }
+
+      const joinedDate = new Date(c.createdAt).toLocaleDateString("he-IL", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+      });
+
+      const customerBase: (string | number)[] = [
+        c.name,
+        c.phone,
+        c.email ?? "",
+        c.address ?? "",
+        tags,
+        c.source ? (SOURCE_LABELS[c.source] ?? c.source) : "",
+        c.notes ?? "",
+        c._count.appointments,
+        joinedDate,
+      ];
+
+      if (c.pets.length === 0) {
+        rows.push([...customerBase, "", "", "", "", ""]);
+      } else {
+        for (const pet of c.pets) {
+          const speciesLabel = pet.species === "dog" ? "כלב" : pet.species === "cat" ? "חתול" : "אחר";
+          rows.push([
+            ...customerBase,
+            pet.name,
+            speciesLabel,
+            pet.breed ?? "",
+            pet.gender === "male" ? "זכר" : pet.gender === "female" ? "נקבה" : (pet.gender ?? ""),
+            pet.weight != null ? pet.weight : "",
+          ]);
+        }
       }
     }
-  }
 
-  // CSV escape: wrap in quotes, double internal quotes, and prefix formula chars
-  // to prevent CSV injection (=, +, -, @ trigger formulas in Excel/Sheets)
-  const escape = (v: string) => {
-    const safe = /^[=+\-@\t\r]/.test(v) ? `\t${v}` : v;
-    return `"${safe.replace(/"/g, '""')}"`;
-  };
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
 
-  const csvLines = [
-    headers.map(escape).join(","),
-    ...rows.map((row) => row.map(escape).join(",")),
-  ];
+    // Column widths
+    ws["!cols"] = [
+      { wch: 22 }, // שם לקוח
+      { wch: 15 }, // טלפון
+      { wch: 25 }, // אימייל
+      { wch: 25 }, // כתובת
+      { wch: 20 }, // תגיות
+      { wch: 18 }, // מקור
+      { wch: 30 }, // הערות
+      { wch: 8  }, // תורים
+      { wch: 14 }, // תאריך
+      { wch: 16 }, // שם חיה
+      { wch: 8  }, // סוג
+      { wch: 14 }, // גזע
+      { wch: 8  }, // מין
+      { wch: 12 }, // משקל
+    ];
 
-  // BOM (0xEF 0xBB 0xBF) ensures Excel opens Hebrew correctly
-  const bom = "\uFEFF";
-  const csv = bom + csvLines.join("\r\n");
+    XLSX.utils.book_append_sheet(wb, ws, "לקוחות");
 
-  const today = new Date().toISOString().slice(0, 10);
-  return new NextResponse(csv, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="customers_${today}.csv"`,
-    },
-  });
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    const today = new Date().toISOString().slice(0, 10);
+
+    return new NextResponse(buf, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="customers_${today}.xlsx"`,
+      },
+    });
   } catch (error) {
     console.error("Customer export error:", error);
     return NextResponse.json({ error: "שגיאה בייצוא לקוחות" }, { status: 500 });

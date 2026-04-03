@@ -1811,7 +1811,7 @@ export default function CustomersPage() {
           </button>
           <button
             className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
-            title="ייצוא לקוחות ל-CSV"
+            title="ייצוא לקוחות לאקסל"
             onClick={async () => {
               try {
                 const res = await fetch("/api/customers/export");
@@ -1821,7 +1821,7 @@ export default function CustomersPage() {
                 const a = document.createElement("a");
                 const today = new Date().toISOString().slice(0, 10);
                 a.href = url;
-                a.download = `customers-export-${today}.csv`;
+                a.download = `customers-export-${today}.xlsx`;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
@@ -1833,7 +1833,7 @@ export default function CustomersPage() {
             }}
           >
             <FileDown className="w-4 h-4" />
-            ייצוא CSV
+            ייצוא Excel
           </button>
           <button
             className={cn(
