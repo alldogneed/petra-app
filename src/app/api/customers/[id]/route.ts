@@ -78,11 +78,11 @@ export async function GET(
           select: {
             id: true, orderType: true, status: true, subtotal: true,
             discountAmount: true, taxTotal: true, total: true,
-            notes: true, createdAt: true,
+            notes: true, createdAt: true, startAt: true, endAt: true,
             lines: {
               select: {
                 id: true, name: true, quantity: true,
-                unitPrice: true, lineTotal: true,
+                unitPrice: true, lineSubtotal: true, lineTotal: true,
               },
             },
             payments: { select: { id: true, amount: true, status: true } },

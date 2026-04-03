@@ -291,11 +291,11 @@ interface TrainingProgramInfo {
 interface OrderLineInfo {
   id: string;
   name: string;
-  unit: string;
+  unit?: string;
   quantity: number;
   unitPrice: number;
-  lineSubtotal: number;
-  lineTax: number;
+  lineSubtotal?: number;
+  lineTax?: number;
   lineTotal: number;
 }
 
@@ -315,6 +315,8 @@ interface OrderInfo {
   total: number;
   notes: string | null;
   createdAt: string;
+  startAt: string | null;
+  endAt: string | null;
   lines: OrderLineInfo[];
   payments: OrderPaymentInfo[];
 }
@@ -4842,6 +4844,35 @@ export default function CustomerProfilePage() {
                       {/* Expanded details */}
                       {isExpanded && (
                         <div className="border-t border-slate-100 bg-slate-50/50 p-4 space-y-3">
+                          {/* Boarding: check-in / check-out dates */}
+                          {order.orderType === "boarding" && order.startAt && (
+                            <div className="flex items-center gap-4 text-xs bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                              <div className="flex items-center gap-1.5 text-amber-800">
+                                <span className="font-semibold">צ׳ק אין:</span>
+                                <span>{new Date(order.startAt).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}</span>
+                              </div>
+                              {order.endAt && (
+                                <>
+                                  <span className="text-amber-400">→</span>
+                                  <div className="flex items-center gap-1.5 text-amber-800">
+                                    <span className="font-semibold">צ׳ק אאוט:</span>
+                                    <span>{new Date(order.endAt).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}</span>
+                                  </div>
+                                  <span className="text-amber-500 font-medium ms-auto">
+                                    {Math.round((new Date(order.endAt).getTime() - new Date(order.startAt).getTime()) / (1000 * 60 * 60 * 24))} לילות
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          )}
+                          {/* Training/appointment: date + time */}
+                          {(order.orderType === "training" || order.orderType === "appointment") && order.startAt && (
+                            <div className="flex items-center gap-2 text-xs bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 text-blue-800">
+                              <span className="font-semibold">תאריך ושעה:</span>
+                              <span>{new Date(order.startAt).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}</span>
+                              <span>{new Date(order.startAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</span>
+                            </div>
+                          )}
                           {/* Line items */}
                           <div className="space-y-1.5">
                             {order.lines.map((line) => (
@@ -4850,7 +4881,7 @@ export default function CustomerProfilePage() {
                                 <div className="flex items-center gap-3 text-petra-muted">
                                   <span className="text-xs">{line.quantity} × {formatCurrency(line.unitPrice)}</span>
                                   <span className="font-medium text-petra-text w-16 text-right">
-                                    {formatCurrency(line.lineSubtotal)}
+                                    {formatCurrency(line.lineSubtotal ?? line.lineTotal)}
                                   </span>
                                 </div>
                               </div>
