@@ -4644,7 +4644,7 @@ export default function CustomerProfilePage() {
                       />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-petra-text">
-                          {apt.service?.name || "שירות"}
+                          {apt.service?.name || (apt as { priceListItem?: { name: string } | null }).priceListItem?.name || "שירות"}
                         </div>
                         <div className="text-xs text-petra-muted">
                           {new Date(apt.date).toLocaleDateString("he-IL")} ·{" "}

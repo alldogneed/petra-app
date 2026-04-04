@@ -1786,6 +1786,27 @@ export default function CustomersPage() {
       <PageTitle title="לקוחות" />
       {/* ─── Page Header ─── */}
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+        {/* Right side: title + refresh */}
+        <div className="flex items-center gap-2">
+          <div>
+            <h1 className="page-title">לקוחות</h1>
+            <p className="text-sm text-petra-muted">
+              {isLoading ? (
+                <span className="inline-block w-16 h-3.5 bg-slate-200 animate-pulse rounded" />
+              ) : (
+                <>{stats.total} {stats.total === 1 ? "לקוח" : "לקוחות"} במערכת</>
+              )}
+            </p>
+          </div>
+          <button
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["customers"] })}
+            title="רענן נתונים"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isCustomersFetching ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+        {/* Left side: action buttons (RTL order: לקוח חדש → הזמנה חדשה → ייצוא) */}
         <div className="flex items-center gap-2 flex-wrap">
           {tier === "free" && maxCustomers !== null && stats.total >= maxCustomers ? (
             <a href="/upgrade" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500 text-white rounded-xl px-4 py-2.5 text-sm font-semibold flex items-center">
@@ -1834,40 +1855,6 @@ export default function CustomersPage() {
           >
             <FileDown className="w-4 h-4" />
             ייצוא Excel
-          </button>
-          <button
-            className={cn(
-              "hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-colors",
-              selectionMode
-                ? "bg-brand-600 text-white border-brand-600 hover:bg-brand-700"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200"
-            )}
-            onClick={() => {
-              setSelectionMode(!selectionMode);
-              if (selectionMode) setSelectedIds(new Set());
-            }}
-          >
-            <CheckSquare className="w-4 h-4" />
-            {selectionMode ? "בטל בחירה" : "בחר"}
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
-          <div>
-            <h1 className="page-title">לקוחות</h1>
-            <p className="text-sm text-petra-muted">
-              {isLoading ? (
-                <span className="inline-block w-16 h-3.5 bg-slate-200 animate-pulse rounded" />
-              ) : (
-                <>{stats.total} {stats.total === 1 ? "לקוח" : "לקוחות"} במערכת</>
-              )}
-            </p>
-          </div>
-          <button
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["customers"] })}
-            title="רענן נתונים"
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-colors"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isCustomersFetching ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
@@ -2187,6 +2174,24 @@ export default function CustomersPage() {
         </div>
       ) : (
         <div className="card overflow-hidden">
+          {/* ── Selection mode toggle bar ── */}
+          <div className="flex items-center justify-end px-4 py-2 border-b border-[#E8DFD5] bg-[#FDFBF8]">
+            <button
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                selectionMode
+                  ? "bg-brand-600 text-white border-brand-600 hover:bg-brand-700"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200"
+              )}
+              onClick={() => {
+                setSelectionMode(!selectionMode);
+                if (selectionMode) setSelectedIds(new Set());
+              }}
+            >
+              <CheckSquare className="w-3.5 h-3.5" />
+              {selectionMode ? "בטל בחירה" : "בחר"}
+            </button>
+          </div>
           {/* ── Mobile card list (< md) ── */}
           <div className="md:hidden divide-y divide-slate-50">
             {/* Mobile select-all header — only in selection mode */}
@@ -2444,6 +2449,9 @@ export default function CustomersPage() {
             </span>
             <div className="flex-1" />
             <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1 font-medium text-[#6B5744]">
+                {stats.total} סה״כ
+              </span>
               <span className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 {stats.active} פעילים

@@ -477,6 +477,31 @@ function TemplatesTab() {
     onError: () => toast.error("שגיאה בעדכון אוטומציה"),
   });
 
+  // Auto-creates template + rule from the fixed STARTER_TEMPLATES default — no editor needed
+  const autoActivateMutation = useMutation({
+    mutationFn: async (triggerId: string) => {
+      const starter = STARTER_TEMPLATES.find((s) => s.trigger === triggerId);
+      if (!starter) throw new Error("No default template for trigger");
+      const templateRes = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: starter.label, channel: "whatsapp", subject: "", body: starter.body }),
+      });
+      if (!templateRes.ok) throw new Error("Failed to create template");
+      const saved = await templateRes.json();
+      await fetch("/api/automations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: starter.label, trigger: triggerId, triggerOffset: starter.offset ?? 24, templateId: saved.id, isActive: true }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+      toast.success("האוטומציה הופעלה בהצלחה");
+    },
+    onError: () => toast.error("שגיאה בהפעלת האוטומציה"),
+  });
+
   function insertVariable(v: string) {
     const newBody = form.body.slice(0, cursorPos) + v + form.body.slice(cursorPos);
     setForm({ ...form, body: newBody });
@@ -641,38 +666,26 @@ function TemplatesTab() {
                     {linked ? linked.name : <span className="italic">אין תבנית מקושרת</span>}
                   </div>
 
-                  {/* Action */}
+                  {/* Action — toggle only, no edit */}
                   <div className="flex-shrink-0">
                     {linked && rule ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => openEditor(linked)}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
-                          title="ערוך תבנית"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => toggleRuleMutation.mutate({ ruleId: rule.id, isActive: !rule.isActive })}
-                          className="p-0.5 hover:opacity-75 transition-opacity"
-                          title={rule.isActive ? "כבה אוטומציה" : "הפעל אוטומציה"}
-                        >
-                          {rule.isActive
-                            ? <ToggleRight className="w-6 h-6 text-brand-500" />
-                            : <ToggleLeft className="w-6 h-6 text-slate-400" />}
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => toggleRuleMutation.mutate({ ruleId: rule.id, isActive: !rule.isActive })}
+                        className="p-0.5 hover:opacity-75 transition-opacity"
+                        title={rule.isActive ? "כבה אוטומציה" : "הפעל אוטומציה"}
+                      >
+                        {rule.isActive
+                          ? <ToggleRight className="w-6 h-6 text-brand-500" />
+                          : <ToggleLeft className="w-6 h-6 text-slate-400" />}
+                      </button>
                     ) : (
                       <button
-                        onClick={() => {
-                          setEditingTemplate(null);
-                          setForm({ ...emptyForm, autoEnabled: true, autoTrigger: trigger.id });
-                          setShowEditor(true);
-                        }}
+                        onClick={() => autoActivateMutation.mutate(trigger.id)}
+                        disabled={autoActivateMutation.isPending}
                         className="btn-secondary text-xs py-1.5 px-3 whitespace-nowrap"
                       >
                         <Plus className="w-3 h-3" />
-                        הגדר תבנית
+                        {autoActivateMutation.isPending ? "מפעיל..." : "הפעל"}
                       </button>
                     )}
                   </div>
@@ -692,8 +705,9 @@ function TemplatesTab() {
                 const dbVersion = manualTemplates.find((t) => t.name === starter.label);
                 const isCustomized = !!dbVersion;
                 const StarterIcon = TRIGGER_ICONS[starter.trigger] ?? MessageSquare;
-                const templateForModal: MessageTemplate = dbVersion ?? {
-                  id: "", name: starter.label, channel: "whatsapp", subject: null,
+                // Always use fixed starter body — manual sends use the locked template
+                const templateForModal: MessageTemplate = {
+                  id: dbVersion?.id ?? "", name: starter.label, channel: "whatsapp", subject: null,
                   body: starter.body, variables: "", isActive: true,
                   createdAt: "", automationRules: [],
                 };
@@ -726,21 +740,6 @@ function TemplatesTab() {
                         title="שלח ללקוח בודד"
                       >
                         <Send className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (dbVersion) {
-                            openEditor(dbVersion);
-                          } else {
-                            setEditingTemplate(null);
-                            setForm({ ...emptyForm, name: starter.label, body: starter.body });
-                            setShowEditor(true);
-                          }
-                        }}
-                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
-                        title="ערוך תבנית"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>

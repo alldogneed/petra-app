@@ -51,6 +51,7 @@ export async function GET(
             id: true, date: true, startTime: true, endTime: true,
             status: true, notes: true, cancellationNote: true,
             service: { select: { id: true, name: true, color: true } },
+            priceListItem: { select: { id: true, name: true } },
             pet: { select: { id: true, name: true, species: true } },
           },
           orderBy: { date: "desc" },
