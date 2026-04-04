@@ -174,6 +174,7 @@ export async function POST(request: NextRequest) {
             date: formattedDate,
             time: appointment.startTime,
             serviceName,
+            petName: appointment.pet?.name ?? "",
           });
           sendWhatsAppMessage({ to: phone, body }).catch((err) =>
             console.error("Appointment confirmation WA (custom) failed:", err)

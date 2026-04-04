@@ -6,7 +6,7 @@ import { createOrderReminder } from "@/lib/scheduled-messages";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { syncAppointmentToGcal, syncBoardingToGcal } from "@/lib/google-calendar";
-import { sendWhatsAppTemplate } from "@/lib/whatsapp";
+import { sendWhatsAppTemplate, sendWhatsAppMessage, interpolateTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { getMaxOrders, normalizeTier, hasFeatureWithOverrides } from "@/lib/feature-flags";
@@ -343,11 +343,38 @@ export async function POST(request: NextRequest) {
           const typeLabel = APPT_TYPE_LABELS_CONFIRM[orderType] ?? orderType;
           const subtypeLabel = orderType === "training" && trainingSubType ? TRAINING_SUBTYPE_LABELS_CONFIRM[trainingSubType] ?? "" : "";
           const serviceName = subtypeLabel ? `${typeLabel} (${subtypeLabel})` : typeLabel;
-          sendWhatsAppTemplate({
-            to: phone,
-            templateName: "petra_appointment_confirmation",
-            bodyParams: [customer.name, formattedDate, appointmentData.startTime as string, serviceName],
-          }).catch((err) => console.error("Order appointment confirmation WA failed:", err));
+
+          // Check for active appointment_confirmation automation rule (same logic as /api/appointments)
+          const confirmationRule = await prisma.automationRule.findFirst({
+            where: { businessId: authResult.businessId, trigger: "appointment_confirmation", isActive: true },
+            include: { template: true },
+          }).catch(() => null);
+
+          // Fetch pet name if available via the linked appointment
+          const linkedAppt = linkedAppointmentId ? await prisma.appointment.findUnique({
+            where: { id: linkedAppointmentId },
+            select: { pet: { select: { name: true } } },
+          }).catch(() => null) : null;
+          const petName = linkedAppt?.pet?.name ?? "";
+
+          if (confirmationRule?.template?.body) {
+            const msgBody = interpolateTemplate(confirmationRule.template.body, {
+              customerName: customer.name,
+              date: formattedDate,
+              time: appointmentData.startTime as string,
+              serviceName,
+              petName,
+            });
+            sendWhatsAppMessage({ to: phone, body: msgBody }).catch((err) =>
+              console.error("Order appointment confirmation WA (custom) failed:", err)
+            );
+          } else {
+            sendWhatsAppTemplate({
+              to: phone,
+              templateName: "petra_appointment_confirmation",
+              bodyParams: [customer.name, formattedDate, appointmentData.startTime as string, serviceName],
+            }).catch((err) => console.error("Order appointment confirmation WA failed:", err));
+          }
         }
       }
     }
