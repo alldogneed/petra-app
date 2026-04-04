@@ -918,6 +918,7 @@ function TrainingPageContent() {
       endDate,
       location,
       frequency,
+      totalSessions,
     }: {
       id: string;
       programType: string;
@@ -925,11 +926,12 @@ function TrainingPageContent() {
       endDate: string | null;
       location: string | null;
       frequency: string | null;
+      totalSessions: number | null;
     }) => {
       const res = await fetch(`/api/training-programs/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ programType, startDate, endDate, location, frequency }),
+        body: JSON.stringify({ programType, startDate, endDate, location, frequency, totalSessions }),
       });
       if (!res.ok) throw new Error("Failed to update program settings");
       return res.json();
@@ -1285,7 +1287,7 @@ function TrainingPageContent() {
         <ProgramSettingsModal
           program={editingProgram}
           onClose={() => setEditingProgram(null)}
-          onSubmit={(data) => updateProgramSettingsMutation.mutate({ id: editingProgram.id, ...data })}
+          onSubmit={(data) => updateProgramSettingsMutation.mutate({ id: editingProgram!.id, ...data })}
           isPending={updateProgramSettingsMutation.isPending}
         />
       )}
@@ -2594,6 +2596,7 @@ function IndividualTab({
             const expanded = expandedCards.has(program.id);
             const usedSessions = program.sessions.filter((s) => s.status === "COMPLETED").length;
             const remaining = program.totalSessions ? program.totalSessions - usedSessions : null;
+            const allSessionsDone = !program.totalSessions || usedSessions >= program.totalSessions;
             const statusInfo = PROGRAM_STATUS_MAP[program.status] || PROGRAM_STATUS_MAP.ACTIVE;
             const isLowSessions = remaining !== null && remaining <= 2 && program.status === "ACTIVE";
             const typeColors = PROGRAM_TYPE_COLORS[program.programType];
@@ -2680,12 +2683,21 @@ function IndividualTab({
                       </button>
                       {program.status === "ACTIVE" && onFinishProgram && (
                         <button
-                          className="btn-secondary text-xs text-emerald-600 hover:text-emerald-700 border-emerald-200 hover:border-emerald-300"
-                          disabled={isUpdatingStatus}
+                          className={cn(
+                            "btn-secondary text-xs border-emerald-200",
+                            allSessionsDone
+                              ? "text-emerald-600 hover:text-emerald-700 hover:border-emerald-300"
+                              : "text-slate-400 cursor-not-allowed opacity-60"
+                          )}
+                          disabled={isUpdatingStatus || !allSessionsDone}
+                          title={!allSessionsDone ? `יש להשלים את כל ${program.totalSessions} המפגשים לפני סיום האילוף (הושלמו ${usedSessions})` : undefined}
                           onClick={(e) => { e.stopPropagation(); onFinishProgram(program.id, program.dog.name); }}
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           סיים אילוף
+                          {!allSessionsDone && program.totalSessions && (
+                            <span className="text-[10px] font-normal">({usedSessions}/{program.totalSessions})</span>
+                          )}
                         </button>
                       )}
                       {program.status === "ACTIVE" && onDropoutProgram && (
@@ -4698,6 +4710,7 @@ function ProgramSettingsModal({
     endDate: string | null;
     location: string | null;
     frequency: string | null;
+    totalSessions: number | null;
   }) => void;
   isPending: boolean;
 }) {
@@ -4707,15 +4720,18 @@ function ProgramSettingsModal({
     endDate: program.endDate ? new Date(program.endDate).toISOString().split('T')[0] : "",
     location: program.location || "",
     frequency: program.frequency || "",
+    totalSessions: program.totalSessions ? String(program.totalSessions) : "",
   });
 
   const handleSubmit = () => {
+    const parsedSessions = parseInt(form.totalSessions, 10);
     onSubmit({
       programType: form.programType,
       startDate: new Date(form.startDate).toISOString(),
       endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
       location: form.location || null,
       frequency: form.frequency || null,
+      totalSessions: form.totalSessions && !isNaN(parsedSessions) && parsedSessions > 0 ? parsedSessions : null,
     });
   };
 
@@ -4783,6 +4799,27 @@ function ProgramSettingsModal({
               <option value="BIWEEKLY">אחת לשבועיים</option>
               <option value="CUSTOM">אחר</option>
             </select>
+          </div>
+
+          <div>
+            <label className="label">
+              כמות מפגשים בחבילה
+              <span className="text-xs font-normal text-petra-muted mr-1">(לצ׳קליסט מעקב)</span>
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={100}
+              className="input"
+              placeholder="למשל: 8"
+              value={form.totalSessions}
+              onChange={(e) => setForm({ ...form, totalSessions: e.target.value })}
+            />
+            {form.totalSessions && parseInt(form.totalSessions) > 0 && (
+              <p className="text-[11px] text-petra-muted mt-1">
+                כפתור ״סיים אילוף״ יהיה זמין רק לאחר סימון כל {form.totalSessions} המפגשים
+              </p>
+            )}
           </div>
 
           <div>
