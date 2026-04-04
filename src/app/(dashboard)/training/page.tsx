@@ -1258,7 +1258,11 @@ function TrainingPageContent() {
 
           {/* ═══ ARCHIVE TAB ═══ */}
           {activeTab === "archive" && (
-            <ArchiveTab programs={archivedPrograms} isLoading={archiveLoading} />
+            <ArchiveTab
+              programs={archivedPrograms}
+              isLoading={archiveLoading}
+              onRestore={(id) => updateStatusMutation.mutate({ id, status: "ACTIVE" })}
+            />
           )}
 
         </>
@@ -3325,7 +3329,7 @@ function GroupCard({
             </button>
             <button className="btn-secondary text-xs" onClick={(e) => { e.stopPropagation(); onAssignDog(); }}>
               <Plus className="w-3.5 h-3.5" />
-              שייך כלב
+              שייך לקוח
             </button>
             {isWorkshop && group.participants.length > 0 && (
               <button
@@ -3550,6 +3554,7 @@ function ManualAddProgramModal({
   const [customerId, setCustomerId] = useState("");
   const [dogId, setDogId] = useState("");
   const [programType, setProgramType] = useState("BASIC_OBEDIENCE");
+  const [customTypeName, setCustomTypeName] = useState("");
   const [totalSessions, setTotalSessions] = useState("10");
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
@@ -3559,15 +3564,11 @@ function ManualAddProgramModal({
     queryFn: () => fetchJSON<Customer[]>("/api/customers?full=1"),
   });
 
-  const customersWithPets = useMemo(
-    () => customers.filter((c) => c.pets && c.pets.length > 0),
-    [customers]
-  );
-
   const selectedCustomer = customers.find((c) => c.id === customerId);
   const selectedDog = selectedCustomer?.pets.find((p) => p.id === dogId);
+  const effectiveProgramType = programType === "CUSTOM" ? (customTypeName.trim() || "מותאם אישית") : (PROGRAM_TYPES_MAP[programType] || programType);
   const autoName = selectedDog
-    ? `אילוף ${PROGRAM_TYPES_MAP[programType] || programType} - ${selectedDog.name}`
+    ? `אילוף ${effectiveProgramType} - ${selectedDog.name}`
     : "";
 
   const handleSubmit = () => {
@@ -3576,7 +3577,7 @@ function ManualAddProgramModal({
       customerId,
       dogId,
       name: autoName,
-      programType,
+      programType: programType === "CUSTOM" && customTypeName.trim() ? customTypeName.trim() : programType,
       trainingType: "HOME",
       isPackage: true,
       totalSessions: totalSessions ? parseInt(totalSessions) : null,
@@ -3613,31 +3614,46 @@ function ManualAddProgramModal({
               disabled={customersLoading}
             >
               <option value="">{customersLoading ? "טוען..." : "בחר לקוח..."}</option>
-              {customersWithPets.map((c) => (
+              {customers.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </div>
 
-          {customerId && (
+          {customerId && selectedCustomer && (
             <div>
               <label className="label">כלב *</label>
-              <select className="input" value={dogId} onChange={(e) => setDogId(e.target.value)}>
-                <option value="">בחר כלב...</option>
-                {selectedCustomer?.pets.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+              {selectedCustomer.pets.length === 0 ? (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+                  ללקוח זה אין כלבים רשומים — יש להוסיף כלב בפרופיל הלקוח תחילה.
+                </p>
+              ) : (
+                <select className="input" value={dogId} onChange={(e) => setDogId(e.target.value)}>
+                  <option value="">בחר כלב...</option>
+                  {selectedCustomer.pets.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
           )}
 
           <div>
             <label className="label">סוג אילוף</label>
-            <select className="input" value={programType} onChange={(e) => setProgramType(e.target.value)}>
+            <select className="input" value={programType} onChange={(e) => { setProgramType(e.target.value); setCustomTypeName(""); }}>
               {Object.entries(PROGRAM_TYPES_MAP).filter(([k]) => !k.startsWith("SD_")).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
+            {programType === "CUSTOM" && (
+              <input
+                className="input mt-2"
+                placeholder="פרט את סוג האילוף..."
+                value={customTypeName}
+                onChange={(e) => setCustomTypeName(e.target.value)}
+                autoFocus
+              />
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -3711,6 +3727,7 @@ function SellPackageModal({
   const [customerId, setCustomerId] = useState("");
   const [dogId, setDogId] = useState("");
   const [programType, setProgramType] = useState("BASIC_OBEDIENCE");
+  const [customTypeName, setCustomTypeName] = useState("");
   const [totalSessions, setTotalSessions] = useState("10");
   const [price, setPrice] = useState("");
   const [notes, setNotes] = useState("");
@@ -3728,10 +3745,11 @@ function SellPackageModal({
   const selectedCustomer = customers.find((c) => c.id === customerId);
   const selectedDog = selectedCustomer?.pets.find((p) => p.id === dogId);
   const selectedPkg = packages.find((p) => p.id === selectedPackageId);
+  const effectiveProgramType = programType === "CUSTOM" ? (customTypeName.trim() || "מותאם אישית") : (PROGRAM_TYPES_MAP[programType] || programType);
   const autoName = selectedDog
     ? selectedPkg
       ? `${selectedPkg.name} - ${selectedDog.name}`
-      : `אילוף ${PROGRAM_TYPES_MAP[programType] || programType} - ${selectedDog.name}`
+      : `אילוף ${effectiveProgramType} - ${selectedDog.name}`
     : "";
 
   const handleSelectPackage = (pkg: TrainingPackage | null) => {
@@ -3751,7 +3769,7 @@ function SellPackageModal({
       customerId,
       dogId,
       name: autoName,
-      programType,
+      programType: programType === "CUSTOM" && customTypeName.trim() ? customTypeName.trim() : programType,
       totalSessions: parseInt(totalSessions),
       price: price ? parseFloat(price) : null,
       notes: notes || null,
@@ -3862,11 +3880,20 @@ function SellPackageModal({
               {!selectedPkg && (
                 <div>
                   <label className="label">סוג תוכנית</label>
-                  <select className="input" value={programType} onChange={(e) => setProgramType(e.target.value)}>
+                  <select className="input" value={programType} onChange={(e) => { setProgramType(e.target.value); setCustomTypeName(""); }}>
                     {Object.entries(PROGRAM_TYPES_MAP).filter(([k]) => !k.startsWith("SD_")).map(([k, v]) => (
                       <option key={k} value={k}>{v}</option>
                     ))}
                   </select>
+                  {programType === "CUSTOM" && (
+                    <input
+                      className="input mt-2"
+                      placeholder="פרט את סוג האילוף..."
+                      value={customTypeName}
+                      onChange={(e) => setCustomTypeName(e.target.value)}
+                      autoFocus
+                    />
+                  )}
                 </div>
               )}
 
@@ -4105,11 +4132,6 @@ function AssignDogModal({
     queryFn: () => fetchJSON<Customer[]>("/api/customers?full=1"),
   });
 
-  const customersWithPets = useMemo(
-    () => customers.filter((c) => c.pets && c.pets.length > 0),
-    [customers]
-  );
-
   const selectedCustomer = customers.find((c) => c.id === customerId);
 
   return (
@@ -4117,7 +4139,7 @@ function AssignDogModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-sm mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-petra-text">שיוך כלב ל{groupName}</h2>
+          <h2 className="text-lg font-bold text-petra-text">שיוך לקוח וכלב — {groupName}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
@@ -4136,25 +4158,31 @@ function AssignDogModal({
                 onChange={(e) => { setCustomerId(e.target.value); setDogId(""); }}
               >
                 <option value="">בחר לקוח...</option>
-                {customersWithPets.map((c) => (
+                {customers.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} — {c.phone} ({c.pets.length} כלבים)
+                    {c.name}{c.phone ? ` — ${c.phone}` : ""}
                   </option>
                 ))}
               </select>
             )}
           </div>
 
-          {/* Dog */}
+          {/* Dog — shown after customer selected */}
           {customerId && selectedCustomer && (
             <div>
               <label className="label">כלב *</label>
-              <select className="input" value={dogId} onChange={(e) => setDogId(e.target.value)}>
-                <option value="">בחר כלב...</option>
-                {selectedCustomer.pets.map((pet) => (
-                  <option key={pet.id} value={pet.id}>{pet.name}</option>
-                ))}
-              </select>
+              {selectedCustomer.pets.length === 0 ? (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
+                  ללקוח זה אין כלבים רשומים — יש להוסיף כלב בפרופיל הלקוח תחילה.
+                </p>
+              ) : (
+                <select className="input" value={dogId} onChange={(e) => setDogId(e.target.value)}>
+                  <option value="">בחר כלב...</option>
+                  {selectedCustomer.pets.map((pet) => (
+                    <option key={pet.id} value={pet.id}>{pet.name}{pet.species ? ` (${pet.species})` : ""}</option>
+                  ))}
+                </select>
+              )}
             </div>
           )}
 
@@ -4170,7 +4198,7 @@ function AssignDogModal({
             onClick={() => onSubmit(customerId, dogId)}
           >
             <Plus className="w-4 h-4" />
-            {isPending ? "שומר..." : "שייך כלב"}
+            {isPending ? "שומר..." : "שייך לקוח וכלב"}
           </button>
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>
@@ -4714,19 +4742,24 @@ function ProgramSettingsModal({
   }) => void;
   isPending: boolean;
 }) {
+  const isKnownType = (t: string) => t in PROGRAM_TYPES_MAP;
+  const initialType = program.programType && isKnownType(program.programType) ? program.programType : "CUSTOM";
+  const initialCustomName = program.programType && !isKnownType(program.programType) ? program.programType : "";
+
   const [form, setForm] = useState({
-    programType: program.programType || "BASIC_OBEDIENCE",
+    programType: initialType,
     startDate: program.startDate ? new Date(program.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     endDate: program.endDate ? new Date(program.endDate).toISOString().split('T')[0] : "",
     location: program.location || "",
     frequency: program.frequency || "",
     totalSessions: program.totalSessions ? String(program.totalSessions) : "",
   });
+  const [customTypeName, setCustomTypeName] = useState(initialCustomName);
 
   const handleSubmit = () => {
     const parsedSessions = parseInt(form.totalSessions, 10);
     onSubmit({
-      programType: form.programType,
+      programType: form.programType === "CUSTOM" && customTypeName.trim() ? customTypeName.trim() : form.programType,
       startDate: new Date(form.startDate).toISOString(),
       endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
       location: form.location || null,
@@ -4755,7 +4788,7 @@ function ProgramSettingsModal({
             <select
               className="input"
               value={form.programType}
-              onChange={(e) => setForm({ ...form, programType: e.target.value })}
+              onChange={(e) => { setForm({ ...form, programType: e.target.value }); setCustomTypeName(""); }}
             >
               <option value="BASIC_OBEDIENCE">משמעת בסיסית</option>
               <option value="REACTIVITY">תגובתיות</option>
@@ -4764,6 +4797,15 @@ function ProgramSettingsModal({
               <option value="ADVANCED">משמעת מתקדמת</option>
               <option value="CUSTOM">מותאם אישית</option>
             </select>
+            {form.programType === "CUSTOM" && (
+              <input
+                className="input mt-2"
+                placeholder="פרט את סוג האילוף..."
+                value={customTypeName}
+                onChange={(e) => setCustomTypeName(e.target.value)}
+                autoFocus
+              />
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -4960,40 +5002,34 @@ function FinishTrainingModal({
 // ARCHIVE TAB
 // ═══════════════════════════════════════════════════════
 
-function exportArchiveCSV(programs: TrainingProgram[]) {
-  const BOM = "\uFEFF";
-  const headers = ["שם הכלב", "גזע", "שם הלקוח", "טלפון", "סוג תוכנית", "מפגשים שהושלמו", "תאריך התחלה", "תאריך סיום", "סטטוס", "סיבת נשירה / הערות"];
-  const rows = programs.map((p) => {
-    const usedSessions = p.sessions.filter((s) => s.status === "COMPLETED").length;
-    const statusLabel = p.status === "COMPLETED" ? "הושלם" : "נשר";
-    return [
-      p.dog.name,
-      (p.dog as { breed?: string | null }).breed || "",
-      p.customer?.name ?? "",
-      p.customer?.phone ?? "",
-      PROGRAM_TYPES_MAP[p.programType] || p.programType,
-      usedSessions.toString(),
-      p.startDate ? formatDate(p.startDate) : "",
-      p.endDate ? formatDate(p.endDate) : "",
-      statusLabel,
-      p.notes || "",
-    ];
+function exportArchiveXLSX(programs: TrainingProgram[]) {
+  import("xlsx").then((XLSX) => {
+    const headers = ["שם הכלב", "גזע", "שם הלקוח", "טלפון", "סוג תוכנית", "מפגשים שהושלמו", "תאריך התחלה", "תאריך סיום", "סטטוס", "סיבת נשירה / הערות"];
+    const rows = programs.map((p) => {
+      const usedSessions = p.sessions.filter((s) => s.status === "COMPLETED").length;
+      const statusLabel = p.status === "COMPLETED" ? "הושלם" : "נשר";
+      return [
+        p.dog.name,
+        (p.dog as { breed?: string | null }).breed || "",
+        p.customer?.name ?? "",
+        p.customer?.phone ?? "",
+        PROGRAM_TYPES_MAP[p.programType] || p.programType,
+        usedSessions,
+        p.startDate ? formatDate(p.startDate) : "",
+        p.endDate ? formatDate(p.endDate) : "",
+        statusLabel,
+        p.notes || "",
+      ];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws["!cols"] = [14, 12, 14, 12, 14, 10, 12, 12, 10, 20].map((w) => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "ארכיון אילוף");
+    XLSX.writeFile(wb, `training_archive_${new Date().toISOString().slice(0, 10)}.xlsx`);
   });
-  const csv = BOM + [headers, ...rows]
-    .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","))
-    .join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `training_archive_${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
-function ArchiveTab({ programs, isLoading }: { programs: TrainingProgram[]; isLoading: boolean }) {
+function ArchiveTab({ programs, isLoading, onRestore }: { programs: TrainingProgram[]; isLoading: boolean; onRestore: (id: string) => void }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "COMPLETED" | "CANCELED">("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -5071,10 +5107,10 @@ function ArchiveTab({ programs, isLoading }: { programs: TrainingProgram[]; isLo
         {programs.length > 0 && (
           <button
             className="btn-secondary text-xs flex items-center gap-1.5"
-            onClick={() => exportArchiveCSV(filtered.length > 0 ? filtered : programs)}
+            onClick={() => exportArchiveXLSX(filtered.length > 0 ? filtered : programs)}
           >
             <Download className="w-3.5 h-3.5" />
-            יצא CSV ({filtered.length})
+            יצא Excel ({filtered.length})
           </button>
         )}
       </div>
@@ -5133,6 +5169,14 @@ function ArchiveTab({ programs, isLoading }: { programs: TrainingProgram[]; isLo
                     </p>
                   )}
                 </div>
+                <button
+                  onClick={() => onRestore(p.id)}
+                  className="flex-shrink-0 flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-3 py-1.5 rounded-lg transition-colors"
+                  title="השב לתהליך פעיל"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  השב לתהליך
+                </button>
               </div>
             );
           })}
