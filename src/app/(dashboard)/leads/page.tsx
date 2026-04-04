@@ -1664,83 +1664,26 @@ function LeadsPageContent() {
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
-        <h1 className="page-title">לידים</h1>
-        <p className="text-sm text-petra-muted">
-          {(searchQuery.trim() || sourceFilter) ? `${filteredLeads.length} מתוך ${leads.length}` : `${leads.length}`} לידים
-        </p>
-
-        {/* Tab switcher */}
-        <div className="flex bg-slate-100 p-1 rounded-xl gap-0.5">
-          <button
-            onClick={() => setActiveTab("kanban")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              activeTab === "kanban" ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text"
-            )}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            קנבן
-          </button>
-          <button
-            onClick={() => setActiveTab("archive")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              activeTab === "archive" ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text"
-            )}
-          >
-            <Archive className="w-3.5 h-3.5" />
-            ארכיון
-            {(() => {
-              const count = (wonStage ? leads.filter(l => l.stage === wonStage.id).length : 0)
-                + (lostStage ? leads.filter(l => l.stage === lostStage.id).length : 0);
-              return count > 0 ? (
-                <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
-                  activeTab === "archive" ? "bg-slate-100 text-slate-600" : "bg-slate-200 text-slate-500"
-                )}>{count}</span>
-              ) : null;
-            })()}
-          </button>
-          <button
-            onClick={() => setActiveTab("reports")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              activeTab === "reports" ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text"
-            )}
-          >
-            <BarChart2 className="w-3.5 h-3.5" />
-            דוחות
-          </button>
+      {/* ── Row 1: Main Actions ── */}
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
+        {/* Right: title */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <h1 className="page-title">
+            לידים
+            <span className="text-sm font-normal text-petra-muted mr-2">
+              ({(searchQuery.trim() || sourceFilter) ? `${filteredLeads.length}/${leads.length}` : leads.length})
+            </span>
+          </h1>
         </div>
 
-        {activeTab === "kanban" && (
-          maxLeads !== null && leads.length >= maxLeads ? (
-            <a
-              href="/upgrade"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors"
-            >
-              <Sparkles className="w-4 h-4" />
-              שדרג לבייסיק
-              <span className="opacity-80 text-xs font-normal">({leads.length}/{maxLeads})</span>
-            </a>
-          ) : (
-            <button className="btn-primary" onClick={() => setShowModal(true)}>
-              <Plus className="w-4 h-4" />ליד חדש
-              {maxLeads !== null && (
-                <span className="mr-1 opacity-70 text-xs">({leads.length}/{maxLeads})</span>
-              )}
-            </button>
-          )
-        )}
-
-        {/* Search — right side */}
-        <div className="flex flex-col gap-1 w-full sm:w-auto">
+        {/* Center: search (grows to fill space) */}
+        <div className="flex-1 min-w-[180px] max-w-md">
           <div className="relative">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
             <input
               type="text"
               placeholder={activeTab === "archive" ? "חפש בארכיון..." : "חפש ליד..."}
-              className="input pr-9 pl-3 text-sm w-full sm:w-52"
+              className="input pr-9 pl-3 text-sm w-full"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -1753,7 +1696,6 @@ function LeadsPageContent() {
               </button>
             )}
           </div>
-          {/* Archive hint — show when searching in kanban and archive has matches */}
           {activeTab === "kanban" && searchQuery.trim() && (() => {
             const q = searchQuery.toLowerCase();
             const archiveHits = leads.filter(l =>
@@ -1761,26 +1703,91 @@ function LeadsPageContent() {
               (l.name.toLowerCase().includes(q) || (l.phone || "").includes(q) || (l.email || "").toLowerCase().includes(q))
             ).length;
             return archiveHits > 0 ? (
-              <button
-                onClick={() => setActiveTab("archive")}
-                className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1 font-medium"
-              >
-                <Archive className="w-3 h-3" />
-                נמצא {archiveHits} בארכיון ←
+              <button onClick={() => setActiveTab("archive")} className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1 font-medium mt-1">
+                <Archive className="w-3 h-3" />נמצא {archiveHits} בארכיון ←
               </button>
             ) : null;
           })()}
         </div>
 
-        {/* Export button */}
-        <div className="relative" ref={exportMenuRef}>
+        {/* Left: stage actions (kanban only) */}
+        {activeTab === "kanban" && (
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              className={`btn-secondary flex items-center gap-1.5 text-sm ${editMode ? "!bg-brand-50 !text-brand-700 !border-brand-300" : ""}`}
+              onClick={() => { setEditMode(!editMode); setEditingStageId(null); setEditingName(""); }}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              {editMode ? "סיום עריכה" : "עריכת שלבים"}
+            </button>
+            <button
+              className="btn-secondary flex items-center gap-1.5 text-sm"
+              onClick={() => {
+                setAddStageTrigger((t) => t + 1);
+                setTimeout(() => { kanbanScrollRef.current?.scrollTo({ left: kanbanScrollRef.current.scrollWidth, behavior: "smooth" }); }, 50);
+              }}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              הוסף שלב
+            </button>
+          </div>
+        )}
+
+        {/* Far left: new lead button */}
+        {activeTab === "kanban" && (
+          maxLeads !== null && leads.length >= maxLeads ? (
+            <a href="/upgrade" className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors flex-shrink-0">
+              <Sparkles className="w-4 h-4" />שדרג לבייסיק
+            </a>
+          ) : (
+            <button className="btn-primary flex-shrink-0" onClick={() => setShowModal(true)}>
+              <Plus className="w-4 h-4" />ליד חדש
+              {maxLeads !== null && <span className="mr-1 opacity-70 text-xs">({leads.length}/{maxLeads})</span>}
+            </button>
+          )
+        )}
+      </div>
+
+      {/* ── Row 2: Secondary Controls ── */}
+      <div className="flex items-center gap-2 mb-6 flex-wrap">
+        {/* View tabs — button group */}
+        <div className="flex bg-slate-100 p-1 rounded-xl gap-0.5">
           <button
-            className="btn-secondary text-sm gap-1.5"
-            onClick={() => setShowExportMenu((v) => !v)}
-            title="ייצוא לידים"
+            onClick={() => setActiveTab("kanban")}
+            className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+              activeTab === "kanban" ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text")}
           >
-            <Download className="w-4 h-4" />
-            ייצוא
+            <FileText className="w-3.5 h-3.5" />קנבן
+          </button>
+          <button
+            onClick={() => setActiveTab("archive")}
+            className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+              activeTab === "archive" ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text")}
+          >
+            <Archive className="w-3.5 h-3.5" />ארכיון
+            {(() => {
+              const count = (wonStage ? leads.filter(l => l.stage === wonStage.id).length : 0)
+                + (lostStage ? leads.filter(l => l.stage === lostStage.id).length : 0);
+              return count > 0 ? (
+                <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
+                  activeTab === "archive" ? "bg-slate-100 text-slate-600" : "bg-slate-200 text-slate-500"
+                )}>{count}</span>
+              ) : null;
+            })()}
+          </button>
+          <button
+            onClick={() => setActiveTab("reports")}
+            className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+              activeTab === "reports" ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text")}
+          >
+            <BarChart2 className="w-3.5 h-3.5" />דוחות
+          </button>
+        </div>
+
+        {/* Export */}
+        <div className="relative" ref={exportMenuRef}>
+          <button className="btn-secondary text-sm gap-1.5" onClick={() => setShowExportMenu((v) => !v)} title="ייצוא לידים">
+            <Download className="w-4 h-4" />ייצוא
           </button>
           {showExportMenu && (
             <div className="absolute left-0 top-full mt-1.5 w-64 bg-white rounded-xl shadow-lg border border-petra-border z-50 p-4 space-y-3">
@@ -1788,34 +1795,23 @@ function LeadsPageContent() {
               <div className="space-y-2">
                 <div>
                   <label className="text-xs text-petra-muted mb-1 block">מתאריך</label>
-                  <input
-                    type="date" lang="he"
-                    className="input text-sm py-1.5"
-                    value={exportFrom}
-                    onChange={(e) => setExportFrom(e.target.value)}
-                  />
+                  <input type="date" lang="he" className="input text-sm py-1.5" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} />
                 </div>
                 <div>
                   <label className="text-xs text-petra-muted mb-1 block">עד תאריך</label>
-                  <input
-                    type="date" lang="he"
-                    className="input text-sm py-1.5"
-                    value={exportTo}
-                    onChange={(e) => setExportTo(e.target.value)}
-                  />
+                  <input type="date" lang="he" className="input text-sm py-1.5" value={exportTo} onChange={(e) => setExportTo(e.target.value)} />
                 </div>
               </div>
               <p className="text-[11px] text-petra-muted">ללא סינון תאריך — ייצא את כל הלידים</p>
               <button className="btn-primary w-full text-sm" onClick={exportLeads}>
-                <Download className="w-3.5 h-3.5" />
-                הורד CSV
+                <Download className="w-3.5 h-3.5" />הורד CSV
               </button>
             </div>
           )}
         </div>
 
-        {/* Refresh controls — pushed to the left */}
-        <div className="flex items-center gap-2 mr-auto">
+        {/* Refresh controls */}
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => refetchLeads()}
             disabled={leadsLoading}
@@ -1827,45 +1823,13 @@ function LeadsPageContent() {
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
             title={autoRefresh ? "כבה אוטו-רענון" : "הפעל אוטו-רענון (30 שנ׳)"}
-            className={cn(
-              "flex items-center gap-1.5 px-3 h-8 rounded-lg border text-xs font-medium transition-all",
-              autoRefresh
-                ? "bg-emerald-50 border-emerald-300 text-emerald-700"
-                : "bg-white border-slate-200 text-petra-muted hover:text-petra-text"
-            )}
+            className={cn("flex items-center gap-1.5 px-3 h-8 rounded-lg border text-xs font-medium transition-all",
+              autoRefresh ? "bg-emerald-50 border-emerald-300 text-emerald-700" : "bg-white border-slate-200 text-petra-muted hover:text-petra-text")}
           >
             <span className={cn("w-1.5 h-1.5 rounded-full", autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
-            {autoRefresh ? "רענון אוטו פעיל" : "אוטו-רענון"}
+            {autoRefresh ? "אוטו פעיל" : "אוטו-רענון"}
           </button>
         </div>
-        {activeTab === "kanban" && (
-          <>
-            <button
-              className="btn-secondary flex items-center gap-1.5"
-              onClick={() => {
-                setAddStageTrigger((t) => t + 1);
-                // Scroll kanban to the end so user sees the new input
-                setTimeout(() => {
-                  kanbanScrollRef.current?.scrollTo({ left: kanbanScrollRef.current.scrollWidth, behavior: "smooth" });
-                }, 50);
-              }}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              הוסף שלב
-            </button>
-            <button
-              className={`btn-secondary flex items-center gap-1.5 ${editMode ? "!bg-brand-50 !text-brand-700 !border-brand-300" : ""}`}
-              onClick={() => {
-                setEditMode(!editMode);
-                setEditingStageId(null);
-                setEditingName("");
-              }}
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              {editMode ? "סיום עריכה" : "עריכת שלבים"}
-            </button>
-          </>
-        )}
       </div>
 
       {/* Reports Tab */}
