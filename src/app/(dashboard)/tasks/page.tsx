@@ -472,7 +472,7 @@ export default function TasksPage() {
     <div>
       <PageTitle title="משימות" />
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 mb-4">
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         {/* Right (RTL start): action buttons */}
         <div className="flex items-center gap-2 flex-shrink-0">
           {tab !== "automation" && (

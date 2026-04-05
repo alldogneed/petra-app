@@ -4333,7 +4333,9 @@ export default function SettingsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 p-1 bg-slate-100 rounded-xl overflow-x-auto scrollbar-hide">
+      <div className="relative mb-6">
+      <div className="flex gap-1 p-1 bg-slate-100 rounded-xl overflow-x-auto scrollbar-hide">
+
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const locked = (isFree && FREE_LOCKED_TABS.has(tab.id)) || (isBasic && BASIC_LOCKED_TABS.has(tab.id));
@@ -4352,6 +4354,9 @@ export default function SettingsPage() {
             </button>
           );
         })}
+      </div>
+      {/* Fade hint on left edge (RTL: left = end of tabs) indicating more to scroll */}
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-slate-100 to-transparent rounded-l-xl md:hidden" />
       </div>
 
       {activeTab === "business" && <BusinessTab />}
