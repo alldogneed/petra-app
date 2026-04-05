@@ -99,6 +99,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (notes && typeof notes === "string" && notes.length > 2000) {
+      return NextResponse.json({ error: "הערות ארוכות מדי (מקסימום 2000 תווים)" }, { status: 400 });
+    }
     if (!serviceId && !priceListItemId) {
       return NextResponse.json(
         { error: "Either serviceId or priceListItemId is required" },

@@ -78,6 +78,9 @@ export async function POST(request: NextRequest) {
     if (!customerId || !lines || lines.length === 0) {
       return NextResponse.json({ error: "customerId and at least one line are required" }, { status: 400 });
     }
+    if (notes && typeof notes === "string" && notes.length > 2000) {
+      return NextResponse.json({ error: "הערות ארוכות מדי (מקסימום 2000 תווים)" }, { status: 400 });
+    }
 
     // ── Enforce order limit for free tier ───────────────────────────────────
     const biz = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true, featureOverrides: true } });

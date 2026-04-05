@@ -129,6 +129,9 @@ export async function DELETE(
 }
 
 // ─── Action executor ──────────────────────────────────────────────────────────
+// ⚠️  SECURITY: Any new manager-approval action MUST be added as a case here.
+//    The default branch throws, preventing rogue/injected actions from executing.
+//    Never remove the default throw — it is the security boundary.
 
 async function executeApprovedAction(
   action: string,
