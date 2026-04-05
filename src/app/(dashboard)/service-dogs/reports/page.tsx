@@ -202,7 +202,7 @@ function ServiceDogsReportsPageContent() {
           </a>
           <button
             onClick={() => {
-              const certRows = certified.map((dog) => `<tr><td>${dog.pet.name}</td><td>${dog.pet.breed || "—"}</td><td>${dog.certificationDate ? new Date(dog.certificationDate).toLocaleDateString("he-IL") : "—"}</td><td>${dog.activePlacement ? `משובץ — ${dog.activePlacement.recipientName}` : "ללא שיבוץ"}</td></tr>`).join("");
+              const certRows = certified.map((dog) => `<tr><td>${dog.pet.name}</td><td>${dog.pet.breed || "—"}</td><td>${dog.certificationDate ? formatDate(dog.certificationDate) : "—"}</td><td>${dog.activePlacement ? `משובץ — ${dog.activePlacement.recipientName}` : "ללא שיבוץ"}</td></tr>`).join("");
               const phaseRows = Object.entries(byPhase).map(([phase, count]) => `<tr><td>${phase}</td><td>${count}</td></tr>`).join("");
               const win = window.open("", "_blank");
               if (!win) return;
@@ -210,7 +210,7 @@ function ServiceDogsReportsPageContent() {
                 <style>body{font-family:Arial,sans-serif;padding:32px;direction:rtl}h1{font-size:20px;margin-bottom:4px}h2{font-size:15px;margin:24px 0 10px;border-bottom:2px solid #eee;padding-bottom:4px}table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}th,td{border:1px solid #ddd;padding:7px 10px;text-align:right}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}.stat{display:inline-block;margin:0 8px 8px 0;padding:6px 14px;border:1px solid #ddd;border-radius:8px;font-size:13px}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
               </head><body>
                 <h1>דוחות פנימיים — כלבי שירות</h1>
-                <p style="color:#888;font-size:12px">הופק: ${new Date().toLocaleDateString("he-IL")}</p>
+                <p style="color:#888;font-size:12px">הופק: ${formatDate(new Date())}</p>
                 <div>
                   <span class="stat">סה"כ כלבים: <strong>${totalDogs}</strong></span>
                   <span class="stat">מוסמכים: <strong>${certified.length}</strong></span>
@@ -221,7 +221,7 @@ function ServiceDogsReportsPageContent() {
                 <table><thead><tr><th>שם</th><th>גזע</th><th>תאריך הסמכה</th><th>שיבוץ</th></tr></thead><tbody>${certRows}</tbody></table>
                 <h2>כלבים לפי שלב</h2>
                 <table><thead><tr><th>שלב</th><th>כמות</th></tr></thead><tbody>${phaseRows}</tbody></table>
-                <footer>הופק ממערכת Petra · ${new Date().toLocaleDateString("he-IL")}</footer>
+                <footer>הופק ממערכת Petra · ${formatDate(new Date())}</footer>
               </body></html>`);
               win.document.close();
               win.print();
@@ -337,7 +337,7 @@ function ServiceDogsReportsPageContent() {
                       </head><body>
                         <h2>פיפליין זכאים (${recipients.length})</h2>
                         <table><thead><tr><th>שלב</th><th>כמות</th></tr></thead><tbody>${rows}</tbody></table>
-                        <footer>הופק ממערכת Petra · ${new Date().toLocaleDateString("he-IL")}</footer>
+                        <footer>הופק ממערכת Petra · ${formatDate(new Date())}</footer>
                       </body></html>`);
                       win.document.close();
                       win.print();
@@ -384,7 +384,7 @@ function ServiceDogsReportsPageContent() {
                       </head><body>
                         <h2>זכאים לפי מקור מימון</h2>
                         <table><thead><tr><th>מקור מימון</th><th>כמות</th></tr></thead><tbody>${rows}</tbody></table>
-                        <footer>הופק ממערכת Petra · ${new Date().toLocaleDateString("he-IL")}</footer>
+                        <footer>הופק ממערכת Petra · ${formatDate(new Date())}</footer>
                       </body></html>`);
                       win.document.close();
                       win.print();
@@ -458,7 +458,7 @@ function ServiceDogsReportsPageContent() {
                       <tr>
                         <td>${dog.pet.name}</td>
                         <td>${dog.pet.breed || "—"}</td>
-                        <td>${dog.certificationDate ? new Date(dog.certificationDate).toLocaleDateString("he-IL") : "—"}</td>
+                        <td>${dog.certificationDate ? formatDate(dog.certificationDate) : "—"}</td>
                         <td>${dog.activePlacement ? `משובץ — ${dog.activePlacement.recipientName}` : "ללא שיבוץ"}</td>
                       </tr>`).join("");
                     const win = window.open("", "_blank");
@@ -469,7 +469,7 @@ function ServiceDogsReportsPageContent() {
                       <h2>כלבים מוסמכים (${certified.length})</h2>
                       <table><thead><tr><th>שם הכלב</th><th>גזע</th><th>תאריך הסמכה</th><th>שיבוץ</th></tr></thead>
                       <tbody>${rows}</tbody></table>
-                      <footer>הופק ממערכת Petra · ${new Date().toLocaleDateString("he-IL")}</footer>
+                      <footer>הופק ממערכת Petra · ${formatDate(new Date())}</footer>
                     </body></html>`);
                     win.document.close();
                     win.print();
@@ -526,7 +526,7 @@ function ServiceDogsReportsPageContent() {
                 <button
                   onClick={() => {
                     const rows = upcomingRenewals.map(r =>
-                      `<tr><td>${r.dogName}</td><td>${r.label}</td><td>${r.urgency === "overdue" ? "פג תוקף" : r.expiry.toLocaleDateString("he-IL")}</td></tr>`
+                      `<tr><td>${r.dogName}</td><td>${r.label}</td><td>${r.urgency === "overdue" ? "פג תוקף" : formatDate(r.expiry)}</td></tr>`
                     ).join("");
                     const win = window.open("", "_blank");
                     if (!win) return;
@@ -536,7 +536,7 @@ function ServiceDogsReportsPageContent() {
                       <h2>חידושים קרובים — 90 יום (${upcomingRenewals.length} פריטים)</h2>
                       <table><thead><tr><th>שם הכלב</th><th>סוג חידוש</th><th>תאריך</th></tr></thead>
                       <tbody>${rows}</tbody></table>
-                      <footer>הופק ממערכת Petra · ${new Date().toLocaleDateString("he-IL")}</footer>
+                      <footer>הופק ממערכת Petra · ${formatDate(new Date())}</footer>
                     </body></html>`);
                     win.document.close();
                     win.print();

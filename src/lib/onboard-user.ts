@@ -74,42 +74,40 @@ export async function onboardUser(input: OnboardUserInput): Promise<OnboardUserR
     slug = crypto.randomBytes(6).toString("hex");
   }
 
-  // Atomic transaction: User + Business + BusinessUser
-  const result = await prisma.$transaction(async (tx) => {
-    const user = await tx.platformUser.create({
-      data: {
-        email,
-        name,
-        passwordHash,
-        authProvider: "local",
-        isActive: true,
-        platformRole: null, // regular user, not platform admin
-      },
-    });
-
-    const business = await tx.business.create({
-      data: {
-        name: businessName,
-        email,
-        phone: input.phone?.trim() || null,
-        businessRegNumber: input.businessRegNumber?.trim() || null,
-        slug,
-        tier: input.tier ?? "basic",
-        status: "active",
-      },
-    });
-
-    const membership = await tx.businessUser.create({
-      data: {
-        businessId: business.id,
-        userId: user.id,
-        role: "owner",
-        isActive: true,
-      },
-    });
-
-    return { user, business, membership };
+  // Sequential operations (no interactive $transaction — Supabase PgBouncer incompatible)
+  const user = await prisma.platformUser.create({
+    data: {
+      email,
+      name,
+      passwordHash,
+      authProvider: "local",
+      isActive: true,
+      platformRole: null, // regular user, not platform admin
+    },
   });
+
+  const business = await prisma.business.create({
+    data: {
+      name: businessName,
+      email,
+      phone: input.phone?.trim() || null,
+      businessRegNumber: input.businessRegNumber?.trim() || null,
+      slug,
+      tier: input.tier ?? "basic",
+      status: "active",
+    },
+  });
+
+  const membership = await prisma.businessUser.create({
+    data: {
+      businessId: business.id,
+      userId: user.id,
+      role: "owner",
+      isActive: true,
+    },
+  });
+
+  const result = { user, business, membership };
 
   // Send welcome email OUTSIDE the transaction (non-fatal)
   let emailSent = false;

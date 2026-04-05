@@ -68,29 +68,26 @@ export async function ensureUserHasBusiness(
   const slugSuffix = Math.random().toString(36).slice(2, 7);
   const slug = `${slugBase}-${slugSuffix}`;
 
-  const business = await prisma.$transaction(async (tx) => {
-    const biz = await tx.business.create({
-      data: {
-        name: `העסק של ${displayName}`,
-        slug,
-        status: "active",
-        tier: "free",
-      },
-    });
-
-    await tx.businessUser.create({
-      data: {
-        businessId: biz.id,
-        userId,
-        role: "owner",
-        isActive: true,
-      },
-    });
-
-    return biz;
+  // Sequential operations (no interactive $transaction — Supabase PgBouncer incompatible)
+  const biz = await prisma.business.create({
+    data: {
+      name: `העסק של ${displayName}`,
+      slug,
+      status: "active",
+      tier: "free",
+    },
   });
 
-  return business.id;
+  await prisma.businessUser.create({
+    data: {
+      businessId: biz.id,
+      userId,
+      role: "owner",
+      isActive: true,
+    },
+  });
+
+  return biz.id;
 }
 
 // ─── Cookie helpers (Next.js 14 synchronous cookies() API) ───────────────────

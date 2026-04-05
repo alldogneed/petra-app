@@ -165,23 +165,21 @@ export async function PATCH(
     // Auto-update room status atomically to avoid race conditions
     if (existing.roomId) {
       if (body.status === "checked_out") {
-        // Check + update inside a transaction so concurrent checkouts don't corrupt room status
-        await prisma.$transaction(async (tx) => {
-          const otherActive = await tx.boardingStay.count({
-            where: {
-              roomId: existing.roomId!,
-              businessId: authResult.businessId,
-              id: { not: params.id },
-              status: { in: ["reserved", "checked_in"] },
-            },
-          });
-          if (otherActive === 0) {
-            await tx.room.update({
-              where: { id: existing.roomId!, businessId: authResult.businessId },
-              data: { status: "needs_cleaning" },
-            });
-          }
+        // Sequential check + update (no interactive $transaction — Supabase PgBouncer incompatible)
+        const otherActive = await prisma.boardingStay.count({
+          where: {
+            roomId: existing.roomId!,
+            businessId: authResult.businessId,
+            id: { not: params.id },
+            status: { in: ["reserved", "checked_in"] },
+          },
         });
+        if (otherActive === 0) {
+          await prisma.room.update({
+            where: { id: existing.roomId!, businessId: authResult.businessId },
+            data: { status: "needs_cleaning" },
+          });
+        }
       } else if (body.status === "checked_in") {
         const room = await prisma.room.findFirst({ where: { id: existing.roomId!, businessId: authResult.businessId } });
         if (room && room.status === "needs_cleaning") {

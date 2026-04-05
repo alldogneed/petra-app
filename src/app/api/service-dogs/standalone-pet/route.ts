@@ -23,51 +23,48 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "נדרש שם כלב" }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const pet = await tx.pet.create({
-        data: {
-          name: name.trim(),
-          species: "dog",
-          breed: breed || null,
-          gender: gender || null,
-          birthDate: birthDate ? new Date(birthDate) : null,
-          weight: weight ? parseFloat(weight) : null,
-          microchip: microchip || null,
-          medicalNotes: medicalNotes || null,
-          behaviorNotes: behaviorNotes || null,
-          businessId: authResult.businessId,
-          // customerId is null — standalone service dog
-        },
-      });
+    // Sequential operations (no interactive $transaction — Supabase PgBouncer incompatible)
+    const pet = await prisma.pet.create({
+      data: {
+        name: name.trim(),
+        species: "dog",
+        breed: breed || null,
+        gender: gender || null,
+        birthDate: birthDate ? new Date(birthDate) : null,
+        weight: weight ? parseFloat(weight) : null,
+        microchip: microchip || null,
+        medicalNotes: medicalNotes || null,
+        behaviorNotes: behaviorNotes || null,
+        businessId: authResult.businessId,
+        // customerId is null — standalone service dog
+      },
+    });
 
-      const initialPhase = phase || "SELECTION";
+    const initialPhase = phase || "SELECTION";
 
-      const profile = await tx.serviceDogProfile.create({
-        data: {
-          petId: pet.id,
-          businessId: authResult.businessId,
-          phase: initialPhase,
-          serviceType: serviceType || null,
-          notes: notes || null,
-        },
-        include: { pet: true },
-      });
+    const result = await prisma.serviceDogProfile.create({
+      data: {
+        petId: pet.id,
+        businessId: authResult.businessId,
+        phase: initialPhase,
+        serviceType: serviceType || null,
+        notes: notes || null,
+      },
+      include: { pet: true },
+    });
 
-      // Auto-create a TrainingProgram so the dog appears in the training tab
-      await tx.trainingProgram.create({
-        data: {
-          businessId: authResult.businessId,
-          dogId: pet.id,
-          customerId: null,
-          name: `הכשרת כלב שירות — ${name.trim()}`,
-          programType: "SD_FOUNDATION",
-          trainingType: "SERVICE_DOG",
-          status: "ACTIVE",
-          startDate: new Date(),
-        },
-      });
-
-      return profile;
+    // Auto-create a TrainingProgram so the dog appears in the training tab
+    await prisma.trainingProgram.create({
+      data: {
+        businessId: authResult.businessId,
+        dogId: pet.id,
+        customerId: null,
+        name: `הכשרת כלב שירות — ${name.trim()}`,
+        programType: "SD_FOUNDATION",
+        trainingType: "SERVICE_DOG",
+        status: "ACTIVE",
+        startDate: new Date(),
+      },
     });
 
     // Seed initial medical protocols outside transaction

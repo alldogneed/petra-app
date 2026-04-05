@@ -136,9 +136,10 @@ export async function POST(request: NextRequest) {
     // Capture linked IDs for post-transaction GCal sync
     let linkedAppointmentId: string | null = null;
 
-    // Create order + lines + optional appointment atomically
-    const order = await prisma.$transaction(async (tx) => {
-      const created = await tx.order.create({
+    // Create order + lines + optional appointment sequentially
+    // (no interactive $transaction — Supabase PgBouncer incompatible)
+    const order = await (async () => {
+      const created = await prisma.order.create({
         data: {
           businessId: authResult.businessId,
           customerId,
@@ -159,7 +160,7 @@ export async function POST(request: NextRequest) {
       for (let i = 0; i < lines.length; i++) {
         const l = lines[i];
         const cl = calc.lines[i];
-        await tx.orderLine.create({
+        await prisma.orderLine.create({
           data: {
             orderId: created.id,
             businessId: authResult.businessId,
@@ -185,7 +186,7 @@ export async function POST(request: NextRequest) {
           : null;
         const fullLabel = subtypeLabel ? `${typeLabel} (${subtypeLabel})` : typeLabel;
         const apptNotes = `[${fullLabel}] ${notes || ""}`.trim();
-        const appt = await tx.appointment.create({
+        const appt = await prisma.appointment.create({
           data: {
             date: new Date(appointmentData.date),
             startTime: appointmentData.startTime,
@@ -199,7 +200,7 @@ export async function POST(request: NextRequest) {
           },
         });
         linkedAppointmentId = appt.id;
-        await tx.order.update({
+        await prisma.order.update({
           where: { id: created.id },
           data: { relatedEntityType: "Appointment", relatedEntityId: appt.id },
         });
@@ -210,7 +211,7 @@ export async function POST(request: NextRequest) {
       if (orderType === "training" && trainingPetId) {
         // GROUP: add dog as participant to existing group (no TrainingProgram created)
         if (trainingSubType === "group" && body.trainingGroupId) {
-          await tx.trainingGroupParticipant.upsert({
+          await prisma.trainingGroupParticipant.upsert({
             where: {
               trainingGroupId_dogId: { trainingGroupId: body.trainingGroupId, dogId: trainingPetId },
             },
@@ -236,7 +237,7 @@ export async function POST(request: NextRequest) {
             .map((l: { priceListItemId?: string | null }) => l.priceListItemId)
             .filter(Boolean) as string[];
           if (lineItemIds.length > 0) {
-            const pkgItem = await tx.priceListItem.findFirst({
+            const pkgItem = await prisma.priceListItem.findFirst({
               where: { id: { in: lineItemIds }, businessId: authResult.businessId, sessions: { gt: 0 } },
             });
             if (pkgItem) {
@@ -250,7 +251,7 @@ export async function POST(request: NextRequest) {
 
           if (isPkg && resolvedPackageId) {
             // Legacy: TrainingPackage lookup (old system)
-            const pkg = await tx.trainingPackage.findFirst({
+            const pkg = await prisma.trainingPackage.findFirst({
               where: { id: resolvedPackageId, businessId: authResult.businessId },
             });
             if (pkg) {
@@ -269,7 +270,7 @@ export async function POST(request: NextRequest) {
           // For boarding training: create a BoardingStay first, then link program to it
           let boardingStayId: string | null = null;
           if (trainingSubType === "boarding" && trainingBoardingStart) {
-            const stay = await tx.boardingStay.create({
+            const stay = await prisma.boardingStay.create({
               data: {
                 businessId: authResult.businessId,
                 customerId,
@@ -284,7 +285,7 @@ export async function POST(request: NextRequest) {
             boardingStayId = stay.id;
           }
 
-          await tx.trainingProgram.create({
+          await prisma.trainingProgram.create({
             data: {
               businessId: authResult.businessId,
               dogId: trainingPetId,
@@ -309,7 +310,7 @@ export async function POST(request: NextRequest) {
       }
 
       return created;
-    });
+    })();
 
     // Schedule WhatsApp reminder only if explicitly requested
     if (body.sendReminder === true && startAt) {

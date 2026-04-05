@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     const resetToken = await prisma.passwordResetToken.findUnique({
       where: { tokenHash },
-      include: { user: true },
+      include: { user: { select: { id: true, isActive: true } } },
     });
 
     // Validate: exists, not used, not expired

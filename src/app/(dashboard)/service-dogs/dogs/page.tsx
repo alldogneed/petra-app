@@ -311,7 +311,7 @@ function ServiceDogsListPageContent() {
                     </td>
                     <td className="p-3 text-petra-muted text-xs">
                       {dog.pet.birthDate
-                        ? new Date(dog.pet.birthDate).toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" })
+                        ? new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "long", year: "numeric" }).format(new Date(dog.pet.birthDate))
                         : "—"}
                     </td>
                     <td className="p-3 text-petra-muted text-xs font-mono">{dog.pet.microchip || "—"}</td>
@@ -340,7 +340,7 @@ function ServiceDogsListPageContent() {
                     <td className="p-3 text-xs">
                       {dog.certificationDate ? (
                         <span className="text-emerald-700 font-medium">
-                          {new Date(dog.certificationDate).toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                          {new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "long", year: "numeric" }).format(new Date(dog.certificationDate))}
                         </span>
                       ) : (
                         <span className="text-petra-muted">—</span>

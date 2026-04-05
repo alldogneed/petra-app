@@ -100,37 +100,35 @@ export async function POST(request: NextRequest) {
 
   if (hasOwner) {
     const passwordHash = await bcrypt.hash(body.ownerPassword!, 12);
-    const result = await prisma.$transaction(async (tx) => {
-      const business = await tx.business.create({
-        data: {
-          name: body.name,
-          email: body.email ?? null,
-          phone: body.phone ?? null,
-          tier: body.tier,
-          status: "active",
-          trialEndsAt,
-        },
-      });
-      const platformUser = await tx.platformUser.create({
-        data: {
-          name: body.ownerName!,
-          email: body.ownerEmail!,
-          passwordHash,
-          role: "USER",
-          platformRole: null,
-        },
-      });
-      await tx.businessUser.create({
-        data: {
-          businessId: business.id,
-          userId: platformUser.id,
-          role: "owner",
-        },
-      });
-      return { business, platformUser };
+    // Sequential operations (no interactive $transaction — Supabase PgBouncer incompatible)
+    const business = await prisma.business.create({
+      data: {
+        name: body.name,
+        email: body.email ?? null,
+        phone: body.phone ?? null,
+        tier: body.tier,
+        status: "active",
+        trialEndsAt,
+      },
     });
-    tenant = result.business;
-    owner = { id: result.platformUser.id, email: result.platformUser.email, name: result.platformUser.name };
+    const platformUser = await prisma.platformUser.create({
+      data: {
+        name: body.ownerName!,
+        email: body.ownerEmail!,
+        passwordHash,
+        role: "USER",
+        platformRole: null,
+      },
+    });
+    await prisma.businessUser.create({
+      data: {
+        businessId: business.id,
+        userId: platformUser.id,
+        role: "owner",
+      },
+    });
+    tenant = business;
+    owner = { id: platformUser.id, email: platformUser.email, name: platformUser.name };
   } else {
     tenant = await prisma.business.create({
       data: {

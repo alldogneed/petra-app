@@ -65,40 +65,38 @@ export async function POST(
       });
     }
 
-    // Atomic transaction: create customer + update lead + create timeline event
-    const result = await prisma.$transaction(async (tx) => {
-      const customer = await tx.customer.create({
-        data: {
-          name: existing.name,
-          phone: existing.phone || "",
-          email: existing.email,
-          source: existing.source,
-          notes: existing.notes,
-          businessId: authResult.businessId,
-        },
-      });
-
-      const lead = await tx.lead.update({
-        where: { id },
-        data: {
-          stage: wonStageId,
-          wonAt: new Date(),
-          customerId: customer.id,
-        },
-        include: { customer: true, callLogs: true },
-      });
-
-      await tx.timelineEvent.create({
-        data: {
-          type: "lead_converted",
-          description: "ליד הומר ללקוח",
-          customerId: customer.id,
-          businessId: authResult.businessId,
-        },
-      });
-
-      return { lead, customerId: customer.id };
+    // Sequential operations (no interactive $transaction — Supabase PgBouncer incompatible)
+    const customer = await prisma.customer.create({
+      data: {
+        name: existing.name,
+        phone: existing.phone || "",
+        email: existing.email,
+        source: existing.source,
+        notes: existing.notes,
+        businessId: authResult.businessId,
+      },
     });
+
+    const lead = await prisma.lead.update({
+      where: { id },
+      data: {
+        stage: wonStageId,
+        wonAt: new Date(),
+        customerId: customer.id,
+      },
+      include: { customer: true, callLogs: true },
+    });
+
+    await prisma.timelineEvent.create({
+      data: {
+        type: "lead_converted",
+        description: "ליד הומר ללקוח",
+        customerId: customer.id,
+        businessId: authResult.businessId,
+      },
+    });
+
+    const result = { lead, customerId: customer.id };
 
     const { session } = authResult;
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.CLOSE_LEAD_WON);

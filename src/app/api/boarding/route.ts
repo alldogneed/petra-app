@@ -86,56 +86,53 @@ export async function POST(request: NextRequest) {
     // Service dogs have no customer — accept null/empty customerId
     const resolvedCustomerId = customerId || null;
 
-    // Use transaction to prevent room overbooking race condition
-    const stay = await prisma.$transaction(async (tx) => {
-      // Check room availability if roomId provided
-      if (roomId) {
-        const room = await tx.room.findUnique({ where: { id: roomId } });
-        if (room) {
-          const activeCount = await tx.boardingStay.count({
-            where: {
-              roomId,
-              status: { in: ["reserved", "checked_in"] },
-              checkIn: { lt: checkOut ? new Date(checkOut) : new Date("2099-12-31") },
-              OR: [
-                { checkOut: { gt: new Date(checkIn) } },
-                { checkOut: null },
-              ],
-            },
-          });
-          if (activeCount >= room.capacity) {
-            throw new Error("ROOM_FULL");
-          }
+    // Sequential room availability check + create (no interactive $transaction — Supabase PgBouncer incompatible)
+    if (roomId) {
+      const room = await prisma.room.findUnique({ where: { id: roomId } });
+      if (room) {
+        const activeCount = await prisma.boardingStay.count({
+          where: {
+            roomId,
+            status: { in: ["reserved", "checked_in"] },
+            checkIn: { lt: checkOut ? new Date(checkOut) : new Date("2099-12-31") },
+            OR: [
+              { checkOut: { gt: new Date(checkIn) } },
+              { checkOut: null },
+            ],
+          },
+        });
+        if (activeCount >= room.capacity) {
+          return NextResponse.json({ error: "החדר מלא בתאריכים אלו" }, { status: 409 });
         }
       }
+    }
 
-      return tx.boardingStay.create({
-        data: {
-          businessId: authResult.businessId,
-          checkIn: new Date(checkIn),
-          checkOut: checkOut ? new Date(checkOut) : undefined,
-          petId,
-          customerId: resolvedCustomerId,
-          roomId: roomId || null,
-          yardId: yardId || null,
-          status: status || "reserved",
-          notes,
-        },
-        include: {
-          room: true,
-          yard: { select: { id: true, name: true } },
-          pet: {
-            select: {
-              id: true, name: true, species: true, breed: true, foodNotes: true, foodBrand: true, foodGramsPerDay: true, foodFrequency: true, medicalNotes: true,
-              health: { select: { allergies: true, medicalConditions: true, activityLimitations: true } },
-              behavior: { select: { dogAggression: true, humanAggression: true, biteHistory: true, biteDetails: true, separationAnxiety: true, leashReactivity: true, resourceGuarding: true } },
-              medications: { select: { medName: true, dosage: true, frequency: true, times: true } },
-              serviceDogProfile: { select: { id: true } },
-            },
+    const stay = await prisma.boardingStay.create({
+      data: {
+        businessId: authResult.businessId,
+        checkIn: new Date(checkIn),
+        checkOut: checkOut ? new Date(checkOut) : undefined,
+        petId,
+        customerId: resolvedCustomerId,
+        roomId: roomId || null,
+        yardId: yardId || null,
+        status: status || "reserved",
+        notes,
+      },
+      include: {
+        room: true,
+        yard: { select: { id: true, name: true } },
+        pet: {
+          select: {
+            id: true, name: true, species: true, breed: true, foodNotes: true, foodBrand: true, foodGramsPerDay: true, foodFrequency: true, medicalNotes: true,
+            health: { select: { allergies: true, medicalConditions: true, activityLimitations: true } },
+            behavior: { select: { dogAggression: true, humanAggression: true, biteHistory: true, biteDetails: true, separationAnxiety: true, leashReactivity: true, resourceGuarding: true } },
+            medications: { select: { medName: true, dosage: true, frequency: true, times: true } },
+            serviceDogProfile: { select: { id: true } },
           },
-          customer: { select: { id: true, name: true, phone: true } },
         },
-      });
+        customer: { select: { id: true, name: true, phone: true } },
+      },
     });
 
     logCurrentUserActivity("CREATE_BOARDING_STAY");

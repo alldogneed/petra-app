@@ -42,55 +42,65 @@ export async function POST(
             }
         }
 
-        // Run in a transaction: create customer + update lead
-        const result = await prisma.$transaction(async (tx) => {
-            // Check if a customer already exists for this lead (in case customerId is set)
-            let customer = lead.customerId
-                ? await tx.customer.findUnique({ where: { id: lead.customerId } })
-                : null;
-
-            // Create a new customer if one doesn't exist yet
-            if (!customer) {
-                customer = await tx.customer.create({
-                    data: {
-                        name: lead.name,
-                        phone: lead.phone ?? "",
-                        email: lead.email ?? null,
-                        notes: lead.notes ?? null,
-                        source: lead.source ?? "lead",
-                        tags: "[]",
-                        businessId,
-                    },
-                });
-
-                // Create a timeline event for the new customer
-                await tx.timelineEvent.create({
-                    data: {
-                        type: "customer_created",
-                        description: `לקוח נוצר מליד: ${customer.name}`,
-                        customerId: customer.id,
-                        businessId,
-                    },
-                });
-            }
-
-            // Find the won stage for this business
-            const wonStage = await tx.leadStage.findFirst({
-                where: { businessId, isWon: true },
-            });
-
-            // Mark lead as won and link to customer
-            const updatedLead = await tx.lead.update({
-                where: { id },
+        // Find the won stage for this business, auto-create if missing
+        let wonStage = await prisma.leadStage.findFirst({
+            where: { businessId, isWon: true },
+        });
+        if (!wonStage) {
+            const maxOrder = await prisma.leadStage.count({ where: { businessId } });
+            wonStage = await prisma.leadStage.create({
                 data: {
-                    stage: wonStage?.id ?? "won",
-                    wonAt: new Date(),
-                    customerId: customer!.id,
+                    businessId,
+                    name: "נסגר בהצלחה",
+                    color: "#10b981",
+                    sortOrder: maxOrder + 1,
+                    isWon: true,
+                    isLost: false,
+                },
+            });
+        }
+
+        // Check if a customer already exists for this lead (in case customerId is set)
+        let customer = lead.customerId
+            ? await prisma.customer.findUnique({ where: { id: lead.customerId } })
+            : null;
+
+        // Create a new customer if one doesn't exist yet
+        if (!customer) {
+            customer = await prisma.customer.create({
+                data: {
+                    name: lead.name,
+                    phone: lead.phone ?? "",
+                    email: lead.email ?? null,
+                    notes: lead.notes ?? null,
+                    source: lead.source ?? "lead",
+                    tags: "[]",
+                    businessId,
                 },
             });
 
-            return { customer, lead: updatedLead };
+            // Create a timeline event for the new customer
+            await prisma.timelineEvent.create({
+                data: {
+                    type: "customer_created",
+                    description: `לקוח נוצר מליד: ${customer.name}`,
+                    customerId: customer.id,
+                    businessId,
+                },
+            });
+        }
+
+        // Mark lead as won and link to customer
+        const updatedLead = await prisma.lead.update({
+            where: { id },
+            data: {
+                stage: wonStage.id,
+                wonAt: new Date(),
+                customerId: customer!.id,
+            },
         });
+
+        const result = { customer, lead: updatedLead };
 
         return NextResponse.json({
             customer: result.customer,

@@ -50,46 +50,43 @@ export async function POST(request: NextRequest) {
 
     for (const dog of dogs) {
       try {
-        const result = await prisma.$transaction(async (tx) => {
-          const pet = await tx.pet.create({
-            data: {
-              name: dog.name,
-              species: "dog",
-              breed: dog.breed || null,
-              gender: dog.gender || null,
-              birthDate: dog.birthDate ? new Date(dog.birthDate) : null,
-              microchip: dog.microchip || null,
-              businessId,
-            },
-          });
+        // Sequential operations (no interactive $transaction — Supabase PgBouncer incompatible)
+        const pet = await prisma.pet.create({
+          data: {
+            name: dog.name,
+            species: "dog",
+            breed: dog.breed || null,
+            gender: dog.gender || null,
+            birthDate: dog.birthDate ? new Date(dog.birthDate) : null,
+            microchip: dog.microchip || null,
+            businessId,
+          },
+        });
 
-          const initialPhase = dog.phase || "SELECTION";
+        const initialPhase = dog.phase || "SELECTION";
 
-          const profile = await tx.serviceDogProfile.create({
-            data: {
-              petId: pet.id,
-              businessId,
-              phase: initialPhase,
-              serviceType: dog.serviceType || null,
-              currentLocation: dog.location || "TRAINER",
-              notes: dog.notes || null,
-            },
-          });
+        const result = await prisma.serviceDogProfile.create({
+          data: {
+            petId: pet.id,
+            businessId,
+            phase: initialPhase,
+            serviceType: dog.serviceType || null,
+            currentLocation: dog.location || "TRAINER",
+            notes: dog.notes || null,
+          },
+        });
 
-          await tx.trainingProgram.create({
-            data: {
-              businessId,
-              dogId: pet.id,
-              customerId: null,
-              name: `הכשרת כלב שירות — ${dog.name}`,
-              programType: "SD_FOUNDATION",
-              trainingType: "SERVICE_DOG",
-              status: "ACTIVE",
-              startDate: new Date(),
-            },
-          });
-
-          return profile;
+        await prisma.trainingProgram.create({
+          data: {
+            businessId,
+            dogId: pet.id,
+            customerId: null,
+            name: `הכשרת כלב שירות — ${dog.name}`,
+            programType: "SD_FOUNDATION",
+            trainingType: "SERVICE_DOG",
+            status: "ACTIVE",
+            startDate: new Date(),
+          },
         });
 
         // Seed medical protocols outside transaction

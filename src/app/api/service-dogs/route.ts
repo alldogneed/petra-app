@@ -140,40 +140,37 @@ export async function POST(request: NextRequest) {
     const sdSettings = biz?.sdSettings as { trackHours?: boolean; defaultTargetHours?: number } | null;
     const defaultTargetHours = sdSettings?.defaultTargetHours ?? 120;
 
-    const profile = await prisma.$transaction(async (tx) => {
-      const p = await tx.serviceDogProfile.create({
-        data: {
-          petId,
-          businessId: authResult.businessId,
-          phase: initialPhase,
-          serviceType: serviceType || null,
-          notes: notes || null,
-          trainingTargetHours: defaultTargetHours,
-        },
-        include: { pet: true },
-      });
-
-      // Auto-create TrainingProgram so the dog immediately appears in the training tab
-      const existingProgram = await tx.trainingProgram.findFirst({
-        where: { dogId: petId, trainingType: "SERVICE_DOG", businessId: authResult.businessId },
-      });
-      if (!existingProgram) {
-        await tx.trainingProgram.create({
-          data: {
-            businessId: authResult.businessId,
-            dogId: petId,
-            customerId: pet.customerId || null,
-            name: `הכשרת כלב שירות — ${pet.name}`,
-            programType: "SD_FOUNDATION",
-            trainingType: "SERVICE_DOG",
-            status: "ACTIVE",
-            startDate: new Date(),
-          },
-        });
-      }
-
-      return p;
+    // Sequential operations (no interactive $transaction — Supabase PgBouncer incompatible)
+    const profile = await prisma.serviceDogProfile.create({
+      data: {
+        petId,
+        businessId: authResult.businessId,
+        phase: initialPhase,
+        serviceType: serviceType || null,
+        notes: notes || null,
+        trainingTargetHours: defaultTargetHours,
+      },
+      include: { pet: true },
     });
+
+    // Auto-create TrainingProgram so the dog immediately appears in the training tab
+    const existingProgram = await prisma.trainingProgram.findFirst({
+      where: { dogId: petId, trainingType: "SERVICE_DOG", businessId: authResult.businessId },
+    });
+    if (!existingProgram) {
+      await prisma.trainingProgram.create({
+        data: {
+          businessId: authResult.businessId,
+          dogId: petId,
+          customerId: pet.customerId || null,
+          name: `הכשרת כלב שירות — ${pet.name}`,
+          programType: "SD_FOUNDATION",
+          trainingType: "SERVICE_DOG",
+          status: "ACTIVE",
+          startDate: new Date(),
+        },
+      });
+    }
 
     // Seed initial medical protocols — use existing health data for smart dates
     await seedMedicalProtocols(profile.id, authResult.businessId, initialPhase, pet.health);

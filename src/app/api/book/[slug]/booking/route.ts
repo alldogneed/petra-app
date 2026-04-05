@@ -182,15 +182,15 @@ export async function POST(
     return digits
   })()
 
-  // Use a transaction to atomically identify/create customer + create booking
-  const result = await prisma.$transaction(async (tx) => {
+  // Sequential operations (no interactive $transaction — Supabase PgBouncer incompatible)
+  let result: { booking: { id: string; customerToken?: string | null }, customer: any, status: string, isNewCustomer: boolean } | null | { validationError: string } | undefined;
+  try {
     // Identify or create customer (unique by phone within business)
-    // First try phoneNorm match; fall back to raw phone for manually-created customers (phoneNorm=null)
-    let customer = await tx.customer.findFirst({
+    let customer = await prisma.customer.findFirst({
       where: { businessId: business.id, phoneNorm },
     })
     if (!customer) {
-      customer = await tx.customer.findFirst({
+      customer = await prisma.customer.findFirst({
         where: { businessId: business.id, phone },
       })
     }
@@ -198,99 +198,101 @@ export async function POST(
     let isNewCustomer = false
     if (!customer) {
       if (!customerName) {
-        throw new Error("customerName is required for new customers")
+        result = { validationError: "customerName is required for new customers" }
+      } else {
+        customer = await prisma.customer.create({
+          data: {
+            businessId: business.id,
+            name: customerName,
+            phone,
+            phoneNorm,
+            email: customerEmail ?? null,
+            address: customerAddress ?? null,
+            notes: customerNotes ?? null,
+          },
+        })
+        isNewCustomer = true
       }
-      customer = await tx.customer.create({
-        data: {
-          businessId: business.id,
-          name: customerName,
-          phone,
-          phoneNorm,
-          email: customerEmail ?? null,
-          address: customerAddress ?? null,
-          notes: customerNotes ?? null,
-        },
-      })
-      isNewCustomer = true
     }
 
-    // Handle dogs: resolve existing or create new
-    const petIds: string[] = []
-    if (Array.isArray(dogs)) {
-      for (const dog of dogs) {
-        if (dog.id) {
-          // Existing pet – verify it belongs to this customer
-          const existing = await tx.pet.findFirst({
-            where: { id: dog.id, customerId: customer.id },
-          })
-          if (existing) petIds.push(existing.id)
-        } else if (dog.name && dog.name.trim()) {
-          // Create new pet
-          const newPet = await tx.pet.create({
-            data: {
-              customerId: customer.id,
-              name: dog.name,
-              breed: dog.breed ?? null,
-              gender: dog.sex ?? null,
-              behaviorNotes: dog.notes ?? null,
-            },
-          })
-          petIds.push(newPet.id)
+    if (!customer) {
+      // validationError already set above
+    } else {
+      // Handle dogs: resolve existing or create new
+      const petIds: string[] = []
+      if (Array.isArray(dogs)) {
+        for (const dog of dogs) {
+          if (dog.id) {
+            const existing = await prisma.pet.findFirst({
+              where: { id: dog.id, customerId: customer.id },
+            })
+            if (existing) petIds.push(existing.id)
+          } else if (dog.name && dog.name.trim()) {
+            const newPet = await prisma.pet.create({
+              data: {
+                customerId: customer.id,
+                name: dog.name,
+                breed: dog.breed ?? null,
+                gender: dog.sex ?? null,
+                behaviorNotes: dog.notes ?? null,
+              },
+            })
+            petIds.push(newPet.id)
+          }
         }
       }
-    }
 
-    // Double-booking guard: check inside transaction with a unique-ish approach
-    // (SQLite doesn't support SELECT FOR UPDATE, so we rely on the slot re-check above +
-    //  the transaction serialization for the final insert)
-    // Boarding allows multiple concurrent stays, so skip this check for boarding
-    if (!isBoarding) {
-      const conflict = await tx.booking.findFirst({
-        where: {
-          businessId: business.id,
-          status: { in: ["confirmed", "pending"] },
-          startAt: { lt: endAt },
-          endAt: { gt: startAt },
-        },
-      })
-      if (conflict) {
-        throw new Error("SLOT_TAKEN")
+      // Double-booking guard — re-check slot availability before creating
+      // Boarding allows multiple concurrent stays, so skip this check for boarding
+      if (!isBoarding) {
+        const conflict = await prisma.booking.findFirst({
+          where: {
+            businessId: business.id,
+            status: { in: ["confirmed", "pending"] },
+            startAt: { lt: endAt },
+            endAt: { gt: startAt },
+          },
+        })
+        if (conflict) {
+          result = null
+        }
+      }
+
+      if (result === undefined || result !== null) {
+        const status = "confirmed"
+
+        const booking = await prisma.booking.create({
+          data: {
+            businessId: business.id,
+            priceListItemId,
+            customerId: customer.id,
+            startAt,
+            endAt,
+            status,
+            dogs: {
+              create: petIds.map((petId) => ({ petId })),
+            },
+            depositPaid: false,
+          },
+          select: { id: true, customerToken: true },
+        })
+
+        result = { booking, customer, status, isNewCustomer }
       }
     }
-
-    const status = "confirmed"
-
-    const booking = await tx.booking.create({
-      data: {
-        businessId: business.id,
-        priceListItemId,
-        customerId: customer.id,
-        startAt,
-        endAt,
-        status,
-        dogs: {
-          create: petIds.map((petId) => ({ petId })),
-        },
-        depositPaid: false,
-      },
-      select: { id: true, customerToken: true },
-    })
-
-    return { booking, customer, status, isNewCustomer }
-  }).catch((err: any) => {
-    if (err.message === "SLOT_TAKEN") return null
-    if (err.message === "customerName is required for new customers") return { validationError: err.message }
+  } catch (err: any) {
     // Catch Prisma unique constraint violation for double-booking
     if (err.code === "P2002" && err.meta?.target?.includes("startAt")) {
-      return null
+      result = null
+    } else {
+      throw err
     }
-    throw err
-  })
+  }
 
-  if (result === null) {
+  if (result === null || result === undefined) {
     return NextResponse.json({ error: "Time slot is no longer available" }, { status: 409 })
   }
-  if (result && "validationError" in result) {
+  if ("validationError" in result) {
     return NextResponse.json({ error: result.validationError }, { status: 400 })
   }
 

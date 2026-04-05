@@ -3392,7 +3392,7 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
     catch { return []; }
   })();
 
-  const toDate = (v: string | null) => v ? new Date(v).toLocaleDateString("he-IL") : null;
+  const toDate = (v: string | null) => v ? new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "long", year: "numeric" }).format(new Date(v)) : null;
 
   const deleteMedMutation = useMutation({
     mutationFn: (medId: string) =>
@@ -4585,7 +4585,7 @@ function ClaimCard({
                       <p className="text-xs font-medium truncate">{doc.name}</p>
                       <p className="text-[10px] text-petra-muted">
                         {doc.type === "invoice" ? "חשבונית" : doc.type === "visit_summary" ? "סיכום ביקור" : "מסמך"}
-                        {doc.uploadedAt ? ` · ${new Date(doc.uploadedAt).toLocaleDateString("he-IL")}` : ""}
+                        {doc.uploadedAt ? ` · ${new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "long", year: "numeric" }).format(new Date(doc.uploadedAt))}` : ""}
                       </p>
                     </div>
                     <a href={doc.data} download={doc.name} className="text-xs text-brand-500 hover:text-brand-700 shrink-0" title="הורד">

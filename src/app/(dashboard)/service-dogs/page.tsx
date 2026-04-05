@@ -869,7 +869,7 @@ function AlertsWidget({
         sectionKey: "medical" as const,
         line1: p.label,
         line2: p.dueDate
-          ? `${p.isOverdue ? "עבר תאריך: " : "יעד: "}${new Date(p.dueDate).toLocaleDateString("he-IL")}`
+          ? `${p.isOverdue ? "עבר תאריך: " : "יעד: "}${new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "long", year: "numeric" }).format(new Date(p.dueDate))}`
           : "ללא תאריך יעד",
       })),
     },
@@ -891,7 +891,7 @@ function AlertsWidget({
           ? `${t.daysSinceLastSession} ימים ללא אימון`
           : "טרם בוצע אימון",
         line2: t.lastSessionDate
-          ? `אימון אחרון: ${new Date(t.lastSessionDate).toLocaleDateString("he-IL")}`
+          ? `אימון אחרון: ${new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "long", year: "numeric" }).format(new Date(t.lastSessionDate))}`
           : "אין אימון מתועד",
       })),
     },
