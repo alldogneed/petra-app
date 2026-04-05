@@ -1562,6 +1562,7 @@ export default function CustomersPage() {
   const [serviceTypeFilter, setServiceTypeFilter] = useState("");
   const [financialFilter, setFinancialFilter] = useState<"all" | "debt" | "balanced">("all");
   const [lastVisitFilter, setLastVisitFilter] = useState<"" | "30" | "60" | "90" | "never">("");
+  const [sortBy, setSortBy] = useState<"name_asc" | "newest" | "oldest">("name_asc");
   const [filtersCollapsed, setFiltersCollapsed] = useState(true);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -1615,14 +1616,14 @@ export default function CustomersPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useInfiniteQuery<{ customers: EnhancedCustomer[]; nextCursor: string | null; hasMore: boolean }>({
-    queryKey: ["customers", debouncedSearch, serviceTypeFilter],
+  } = useInfiniteQuery<{ customers: EnhancedCustomer[]; nextCursor: string | null; hasMore: boolean; total: number | null }>({
+    queryKey: ["customers", debouncedSearch, serviceTypeFilter, sortBy],
     queryFn: ({ pageParam }) => {
-      const params = new URLSearchParams({ enhanced: "1", take: "50" });
+      const params = new URLSearchParams({ enhanced: "1", take: "50", sortBy });
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (serviceTypeFilter) params.set("serviceType", serviceTypeFilter);
       if (pageParam) params.set("cursor", pageParam as string);
-      return fetchJSON<{ customers: EnhancedCustomer[]; nextCursor: string | null; hasMore: boolean }>(`/api/customers?${params}`);
+      return fetchJSON<{ customers: EnhancedCustomer[]; nextCursor: string | null; hasMore: boolean; total: number | null }>(`/api/customers?${params}`);
     },
     initialPageParam: null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
@@ -1632,6 +1633,9 @@ export default function CustomersPage() {
     () => customerPages?.pages.flatMap((p) => p.customers) ?? [],
     [customerPages]
   );
+
+  // Total from DB (available after first page loads)
+  const totalCount = customerPages?.pages[0]?.total ?? null;
 
   // ── Client-side filtering ──
   const customers = useMemo(() => {
@@ -1794,7 +1798,7 @@ export default function CustomersPage() {
               {isLoading ? (
                 <span className="inline-block w-16 h-3.5 bg-slate-200 animate-pulse rounded" />
               ) : (
-                <>{stats.total} {stats.total === 1 ? "לקוח" : "לקוחות"} במערכת</>
+                <>{totalCount ?? stats.total} {(totalCount ?? stats.total) === 1 ? "לקוח" : "לקוחות"} במערכת</>
               )}
             </p>
           </div>
@@ -1808,7 +1812,7 @@ export default function CustomersPage() {
         </div>
         {/* Left side: action buttons (RTL order: לקוח חדש → הזמנה חדשה → ייצוא) */}
         <div className="flex items-center gap-2 flex-wrap">
-          {tier === "free" && maxCustomers !== null && stats.total >= maxCustomers ? (
+          {tier === "free" && maxCustomers !== null && (totalCount ?? stats.total) >= maxCustomers ? (
             <a href="/upgrade" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500 text-white rounded-xl px-4 py-2.5 text-sm font-semibold flex items-center">
               <Sparkles className="w-4 h-4" />
               שדרג לבייסיק
@@ -2000,6 +2004,20 @@ export default function CustomersPage() {
               <option value="60">60+ ימים</option>
               <option value="90">90+ ימים</option>
               <option value="never">אף פעם</option>
+            </select>
+            <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#A0845C] pointer-events-none" />
+          </div>
+
+          {/* Sort dropdown */}
+          <div className="relative">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="appearance-none bg-[#FAF7F3] border border-[#E8DFD5] rounded-full text-xs font-medium text-[#8B7355] pl-7 pr-3 py-1.5 hover:bg-[#F3EDE6] hover:border-[#D4C5B2] transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#C4956A]/20"
+            >
+              <option value="name_asc">א-ב</option>
+              <option value="newest">חדש לישן</option>
+              <option value="oldest">ישן לחדש</option>
             </select>
             <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#A0845C] pointer-events-none" />
           </div>

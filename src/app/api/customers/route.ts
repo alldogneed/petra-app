@@ -36,6 +36,12 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get("cursor") || undefined;
     const rawTake = parseInt(searchParams.get("take") ?? "50", 10);
     const take = Math.min(Math.max(rawTake, 1), 100); // clamp 1–100
+    const sortBy = searchParams.get("sortBy") ?? "newest"; // "name_asc" | "newest" | "oldest"
+
+    const orderBy =
+      sortBy === "name_asc" ? [{ name: "asc" as const }, { id: "asc" as const }] :
+      sortBy === "oldest"   ? [{ createdAt: "asc" as const }, { id: "asc" as const }] :
+                              [{ createdAt: "desc" as const }, { id: "desc" as const }]; // newest (default)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { businessId };
@@ -98,7 +104,7 @@ export async function GET(request: NextRequest) {
           },
           _count: { select: { pets: true, appointments: true } },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy,
       });
 
       const hasMore = customers.length > take;
@@ -144,7 +150,13 @@ export async function GET(request: NextRequest) {
       const canSeePii2 = hasTenantPermission(callerRole2, TENANT_PERMS.CUSTOMERS_PII);
       const maskedPage = canSeePii2 ? enrichedPage : enrichedPage.map(maskCustomerPii);
 
-      return NextResponse.json({ customers: maskedPage, nextCursor, hasMore });
+      // Total count (only on first page — cursor not set)
+      let total: number | null = null;
+      if (!cursor) {
+        total = await prisma.customer.count({ where });
+      }
+
+      return NextResponse.json({ customers: maskedPage, nextCursor, hasMore, total });
     }
 
     // ─── Original mode (backward compatible) ───
@@ -157,7 +169,7 @@ export async function GET(request: NextRequest) {
       include: full
         ? { pets: { select: { id: true, name: true, species: true } } }
         : { _count: { select: { pets: true, appointments: true } } },
-      orderBy: { createdAt: "desc" },
+      orderBy,
     });
 
     // PII masking for original mode too
