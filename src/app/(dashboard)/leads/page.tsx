@@ -66,6 +66,8 @@ interface Lead {
     treatment: string;
     createdAt: string;
   }[];
+  existingCustomer?: { id: string; name: string } | null;
+  duplicateLead?: { id: string; name: string } | null;
 }
 
 interface LeadStage {
@@ -82,16 +84,34 @@ const STAGE_COLORS = [
   "#22C55E", "#EAB308", "#F97316", "#EF4444",
 ];
 
+/** Normalize phone to 972XXXXXXXXX for local duplicate check */
+function toPhoneNormLocal(raw: string): string | null {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("972") && digits.length >= 11) return digits;
+  if (digits.startsWith("0") && digits.length >= 9) return "972" + digits.slice(1);
+  return null;
+}
+
 function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: () => void; stages: LeadStage[] }) {
   const queryClient = useQueryClient();
   const activeStages = stages.filter((s) => !s.isWon && !s.isLost);
   const emptyForm = { name: "", phone: "", email: "", city: "", address: "", requestedService: "", source: "manual", notes: "", stage: activeStages[0]?.id || "" };
   const [form, setForm] = useState(emptyForm);
+  const [phoneWarning, setPhoneWarning] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen) setForm({ ...emptyForm, stage: activeStages[0]?.id || "" });
+    if (isOpen) { setForm({ ...emptyForm, stage: activeStages[0]?.id || "" }); setPhoneWarning(null); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
+
+  function checkPhoneDuplicate(phone: string) {
+    if (!phone.trim() || validateIsraeliPhone(phone)) { setPhoneWarning(null); return; }
+    const norm = toPhoneNormLocal(phone);
+    if (!norm) { setPhoneWarning(null); return; }
+    const cached = queryClient.getQueryData<Lead[]>(["leads"]) ?? [];
+    const match = cached.find(l => l.phone && toPhoneNormLocal(l.phone) === norm);
+    setPhoneWarning(match ? `ליד קיים עם מספר זה: ${match.name}` : null);
+  }
 
   const mutation = useMutation({
     mutationFn: (data: typeof form) =>
@@ -104,10 +124,14 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
         }
         return r.json();
       }),
-    onSuccess: () => {
+    onSuccess: (data: Lead & { existingCustomer?: { id: string; name: string } | null }) => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       onClose();
-      toast.success("הליד נוצר בהצלחה");
+      if (data.existingCustomer) {
+        toast.warning(`ליד נוצר — שים לב: ${data.existingCustomer.name} כבר קיים כלקוח במערכת`, { duration: 6000 });
+      } else {
+        toast.success("הליד נוצר בהצלחה");
+      }
     },
     onError: (err: Error) => {
       if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
@@ -163,20 +187,27 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
             <div>
               <label className="label">טלפון *</label>
               <input
-                className={cn("input", leadFieldErrors.phone && "border-red-300 focus:ring-red-200")}
+                className={cn("input", leadFieldErrors.phone && "border-red-300 focus:ring-red-200", phoneWarning && !leadFieldErrors.phone && "border-amber-400")}
                 value={form.phone}
                 onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (leadFieldErrors.phone) setLeadFieldErrors({ ...leadFieldErrors, phone: undefined }); }}
+                onBlur={(e) => checkPhoneDuplicate(e.target.value)}
                 onPaste={(e) => {
                   e.preventDefault();
                   const pasted = e.clipboardData.getData("text");
                   const normalized = normalizeIsraeliPhone(pasted);
                   setForm((f) => ({ ...f, phone: normalized }));
                   if (leadFieldErrors.phone) setLeadFieldErrors((err) => ({ ...err, phone: undefined }));
+                  setTimeout(() => checkPhoneDuplicate(normalized), 0);
                 }}
                 placeholder="050-0000000"
                 inputMode="tel"
               />
               {leadFieldErrors.phone && <p className="text-xs text-red-500 mt-1">{leadFieldErrors.phone}</p>}
+              {phoneWarning && !leadFieldErrors.phone && (
+                <p className="text-xs text-amber-700 mt-1 flex items-center gap-1">
+                  <span>⚠️</span> {phoneWarning}
+                </p>
+              )}
             </div>
             <div>
               <label className="label">אימייל</label>
@@ -728,6 +759,22 @@ function DraggableLeadCard({
         )}
         {isLost && lostReasonLabel && (
           <span className="text-[10px] px-1.5 py-0 rounded-full bg-red-100 text-red-700 leading-tight">{lostReasonLabel}</span>
+        )}
+        {lead.existingCustomer && (
+          <span
+            className="text-[10px] px-1.5 py-0 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 leading-tight font-semibold"
+            title={`לקוח קיים: ${lead.existingCustomer.name}`}
+          >
+            👤 לקוח קיים
+          </span>
+        )}
+        {lead.duplicateLead && !lead.existingCustomer && (
+          <span
+            className="text-[10px] px-1.5 py-0 rounded-full bg-orange-100 text-orange-800 border border-orange-300 leading-tight font-semibold"
+            title={`ליד חוזר — פנייה קודמת: ${lead.duplicateLead.name}`}
+          >
+            🔄 ליד חוזר
+          </span>
         )}
       </div>
 

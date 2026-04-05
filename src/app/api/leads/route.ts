@@ -7,7 +7,20 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxLeads, normalizeTier } from "@/lib/feature-flags";
 import { getFirstLeadStageId } from "@/lib/lead-stages";
 import { shouldSyncContacts, upsertLeadContact } from "@/lib/google-contacts";
-import { validateIsraeliPhone, validateEmail, sanitizeName } from "@/lib/validation";
+import { validateIsraeliPhone, validateEmail, sanitizeName, normalizeIsraeliPhone } from "@/lib/validation";
+
+/** Normalize a phone to the canonical 972XXXXXXXXX format used in Customer.phoneNorm */
+function phoneToNorm(raw: string): string | null {
+  try {
+    const normalized = normalizeIsraeliPhone(raw);
+    const digits = normalized.replace(/\D/g, "");
+    if (digits.startsWith("972") && digits.length >= 11) return digits;
+    if (digits.startsWith("0") && digits.length >= 9) return "972" + digits.slice(1);
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +37,49 @@ export async function GET(request: NextRequest) {
       take: 200,
     });
 
-    return NextResponse.json(leads);
+    // ── Duplicate detection ────────────────────────────────────────────────
+    // Build leadId → phoneNorm map
+    const normByLeadId = new Map<string, string>();
+    for (const lead of leads) {
+      if (lead.phone) {
+        const norm = phoneToNorm(lead.phone);
+        if (norm) normByLeadId.set(lead.id, norm);
+      }
+    }
+    const allNorms = [...new Set(normByLeadId.values())];
+
+    // Batch-check customers
+    const matchingCustomers = allNorms.length > 0
+      ? await prisma.customer.findMany({
+          where: { businessId: authResult.businessId, phoneNorm: { in: allNorms } },
+          select: { id: true, name: true, phoneNorm: true },
+        })
+      : [];
+    const normToCustomer = new Map(
+      matchingCustomers.filter(c => c.phoneNorm).map(c => [c.phoneNorm!, { id: c.id, name: c.name }])
+    );
+
+    // Detect lead-to-lead duplicates (same norm → multiple leads)
+    const normToLeads = new Map<string, { id: string; name: string }[]>();
+    for (const lead of leads) {
+      const norm = normByLeadId.get(lead.id);
+      if (norm) {
+        if (!normToLeads.has(norm)) normToLeads.set(norm, []);
+        normToLeads.get(norm)!.push({ id: lead.id, name: lead.name });
+      }
+    }
+
+    // Enrich each lead
+    const enrichedLeads = leads.map((lead) => {
+      const norm = normByLeadId.get(lead.id) ?? null;
+      const existingCustomer = norm ? (normToCustomer.get(norm) ?? null) : null;
+      const duplicateLead = norm
+        ? (normToLeads.get(norm)?.find(l => l.id !== lead.id) ?? null)
+        : null;
+      return { ...lead, existingCustomer, duplicateLead };
+    });
+
+    return NextResponse.json(enrichedLeads);
   } catch (error) {
     console.error("Error fetching leads:", error);
     return NextResponse.json(
@@ -93,6 +148,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "הערות ארוכות מדי (מקסימום 5000 תווים)" }, { status: 400 });
     }
 
+    // ── Duplicate detection ──────────────────────────────────────────────────
+    let existingCustomer: { id: string; name: string } | null = null;
+    let duplicateLead: { id: string; name: string } | null = null;
+    if (phone) {
+      const norm = phoneToNorm(phone);
+      if (norm) {
+        const dupCust = await prisma.customer.findFirst({
+          where: { businessId: authResult.businessId, phoneNorm: norm },
+          select: { id: true, name: true },
+        });
+        if (dupCust) existingCustomer = dupCust;
+
+        const existingLeads = await prisma.lead.findMany({
+          where: { businessId: authResult.businessId, phone: { not: null } },
+          select: { id: true, name: true, phone: true },
+        });
+        for (const l of existingLeads) {
+          if (l.phone && phoneToNorm(l.phone) === norm) {
+            duplicateLead = { id: l.id, name: l.name };
+            break;
+          }
+        }
+      }
+    }
+
     let resolvedStage = stage;
     if (stage) {
       const validStage = await prisma.leadStage.findFirst({
@@ -149,7 +229,7 @@ export async function POST(request: NextRequest) {
       }).catch(() => {});
     }
 
-    return NextResponse.json(lead, { status: 201 });
+    return NextResponse.json({ ...lead, existingCustomer, duplicateLead }, { status: 201 });
   } catch (error) {
     if (error instanceof SyntaxError) {
       return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
