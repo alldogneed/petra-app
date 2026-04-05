@@ -405,6 +405,7 @@ const TRIGGER_ICONS: Record<string, React.ElementType> = {
 
 function TemplatesTab() {
   const [innerTab, setInnerTab] = useState<"auto" | "manual">("auto");
+  const [previewTriggerId, setPreviewTriggerId] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   const [sendingTemplate, setSendingTemplate] = useState<MessageTemplate | null>(null);
@@ -609,6 +610,7 @@ function TemplatesTab() {
 
       {/* ── Automations tab ── */}
       {innerTab === "auto" && (
+        <>
         <div className="space-y-3">
           {isLoading ? (
             [1, 2, 3, 4].map((i) => <div key={i} className="card p-4 animate-pulse h-16" />)
@@ -651,10 +653,15 @@ function TemplatesTab() {
                     )}
                   </div>
 
-                  {/* Template body preview */}
-                  <div className="hidden sm:block w-52 flex-shrink-0 text-xs text-petra-muted truncate" dir="rtl">
-                    {previewLine}
-                  </div>
+                  {/* Template body preview — click to expand */}
+                  <button
+                    onClick={() => setPreviewTriggerId(trigger.id)}
+                    className="hidden sm:flex items-center gap-1.5 w-52 flex-shrink-0 text-xs text-petra-muted hover:text-brand-600 transition-colors text-right group"
+                    dir="rtl"
+                  >
+                    <span className="truncate flex-1">{previewLine}</span>
+                    <Eye className="w-3.5 h-3.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
 
                   {/* Toggle */}
                   <div className="flex-shrink-0">
@@ -679,6 +686,33 @@ function TemplatesTab() {
             })
           )}
         </div>
+
+        {/* ── Message preview modal ── */}
+        {previewTriggerId && (() => {
+          const trigger = AUTOMATION_TRIGGERS.find((t) => t.id === previewTriggerId)!;
+          const linked = templates.find((t) => t.automationRules?.[0]?.trigger === previewTriggerId);
+          const body = linked?.body ?? STARTER_TEMPLATES.find((s) => s.trigger === previewTriggerId)?.body ?? "";
+          return (
+            <div className="modal-overlay" onClick={() => setPreviewTriggerId(null)}>
+              <div className="modal-content max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base font-semibold text-petra-text">{trigger.label}</h3>
+                  <button onClick={() => setPreviewTriggerId(null)} className="text-petra-muted hover:text-petra-text">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-xs text-petra-muted mb-3">תצוגה מקדימה של ההודעה שהלקוח יקבל:</p>
+                <div className="bg-[#dcf8c6] rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed shadow-sm" dir="rtl">
+                  {body}
+                </div>
+                <p className="text-[11px] text-petra-muted mt-3 text-center">
+                  {linked ? "תבנית מותאמת אישית" : "תבנית ברירת מחדל"}
+                </p>
+              </div>
+            </div>
+          );
+        })()}
+        </>
       )}
 
       {/* ── Manual tab ── */}
