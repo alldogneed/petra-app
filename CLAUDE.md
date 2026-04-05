@@ -200,3 +200,9 @@ import { prisma } from "@/lib/prisma"
 | Dashboard stat cards | "הכנסות החודש" always shown (from `data.monthRevenue`); "היום: ₪X" as subtitle when today > 0. `data.upcomingByType` and dead `BirthdayWidget` component exist but are unused. |
 | Dashboard orders section | "הזמנות אחרונות" links to `/orders`; each row is a `<Link>` to `/orders/:id` |
 | Lead WhatsApp alert | `customers/[id]/page.tsx`: blue Send button on completed appointments (follow-up wa.me). Birthday Gift button on pet card hover. `customers/page.tsx`: "שלח ברוכים הבאים" toast action on new customer creation. |
+| Onboarding wizard | `src/app/onboarding/page.tsx` — 5-step full-page flow (Welcome→Client→Pricing→GCal→Done). Shown to new users redirected from register. |
+| Onboarding checklist | `src/components/onboarding/SetupChecklist.tsx` — 7-step widget on dashboard (4 core + 3 advanced). Dismissed via "דלג" (sets `skipped:true`). |
+| Onboarding progress API | `GET /api/onboarding/progress` — smart live detection: step1=business.phone set, step2=service.count>0, step3=customer.count>0, step4=appointment.count>0, step5=order.count>0, step6=contractTemplate.count>0, step7=whatsappRemindersEnabled. `PATCH` updates `skipped`/`completedAt`/`stepCompleted1-4`. |
+| Onboarding DB models | `OnboardingProfile` (businessType, activeClientsRange, primaryGoal) + `OnboardingProgress` (currentStep, stepCompleted1-4, skipped, completedAt, lastCustomerId) — both keyed on `userId`. |
+| Onboarding guard | `src/components/onboarding/OnboardingGuard.tsx` — wraps dashboard layout; redirects brand-new users (no progress record) to `/dashboard`; allows through once `skipped` or `completedAt` set. |
+| Settings tabs | "פרטי העסק" (business info only) · "הזמנות" (AvailabilityTab + online booking, PRO+) · "פנסיון" (boarding settings, BASIC+) · "תשלומים" (InvoicingTab + ContractsTab, BASIC+) · "צוות" · "הודעות" · "אינטגרציות" · "כלבי שירות" · "נתונים" |
