@@ -6,7 +6,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxLeads, normalizeTier, hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { getFirstLeadStageId } from "@/lib/lead-stages";
-import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { sendWhatsAppMessage, sendWhatsAppTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { shouldSyncContacts, upsertLeadContact } from "@/lib/google-contacts";
 import { validateIsraeliPhone, validateEmail, sanitizeName, normalizeIsraeliPhone } from "@/lib/validation";
@@ -216,13 +216,20 @@ export async function POST(request: NextRequest) {
     if (canNotify && business?.phone) {
       const ownerPhone = toWhatsAppPhone(business.phone);
       if (ownerPhone) {
-        const servicePart = lead.requestedService ? `\nשירות מבוקש: ${lead.requestedService}` : "";
-        const phonePart = lead.phone ? `\nטלפון: ${lead.phone}` : "";
-        const sourcePart = lead.source ? `\nמקור: ${lead.source}` : "";
-        const msg = `🔔 ליד חדש נכנס לפטרה!\n\nשם: ${lead.name}${phonePart}${servicePart}${sourcePart}\n\nכנס לניהול הלידים לפרטים המלאים 👇\nhttps://petra-app.com/leads`;
-        sendWhatsAppMessage({ to: ownerPhone, body: msg }).catch((err) =>
-          console.error("Lead notification WA failed:", err)
-        );
+        const serviceParam = lead.requestedService || "לא צוין";
+        const phoneParam = lead.phone || "לא צוין";
+        // Use approved template (no 24h window restriction); fallback to free-form
+        sendWhatsAppTemplate({
+          to: ownerPhone,
+          templateName: "petra_biz_lead_alert",
+          bodyParams: [lead.name, phoneParam, serviceParam],
+        }).catch(() => {
+          // Fallback: free-form (works within 24h window)
+          const msg = `ליד חדש נכנס לפטרה!\n\nשם: ${lead.name}\nטלפון: ${phoneParam}\nשירות: ${serviceParam}\n\nכנס לניהול הלידים בפטרה לפרטים.`;
+          sendWhatsAppMessage({ to: ownerPhone, body: msg }).catch((err) =>
+            console.error("Lead notification WA (fallback) failed:", err)
+          );
+        });
       }
     }
 
