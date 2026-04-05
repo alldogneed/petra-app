@@ -2646,10 +2646,18 @@ function DataTab() {
           </div>
         )}
 
-        {importPhase === "executing" && (
-          <div className="flex items-center gap-3 p-6 justify-center">
-            <Loader2 className="w-5 h-5 animate-spin text-brand-500" />
-            <span className="text-sm text-petra-muted">מייבא נתונים...</span>
+        {(importPhase === "uploading" || importPhase === "executing") && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 p-4 justify-center">
+              <Loader2 className="w-5 h-5 animate-spin text-brand-500 shrink-0" />
+              <span className="text-sm text-petra-muted">
+                {importPhase === "uploading" ? "מנתח קובץ..." : "מייבא נתונים... עשוי לקחת עד דקה"}
+              </span>
+            </div>
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+              <span className="shrink-0 text-base">⚠️</span>
+              <span>המערכת טוענת נתונים — נא לא לצאת מדף ההגדרות עד שהייבוא יסתיים</span>
+            </div>
           </div>
         )}
 
