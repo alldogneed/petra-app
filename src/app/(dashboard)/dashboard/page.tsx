@@ -2403,12 +2403,13 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {perms.canSeeRevenueSummary && (data.todayRevenue ?? 0) > 0 && (
+        {perms.canSeeRevenueSummary && (
           <StatCard
-            title="הכנסות היום"
-            value={formatCurrency(data.todayRevenue)}
+            title="הכנסות החודש"
+            value={formatCurrency(data.monthRevenue)}
+            subtitle={(data.todayRevenue ?? 0) > 0 ? `היום: ${formatCurrency(data.todayRevenue)}` : undefined}
             icon={TrendingUp}
-            color="#22C55E"
+            color="#10B981"
             href="/payments"
           />
         )}
@@ -2592,6 +2593,10 @@ export default function DashboardPage() {
         <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-bold text-petra-text">הזמנות אחרונות</h2>
+            <Link href="/orders" className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1">
+              הצג הכל
+              <ArrowLeft className="w-3 h-3" />
+            </Link>
           </div>
 
           {data.recentOrders.length === 0 ? (
@@ -2607,8 +2612,9 @@ export default function DashboardPage() {
                 const typeInfo = ORDER_TYPE_INFO[order.orderType] || ORDER_TYPE_INFO.sale;
                 const TypeIcon = typeInfo.icon;
                 return (
-                  <div
+                  <Link
                     key={order.id}
+                    href={`/orders/${order.id}`}
                     className="flex items-center gap-3 py-2.5 px-1 hover:bg-slate-50/50 rounded-lg transition-colors"
                   >
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-brand-50">
@@ -2637,7 +2643,7 @@ export default function DashboardPage() {
                         {formatCurrency(order.total)}
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
