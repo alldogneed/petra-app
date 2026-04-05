@@ -58,9 +58,7 @@ interface MessageTemplate {
 const AUTOMATION_TRIGGERS = [
   { id: "appointment_confirmation", label: "אישור קביעת פגישה", description: "שלח מיד כשנקבעת פגישה חדשה" },
   { id: "appointment_reminder", label: "תזכורת לפני פגישה", description: "שלח הודעה X שעות לפני הפגישה" },
-  { id: "appointment_followup", label: "מעקב אחרי פגישה", description: "שלח הודעה X שעות אחרי הפגישה" },
   { id: "payment_request", label: "דרישת תשלום", description: "שלח מיד כשנוצרת הזמנה חדשה" },
-  { id: "new_customer", label: "לקוח חדש", description: "שלח מיד כשנוסף לקוח חדש" },
   { id: "lead_followup", label: "ליד חדש", description: "שלח הודעה X שעות אחרי יצירת ליד" },
   { id: "birthday_reminder", label: "יום הולדת לכלב", description: "שלח ביום ההולדת בשעה 08:00" },
   { id: "boarding_pickup", label: "תזכורת איסוף מפנסיון", description: "שלח הודעה X שעות לפני יום האיסוף" },
