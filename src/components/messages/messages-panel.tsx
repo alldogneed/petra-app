@@ -696,9 +696,13 @@ function TemplatesTab() {
         </>
       )}
 
-      {/* ── Manual tab ── */}
-      {innerTab === "manual" && (
-        <div className="space-y-3">
+      {/* ── Manual section ── */}
+      <div className="mt-8 mb-2">
+        <h3 className="text-sm font-bold text-petra-text">הודעות ידניות</h3>
+        <p className="text-xs text-petra-muted mt-0.5">תבניות שניתן לשלוח ידנית ללקוחות בודדים. לחץ על עיפרון לעריכה.</p>
+      </div>
+      {(true && (
+        <div className="space-y-3 mt-2">
           {isLoading
             ? [1, 2, 3, 4].map((i) => <div key={i} className="card p-4 animate-pulse h-16" />)
             : MANUAL_STARTERS.map((starter) => {
@@ -760,7 +764,7 @@ function TemplatesTab() {
                 );
               })}
         </div>
-      )}
+      ))}
 
       {/* Editor Modal */}
       {showEditor && (
