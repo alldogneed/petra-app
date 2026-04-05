@@ -148,6 +148,17 @@ const STARTER_TEMPLATES = [
 // Default templates shown in the ידני tab — always visible, user can only edit body
 const MANUAL_STARTERS = STARTER_TEMPLATES.map(({ label, body, trigger }) => ({ label, body, trigger }));
 
+/** Where in the app each manual template is triggered / found */
+const TRIGGER_LOCATION: Record<string, string> = {
+  appointment_reminder:     "לוח שנה ← תור ← כפתור WhatsApp",
+  appointment_confirmation: "נשלח אוטומטית בעת קביעת תור",
+  payment_request:          "הזמנה ← סעיף תשלומים ← כפתור דרישת תשלום",
+  appointment_followup:     "פרופיל לקוח ← תורים שהושלמו ← מעקב",
+  birthday_reminder:        "פרופיל לקוח ← כרטיס חיית המחמד ← יום הולדת",
+  new_customer:             "פרופיל לקוח ← כפתור ברוכים הבאים",
+  boarding_pickup:          "ניהול פנסיון ← רשימת שהיות",
+};
+
 // ─── Send Modal ───────────────────────────────────────────────────────────────
 
 interface SendCustomer { id: string; name: string; phone: string; email?: string | null }
@@ -714,6 +725,7 @@ function TemplatesTab() {
                   body: dbVersion?.body ?? starter.body, variables: "", isActive: true,
                   createdAt: "", automationRules: [],
                 };
+                const locationText = TRIGGER_LOCATION[starter.trigger] ?? null;
                 return (
                   <div key={starter.label} className="card p-4 flex items-center gap-4">
                     <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
@@ -725,6 +737,13 @@ function TemplatesTab() {
                         {(dbVersion?.body ?? starter.body).split("\n")[0]}
                       </p>
                     </div>
+                    {locationText && (
+                      <div className="hidden sm:flex flex-col items-center min-w-0 max-w-[220px] flex-shrink-0">
+                        <p className="text-[10px] text-slate-400 text-center leading-snug truncate w-full" title={locationText}>
+                          📍 {locationText}
+                        </p>
+                      </div>
+                    )}
                     <div className="flex-shrink-0">
                       {isCustomized ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-50 text-green-700 border border-green-200 whitespace-nowrap">
@@ -737,13 +756,6 @@ function TemplatesTab() {
                       )}
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        onClick={() => setSendingTemplate(templateForModal)}
-                        className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
-                        title="שלח ללקוח בודד"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                      </button>
                       <button
                         onClick={() => {
                           setEditingTemplate(dbVersion ?? null);
