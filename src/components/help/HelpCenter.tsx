@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import { toast } from "sonner";
@@ -34,6 +34,8 @@ import {
   Clock,
   LifeBuoy,
   Send,
+  ImagePlus,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -713,7 +715,25 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [bugDescription, setBugDescription] = useState("");
+  const [screenshotBase64, setScreenshotBase64] = useState<string | null>(null);
+  const [screenshotName, setScreenshotName] = useState<string | null>(null);
+  const screenshotInputRef = useRef<HTMLInputElement>(null);
   const pathname = usePathname();
+
+  function handleScreenshotChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("הקובץ גדול מדי — מקסימום 2MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setScreenshotBase64(reader.result as string);
+      setScreenshotName(file.name);
+    };
+    reader.readAsDataURL(file);
+  }
 
   const bugMutation = useMutation({
     mutationFn: async (description: string) => {
@@ -721,7 +741,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
       const res = await fetch("/api/support/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: autoTitle, description, pageUrl: pathname }),
+        body: JSON.stringify({ title: autoTitle, description, pageUrl: pathname, screenshotBase64 }),
       });
       if (!res.ok) {
         const json = await res.json();
@@ -732,6 +752,9 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
     onSuccess: () => {
       toast.success("הפנייה נשלחה — נחזור אליך בהקדם 🙏");
       setBugDescription("");
+      setScreenshotBase64(null);
+      setScreenshotName(null);
+      if (screenshotInputRef.current) screenshotInputRef.current.value = "";
     },
     onError: (err: Error) => {
       toast.error(err.message || "שגיאה בשליחת הפנייה");
@@ -1009,6 +1032,46 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                     onChange={(e) => setBugDescription(e.target.value)}
                     maxLength={1000}
                   />
+
+                  {/* Screenshot upload */}
+                  <div className="rounded-xl border-2 border-dashed border-amber-200 bg-amber-50/60 px-4 py-3">
+                    <p className="text-xs font-medium text-amber-800 mb-2">
+                      📸 צרף צילום מסך — מאיץ מאוד את הטיפול בפנייה!
+                    </p>
+                    {screenshotBase64 ? (
+                      <div className="flex items-center gap-2">
+                        <img src={screenshotBase64} alt="screenshot preview" className="h-16 w-24 object-cover rounded-lg border border-amber-300 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-petra-text truncate">{screenshotName}</p>
+                          <p className="text-[10px] text-green-600 mt-0.5">✓ הצילום מוכן לשליחה</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setScreenshotBase64(null); setScreenshotName(null); if (screenshotInputRef.current) screenshotInputRef.current.value = ""; }}
+                          className="w-6 h-6 rounded-full bg-red-100 text-red-500 hover:bg-red-200 flex items-center justify-center flex-shrink-0"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => screenshotInputRef.current?.click()}
+                        className="flex items-center gap-2 text-xs text-amber-700 hover:text-amber-900 font-medium transition-colors"
+                      >
+                        <ImagePlus className="w-4 h-4" />
+                        לחץ לצירוף צילום מסך (עד 2MB)
+                      </button>
+                    )}
+                    <input
+                      ref={screenshotInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleScreenshotChange}
+                    />
+                  </div>
+
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-xs text-petra-muted">
                       הפנייה תישלח לצוות הפיתוח עם פרטי הדף הנוכחי

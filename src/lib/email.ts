@@ -529,16 +529,29 @@ export interface SupportTicketEmailParams {
   description: string;
   pageUrl?: string | null;
   adminUrl: string;
+  screenshotBase64?: string | null;
 }
 
 export async function sendSupportTicketEmail(
   params: SupportTicketEmailParams
 ): Promise<void> {
+  // Parse screenshot attachment if provided
+  let attachments: { filename: string; content: Buffer }[] | undefined;
+  if (params.screenshotBase64) {
+    const match = params.screenshotBase64.match(/^data:image\/(\w+);base64,(.+)$/);
+    if (match) {
+      const ext = match[1];
+      const data = Buffer.from(match[2], "base64");
+      attachments = [{ filename: `screenshot.${ext}`, content: data }];
+    }
+  }
+
   const { error } = await getResend().emails.send({
     from: getFromEmail(),
     to: "info@petra-app.com",
     subject: `🐛 פנייה חדשה מ-${params.businessName}: ${params.title}`,
     html: buildSupportTicketHtml(params),
+    ...(attachments ? { attachments } : {}),
   });
   if (error) {
     throw new Error(`Resend email failed: ${error.message}`);

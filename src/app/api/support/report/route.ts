@@ -9,14 +9,14 @@ export async function POST(request: NextRequest) {
   if (isGuardError(authResult)) return authResult;
   const { session, businessId } = authResult;
 
-  let body: { title?: string; description?: string; pageUrl?: string };
+  let body: { title?: string; description?: string; pageUrl?: string; screenshotBase64?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { title, description, pageUrl } = body;
+  const { title, description, pageUrl, screenshotBase64 } = body;
   if (!title || typeof title !== "string" || title.trim().length < 3) {
     return NextResponse.json({ error: "כותרת קצרה מדי" }, { status: 400 });
   }
@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
       description: ticket.description,
       pageUrl: ticket.pageUrl,
       adminUrl: `${appUrl}/owner/support`,
+      screenshotBase64: typeof screenshotBase64 === "string" ? screenshotBase64 : null,
     });
   } catch (err) {
     console.error("[SupportTicket] Failed to send email:", err);
