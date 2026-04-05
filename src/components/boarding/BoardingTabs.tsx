@@ -19,7 +19,7 @@ export function BoardingTabs() {
   const pathname = usePathname();
 
   return (
-    <div className="flex gap-1 p-1 bg-slate-100 rounded-xl mb-6 overflow-x-auto scrollbar-hide">
+    <div className="no-print flex gap-1 p-1 bg-slate-100 rounded-xl mb-6 overflow-x-auto scrollbar-hide">
       {TABS.map((tab) => {
         const isActive =
           tab.href === "/boarding"

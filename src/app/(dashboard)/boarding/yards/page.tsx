@@ -445,8 +445,14 @@ export default function YardsPage() {
     <div>
       <BoardingTabs />
 
+      {/* Print-only header */}
+      <div className="print-only hidden mb-6">
+        <h1 className="text-xl font-bold text-slate-800">מפת חצרות — {new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</h1>
+        <p className="text-sm text-slate-500 mt-1">{yards.length} חצרות · {yards.reduce((n, y) => n + y.boardingStays.length, 0)} כלבים בחצרות</p>
+      </div>
+
       {/* Page header — matches boarding rooms style */}
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
+      <div className="no-print flex items-center gap-3 mb-4 flex-wrap">
         <h1 className="page-title">ניהול חצרות</h1>
         <p className="text-sm text-petra-muted">
           {yards.length} חצרות · {yards.reduce((n, y) => n + y.boardingStays.length, 0)} כלבים בחצרות
@@ -743,9 +749,13 @@ export default function YardsPage() {
           body > * { display: none !important; }
           body > div:has([data-print-yards]) { display: block !important; }
           [data-print-yards] { display: block !important; }
-          aside, nav, header, [data-sidebar], [data-topbar] { display: none !important; }
+          aside, nav, header { display: none !important; }
           .no-print { display: none !important; }
+          .print-only { display: block !important; }
           .modal-overlay { display: none !important; }
+          #main-content { padding: 0 !important; margin: 0 !important; }
+          .transition-all { margin: 0 !important; }
+          [data-print-yards] .grid { grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; }
           [data-print-yards] .card { break-inside: avoid; box-shadow: none; border: 1px solid #e2e8f0; }
           [data-print-yards] button { display: none !important; }
         }
