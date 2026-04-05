@@ -568,45 +568,10 @@ function TemplatesTab() {
 
   return (
     <>
-      {/* Inner sub-tabs */}
-      <div className="flex gap-1 mb-3 bg-slate-100 p-1 rounded-xl w-fit">
-        <button
-          onClick={() => setInnerTab("auto")}
-          className={cn(
-            "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-            innerTab === "auto"
-              ? "bg-white text-petra-text shadow-sm"
-              : "text-petra-muted hover:text-petra-text"
-          )}
-        >
-          <Zap className="w-4 h-4" />
-          אוטומציות
-        </button>
-        <button
-          onClick={() => setInnerTab("manual")}
-          className={cn(
-            "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-            innerTab === "manual"
-              ? "bg-white text-petra-text shadow-sm"
-              : "text-petra-muted hover:text-petra-text"
-          )}
-        >
-          <Send className="w-4 h-4" />
-          ידני
-        </button>
-      </div>
-
       {/* Tab description */}
-      {innerTab === "auto" && (
-        <p className="text-xs text-petra-muted mb-4">
-          הודעות שנשלחות אוטומטית על ידי המערכת בהתאם לאירועים — למשל אישור תור, תזכורת לפני פגישה, או יום הולדת. הגדר תבנית לכל אירוע שרוצים לפעיל.
-        </p>
-      )}
-      {innerTab === "manual" && (
-        <p className="text-xs text-petra-muted mb-4">
-          תבניות מוכנות לשליחה ידנית ללקוח בודד — לחץ על אייקון השליחה בשורה ובחר לקוח. ניתן לערוך את תוכן כל תבנית.
-        </p>
-      )}
+      <p className="text-xs text-petra-muted mb-4">
+        הודעות שנשלחות אוטומטית על ידי המערכת בהתאם לאירועים — למשל אישור תור, תזכורת לפני פגישה, או יום הולדת. הפעל כל הודעה בלחיצה על המתג.
+      </p>
 
       {/* ── Automations tab ── */}
       {innerTab === "auto" && (
