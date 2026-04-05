@@ -111,6 +111,17 @@ InvoiceDocument.updateMany(originalInvoiceId→null) → InvoiceDocument.deleteM
 Overdue condition: `followUpDate && followUpDate < todayStart` (no `followUpStatus` check).
 Card badge uses identical condition — never add extra conditions to one without updating the other.
 
+### 19. Lead notifications — PRO+ only
+`lead_notifications` feature flag in `src/lib/feature-flags.ts`: true for `pro` + `service_dog` only.
+When a new lead is created (manual or via webhook), `POST /api/leads` fires-and-forgets a WhatsApp to the business owner's phone.
+Uses approved template `petra_biz_lead_alert` (WABA `25882288788086856`) with fallback to free-form.
+Body params order: `[lead.name, lead.phone || "לא צוין", lead.requestedService || "לא צוין"]`.
+For non-PRO businesses the feature is silently skipped (no UI shown in leads page — handled by TierGate elsewhere).
+
+### 20. Analytics page is named "דוחות"
+Sidebar entry and page title are "דוחות" (not "אנליטיקס"). Route remains `/analytics`.
+`src/components/layout/sidebar.tsx` line: `{ name: "דוחות", href: "/analytics", ... }`
+
 ---
 
 ## Key Patterns
@@ -159,7 +170,7 @@ import { prisma } from "@/lib/prisma"
 | WhatsApp send | `src/lib/whatsapp.ts` — `sendWhatsAppMessage()` |
 | WhatsApp reminder (manual) | `POST /api/appointments/[id]/remind` — requires `whatsapp_reminders` tier (PRO+) |
 | WhatsApp reminder (auto) | `src/lib/reminder-service.ts` — `scheduleAppointmentReminder()` checks `whatsappRemindersEnabled` + tier |
-| Message template defaults | `STARTER_TEMPLATES` in `src/components/messages/messages-panel.tsx` — 8 templates with automated footer |
+| Message template defaults | `STARTER_TEMPLATES` in `src/components/messages/messages-panel.tsx` — 8 templates with automated footer; pencil button opens editor modal pre-filled from DB version |
 | Form validation utils | `src/lib/validation.ts` — `validateIsraeliPhone`, `validateEmail`, `sanitizeName`, `validateName` |
 | Service dog phases | `src/lib/service-dogs.ts` — `SERVICE_DOG_PHASES` (single source of truth; VALID_PHASES derived from it) |
 | Service dog types | `src/lib/service-dogs.ts` — `SERVICE_DOG_TYPES` (MOBILITY, PSYCHIATRIC, PTSD, GUIDE, AUTISM, ALERT, OTHER) |
@@ -186,3 +197,6 @@ import { prisma } from "@/lib/prisma"
 | Service dog tabs order | תיק כלב → חיסונים וטיפולים → שיבוצים → מבחני הסמכה → מסמכים → ביטוח → ציוד → פרוטוקולים רפואיים → יומן אימונים → תעודת הסמכה |
 | Boarding room map print | `@media print` in `boarding/page.tsx` hides `.modal-overlay` — prevents "לקוח חדש" modal appearing in print |
 | Feeding board print | `boarding/daily/page.tsx` has print button + `@media print` CSS hiding nav/modals |
+| Dashboard stat cards | "הכנסות החודש" always shown (from `data.monthRevenue`); "היום: ₪X" as subtitle when today > 0. `data.upcomingByType` and dead `BirthdayWidget` component exist but are unused. |
+| Dashboard orders section | "הזמנות אחרונות" links to `/orders`; each row is a `<Link>` to `/orders/:id` |
+| Lead WhatsApp alert | `customers/[id]/page.tsx`: blue Send button on completed appointments (follow-up wa.me). Birthday Gift button on pet card hover. `customers/page.tsx`: "שלח ברוכים הבאים" toast action on new customer creation. |
