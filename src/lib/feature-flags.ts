@@ -37,7 +37,8 @@ export type FeatureKey =
   | "intake_forms"
   | "payment_links"
   | "webhook_leads"
-  | "appointments";
+  | "appointments"
+  | "lead_notifications";
 
 // ─── Feature access matrix ────────────────────────────────────────────────────
 // Public tiers (March 2026): Free | Basic (₪99) | Pro (₪199)
@@ -72,6 +73,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     payment_links:     false,  // Cardcom payment request links — BASIC+ only
     webhook_leads:     false,
     appointments:      true,   // ✅ open, max 20 total (FREE_APPOINTMENT_LIMIT)
+    lead_notifications: false, // WhatsApp alert to owner on new lead — PRO only
   },
 
   // ── Basic (₪99) ──────────────────────────────────────────────────────────────
@@ -103,6 +105,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     payment_links:     true,
     webhook_leads:     false,  // Make.com/API webhook for leads — PRO only
     appointments:      true,
+    lead_notifications: false, // WhatsApp alert to owner on new lead — PRO only
   },
 
   // ── Groomer+ (₪169) ──────────────────────────────────────────────────────────
@@ -133,6 +136,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     payment_links:     true,
     webhook_leads:     false,  // CRM webhook not relevant for groomers
     appointments:      true,
+    lead_notifications: false,
   },
 
   // ── Groomer+ legacy alias (kept for DB backward-compat — same as groomer) ────
@@ -161,6 +165,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     payment_links:     true,
     webhook_leads:     false,
     appointments:      true,
+    lead_notifications: false,
   },
 
   // ── Pro (₪199) ───────────────────────────────────────────────────────────────
@@ -191,6 +196,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     payment_links:     true,
     webhook_leads:     true,   // API webhook for leads ✅
     appointments:      true,
+    lead_notifications: true,  // WhatsApp alert to owner on new lead ✅
   },
 
   // ── Service Dog (₪229) ───────────────────────────────────────────────────────
@@ -220,6 +226,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     payment_links:     true,
     webhook_leads:     true,   // API webhook for leads ✅
     appointments:      true,
+    lead_notifications: true,  // WhatsApp alert to owner on new lead ✅
   },
 };
 

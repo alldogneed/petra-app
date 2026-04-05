@@ -4,8 +4,10 @@ import prisma from "@/lib/prisma";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
-import { getMaxLeads, normalizeTier } from "@/lib/feature-flags";
+import { getMaxLeads, normalizeTier, hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { getFirstLeadStageId } from "@/lib/lead-stages";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { toWhatsAppPhone } from "@/lib/utils";
 import { shouldSyncContacts, upsertLeadContact } from "@/lib/google-contacts";
 import { validateIsraeliPhone, validateEmail, sanitizeName, normalizeIsraeliPhone } from "@/lib/validation";
 
@@ -101,7 +103,7 @@ export async function POST(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
 
     // Enforce lead limit for free tier
-    const business = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true } });
+    const business = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true, phone: true, name: true, featureOverrides: true } });
     const maxLeads = getMaxLeads(normalizeTier(business?.tier));
     if (maxLeads !== null) {
       const currentCount = await prisma.lead.count({ where: { businessId: authResult.businessId } });
@@ -207,6 +209,22 @@ export async function POST(request: NextRequest) {
     });
 
     logCurrentUserActivity("CREATE_LEAD");
+
+    // Fire-and-forget: WhatsApp notification to business owner on new lead (PRO+ only)
+    const bizOverrides = (business?.featureOverrides as Record<string, boolean> | null) ?? null;
+    const canNotify = hasFeatureWithOverrides(business?.tier ?? "free", "lead_notifications", bizOverrides);
+    if (canNotify && business?.phone) {
+      const ownerPhone = toWhatsAppPhone(business.phone);
+      if (ownerPhone) {
+        const servicePart = lead.requestedService ? `\nשירות מבוקש: ${lead.requestedService}` : "";
+        const phonePart = lead.phone ? `\nטלפון: ${lead.phone}` : "";
+        const sourcePart = lead.source ? `\nמקור: ${lead.source}` : "";
+        const msg = `🔔 ליד חדש נכנס לפטרה!\n\nשם: ${lead.name}${phonePart}${servicePart}${sourcePart}\n\nכנס לניהול הלידים לפרטים המלאים 👇\nhttps://petra-app.com/leads`;
+        sendWhatsAppMessage({ to: ownerPhone, body: msg }).catch((err) =>
+          console.error("Lead notification WA failed:", err)
+        );
+      }
+    }
 
     // Fire-and-forget: sync to Google Contacts if enabled
     if (lead.phone || lead.email) {
