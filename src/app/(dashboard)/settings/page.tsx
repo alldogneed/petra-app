@@ -312,7 +312,7 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
 function BusinessTab() {
   const queryClient = useQueryClient();
   const { user, refreshUser } = useAuth();
-  const { isFree, can, isGroomer } = usePlan();
+  const { isFree } = usePlan();
   const { data: biz, isLoading } = useQuery<Business>({
     queryKey: ["settings"],
     queryFn: () => fetchJSON<Business>("/api/settings"),
@@ -344,16 +344,8 @@ function BusinessTab() {
   const [form, setForm] = useState<Partial<Business> | null>(null);
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
-  const [copiedLink, setCopiedLink] = useState(false);
 
-  // Apply defaults for nullable boarding fields so they don't get sent as null on save
-  const rawEditing = form ?? biz;
-  const editing = rawEditing ? {
-    ...rawEditing,
-    boardingCheckInTime: rawEditing.boardingCheckInTime ?? "14:00",
-    boardingCheckOutTime: rawEditing.boardingCheckOutTime ?? "11:00",
-    boardingCalcMode: rawEditing.boardingCalcMode ?? "nights",
-  } : rawEditing;
+  const editing = form ?? biz;
 
   const mutation = useMutation({
     mutationFn: (data: Partial<Business>) =>
@@ -459,58 +451,6 @@ function BusinessTab() {
         </div>
       </div>
 
-      {/* Boarding Settings — hidden for groomer tier */}
-      {!isGroomer && <div className="border-t border-slate-100 pt-6">
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-2">
-            <Hotel className="w-4 h-4 text-brand-500" />
-            <h3 className="text-sm font-semibold text-petra-text">הגדרות פנסיון</h3>
-          </div>
-          {isFree && <span className="text-xs text-slate-400">🔒 זמין במנוי בייסיק</span>}
-        </div>
-        {isFree && (
-          <p className="text-sm text-petra-muted bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
-            <a href="/upgrade" className="text-brand-600 hover:underline font-medium">שדרג לפרו</a> כדי להגדיר שעות צ׳ק-אין/אאוט ופנסיון.
-          </p>
-        )}
-        {!isFree && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5" />
-                  שעת צ׳ק-אין
-                </label>
-                <input type="time" className="input" value={editing.boardingCheckInTime ?? "14:00"} onChange={(e) => setForm({ ...editing, boardingCheckInTime: e.target.value })} />
-              </div>
-              <div>
-                <label className="label flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5" />
-                  שעת צ׳ק-אאוט
-                </label>
-                <input type="time" className="input" value={editing.boardingCheckOutTime ?? "11:00"} onChange={(e) => setForm({ ...editing, boardingCheckOutTime: e.target.value })} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label flex items-center gap-1.5">
-                  <Moon className="w-3.5 h-3.5" />
-                  חישוב לפי
-                </label>
-                <select className="input" value={editing.boardingCalcMode ?? "nights"} onChange={(e) => setForm({ ...editing, boardingCalcMode: e.target.value })}>
-                  <option value="nights">לילות</option>
-                  <option value="days">ימים</option>
-                </select>
-              </div>
-              <div>
-                <label className="label">מינימום לילות</label>
-                <input type="number" min={0} className="input" value={editing.boardingMinNights ?? 1} onChange={(e) => setForm({ ...editing, boardingMinNights: Number(e.target.value) })} />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>}
-
       <button
         className={cn("btn-primary flex items-center gap-2 transition-all", saved && "bg-emerald-500 hover:brightness-100")}
         style={saved ? { background: "#10B981" } : undefined}
@@ -519,107 +459,6 @@ function BusinessTab() {
       >
         {saved ? <><CheckCircle2 className="w-4 h-4" /> נשמר!</> : <><Save className="w-4 h-4" /> שמור שינויים</>}
       </button>
-
-      {/* Online Booking Settings */}
-      <div className="border-t border-slate-100 pt-6">
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-2">
-            <CalendarRange className="w-4 h-4 text-brand-500" />
-            <h3 className="text-sm font-semibold text-petra-text">הגדרות הזמנה אונליין</h3>
-          </div>
-          {!can('online_bookings') && <span className="text-xs text-slate-400">🔒 זמין במנוי פרו</span>}
-        </div>
-        {!can('online_bookings') ? (
-          <p className="text-sm text-petra-muted bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
-            <a href="/upgrade" className="text-brand-600 hover:underline font-medium">שדרג לפרו</a> כדי להפעיל הזמנות אונליין, להגדיר קישור הזמנה ומדיניות ביטול.
-          </p>
-        ) : (
-        <div className="space-y-4">
-          {/* Booking page URL */}
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-            <label className="label flex items-center gap-1.5 mb-2">
-              <ExternalLink className="w-3.5 h-3.5" />
-              קישור להזמנה אונליין
-            </label>
-            {biz?.slug ? (
-              <div className="flex items-center gap-2">
-                <span className="flex-1 text-sm text-petra-text font-mono bg-white border border-slate-200 rounded-lg px-3 py-2 truncate select-all">
-                  {`${process.env.NEXT_PUBLIC_APP_URL || "https://petra-app.com"}/book/${biz.slug}`}
-                </span>
-                <button
-                  type="button"
-                  className="flex-shrink-0 p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
-                  onClick={() => {
-                    copyToClipboard(`${process.env.NEXT_PUBLIC_APP_URL || "https://petra-app.com"}/book/${biz.slug}`);
-                    setCopiedLink(true);
-                    setTimeout(() => setCopiedLink(false), 2000);
-                  }}
-                  title="העתק קישור"
-                >
-                  {copiedLink ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-petra-muted" />}
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-xs text-amber-600">הגדר כתובת הזמנה (slug) כדי לשתף את הקישור:</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-petra-muted font-mono">petra-app.com/book/</span>
-                  <input
-                    type="text"
-                    className="input flex-1"
-                    placeholder="my-business"
-                    value={editing.slug ?? ""}
-                    onChange={(e) => setForm({ ...editing, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") })}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-          <div>
-            <label className="label flex items-center gap-1.5">
-              <Info className="w-3.5 h-3.5" />
-              טקסט פתיחה לדף ההזמנה
-            </label>
-            <textarea
-              className="input resize-none"
-              rows={2}
-              placeholder="ברוכים הבאים! אנו שמחים לקבל הזמנות אונליין..."
-              value={editing.bookingWelcomeText ?? ""}
-              onChange={(e) => setForm({ ...editing, bookingWelcomeText: e.target.value })}
-            />
-            <p className="text-xs text-petra-muted mt-1">יוצג ללקוחות בראש דף ההזמנה</p>
-          </div>
-          <div>
-            <label className="label flex items-center gap-1.5">
-              <Info className="w-3.5 h-3.5" />
-              מדיניות ביטול
-            </label>
-            <textarea
-              className="input resize-none"
-              rows={3}
-              placeholder="ביטול עד 24 שעות לפני התור – ללא עלות. ביטול מאוחר יותר – יגבה דמי ביטול..."
-              value={editing.cancellationPolicy ?? ""}
-              onChange={(e) => setForm({ ...editing, cancellationPolicy: e.target.value })}
-            />
-            <p className="text-xs text-petra-muted mt-1">יוצג ללקוחות לפני אישור ההזמנה</p>
-          </div>
-          <div>
-            <label className="label flex items-center gap-1.5">
-              <CreditCard className="w-3.5 h-3.5" />
-              הוראות תשלום מקדמה
-            </label>
-            <textarea
-              className="input resize-none"
-              rows={2}
-              placeholder="יש לשלם את המקדמה דרך Bit / Paybox למספר 050-0000000..."
-              value={editing.depositInstructions ?? ""}
-              onChange={(e) => setForm({ ...editing, depositInstructions: e.target.value })}
-            />
-            <p className="text-xs text-petra-muted mt-1">מוצג כשלשירות יש מקדמה אך אין קישור תשלום</p>
-          </div>
-        </div>
-        )}
-      </div>
 
       {/* Password Change Section */}
       <ChangePasswordSection />
@@ -849,6 +688,250 @@ function BookingLinkBox() {
       >
         <ExternalLink className="w-4 h-4" />
       </a>
+    </div>
+  );
+}
+
+// ─── Boarding Settings Tab ───────────────────────────────────────────────────
+
+function BoardingSettingsTab() {
+  const queryClient = useQueryClient();
+  const { data: biz, isLoading } = useQuery<Business>({
+    queryKey: ["settings"],
+    queryFn: () => fetchJSON<Business>("/api/settings"),
+  });
+
+  const [form, setForm] = useState<Partial<Business> | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const rawEditing = form ?? biz;
+  const editing = rawEditing ? {
+    ...rawEditing,
+    boardingCheckInTime: rawEditing.boardingCheckInTime ?? "14:00",
+    boardingCheckOutTime: rawEditing.boardingCheckOutTime ?? "11:00",
+    boardingCalcMode: rawEditing.boardingCalcMode ?? "nights",
+  } : rawEditing;
+
+  const mutation = useMutation({
+    mutationFn: (data: Partial<Business>) =>
+      fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+      toast.success("הגדרות הפנסיון נשמרו");
+    },
+    onError: () => toast.error("שגיאה בשמירת ההגדרות"),
+  });
+
+  if (isLoading) return <div className="animate-pulse space-y-3 max-w-xl">{[1,2].map((i) => <div key={i} className="h-12 bg-slate-100 rounded-xl" />)}</div>;
+  if (!editing) return null;
+
+  return (
+    <div className="space-y-6 max-w-xl">
+      <div className="flex items-center gap-2">
+        <Hotel className="w-4 h-4 text-brand-500" />
+        <h2 className="text-base font-semibold text-petra-text">הגדרות פנסיון</h2>
+      </div>
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5" />
+              שעת צ׳ק-אין
+            </label>
+            <input type="time" className="input" value={editing.boardingCheckInTime ?? "14:00"} onChange={(e) => setForm({ ...editing, boardingCheckInTime: e.target.value })} />
+          </div>
+          <div>
+            <label className="label flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5" />
+              שעת צ׳ק-אאוט
+            </label>
+            <input type="time" className="input" value={editing.boardingCheckOutTime ?? "11:00"} onChange={(e) => setForm({ ...editing, boardingCheckOutTime: e.target.value })} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label flex items-center gap-1.5">
+              <Moon className="w-3.5 h-3.5" />
+              חישוב לפי
+            </label>
+            <select className="input" value={editing.boardingCalcMode ?? "nights"} onChange={(e) => setForm({ ...editing, boardingCalcMode: e.target.value })}>
+              <option value="nights">לילות</option>
+              <option value="days">ימים</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">מינימום לילות</label>
+            <input type="number" min={0} className="input" value={editing.boardingMinNights ?? 1} onChange={(e) => setForm({ ...editing, boardingMinNights: Number(e.target.value) })} />
+          </div>
+        </div>
+      </div>
+      <button
+        className={cn("btn-primary flex items-center gap-2 transition-all", saved && "bg-emerald-500 hover:brightness-100")}
+        style={saved ? { background: "#10B981" } : undefined}
+        disabled={mutation.isPending || !form}
+        onClick={() => { if (form) mutation.mutate(form); }}
+      >
+        {saved ? <><CheckCircle2 className="w-4 h-4" /> נשמר!</> : <><Save className="w-4 h-4" /> שמור שינויים</>}
+      </button>
+    </div>
+  );
+}
+
+// ─── Booking Tab ─────────────────────────────────────────────────────────────
+
+function BookingTab() {
+  const queryClient = useQueryClient();
+  const { can } = usePlan();
+  const { data: biz, isLoading } = useQuery<Business>({
+    queryKey: ["settings"],
+    queryFn: () => fetchJSON<Business>("/api/settings"),
+  });
+
+  const [form, setForm] = useState<Partial<Business> | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const editing = form ?? biz;
+
+  const mutation = useMutation({
+    mutationFn: (data: Partial<Business>) =>
+      fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+      toast.success("הגדרות ההזמנות נשמרו");
+    },
+    onError: () => toast.error("שגיאה בשמירת ההגדרות"),
+  });
+
+  if (isLoading) return <div className="animate-pulse space-y-3 max-w-xl">{[1,2,3].map((i) => <div key={i} className="h-12 bg-slate-100 rounded-xl" />)}</div>;
+
+  return (
+    <div className="space-y-8">
+      {/* Availability section */}
+      <AvailabilityTab />
+
+      {/* Online Booking Settings */}
+      <div className="border-t border-slate-100 pt-6 max-w-xl">
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <CalendarRange className="w-4 h-4 text-brand-500" />
+            <h3 className="text-sm font-semibold text-petra-text">הגדרות הזמנה אונליין</h3>
+          </div>
+        </div>
+        {!editing ? null : !can('online_bookings') ? (
+          <p className="text-sm text-petra-muted bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
+            <a href="/upgrade" className="text-brand-600 hover:underline font-medium">שדרג לפרו</a> כדי להפעיל הזמנות אונליין, להגדיר קישור הזמנה ומדיניות ביטול.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <label className="label flex items-center gap-1.5 mb-2">
+                <ExternalLink className="w-3.5 h-3.5" />
+                קישור להזמנה אונליין
+              </label>
+              {biz?.slug ? (
+                <div className="flex items-center gap-2">
+                  <span className="flex-1 text-sm text-petra-text font-mono bg-white border border-slate-200 rounded-lg px-3 py-2 truncate select-all">
+                    {`${process.env.NEXT_PUBLIC_APP_URL || "https://petra-app.com"}/book/${biz.slug}`}
+                  </span>
+                  <button
+                    type="button"
+                    className="flex-shrink-0 p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+                    onClick={() => {
+                      copyToClipboard(`${process.env.NEXT_PUBLIC_APP_URL || "https://petra-app.com"}/book/${biz.slug}`);
+                      setCopiedLink(true);
+                      setTimeout(() => setCopiedLink(false), 2000);
+                    }}
+                    title="העתק קישור"
+                  >
+                    {copiedLink ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-petra-muted" />}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-amber-600">הגדר כתובת הזמנה (slug) כדי לשתף את הקישור:</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-petra-muted font-mono">petra-app.com/book/</span>
+                    <input
+                      type="text"
+                      className="input flex-1"
+                      placeholder="my-business"
+                      value={editing.slug ?? ""}
+                      onChange={(e) => setForm({ ...editing, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") })}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="label flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5" />
+                טקסט פתיחה לדף ההזמנה
+              </label>
+              <textarea
+                className="input resize-none"
+                rows={2}
+                placeholder="ברוכים הבאים! אנו שמחים לקבל הזמנות אונליין..."
+                value={editing.bookingWelcomeText ?? ""}
+                onChange={(e) => setForm({ ...editing, bookingWelcomeText: e.target.value })}
+              />
+              <p className="text-xs text-petra-muted mt-1">יוצג ללקוחות בראש דף ההזמנה</p>
+            </div>
+            <div>
+              <label className="label flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5" />
+                מדיניות ביטול
+              </label>
+              <textarea
+                className="input resize-none"
+                rows={3}
+                placeholder="ביטול עד 24 שעות לפני התור – ללא עלות. ביטול מאוחר יותר – יגבה דמי ביטול..."
+                value={editing.cancellationPolicy ?? ""}
+                onChange={(e) => setForm({ ...editing, cancellationPolicy: e.target.value })}
+              />
+              <p className="text-xs text-petra-muted mt-1">יוצג ללקוחות לפני אישור ההזמנה</p>
+            </div>
+            <div>
+              <label className="label flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5" />
+                הוראות תשלום מקדמה
+              </label>
+              <textarea
+                className="input resize-none"
+                rows={2}
+                placeholder="יש לשלם את המקדמה דרך Bit / Paybox למספר 050-0000000..."
+                value={editing.depositInstructions ?? ""}
+                onChange={(e) => setForm({ ...editing, depositInstructions: e.target.value })}
+              />
+              <p className="text-xs text-petra-muted mt-1">מוצג כשלשירות יש מקדמה אך אין קישור תשלום</p>
+            </div>
+            <button
+              className={cn("btn-primary flex items-center gap-2 transition-all", saved && "bg-emerald-500 hover:brightness-100")}
+              style={saved ? { background: "#10B981" } : undefined}
+              disabled={mutation.isPending || !form}
+              onClick={() => { if (form) mutation.mutate(form); }}
+            >
+              {saved ? <><CheckCircle2 className="w-4 h-4" /> נשמר!</> : <><Save className="w-4 h-4" /> שמור שינויים</>}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Payments Tab ─────────────────────────────────────────────────────────────
+
+function PaymentsTab() {
+  return (
+    <div className="space-y-10">
+      <InvoicingTab />
+      <div className="border-t border-slate-100" />
+      <ContractsTab />
     </div>
   );
 }
@@ -4219,24 +4302,24 @@ export default function SettingsPage() {
   const { isOwner, isManager } = useAuth();
   const { isFree, isBasic, isGroomer, can } = usePlan();
   const invoicingParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<"business" | "team" | "availability" | "integrations" | "invoicing" | "data" | "messages" | "service-dogs" | "contracts">(
-    gcalParam ? "integrations" : invoicingParam === "invoicing" ? "invoicing" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : invoicingParam === "contracts" ? "contracts" : "business"
+  const [activeTab, setActiveTab] = useState<"business" | "booking" | "boarding" | "team" | "payments" | "integrations" | "data" | "messages" | "service-dogs">(
+    gcalParam ? "integrations" : invoicingParam === "booking" ? "booking" : invoicingParam === "boarding" ? "boarding" : invoicingParam === "payments" ? "payments" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : "business"
   );
 
   // Tabs locked per tier
-  const FREE_LOCKED_TABS = new Set(["availability", "team", "messages", "service-dogs", "data", "integrations", "contracts"]);
-  // Basic: open business, data, integrations, contracts — lock availability, team, messages, service-dogs
-  const BASIC_LOCKED_TABS = new Set(["availability", "team", "messages", "service-dogs"]);
+  // booking = PRO+ only; boarding/payments = BASIC+ only
+  const FREE_LOCKED_TABS = new Set(["booking", "boarding", "team", "messages", "service-dogs", "data", "integrations", "payments"]);
+  // Basic: unlock boarding, payments, data, integrations — keep booking, team, messages, service-dogs locked
+  const BASIC_LOCKED_TABS = new Set(["booking", "team", "messages", "service-dogs"]);
 
   const tabs = [
     { id: "business" as const, label: "פרטי העסק", icon: Building2 },
-    { id: "availability" as const, label: "זמינות", icon: Calendar },
+    { id: "booking" as const, label: "הזמנות", icon: CalendarRange },
+    ...(!isGroomer ? [{ id: "boarding" as const, label: "פנסיון", icon: Hotel }] : []),
     ...(isOwner ? [{ id: "team" as const, label: "ניהול צוות", icon: Users2 }] : []),
-    // { id: "invoicing" as const, label: "חשבוניות", icon: FileText }, // hidden — in development
     { id: "messages" as const, label: "הודעות ואוטומציות", icon: MessageCircle },
-    // Service dogs tab — hidden for groomer tier (irrelevant track)
+    ...(isOwner || isManager ? [{ id: "payments" as const, label: "תשלומים", icon: CreditCard }] : []),
     ...(!isGroomer ? [{ id: "service-dogs" as const, label: "כלבי שירות", icon: PawPrint }] : []),
-    ...(isOwner || isManager ? [{ id: "contracts" as const, label: "חוזים", icon: FileText }] : []),
     { id: "data" as const, label: "נתונים", icon: Database },
     { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
   ];
@@ -4272,23 +4355,32 @@ export default function SettingsPage() {
       </div>
 
       {activeTab === "business" && <BusinessTab />}
-      {activeTab === "availability" && (
+      {activeTab === "booking" && (
         (isFree || isBasic)
-          ? <PaywallCard title="הגדרות זמינות" description="הגדר שעות פעילות, חסימות ופסקי זמן — זמין במנוי פרו ומעלה." requiredTier="pro" variant="page" />
-          : <AvailabilityTab />
+          ? <PaywallCard title="הזמנות" description="הגדר זמינות, שעות פעילות והזמנות אונליין — זמין במנוי פרו ומעלה." requiredTier="pro" variant="page" />
+          : <BookingTab />
+      )}
+      {activeTab === "boarding" && !isGroomer && (
+        isFree
+          ? <PaywallCard title="הגדרות פנסיון" description="הגדר שעות צ׳ק-אין/אאוט ומינימום לילות — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
+          : <BoardingSettingsTab />
       )}
       {activeTab === "team" && isOwner && (
         (isFree || isBasic)
           ? <PaywallCard title="ניהול צוות" description="הוסף חברי צוות ונהל הרשאות — זמין במנוי פרו ומעלה." requiredTier="pro" variant="page" />
           : <TeamTab />
       )}
-      {activeTab === "invoicing" && <InvoicingTab />}
       {activeTab === "messages" && (
         (isFree || isBasic)
           ? <PaywallCard title="הודעות ואוטומציות" description="תבניות WhatsApp, תזכורות אוטומטיות ואוטומציות — זמין במנוי פרו ומעלה." requiredTier="pro" variant="page" />
           : <MessagesPanel />
       )}
-      {activeTab === "service-dogs" && (
+      {activeTab === "payments" && (isOwner || isManager) && (
+        isFree
+          ? <PaywallCard title="תשלומים וחוזים" description="הגדרות חשבוניות, חיוב וחוזים דיגיטליים — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
+          : <PaymentsTab />
+      )}
+      {activeTab === "service-dogs" && !isGroomer && (
         !can("service_dogs")
           ? <PaywallCard title="הגדרות כלבי שירות" description="הגדרות תוכנית כלבי שירות — זמין במנוי Service Dog בלבד." requiredTier="service_dog" variant="page" />
           : <ServiceDogsSettingsTab />
@@ -4302,11 +4394,6 @@ export default function SettingsPage() {
         isFree
           ? <PaywallCard title="אינטגרציות" description="חבר יומן Google, WhatsApp ועוד — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
           : <IntegrationsTab />
-      )}
-      {activeTab === "contracts" && (
-        isFree
-          ? <PaywallCard title="חוזים דיגיטליים" description="שלח חוזים לחתימה דיגיטלית — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
-          : <ContractsTab />
       )}
     </div>
   );
