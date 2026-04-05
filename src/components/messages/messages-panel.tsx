@@ -653,14 +653,17 @@ function TemplatesTab() {
                     )}
                   </div>
 
-                  {/* Template body preview — click to expand */}
+                  {/* Template body preview (read-only) */}
+                  <div className="hidden sm:block w-44 flex-shrink-0 text-xs text-petra-muted truncate" dir="rtl">
+                    {previewLine}
+                  </div>
+
+                  {/* Preview button */}
                   <button
                     onClick={() => setPreviewTriggerId(trigger.id)}
-                    className="hidden sm:flex items-center gap-1.5 w-52 flex-shrink-0 text-xs text-petra-muted hover:text-brand-600 transition-colors text-right group"
-                    dir="rtl"
+                    className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-petra-muted hover:text-brand-600 transition-colors"
                   >
-                    <span className="truncate flex-1">{previewLine}</span>
-                    <Eye className="w-3.5 h-3.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Eye className="w-4 h-4" />
                   </button>
 
                   {/* Toggle */}
@@ -692,21 +695,34 @@ function TemplatesTab() {
           const trigger = AUTOMATION_TRIGGERS.find((t) => t.id === previewTriggerId)!;
           const linked = templates.find((t) => t.automationRules?.[0]?.trigger === previewTriggerId);
           const body = linked?.body ?? STARTER_TEMPLATES.find((s) => s.trigger === previewTriggerId)?.body ?? "";
+          const TriggerIcon = TRIGGER_ICONS[trigger.id] ?? Zap;
           return (
             <div className="modal-overlay" onClick={() => setPreviewTriggerId(null)}>
-              <div className="modal-content max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-semibold text-petra-text">{trigger.label}</h3>
-                  <button onClick={() => setPreviewTriggerId(null)} className="text-petra-muted hover:text-petra-text">
-                    <X className="w-4 h-4" />
+              <div className="modal-content max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
+                    <TriggerIcon className="w-4 h-4 text-brand-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-semibold text-petra-text">{trigger.label}</h3>
+                    <p className="text-xs text-petra-muted">{linked ? "תבנית מותאמת אישית" : "תבנית ברירת מחדל"}</p>
+                  </div>
+                  <button onClick={() => setPreviewTriggerId(null)} className="text-petra-muted hover:text-petra-text flex-shrink-0">
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
-                <p className="text-xs text-petra-muted mb-3">תצוגה מקדימה של ההודעה שהלקוח יקבל:</p>
-                <div className="bg-[#dcf8c6] rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed shadow-sm" dir="rtl">
+
+                {/* Label */}
+                <p className="text-xs font-medium text-petra-muted mb-2">תוכן ההודעה שהלקוח יקבל</p>
+
+                {/* Message body */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-petra-text whitespace-pre-wrap leading-relaxed" dir="rtl">
                   {body}
                 </div>
-                <p className="text-[11px] text-petra-muted mt-3 text-center">
-                  {linked ? "תבנית מותאמת אישית" : "תבנית ברירת מחדל"}
+
+                <p className="text-[11px] text-petra-muted mt-3">
+                  המשתנים בסוגריים מוחלפים אוטומטית בנתוני הלקוח בעת השליחה.
                 </p>
               </div>
             </div>
