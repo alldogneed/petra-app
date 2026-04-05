@@ -1292,13 +1292,24 @@ function NewCustomerModal({
         }
         return r.json();
       }),
-    onSuccess: () => {
+    onSuccess: (newCustomer: { name: string; phone: string | null }) => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       onClose();
       setForm({ name: "", phone: "", email: "", address: "", idNumber: "", secondContactName: "", secondContactPhone: "", notes: "", selectedTags: [], source: "" });
       setFieldErrors({});
-      toast.success("הלקוח נוצר בהצלחה");
+      const waPhone = newCustomer.phone ? toWhatsAppPhone(newCustomer.phone) : null;
+      if (waPhone) {
+        const welcomeMsg = `שלום ${newCustomer.name} 😊\n\nברוכים הבאים! שמחים שהצטרפתם אלינו 🐾\nאנחנו כאן לכל שאלה ובקשה.\n\nנשמח לראותכם בקרוב!`;
+        toast.success("הלקוח נוצר בהצלחה", {
+          action: {
+            label: "שלח ברוכים הבאים",
+            onClick: () => window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(welcomeMsg)}`, "_blank"),
+          },
+        });
+      } else {
+        toast.success("הלקוח נוצר בהצלחה");
+      }
     },
     onError: (err: Error) => {
       if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
