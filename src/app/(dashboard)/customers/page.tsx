@@ -2193,7 +2193,7 @@ export default function CustomersPage() {
       ) : (
         <div className="card overflow-hidden">
           {/* ── Selection mode toggle bar ── */}
-          <div className="flex items-center justify-end px-4 py-2 border-b border-[#E8DFD5] bg-[#FDFBF8]">
+          <div className="flex items-center justify-start px-4 py-2 border-b border-[#E8DFD5] bg-[#FDFBF8]">
             <button
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
