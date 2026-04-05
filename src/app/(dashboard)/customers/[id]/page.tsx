@@ -47,6 +47,7 @@ import {
   RotateCcw,
   Eye,
   Printer,
+  Gift,
 } from "lucide-react";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
@@ -4022,6 +4023,23 @@ export default function CustomerProfilePage() {
                             </div>
                           </div>
                           <div className="flex-shrink-0 flex items-center gap-1">
+                            {customer.phone && (() => {
+                              const petAge = age ?? "";
+                              const agePart = petAge ? ` ${petAge}` : "";
+                              const bdMsg = `יום הולדת שמח ל-${pet.name}! 🎂🐾\n\n${pet.name} מלא/ה${agePart} היום – כל הכבוד! 🎉\n\nכמתנה קטנה, נשמח להעניק לכם 10% הנחה על הפגישה הבאה 🎁\n(ציינו שקיבלתם הודעה זו בעת קביעת הפגישה)`;
+                              return (
+                                <a
+                                  href={`https://wa.me/${toWhatsAppPhone(customer.phone)}?text=${encodeURIComponent(bdMsg)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-amber-200 transition-all"
+                                  title="שלח ברכת יום הולדת WhatsApp"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Gift className="w-3 h-3 text-amber-700" />
+                                </a>
+                              );
+                            })()}
                             <button
                               className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-amber-200 transition-all"
                               onClick={(e) => { e.stopPropagation(); setEditPetModal({ pet }); }}
@@ -4674,6 +4692,23 @@ export default function CustomerProfilePage() {
                             <MessageCircle className="w-3.5 h-3.5" />
                           </button>
                         )}
+                        {apt.status === "completed" && customer.phone && (() => {
+                          const serviceName = apt.service?.name || (apt as { priceListItem?: { name: string } | null }).priceListItem?.name || "הטיפול";
+                          const petPart = apt.pet ? ` של ${apt.pet.name}` : "";
+                          const msg = `שלום ${customer.name} 😊\n\nרציתי לבדוק איך ${petPart ? apt.pet!.name : "הכלב"} מרגיש/ת אחרי ${serviceName}${petPart}.\n\nאם יש שאלות אנחנו כאן תמיד 🐾`;
+                          return (
+                            <a
+                              href={`https://wa.me/${toWhatsAppPhone(customer.phone)}?text=${encodeURIComponent(msg)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-6 h-6 flex items-center justify-center rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors flex-shrink-0"
+                              title="שלח מעקב WhatsApp"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Send className="w-3 h-3" />
+                            </a>
+                          );
+                        })()}
                         {apt.status === "scheduled" && (
                           <button
                             className="w-6 h-6 flex items-center justify-center rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 transition-colors flex-shrink-0"

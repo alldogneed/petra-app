@@ -705,10 +705,9 @@ function TemplatesTab() {
                 const dbVersion = manualTemplates.find((t) => t.name === starter.label);
                 const isCustomized = !!dbVersion;
                 const StarterIcon = TRIGGER_ICONS[starter.trigger] ?? MessageSquare;
-                // Always use fixed starter body — manual sends use the locked template
                 const templateForModal: MessageTemplate = {
                   id: dbVersion?.id ?? "", name: starter.label, channel: "whatsapp", subject: null,
-                  body: starter.body, variables: "", isActive: true,
+                  body: dbVersion?.body ?? starter.body, variables: "", isActive: true,
                   createdAt: "", automationRules: [],
                 };
                 return (
@@ -740,6 +739,21 @@ function TemplatesTab() {
                         title="שלח ללקוח בודד"
                       >
                         <Send className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingTemplate(dbVersion ?? null);
+                          setForm({
+                            ...emptyForm,
+                            name: starter.label,
+                            body: dbVersion?.body ?? starter.body,
+                          });
+                          setShowEditor(true);
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-slate-50 text-slate-400 hover:text-brand-600"
+                        title="ערוך תבנית"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
