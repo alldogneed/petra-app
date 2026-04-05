@@ -110,7 +110,7 @@ export default function AnalyticsPage() {
     <ProtectedRoute requiredRole="owner">
       <TierGate
         feature="analytics"
-        title="דוחות ואנליטיקס"
+        title="דוחות"
         description="גרפים, סטטיסטיקות ומעקב ביצועים של העסק. שדרג כדי לגשת לדוחות מפורטים."
       >
         <AnalyticsContent />
@@ -156,15 +156,15 @@ function AnalyticsContent() {
 
   return (
     <div className="animate-fade-in">
-      <PageTitle title="אנליטיקס" />
+      <PageTitle title="דוחות" />
       {/* Header */}
       <DesktopBanner />
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <h1 className="page-title flex items-center gap-2">
           <BarChart3 className="w-6 h-6 text-brand-500" />
-          אנליטיקס
+          דוחות
         </h1>
-        <p className="text-sm text-petra-muted">סקירה כללית של ביצועי העסק</p>
+        <p className="text-sm text-petra-muted">דוחות וסטטיסטיקות של העסק</p>
         <div className="flex gap-1.5 flex-wrap items-center">
           {PERIODS.map((p) => (
             <button
@@ -270,7 +270,7 @@ function AnalyticsContent() {
       ) : isError ? (
         <div className="card p-8 text-center">
           <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-          <p className="text-sm font-medium text-petra-text">שגיאה בטעינת האנליטיקס</p>
+          <p className="text-sm font-medium text-petra-text">שגיאה בטעינת הדוחות</p>
           <p className="text-xs text-petra-muted mt-1">נסה לרענן את הדף</p>
         </div>
       ) : data ? (
@@ -301,6 +301,11 @@ function AnalyticsContent() {
               <div className="text-xs text-petra-muted mt-1">
                 תורים · {data.overview.completionRate}% הושלמו
               </div>
+              {data.overview.totalAppointments > 0 && (
+                <div className="mt-2 h-1 bg-slate-100 rounded-full">
+                  <div className="h-full rounded-full bg-blue-400" style={{ width: `${data.overview.completionRate}%` }} />
+                </div>
+              )}
             </div>
 
             {/* New Customers */}
@@ -327,7 +332,7 @@ function AnalyticsContent() {
               </div>
               <div className="text-2xl font-bold text-petra-text">{data.leads.active}</div>
               <div className="text-xs text-petra-muted mt-1">
-                לידים פעילים · {data.leads.wonThisPeriod} נסגרו
+                לידים פעילים כעת · {data.leads.wonThisPeriod} נסגרו בתקופה
               </div>
             </div>
           </div>
@@ -650,7 +655,7 @@ function AnalyticsContent() {
           )}
         {/* Pet Demographics */}
         {data.petDemographics && data.petDemographics.total > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
             {/* Species breakdown */}
             <div className="card p-5">
               <div className="flex items-center gap-2 mb-4">
