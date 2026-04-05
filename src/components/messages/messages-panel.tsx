@@ -622,26 +622,10 @@ function TemplatesTab() {
               const rule = linked?.automationRules?.[0];
               const TriggerIcon = TRIGGER_ICONS[trigger.id] ?? Zap;
 
-              let statusBadge: React.ReactNode;
-              if (!linked) {
-                statusBadge = (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
-                    לא מוגדר
-                  </span>
-                );
-              } else if (rule?.isActive) {
-                statusBadge = (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-50 text-green-700 border border-green-200 whitespace-nowrap">
-                    פעיל
-                  </span>
-                );
-              } else {
-                statusBadge = (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200 whitespace-nowrap">
-                    מושבת
-                  </span>
-                );
-              }
+              const isActive = !!(linked && rule?.isActive);
+              const previewBody = linked?.body ?? STARTER_TEMPLATES.find((s) => s.trigger === trigger.id)?.body ?? "";
+              // First non-empty line of body as preview
+              const previewLine = previewBody.split("\n").find((l) => l.trim()) ?? "";
 
               return (
                 <div key={trigger.id} className="card p-4 flex items-center gap-4">
@@ -658,36 +642,39 @@ function TemplatesTab() {
 
                   {/* Status badge */}
                   <div className="flex-shrink-0">
-                    {statusBadge}
-                  </div>
-
-                  {/* Template name */}
-                  <div className="hidden sm:block w-44 flex-shrink-0 text-xs text-petra-muted truncate text-left">
-                    {linked ? linked.name : <span className="italic">אין תבנית מקושרת</span>}
-                  </div>
-
-                  {/* Action — toggle only, no edit */}
-                  <div className="flex-shrink-0">
-                    {linked && rule ? (
-                      <button
-                        onClick={() => toggleRuleMutation.mutate({ ruleId: rule.id, isActive: !rule.isActive })}
-                        className="p-0.5 hover:opacity-75 transition-opacity"
-                        title={rule.isActive ? "כבה אוטומציה" : "הפעל אוטומציה"}
-                      >
-                        {rule.isActive
-                          ? <ToggleRight className="w-6 h-6 text-brand-500" />
-                          : <ToggleLeft className="w-6 h-6 text-slate-400" />}
-                      </button>
+                    {isActive ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-50 text-green-700 border border-green-200 whitespace-nowrap">
+                        פעיל
+                      </span>
                     ) : (
-                      <button
-                        onClick={() => autoActivateMutation.mutate(trigger.id)}
-                        disabled={autoActivateMutation.isPending}
-                        className="btn-secondary text-xs py-1.5 px-3 whitespace-nowrap"
-                      >
-                        <Plus className="w-3 h-3" />
-                        {autoActivateMutation.isPending ? "מפעיל..." : "הפעל"}
-                      </button>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200 whitespace-nowrap">
+                        מושבת
+                      </span>
                     )}
+                  </div>
+
+                  {/* Template body preview */}
+                  <div className="hidden sm:block w-52 flex-shrink-0 text-xs text-petra-muted truncate" dir="rtl">
+                    {previewLine}
+                  </div>
+
+                  {/* Toggle */}
+                  <div className="flex-shrink-0">
+                    <button
+                      onClick={() => {
+                        if (linked && rule) {
+                          toggleRuleMutation.mutate({ ruleId: rule.id, isActive: !rule.isActive });
+                        } else {
+                          autoActivateMutation.mutate(trigger.id);
+                        }
+                      }}
+                      disabled={autoActivateMutation.isPending}
+                      className="p-0.5 hover:opacity-75 transition-opacity disabled:opacity-40"
+                    >
+                      {isActive
+                        ? <ToggleRight className="w-7 h-7 text-brand-500" />
+                        : <ToggleLeft className="w-7 h-7 text-slate-400" />}
+                    </button>
                   </div>
                 </div>
               );
