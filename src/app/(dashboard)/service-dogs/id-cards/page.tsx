@@ -79,6 +79,7 @@ function IDCardsPageContent() {
     const data = JSON.parse(card.cardDataJson || "{}");
     const certDate = data.certificationDate ? formatDate(data.certificationDate) : null;
     const expiryDate = data.certificationExpiry ? formatDate(data.certificationExpiry) : null;
+    const origin = window.location.origin;
     const html = `<!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head>
@@ -107,9 +108,12 @@ function IDCardsPageContent() {
 </head>
 <body>
   <div class="cert">
-    <div class="header">
-      <div class="header-title">תעודת הסמכה — כלב שירות</div>
-      <div class="header-sub">Certified Service Dog · Official Certification</div>
+    <div class="header" style="display:flex;align-items:center;gap:14px;padding:16px 20px;">
+      <img src="${origin}/petra-logo.png" alt="Petra" style="width:44px;height:44px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,0.15);padding:4px;flex-shrink:0;" />
+      <div style="flex:1;text-align:center;">
+        <div class="header-title">תעודת הסמכה — כלב שירות</div>
+        <div class="header-sub">Certified Service Dog · Official Certification</div>
+      </div>
     </div>
     <div class="dog-name"><h2>${dogName}</h2></div>
     <div class="details">
@@ -121,7 +125,7 @@ function IDCardsPageContent() {
       ${expiryDate ? `<div class="field"><span class="field-label">תוקף</span><span class="field-value">${expiryDate}</span></div>` : ""}
     </div>
     ${card.qrPayload ? `<div class="qr-section"><img src="${card.qrPayload}" alt="QR Code" onerror="this.style.display='none'" /><p class="qr-note">סרוק לאימות תעודה</p></div>` : ""}
-    <div class="footer">הונפק על ידי Petra Pet Business Management · מסמך רשמי</div>
+    <div class="footer">הונפק באמצעות <strong>Petra</strong> — מערכת ניהול עסקי חיות מחמד · מסמך רשמי</div>
   </div>
   <script>
     window.onload = function() {

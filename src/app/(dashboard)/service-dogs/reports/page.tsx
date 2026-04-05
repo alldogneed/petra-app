@@ -127,7 +127,14 @@ function ServiceDogsReportsPageContent() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <style>{`@media print { aside,nav,header,[data-topbar],[data-sidebar],.print\\:hidden{display:none!important} body{font-size:12px} .card{break-inside:avoid} }`}</style>
+      <style>{`.print-header{display:none} @media print { aside,nav,header,[data-topbar],[data-sidebar],.print\\:hidden{display:none!important} body{font-size:12px} .card{break-inside:avoid} .print-header{display:flex!important;align-items:center;gap:12px;padding-bottom:12px;border-bottom:2px solid #e2e8f0;margin-bottom:14px;} }`}</style>
+      <div className="print-header">
+        <img src="/petra-logo.png" alt="Petra" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 6 }} />
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>דוחות פנימיים — כלבי שירות</div>
+          <div style={{ fontSize: 11, color: "#64748b" }}>הופק: {new Date().toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}</div>
+        </div>
+      </div>
       <ServiceDogsTabs />
       <div className="page-header">
         <div>

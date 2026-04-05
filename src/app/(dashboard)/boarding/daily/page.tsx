@@ -502,7 +502,14 @@ export default function DailyCarePage() {
 
   return (
     <div className="space-y-4">
-      <style>{`@media print { aside,nav,header,[data-topbar],[data-sidebar],.no-print{display:none!important} body{font-size:11px} .modal-overlay{display:none!important} }`}</style>
+      <style>{`.print-header{display:none} @media print { aside,nav,header,[data-topbar],[data-sidebar],.no-print{display:none!important} body{font-size:11px} .modal-overlay{display:none!important} .print-header{display:flex!important;align-items:center;gap:12px;padding-bottom:12px;border-bottom:2px solid #e2e8f0;margin-bottom:14px;} }`}</style>
+      <div className="print-header">
+        <img src="/petra-logo.png" alt="Petra" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 6 }} />
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>לוח טיפול יומי — פנסיון</div>
+          <div style={{ fontSize: 11, color: "#64748b" }}>{date} · הופק {new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</div>
+        </div>
+      </div>
       <BoardingTabs />
 
       {/* Date navigator */}

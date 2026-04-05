@@ -169,8 +169,15 @@ export default function VaccinationsPage() {
 
   return (
     <>
-      <style>{`@media print { aside,nav,header,[data-topbar],[data-sidebar],.no-print{display:none!important} body{font-size:11px} }`}</style>
+      <style>{`.print-header{display:none} @media print { aside,nav,header,[data-topbar],[data-sidebar],.no-print{display:none!important} body{font-size:11px} .print-header{display:flex!important;align-items:center;gap:12px;padding-bottom:12px;border-bottom:2px solid #e2e8f0;margin-bottom:14px;} }`}</style>
       <PageTitle title="ניהול חיסונים" />
+      <div className="print-header">
+        <img src="/petra-logo.png" alt="Petra" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 6 }} />
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>דוח חיסונים וטיפולים — כלבי שירות</div>
+          <div style={{ fontSize: 11, color: "#64748b" }}>הופק: {new Date().toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}</div>
+        </div>
+      </div>
 
       {/* Tab header */}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">

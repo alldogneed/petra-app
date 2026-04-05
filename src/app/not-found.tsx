@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export default function NotFound() {
@@ -7,6 +8,7 @@ export default function NotFound() {
       dir="rtl"
       style={{ background: "linear-gradient(135deg, #FDF8F4 0%, #F9F3EC 100%)" }}
     >
+      <Image src="/petra-logo.png" alt="Petra" width={56} height={56} style={{ borderRadius: 12 }} />
       <div
         className="text-8xl font-bold"
         style={{ color: "#C4956A" }}

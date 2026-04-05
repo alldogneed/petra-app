@@ -446,9 +446,12 @@ export default function YardsPage() {
       <BoardingTabs />
 
       {/* Print-only header */}
-      <div className="print-only hidden mb-6">
-        <h1 className="text-xl font-bold text-slate-800">מפת חצרות — {new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</h1>
-        <p className="text-sm text-slate-500 mt-1">{yards.length} חצרות · {yards.reduce((n, y) => n + y.boardingStays.length, 0)} כלבים בחצרות</p>
+      <div className="print-only hidden mb-6" style={{ display: "none", alignItems: "center", gap: 12, paddingBottom: 12, borderBottom: "2px solid #e2e8f0" }}>
+        <img src="/petra-logo.png" alt="Petra" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 6, flexShrink: 0 }} />
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">מפת חצרות — {new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</h1>
+          <p className="text-sm text-slate-500 mt-0.5">{yards.length} חצרות · {yards.reduce((n, y) => n + y.boardingStays.length, 0)} כלבים בחצרות</p>
+        </div>
       </div>
 
       {/* Page header — matches boarding rooms style */}
@@ -751,7 +754,7 @@ export default function YardsPage() {
           [data-print-yards] { display: block !important; }
           aside, nav, header { display: none !important; }
           .no-print { display: none !important; }
-          .print-only { display: block !important; }
+          .print-only { display: flex !important; }
           .modal-overlay { display: none !important; }
           #main-content { padding: 0 !important; margin: 0 !important; }
           .transition-all { margin: 0 !important; }

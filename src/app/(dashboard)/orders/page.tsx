@@ -296,6 +296,7 @@ function OrdersPageContent() {
 
   function exportPDF() {
     setShowExportMenu(false);
+    const origin = window.location.origin;
     const STATUS_LABEL: Record<string, string> = {
       draft: "טיוטה", confirmed: "מאושרת", completed: "הושלמה",
       cancelled: "בוטלה", canceled: "בוטלה",
@@ -345,8 +346,13 @@ function OrdersPageContent() {
 </style>
 </head>
 <body>
-<h1>דוח הזמנות</h1>
-<p class="meta">הופק: ${today} · סה"כ: ${filteredOrders.length} הזמנות</p>
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #e2e8f0;">
+  <img src="${origin}/petra-logo.png" alt="Petra" style="width:36px;height:36px;object-fit:contain;border-radius:6px;" />
+  <div>
+    <h1 style="margin:0">דוח הזמנות</h1>
+    <p class="meta" style="margin:2px 0 0 0">הופק: ${today} · סה"כ: ${filteredOrders.length} הזמנות</p>
+  </div>
+</div>
 <table>
               <caption className="sr-only">רשימת הזמנות</caption>
   <thead>

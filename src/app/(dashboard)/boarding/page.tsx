@@ -2842,6 +2842,14 @@ function BoardingPageContent() {
                 </button>
               </div>
             ) : (
+              <>
+              <div className="boarding-print-header">
+                <img src="/petra-logo.png" alt="Petra" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 6, flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>מפת חדרי פנסיון</div>
+                  <div style={{ fontSize: 11, color: "#64748b" }}>הופק: {new Date().toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
+                </div>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" data-print-rooms>
                 {/* Unassigned stays drop zone — first = rightmost in RTL */}
                 <UnassignedGridCard
@@ -2861,6 +2869,7 @@ function BoardingPageContent() {
                   />
                 ))}
               </div>
+              </>
             )}
           </div>
           <DragOverlay>
@@ -3724,6 +3733,7 @@ export default function BoardingPage() {
   return (
     <>
       <style>{`
+        .boarding-print-header { display: none; }
         @media print {
           body > * { display: none !important; }
           body > div:has([data-print-rooms]) { display: block !important; }
@@ -3733,6 +3743,7 @@ export default function BoardingPage() {
           .modal-overlay { display: none !important; }
           [data-print-rooms] .card { break-inside: avoid; box-shadow: none; border: 1px solid #e2e8f0; }
           [data-print-rooms] button { display: none !important; }
+          .boarding-print-header { display: flex !important; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; margin-bottom: 16px; }
         }
       `}</style>
       <PageTitle title="פנסיון" />
