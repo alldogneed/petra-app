@@ -67,7 +67,7 @@ export function SetupChecklist() {
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 mb-2">
         <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
         <p className="text-sm text-amber-800 flex-1">
-          חסרים פרטי עסק — חשבוניות ו-WhatsApp לא יעבדו כראוי.
+          חסרים פרטי עסק — תזכורות WhatsApp והזמנות אונליין לא יעבדו כראוי.
         </p>
         <Link
           href="/settings?tab=business"

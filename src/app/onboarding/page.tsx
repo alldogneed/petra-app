@@ -358,7 +358,7 @@ function StepBusiness({
     <div className="space-y-5">
       <div>
         <h2 className="text-xl font-bold text-petra-text mb-1">פרטי העסק</h2>
-        <p className="text-sm text-petra-muted">שם ומספר טלפון — נדרשים לחשבוניות ולתזכורות WhatsApp</p>
+        <p className="text-sm text-petra-muted">שם ומספר טלפון — נדרשים לתזכורות WhatsApp ולדף ההזמנות האונליין שלך</p>
       </div>
 
       <div>
@@ -382,7 +382,7 @@ function StepBusiness({
           type="tel"
           dir="ltr"
         />
-        <p className="text-xs text-petra-muted mt-1">ישמש לשליחת הודעות WhatsApp אוטומטיות ללקוחות</p>
+        <p className="text-xs text-petra-muted mt-1">ישמש לשליחת תזכורות WhatsApp אוטומטיות ולדף ההזמנות שלך</p>
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
