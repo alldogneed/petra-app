@@ -197,6 +197,9 @@ import { prisma } from "@/lib/prisma"
 | Service dog tabs order | תיק כלב → חיסונים וטיפולים → שיבוצים → מבחני הסמכה → מסמכים → ביטוח → ציוד → פרוטוקולים רפואיים → יומן אימונים → תעודת הסמכה |
 | Boarding room map print | `@media print` in `boarding/page.tsx` hides `.modal-overlay` — prevents "לקוח חדש" modal appearing in print |
 | Feeding board print | `boarding/daily/page.tsx` has print button + `@media print` CSS hiding nav/modals |
+| Boarding yards print | `boarding/yards/page.tsx` — print CSS hides sidebar/header via `no-print` class; `data-print-yards` attr on main div; 2-col grid for print; print-only heading injected |
+| Bug report (Help Center) | `src/components/help/HelpCenter.tsx` — FileReader reads screenshot as base64 (max 2MB); sent to `/api/support/report` as `screenshotBase64`; API attaches to Resend email as attachment; tickets visible at `/owner/support` + emailed to `info@petra-app.com` |
+| Notes length validation | `POST /api/appointments` + `POST /api/orders` — max 2000 chars; returns 400 with Hebrew error message |
 | Dashboard stat cards | "הכנסות החודש" always shown (from `data.monthRevenue`); "היום: ₪X" as subtitle when today > 0. `data.upcomingByType` and dead `BirthdayWidget` component exist but are unused. |
 | Dashboard orders section | "הזמנות אחרונות" links to `/orders`; each row is a `<Link>` to `/orders/:id` |
 | Lead WhatsApp alert | `customers/[id]/page.tsx`: blue Send button on completed appointments (follow-up wa.me). Birthday Gift button on pet card hover. `customers/page.tsx`: "שלח ברוכים הבאים" toast action on new customer creation. |
