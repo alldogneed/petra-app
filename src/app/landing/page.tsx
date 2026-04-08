@@ -339,6 +339,40 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ── Teaser video ─────────────────────────────────────────────────────── */}
+        <section aria-labelledby="video-heading" className="py-24 bg-slate-900" id="video">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-10">
+              <h2
+                id="video-heading"
+                className="text-3xl md:text-4xl font-bold text-white mb-3"
+              >
+                פטרה בפעולה — 30 שניות
+              </h2>
+              <p className="text-slate-400 text-lg">
+                ראה איך עסקי חיות מחמד מנהלים תורים, לידים ופנסיון — בלי אקסל ובלי בלאגן
+              </p>
+            </div>
+
+            {/* Video player */}
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-black/50 border border-white/8 aspect-video bg-slate-800">
+              <video
+                src="/teaser.mp4"
+                controls
+                preload="metadata"
+                className="w-full h-full object-cover"
+                aria-label="סרטון טיזר — פטרה ניהול עסקי חיות מחמד"
+              />
+            </div>
+
+            <div className="text-center mt-8">
+              <Link href="/register" className="btn-primary px-8 py-3.5 text-base shadow-xl shadow-brand-500/30">
+                התחל בחינם עכשיו
+              </Link>
+            </div>
+          </div>
+        </section>
+
         {/* ── Audience section ─────────────────────────────────────────────────── */}
         <section aria-labelledby="audience-heading" className="py-24 bg-slate-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
