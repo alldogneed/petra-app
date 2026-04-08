@@ -10,7 +10,6 @@ const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 
 const PANELS = [
   {
-    icon: "🏠",
     trigger: "הזמנת פנסיון",
     triggerColor: "#22c55e",
     result: "חדר נפתח בפנסיון",
@@ -18,7 +17,6 @@ const PANELS = [
     delay: 20,
   },
   {
-    icon: "🐾",
     trigger: "הזמנת אילוף",
     triggerColor: "#6366f1",
     result: "תהליך אילוף נפתח",
@@ -26,7 +24,6 @@ const PANELS = [
     delay: 90,
   },
   {
-    icon: "📲",
     trigger: "הזמנה עם תאריך",
     triggerColor: "#0ea5e9",
     result: "תזכורת WhatsApp",
@@ -92,9 +89,6 @@ export const OrdersAutoScene: React.FC = () => {
               gap: 16,
               backdropFilter: "blur(4px)",
             }}>
-              {/* Icon */}
-              <span style={{ fontSize: 36 }}>{panel.icon}</span>
-
               {/* Trigger */}
               <div style={{
                 background: `${panel.triggerColor}22`,

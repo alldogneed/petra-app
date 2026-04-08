@@ -11,10 +11,10 @@ import {
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 
 const BENEFITS = [
-  { icon: "🔗", text: "חיבור אוטומטי לפנסיון" },
-  { icon: "🐾", text: "תהליך אילוף מיידי" },
-  { icon: "💳", text: "דרישת תשלום בלחיצה" },
-  { icon: "📊", text: "מעקב בזמן אמת" },
+  { text: "חיבור אוטומטי לפנסיון" },
+  { text: "תהליך אילוף מיידי" },
+  { text: "דרישת תשלום בלחיצה" },
+  { text: "מעקב בזמן אמת" },
 ];
 
 export const OrdersOutroScene: React.FC = () => {
@@ -111,7 +111,6 @@ export const OrdersOutroScene: React.FC = () => {
               borderRadius: 12, padding: "14px 18px",
               display: "flex", alignItems: "center", gap: 10,
             }}>
-              <span style={{ fontSize: 20 }}>{b.icon}</span>
               <span style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600 }}>{b.text}</span>
             </div>
           );

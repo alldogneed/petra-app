@@ -14,7 +14,6 @@ const ORDER_TYPES = [
   {
     id: "training",
     label: "אילוף",
-    icon: "🐾",
     subLabel: "יוצר תהליך אילוף אוטומטית",
     gradient: "linear-gradient(135deg, #6366f1, #4f46e5)",
     delay: 30,
@@ -22,7 +21,6 @@ const ORDER_TYPES = [
   {
     id: "boarding",
     label: "פנסיון",
-    icon: "🏠",
     subLabel: "פותח חדר בפנסיון אוטומטית",
     gradient: "linear-gradient(135deg, #22c55e, #16a34a)",
     delay: 50,
@@ -30,7 +28,6 @@ const ORDER_TYPES = [
   {
     id: "grooming",
     label: "טיפוח",
-    icon: "✂️",
     subLabel: "קובע תור ביומן",
     gradient: "linear-gradient(135deg, #f59e0b, #d97706)",
     delay: 70,
@@ -38,7 +35,6 @@ const ORDER_TYPES = [
   {
     id: "products",
     label: "מוצרים",
-    icon: "🛒",
     subLabel: "מכירה ישירה",
     gradient: "linear-gradient(135deg, #64748b, #475569)",
     delay: 90,
@@ -135,7 +131,6 @@ export const OrdersTypesScene: React.FC = () => {
                     boxShadow: isHighlighted ? "0 6px 20px rgba(0,0,0,0.15)" : "none",
                     display: "flex", flexDirection: "column", gap: 8,
                   }}>
-                    <span style={{ fontSize: 28 }}>{type.icon}</span>
                     <div style={{
                       fontSize: 16, fontWeight: 800,
                       color: isHighlighted ? "white" : "#0f172a",

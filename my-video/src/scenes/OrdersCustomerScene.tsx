@@ -154,7 +154,6 @@ export const OrdersCustomerScene: React.FC = () => {
               borderRadius: 10, padding: "12px 16px",
               display: "flex", alignItems: "center", gap: 10,
             }}>
-              <span style={{ fontSize: 18 }}>🌙</span>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>3 לילות • 1 כלב</div>
                 <div style={{ fontSize: 11, color: "#64748b" }}>חושב אוטומטית לפי תאריכי הכניסה והיציאה</div>

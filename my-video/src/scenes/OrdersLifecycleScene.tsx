@@ -187,7 +187,6 @@ export const OrdersLifecycleScene: React.FC = () => {
               borderRadius: 10, padding: "10px 16px",
               display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
             }}>
-              <span style={{ fontSize: 16 }}>💬</span>
               <span style={{ fontSize: 12, fontWeight: 700, color: "#15803d" }}>
                 שלח דרישת תשלום בוואטסאפ
               </span>

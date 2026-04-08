@@ -12,22 +12,21 @@ const CENTER_X = 600;
 const CENTER_Y = 330;
 
 const NODES = [
-  { label: "לקוח + כלב",      icon: "👤", x: 600, y: 120,  delay: 20 },
-  { label: "פנסיון",           icon: "🏠", x: 920, y: 230,  delay: 35 },
-  { label: "תהליך אילוף",      icon: "🐾", x: 920, y: 430,  delay: 50 },
-  { label: "תשלום",            icon: "💳", x: 600, y: 530,  delay: 65 },
-  { label: "תזכורת WhatsApp",  icon: "📲", x: 280, y: 330,  delay: 80 },
+  { label: "לקוח + כלב",      x: 600, y: 120,  delay: 20 },
+  { label: "פנסיון",           x: 920, y: 230,  delay: 35 },
+  { label: "תהליך אילוף",      x: 920, y: 430,  delay: 50 },
+  { label: "תשלום",            x: 600, y: 530,  delay: 65 },
+  { label: "תזכורת WhatsApp",  x: 280, y: 330,  delay: 80 },
 ];
 
 const Node: React.FC<{
   label: string;
-  icon: string;
   x: number;
   y: number;
   delay: number;
   frame: number;
   fps: number;
-}> = ({ label, icon, x, y, delay, frame, fps }) => {
+}> = ({ label, x, y, delay, frame, fps }) => {
   const progress = spring({ frame: frame - delay, fps, config: { damping: 200 } });
   const nodeOpacity = interpolate(frame, [delay, delay + 12], [0, 1], { extrapolateRight: "clamp" });
   const scale = interpolate(progress, [0, 1], [0.7, 1]);
@@ -42,12 +41,11 @@ const Node: React.FC<{
       border: "1px solid rgba(255,255,255,0.15)",
       borderRadius: 12,
       padding: "10px 16px",
-      display: "flex", alignItems: "center", gap: 8,
+      display: "flex", alignItems: "center",
       direction: "rtl",
       width: 144,
       backdropFilter: "blur(4px)",
     }}>
-      <span style={{ fontSize: 18 }}>{icon}</span>
       <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.9)", whiteSpace: "nowrap" }}>
         {label}
       </span>
@@ -131,7 +129,7 @@ export const OrdersHubScene: React.FC = () => {
 
       {/* Nodes */}
       {NODES.map((node) => (
-        <Node key={node.label} {...node} frame={frame} fps={fps} />
+        <Node key={node.label} label={node.label} x={node.x} y={node.y} delay={node.delay} frame={frame} fps={fps} />
       ))}
 
       {/* Bottom label */}

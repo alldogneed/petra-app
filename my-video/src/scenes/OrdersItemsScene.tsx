@@ -144,7 +144,6 @@ export const OrdersItemsScene: React.FC = () => {
               marginTop: 8,
               display: "flex", alignItems: "center", gap: 6,
             }}>
-              <span style={{ fontSize: 13 }}>💡</span>
               <span style={{ fontSize: 11, color: "#64748b" }}>
                 המחירון מוגדר במערכת הפיננסים
               </span>
