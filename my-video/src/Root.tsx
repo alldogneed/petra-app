@@ -24,6 +24,7 @@ import {
   OrdersTutorial,
   calculateOrdersMetadata,
 } from "./OrdersTutorial";
+import { TeaserVideo } from "./TeaserVideo";
 import { SCENES } from "../voiceover-config";
 import { SALES_SCENES } from "../voiceover-sales-config";
 import { CUSTOMERS_SCENES } from "../voiceover-customers-config";
@@ -101,6 +102,14 @@ export const RemotionRoot: React.FC = () => {
         defaultProps={{
           sceneDurationsFrames: ORDERS_SCENES.map((s) => s.defaultDurationSec * FPS),
         }}
+      />
+      <Composition
+        id="PetraTeaserVideo"
+        component={TeaserVideo}
+        durationInFrames={900}
+        fps={30}
+        width={1280}
+        height={720}
       />
     </>
   );
