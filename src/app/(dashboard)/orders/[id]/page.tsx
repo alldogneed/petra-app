@@ -70,6 +70,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: React.Ele
 
 const ORDER_TYPE_MAP: Record<string, string> = {
   sale: "🛒 מכירה", appointment: "📅 תור", boarding: "🏠 פנסיון", training: "🐕 אילוף",
+  grooming: "✂️ טיפוח", products: "📦 מוצרים",
 };
 
 const UNIT_LABEL: Record<string, string> = {
