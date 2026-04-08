@@ -23,7 +23,7 @@ const ORDER_TYPES = [
     id: "boarding",
     label: "פנסיון",
     icon: "🏠",
-    subLabel: "פותח כלוב בפנסיון אוטומטית",
+    subLabel: "פותח חדר בפנסיון אוטומטית",
     gradient: "linear-gradient(135deg, #22c55e, #16a34a)",
     delay: 50,
   },

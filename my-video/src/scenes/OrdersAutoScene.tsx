@@ -13,7 +13,7 @@ const PANELS = [
     icon: "🏠",
     trigger: "הזמנת פנסיון",
     triggerColor: "#22c55e",
-    result: "כלוב נפתח בפנסיון",
+    result: "חדר נפתח בפנסיון",
     resultColor: "#16a34a",
     delay: 20,
   },
