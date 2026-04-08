@@ -670,6 +670,13 @@ function AddDogModal({ dogs, onClose }: { dogs: ServiceDogCard[]; onClose: () =>
                 ))}
               </div>
             )}
+            {petSearch.length >= 1 && !selectedPetId && petsData !== undefined && availablePets.length === 0 && (
+              <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+                {(petsData?.pets ?? []).length > 0
+                  ? "הכלב כבר מופיע במערכת כלבי השירות"
+                  : "לא נמצא כלב בשם זה. יש ליצור את הלקוח והכלב תחילה בדף הלקוחות."}
+              </div>
+            )}
             {selectedPetId && (
               <div className="mt-2 flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
                 <span className="text-sm text-emerald-700 font-medium">{selectedPetName}</span>
