@@ -3477,7 +3477,7 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
           )}
         </div>
         {showEditPetModal && (
-          <EditPetModal pet={pet} petId={pet.id} dogId={dogId} certificationDate={dog.certificationDate} onClose={() => setShowEditPetModal(false)} onSaved={invalidate} />
+          <EditPetModal pet={pet} petId={pet.id} dogId={dogId} certificationDate={dog.certificationDate} initialNotes={dog.notes} onClose={() => setShowEditPetModal(false)} onSaved={invalidate} />
         )}
 
         {/* Training hours — manual edit */}
@@ -3949,6 +3949,7 @@ function EditPetModal({
   petId,
   dogId,
   certificationDate: initialCertDate,
+  initialNotes,
   onClose,
   onSaved,
 }: {
@@ -3956,6 +3957,7 @@ function EditPetModal({
   petId: string;
   dogId: string;
   certificationDate: string | null;
+  initialNotes: string | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -3975,6 +3977,7 @@ function EditPetModal({
   const [certificationDate, setCertificationDate] = useState(
     initialCertDate ? new Date(initialCertDate).toISOString().slice(0, 10) : ""
   );
+  const [notes, setNotes] = useState(initialNotes ?? "");
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -3996,7 +3999,7 @@ function EditPetModal({
       await fetch(`/api/service-dogs/${dogId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ certificationDate: certificationDate || null }),
+        body: JSON.stringify({ certificationDate: certificationDate || null, notes: notes.trim() || null }),
       }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); });
     },
     onSuccess: () => {
@@ -4070,6 +4073,16 @@ function EditPetModal({
               <input type="date" lang="he" className="input w-full" value={neuteredSpayedDate} onChange={(e) => setNeuteredSpayedDate(e.target.value)} />
             </div>
           )}
+          <div className="col-span-2">
+            <label className="label text-xs">הערות</label>
+            <textarea
+              className="input w-full"
+              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="הערות חופשיות על הכלב..."
+            />
+          </div>
         </div>
         <div className="flex gap-2 mt-5">
           <button

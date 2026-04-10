@@ -215,10 +215,9 @@ export async function PATCH(
 
     return NextResponse.json(customer);
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.error("Customer PATCH error:", msg, error);
+    console.error("Customer PATCH error:", error);
     return NextResponse.json(
-      { error: `שגיאה בעדכון הלקוח: ${msg}` },
+      { error: "שגיאה בעדכון הלקוח" },
       { status: 500 }
     );
   }

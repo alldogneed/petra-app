@@ -36,7 +36,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const user = await prisma.platformUser.findUnique({ where: { id: session.user.id } });
+  const user = await prisma.platformUser.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, twoFaSecret: true, twoFaEnabled: true, platformRole: true },
+  });
   if (!user?.twoFaSecret) {
     return NextResponse.json({ error: "2FA enrollment not started" }, { status: 400 });
   }

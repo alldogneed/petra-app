@@ -36,18 +36,23 @@ export async function GET(request: NextRequest) {
     };
   }
 
-  const [logs, total] = await Promise.all([
-    prisma.auditLog.findMany({
-      where,
-      orderBy: { timestamp: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
-      include: {
-        actor: { select: { id: true, email: true, name: true } },
-      },
-    }),
-    prisma.auditLog.count({ where }),
-  ]);
+  try {
+    const [logs, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
+        orderBy: { timestamp: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          actor: { select: { id: true, email: true, name: true } },
+        },
+      }),
+      prisma.auditLog.count({ where }),
+    ]);
 
-  return NextResponse.json({ logs, total, page, limit });
+    return NextResponse.json({ logs, total, page, limit });
+  } catch (error) {
+    console.error("GET /api/owner/audit-logs error:", error);
+    return NextResponse.json({ error: "Failed to fetch audit logs" }, { status: 500 });
+  }
 }

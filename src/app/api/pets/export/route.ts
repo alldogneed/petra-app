@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -6,6 +8,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import * as XLSX from "xlsx";
 
 export async function GET(request: NextRequest) {
+  try {
   const auth = await requireBusinessAuth(request);
   if (isGuardError(auth)) return auth;
   const { businessId } = auth;
@@ -96,4 +99,8 @@ export async function GET(request: NextRequest) {
       "Content-Disposition": `attachment; filename="pets-export.xlsx"`,
     },
   });
+  } catch (error) {
+    console.error("GET pets/export error:", error);
+    return NextResponse.json({ error: "שגיאה בייצוא חיות מחמד" }, { status: 500 });
+  }
 }

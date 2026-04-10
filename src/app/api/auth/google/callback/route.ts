@@ -48,6 +48,10 @@ export async function GET(request: NextRequest) {
           { email: profile.email.toLowerCase() },
         ],
       },
+      select: {
+        id: true, email: true, name: true, googleId: true, avatarUrl: true,
+        passwordHash: true, authProvider: true, isActive: true,
+      },
     });
 
     if (user) {
@@ -87,6 +91,9 @@ export async function GET(request: NextRequest) {
       user.name || profile.name || profile.email.split("@")[0]
     );
 
+    // Invalidate all prior sessions before creating a new one (session fixation protection)
+    await prisma.adminSession.deleteMany({ where: { userId: user.id } });
+
     // Google OAuth always creates a 30-day persistent session (mobile-friendly)
     const { token } = await createSession(user.id, request, true);
 
@@ -106,7 +113,7 @@ export async function GET(request: NextRequest) {
     response.cookies.set("petra_session", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "strict",
       path: "/",
       maxAge: 30 * 24 * 60 * 60, // 30 days — matches SESSION_TTL_REMEMBER_ME in session.ts
     });

@@ -39,7 +39,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const user = await prisma.platformUser.findUnique({ where: { id: session.user.id } });
+  const user = await prisma.platformUser.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, twoFaEnabled: true, twoFaSecret: true, twoFaBackupCodes: true, platformRole: true },
+  });
   if (!user || !user.twoFaEnabled || !user.twoFaSecret) {
     return NextResponse.json({ error: "2FA not configured" }, { status: 400 });
   }

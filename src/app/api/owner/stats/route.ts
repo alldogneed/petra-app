@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { PLATFORM_ROLES } from "@/lib/permissions";
 
 export async function GET(request: NextRequest) {
+  try {
   const guard = await requirePlatformRole(request, [
     PLATFORM_ROLES.SUPER_ADMIN,
     PLATFORM_ROLES.ADMIN,
@@ -99,4 +100,8 @@ export async function GET(request: NextRequest) {
     expiringIn7Days,
     recentPayments,
   });
+  } catch (error) {
+    console.error("GET /api/owner/stats error:", error);
+    return NextResponse.json({ error: "Failed to fetch stats" }, { status: 500 });
+  }
 }

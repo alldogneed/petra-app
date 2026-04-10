@@ -26,7 +26,7 @@ export async function PATCH(
     }
 
     const session = await prisma.trainingGroupSession.update({
-      where: { id: params.sessionId },
+      where: { id: params.sessionId, trainingGroupId: params.id },
       data: {
         ...(body.status !== undefined && { status: body.status }),
         ...(body.notes !== undefined && { notes: body.notes }),

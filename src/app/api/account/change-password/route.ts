@@ -23,9 +23,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (newPassword.length < 8) {
+    // Must match registration requirements: 12+ chars, uppercase + lowercase + digit
+    if (
+      newPassword.length < 12 ||
+      !/[A-Z]/.test(newPassword) ||
+      !/[a-z]/.test(newPassword) ||
+      !/[0-9]/.test(newPassword)
+    ) {
       return NextResponse.json(
-        { error: "הסיסמה החדשה חייבת להכיל לפחות 8 תווים" },
+        { error: "הסיסמה חייבת להכיל לפחות 12 תווים, אות גדולה, אות קטנה וספרה" },
         { status: 400 }
       );
     }

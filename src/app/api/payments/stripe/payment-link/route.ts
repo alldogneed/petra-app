@@ -77,7 +77,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error("Create Stripe payment link error:", error);
-    const message = error instanceof Error ? error.message : "שגיאה ביצירת קישור תשלום";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "שגיאה ביצירת קישור תשלום" }, { status: 500 });
   }
 }

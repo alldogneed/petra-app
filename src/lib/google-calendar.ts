@@ -286,8 +286,11 @@ export function buildEventPayload(
   const serviceName = booking.service?.name ?? booking.priceListItem?.name ?? "—";
   const servicePrice = booking.service?.price ?? booking.priceListItem?.basePrice ?? 0;
 
-  const summaryParts = [serviceName, booking.customer.name, booking.customer.phone];
+  // Title: customer name – dog name(s) – phone – address (all key info visible at a glance in calendar)
+  const summaryParts = [booking.customer.name];
   if (petNames) summaryParts.push(petNames);
+  summaryParts.push(booking.customer.phone);
+  if (booking.customer.address) summaryParts.push(booking.customer.address);
   const summary = summaryParts.join(" – ");
 
   const location = booking.customer.address ?? booking.business?.address ?? undefined;
@@ -666,8 +669,11 @@ export function buildAppointmentEventPayload(appt: AppointmentForGcal, appBaseUr
   // Try service → priceListItem → [type] tag in notes → fallback
   const notesTag = appt.notes?.match(/^\[([^\]]+)\]/)?.[1] ?? null;
   const serviceName = appt.service?.name ?? appt.priceListItem?.name ?? notesTag ?? "תור";
-  const summaryParts = [serviceName, appt.customer.name, appt.customer.phone];
+  // Title: customer name – dog name – phone – address (all key info visible at a glance in calendar)
+  const summaryParts = [appt.customer.name];
   if (appt.pet) summaryParts.push(appt.pet.name);
+  summaryParts.push(appt.customer.phone);
+  if (appt.customer.address) summaryParts.push(appt.customer.address);
   const summary = summaryParts.join(" – ");
 
   // Get date in Israel timezone (avoids UTC midnight date-shift bug)

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
@@ -15,6 +17,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  try {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
 
@@ -98,4 +101,8 @@ export async function POST(
   }
 
   return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("POST /api/appointments/[id]/remind error:", error);
+    return NextResponse.json({ error: "שגיאה בשליחת תזכורת" }, { status: 500 });
+  }
 }

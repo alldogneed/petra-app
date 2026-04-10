@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search")?.toLowerCase() ?? "";
   const version = searchParams.get("version") ?? "";
 
+  try {
   // Fetch all UserConsent records with user + business info
   const consents = await prisma.userConsent.findMany({
     orderBy: { acceptedAt: "desc" },
@@ -131,4 +132,8 @@ export async function GET(request: NextRequest) {
   const versions = [...new Set(rows.map((r) => r.termsVersion))].sort();
 
   return NextResponse.json({ rows: filtered, total: filtered.length, totalAll: rows.length, versions });
+  } catch (error) {
+    console.error("GET /api/owner/consents error:", error);
+    return NextResponse.json({ error: "Failed to fetch consents" }, { status: 500 });
+  }
 }

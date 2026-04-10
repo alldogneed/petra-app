@@ -145,13 +145,12 @@ export async function DELETE(
       );
     }
 
-    // Delete child records then the program
-    await prisma.$transaction([
-      prisma.trainingGoal.deleteMany({ where: { trainingProgramId: params.id } }),
-      prisma.trainingProgramSession.deleteMany({ where: { trainingProgramId: params.id } }),
-      prisma.trainingHomework.deleteMany({ where: { trainingProgramId: params.id } }),
-      prisma.trainingProgram.delete({ where: { id: params.id, businessId } }),
-    ]);
+    // Delete child records then the program — sequential, NO $transaction
+    // (Supabase PgBouncer transaction pooling is incompatible with Prisma interactive transactions)
+    await prisma.trainingGoal.deleteMany({ where: { trainingProgramId: params.id } });
+    await prisma.trainingProgramSession.deleteMany({ where: { trainingProgramId: params.id } });
+    await prisma.trainingHomework.deleteMany({ where: { trainingProgramId: params.id } });
+    await prisma.trainingProgram.delete({ where: { id: params.id, businessId } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

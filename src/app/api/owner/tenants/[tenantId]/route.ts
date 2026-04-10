@@ -62,8 +62,11 @@ export async function GET(
     }),
   ]);
 
+  // Strip sensitive fields before returning
+  const { webhookApiKey, cardcomToken, cardcomTokenExpiry, ...safeTenant } = tenant as any;
+
   return NextResponse.json({
-    ...tenant,
+    ...safeTenant,
     stats: {
       customerCount: tenant._count.customers,
       monthlyAppointments,
@@ -142,5 +145,7 @@ export async function PATCH(
     metadata: { changes: body, previous: { status: existing.status } },
   });
 
-  return NextResponse.json(updated);
+  // Strip sensitive fields before returning
+  const { webhookApiKey: _wk, cardcomToken: _ct, cardcomTokenExpiry: _ce, ...safeUpdated } = updated as any;
+  return NextResponse.json(safeUpdated);
 }

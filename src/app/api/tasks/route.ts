@@ -24,17 +24,31 @@ export async function GET(request: NextRequest) {
       businessId: authResult.businessId,
     };
 
+    // Validate enum query params to prevent unexpected query behavior
+    const validCategories = ["BOARDING", "TRAINING", "LEADS", "GENERAL", "HEALTH", "MEDICATION", "FEEDING"];
+    const validStatuses = ["OPEN", "IN_PROGRESS", "COMPLETED", "CANCELED"];
+    const validEntityTypes = ["CUSTOMER", "DOG", "LEAD"];
+
     if (category) {
+      if (!validCategories.includes(category)) {
+        return NextResponse.json({ error: "Invalid category filter" }, { status: 400 });
+      }
       where.category = category;
     }
 
     if (status) {
+      if (!validStatuses.includes(status)) {
+        return NextResponse.json({ error: "Invalid status filter" }, { status: 400 });
+      }
       where.status = status;
     } else if (excludeCompleted) {
       where.status = { not: "COMPLETED" };
     }
 
     if (relatedEntityType) {
+      if (!validEntityTypes.includes(relatedEntityType)) {
+        return NextResponse.json({ error: "Invalid relatedEntityType filter" }, { status: 400 });
+      }
       where.relatedEntityType = relatedEntityType;
     }
 

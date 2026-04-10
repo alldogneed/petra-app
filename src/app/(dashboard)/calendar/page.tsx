@@ -440,6 +440,7 @@ function NewAppointmentModal({
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["gcal-external-events"] });
 
       if (recurring && result?.created) {
         toast.success(`נקבעו ${result.created} פגישות חוזרות בהצלחה`);
@@ -1018,6 +1019,7 @@ function CalendarContent() {
       }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      if (status === "canceled") queryClient.invalidateQueries({ queryKey: ["gcal-external-events"] });
       setSelectedAppointment(null);
       if (status === "completed") toast.success("התור סומן כהושלם");
       else if (status === "canceled") toast.success("התור בוטל");
@@ -1046,6 +1048,7 @@ function CalendarContent() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["gcal-external-events"] });
       setSelectedAppointment(null);
       setRescheduling(false);
       toast.success("התור הועבר בהצלחה");

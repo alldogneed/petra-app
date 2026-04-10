@@ -72,7 +72,7 @@ export async function DELETE(
     });
     if (!goal) return NextResponse.json({ error: "Goal not found" }, { status: 404 });
 
-    await prisma.trainingGoal.delete({ where: { id: goalId } });
+    await prisma.trainingGoal.delete({ where: { id: goalId, trainingProgramId: goal.trainingProgramId } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE /api/training-programs/[id]/goals error:", error);
@@ -109,7 +109,7 @@ export async function PATCH(req: NextRequest) {
     if (targetDate !== undefined) data.targetDate = targetDate ? new Date(targetDate) : null;
 
     const goal = await prisma.trainingGoal.update({
-      where: { id: goalId },
+      where: { id: goalId, trainingProgramId: existing.trainingProgramId },
       data,
     });
 

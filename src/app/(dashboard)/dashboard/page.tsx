@@ -1555,7 +1555,7 @@ function PetBirthdaysWidget({ birthdays }: { birthdays: DashboardStats["upcoming
               </div>
               {pet.customer?.phone && (
                 <a
-                  href={`https://wa.me/${toWhatsAppPhone(pet.customer.phone)}?text=${encodeURIComponent(greetingLines)}`}
+                  href={`https://wa.me/${toWhatsAppPhone(pet.customer?.phone ?? "")}?text=${encodeURIComponent(greetingLines)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"

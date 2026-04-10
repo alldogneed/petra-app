@@ -3105,6 +3105,9 @@ function AddEmployeeModal({
             <div>
               <label className="label">סיסמה זמנית *</label>
               <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="לפחות 8 תווים" dir="ltr" minLength={8} />
+              {password.length > 0 && password.length < 8 && (
+                <p className="text-xs text-red-500 mt-1">הסיסמה חייבת להכיל לפחות 8 תווים (כרגע {password.length})</p>
+              )}
             </div>
           </div>
           <div>
@@ -3117,10 +3120,22 @@ function AddEmployeeModal({
           </div>
         </div>
 
-        <div className="flex gap-3 mt-6">
+        {/* Validation hint — shown only when user has started filling but can't submit yet */}
+        {(name || email || password) && (!name.trim() || !email.trim() || password.length < 8) && (
+          <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs space-y-1">
+            <p className="font-medium">כדי להוסיף עובד יש למלא:</p>
+            <ul className="list-disc list-inside space-y-0.5">
+              {!name.trim() && <li>שם מלא</li>}
+              {!email.trim() && <li>כתובת אימייל</li>}
+              {password.length < 8 && <li>סיסמה זמנית (לפחות 8 תווים)</li>}
+            </ul>
+          </div>
+        )}
+
+        <div className="flex gap-3 mt-4">
           <button
             className="btn-primary flex-1"
-            disabled={!name.trim() || !email.trim() || !password.trim() || password.length < 12 || mutation.isPending}
+            disabled={!name.trim() || !email.trim() || !password.trim() || password.length < 8 || mutation.isPending}
             onClick={() => { setError(null); mutation.mutate(); }}
           >
             {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}

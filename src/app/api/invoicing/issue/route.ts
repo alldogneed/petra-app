@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
           data: { status: "failed", failureReason: errorMsg },
         });
 
-        return NextResponse.json({ error: errorMsg }, { status: 500 });
+        return NextResponse.json({ error: "שגיאה בהנפקת מסמך" }, { status: 500 });
       }
     }
 
@@ -97,7 +97,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error("Issue document error:", error);
-    const message = error instanceof Error ? error.message : "שגיאה בהפקת מסמך";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "שגיאה בהפקת מסמך" }, { status: 500 });
   }
 }

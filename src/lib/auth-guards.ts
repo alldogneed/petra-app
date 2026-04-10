@@ -312,7 +312,7 @@ export async function checkIpWhitelist(
 function ipMatchesCidr(ip: string, cidr: string): boolean {
   if (!cidr.includes("/")) return ip === cidr;
   const [range, bits] = cidr.split("/");
-  const mask = ~(0xffffffff >>> parseInt(bits));
+  const mask = ~(0xffffffff >>> parseInt(bits, 10));
   const ipNum = ipToNum(ip);
   const rangeNum = ipToNum(range);
   return ipNum !== null && rangeNum !== null && (ipNum & mask) === (rangeNum & mask);

@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const search = rawSearch ? rawSearch.slice(0, 100) : null; // max 100 chars
     const tag = searchParams.get("tag")?.slice(0, 50);
     const enhanced = searchParams.get("enhanced") === "1";
-    const serviceType = searchParams.get("serviceType");
+    const serviceType = searchParams.get("serviceType")?.slice(0, 50) || null;
     const cursor = searchParams.get("cursor") || undefined;
     const rawTake = parseInt(searchParams.get("take") ?? "50", 10);
     const take = Math.min(Math.max(rawTake, 1), 100); // clamp 1–100

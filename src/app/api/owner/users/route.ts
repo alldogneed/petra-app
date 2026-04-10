@@ -83,7 +83,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const existing = await prisma.platformUser.findUnique({ where: { email: body.email } });
+  const existing = await prisma.platformUser.findUnique({
+    where: { email: body.email },
+    select: { id: true },
+  });
   if (existing) {
     return NextResponse.json({ error: "Email already in use" }, { status: 409 });
   }

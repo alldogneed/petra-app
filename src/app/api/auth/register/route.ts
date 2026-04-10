@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
     // ── Uniqueness check ──────────────────────────────────────────────────────
     const existing = await prisma.platformUser.findUnique({
       where: { email: emailNorm },
+      select: { id: true },
     });
     if (existing) {
       return NextResponse.json(

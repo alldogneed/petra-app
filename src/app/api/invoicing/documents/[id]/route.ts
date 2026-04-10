@@ -72,7 +72,7 @@ export async function PATCH(
     if (customerId) data.customerId = customerId;
 
     const updated = await prisma.invoiceDocument.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data,
       include: { customer: { select: { name: true } } },
     });
@@ -109,7 +109,7 @@ export async function DELETE(
     }
 
     await prisma.invoiceDocument.delete({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
     });
 
     return NextResponse.json({ success: true });

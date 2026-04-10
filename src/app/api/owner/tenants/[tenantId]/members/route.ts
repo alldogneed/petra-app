@@ -68,7 +68,10 @@ export async function POST(
   if (!business) return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
 
   // Check if user already exists
-  let user = await prisma.platformUser.findUnique({ where: { email: body.email } });
+  let user = await prisma.platformUser.findUnique({
+    where: { email: body.email },
+    select: { id: true, email: true, name: true, isActive: true, role: true, platformRole: true },
+  });
 
   if (!user) {
     // Create new user

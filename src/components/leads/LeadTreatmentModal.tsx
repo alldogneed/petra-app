@@ -264,7 +264,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
     const [summary, setSummary] = useState("");
     const [treatment, setTreatment] = useState("");
 
-    const [selectedStage, setSelectedStage] = useState(lead?.stage || "new");
+    const [selectedStage, setSelectedStage] = useState(lead?.stage || stages[0]?.id || "");
 
     const [nextFollowUpAt, setNextFollowUpAt] = useState("");
     const [followUpStatus, setFollowUpStatus] = useState("pending");
@@ -283,9 +283,9 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
     // Delete lead confirmation
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-    const isClosed = lead?.stage === "won" || lead?.stage === "lost";
     const lostStage = stages.find((s) => s.isLost);
     const wonStage = stages.find((s) => s.isWon);
+    const isClosed = (wonStage && lead?.stage === wonStage.id) || (lostStage && lead?.stage === lostStage.id);
     const isSelectedWon = wonStage && selectedStage === wonStage.id;
 
     useEffect(() => {
@@ -730,11 +730,11 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                         {isClosed && (
                             <div className={cn(
                                 "rounded-xl px-4 py-3 flex items-center gap-2 text-sm font-semibold border",
-                                lead.stage === "won"
+                                wonStage && lead.stage === wonStage.id
                                     ? "bg-green-50 text-green-700 border-green-200"
                                     : "bg-red-50 text-red-700 border-red-200"
                             )}>
-                                {lead.stage === "won"
+                                {wonStage && lead.stage === wonStage.id
                                     ? <><CheckCircle2 className="w-4 h-4" /> ליד נסגר בהצלחה — לקוח נוצר</>
                                     : <><XCircle className="w-4 h-4" /> ליד אבוד</>
                                 }

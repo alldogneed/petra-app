@@ -21,7 +21,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const user = await prisma.platformUser.findUnique({ where: { id: session.user.id } });
+    const user = await prisma.platformUser.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, email: true, twoFaEnabled: true },
+    });
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     if (user.twoFaEnabled) {

@@ -31,8 +31,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Strip sensitive fields before returning to client
+    const { webhookApiKey, cardcomToken, cardcomTokenExpiry, ...safeBusiness } = business as any;
+
     return NextResponse.json(
-      business,
+      safeBusiness,
       { headers: { "Cache-Control": "private, max-age=600, stale-while-revalidate=60" } }
     );
   } catch (error) {
@@ -146,8 +149,11 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    // Strip sensitive fields before returning to client
+    const { webhookApiKey: _wk, cardcomToken: _ct, cardcomTokenExpiry: _ce, ...safeUpdated } = business as any;
+
     logCurrentUserActivity("UPDATE_SETTINGS");
-    return NextResponse.json(business);
+    return NextResponse.json(safeUpdated);
   } catch (error) {
     console.error("Failed to update settings:", error);
     return NextResponse.json(

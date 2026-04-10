@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   const authResult = await requirePlatformPermission(request, "platform.settings.write");
   if (isGuardError(authResult)) return authResult;
 
+  try {
   const businesses = await prisma.business.findMany({
     select: {
       id: true,
@@ -95,4 +96,8 @@ export async function GET(request: NextRequest) {
   };
 
   return NextResponse.json({ rows, stats });
+  } catch (error) {
+    console.error("GET /api/owner/customer-success error:", error);
+    return NextResponse.json({ error: "Failed to fetch customer success data" }, { status: 500 });
+  }
 }

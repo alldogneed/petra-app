@@ -21,11 +21,22 @@ export async function GET(request: NextRequest) {
     if (isGuardError(guard)) return guard;
 
     const { searchParams } = new URL(request.url);
-    const session = await resolveSession(request);
-    const businessId =
-      searchParams.get("businessId") ||
-      session?.memberships.find((m) => m.isActive)?.businessId ||
-      ""
+    // Platform admins may pass businessId as query param for admin panel;
+    // validate membership or super_admin role to prevent IDOR
+    const session = guard.session;
+    const requestedBusinessId = searchParams.get("businessId");
+    let businessId: string;
+    if (requestedBusinessId) {
+      // Only super_admin can access arbitrary businesses
+      const isSuperAdmin = session.user.platformRole === "super_admin";
+      const hasMembership = session.memberships.some((m) => m.businessId === requestedBusinessId && m.isActive);
+      if (!isSuperAdmin && !hasMembership) {
+        return NextResponse.json({ error: "Access denied to this business" }, { status: 403 });
+      }
+      businessId = requestedBusinessId;
+    } else {
+      businessId = session.memberships.find((m) => m.isActive)?.businessId || "";
+    }
     if (!businessId) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
     }
@@ -59,11 +70,21 @@ export async function PUT(req: NextRequest) {
 
     const body = await req.json();
     const { rules } = body;
-    const session = await resolveSession(req);
-    const businessId =
-      body.businessId ||
-      session?.memberships.find((m) => m.isActive)?.businessId ||
-      ""
+    // Platform admins may pass businessId in body for admin panel;
+    // validate membership or super_admin role to prevent IDOR
+    const session = guard.session;
+    const requestedBusinessId = body.businessId;
+    let businessId: string;
+    if (requestedBusinessId) {
+      const isSuperAdmin = session.user.platformRole === "super_admin";
+      const hasMembership = session.memberships.some((m) => m.businessId === requestedBusinessId && m.isActive);
+      if (!isSuperAdmin && !hasMembership) {
+        return NextResponse.json({ error: "Access denied to this business" }, { status: 403 });
+      }
+      businessId = requestedBusinessId;
+    } else {
+      businessId = session.memberships.find((m) => m.isActive)?.businessId || "";
+    }
     if (!businessId) {
       return NextResponse.json({ error: "businessId required" }, { status: 400 });
     }

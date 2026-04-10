@@ -7,6 +7,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 // Returns UTF-8 CSV (with BOM for Excel) of all leads in the date range.
 // Includes ALL leads regardless of stage/status (won, lost, active).
 export async function GET(request: NextRequest) {
+  try {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
 
@@ -110,4 +111,8 @@ export async function GET(request: NextRequest) {
       "Content-Disposition": `attachment; filename="leads_export${rangeLabel}_${today}.csv"`,
     },
   });
+  } catch (error) {
+    console.error("GET leads/export error:", error);
+    return NextResponse.json({ error: "שגיאה בייצוא לידים" }, { status: 500 });
+  }
 }

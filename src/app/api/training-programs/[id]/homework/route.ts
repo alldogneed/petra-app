@@ -75,7 +75,7 @@ export async function PATCH(
     if (customerNotes !== undefined) data.customerNotes = customerNotes;
 
     const item = await prisma.trainingHomework.update({
-      where: { id: homeworkId },
+      where: { id: homeworkId, trainingProgramId: existing.trainingProgramId },
       data,
     });
 
@@ -109,7 +109,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Homework not found" }, { status: 404 });
     }
 
-    await prisma.trainingHomework.delete({ where: { id: homeworkId } });
+    await prisma.trainingHomework.delete({ where: { id: homeworkId, trainingProgramId: existing.trainingProgramId } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE /api/training-programs/[id]/homework error:", error);

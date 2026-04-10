@@ -76,6 +76,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Atomically consume the token to prevent race conditions (double-use)
+    const consumed = await prisma.passwordResetToken.updateMany({
+      where: {
+        id: resetToken.id,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      data: { usedAt: new Date() },
+    });
+    if (consumed.count === 0) {
+      return NextResponse.json(
+        { error: "הלינק כבר שומש — בקש לינק חדש" },
+        { status: 400 }
+      );
+    }
+
     const user = resetToken.user;
     if (!user.isActive) {
       return NextResponse.json({ error: "החשבון מושבת" }, { status: 403 });
@@ -83,17 +99,12 @@ export async function POST(request: NextRequest) {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // Update password + mark token as used in one transaction
+    // Update password + invalidate all existing sessions (security: force re-login everywhere)
     await prisma.$transaction([
       prisma.platformUser.update({
         where: { id: user.id },
         data: { passwordHash },
       }),
-      prisma.passwordResetToken.update({
-        where: { id: resetToken.id },
-        data: { usedAt: new Date() },
-      }),
-      // Invalidate all existing sessions (security: force re-login everywhere)
       prisma.adminSession.deleteMany({
         where: { userId: user.id },
       }),

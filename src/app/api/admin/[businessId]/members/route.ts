@@ -97,17 +97,20 @@ export async function POST(
   // Owner role can only be granted by current owner
   if (body.role === "owner" && membership.role !== "owner") {
     return NextResponse.json(
-      { error: "Only owner can invite another owner" },
+      { error: "רק בעל העסק יכול להוסיף בעלים נוסף." },
       { status: 403 }
     );
   }
 
   // Find or create platform user
-  let platformUser = await prisma.platformUser.findUnique({ where: { email: body.email } });
+  let platformUser = await prisma.platformUser.findUnique({
+    where: { email: body.email },
+    select: { id: true, email: true, name: true, isActive: true },
+  });
   if (!platformUser) {
     if (!body.temporaryPassword) {
       return NextResponse.json(
-        { error: "User not found. Provide temporaryPassword to create account." },
+        { error: "המשתמש לא נמצא במערכת. יש לספק סיסמה זמנית כדי ליצור חשבון חדש." },
         { status: 404 }
       );
     }
@@ -158,7 +161,7 @@ export async function POST(
 
   if (existing) {
     if (existing.isActive) {
-      return NextResponse.json({ error: "User is already a member" }, { status: 409 });
+      return NextResponse.json({ error: "המשתמש עם אימייל זה כבר רשום כחבר צוות." }, { status: 409 });
     }
     // Reactivate
     const updated = await prisma.businessUser.update({

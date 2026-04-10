@@ -89,7 +89,10 @@ export async function POST(request: NextRequest) {
 
   if (hasOwner) {
     // Check for existing user before transaction
-    const existing = await prisma.platformUser.findUnique({ where: { email: body.ownerEmail! } });
+    const existing = await prisma.platformUser.findUnique({
+      where: { email: body.ownerEmail! },
+      select: { id: true },
+    });
     if (existing) {
       return NextResponse.json({ error: "משתמש עם אימייל זה כבר קיים" }, { status: 409 });
     }
