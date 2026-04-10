@@ -103,7 +103,7 @@ import { DashboardIntroScene } from "./scenes/DashboardIntroScene";
 import { DashboardStatsScene } from "./scenes/DashboardStatsScene";
 import { DashboardAppointmentsScene } from "./scenes/DashboardAppointmentsScene";
 import { DashboardOrdersScene } from "./scenes/DashboardOrdersScene";
-// import { DashboardChecklistScene } from "./scenes/DashboardChecklistScene";
+import { DashboardChecklistScene } from "./scenes/DashboardChecklistScene";
 // import { DashboardOutroScene } from "./scenes/DashboardOutroScene";
 
 export type DashboardTutorialProps = {
@@ -180,12 +180,12 @@ export const PetraDashboardTutorial: React.FC<DashboardTutorialProps> = ({
           <SceneAudio file="voiceover/dashboard-orders.wav" />
         </Series.Sequence>
 
-        {/*
         <Series.Sequence durationInFrames={_checklist} premountFor={fps}>
           <DashboardChecklistScene />
           <SceneAudio file="voiceover/dashboard-checklist.wav" />
         </Series.Sequence>
 
+        {/*
         <Series.Sequence durationInFrames={_outro} premountFor={fps}>
           <DashboardOutroScene />
           <SceneAudio file="voiceover/dashboard-outro.wav" />
