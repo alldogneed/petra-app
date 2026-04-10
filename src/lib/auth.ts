@@ -75,6 +75,8 @@ export async function ensureUserHasBusiness(
       slug,
       status: "active",
       tier: "free",
+      bookingBuffer: 30,
+      bookingMinNotice: 2,
     },
   });
 
@@ -85,6 +87,20 @@ export async function ensureUserHasBusiness(
       role: "owner",
       isActive: true,
     },
+  });
+
+  // Default availability: Sun-Thu 09:00-18:00, Fri 09:00-13:00, Sat closed
+  const defaultSchedule = [
+    { dayOfWeek: 0, isOpen: true, openTime: "09:00", closeTime: "18:00" }, // Sunday
+    { dayOfWeek: 1, isOpen: true, openTime: "09:00", closeTime: "18:00" }, // Monday
+    { dayOfWeek: 2, isOpen: true, openTime: "09:00", closeTime: "18:00" }, // Tuesday
+    { dayOfWeek: 3, isOpen: true, openTime: "09:00", closeTime: "18:00" }, // Wednesday
+    { dayOfWeek: 4, isOpen: true, openTime: "09:00", closeTime: "18:00" }, // Thursday
+    { dayOfWeek: 5, isOpen: true, openTime: "09:00", closeTime: "13:00" }, // Friday
+    { dayOfWeek: 6, isOpen: false, openTime: "09:00", closeTime: "18:00" }, // Saturday
+  ];
+  await prisma.availabilityRule.createMany({
+    data: defaultSchedule.map((r) => ({ businessId: biz.id, ...r })),
   });
 
   return biz.id;

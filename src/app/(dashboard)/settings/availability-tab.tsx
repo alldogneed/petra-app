@@ -109,9 +109,9 @@ export default function AvailabilityTab() {
   function getDefaultRules(): AvailabilityRule[] {
     return Array.from({ length: 7 }, (_, i) => ({
       dayOfWeek: i,
-      isOpen: i !== 6,
+      isOpen: i !== 6, // Saturday closed
       openTime: "09:00",
-      closeTime: "18:00",
+      closeTime: i === 5 ? "13:00" : "18:00", // Friday half-day
     }));
   }
 

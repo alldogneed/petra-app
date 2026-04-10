@@ -179,8 +179,8 @@ export async function getAvailableSlots(
   const rule = rules.find((r) => r.dayOfWeek === dayOfWeek)
 
   // Default when no availability rules are configured:
-  // Open Sunday–Thursday (Israeli work week 0–4), closed Friday (5) & Saturday (6)
-  const isOpen = rule ? rule.isOpen : dayOfWeek <= 4
+  // Open Sunday–Friday (Israeli work week), Saturday closed. Friday half-day.
+  const isOpen = rule ? rule.isOpen : dayOfWeek <= 5
   if (!isOpen) return []
 
   // 2b. Check bookingMaxAdvance — if the requested date is too far ahead, return []
@@ -192,7 +192,7 @@ export async function getAvailableSlots(
   if (diffDays > bookingMaxAdvance) return []
 
   const openTime  = rule?.openTime  ?? "09:00"
-  const closeTime = rule?.closeTime ?? "18:00"
+  const closeTime = rule?.closeTime ?? (dayOfWeek === 5 ? "13:00" : "18:00")
 
   // 3. Convert working window to UTC
   const windowStart = localTimeToUtc(openTime, localDateStr, timezone)

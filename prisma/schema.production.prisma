@@ -230,8 +230,8 @@ model Business {
   boardingCheckInTime  String @default("12:00")
   boardingCheckOutTime String @default("12:00")
   boardingPricePerNight Float  @default(150)
-  bookingBuffer      Int     @default(0)    // minutes between appointments (global)
-  bookingMinNotice   Int     @default(0)    // min hours before a slot can be booked
+  bookingBuffer      Int     @default(30)   // minutes between appointments (global)
+  bookingMinNotice   Int     @default(2)    // min hours before a slot can be booked
   bookingMaxAdvance  Int     @default(60)   // max days ahead a slot can be booked
   gcalBlockExternal  Boolean @default(false) // block any GCal event (not just Petra ones)
   customerTags String  @default("[\"VIP\",\"קבוע\",\"מזדמן\",\"פוטנציאל\",\"לשעבר\",\"עסקי\"]") // JSON array of preset customer tag labels
