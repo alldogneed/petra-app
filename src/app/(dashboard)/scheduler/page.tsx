@@ -17,6 +17,7 @@ import {
   MessageCircle,
   Loader2,
   AlertCircle,
+  Copy,
 } from "lucide-react";
 import {
   cn,
@@ -24,8 +25,10 @@ import {
   formatCurrency,
   formatDate,
   toWhatsAppPhone,
+  copyToClipboard,
 } from "@/lib/utils";
 import { TierGate } from "@/components/paywall/TierGate";
+import { useAuth } from "@/providers/auth-provider";
 
 /* ─────────────── Types ─────────────── */
 
@@ -165,6 +168,17 @@ function SchedulerContent() {
   const today = todayStr();
   const searchParams = useSearchParams();
   const prefilledCustomerId = searchParams.get("customerId");
+  const { user } = useAuth();
+  const [origin, setOrigin] = useState("");
+  const [copiedLink, setCopiedLink] = useState(false);
+  useEffect(() => { setOrigin(window.location.origin); }, []);
+  const bookingLink = `${origin}/book/${user?.businessSlug || ""}`;
+
+  function copyLink() {
+    copyToClipboard(bookingLink);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  }
 
   /* ── State ── */
   const [selectedDate, setSelectedDate] = useState("");
@@ -501,13 +515,19 @@ function SchedulerContent() {
     <div className="p-4 md:p-6 space-y-5 animate-fade-in">
       <BookingsTabs />
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
           <CalendarClock className="w-5 h-5 text-orange-600" />
         </div>
         <div>
           <h1 className="text-xl font-bold text-gray-900">תורים</h1>
           <p className="text-sm text-gray-500">קביעת תורים ללקוחות</p>
+        </div>
+        <div className="mr-auto">
+          <button onClick={copyLink} className="btn-secondary flex items-center gap-2">
+            <Copy className="w-4 h-4" />
+            {copiedLink ? "הועתק!" : "העתק קישור הזמנה"}
+          </button>
         </div>
       </div>
 
