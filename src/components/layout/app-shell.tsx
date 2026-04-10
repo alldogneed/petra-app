@@ -94,7 +94,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <Topbar onMenuToggle={() => setMobileOpen((prev) => !prev)} />
         <main id="main-content" tabIndex={-1} className="p-4 md:p-6 overflow-x-hidden">{children}</main>
-        <MobileBottomNav />
+        <div className="no-print"><MobileBottomNav /></div>
       </div>
 
       {/* Floating help button */}

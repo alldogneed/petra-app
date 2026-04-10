@@ -306,6 +306,7 @@ input::placeholder, textarea::placeholder { color: #64748b; }
 @media print {
   .modal-overlay,
   .modal-backdrop,
+  .no-print,
   [data-sonner-toaster],
   [role="dialog"],
   [role="alertdialog"] {
