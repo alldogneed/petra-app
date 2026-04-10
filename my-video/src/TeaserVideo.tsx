@@ -7,76 +7,75 @@ import {
   staticFile,
   useVideoConfig,
 } from "remotion";
-import { TeaserChaosScene } from "./scenes/teaser/TeaserChaosScene";
-import { TeaserLogoScene } from "./scenes/teaser/TeaserLogoScene";
-import { TeaserCRMScene } from "./scenes/teaser/TeaserCRMScene";
-import { TeaserCalendarScene } from "./scenes/teaser/TeaserCalendarScene";
-import { TeaserBoardingScene } from "./scenes/teaser/TeaserBoardingScene";
-import { TeaserOrdersScene } from "./scenes/teaser/TeaserOrdersScene";
-import { TeaserBookingScene } from "./scenes/teaser/TeaserBookingScene";
-import { TeaserCTAScene } from "./scenes/teaser/TeaserCTAScene";
+import { TeaserHookScene } from "./scenes/teaser/TeaserHookScene";
+import { TeaserLogoSceneV2 } from "./scenes/teaser/TeaserLogoSceneV2";
+import { TeaserLeadsSceneV2 } from "./scenes/teaser/TeaserLeadsSceneV2";
+import { TeaserBoardingSceneV2 } from "./scenes/teaser/TeaserBoardingSceneV2";
+import { TeaserBookingSceneV2 } from "./scenes/teaser/TeaserBookingSceneV2";
+import { TeaserRemindersScene } from "./scenes/teaser/TeaserRemindersScene";
+import { TeaserUSPScene } from "./scenes/teaser/TeaserUSPScene";
+import { TeaserCTASceneV2 } from "./scenes/teaser/TeaserCTASceneV2";
 
 // Frame counts (30fps):
-// Scene 1 chaos:    60f  (2s)
-// Scene 2 logo:     60f  (2s)
-// Scene 3 CRM:     150f  (5s)
-// Scene 4 calendar:150f  (5s)
-// Scene 5 boarding:150f  (5s)
-// Scene 6 orders:  150f  (5s)
-// Scene 7 booking: 120f  (4s)
-// Scene 8 CTA:      60f  (2s)
-// Total:           900f (30s)
+// Scene 1 hook:       240f  (8s)
+// Scene 2 logo:       150f  (5s)
+// Scene 3 leads:      450f (15s)
+// Scene 4 boarding:   450f (15s)
+// Scene 5 booking:    450f (15s)
+// Scene 6 reminders:  450f (15s)
+// Scene 7 usp:        270f  (9s)
+// Scene 8 cta:        240f  (8s)
+// Total:             2700f (90s)
 
 export const TeaserVideo: React.FC = () => {
   const { fps, durationInFrames } = useVideoConfig();
 
   return (
     <AbsoluteFill>
-      {/* Background music — low volume, fades out last 1s */}
       <Audio
-        src={staticFile("bg-music.mp3")}
+        src={staticFile("teaser-music.mp3")}
         loop
         volume={(f) =>
           interpolate(
             f,
             [0, fps, durationInFrames - fps, durationInFrames],
-            [0, 0.12, 0.12, 0],
+            [0, 0.18, 0.18, 0],
             { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
           )
         }
       />
 
       <Series>
-        <Series.Sequence durationInFrames={60}>
-          <TeaserChaosScene />
+        <Series.Sequence durationInFrames={240}>
+          <TeaserHookScene />
         </Series.Sequence>
 
-        <Series.Sequence durationInFrames={60}>
-          <TeaserLogoScene />
+        <Series.Sequence durationInFrames={150}>
+          <TeaserLogoSceneV2 />
         </Series.Sequence>
 
-        <Series.Sequence durationInFrames={150} premountFor={fps}>
-          <TeaserCRMScene />
+        <Series.Sequence durationInFrames={450} premountFor={fps}>
+          <TeaserLeadsSceneV2 />
         </Series.Sequence>
 
-        <Series.Sequence durationInFrames={150} premountFor={fps}>
-          <TeaserCalendarScene />
+        <Series.Sequence durationInFrames={450} premountFor={fps}>
+          <TeaserBoardingSceneV2 />
         </Series.Sequence>
 
-        <Series.Sequence durationInFrames={150} premountFor={fps}>
-          <TeaserBoardingScene />
+        <Series.Sequence durationInFrames={450} premountFor={fps}>
+          <TeaserBookingSceneV2 />
         </Series.Sequence>
 
-        <Series.Sequence durationInFrames={150} premountFor={fps}>
-          <TeaserOrdersScene />
+        <Series.Sequence durationInFrames={450} premountFor={fps}>
+          <TeaserRemindersScene />
         </Series.Sequence>
 
-        <Series.Sequence durationInFrames={120} premountFor={fps}>
-          <TeaserBookingScene />
+        <Series.Sequence durationInFrames={270}>
+          <TeaserUSPScene />
         </Series.Sequence>
 
-        <Series.Sequence durationInFrames={60}>
-          <TeaserCTAScene />
+        <Series.Sequence durationInFrames={240}>
+          <TeaserCTASceneV2 />
         </Series.Sequence>
       </Series>
     </AbsoluteFill>

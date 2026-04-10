@@ -1,10 +1,7 @@
 import "./index.css";
 import { Composition } from "remotion";
-import {
-  DashboardTutorial,
-  TutorialProps,
-  calculateMetadata,
-} from "./DashboardTutorial";
+import { TeaserVideoLong } from "./TeaserVideoLong";
+import { TeaserVideoShort } from "./TeaserVideoShort";
 import {
   SalesTutorial,
   SalesTutorialProps,
@@ -20,22 +17,30 @@ import {
   FinancesTutorialProps,
   calculateFinancesMetadata,
 } from "./FinancesTutorial";
+import { OrdersTutorial, calculateOrdersMetadata } from "./OrdersTutorial";
 import {
-  OrdersTutorial,
-  calculateOrdersMetadata,
-} from "./OrdersTutorial";
+  BoardingTutorial,
+  calculateBoardingMetadata,
+} from "./BoardingTutorial";
 import { TeaserVideo } from "./TeaserVideo";
-import { SCENES } from "../voiceover-config";
+import {
+  TrainingTutorial,
+  calculateTrainingMetadata,
+} from "./TrainingTutorial";
+import {
+  SettingsTutorial,
+  SettingsTutorialProps,
+  calculateSettingsMetadata,
+} from "./SettingsTutorial";
 import { SALES_SCENES } from "../voiceover-sales-config";
 import { CUSTOMERS_SCENES } from "../voiceover-customers-config";
 import { FINANCES_SCENES } from "../voiceover-finances-config";
 import { ORDERS_SCENES } from "../voiceover-orders-config";
+import { BOARDING_SCENES } from "../voiceover-boarding-config";
+import { TRAINING_SCENES } from "../voiceover-training-config";
+import { SETTINGS_SCENES } from "../voiceover-settings-config";
 
 const FPS = 30;
-
-const defaultProps: TutorialProps = {
-  sceneDurationsFrames: SCENES.map((s) => s.defaultDurationSec * FPS),
-};
 
 const salesDefaultProps: SalesTutorialProps = {
   sceneDurationsFrames: SALES_SCENES.map((s) => s.defaultDurationSec * FPS),
@@ -47,6 +52,10 @@ const customersDefaultProps: CustomersTutorialProps = {
 
 const financesDefaultProps: FinancesTutorialProps = {
   sceneDurationsFrames: FINANCES_SCENES.map((s) => s.defaultDurationSec * FPS),
+};
+
+const settingsDefaultProps: SettingsTutorialProps = {
+  sceneDurationsFrames: SETTINGS_SCENES.map((s) => s.defaultDurationSec * FPS),
 };
 
 export const RemotionRoot: React.FC = () => {
@@ -82,7 +91,8 @@ export const RemotionRoot: React.FC = () => {
         component={FinancesTutorial}
         calculateMetadata={calculateFinancesMetadata}
         durationInFrames={
-          FINANCES_SCENES.reduce((sum, s) => sum + s.defaultDurationSec, 0) * FPS
+          FINANCES_SCENES.reduce((sum, s) => sum + s.defaultDurationSec, 0) *
+          FPS
         }
         fps={FPS}
         width={1280}
@@ -100,13 +110,62 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={{
-          sceneDurationsFrames: ORDERS_SCENES.map((s) => s.defaultDurationSec * FPS),
+          sceneDurationsFrames: ORDERS_SCENES.map(
+            (s) => s.defaultDurationSec * FPS,
+          ),
         }}
       />
       <Composition
-        id="PetraTeaserVideo"
+        id="PetraBoardingTutorial"
+        component={BoardingTutorial}
+        calculateMetadata={calculateBoardingMetadata}
+        durationInFrames={
+          BOARDING_SCENES.reduce((sum, s) => sum + s.defaultDurationSec, 0) *
+          FPS
+        }
+        fps={FPS}
+        width={1280}
+        height={720}
+        defaultProps={{
+          sceneDurationsFrames: BOARDING_SCENES.map(
+            (s) => s.defaultDurationSec * FPS,
+          ),
+        }}
+      />
+      <Composition
+        id="PetraTrainingTutorial"
+        component={TrainingTutorial}
+        calculateMetadata={calculateTrainingMetadata}
+        durationInFrames={
+          TRAINING_SCENES.reduce((sum, s) => sum + s.defaultDurationSec, 0) *
+          FPS
+        }
+        fps={FPS}
+        width={1280}
+        height={720}
+        defaultProps={{
+          sceneDurationsFrames: TRAINING_SCENES.map(
+            (s) => s.defaultDurationSec * FPS,
+          ),
+        }}
+      />
+      <Composition
+        id="PetraSettingsTutorial"
+        component={SettingsTutorial}
+        calculateMetadata={calculateSettingsMetadata}
+        durationInFrames={
+          SETTINGS_SCENES.reduce((sum, s) => sum + s.defaultDurationSec, 0) *
+          FPS
+        }
+        fps={FPS}
+        width={1280}
+        height={720}
+        defaultProps={settingsDefaultProps}
+      />
+      <Composition
+        id="PetraTeaserVideowebsite"
         component={TeaserVideo}
-        durationInFrames={900}
+        durationInFrames={2700}
         fps={30}
         width={1280}
         height={720}
