@@ -849,7 +849,8 @@ function CalendarContent() {
     };
   }, []);
 
-  const [allDayCollapsed, setAllDayCollapsed] = useState(false);
+  const [allDayCollapsed, setAllDayCollapsed] = useState(true);
+  const [showGcal, setShowGcal] = useState(true);
 
   // Auto-scroll to current time when switching to day/week view
   useEffect(() => {
@@ -1482,6 +1483,20 @@ function CalendarContent() {
 
       {/* ── Color Legend / Service Type Filter ── */}
       <div className="hidden md:flex items-center gap-2 flex-wrap mb-4 px-1">
+        {/* הכל button */}
+        <button
+          onClick={() => setServiceTypeFilter(null)}
+          className={cn(
+            "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
+            serviceTypeFilter === null
+              ? "border-petra-text font-medium shadow-sm bg-petra-text text-white"
+              : "border-petra-border hover:border-petra-text hover:bg-petra-bg text-petra-muted"
+          )}
+        >
+          הכל
+        </button>
+
+        {/* Service type filters */}
         {Object.entries(SERVICE_TYPE_COLORS).map(([type, color]) => {
           const isActive = serviceTypeFilter === type;
           const isDimmed = serviceTypeFilter !== null && !isActive;
@@ -1510,15 +1525,24 @@ function CalendarContent() {
             </button>
           );
         })}
-        {serviceTypeFilter && (
-          <button
-            onClick={() => setServiceTypeFilter(null)}
-            className="flex items-center gap-1 text-xs text-petra-muted hover:text-petra-text px-1.5 py-1 rounded hover:bg-petra-bg transition-colors"
-          >
-            <X className="w-3 h-3" />
-            <span>הצג הכל</span>
-          </button>
-        )}
+
+        <div className="w-px h-4 bg-petra-border mx-1" />
+
+        {/* Google Calendar toggle */}
+        <button
+          onClick={() => setShowGcal((v) => !v)}
+          className={cn(
+            "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
+            showGcal
+              ? "border-[#4285F4] font-medium shadow-sm text-[#4285F4]"
+              : "border-transparent opacity-40 hover:opacity-70 text-petra-muted"
+          )}
+          title="הצג/הסתר אירועי יומן גוגל"
+        >
+          <span className="text-[9px] font-bold bg-[#4285F4] text-white rounded px-1">G</span>
+          <span>יומן גוגל</span>
+        </button>
+
         <div className="w-px h-4 bg-petra-border mx-1" />
         <div className="flex items-center gap-1.5 text-xs text-petra-muted px-1">
           <div className="w-2.5 h-2.5 rounded border border-dashed border-orange-400 bg-white" />
@@ -1867,7 +1891,7 @@ function CalendarContent() {
                 })}
 
                 {/* Google Calendar external events overlay (read-only) */}
-                {gcalEvents.filter((e) => !e.isAllDay).map((ev) => {
+                {showGcal && gcalEvents.filter((e) => !e.isAllDay).map((ev) => {
                   const startStr = ev.start.slice(0, 10);
                   const dayIdx = weekDates.findIndex((d) => toLocalDateString(d) === startStr);
                   if (dayIdx === -1) return null;
@@ -1883,20 +1907,20 @@ function CalendarContent() {
                       target="_blank"
                       rel="noopener noreferrer"
                       title={`${ev.title}\n${ev.calendarName}\n${startTime}–${endTime}`}
-                      className="absolute rounded-lg px-1.5 py-0.5 overflow-hidden border flex flex-col justify-center opacity-70 hover:opacity-90 transition-opacity"
+                      className="absolute rounded-lg px-1.5 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity"
                       style={{
                         top,
                         height: Math.max(height, 20),
                         right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
                         width: `calc((100% - 60px) / 7 - 4px)`,
                         marginRight: 2,
-                        background: ev.backgroundColor + "33",
-                        borderColor: ev.backgroundColor + "88",
+                        background: ev.backgroundColor + "99",
+                        borderColor: ev.backgroundColor,
                         zIndex: 5,
                       }}
                     >
-                      <span className="absolute top-0.5 left-0.5 text-[8px] font-bold opacity-60 bg-white/60 rounded px-0.5">G</span>
-                      <div className="text-[10px] font-medium truncate" style={{ color: ev.backgroundColor }}>
+                      <span className="absolute top-0.5 left-0.5 text-[8px] font-bold bg-white/80 rounded px-0.5" style={{ color: ev.backgroundColor }}>G</span>
+                      <div className="text-[10px] font-semibold truncate text-white drop-shadow-sm">
                         {ev.title}
                       </div>
                     </a>
@@ -2075,7 +2099,7 @@ function CalendarContent() {
               })}
 
             {/* Google Calendar external events overlay - day view */}
-            {gcalEvents.filter((e) => !e.isAllDay && e.start.slice(0, 10) === toLocalDateString(selectedDay)).map((ev) => {
+            {showGcal && gcalEvents.filter((e) => !e.isAllDay && e.start.slice(0, 10) === toLocalDateString(selectedDay)).map((ev) => {
               const startTime = dateTimeToTime(ev.start);
               const endTime = dateTimeToTime(ev.end);
               const { top, height } = appointmentStyle(startTime, endTime);
@@ -2088,22 +2112,22 @@ function CalendarContent() {
                   target="_blank"
                   rel="noopener noreferrer"
                   title={`${ev.title}\n${ev.calendarName}\n${startTime}–${endTime}`}
-                  className="absolute rounded-lg px-2 py-0.5 overflow-hidden border flex flex-col justify-center opacity-70 hover:opacity-90 transition-opacity"
+                  className="absolute rounded-lg px-2 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity"
                   style={{
                     top,
                     height: Math.max(height, 22),
                     right: 60,
                     width: "calc(100% - 64px)",
-                    background: ev.backgroundColor + "33",
-                    borderColor: ev.backgroundColor + "88",
+                    background: ev.backgroundColor + "99",
+                    borderColor: ev.backgroundColor,
                     zIndex: 5,
                   }}
                 >
-                  <span className="absolute top-0.5 left-0.5 text-[8px] font-bold opacity-60 bg-white/60 rounded px-0.5">G</span>
-                  <div className="text-xs font-medium truncate" style={{ color: ev.backgroundColor }}>
+                  <span className="absolute top-0.5 left-0.5 text-[8px] font-bold bg-white/80 rounded px-0.5" style={{ color: ev.backgroundColor }}>G</span>
+                  <div className="text-xs font-semibold truncate text-white drop-shadow-sm">
                     {ev.title}
                   </div>
-                  <div className="text-[10px] truncate" style={{ color: ev.backgroundColor + "bb" }}>
+                  <div className="text-[10px] truncate text-white/80">
                     {ev.calendarName}
                   </div>
                 </a>
