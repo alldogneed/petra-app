@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
         priceListItem: { select: { id: true, name: true, category: true, durationMinutes: true, basePrice: true } },
         customer: { select: { id: true, name: true, phone: true, email: true } },
         pet: { select: { id: true, name: true, species: true, breed: true } },
+        staff: { select: { id: true, name: true } },
       },
       orderBy: { date: "asc" },
       take: 200,
@@ -146,6 +147,7 @@ export async function POST(request: NextRequest) {
         priceListItem: { select: { id: true, name: true, category: true, durationMinutes: true, basePrice: true } },
         customer: { select: { id: true, name: true, phone: true, email: true } },
         pet: { select: { id: true, name: true, species: true, breed: true } },
+        staff: { select: { id: true, name: true } },
       },
     });
 

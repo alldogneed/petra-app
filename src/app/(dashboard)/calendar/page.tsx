@@ -66,6 +66,7 @@ interface AppointmentEvent {
   priceListItem: PriceListItem | null;
   customer: { id: string; name: string; phone: string };
   pet: { id: string; name: string; species: string } | null;
+  staff: { id: string; name: string } | null;
 }
 
 interface Customer {
@@ -121,7 +122,7 @@ interface BookingCalEvent {
   dogs: { pet: { id: string; name: string } }[];
 }
 
-type ViewMode = "day" | "week" | "month";
+type ViewMode = "day" | "week" | "month" | "agenda";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -140,6 +141,7 @@ const VIEW_MODES: { id: ViewMode; label: string }[] = [
   { id: "day", label: "יום" },
   { id: "week", label: "שבוע" },
   { id: "month", label: "חודש" },
+  { id: "agenda", label: "אג׳נדה" },
 ];
 
 const SERVICE_TYPE_COLORS: Record<string, string> = {
@@ -854,6 +856,9 @@ function CalendarContent() {
   const [dragging, setDragging] = useState<{ apt: AppointmentEvent; durationMins: number; offsetMins: number } | null>(null);
   const [dropPreview, setDropPreview] = useState<{ date: string; startMins: number } | null>(null);
   const [showLeads, setShowLeads] = useState(true);
+  const [staffFilter, setStaffFilter] = useState<string[]>([]);
+  const [resizing, setResizing] = useState<{ apt: AppointmentEvent; startY: number; origEndMins: number; currentEndMins: number } | null>(null);
+  const resizingRef = useRef<typeof resizing>(null);
 
   // Auto-scroll to current time when switching to day/week view
   useEffect(() => {
@@ -910,17 +915,32 @@ function CalendarContent() {
     training: "אילוף", grooming: "טיפוח", boarding: "פנסיון",
   };
   const filteredAppointments = useMemo(
-    () => serviceTypeFilters.length === 0
-      ? appointments
-      : appointments.filter((a) =>
-          serviceTypeFilters.some((filter) => {
-            if (a.service?.type === filter) return true;
-            const cat = SERVICE_TYPE_TO_CATEGORY[filter];
-            return cat ? a.priceListItem?.category === cat : false;
-          })
-        ),
-    [appointments, serviceTypeFilters]
+    () => appointments.filter((a) => {
+      if (serviceTypeFilters.length > 0) {
+        const matchType = serviceTypeFilters.some((filter) => {
+          if (a.service?.type === filter) return true;
+          const cat = SERVICE_TYPE_TO_CATEGORY[filter];
+          return cat ? a.priceListItem?.category === cat : false;
+        });
+        if (!matchType) return false;
+      }
+      if (staffFilter.length > 0 && !staffFilter.includes(a.staff?.id ?? "__none__")) return false;
+      return true;
+    }),
+    [appointments, serviceTypeFilters, staffFilter]
   );
+
+  // Unique staff members derived from all loaded appointments
+  const staffList = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of appointments) {
+      if (a.staff) map.set(a.staff.id, a.staff.name);
+    }
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [appointments]);
+
+  // Overdue helper
+  const isOverdue = (dateStr: string) => new Date(dateStr) < new Date();
 
   const { data: boardingStays = [] } = useQuery<BoardingStayEvent[]>({
     queryKey: ["boarding-calendar", from, to],
@@ -1062,6 +1082,17 @@ function CalendarContent() {
     onError: (err: Error) => toast.error(err.message || "שגיאה בשליחת תזכורת"),
   });
 
+  const taskCompleteMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: "COMPLETED" | "OPEN" }) =>
+      fetchJSON(`/api/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks-calendar"] }),
+    onError: () => toast.error("שגיאה בעדכון המשימה"),
+  });
+
   // ── Navigation ──
   const navigate = (direction: -1 | 1) => {
     if (viewMode === "day") {
@@ -1162,6 +1193,51 @@ function CalendarContent() {
     setDropPreview(null);
   };
 
+  // ── Resize handlers ──
+  const handleResizeStart = (apt: AppointmentEvent, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const origEndMins = timeToMinutes(apt.endTime);
+    const state = { apt, startY: e.clientY, origEndMins, currentEndMins: origEndMins };
+    setResizing(state);
+    resizingRef.current = state;
+  };
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      const r = resizingRef.current;
+      if (!r || !timeGridRef.current) return;
+      const deltaY = e.clientY - r.startY;
+      const deltaMins = Math.round((deltaY / SLOT_HEIGHT) * 60 / 15) * 15;
+      const newEndMins = Math.max(
+        timeToMinutes(r.apt.startTime) + 15,
+        Math.min(r.origEndMins + deltaMins, DAY_START + 13 * 60)
+      );
+      const updated = { ...r, currentEndMins: newEndMins };
+      resizingRef.current = updated;
+      setResizing(updated);
+    };
+    const onUp = () => {
+      const r = resizingRef.current;
+      if (!r) return;
+      rescheduleMutation.mutate({
+        id: r.apt.id,
+        date: r.apt.date.slice(0, 10),
+        startTime: r.apt.startTime,
+        endTime: minutesToTime(r.currentEndMins),
+      });
+      resizingRef.current = null;
+      setResizing(null);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Hover handlers ──
   const handleHoverEnter = (apt: AppointmentEvent, e: React.MouseEvent) => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
@@ -1223,10 +1299,14 @@ function CalendarContent() {
   ) => {
     const color = getAppointmentColor(apt.service, apt.priceListItem);
     const isCanceled = apt.status === "canceled";
+    const isResizingThis = resizing?.apt.id === apt.id;
+    const effectiveHeight = isResizingThis
+      ? Math.max(((resizing.currentEndMins - timeToMinutes(apt.startTime)) / 60) * SLOT_HEIGHT, 20)
+      : undefined;
     return (
       <div
         key={apt.id}
-        draggable
+        draggable={!resizing}
         onDragStart={(e) => handleDragStart(apt, e)}
         onDragEnd={() => { setDragging(null); setDropPreview(null); }}
         className={cn(
@@ -1237,9 +1317,10 @@ function CalendarContent() {
         )}
         style={{
           ...style,
+          height: effectiveHeight ?? style.height,
           background: color,
           boxShadow: isCanceled ? "none" : `0 1px 3px ${color}40`,
-          zIndex: 10,
+          zIndex: isResizingThis ? 20 : 10,
           minHeight: compact ? undefined : 60,
         }}
         onClick={(e) => {
@@ -1265,6 +1346,19 @@ function CalendarContent() {
         )}
         <div className={cn("opacity-80", compact ? "truncate" : "line-clamp-1")}>{getAppointmentLabel(apt)}</div>
         <div className="opacity-80">{apt.startTime}</div>
+        {apt.staff && !compact && (
+          <div className="text-[10px] opacity-70 truncate">👤 {apt.staff.name}</div>
+        )}
+        {/* Resize handle */}
+        {!isCanceled && (
+          <div
+            className="absolute bottom-0 left-0 right-0 h-2 cursor-s-resize flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+            onMouseDown={(e) => handleResizeStart(apt, e)}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-6 h-0.5 bg-white/60 rounded-full" />
+          </div>
+        )}
       </div>
     );
   };
@@ -1343,27 +1437,40 @@ function CalendarContent() {
     compact: boolean
   ) => {
     const color = TASK_PRIORITY_COLORS[task.priority] || "#9CA3AF";
+    const isDone = task.status === "COMPLETED";
+    const overdue = !isDone && task.dueAt && isOverdue(task.dueAt);
     return (
       <div
         key={`task-${task.id}`}
         className={cn(
-          "absolute rounded-lg px-2 py-1 overflow-hidden bg-white border border-slate-200",
-          compact ? "text-xs" : "text-sm"
+          "absolute rounded-lg px-2 py-1 overflow-hidden bg-white border",
+          compact ? "text-xs" : "text-sm",
+          overdue ? "border-red-300 bg-red-50" : "border-slate-200",
+          isDone && "opacity-50"
         )}
         style={{
           ...style,
-          borderRight: `3px solid ${color}`,
+          borderRight: `3px solid ${overdue ? "#EF4444" : color}`,
           zIndex: 10,
         }}
       >
         <div className="flex items-center gap-1 font-medium text-petra-text truncate">
-          <ListTodo className="w-3 h-3 flex-shrink-0 text-petra-muted" />
-          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
-          {task.title}
+          <button
+            className="flex-shrink-0 w-3.5 h-3.5 rounded border border-slate-300 flex items-center justify-center hover:border-green-400 transition-colors"
+            style={{ background: isDone ? "#22C55E" : "white" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              taskCompleteMutation.mutate({ id: task.id, status: isDone ? "OPEN" : "COMPLETED" });
+            }}
+          >
+            {isDone && <Check className="w-2.5 h-2.5 text-white" />}
+          </button>
+          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: overdue ? "#EF4444" : color }} />
+          <span className={cn("truncate", isDone && "line-through text-petra-muted")}>{task.title}</span>
         </div>
         {!compact && (
-          <div className="text-petra-muted truncate">
-            {TASK_CATEGORY_LABELS[task.category] || task.category}
+          <div className={cn("truncate", overdue ? "text-red-500 text-[10px] font-medium" : "text-petra-muted")}>
+            {overdue ? "⚠️ באיחור" : TASK_CATEGORY_LABELS[task.category] || task.category}
           </div>
         )}
       </div>
@@ -1541,10 +1648,10 @@ function CalendarContent() {
       <div className="hidden md:flex items-center gap-2 flex-wrap mb-4 px-1">
         {/* הכל button */}
         <button
-          onClick={() => { setServiceTypeFilters([]); setShowGcal(true); setShowLeads(true); }}
+          onClick={() => { setServiceTypeFilters([]); setShowGcal(true); setShowLeads(true); setStaffFilter([]); }}
           className={cn(
             "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
-            serviceTypeFilters.length === 0 && showGcal && showLeads
+            serviceTypeFilters.length === 0 && showGcal && showLeads && staffFilter.length === 0
               ? "border-petra-text font-medium shadow-sm bg-petra-text text-white"
               : "border-petra-border hover:border-petra-text hover:bg-petra-bg text-petra-muted"
           )}
@@ -1617,6 +1724,38 @@ function CalendarContent() {
           <div className="w-2.5 h-2.5 rounded-full bg-violet-400 flex-shrink-0" />
           <span>מכירות</span>
         </button>
+
+        {/* Staff filter chips */}
+        {staffList.length > 0 && (
+          <>
+            <div className="w-px h-4 bg-petra-border mx-1" />
+            {staffList.map((s) => {
+              const isActive = staffFilter.includes(s.id);
+              return (
+                <button
+                  key={s.id}
+                  onClick={() =>
+                    setStaffFilter((prev) =>
+                      prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id]
+                    )
+                  }
+                  className={cn(
+                    "flex items-center gap-1 text-xs px-2 py-1 rounded-full border transition-all",
+                    isActive
+                      ? "border-slate-600 font-medium bg-slate-700 text-white"
+                      : "border-transparent hover:border-petra-border hover:bg-petra-bg text-petra-muted"
+                  )}
+                  title={`סנן לפי ${s.name}`}
+                >
+                  <div className="w-4 h-4 rounded-full bg-slate-400 flex items-center justify-center text-[9px] text-white font-bold flex-shrink-0">
+                    {s.name.charAt(0)}
+                  </div>
+                  <span>{s.name.split(" ")[0]}</span>
+                </button>
+              );
+            })}
+          </>
+        )}
 
         <div className="w-px h-4 bg-petra-border mx-1" />
         <div className="flex items-center gap-1.5 text-xs text-petra-muted px-1">
@@ -1909,11 +2048,15 @@ function CalendarContent() {
                     if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
                     const endTime = addMinutes(startTime, 30);
                     const { top, height } = appointmentStyle(startTime, endTime);
+                    const overdueLead = isOverdue(lead.nextFollowUpAt);
                     return (
                       <a
                         key={`lead-fu-${lead.id}`}
                         href={`/leads`}
-                        className="absolute rounded-lg px-1.5 py-0.5 overflow-hidden flex flex-col justify-center hover:brightness-95 transition-all border border-violet-300"
+                        className={cn(
+                          "absolute rounded-lg px-1.5 py-0.5 overflow-hidden flex flex-col justify-center hover:brightness-95 transition-all border",
+                          overdueLead ? "border-red-400 bg-red-50" : "border-violet-300"
+                        )}
                         style={{
                           top,
                           height: Math.max(height, 22),
@@ -1925,9 +2068,11 @@ function CalendarContent() {
                         }}
                         title={`פולואפ: ${lead.name}${lead.requestedService ? ` · ${lead.requestedService}` : ""} (${startTime})`}
                       >
-                        <div className="text-[10px] font-semibold text-violet-700 truncate">📞 {lead.name}</div>
+                        <div className={cn("text-[10px] font-semibold truncate", overdueLead ? "text-red-600" : "text-violet-700")}>
+                          {overdueLead ? "⚠️" : "📞"} {lead.name}
+                        </div>
                         {lead.requestedService && (
-                          <div className="text-[9px] text-violet-500 truncate">{lead.requestedService}</div>
+                          <div className={cn("text-[9px] truncate", overdueLead ? "text-red-400" : "text-violet-500")}>{lead.requestedService}</div>
                         )}
                       </a>
                     );
@@ -2239,22 +2384,28 @@ function CalendarContent() {
                 if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
                 const endTime = addMinutes(startTime, 30);
                 const { top, height } = appointmentStyle(startTime, endTime);
+                const overdueLead = isOverdue(lead.nextFollowUpAt);
                 return (
                   <a
                     key={`lead-fu-day-${lead.id}`}
                     href="/leads"
-                    className="absolute rounded-lg px-2 py-1 overflow-hidden flex flex-col justify-center hover:brightness-95 transition-all border border-violet-300"
+                    className={cn(
+                      "absolute rounded-lg px-2 py-1 overflow-hidden flex flex-col justify-center hover:brightness-95 transition-all border",
+                      overdueLead ? "border-red-400" : "border-violet-300"
+                    )}
                     style={{
                       top,
                       height: Math.max(height, 22),
                       right: 60,
                       width: "calc(100% - 64px)",
-                      background: "#EDE9FE",
+                      background: overdueLead ? "#FEF2F2" : "#EDE9FE",
                       zIndex: 9,
                     }}
                     title={`פולואפ: ${lead.name}${lead.requestedService ? ` · ${lead.requestedService}` : ""}`}
                   >
-                    <div className="text-xs font-semibold text-violet-700 truncate">📞 פולואפ: {lead.name}</div>
+                    <div className={cn("text-xs font-semibold truncate", overdueLead ? "text-red-600" : "text-violet-700")}>
+                      {overdueLead ? "⚠️ באיחור:" : "📞 פולואפ:"} {lead.name}
+                    </div>
                     {lead.requestedService && (
                       <div className="text-[10px] text-violet-500 truncate">{lead.requestedService}</div>
                     )}
@@ -2493,6 +2644,155 @@ function CalendarContent() {
           </div>
         </div>
       )}
+
+      {/* ═══════════════ AGENDA VIEW ═══════════════ */}
+      {viewMode === "agenda" && (() => {
+        interface AgendaItem {
+          key: string;
+          time: string;
+          sortKey: string;
+          title: string;
+          subtitle: string;
+          color: string;
+          href: string;
+          icon: string;
+          overdue?: boolean;
+        }
+        const agendaDays = weekDates.map((date) => {
+          const dateStr = toLocalDateString(date);
+          const items: AgendaItem[] = [];
+
+          filteredAppointments
+            .filter((a) => a.date.slice(0, 10) === dateStr && a.status !== "canceled")
+            .forEach((a) => items.push({
+              key: `apt-${a.id}`,
+              time: a.startTime,
+              sortKey: a.startTime,
+              title: a.pet ? `${a.pet.name} — ${a.customer.name}` : a.customer.name,
+              subtitle: getAppointmentLabel(a),
+              color: getAppointmentColor(a.service, a.priceListItem),
+              href: `/customers/${a.customer.id}`,
+              icon: "📅",
+            }));
+
+          orders
+            .filter((o) => o.startAt && dateTimeToDateStr(o.startAt) === dateStr)
+            .forEach((o) => items.push({
+              key: `ord-${o.id}`,
+              time: dateTimeToTime(o.startAt!),
+              sortKey: dateTimeToTime(o.startAt!),
+              title: o.customer.name,
+              subtitle: `הזמנה · ₪${o.total.toLocaleString()}`,
+              color: ORDER_TYPE_COLORS[o.orderType] || "#F97316",
+              href: `/orders/${o.id}`,
+              icon: "🛒",
+            }));
+
+          tasks
+            .filter((t) => t.dueAt && dateTimeToDateStr(t.dueAt) === dateStr)
+            .forEach((t) => {
+              const overdue = !!(t.dueAt && isOverdue(t.dueAt) && t.status !== "COMPLETED");
+              items.push({
+                key: `task-${t.id}`,
+                time: dateTimeToTime(t.dueAt!),
+                sortKey: dateTimeToTime(t.dueAt!),
+                title: t.title,
+                subtitle: TASK_CATEGORY_LABELS[t.category] || t.category,
+                color: overdue ? "#EF4444" : (TASK_PRIORITY_COLORS[t.priority] || "#9CA3AF"),
+                href: "/tasks",
+                icon: overdue ? "⚠️" : "✅",
+                overdue,
+              });
+            });
+
+          if (showLeads) {
+            leadFollowUps
+              .filter((l) => l.nextFollowUpAt.slice(0, 10) === dateStr)
+              .forEach((l) => {
+                const overdue = isOverdue(l.nextFollowUpAt);
+                items.push({
+                  key: `lead-${l.id}`,
+                  time: dateTimeToTime(l.nextFollowUpAt),
+                  sortKey: dateTimeToTime(l.nextFollowUpAt),
+                  title: l.name,
+                  subtitle: l.requestedService || "פולואפ מכירות",
+                  color: overdue ? "#EF4444" : "#8B5CF6",
+                  href: "/leads",
+                  icon: overdue ? "⚠️" : "📞",
+                  overdue,
+                });
+              });
+          }
+
+          if (showGcal) {
+            gcalEvents
+              .filter((e) => !e.isAllDay && e.start.slice(0, 10) === dateStr)
+              .forEach((e) => items.push({
+                key: `gcal-${e.id}`,
+                time: dateTimeToTime(e.start),
+                sortKey: dateTimeToTime(e.start),
+                title: e.title,
+                subtitle: e.calendarName,
+                color: e.backgroundColor,
+                href: e.htmlLink ?? "#",
+                icon: "G",
+              }));
+          }
+
+          items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+          return { date, dateStr, items };
+        });
+
+        return (
+          <div className="card divide-y divide-petra-border">
+            {agendaDays.map(({ date, dateStr, items }) => {
+              const isToday = dateStr === today;
+              return (
+                <div key={dateStr} className={cn("", isToday && "bg-brand-50/20")}>
+                  <div
+                    className={cn(
+                      "px-4 py-2 text-sm font-semibold sticky top-0 bg-white border-b border-petra-border cursor-pointer hover:bg-slate-50 transition-colors",
+                      isToday && "text-brand-600"
+                    )}
+                    onClick={() => { setSelectedDay(date); setViewMode("day"); }}
+                  >
+                    {date.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
+                    {items.length > 0 && <span className="mr-2 text-xs font-normal text-petra-muted">{items.length} אירועים</span>}
+                  </div>
+                  {items.length === 0 ? (
+                    <div className="px-4 py-3 text-xs text-petra-muted">אין אירועים</div>
+                  ) : (
+                    <div className="divide-y divide-slate-50">
+                      {items.map((item) => (
+                        <a
+                          key={item.key}
+                          href={item.href}
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors"
+                        >
+                          <div className="w-12 text-xs font-mono text-petra-muted text-left flex-shrink-0">{item.time}</div>
+                          <div
+                            className="w-1 self-stretch rounded-full flex-shrink-0"
+                            style={{ background: item.color }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className={cn("text-sm font-medium truncate", item.overdue && "text-red-600")}>{item.title}</div>
+                            <div className="text-xs text-petra-muted truncate">{item.subtitle}</div>
+                          </div>
+                          {item.icon === "G" ? (
+                            <span className="text-[9px] font-bold bg-[#4285F4] text-white rounded px-1 flex-shrink-0">G</span>
+                          ) : (
+                            <span className="text-sm flex-shrink-0">{item.icon}</span>
+                          )}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* ── Hover Preview ── */}
       {hoveredApt && (
