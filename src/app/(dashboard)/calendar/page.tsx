@@ -124,6 +124,8 @@ interface BookingCalEvent {
   dogs: { pet: { id: string; name: string } }[];
 }
 
+interface TeamMember { id: string; name: string; avatarUrl: string | null }
+
 type ViewMode = "day" | "week" | "month" | "agenda";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -933,7 +935,6 @@ function CalendarContent() {
     [appointments, serviceTypeFilters, staffFilter]
   );
 
-  interface TeamMember { id: string; name: string; avatarUrl: string | null }
   const { data: teamMembers = [] } = useQuery<TeamMember[]>({
     queryKey: ["team-members"],
     queryFn: () => fetchJSON("/api/team-members"),
