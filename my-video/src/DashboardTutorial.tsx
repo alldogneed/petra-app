@@ -104,7 +104,7 @@ import { DashboardStatsScene } from "./scenes/DashboardStatsScene";
 import { DashboardAppointmentsScene } from "./scenes/DashboardAppointmentsScene";
 import { DashboardOrdersScene } from "./scenes/DashboardOrdersScene";
 import { DashboardChecklistScene } from "./scenes/DashboardChecklistScene";
-// import { DashboardOutroScene } from "./scenes/DashboardOutroScene";
+import { DashboardOutroScene } from "./scenes/DashboardOutroScene";
 
 export type DashboardTutorialProps = {
   sceneDurationsFrames: number[];
@@ -159,7 +159,6 @@ export const PetraDashboardTutorial: React.FC<DashboardTutorialProps> = ({
         }
       />
       <Series>
-        {/* Scene sequences — uncommented as tasks complete: */}
         <Series.Sequence durationInFrames={_intro} premountFor={fps}>
           <DashboardIntroScene />
           <SceneAudio file="voiceover/dashboard-intro.wav" />
@@ -185,12 +184,10 @@ export const PetraDashboardTutorial: React.FC<DashboardTutorialProps> = ({
           <SceneAudio file="voiceover/dashboard-checklist.wav" />
         </Series.Sequence>
 
-        {/*
         <Series.Sequence durationInFrames={_outro} premountFor={fps}>
           <DashboardOutroScene />
           <SceneAudio file="voiceover/dashboard-outro.wav" />
         </Series.Sequence>
-        */}
       </Series>
     </AbsoluteFill>
   );
