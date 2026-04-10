@@ -83,6 +83,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "הערות ארוכות מדי (מקסימום 2000 תווים)" }, { status: 400 });
     }
 
+    // Validate assignedToUserId belongs to this business
+    if (assignedToUserId) {
+      const membership = await prisma.businessUser.findUnique({
+        where: { businessId_userId: { businessId: authResult.businessId, userId: assignedToUserId } },
+        select: { id: true, isActive: true },
+      });
+      if (!membership || !membership.isActive) {
+        return NextResponse.json({ error: "איש הצוות לא נמצא בעסק זה" }, { status: 400 });
+      }
+    }
+
     // ── Enforce order limit for free tier ───────────────────────────────────
     const biz = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true, featureOverrides: true } });
     const maxOrders = getMaxOrders(normalizeTier(biz?.tier));
@@ -411,6 +422,7 @@ export async function POST(request: NextRequest) {
         customer: { select: { id: true, name: true, phone: true } },
         lines: true,
         payments: true,
+        assignedTo: { select: { id: true, name: true } },
       },
     });
 

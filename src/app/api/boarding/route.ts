@@ -84,6 +84,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate assignedToUserId belongs to this business
+    if (assignedToUserId) {
+      const membership = await prisma.businessUser.findUnique({
+        where: { businessId_userId: { businessId: authResult.businessId, userId: assignedToUserId } },
+        select: { id: true, isActive: true },
+      });
+      if (!membership || !membership.isActive) {
+        return NextResponse.json({ error: "איש הצוות לא נמצא בעסק זה" }, { status: 400 });
+      }
+    }
+
     // Service dogs have no customer — accept null/empty customerId
     const resolvedCustomerId = customerId || null;
 
