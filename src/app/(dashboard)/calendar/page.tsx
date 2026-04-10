@@ -1025,6 +1025,15 @@ function CalendarContent() {
     [orders, serviceTypeFilters]
   );
 
+  // Filter boarding stays — boarding stays are always "boarding" type.
+  // Show them when no filter or when "boarding" filter is active.
+  const filteredBoardingStays = useMemo(
+    () => serviceTypeFilters.length === 0 || serviceTypeFilters.includes("boarding")
+      ? boardingStays
+      : [],
+    [boardingStays, serviceTypeFilters]
+  );
+
   // ── Google Calendar external events overlay ──
   interface GcalExternalEvent {
     id: string;
@@ -1293,9 +1302,9 @@ function CalendarContent() {
 
   // ── All-day stays computation for week view ──
   const allDayStays = useMemo(() => {
-    if (viewMode === "month" || boardingStays.length === 0) return [];
-    return boardingStays;
-  }, [boardingStays, viewMode]);
+    if (viewMode === "month" || filteredBoardingStays.length === 0) return [];
+    return filteredBoardingStays;
+  }, [filteredBoardingStays, viewMode]);
 
   // ── Day view helpers ──
   const dayAppointments = useMemo(() => {
@@ -2122,10 +2131,10 @@ function CalendarContent() {
                 {/* Boarding check-in / check-out timed blocks */}
                 {weekDates.map((date, dayIdx) => {
                   const dateStr = toLocalDateString(date);
-                  const checkIns = boardingStays.filter(
+                  const checkIns = filteredBoardingStays.filter(
                     (s) => dateTimeToDateStr(s.checkIn) === dateStr
                   );
-                  const checkOuts = boardingStays.filter(
+                  const checkOuts = filteredBoardingStays.filter(
                     (s) => s.checkOut && dateTimeToDateStr(s.checkOut) === dateStr
                   );
                   return [
