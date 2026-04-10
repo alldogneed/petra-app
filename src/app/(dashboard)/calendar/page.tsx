@@ -1914,7 +1914,7 @@ function CalendarContent() {
                         right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
                         width: `calc((100% - 60px) / 7 - 4px)`,
                         marginRight: 2,
-                        background: ev.backgroundColor + "99",
+                        background: ev.backgroundColor,
                         borderColor: ev.backgroundColor,
                         zIndex: 5,
                       }}
@@ -2118,7 +2118,7 @@ function CalendarContent() {
                     height: Math.max(height, 22),
                     right: 60,
                     width: "calc(100% - 64px)",
-                    background: ev.backgroundColor + "99",
+                    background: ev.backgroundColor,
                     borderColor: ev.backgroundColor,
                     zIndex: 5,
                   }}
