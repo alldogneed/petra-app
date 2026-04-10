@@ -118,6 +118,8 @@ interface BusinessSettings {
   boardingPricePerNight: number | null;
 }
 
+interface TeamMember { id: string; name: string }
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
@@ -1959,7 +1961,6 @@ function BoardingPageContent() {
     staleTime: 30_000,
   });
 
-  interface TeamMember { id: string; name: string }
   const { data: teamMembers = [] } = useQuery<TeamMember[]>({
     queryKey: ["team-members"],
     queryFn: () => fetchJSON<TeamMember[]>("/api/team-members"),

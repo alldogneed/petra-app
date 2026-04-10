@@ -78,6 +78,8 @@ interface Pet {
   breed: string | null;
 }
 
+interface TeamMember { id: string; name: string }
+
 interface CustomerDetail {
   pets?: Pet[];
 }
@@ -302,7 +304,6 @@ export function CreateOrderModal({
     staleTime: 60_000,
   });
 
-  interface TeamMember { id: string; name: string }
   const { data: teamMembers = [] } = useQuery<TeamMember[]>({
     queryKey: ["team-members"],
     queryFn: () => fetch("/api/team-members").then((r) => r.json()),
