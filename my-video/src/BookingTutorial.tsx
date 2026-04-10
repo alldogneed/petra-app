@@ -16,7 +16,7 @@ import { BookingCustomerDetailsScene } from "./scenes/BookingCustomerDetailsScen
 import { BookingSetupScene } from "./scenes/BookingSetupScene";
 import { BookingLinkScene } from "./scenes/BookingLinkScene";
 import { BookingNotificationsScene } from "./scenes/BookingNotificationsScene";
-// import { BookingOutroScene } from "./scenes/BookingOutroScene";
+import { BookingOutroScene } from "./scenes/BookingOutroScene";
 import { BOOKING_SCENES } from "../voiceover-booking-config";
 
 export type BookingTutorialProps = {
@@ -57,7 +57,7 @@ export const BookingTutorial: React.FC<BookingTutorialProps> = ({
 }) => {
   const { fps, durationInFrames } = useVideoConfig();
   // TODO: uncomment after scenes are built
-  const [intro, customerFlow, customerDetails, setup, link, notifications] =
+  const [intro, customerFlow, customerDetails, setup, link, notifications, outro] =
     _sceneDurationsFrames;
 
   return (
@@ -100,11 +100,10 @@ export const BookingTutorial: React.FC<BookingTutorialProps> = ({
           <BookingNotificationsScene />
           <SceneAudio file="voiceover/booking-notifications.wav" />
         </Series.Sequence>
-        {/* TODO: uncomment after scenes are built */}
-        {/* <Series.Sequence durationInFrames={outro} premountFor={fps}>
+        <Series.Sequence durationInFrames={outro} premountFor={fps}>
           <BookingOutroScene />
           <SceneAudio file="voiceover/booking-outro.wav" />
-        </Series.Sequence> */}
+        </Series.Sequence>
       </Series>
     </AbsoluteFill>
   );
