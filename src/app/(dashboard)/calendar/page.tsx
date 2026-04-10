@@ -797,6 +797,7 @@ function CalendarContent() {
   const { isFree, tier, can } = usePlan();
   const maxAppts = getMaxAppointments(tier);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timeGridRef = useRef<HTMLDivElement>(null);
 
   // ── State ──
   const [anchor, setAnchor] = useState(new Date());
@@ -847,6 +848,18 @@ function CalendarContent() {
       if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
     };
   }, []);
+
+  const [allDayCollapsed, setAllDayCollapsed] = useState(false);
+
+  // Auto-scroll to current time when switching to day/week view
+  useEffect(() => {
+    if (viewMode !== "day" && viewMode !== "week") return;
+    if (!timeGridRef.current) return;
+    const currentHour = new Date().getHours();
+    const gridTop = timeGridRef.current.getBoundingClientRect().top + window.scrollY;
+    const scrollTarget = gridTop + (currentHour - 8) * SLOT_HEIGHT - 100;
+    window.scrollTo({ top: Math.max(0, scrollTarget), behavior: "smooth" });
+  }, [viewMode]);
 
   // ── Date range computation ──
   const weekDates = useMemo(() => getWeekDates(anchor), [anchor]);
@@ -1560,10 +1573,15 @@ function CalendarContent() {
               {(allDayStays.length > 0 || weekAllDayTasks.length > 0) && (
                 <div className="border-b border-petra-border bg-slate-50/30">
                   <div className="grid grid-cols-[60px_1fr]">
-                    <div className="flex items-center justify-center text-[10px] text-petra-muted p-1">
-                      כל היום
+                    <div className="flex items-center justify-center p-1">
+                      <button
+                        onClick={() => setAllDayCollapsed((v) => !v)}
+                        className="text-[10px] text-petra-muted hover:text-petra-text transition-colors whitespace-nowrap"
+                      >
+                        {allDayCollapsed ? "▸" : "▾"} כל היום ({allDayStays.length + weekAllDayTasks.length})
+                      </button>
                     </div>
-                    <div className="py-1.5 px-1 space-y-1">
+                    {!allDayCollapsed && <div className="py-1.5 px-1 space-y-1">
                       {allDayStays.map((stay) => {
                         const stayStart = new Date(stay.checkIn);
                         const stayEnd = stay.checkOut
@@ -1639,13 +1657,13 @@ function CalendarContent() {
                           </div>
                         );
                       })}
-                    </div>
+                    </div>}
                   </div>
                 </div>
               )}
 
               {/* Time grid */}
-              <div className="relative">
+              <div className="relative" ref={timeGridRef}>
                 {HOURS.map((hour) => (
                   <div
                     key={hour}
@@ -1877,6 +1895,7 @@ function CalendarContent() {
                         zIndex: 5,
                       }}
                     >
+                      <span className="absolute top-0.5 left-0.5 text-[8px] font-bold opacity-60 bg-white/60 rounded px-0.5">G</span>
                       <div className="text-[10px] font-medium truncate" style={{ color: ev.backgroundColor }}>
                         {ev.title}
                       </div>
@@ -1911,10 +1930,13 @@ function CalendarContent() {
           {/* All-day section (boarding stays + all-day tasks) */}
           {(allDayStays.length > 0 || dayAllDayTasks.length > 0) && (
             <div className="border-b border-petra-border bg-slate-50/30 p-3">
-              <div className="text-[10px] text-petra-muted font-medium mb-1.5">
-                כל היום
-              </div>
-              <div className="space-y-1">
+              <button
+                onClick={() => setAllDayCollapsed((v) => !v)}
+                className="text-[10px] text-petra-muted font-medium mb-1.5 hover:text-petra-text transition-colors"
+              >
+                {allDayCollapsed ? "▸" : "▾"} כל היום ({allDayStays.length + dayAllDayTasks.length})
+              </button>
+              {!allDayCollapsed && <div className="space-y-1">
                 {allDayStays
                   .filter((stay) => {
                     const dayStr = toLocalDateString(selectedDay);
@@ -1956,12 +1978,12 @@ function CalendarContent() {
                     </div>
                   );
                 })}
-              </div>
+              </div>}
             </div>
           )}
 
           {/* Time grid */}
-          <div className="relative">
+          <div className="relative" ref={timeGridRef}>
             {HOURS.map((hour) => (
               <div
                 key={hour}
@@ -2077,6 +2099,7 @@ function CalendarContent() {
                     zIndex: 5,
                   }}
                 >
+                  <span className="absolute top-0.5 left-0.5 text-[8px] font-bold opacity-60 bg-white/60 rounded px-0.5">G</span>
                   <div className="text-xs font-medium truncate" style={{ color: ev.backgroundColor }}>
                     {ev.title}
                   </div>
@@ -2167,6 +2190,16 @@ function CalendarContent() {
                   key: `tsk-${task.id}`,
                   color: TASK_PRIORITY_COLORS[task.priority] || "#9CA3AF",
                   label: `${time ? time + " " : ""}${task.title}`,
+                });
+              });
+              // Add GCal events to month view
+              const dayGcal = gcalEvents.filter((e) => !e.isAllDay && e.start.slice(0, 10) === dateStr);
+              dayGcal.forEach((ev) => {
+                const time = dateTimeToTime(ev.start);
+                entries.push({
+                  key: `gcal-${ev.id}`,
+                  color: ev.backgroundColor,
+                  label: `${time} ${ev.title}`,
                 });
               });
 
