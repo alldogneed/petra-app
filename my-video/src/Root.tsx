@@ -57,6 +57,12 @@ import {
   calculateDashboardMetadata,
 } from "./DashboardTutorial";
 import { DASHBOARD_SCENES } from "../voiceover-dashboard-config";
+import {
+  PetraAdminTutorial,
+  AdminTutorialProps,
+  calculateAdminMetadata,
+} from "./AdminTutorial";
+import { ADMIN_SCENES } from "../voiceover-admin-config";
 
 const FPS = 30;
 
@@ -86,6 +92,10 @@ const bookingDefaultProps: BookingTutorialProps = {
 
 const dashboardDefaultProps: DashboardTutorialProps = {
   sceneDurationsFrames: DASHBOARD_SCENES.map((s) => s.defaultDurationSec * FPS),
+};
+
+const adminDefaultProps: AdminTutorialProps = {
+  sceneDurationsFrames: ADMIN_SCENES.map((s) => s.defaultDurationSec * FPS),
 };
 
 export const RemotionRoot: React.FC = () => {
@@ -235,6 +245,18 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={dashboardDefaultProps}
+      />
+      <Composition
+        id="PetraAdminTutorial"
+        component={PetraAdminTutorial}
+        calculateMetadata={calculateAdminMetadata}
+        durationInFrames={
+          ADMIN_SCENES.reduce((sum, s) => sum + s.defaultDurationSec, 0) * FPS
+        }
+        fps={FPS}
+        width={1280}
+        height={720}
+        defaultProps={adminDefaultProps}
       />
     </>
   );
