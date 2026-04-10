@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
           },
         },
         customer: { select: { id: true, name: true, phone: true } },
+        assignedTo: { select: { id: true, name: true } },
       },
       orderBy: { checkIn: "desc" },
       take: 200,
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { checkIn, checkOut, petId, customerId, roomId, yardId, status, notes } = body;
+    const { checkIn, checkOut, petId, customerId, roomId, yardId, status, notes, assignedToUserId } = body;
 
     if (!checkIn || !petId) {
       return NextResponse.json(
@@ -118,6 +119,7 @@ export async function POST(request: NextRequest) {
         yardId: yardId || null,
         status: status || "reserved",
         notes,
+        assignedToUserId: assignedToUserId || null,
       },
       include: {
         room: true,
@@ -132,6 +134,7 @@ export async function POST(request: NextRequest) {
           },
         },
         customer: { select: { id: true, name: true, phone: true } },
+        assignedTo: { select: { id: true, name: true } },
       },
     });
 
