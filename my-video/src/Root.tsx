@@ -39,6 +39,12 @@ import { ORDERS_SCENES } from "../voiceover-orders-config";
 import { BOARDING_SCENES } from "../voiceover-boarding-config";
 import { TRAINING_SCENES } from "../voiceover-training-config";
 import { SETTINGS_SCENES } from "../voiceover-settings-config";
+import {
+  TasksTutorial,
+  TasksTutorialProps,
+  calculateTasksMetadata,
+} from "./TasksTutorial";
+import { TASKS_SCENES } from "../voiceover-tasks-config";
 
 const FPS = 30;
 
@@ -56,6 +62,10 @@ const financesDefaultProps: FinancesTutorialProps = {
 
 const settingsDefaultProps: SettingsTutorialProps = {
   sceneDurationsFrames: SETTINGS_SCENES.map((s) => s.defaultDurationSec * FPS),
+};
+
+const tasksDefaultProps: TasksTutorialProps = {
+  sceneDurationsFrames: TASKS_SCENES.map((s) => s.defaultDurationSec * FPS),
 };
 
 export const RemotionRoot: React.FC = () => {
@@ -169,6 +179,18 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1280}
         height={720}
+      />
+      <Composition
+        id="PetraTasksTutorial"
+        component={TasksTutorial}
+        calculateMetadata={calculateTasksMetadata}
+        durationInFrames={
+          TASKS_SCENES.reduce((sum, s) => sum + s.defaultDurationSec, 0) * FPS
+        }
+        fps={FPS}
+        width={1280}
+        height={720}
+        defaultProps={tasksDefaultProps}
       />
     </>
   );
