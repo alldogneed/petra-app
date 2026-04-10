@@ -1866,7 +1866,7 @@ function BoardingPageContent() {
   const [showNewStay, setShowNewStay] = useState(false);
   const [careLogStay, setCareLogStay] = useState<{ id: string; petName: string } | null>(null);
   const [form, setForm] = useState({
-    customerId: "", petIds: [] as string[], roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "", pricePerNight: 0,
+    customerId: "", petIds: [] as string[], roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "", pricePerNight: 0, assignedToUserId: "",
   });
   const [serviceDogMode, setServiceDogMode] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
@@ -1959,6 +1959,12 @@ function BoardingPageContent() {
     staleTime: 30_000,
   });
 
+  interface TeamMember { id: string; name: string }
+  const { data: teamMembers = [] } = useQuery<TeamMember[]>({
+    queryKey: ["team-members"],
+    queryFn: () => fetchJSON<TeamMember[]>("/api/team-members"),
+  });
+
   const selectedCustomer = customers.find((c) => c.id === form.customerId);
   const selectedServiceDog = serviceDogMode && form.petIds.length > 0
     ? serviceDogsList.find((sd) => sd.pet.id === form.petIds[0])
@@ -1998,6 +2004,7 @@ function BoardingPageContent() {
             checkIn: checkInDT,
             checkOut: checkOutDT || null,
             notes: data.notes || null,
+            assignedToUserId: data.assignedToUserId || null,
           }),
         }).then(async (r) => { if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || "Failed"); } return r.json(); })
       );
@@ -2007,7 +2014,7 @@ function BoardingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setShowNewStay(false);
-      setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150 });
+      setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150, assignedToUserId: "" });
       setCustomerSearch("");
       setServiceDogMode(false);
       toast.success("ההשמה נוצרה בהצלחה");
@@ -3608,6 +3615,23 @@ function BoardingPageContent() {
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 />
               </div>
+
+              {/* Staff picker */}
+              {teamMembers.length > 0 && (
+                <div>
+                  <label className="label">איש צוות</label>
+                  <select
+                    className="input"
+                    value={form.assignedToUserId}
+                    onChange={(e) => setForm((f) => ({ ...f, assignedToUserId: e.target.value }))}
+                  >
+                    <option value="">ללא שיוך</option>
+                    {teamMembers.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Training notice for service dogs in training */}
