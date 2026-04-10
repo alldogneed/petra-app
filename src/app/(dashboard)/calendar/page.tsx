@@ -1541,10 +1541,10 @@ function CalendarContent() {
       <div className="hidden md:flex items-center gap-2 flex-wrap mb-4 px-1">
         {/* הכל button */}
         <button
-          onClick={() => setServiceTypeFilters([])}
+          onClick={() => { setServiceTypeFilters([]); setShowGcal(true); setShowLeads(true); }}
           className={cn(
             "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
-            serviceTypeFilters.length === 0
+            serviceTypeFilters.length === 0 && showGcal && showLeads
               ? "border-petra-text font-medium shadow-sm bg-petra-text text-white"
               : "border-petra-border hover:border-petra-text hover:bg-petra-bg text-petra-muted"
           )}
