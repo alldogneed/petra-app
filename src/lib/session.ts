@@ -257,7 +257,7 @@ export function buildSessionCookie(
     `${SESSION_COOKIE}=${token}`,
     `Path=/`,
     `HttpOnly`,
-    `SameSite=Strict`,
+    `SameSite=Lax`,
     `Max-Age=${maxAge}`,
   ];
   if (isProd) parts.push("Secure");
@@ -266,5 +266,5 @@ export function buildSessionCookie(
 
 /** Clear session cookie */
 export function clearSessionCookie(): string {
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`;
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 }

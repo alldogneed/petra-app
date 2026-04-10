@@ -14,8 +14,8 @@ const OWNER_NAME = "אור";
 // ── WhatsApp ─────────────────────────────────────────────────────────────────
 
 async function sendOwnerWhatsApp(message: string, templateParams?: string[]): Promise<void> {
-  const token = process.env.META_WHATSAPP_TOKEN;
-  const phoneNumberId = process.env.META_PHONE_NUMBER_ID;
+  const token = process.env.META_WHATSAPP_TOKEN?.trim();
+  const phoneNumberId = process.env.META_PHONE_NUMBER_ID?.trim();
 
   if (!token || !phoneNumberId) {
     console.warn("[notify-owner] META credentials missing — skipping WhatsApp notification");
