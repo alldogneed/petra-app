@@ -203,6 +203,7 @@ export function CreateOrderModal({
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
   const [notes, setNotes] = useState("");
+  const [assignedToUserId, setAssignedToUserId] = useState<string>("");
   const [discountType, setDiscountType] = useState<"none" | "percent" | "fixed">("none");
   const [discountValue, setDiscountValue] = useState("0");
 
@@ -298,6 +299,14 @@ export function CreateOrderModal({
     queryKey: ["training-groups-active"],
     queryFn: () => fetch("/api/training-groups").then((r) => r.json()),
     enabled: isOpen && orderType === "training",
+    staleTime: 60_000,
+  });
+
+  interface TeamMember { id: string; name: string }
+  const { data: teamMembers = [] } = useQuery<TeamMember[]>({
+    queryKey: ["team-members"],
+    queryFn: () => fetch("/api/team-members").then((r) => r.json()),
+    enabled: isOpen,
     staleTime: 60_000,
   });
 
@@ -522,6 +531,7 @@ export function CreateOrderModal({
             endTime: apptEndTime,
             petId: selectedPetId || undefined,
           } : undefined,
+          assignedToUserId: assignedToUserId || null,
         }),
       });
 
@@ -638,6 +648,7 @@ export function CreateOrderModal({
     setTrainingBoardingEnd("");
     setTrainingHomeFollowup(0);
     setSelectedGroupId("");
+    setAssignedToUserId("");
     setCreatedOrder(null);
     setPayAtCheckout(false);
     setCheckoutPayMethod("cash");
@@ -1709,6 +1720,22 @@ export function CreateOrderModal({
           placeholder="הערות, הוראות מיוחדות..."
         />
       </div>
+
+      {teamMembers.length > 0 && (
+        <div>
+          <label className="label">איש צוות</label>
+          <select
+            className="input"
+            value={assignedToUserId}
+            onChange={(e) => setAssignedToUserId(e.target.value)}
+          >
+            <option value="">ללא שיוך</option>
+            {teamMembers.map((m) => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* ── Pay at checkout ── */}
       <div className="rounded-xl border border-emerald-200 overflow-hidden">
