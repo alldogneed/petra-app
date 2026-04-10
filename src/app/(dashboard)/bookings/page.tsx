@@ -87,6 +87,11 @@ function BookingsContent() {
   const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(null);
   const [declineNote, setDeclineNote] = useState("");
   const [showDeclineInput, setShowDeclineInput] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editDate, setEditDate] = useState("");
+  const [editStartTime, setEditStartTime] = useState("");
+  const [editEndTime, setEditEndTime] = useState("");
+  const [editNotes, setEditNotes] = useState("");
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -107,16 +112,22 @@ function BookingsContent() {
   const bookingLink = `${origin}/book/${bookingSlug}`;
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, status, notes }: { id: string; status: string; notes?: string }) =>
+    mutationFn: ({ id, status, notes, startAt, endAt }: { id: string; status?: string; notes?: string; startAt?: string; endAt?: string }) =>
       fetch(`/api/booking/bookings/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, ...(notes !== undefined && { notes }) }),
+        body: JSON.stringify({
+          ...(status !== undefined && { status }),
+          ...(notes !== undefined && { notes }),
+          ...(startAt !== undefined && { startAt }),
+          ...(endAt !== undefined && { endAt }),
+        }),
       }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       toast.success("ההזמנה עודכנה בהצלחה");
       setSelectedBooking(null);
+      setEditMode(false);
       setDeclineNote("");
       setShowDeclineInput(false);
     },
@@ -310,7 +321,7 @@ function BookingsContent() {
 
       {/* ── Booking Detail Modal ────────────────────────────────────────── */}
       {selectedBooking && (
-        <div className="modal-overlay" onClick={() => setSelectedBooking(null)}>
+        <div className="modal-overlay" onClick={() => { setSelectedBooking(null); setEditMode(false); }}>
           <div className="modal-backdrop" />
           <div className="modal-content max-w-lg" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
@@ -318,7 +329,7 @@ function BookingsContent() {
                 <CalendarCheck className="w-5 h-5 text-brand-500" />
                 פרטי הזמנה
               </h3>
-              <button onClick={() => setSelectedBooking(null)} className="p-1 rounded-lg hover:bg-slate-100 transition-colors">
+              <button onClick={() => { setSelectedBooking(null); setEditMode(false); }} className="p-1 rounded-lg hover:bg-slate-100 transition-colors">
                 <X className="w-4 h-4 text-slate-400" />
               </button>
             </div>
@@ -419,16 +430,66 @@ function BookingsContent() {
                     </div>
                   )}
 
+                  {/* Inline edit form */}
+                  {editMode && (
+                    <div className="border border-brand-200 rounded-xl p-4 bg-brand-50/30 space-y-3">
+                      <p className="text-xs font-semibold text-petra-text">עריכת פרטי תור</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="label text-xs">תאריך</label>
+                          <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="input w-full text-sm" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <div>
+                            <label className="label text-xs">שעת התחלה</label>
+                            <input type="time" value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} className="input w-full text-sm" />
+                          </div>
+                          <div>
+                            <label className="label text-xs">שעת סיום</label>
+                            <input type="time" value={editEndTime} onChange={(e) => setEditEndTime(e.target.value)} className="input w-full text-sm" />
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="label text-xs">הערות</label>
+                        <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full text-sm" rows={2} />
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          onClick={() => {
+                            const startAt = new Date(`${editDate}T${editStartTime}`).toISOString();
+                            const endAt = new Date(`${editDate}T${editEndTime}`).toISOString();
+                            updateMutation.mutate({ id: booking.id, startAt, endAt, notes: editNotes });
+                          }}
+                          disabled={!editDate || !editStartTime || !editEndTime || updateMutation.isPending}
+                          className="btn-primary flex-1 text-sm py-2"
+                        >
+                          {updateMutation.isPending ? "שומר..." : "שמור שינויים"}
+                        </button>
+                        <button onClick={() => setEditMode(false)} className="btn-secondary flex-1 text-sm py-2">ביטול</button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Actions for confirmed bookings */}
-                  {booking.status === "confirmed" && (
+                  {booking.status === "confirmed" && !editMode && (
                     <div className="border-t border-slate-100 pt-4 flex gap-2">
-                      <a
-                        href="/scheduler"
+                      <button
+                        onClick={() => {
+                          const d = new Date(booking.startAt);
+                          const pad = (n: number) => n.toString().padStart(2, "0");
+                          setEditDate(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`);
+                          setEditStartTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
+                          const e = new Date(booking.endAt);
+                          setEditEndTime(`${pad(e.getHours())}:${pad(e.getMinutes())}`);
+                          setEditNotes(booking.notes ?? "");
+                          setEditMode(true);
+                        }}
                         className="flex-1 px-4 py-2.5 rounded-lg bg-brand-50 text-brand-600 text-sm font-semibold hover:bg-brand-100 transition-colors flex items-center justify-center gap-2"
                       >
                         <CalendarClock className="w-4 h-4" />
                         עריכת תור
-                      </a>
+                      </button>
                       <button
                         onClick={() => updateMutation.mutate({ id: booking.id, status: "cancelled" })}
                         disabled={updateMutation.isPending}

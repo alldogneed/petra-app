@@ -37,6 +37,8 @@ export async function PATCH(
       data: {
         ...(body.status !== undefined && { status: body.status }),
         ...(body.notes !== undefined && { notes: body.notes }),
+        ...(body.startAt !== undefined && { startAt: new Date(body.startAt) }),
+        ...(body.endAt !== undefined && { endAt: new Date(body.endAt) }),
       },
       include: {
         service: true,
