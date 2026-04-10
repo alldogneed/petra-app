@@ -524,6 +524,7 @@ model BoardingStay {
   @@index([yardId, status])
   @@index([petId])
   @@index([customerId])
+  @@index([assignedToUserId])
 }
 
 model Room {
@@ -909,6 +910,7 @@ model Order {
 
   @@index([businessId, status])
   @@index([businessId, customerId])
+  @@index([assignedToUserId])
 }
 
 model OrderLine {
