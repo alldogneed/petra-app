@@ -990,6 +990,29 @@ function CalendarContent() {
     [pendingBookingsRaw, serviceTypeFilters]
   );
 
+  // Only show service-type filters that actually exist in the loaded appointments/bookings
+  const activeServiceTypes = useMemo(() => {
+    const types = new Set<string>();
+    for (const a of appointments) {
+      const type = a.service?.type ?? "other";
+      if (SERVICE_TYPE_COLORS[type]) {
+        types.add(type);
+      } else if (a.priceListItem?.category === "אילוף") {
+        types.add("training");
+      } else if (a.priceListItem?.category === "טיפוח") {
+        types.add("grooming");
+      } else if (a.priceListItem?.category === "פנסיון") {
+        types.add("boarding");
+      } else {
+        types.add("other");
+      }
+    }
+    for (const b of pendingBookingsRaw) {
+      if (SERVICE_TYPE_COLORS[b.service.type]) types.add(b.service.type);
+    }
+    return Object.keys(SERVICE_TYPE_COLORS).filter((t) => types.has(t));
+  }, [appointments, pendingBookingsRaw]);
+
   // ── Google Calendar external events overlay ──
   interface GcalExternalEvent {
     id: string;
@@ -1663,8 +1686,9 @@ function CalendarContent() {
           הכל
         </button>
 
-        {/* Service type filters - multi-select */}
-        {Object.entries(SERVICE_TYPE_COLORS).map(([type, color]) => {
+        {/* Service type filters - multi-select, only types present in loaded appointments */}
+        {activeServiceTypes.map((type) => {
+          const color = SERVICE_TYPE_COLORS[type];
           const isActive = serviceTypeFilters.includes(type);
           const isDimmed = serviceTypeFilters.length > 0 && !isActive;
           return (
