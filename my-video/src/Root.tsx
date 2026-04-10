@@ -51,6 +51,12 @@ import {
   calculateBookingMetadata,
 } from "./BookingTutorial";
 import { BOOKING_SCENES } from "../voiceover-booking-config";
+import {
+  PetraDashboardTutorial,
+  DashboardTutorialProps,
+  calculateDashboardMetadata,
+} from "./DashboardTutorial";
+import { DASHBOARD_SCENES } from "../voiceover-dashboard-config";
 
 const FPS = 30;
 
@@ -76,6 +82,10 @@ const tasksDefaultProps: TasksTutorialProps = {
 
 const bookingDefaultProps: BookingTutorialProps = {
   sceneDurationsFrames: BOOKING_SCENES.map((s) => s.defaultDurationSec * FPS),
+};
+
+const dashboardDefaultProps: DashboardTutorialProps = {
+  sceneDurationsFrames: DASHBOARD_SCENES.map((s) => s.defaultDurationSec * FPS),
 };
 
 export const RemotionRoot: React.FC = () => {
@@ -213,6 +223,18 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={bookingDefaultProps}
+      />
+      <Composition
+        id="PetraDashboardTutorial"
+        component={PetraDashboardTutorial}
+        calculateMetadata={calculateDashboardMetadata}
+        durationInFrames={
+          DASHBOARD_SCENES.reduce((sum, s) => sum + s.defaultDurationSec, 0) * FPS
+        }
+        fps={FPS}
+        width={1280}
+        height={720}
+        defaultProps={dashboardDefaultProps}
       />
     </>
   );
