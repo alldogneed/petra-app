@@ -4,20 +4,20 @@ import {
   Audio,
   CalculateMetadataFunction,
   Series,
-  // Sequence,
+  Sequence,
   interpolate,
   staticFile,
   useVideoConfig,
 } from "remotion";
 import { getAudioDuration } from "./get-audio-duration";
-// import { AdminIntroScene } from "./scenes/AdminIntroScene";
-// import { AdminOverviewScene } from "./scenes/AdminOverviewScene";
-// import { AdminActivityScene } from "./scenes/AdminActivityScene";
-// import { AdminTeamScene } from "./scenes/AdminTeamScene";
-// import { AdminSessionsScene } from "./scenes/AdminSessionsScene";
-// import { AdminMessagesScene } from "./scenes/AdminMessagesScene";
-// import { AdminSubscriptionScene } from "./scenes/AdminSubscriptionScene";
-// import { AdminOutroScene } from "./scenes/AdminOutroScene";
+import { AdminIntroScene } from "./scenes/AdminIntroScene";
+import { AdminOverviewScene } from "./scenes/AdminOverviewScene";
+import { AdminActivityScene } from "./scenes/AdminActivityScene";
+import { AdminTeamScene } from "./scenes/AdminTeamScene";
+import { AdminSessionsScene } from "./scenes/AdminSessionsScene";
+import { AdminMessagesScene } from "./scenes/AdminMessagesScene";
+import { AdminSubscriptionScene } from "./scenes/AdminSubscriptionScene";
+import { AdminOutroScene } from "./scenes/AdminOutroScene";
 import { ADMIN_SCENES } from "../voiceover-admin-config";
 
 export type AdminTutorialProps = {
@@ -46,6 +46,12 @@ export const calculateAdminMetadata: CalculateMetadataFunction<AdminTutorialProp
     };
   };
 
+const SceneAudio: React.FC<{ file: string }> = ({ file }) => (
+  <Sequence layout="none">
+    <Audio src={staticFile(file)} />
+  </Sequence>
+);
+
 export const PetraAdminTutorial: React.FC<AdminTutorialProps> = ({
   sceneDurationsFrames,
 }) => {
@@ -69,40 +75,37 @@ export const PetraAdminTutorial: React.FC<AdminTutorialProps> = ({
         }
       />
       <Series>
-        {/* <Series.Sequence durationInFrames={intro} premountFor={fps}>
+        <Series.Sequence durationInFrames={intro} premountFor={fps}>
           <AdminIntroScene />
           <SceneAudio file="voiceover/admin-intro.wav" />
-        </Series.Sequence> */}
-        {/* <Series.Sequence durationInFrames={overview} premountFor={fps}>
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={overview} premountFor={fps}>
           <AdminOverviewScene />
           <SceneAudio file="voiceover/admin-overview.wav" />
-        </Series.Sequence> */}
-        {/* <Series.Sequence durationInFrames={activity} premountFor={fps}>
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={activity} premountFor={fps}>
           <AdminActivityScene />
           <SceneAudio file="voiceover/admin-activity.wav" />
-        </Series.Sequence> */}
-        {/* <Series.Sequence durationInFrames={team} premountFor={fps}>
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={team} premountFor={fps}>
           <AdminTeamScene />
           <SceneAudio file="voiceover/admin-team.wav" />
-        </Series.Sequence> */}
-        {/* <Series.Sequence durationInFrames={sessions} premountFor={fps}>
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={sessions} premountFor={fps}>
           <AdminSessionsScene />
           <SceneAudio file="voiceover/admin-sessions.wav" />
-        </Series.Sequence> */}
-        {/* <Series.Sequence durationInFrames={messages} premountFor={fps}>
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={messages} premountFor={fps}>
           <AdminMessagesScene />
           <SceneAudio file="voiceover/admin-messages.wav" />
-        </Series.Sequence> */}
-        {/* <Series.Sequence durationInFrames={subscription} premountFor={fps}>
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={subscription} premountFor={fps}>
           <AdminSubscriptionScene />
           <SceneAudio file="voiceover/admin-subscription.wav" />
-        </Series.Sequence> */}
-        {/* <Series.Sequence durationInFrames={outro} premountFor={fps}>
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={outro} premountFor={fps}>
           <AdminOutroScene />
           <SceneAudio file="voiceover/admin-outro.wav" />
-        </Series.Sequence> */}
-        <Series.Sequence durationInFrames={intro + overview + activity + team + sessions + messages + subscription + outro}>
-          <AbsoluteFill style={{ background: "#0f172a" }} />
         </Series.Sequence>
       </Series>
     </AbsoluteFill>
