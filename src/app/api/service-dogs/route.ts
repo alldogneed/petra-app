@@ -82,10 +82,10 @@ export async function POST(request: NextRequest) {
     if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
 
     const body = await request.json();
-    const { petId, phase, serviceType, notes } = body;
+    const { petId, petName, breed, species, phase, serviceType, notes } = body;
 
-    if (!petId) {
-      return NextResponse.json({ error: "נדרש לבחור חיית מחמד" }, { status: 400 });
+    if (!petId && !petName) {
+      return NextResponse.json({ error: "נדרש לבחור חיית מחמד או להזין שם כלב" }, { status: 400 });
     }
     if (phase && !VALID_PHASES.includes(phase)) {
       return NextResponse.json({ error: "שלב לא חוקי" }, { status: 400 });
@@ -94,10 +94,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "סוג שירות לא חוקי" }, { status: 400 });
     }
 
+    // If no petId, create a standalone pet linked directly to the business
+    let resolvedPetId = petId;
+    if (!petId && petName) {
+      const newPet = await prisma.pet.create({
+        data: {
+          name: petName,
+          species: species || "dog",
+          breed: breed || null,
+          businessId: authResult.businessId,
+        },
+      });
+      resolvedPetId = newPet.id;
+    }
+
     // Verify pet belongs to business (via customer or directly) — include health for smart protocol seeding
     const pet = await prisma.pet.findFirst({
       where: {
-        id: petId,
+        id: resolvedPetId,
         OR: [
           { customer: { businessId: authResult.businessId } },
           { businessId: authResult.businessId },
@@ -123,7 +137,7 @@ export async function POST(request: NextRequest) {
 
     // Check no existing profile
     const existing = await prisma.serviceDogProfile.findUnique({
-      where: { petId },
+      where: { petId: resolvedPetId },
     });
 
     if (existing) {
@@ -143,7 +157,7 @@ export async function POST(request: NextRequest) {
     // Sequential operations (no interactive $transaction — Supabase PgBouncer incompatible)
     const profile = await prisma.serviceDogProfile.create({
       data: {
-        petId,
+        petId: resolvedPetId,
         businessId: authResult.businessId,
         phase: initialPhase,
         serviceType: serviceType || null,
@@ -155,13 +169,13 @@ export async function POST(request: NextRequest) {
 
     // Auto-create TrainingProgram so the dog immediately appears in the training tab
     const existingProgram = await prisma.trainingProgram.findFirst({
-      where: { dogId: petId, trainingType: "SERVICE_DOG", businessId: authResult.businessId },
+      where: { dogId: resolvedPetId, trainingType: "SERVICE_DOG", businessId: authResult.businessId },
     });
     if (!existingProgram) {
       await prisma.trainingProgram.create({
         data: {
           businessId: authResult.businessId,
-          dogId: petId,
+          dogId: resolvedPetId,
           customerId: pet.customerId || null,
           name: `הכשרת כלב שירות — ${pet.name}`,
           programType: "SD_FOUNDATION",

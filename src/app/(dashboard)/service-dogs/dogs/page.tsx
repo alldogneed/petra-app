@@ -610,7 +610,7 @@ function AddDogModal({ dogs, onClose }: { dogs: ServiceDogCard[]; onClose: () =>
   const availablePets = (petsData?.pets ?? []).filter((p) => !existingPetIds.has(p.id));
 
   const createMutation = useMutation({
-    mutationFn: (data: { petId: string; phase: string; serviceType: string; notes: string }) =>
+    mutationFn: (data: { petId?: string; petName?: string; phase: string; serviceType: string; notes: string }) =>
       fetch("/api/service-dogs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -671,10 +671,26 @@ function AddDogModal({ dogs, onClose }: { dogs: ServiceDogCard[]; onClose: () =>
               </div>
             )}
             {petSearch.length >= 1 && !selectedPetId && petsData !== undefined && availablePets.length === 0 && (
-              <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
-                {(petsData?.pets ?? []).length > 0
-                  ? "הכלב כבר מופיע במערכת כלבי השירות"
-                  : "לא נמצא כלב בשם זה. יש ליצור את הלקוח והכלב תחילה בדף הלקוחות."}
+              <div className="mt-2 space-y-2">
+                {(petsData?.pets ?? []).length > 0 ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+                    הכלב כבר מופיע במערכת כלבי השירות
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 flex items-center justify-between gap-2">
+                    <span>לא נמצא כלב בשם &quot;{petSearch}&quot;</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPetId("__new__");
+                        setSelectedPetName(`כלב חדש: ${petSearch}`);
+                      }}
+                      className="shrink-0 text-xs font-medium text-brand-600 hover:text-brand-700 underline"
+                    >
+                      + צור כלב חדש בשם זה
+                    </button>
+                  </div>
+                )}
               </div>
             )}
             {selectedPetId && (
@@ -719,7 +735,13 @@ function AddDogModal({ dogs, onClose }: { dogs: ServiceDogCard[]; onClose: () =>
 
           <div className="flex gap-2 pt-1">
             <button
-              onClick={() => createMutation.mutate({ petId: selectedPetId, phase, serviceType, notes })}
+              onClick={() => {
+                if (selectedPetId === "__new__") {
+                  createMutation.mutate({ petName: petSearch, phase, serviceType, notes });
+                } else {
+                  createMutation.mutate({ petId: selectedPetId, phase, serviceType, notes });
+                }
+              }}
               disabled={!selectedPetId || createMutation.isPending}
               className="btn-primary flex-1"
             >
