@@ -1322,6 +1322,7 @@ function CalendarContent() {
           boxShadow: isCanceled ? "none" : `0 1px 3px ${color}40`,
           zIndex: isResizingThis ? 20 : 10,
           minHeight: compact ? undefined : 60,
+          pointerEvents: dragging && dragging.apt.id !== apt.id ? "none" : undefined,
         }}
         onClick={(e) => {
           e.stopPropagation();
@@ -1379,7 +1380,7 @@ function CalendarContent() {
         )}
         style={{
           ...style,
-          borderLeft: `3px dashed ${color}`,
+          borderLeft: `3px solid ${color}`,
           zIndex: 10,
         }}
       >
