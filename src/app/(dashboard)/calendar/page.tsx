@@ -994,9 +994,8 @@ function CalendarContent() {
   const activeServiceTypes = useMemo(() => {
     const types = new Set<string>();
     for (const a of appointments) {
-      const type = a.service?.type ?? "other";
-      if (SERVICE_TYPE_COLORS[type]) {
-        types.add(type);
+      if (a.service?.type && SERVICE_TYPE_COLORS[a.service.type]) {
+        types.add(a.service.type);
       } else if (a.priceListItem?.category === "אילוף") {
         types.add("training");
       } else if (a.priceListItem?.category === "טיפוח") {
