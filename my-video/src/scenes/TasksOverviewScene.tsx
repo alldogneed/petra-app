@@ -7,7 +7,6 @@ import {
   useVideoConfig,
 } from "remotion";
 import { PetraSidebar } from "./PetraSidebar";
-import { HighlightBox } from "./HighlightBox";
 
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 const ORANGE = "#ea580c";
@@ -186,8 +185,6 @@ export const TasksOverviewScene: React.FC = () => {
         </div>
       </div>
 
-      {/* Highlight: overdue task badge area — first 120 frames */}
-      <HighlightBox x={220} y={104} width={580} height={44} startFrame={80} endFrame={140} borderRadius={10} />
     </AbsoluteFill>
   );
 };

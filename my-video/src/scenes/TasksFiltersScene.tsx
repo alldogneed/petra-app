@@ -7,7 +7,6 @@ import {
   useVideoConfig,
 } from "remotion";
 import { PetraSidebar } from "./PetraSidebar";
-import { HighlightBox } from "./HighlightBox";
 
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 const ORANGE = "#ea580c";
@@ -183,10 +182,6 @@ export const TasksFiltersScene: React.FC = () => {
         </div>
       </div>
 
-      {/* Highlight search bar while typing */}
-      <HighlightBox x={220} y={60} width={340} height={36} startFrame={SEARCH_START} endFrame={FILTER_START - 10} borderRadius={8} />
-      {/* Highlight status filter area */}
-      <HighlightBox x={572} y={60} width={252} height={36} startFrame={FILTER_START} endFrame={DATE_START - 10} borderRadius={7} />
     </AbsoluteFill>
   );
 };

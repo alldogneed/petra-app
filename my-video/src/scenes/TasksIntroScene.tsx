@@ -11,44 +11,50 @@ import {
 
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 
-const QUESTIONS = [
-  "מי מאכיל את הכלבים בחדר 3?",
-  "מי נותן תרופה לנובה ב-18:00?",
-  "מי מתקשר ללקוח שחיכה?",
-];
-
 export const TasksIntroScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
 
-  const fadeIn = interpolate(frame, [0, fps * 0.4], [0, 1], { extrapolateRight: "clamp" });
-  const fadeOut = interpolate(frame, [durationInFrames - fps * 0.4, durationInFrames], [1, 0], { extrapolateLeft: "clamp" });
+  const fadeIn = interpolate(frame, [0, fps * 0.5], [0, 1], { extrapolateRight: "clamp" });
+  const fadeOut = interpolate(frame, [durationInFrames - fps * 0.5, durationInFrames], [1, 0], { extrapolateLeft: "clamp" });
   const opacity = Math.min(fadeIn, fadeOut);
 
-  const pulse = interpolate(frame % 90, [0, 45, 90], [0, 1, 0]);
+  const logoScale = spring({ frame: frame - 5, fps, config: { damping: 200 } });
+  const badgeOpacity = interpolate(frame, [20, 35], [0, 1], { extrapolateRight: "clamp" });
 
-  const logoP = spring({ frame: frame - 5, fps, config: { damping: 200 } });
-  const logoScale = interpolate(logoP, [0, 1], [0.7, 1]);
-  const logoOpacity = interpolate(frame, [5, 20], [0, 1], { extrapolateRight: "clamp" });
+  const titleProgress = spring({ frame: frame - 30, fps, config: { damping: 200 } });
+  const titleY = interpolate(titleProgress, [0, 1], [40, 0]);
+  const titleOpacity = interpolate(frame, [30, 45], [0, 1], { extrapolateRight: "clamp" });
 
-  const labelOpacity = interpolate(frame, [22, 36], [0, 1], { extrapolateRight: "clamp" });
+  const subtitleProgress = spring({ frame: frame - 48, fps, config: { damping: 200 } });
+  const subtitleY = interpolate(subtitleProgress, [0, 1], [20, 0]);
+  const subtitleOpacity = interpolate(frame, [48, 62], [0, 1], { extrapolateRight: "clamp" });
 
-  // Three questions stagger in, each sliding from right
-  const questionDelays = [42, 68, 94];
-
-  // "מסונכרן" answer fades in after all questions
-  const answerOpacity = interpolate(frame, [130, 148], [0, 1], { extrapolateRight: "clamp" });
-  const answerP = spring({ frame: frame - 130, fps, config: { damping: 200 } });
-  const answerY = interpolate(answerP, [0, 1], [20, 0]);
+  const pulse = interpolate(frame % 60, [0, 30, 60], [0, 1, 0]);
 
   return (
-    <AbsoluteFill style={{
-      opacity,
-      background: `radial-gradient(ellipse at 50% 45%, rgba(234,88,12,${0.08 + pulse * 0.05}) 0%, transparent 60%), linear-gradient(145deg, #0f172a 0%, #1e293b 100%)`,
-      display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "center",
-      fontFamily: FONT, direction: "rtl",
-    }}>
+    <AbsoluteFill
+      style={{
+        opacity,
+        background: "linear-gradient(145deg, #0f172a 0%, #1e293b 60%, #0c1422 100%)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: FONT,
+        direction: "rtl",
+      }}
+    >
+      {/* Background glow */}
+      <div style={{
+        position: "absolute",
+        top: "25%", left: "50%",
+        transform: "translateX(-50%)",
+        width: 700, height: 500,
+        background: `radial-gradient(ellipse, rgba(234,88,12,${0.1 + pulse * 0.05}) 0%, transparent 65%)`,
+        pointerEvents: "none",
+      }} />
+
       {/* Decorative dots */}
       {[...Array(8)].map((_, i) => (
         <div key={i} style={{
@@ -61,54 +67,51 @@ export const TasksIntroScene: React.FC = () => {
 
       {/* Logo */}
       <div style={{
-        transform: `scale(${logoScale})`, opacity: logoOpacity,
-        marginBottom: 20, display: "flex", alignItems: "center", gap: 10,
+        transform: `scale(${logoScale})`,
+        marginBottom: 24,
+        display: "flex", alignItems: "center", gap: 10,
       }}>
-        <Img src={staticFile("petra-icon.png")} style={{ width: 38, height: 38, objectFit: "contain" }} />
-        <span style={{ color: "rgba(255,255,255,0.9)", fontSize: 20, fontWeight: 700, letterSpacing: 1 }}>PETRA</span>
+        <Img src={staticFile("petra-icon.png")} style={{ width: 44, height: 44, objectFit: "contain" }} />
+        <span style={{ color: "rgba(255,255,255,0.9)", fontSize: 24, fontWeight: 700, letterSpacing: 1 }}>
+          PETRA
+        </span>
       </div>
 
-      {/* Label */}
+      {/* Badge */}
       <div style={{
-        opacity: labelOpacity,
-        background: "rgba(234,88,12,0.15)", border: "1px solid rgba(234,88,12,0.5)",
-        borderRadius: 99, padding: "5px 16px", marginBottom: 32,
+        opacity: badgeOpacity,
+        background: "rgba(234,88,12,0.15)",
+        border: "1px solid rgba(234,88,12,0.5)",
+        borderRadius: 99, padding: "5px 16px",
+        marginBottom: 20,
         color: "#fb923c", fontSize: 13, fontWeight: 600,
       }}>
-        ניהול משימות
+        מדריך מהיר
       </div>
 
-      {/* Questions */}
-      {QUESTIONS.map((q, i) => {
-        const d = questionDelays[i];
-        const qOpacity = interpolate(frame, [d, d + 12], [0, 1], { extrapolateRight: "clamp" });
-        const qP = spring({ frame: frame - d, fps, config: { damping: 180 } });
-        const qX = interpolate(qP, [0, 1], [60, 0]);
-        return (
-          <div key={q} style={{
-            opacity: qOpacity, transform: `translateX(${qX}px)`,
-            marginBottom: 14, display: "flex", alignItems: "center", gap: 12,
-          }}>
-            <span style={{ color: "#ef4444", fontSize: 26, fontWeight: 900 }}>מי</span>
-            <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 22, fontWeight: 600 }}>
-              {q.replace("מי ", "")}
-            </span>
-          </div>
-        );
-      })}
-
-      {/* Answer */}
-      <div style={{
-        marginTop: 28, opacity: answerOpacity, transform: `translateY(${answerY}px)`,
+      {/* Title */}
+      <h1 style={{
+        color: "white", fontSize: 60, fontWeight: 800,
+        margin: 0, marginBottom: 18,
         textAlign: "center",
+        opacity: titleOpacity,
+        transform: `translateY(${titleY}px)`,
+        lineHeight: 1.15,
+        textShadow: "0 2px 20px rgba(234,88,12,0.3)",
       }}>
-        <div style={{ fontSize: 28, fontWeight: 900, color: "white", marginBottom: 6 }}>
-          כל הצוות מסונכרן
-        </div>
-        <div style={{ fontSize: 16, color: "#94a3b8", fontWeight: 500 }}>
-          ושום דבר לא נופל בין הכיסאות
-        </div>
-      </div>
+        מערכת המשימות
+      </h1>
+
+      {/* Subtitle */}
+      <p style={{
+        color: "#94a3b8", fontSize: 20,
+        margin: 0, textAlign: "center",
+        opacity: subtitleOpacity,
+        transform: `translateY(${subtitleY}px)`,
+        maxWidth: 560, lineHeight: 1.6,
+      }}>
+        סנכרון הצוות — כי שום דבר לא נופל בין הכיסאות
+      </p>
     </AbsoluteFill>
   );
 };
