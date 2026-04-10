@@ -990,7 +990,7 @@ function CalendarContent() {
     [pendingBookingsRaw, serviceTypeFilters]
   );
 
-  // Always show core service-type filters; rare types (daycare/consultation/other) only when present
+  // Always show core service-type filters; rare types only when present in data
   const CORE_SERVICE_TYPES = ["training", "grooming", "boarding"];
   const activeServiceTypes = useMemo(() => {
     const types = new Set<string>(CORE_SERVICE_TYPES);
@@ -1007,12 +1007,23 @@ function CalendarContent() {
         types.add("other");
       }
     }
+    for (const o of orders) {
+      if (SERVICE_TYPE_COLORS[o.orderType]) types.add(o.orderType);
+    }
     for (const b of pendingBookingsRaw) {
       if (SERVICE_TYPE_COLORS[b.service.type]) types.add(b.service.type);
     }
     return Object.keys(SERVICE_TYPE_COLORS).filter((t) => types.has(t));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appointments, pendingBookingsRaw]);
+  }, [appointments, orders, pendingBookingsRaw]);
+
+  // Filter orders by active service-type filter (same chips as appointments)
+  const filteredOrders = useMemo(
+    () => serviceTypeFilters.length === 0
+      ? orders
+      : orders.filter((o) => serviceTypeFilters.includes(o.orderType)),
+    [orders, serviceTypeFilters]
+  );
 
   // ── Google Calendar external events overlay ──
   interface GcalExternalEvent {
@@ -1297,8 +1308,8 @@ function CalendarContent() {
   const dayOrders = useMemo(() => {
     if (viewMode !== "day") return [];
     const dayStr = toLocalDateString(selectedDay);
-    return orders.filter((o) => o.startAt && dateTimeToDateStr(o.startAt) === dayStr);
-  }, [orders, selectedDay, viewMode]);
+    return filteredOrders.filter((o) => o.startAt && dateTimeToDateStr(o.startAt) === dayStr);
+  }, [filteredOrders, selectedDay, viewMode]);
 
   const dayTimedTasks = useMemo(() => {
     if (viewMode !== "day") return [];
@@ -1994,7 +2005,7 @@ function CalendarContent() {
                 {/* Order blocks */}
                 {weekDates.map((date, dayIdx) => {
                   const dateStr = toLocalDateString(date);
-                  const dayOrd = orders.filter(
+                  const dayOrd = filteredOrders.filter(
                     (o) => o.startAt && dateTimeToDateStr(o.startAt) === dateStr
                   );
                   return dayOrd.map((order) => {
@@ -2559,7 +2570,7 @@ function CalendarContent() {
               const dayAppts = filteredAppointments.filter(
                 (a) => a.date.slice(0, 10) === dateStr
               );
-              const dayOrd = orders.filter(
+              const dayOrd = filteredOrders.filter(
                 (o) => o.startAt && dateTimeToDateStr(o.startAt) === dateStr
               );
               const dayTsk = tasks.filter(
@@ -2704,7 +2715,7 @@ function CalendarContent() {
               icon: "📅",
             }));
 
-          orders
+          filteredOrders
             .filter((o) => o.startAt && dateTimeToDateStr(o.startAt) === dateStr)
             .forEach((o) => items.push({
               key: `ord-${o.id}`,
