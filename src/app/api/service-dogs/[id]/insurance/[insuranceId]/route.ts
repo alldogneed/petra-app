@@ -21,12 +21,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const body = await request.json();
 
-    if (body.policyDocument) {
-      try { const u = new URL(body.policyDocument); if (u.protocol !== "https:") throw new Error(); } catch {
-        return NextResponse.json({ error: "כתובת מסמך ביטוח לא חוקית" }, { status: 400 });
-      }
-    }
-
     const updated = await prisma.serviceDogInsurance.update({
       where: { id: params.insuranceId },
       data: {

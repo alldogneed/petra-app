@@ -4643,7 +4643,7 @@ function InsuranceTab({ dogId }: { dogId: string }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => r.json()),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       refreshIns();
       setShowAddInsurance(false);
