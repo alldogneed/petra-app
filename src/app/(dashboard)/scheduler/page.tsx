@@ -46,6 +46,25 @@ interface Service {
   isActive: boolean;
 }
 
+interface PriceListItem {
+  id: string;
+  name: string;
+  durationMinutes: number | null;
+  basePrice: number;
+  isActive: boolean;
+  category: string | null;
+}
+
+// Unified option shown in the service dropdown
+interface ServiceOption {
+  id: string;
+  name: string;
+  duration: number;
+  price: number;
+  isActive: boolean;
+  source: "service" | "price-list";
+}
+
 interface TimeSlot {
   time: string;
   available: boolean;
@@ -172,10 +191,21 @@ function SchedulerContent() {
     queryFn: () => fetchJSON("/api/services"),
   });
 
-  const activeServices = useMemo(
-    () => services.filter((s) => s.isActive),
-    [services]
-  );
+  const { data: priceListItems = [] } = useQuery<PriceListItem[]>({
+    queryKey: ["price-list-items-for-scheduler"],
+    queryFn: () => fetchJSON("/api/price-list-items"),
+  });
+
+  // Merge Services + PriceListItems into a single unified list
+  const activeServices = useMemo<ServiceOption[]>(() => {
+    const fromServices: ServiceOption[] = services
+      .filter((s) => s.isActive)
+      .map((s) => ({ id: s.id, name: s.name, duration: s.duration, price: s.price, isActive: true, source: "service" as const }));
+    const fromPriceList: ServiceOption[] = priceListItems
+      .filter((p) => p.isActive)
+      .map((p) => ({ id: p.id, name: p.name, duration: p.durationMinutes ?? 60, price: p.basePrice, isActive: true, source: "price-list" as const }));
+    return [...fromServices, ...fromPriceList];
+  }, [services, priceListItems]);
 
   const { data: rawRules } = useQuery<AvailabilityRule[]>({
     queryKey: ["availability-rules"],
@@ -193,12 +223,16 @@ function SchedulerContent() {
     return m;
   }, [rules]);
 
+  const selectedService = activeServices.find((s) => s.id === selectedServiceId);
+
   const { data: slots = [], isLoading: slotsLoading } = useQuery<TimeSlot[]>({
     queryKey: ["booking-slots", selectedDate, selectedServiceId],
-    queryFn: () =>
-      fetchJSON(
-        `/api/booking/slots?date=${selectedDate}&serviceId=${selectedServiceId}`
-      ),
+    queryFn: () => {
+      const param = selectedService?.source === "price-list"
+        ? `priceListItemId=${selectedServiceId}`
+        : `serviceId=${selectedServiceId}`;
+      return fetchJSON(`/api/booking/slots?date=${selectedDate}&${param}`);
+    },
     enabled: !!selectedDate && !!selectedServiceId,
   });
 
@@ -241,7 +275,6 @@ function SchedulerContent() {
     }
   }, [prefilledCustomerId, customers, selectedCustomerId]);
 
-  const selectedService = activeServices.find((s) => s.id === selectedServiceId);
   const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
 
   /* ── Mutations ── */
@@ -305,6 +338,11 @@ function SchedulerContent() {
       ? addMinutes(selectedTime, selectedService.duration)
       : addMinutes(selectedTime, 30);
 
+    const isPriceList = selectedService?.source === "price-list";
+    const servicePayload = isPriceList
+      ? { priceListItemId: selectedServiceId }
+      : { serviceId: selectedServiceId };
+
     if (showNewCustomer && !selectedCustomerId) {
       // First create the customer, then book
       createCustomer.mutate(
@@ -315,7 +353,7 @@ function SchedulerContent() {
               date: selectedDate,
               startTime: selectedTime,
               endTime,
-              serviceId: selectedServiceId,
+              ...servicePayload,
               customerId: newCust.id,
               petId: selectedPetId || undefined,
               notes: notes || undefined,
@@ -330,7 +368,7 @@ function SchedulerContent() {
       date: selectedDate,
       startTime: selectedTime,
       endTime,
-      serviceId: selectedServiceId,
+      ...servicePayload,
       customerId,
       petId: selectedPetId || undefined,
       notes: notes || undefined,
@@ -532,7 +570,7 @@ function SchedulerContent() {
                   {selectedService
                     ? `${selectedService.name} — ${selectedService.duration} דק׳ — ${formatCurrency(selectedService.price)}`
                     : activeServices.length === 0
-                      ? "אין שירותים פעילים — הוסף שירות בדף שירותים"
+                      ? "אין שירותים פעילים — הוסף שירות בהגדרות או במחירון"
                       : "בחר שירות..."}
                 </span>
                 <ChevronDown className={cn("w-4 h-4 text-gray-400 flex-shrink-0 transition-transform", showServiceDropdown && "rotate-180")} />
@@ -560,8 +598,8 @@ function SchedulerContent() {
                 </>
               )}
             </div>
-            {activeServices.length === 0 && services.length > 0 && (
-              <p className="text-xs text-amber-600 mt-1">יש שירותים לא פעילים — הפעל אותם בדף שירותים</p>
+            {activeServices.length === 0 && (services.length > 0 || priceListItems.length > 0) && (
+              <p className="text-xs text-amber-600 mt-1">יש שירותים לא פעילים — הפעל אותם בהגדרות או במחירון</p>
             )}
           </div>
 
