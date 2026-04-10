@@ -853,6 +853,7 @@ function CalendarContent() {
   const [showGcal, setShowGcal] = useState(true);
   const [dragging, setDragging] = useState<{ apt: AppointmentEvent; durationMins: number; offsetMins: number } | null>(null);
   const [dropPreview, setDropPreview] = useState<{ date: string; startMins: number } | null>(null);
+  const [showLeads, setShowLeads] = useState(true);
 
   // Auto-scroll to current time when switching to day/week view
   useEffect(() => {
@@ -1602,6 +1603,21 @@ function CalendarContent() {
           <span>יומן גוגל</span>
         </button>
 
+        {/* Leads follow-up toggle */}
+        <button
+          onClick={() => setShowLeads((v) => !v)}
+          className={cn(
+            "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
+            showLeads
+              ? "border-violet-400 font-medium shadow-sm text-violet-600"
+              : "border-transparent opacity-40 hover:opacity-70 text-petra-muted"
+          )}
+          title="הצג/הסתר פולואפ מכירות"
+        >
+          <div className="w-2.5 h-2.5 rounded-full bg-violet-400 flex-shrink-0" />
+          <span>מכירות</span>
+        </button>
+
         <div className="w-px h-4 bg-petra-border mx-1" />
         <div className="flex items-center gap-1.5 text-xs text-petra-muted px-1">
           <div className="w-2.5 h-2.5 rounded border border-dashed border-orange-400 bg-white" />
@@ -1882,7 +1898,7 @@ function CalendarContent() {
                 })}
 
                 {/* Lead follow-up blocks - week view */}
-                {weekDates.map((date, dayIdx) => {
+                {showLeads && weekDates.map((date, dayIdx) => {
                   const dateStr = toLocalDateString(date);
                   const dayLeads = leadFollowUps.filter(
                     (l) => l.nextFollowUpAt.slice(0, 10) === dateStr
@@ -2215,7 +2231,7 @@ function CalendarContent() {
             })}
 
             {/* Lead follow-up blocks - day view */}
-            {leadFollowUps
+            {showLeads && leadFollowUps
               .filter((l) => l.nextFollowUpAt.slice(0, 10) === toLocalDateString(selectedDay))
               .map((lead) => {
                 const startTime = dateTimeToTime(lead.nextFollowUpAt);
