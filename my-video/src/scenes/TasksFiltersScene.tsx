@@ -148,7 +148,7 @@ export const TasksFiltersScene: React.FC = () => {
           </div>
 
           {/* Task list */}
-          <div style={{ padding: "14px 24px" }}>
+          <div style={{ padding: "14px 24px", opacity: listOpacity }}>
             {visibleTasks.map((task, i) => {
               const rowOpacity = interpolate(frame, [12 + i * 10, 24 + i * 10], [0, 1], { extrapolateRight: "clamp" });
               return (
