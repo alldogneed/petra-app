@@ -300,3 +300,15 @@ input::placeholder, textarea::placeholder { color: #64748b; }
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+
+/* ─── Print: hide all modals, toasts, nav, and interactive UI ─────── */
+@media print {
+  .modal-overlay,
+  .modal-backdrop,
+  [data-sonner-toaster],
+  [role="dialog"],
+  [role="alertdialog"] {
+    display: none !important;
+  }
+}
