@@ -990,9 +990,10 @@ function CalendarContent() {
     [pendingBookingsRaw, serviceTypeFilters]
   );
 
-  // Only show service-type filters that actually exist in the loaded appointments/bookings
+  // Always show core types (training/grooming/boarding); only show rare types if present in loaded data
+  const CORE_SERVICE_TYPES = new Set(["training", "grooming", "boarding"]);
   const activeServiceTypes = useMemo(() => {
-    const types = new Set<string>();
+    const types = new Set<string>(CORE_SERVICE_TYPES);
     for (const a of appointments) {
       const type = a.service?.type ?? "other";
       if (SERVICE_TYPE_COLORS[type]) {
