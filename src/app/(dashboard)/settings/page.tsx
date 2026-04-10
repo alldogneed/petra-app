@@ -1048,6 +1048,30 @@ function IntegrationsTab() {
     onError: (err: Error) => toast.error(err.message || "שגיאה בסנכרון Google Calendar. נסה שוב."),
   });
 
+  // ── GCal calendar list (for overlay selection) ──
+  const gcalConnected = integrations?.find((i) => i.id === "google-calendar")?.connected ?? false;
+
+  const { data: gcalCalendarData, refetch: refetchCalendars } = useQuery<{
+    calendars: { id: string; summary: string; backgroundColor: string; primary: boolean }[];
+    selectedIds: string[];
+  }>({
+    queryKey: ["gcal-calendar-list"],
+    queryFn: () => fetchJSON("/api/integrations/google/list-calendars"),
+    enabled: gcalConnected,
+    staleTime: 60_000,
+  });
+
+  const saveSelectedCalendarsMutation = useMutation({
+    mutationFn: (calendars: { id: string; summary: string; backgroundColor: string }[]) =>
+      fetch("/api/integrations/google/selected-calendars", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ calendars }),
+      }).then((r) => r.json()),
+    onSuccess: () => toast.success("יומנים לתצוגה עודכנו"),
+    onError: () => toast.error("שגיאה בשמירת הגדרות יומן"),
+  });
+
   const disconnectInvoicingMutation = useMutation({
     mutationFn: () =>
       fetch("/api/invoicing/settings", { method: "DELETE" }).then((r) => {
@@ -1167,6 +1191,57 @@ function IntegrationsTab() {
                       </button>
                     </div>
                   )}
+                  {/* Google Calendar overlay selector */}
+                  <div className="pt-1 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-petra-text font-medium">יומנים לתצוגה ביומן פטרה</span>
+                      <button
+                        onClick={() => refetchCalendars()}
+                        className="text-xs text-petra-muted hover:text-petra-text"
+                        title="רענן רשימת יומנים"
+                      >
+                        רענן
+                      </button>
+                    </div>
+                    <p className="text-xs text-petra-muted">בחר יומנים מ-Google שיופיעו בצבע שקוף ביומן פטרה (read-only)</p>
+                    {gcalCalendarData ? (
+                      <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                        {gcalCalendarData.calendars.map((cal) => {
+                          const isSelected = gcalCalendarData.selectedIds.includes(cal.id);
+                          return (
+                            <label key={cal.id} className="flex items-center gap-2 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  const current = gcalCalendarData.calendars.filter((c) =>
+                                    gcalCalendarData.selectedIds.includes(c.id)
+                                  );
+                                  const updated = e.target.checked
+                                    ? [...current, { id: cal.id, summary: cal.summary, backgroundColor: cal.backgroundColor }]
+                                    : current.filter((c) => c.id !== cal.id);
+                                  saveSelectedCalendarsMutation.mutate(updated, {
+                                    onSuccess: () => refetchCalendars(),
+                                  });
+                                }}
+                                className="rounded accent-orange-500 w-3.5 h-3.5 flex-shrink-0"
+                              />
+                              <span
+                                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                style={{ background: cal.backgroundColor }}
+                              />
+                              <span className="text-xs text-petra-text group-hover:text-petra-primary truncate">
+                                {cal.summary}
+                                {cal.primary && <span className="text-petra-muted mr-1">(ראשי)</span>}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-petra-muted">טוען יומנים...</div>
+                    )}
+                  </div>
                 </div>
               )}
               {isWhatsApp && integ.connected && biz && can("whatsapp_reminders") && (

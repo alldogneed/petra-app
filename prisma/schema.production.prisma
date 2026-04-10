@@ -39,7 +39,8 @@ model PlatformUser {
   gcalCalendarName    String    @default("Petra Bookings")
   gcalConnectedEmail  String?   // the Google email used for calendar sync
   gcalLastConnectedAt DateTime?
-  gcalSyncEnabled     Boolean   @default(true) // toggle sync on/off
+  gcalSyncEnabled          Boolean   @default(true) // toggle sync on/off
+  gcalSelectedCalendars    String?   // JSON: [{ id, summary, backgroundColor }] selected for overlay in Petra calendar
 
   // Terms of Service
   tosAcceptedVersion  String?   // e.g. "1.0" — version last accepted

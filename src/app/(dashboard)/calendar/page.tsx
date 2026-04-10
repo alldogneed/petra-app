@@ -938,6 +938,26 @@ function CalendarContent() {
     [pendingBookingsRaw, serviceTypeFilter]
   );
 
+  // ── Google Calendar external events overlay ──
+  interface GcalExternalEvent {
+    id: string;
+    title: string;
+    start: string; // ISO datetime or YYYY-MM-DD for all-day
+    end: string;
+    isAllDay: boolean;
+    calendarId: string;
+    calendarName: string;
+    backgroundColor: string;
+    htmlLink?: string;
+  }
+  const { data: gcalExternalData } = useQuery<{ events: GcalExternalEvent[] }>({
+    queryKey: ["gcal-external-events", from, to],
+    queryFn: () => fetchJSON(`/api/integrations/google/external-events?start=${from}&end=${to}`),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const gcalEvents = gcalExternalData?.events ?? [];
+
   const statusMutation = useMutation({
     mutationFn: ({ id, status, cancellationNote }: { id: string; status: string; cancellationNote?: string }) =>
       fetch(`/api/appointments/${id}`, {
@@ -1828,6 +1848,42 @@ function CalendarContent() {
                   ];
                 })}
 
+                {/* Google Calendar external events overlay (read-only) */}
+                {gcalEvents.filter((e) => !e.isAllDay).map((ev) => {
+                  const startStr = ev.start.slice(0, 10);
+                  const dayIdx = weekDates.findIndex((d) => toLocalDateString(d) === startStr);
+                  if (dayIdx === -1) return null;
+                  const startTime = dateTimeToTime(ev.start);
+                  const endTime = dateTimeToTime(ev.end);
+                  const { top, height } = appointmentStyle(startTime, endTime);
+                  const startMins = timeToMinutes(startTime);
+                  if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
+                  return (
+                    <a
+                      key={ev.id}
+                      href={ev.htmlLink ?? "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={`${ev.title}\n${ev.calendarName}\n${startTime}–${endTime}`}
+                      className="absolute rounded-lg px-1.5 py-0.5 overflow-hidden border flex flex-col justify-center opacity-70 hover:opacity-90 transition-opacity"
+                      style={{
+                        top,
+                        height: Math.max(height, 20),
+                        right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                        width: `calc((100% - 60px) / 7 - 4px)`,
+                        marginRight: 2,
+                        background: ev.backgroundColor + "33",
+                        borderColor: ev.backgroundColor + "88",
+                        zIndex: 5,
+                      }}
+                    >
+                      <div className="text-[10px] font-medium truncate" style={{ color: ev.backgroundColor }}>
+                        {ev.title}
+                      </div>
+                    </a>
+                  );
+                })}
+
                 {/* Current time indicator */}
                 {currentTimeTop !== null && todayColumnIndex >= 0 && (
                   <div
@@ -1995,6 +2051,41 @@ function CalendarContent() {
                   false
                 );
               })}
+
+            {/* Google Calendar external events overlay - day view */}
+            {gcalEvents.filter((e) => !e.isAllDay && e.start.slice(0, 10) === toLocalDateString(selectedDay)).map((ev) => {
+              const startTime = dateTimeToTime(ev.start);
+              const endTime = dateTimeToTime(ev.end);
+              const { top, height } = appointmentStyle(startTime, endTime);
+              const startMins = timeToMinutes(startTime);
+              if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
+              return (
+                <a
+                  key={ev.id}
+                  href={ev.htmlLink ?? "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`${ev.title}\n${ev.calendarName}\n${startTime}–${endTime}`}
+                  className="absolute rounded-lg px-2 py-0.5 overflow-hidden border flex flex-col justify-center opacity-70 hover:opacity-90 transition-opacity"
+                  style={{
+                    top,
+                    height: Math.max(height, 22),
+                    right: 60,
+                    width: "calc(100% - 64px)",
+                    background: ev.backgroundColor + "33",
+                    borderColor: ev.backgroundColor + "88",
+                    zIndex: 5,
+                  }}
+                >
+                  <div className="text-xs font-medium truncate" style={{ color: ev.backgroundColor }}>
+                    {ev.title}
+                  </div>
+                  <div className="text-[10px] truncate" style={{ color: ev.backgroundColor + "bb" }}>
+                    {ev.calendarName}
+                  </div>
+                </a>
+              );
+            })}
 
             {/* Current time indicator */}
             {currentTimeTop !== null && (
