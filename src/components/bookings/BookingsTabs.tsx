@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarCheck, Send, CalendarClock } from "lucide-react";
+import { CalendarCheck, CalendarClock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
   { name: "קביעת תור ידני", href: "/scheduler",           icon: CalendarClock },
   { name: "ניהול תורים",    href: "/bookings",             icon: CalendarCheck },
-  { name: "תור לשליחה",     href: "/scheduled-messages",  icon: Send          },
 ];
 
 export function BookingsTabs() {
