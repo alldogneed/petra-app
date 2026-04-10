@@ -100,7 +100,7 @@ import { DASHBOARD_SCENES } from "../voiceover-dashboard-config";
 
 // Scene imports — uncommented as tasks complete:
 import { DashboardIntroScene } from "./scenes/DashboardIntroScene";
-// import { DashboardStatsScene } from "./scenes/DashboardStatsScene";
+import { DashboardStatsScene } from "./scenes/DashboardStatsScene";
 // import { DashboardAppointmentsScene } from "./scenes/DashboardAppointmentsScene";
 // import { DashboardOrdersScene } from "./scenes/DashboardOrdersScene";
 // import { DashboardChecklistScene } from "./scenes/DashboardChecklistScene";
@@ -164,12 +164,13 @@ export const PetraDashboardTutorial: React.FC<DashboardTutorialProps> = ({
           <DashboardIntroScene />
           <SceneAudio file="voiceover/dashboard-intro.wav" />
         </Series.Sequence>
-        {/*
+
         <Series.Sequence durationInFrames={_stats} premountFor={fps}>
           <DashboardStatsScene />
           <SceneAudio file="voiceover/dashboard-stats.wav" />
         </Series.Sequence>
 
+        {/*
         <Series.Sequence durationInFrames={_appointments} premountFor={fps}>
           <DashboardAppointmentsScene />
           <SceneAudio file="voiceover/dashboard-appointments.wav" />
