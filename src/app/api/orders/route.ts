@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
         customer: { select: { id: true, name: true, phone: true } },
         lines: true,
         payments: { select: { id: true, amount: true, status: true } },
+        assignedTo: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 500,
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
     if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
 
     const body = await request.json();
-    const { customerId, orderType, startAt, endAt, lines, discountType, discountValue, notes, status, appointmentData, trainingSubType, trainingPackageId, trainingBoardingStart, trainingBoardingEnd } = body;
+    const { customerId, orderType, startAt, endAt, lines, discountType, discountValue, notes, status, appointmentData, trainingSubType, trainingPackageId, trainingBoardingStart, trainingBoardingEnd, assignedToUserId } = body;
 
     if (!customerId || !lines || lines.length === 0) {
       return NextResponse.json({ error: "customerId and at least one line are required" }, { status: 400 });
@@ -157,6 +158,7 @@ export async function POST(request: NextRequest) {
           taxTotal: calc.taxTotal,
           total: calc.total,
           notes: notes || null,
+          assignedToUserId: assignedToUserId || null,
         },
       });
 
