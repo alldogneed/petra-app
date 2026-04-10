@@ -87,6 +87,7 @@ interface BoardingStayEvent {
   pet: { id: string; name: string; species: string };
   customer: { id: string; name: string };
   room: { id: string; name: string } | null;
+  assignedTo: { id: string; name: string } | null;
 }
 
 interface OrderEvent {
@@ -99,6 +100,7 @@ interface OrderEvent {
   notes: string | null;
   customer: { id: string; name: string; phone: string };
   lines: { id: string; name: string; quantity: number; unitPrice: number }[];
+  assignedTo: { id: string; name: string } | null;
 }
 
 interface TaskEvent {
@@ -931,14 +933,14 @@ function CalendarContent() {
     [appointments, serviceTypeFilters, staffFilter]
   );
 
-  // Unique staff members derived from all loaded appointments
-  const staffList = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const a of appointments) {
-      if (a.staff) map.set(a.staff.id, a.staff.name);
-    }
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [appointments]);
+  interface TeamMember { id: string; name: string; avatarUrl: string | null }
+  const { data: teamMembers = [] } = useQuery<TeamMember[]>({
+    queryKey: ["team-members"],
+    queryFn: () => fetchJSON("/api/team-members"),
+  });
+
+  // Staff list sourced from team-members API
+  const staffList = teamMembers;
 
   // Overdue helper
   const isOverdue = (dateStr: string) => new Date(dateStr) < new Date();
@@ -1017,21 +1019,25 @@ function CalendarContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appointments, orders, pendingBookingsRaw]);
 
-  // Filter orders by active service-type filter (same chips as appointments)
+  // Filter orders by active service-type filter and staff filter
   const filteredOrders = useMemo(
-    () => serviceTypeFilters.length === 0
-      ? orders
-      : orders.filter((o) => serviceTypeFilters.includes(o.orderType)),
-    [orders, serviceTypeFilters]
+    () => orders.filter((o) => {
+      if (serviceTypeFilters.length > 0 && !serviceTypeFilters.includes(o.orderType)) return false;
+      if (staffFilter.length > 0 && !staffFilter.includes(o.assignedTo?.id ?? "__none__")) return false;
+      return true;
+    }),
+    [orders, serviceTypeFilters, staffFilter]
   );
 
   // Filter boarding stays — boarding stays are always "boarding" type.
   // Show them when no filter or when "boarding" filter is active.
   const filteredBoardingStays = useMemo(
-    () => serviceTypeFilters.length === 0 || serviceTypeFilters.includes("boarding")
-      ? boardingStays
-      : [],
-    [boardingStays, serviceTypeFilters]
+    () => boardingStays.filter((s) => {
+      if (serviceTypeFilters.length > 0 && !serviceTypeFilters.includes("boarding")) return false;
+      if (staffFilter.length > 0 && !staffFilter.includes(s.assignedTo?.id ?? "__none__")) return false;
+      return true;
+    }),
+    [boardingStays, serviceTypeFilters, staffFilter]
   );
 
   // ── Google Calendar external events overlay ──
