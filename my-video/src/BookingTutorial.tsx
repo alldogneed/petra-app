@@ -9,8 +9,8 @@ import {
 } from "remotion";
 import { getAudioDuration } from "./get-audio-duration";
 // TODO: uncomment after scenes are built
-// import { Series, Sequence } from "remotion";
-// import { BookingIntroScene } from "./scenes/BookingIntroScene";
+import { Series, Sequence } from "remotion";
+import { BookingIntroScene } from "./scenes/BookingIntroScene";
 // import { BookingCustomerFlowScene } from "./scenes/BookingCustomerFlowScene";
 // import { BookingCustomerDetailsScene } from "./scenes/BookingCustomerDetailsScene";
 // import { BookingSetupScene } from "./scenes/BookingSetupScene";
@@ -46,19 +46,19 @@ export const calculateBookingMetadata: CalculateMetadataFunction<BookingTutorial
   };
 
 // TODO: uncomment after scenes are built
-// const SceneAudio: React.FC<{ file: string }> = ({ file }) => (
-//   <Sequence layout="none">
-//     <Audio src={staticFile(file)} />
-//   </Sequence>
-// );
+const SceneAudio: React.FC<{ file: string }> = ({ file }) => (
+  <Sequence layout="none">
+    <Audio src={staticFile(file)} />
+  </Sequence>
+);
 
 export const BookingTutorial: React.FC<BookingTutorialProps> = ({
   sceneDurationsFrames: _sceneDurationsFrames,
 }) => {
   const { fps, durationInFrames } = useVideoConfig();
   // TODO: uncomment after scenes are built
-  // const [intro, customerFlow, customerDetails, setup, link, notifications, outro] =
-  //   _sceneDurationsFrames;
+  const [intro, customerFlow, customerDetails, setup, link, notifications, outro] =
+    _sceneDurationsFrames;
 
   return (
     <AbsoluteFill>
@@ -75,7 +75,7 @@ export const BookingTutorial: React.FC<BookingTutorialProps> = ({
         }
       />
       {/* TODO: uncomment after scenes are built */}
-      {/* <Series>
+      <Series>
         <Series.Sequence durationInFrames={intro} premountFor={fps}>
           <BookingIntroScene />
           <SceneAudio file="voiceover/booking-intro.wav" />
@@ -104,7 +104,7 @@ export const BookingTutorial: React.FC<BookingTutorialProps> = ({
           <BookingOutroScene />
           <SceneAudio file="voiceover/booking-outro.wav" />
         </Series.Sequence>
-      </Series> */}
+      </Series>
     </AbsoluteFill>
   );
 };
