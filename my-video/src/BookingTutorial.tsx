@@ -12,7 +12,7 @@ import { getAudioDuration } from "./get-audio-duration";
 import { Series, Sequence } from "remotion";
 import { BookingIntroScene } from "./scenes/BookingIntroScene";
 import { BookingCustomerFlowScene } from "./scenes/BookingCustomerFlowScene";
-// import { BookingCustomerDetailsScene } from "./scenes/BookingCustomerDetailsScene";
+import { BookingCustomerDetailsScene } from "./scenes/BookingCustomerDetailsScene";
 // import { BookingSetupScene } from "./scenes/BookingSetupScene";
 // import { BookingLinkScene } from "./scenes/BookingLinkScene";
 // import { BookingNotificationsScene } from "./scenes/BookingNotificationsScene";
