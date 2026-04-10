@@ -819,7 +819,7 @@ function CalendarContent() {
   const [rescheduleForm, setRescheduleForm] = useState({ date: "", startTime: "", endTime: "" });
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesInput, setNotesInput] = useState("");
-  const [serviceTypeFilter, setServiceTypeFilter] = useState<string | null>(null);
+  const [serviceTypeFilters, setServiceTypeFilters] = useState<string[]>([]);
   const [showQuickPayment, setShowQuickPayment] = useState(false);
   const [hoveredApt, setHoveredApt] = useState<{
     apt: AppointmentEvent;
@@ -851,6 +851,8 @@ function CalendarContent() {
 
   const [allDayCollapsed, setAllDayCollapsed] = useState(true);
   const [showGcal, setShowGcal] = useState(true);
+  const [dragging, setDragging] = useState<{ apt: AppointmentEvent; durationMins: number; offsetMins: number } | null>(null);
+  const [dropPreview, setDropPreview] = useState<{ date: string; startMins: number } | null>(null);
 
   // Auto-scroll to current time when switching to day/week view
   useEffect(() => {
@@ -907,15 +909,16 @@ function CalendarContent() {
     training: "אילוף", grooming: "טיפוח", boarding: "פנסיון",
   };
   const filteredAppointments = useMemo(
-    () => serviceTypeFilter
-      ? appointments.filter((a) => {
-          if (a.service?.type === serviceTypeFilter) return true;
-          const cat = SERVICE_TYPE_TO_CATEGORY[serviceTypeFilter];
-          return cat ? a.priceListItem?.category === cat : false;
-        })
-      : appointments,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [appointments, serviceTypeFilter]
+    () => serviceTypeFilters.length === 0
+      ? appointments
+      : appointments.filter((a) =>
+          serviceTypeFilters.some((filter) => {
+            if (a.service?.type === filter) return true;
+            const cat = SERVICE_TYPE_TO_CATEGORY[filter];
+            return cat ? a.priceListItem?.category === cat : false;
+          })
+        ),
+    [appointments, serviceTypeFilters]
   );
 
   const { data: boardingStays = [] } = useQuery<BoardingStayEvent[]>({
@@ -937,6 +940,19 @@ function CalendarContent() {
       fetchJSON(`/api/tasks?from=${from}&to=${to}&status=OPEN`),
   });
 
+  interface LeadFollowUp {
+    id: string;
+    name: string;
+    phone?: string;
+    nextFollowUpAt: string;
+    requestedService?: string;
+  }
+  const { data: leadFollowUpsData } = useQuery<{ leads: LeadFollowUp[] }>({
+    queryKey: ["leads-calendar", from, to],
+    queryFn: () => fetchJSON(`/api/leads/calendar?from=${from}&to=${to}`),
+  });
+  const leadFollowUps = leadFollowUpsData?.leads ?? [];
+
   // Pending online bookings (not yet converted to appointments)
   const { data: pendingBookingsRaw = [] } = useQuery<BookingCalEvent[]>({
     queryKey: ["bookings-calendar", from, to],
@@ -946,10 +962,10 @@ function CalendarContent() {
   });
 
   const pendingBookings = useMemo(
-    () => serviceTypeFilter
-      ? pendingBookingsRaw.filter((b) => b.service.type === serviceTypeFilter)
-      : pendingBookingsRaw,
-    [pendingBookingsRaw, serviceTypeFilter]
+    () => serviceTypeFilters.length === 0
+      ? pendingBookingsRaw
+      : pendingBookingsRaw.filter((b) => serviceTypeFilters.includes(b.service.type)),
+    [pendingBookingsRaw, serviceTypeFilters]
   );
 
   // ── Google Calendar external events overlay ──
@@ -1110,6 +1126,41 @@ function CalendarContent() {
     return weekDates.findIndex((d) => toLocalDateString(d) === todayStr);
   }, [now, viewMode, weekDates]);
 
+  // ── Drag helpers ──
+  const minutesToTime = (mins: number) =>
+    `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+
+  const handleDragStart = (apt: AppointmentEvent, e: React.DragEvent) => {
+    const dur = timeToMinutes(apt.endTime) - timeToMinutes(apt.startTime);
+    const blockRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const offsetMins = Math.floor(((e.clientY - blockRect.top) / SLOT_HEIGHT) * 60);
+    setDragging({ apt, durationMins: dur, offsetMins });
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleGridDragOver = (date: string, e: React.DragEvent) => {
+    e.preventDefault();
+    if (!dragging || !timeGridRef.current) return;
+    const gridRect = timeGridRef.current.getBoundingClientRect();
+    const rawMins = DAY_START + ((e.clientY - gridRect.top) / SLOT_HEIGHT) * 60 - dragging.offsetMins;
+    const snapped = Math.round(rawMins / 15) * 15;
+    setDropPreview({ date, startMins: Math.max(DAY_START, Math.min(snapped, DAY_START + 12 * 60)) });
+  };
+
+  const handleGridDrop = (date: string, e: React.DragEvent) => {
+    e.preventDefault();
+    if (!dragging || !dropPreview) return;
+    const endMins = dropPreview.startMins + dragging.durationMins;
+    rescheduleMutation.mutate({
+      id: dragging.apt.id,
+      date,
+      startTime: minutesToTime(dropPreview.startMins),
+      endTime: minutesToTime(endMins),
+    });
+    setDragging(null);
+    setDropPreview(null);
+  };
+
   // ── Hover handlers ──
   const handleHoverEnter = (apt: AppointmentEvent, e: React.MouseEvent) => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
@@ -1174,10 +1225,14 @@ function CalendarContent() {
     return (
       <div
         key={apt.id}
+        draggable
+        onDragStart={(e) => handleDragStart(apt, e)}
+        onDragEnd={() => { setDragging(null); setDropPreview(null); }}
         className={cn(
-          "absolute rounded-lg px-2 py-1 overflow-hidden cursor-pointer transition-all text-white",
+          "absolute rounded-lg px-2 py-1 overflow-hidden cursor-grab active:cursor-grabbing transition-all text-white",
           compact ? "text-xs" : "text-sm",
-          isCanceled ? "opacity-40" : "hover:brightness-95"
+          isCanceled ? "opacity-40" : "hover:brightness-95",
+          dragging?.apt.id === apt.id && "opacity-50"
         )}
         style={{
           ...style,
@@ -1485,10 +1540,10 @@ function CalendarContent() {
       <div className="hidden md:flex items-center gap-2 flex-wrap mb-4 px-1">
         {/* הכל button */}
         <button
-          onClick={() => setServiceTypeFilter(null)}
+          onClick={() => setServiceTypeFilters([])}
           className={cn(
             "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
-            serviceTypeFilter === null
+            serviceTypeFilters.length === 0
               ? "border-petra-text font-medium shadow-sm bg-petra-text text-white"
               : "border-petra-border hover:border-petra-text hover:bg-petra-bg text-petra-muted"
           )}
@@ -1496,14 +1551,18 @@ function CalendarContent() {
           הכל
         </button>
 
-        {/* Service type filters */}
+        {/* Service type filters - multi-select */}
         {Object.entries(SERVICE_TYPE_COLORS).map(([type, color]) => {
-          const isActive = serviceTypeFilter === type;
-          const isDimmed = serviceTypeFilter !== null && !isActive;
+          const isActive = serviceTypeFilters.includes(type);
+          const isDimmed = serviceTypeFilters.length > 0 && !isActive;
           return (
             <button
               key={type}
-              onClick={() => setServiceTypeFilter(isActive ? null : type)}
+              onClick={() =>
+                setServiceTypeFilters((prev) =>
+                  prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+                )
+              }
               className={cn(
                 "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
                 isActive
@@ -1519,7 +1578,7 @@ function CalendarContent() {
                 className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                 style={{ background: color }}
               />
-              <span className={isDimmed ? "text-petra-muted line-through" : isActive ? "" : "text-petra-muted"}>
+              <span className={isDimmed ? "text-petra-muted" : isActive ? "" : "text-petra-muted"}>
                 {SERVICE_TYPE_LABELS[type]}
               </span>
             </button>
@@ -1699,17 +1758,24 @@ function CalendarContent() {
                     </div>
                     {weekDates.map((date, dayIdx) => {
                       const dateStr = toLocalDateString(date);
+                      const isDropTarget = dropPreview?.date === dateStr;
                       return (
                         <div
                           key={dayIdx}
-                          className="border-r border-t border-slate-100 relative cursor-pointer hover:bg-slate-50/50 transition-colors"
+                          className={cn(
+                            "border-r border-t border-slate-100 relative cursor-pointer hover:bg-slate-50/50 transition-colors",
+                            isDropTarget && "bg-brand-50/40"
+                          )}
                           onClick={() => {
+                            if (dragging) return;
                             setModalDefaults({
                               date: dateStr,
                               time: `${String(hour).padStart(2, "0")}:00`,
                             });
                             setShowNewModal(true);
                           }}
+                          onDragOver={(e) => handleGridDragOver(dateStr, e)}
+                          onDrop={(e) => handleGridDrop(dateStr, e)}
                         />
                       );
                     })}
@@ -1811,6 +1877,43 @@ function CalendarContent() {
                         marginRight: 2,
                       },
                       true
+                    );
+                  });
+                })}
+
+                {/* Lead follow-up blocks - week view */}
+                {weekDates.map((date, dayIdx) => {
+                  const dateStr = toLocalDateString(date);
+                  const dayLeads = leadFollowUps.filter(
+                    (l) => l.nextFollowUpAt.slice(0, 10) === dateStr
+                  );
+                  return dayLeads.map((lead) => {
+                    const startTime = dateTimeToTime(lead.nextFollowUpAt);
+                    const startMins = timeToMinutes(startTime);
+                    if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
+                    const endTime = addMinutes(startTime, 30);
+                    const { top, height } = appointmentStyle(startTime, endTime);
+                    return (
+                      <a
+                        key={`lead-fu-${lead.id}`}
+                        href={`/leads`}
+                        className="absolute rounded-lg px-1.5 py-0.5 overflow-hidden flex flex-col justify-center hover:brightness-95 transition-all border border-violet-300"
+                        style={{
+                          top,
+                          height: Math.max(height, 22),
+                          right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                          width: `calc((100% - 60px) / 7 - 4px)`,
+                          marginRight: 2,
+                          background: "#EDE9FE",
+                          zIndex: 9,
+                        }}
+                        title={`פולואפ: ${lead.name}${lead.requestedService ? ` · ${lead.requestedService}` : ""} (${startTime})`}
+                      >
+                        <div className="text-[10px] font-semibold text-violet-700 truncate">📞 {lead.name}</div>
+                        {lead.requestedService && (
+                          <div className="text-[9px] text-violet-500 truncate">{lead.requestedService}</div>
+                        )}
+                      </a>
                     );
                   });
                 })}
@@ -1927,6 +2030,27 @@ function CalendarContent() {
                   );
                 })}
 
+                {/* Drop preview ghost */}
+                {dragging && dropPreview && (() => {
+                  const dayIdx = weekDates.findIndex((d) => toLocalDateString(d) === dropPreview.date);
+                  if (dayIdx === -1) return null;
+                  const previewTop = ((dropPreview.startMins - DAY_START) / 60) * SLOT_HEIGHT;
+                  const previewHeight = (dragging.durationMins / 60) * SLOT_HEIGHT;
+                  return (
+                    <div
+                      className="absolute rounded-lg border-2 border-dashed border-brand-500 bg-brand-100/40 pointer-events-none"
+                      style={{
+                        top: previewTop,
+                        height: Math.max(previewHeight, 20),
+                        right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                        width: `calc((100% - 60px) / 7 - 4px)`,
+                        marginRight: 2,
+                        zIndex: 15,
+                      }}
+                    />
+                  );
+                })()}
+
                 {/* Current time indicator */}
                 {currentTimeTop !== null && todayColumnIndex >= 0 && (
                   <div
@@ -2018,14 +2142,20 @@ function CalendarContent() {
                   {String(hour).padStart(2, "0")}:00
                 </div>
                 <div
-                  className="border-r border-t border-slate-100 relative cursor-pointer hover:bg-slate-50/50 transition-colors"
+                  className={cn(
+                    "border-r border-t border-slate-100 relative cursor-pointer hover:bg-slate-50/50 transition-colors",
+                    dropPreview?.date === toLocalDateString(selectedDay) && "bg-brand-50/40"
+                  )}
                   onClick={() => {
+                    if (dragging) return;
                     setModalDefaults({
                       date: toLocalDateString(selectedDay),
                       time: `${String(hour).padStart(2, "0")}:00`,
                     });
                     setShowNewModal(true);
                   }}
+                  onDragOver={(e) => handleGridDragOver(toLocalDateString(selectedDay), e)}
+                  onDrop={(e) => handleGridDrop(toLocalDateString(selectedDay), e)}
                 />
               </div>
             ))}
@@ -2084,6 +2214,41 @@ function CalendarContent() {
               );
             })}
 
+            {/* Lead follow-up blocks - day view */}
+            {leadFollowUps
+              .filter((l) => l.nextFollowUpAt.slice(0, 10) === toLocalDateString(selectedDay))
+              .map((lead) => {
+                const startTime = dateTimeToTime(lead.nextFollowUpAt);
+                const startMins = timeToMinutes(startTime);
+                if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
+                const endTime = addMinutes(startTime, 30);
+                const { top, height } = appointmentStyle(startTime, endTime);
+                return (
+                  <a
+                    key={`lead-fu-day-${lead.id}`}
+                    href="/leads"
+                    className="absolute rounded-lg px-2 py-1 overflow-hidden flex flex-col justify-center hover:brightness-95 transition-all border border-violet-300"
+                    style={{
+                      top,
+                      height: Math.max(height, 22),
+                      right: 60,
+                      width: "calc(100% - 64px)",
+                      background: "#EDE9FE",
+                      zIndex: 9,
+                    }}
+                    title={`פולואפ: ${lead.name}${lead.requestedService ? ` · ${lead.requestedService}` : ""}`}
+                  >
+                    <div className="text-xs font-semibold text-violet-700 truncate">📞 פולואפ: {lead.name}</div>
+                    {lead.requestedService && (
+                      <div className="text-[10px] text-violet-500 truncate">{lead.requestedService}</div>
+                    )}
+                    {lead.phone && (
+                      <div className="text-[10px] text-violet-400 truncate">{lead.phone}</div>
+                    )}
+                  </a>
+                );
+              })}
+
             {/* Pending online booking blocks - day view */}
             {pendingBookings
               .filter((b) => dateTimeToDateStr(b.startAt) === toLocalDateString(selectedDay))
@@ -2133,6 +2298,24 @@ function CalendarContent() {
                 </a>
               );
             })}
+
+            {/* Drop preview ghost - day view */}
+            {dragging && dropPreview?.date === toLocalDateString(selectedDay) && (() => {
+              const previewTop = ((dropPreview.startMins - DAY_START) / 60) * SLOT_HEIGHT;
+              const previewHeight = (dragging.durationMins / 60) * SLOT_HEIGHT;
+              return (
+                <div
+                  className="absolute rounded-lg border-2 border-dashed border-brand-500 bg-brand-100/40 pointer-events-none"
+                  style={{
+                    top: previewTop,
+                    height: Math.max(previewHeight, 22),
+                    right: 60,
+                    width: "calc(100% - 64px)",
+                    zIndex: 15,
+                  }}
+                />
+              );
+            })()}
 
             {/* Current time indicator */}
             {currentTimeTop !== null && (
