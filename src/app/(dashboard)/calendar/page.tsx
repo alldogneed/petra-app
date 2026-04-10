@@ -990,9 +990,10 @@ function CalendarContent() {
     [pendingBookingsRaw, serviceTypeFilters]
   );
 
-  // Only show service-type filters for types that have appointments in the loaded range
+  // Always show core service-type filters; rare types (daycare/consultation/other) only when present
+  const CORE_SERVICE_TYPES = ["training", "grooming", "boarding"];
   const activeServiceTypes = useMemo(() => {
-    const types = new Set<string>();
+    const types = new Set<string>(CORE_SERVICE_TYPES);
     for (const a of appointments) {
       if (a.service?.type && SERVICE_TYPE_COLORS[a.service.type]) {
         types.add(a.service.type);
@@ -1002,7 +1003,7 @@ function CalendarContent() {
         types.add("grooming");
       } else if (a.priceListItem?.category === "פנסיון") {
         types.add("boarding");
-      } else {
+      } else if (!a.service?.type && !a.priceListItem) {
         types.add("other");
       }
     }
@@ -1010,6 +1011,7 @@ function CalendarContent() {
       if (SERVICE_TYPE_COLORS[b.service.type]) types.add(b.service.type);
     }
     return Object.keys(SERVICE_TYPE_COLORS).filter((t) => types.has(t));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appointments, pendingBookingsRaw]);
 
   // ── Google Calendar external events overlay ──
