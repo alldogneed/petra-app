@@ -8,6 +8,7 @@ import { sendWhatsAppMessage } from "@/lib/whatsapp"
 import { toWhatsAppPhone } from "@/lib/utils"
 import { enqueueSyncJob } from "@/lib/sync-jobs"
 import { getFirstLeadStageId } from "@/lib/lead-stages"
+import { syncAppointmentToGcal } from "@/lib/google-calendar"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://petra-app.vercel.app"
 
@@ -363,7 +364,7 @@ export async function POST(
         where: { businessId: business.id, customerId: customer.id, priceListItemId, date: dateOnly, startTime },
       })
       if (!existing) {
-        await prisma.appointment.create({
+        const newAppt = await prisma.appointment.create({
           data: {
             businessId: business.id,
             customerId: customer.id,
@@ -375,6 +376,10 @@ export async function POST(
             status: "scheduled",
           },
         })
+        // Sync the appointment to Google Calendar immediately (fire-and-forget)
+        syncAppointmentToGcal(newAppt.id, business.id).catch((err) =>
+          console.error("Failed to sync booked appointment to GCal:", err)
+        )
       }
     }
     // Auto-create TrainingProgram for training services (category contains "אילוף")
