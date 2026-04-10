@@ -14,7 +14,7 @@ import { BookingIntroScene } from "./scenes/BookingIntroScene";
 import { BookingCustomerFlowScene } from "./scenes/BookingCustomerFlowScene";
 import { BookingCustomerDetailsScene } from "./scenes/BookingCustomerDetailsScene";
 import { BookingSetupScene } from "./scenes/BookingSetupScene";
-// import { BookingLinkScene } from "./scenes/BookingLinkScene";
+import { BookingLinkScene } from "./scenes/BookingLinkScene";
 // import { BookingNotificationsScene } from "./scenes/BookingNotificationsScene";
 // import { BookingOutroScene } from "./scenes/BookingOutroScene";
 import { BOOKING_SCENES } from "../voiceover-booking-config";
@@ -57,7 +57,7 @@ export const BookingTutorial: React.FC<BookingTutorialProps> = ({
 }) => {
   const { fps, durationInFrames } = useVideoConfig();
   // TODO: uncomment after scenes are built
-  const [intro, customerFlow, customerDetails, setup] =
+  const [intro, customerFlow, customerDetails, setup, link] =
     _sceneDurationsFrames;
 
   return (
@@ -92,12 +92,12 @@ export const BookingTutorial: React.FC<BookingTutorialProps> = ({
           <BookingSetupScene />
           <SceneAudio file="voiceover/booking-setup.wav" />
         </Series.Sequence>
-        {/* TODO: uncomment after scenes are built */}
-        {/* <Series.Sequence durationInFrames={link} premountFor={fps}>
+        <Series.Sequence durationInFrames={link} premountFor={fps}>
           <BookingLinkScene />
           <SceneAudio file="voiceover/booking-link.wav" />
         </Series.Sequence>
-        <Series.Sequence durationInFrames={notifications} premountFor={fps}>
+        {/* TODO: uncomment after scenes are built */}
+        {/* <Series.Sequence durationInFrames={notifications} premountFor={fps}>
           <BookingNotificationsScene />
           <SceneAudio file="voiceover/booking-notifications.wav" />
         </Series.Sequence>
