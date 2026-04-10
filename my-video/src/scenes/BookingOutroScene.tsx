@@ -12,12 +12,18 @@ import {
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 const ORANGE = "#ea580c";
 
+const BENEFITS = [
+  { text: "הלקוח קובע לבד" },
+  { text: "פחות תיאום ידני" },
+  { text: "פנוי עשרים וארבע שבע" },
+];
+
 export const BookingOutroScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
 
-  const fadeIn = interpolate(frame, [0, fps * 0.4], [0, 1], { extrapolateRight: "clamp" });
-  const fadeOut = interpolate(frame, [durationInFrames - fps * 0.4, durationInFrames], [1, 0], { extrapolateLeft: "clamp" });
+  const fadeIn = interpolate(frame, [0, fps * 0.5], [0, 1], { extrapolateRight: "clamp" });
+  const fadeOut = interpolate(frame, [durationInFrames - fps * 0.5, durationInFrames], [1, 0], { extrapolateLeft: "clamp" });
   const opacity = Math.min(fadeIn, fadeOut);
 
   const pulse = interpolate(frame % 90, [0, 45, 90], [0, 1, 0]);
@@ -26,19 +32,15 @@ export const BookingOutroScene: React.FC = () => {
   const logoScale = interpolate(logoP, [0, 1], [0.7, 1]);
   const logoOpacity = interpolate(frame, [5, 20], [0, 1], { extrapolateRight: "clamp" });
 
-  const line1P = spring({ frame: frame - 22, fps, config: { damping: 200 } });
-  const line1Y = interpolate(line1P, [0, 1], [30, 0]);
-  const line1Opacity = interpolate(frame, [22, 38], [0, 1], { extrapolateRight: "clamp" });
+  const titleP = spring({ frame: frame - 22, fps, config: { damping: 200 } });
+  const titleY = interpolate(titleP, [0, 1], [30, 0]);
+  const titleOpacity = interpolate(frame, [22, 38], [0, 1], { extrapolateRight: "clamp" });
 
-  const line2P = spring({ frame: frame - 42, fps, config: { damping: 200 } });
-  const line2Y = interpolate(line2P, [0, 1], [30, 0]);
-  const line2Opacity = interpolate(frame, [42, 58], [0, 1], { extrapolateRight: "clamp" });
-
-  const ctaP = spring({ frame: frame - 70, fps, config: { damping: 200 } });
+  const ctaP = spring({ frame: frame - 80, fps, config: { damping: 200 } });
   const ctaScale = interpolate(ctaP, [0, 1], [0.6, 1]);
-  const ctaOpacity = interpolate(frame, [70, 86], [0, 1], { extrapolateRight: "clamp" });
+  const ctaOpacity = interpolate(frame, [80, 96], [0, 1], { extrapolateRight: "clamp" });
 
-  const urlOpacity = interpolate(frame, [90, 106], [0, 1], { extrapolateRight: "clamp" });
+  const urlOpacity = interpolate(frame, [100, 116], [0, 1], { extrapolateRight: "clamp" });
 
   return (
     <AbsoluteFill style={{
@@ -59,28 +61,45 @@ export const BookingOutroScene: React.FC = () => {
         }} />
       ))}
 
-      {/* Petra logo */}
+      {/* Logo */}
       <div style={{ transform: `scale(${logoScale})`, opacity: logoOpacity, marginBottom: 28 }}>
         <Img src={staticFile("petra-icon.png")} style={{ width: 80, height: 80, objectFit: "contain" }} />
       </div>
 
-      {/* Line 1 — white */}
-      <div style={{
-        color: "white", fontSize: 48, fontWeight: 800, textAlign: "center",
-        opacity: line1Opacity, transform: `translateY(${line1Y}px)`,
-        marginBottom: 8,
+      {/* Title */}
+      <h1 style={{
+        color: "white", fontSize: 44, fontWeight: 800,
+        margin: 0, marginBottom: 8, textAlign: "center",
+        opacity: titleOpacity, transform: `translateY(${titleY}px)`,
+        lineHeight: 1.2,
       }}>
-        פחות תיאום
-      </div>
+        הזמנות אונליין של פטרה
+      </h1>
+      <p style={{
+        color: "white", fontSize: 20, fontWeight: 700,
+        margin: 0, marginBottom: 32, textAlign: "center",
+        opacity: titleOpacity, transform: `translateY(${titleY}px)`,
+      }}>
+        פחות תיאום, יותר זמן לעסק
+      </p>
 
-      {/* Line 2 — orange */}
-      <div style={{
-        color: ORANGE, fontSize: 48, fontWeight: 800, textAlign: "center",
-        opacity: line2Opacity, transform: `translateY(${line2Y}px)`,
-        marginBottom: 40,
-        textShadow: "0 0 30px rgba(234,88,12,0.5)",
-      }}>
-        יותר זמן לעסק
+      {/* Benefits */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 36, justifyContent: "center" }}>
+        {BENEFITS.map((b, i) => {
+          const bOpacity = interpolate(frame, [50 + i * 10, 62 + i * 10], [0, 1], { extrapolateRight: "clamp" });
+          const bP = spring({ frame: frame - 50 - i * 10, fps, config: { damping: 200 } });
+          const bScale = interpolate(bP, [0, 1], [0.8, 1]);
+          return (
+            <div key={b.text} style={{
+              opacity: bOpacity, transform: `scale(${bScale})`,
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 12, padding: "12px 16px",
+            }}>
+              <span style={{ fontSize: 12, color: "#e2e8f0", fontWeight: 600 }}>{b.text}</span>
+            </div>
+          );
+        })}
       </div>
 
       {/* CTA */}
@@ -90,6 +109,7 @@ export const BookingOutroScene: React.FC = () => {
         opacity: ctaOpacity, transform: `scale(${ctaScale})`,
         boxShadow: "0 8px 32px rgba(234,88,12,0.45)",
         display: "flex", alignItems: "center", gap: 12,
+        direction: "rtl",
       }}>
         <span style={{ color: "white", fontSize: 18, fontWeight: 800 }}>התחילו בחינם</span>
         <span style={{ color: "white", fontSize: 20 }}>←</span>
