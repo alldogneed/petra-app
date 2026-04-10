@@ -11,7 +11,6 @@ import { PetraSidebar } from "../PetraSidebar";
 import { TeaserPainPhase } from "../../components/teaser/TeaserPainPhase";
 import { BenefitTag } from "../../components/teaser/BenefitTag";
 import { CursorAnimation } from "../../components/teaser/CursorAnimation";
-import { HighlightBox } from "../HighlightBox";
 
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 const SIDEBAR_W = 210;
@@ -192,19 +191,16 @@ export const TeaserBoardingSceneV2: React.FC = () => {
           </div>
         </div>
 
-        {/* Cursor: appears at absolute frame 260, clicks at 290 */}
+        {/* Cursor: clicks on קיירה stay card in VIP room */}
         <CursorAnimation
           startX={640} startY={480}
-          endX={870} endY={270}
+          endX={960} endY={133}
           appearAt={260}
           clickAt={290}
         />
 
         <BenefitTag text="מפת חדרים בזמן אמת" appearAt={285} />
       </div>
-
-      {/* HighlightBox on Room 1 (rightmost in RTL) — adjust after preview if needed */}
-      <HighlightBox x={700} y={88} width={320} height={230} startFrame={268} endFrame={400} borderRadius={12} />
 
       {painVisible && (
         <TeaserPainPhase

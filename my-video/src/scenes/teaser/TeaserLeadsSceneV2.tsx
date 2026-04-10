@@ -10,7 +10,6 @@ import { PetraSidebar } from "../PetraSidebar";
 import { TeaserPainPhase } from "../../components/teaser/TeaserPainPhase";
 import { BenefitTag } from "../../components/teaser/BenefitTag";
 import { CursorAnimation } from "../../components/teaser/CursorAnimation";
-import { HighlightBox } from "../HighlightBox";
 
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 const ORANGE = "#ea580c";
@@ -137,10 +136,10 @@ export const TeaserLeadsSceneV2: React.FC = () => {
           </div>
         </div>
 
-        {/* Cursor: appears at absolute frame 260, clicks at 290 */}
+        {/* Cursor: clicks on ענבל כהן card in ליד חדש column */}
         <CursorAnimation
           startX={640} startY={460}
-          endX={940} endY={175}
+          endX={875} endY={115}
           appearAt={260}
           clickAt={290}
         />
@@ -148,9 +147,6 @@ export const TeaserLeadsSceneV2: React.FC = () => {
         {/* BenefitTag appears at absolute frame 280 */}
         <BenefitTag text="כל ליד מתועד ועוקב אוטומטית" appearAt={280} />
       </div>
-
-      {/* HighlightBox: first card in ליד חדש column — adjust x/y after preview if needed */}
-      <HighlightBox x={660} y={130} width={250} height={82} startFrame={265} endFrame={390} borderRadius={8} />
 
       {painVisible && (
         <TeaserPainPhase

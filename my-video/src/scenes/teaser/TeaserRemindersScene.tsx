@@ -10,7 +10,6 @@ import { PetraSidebar } from "../PetraSidebar";
 import { TeaserPainPhase } from "../../components/teaser/TeaserPainPhase";
 import { BenefitTag } from "../../components/teaser/BenefitTag";
 import { CursorAnimation } from "../../components/teaser/CursorAnimation";
-import { HighlightBox } from "../HighlightBox";
 
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 const ORANGE = "#ea580c";
@@ -195,16 +194,13 @@ export const TeaserRemindersScene: React.FC = () => {
         {/* Cursor: moves to "48 שעות" button and clicks */}
         <CursorAnimation
           startX={615} startY={250}
-          endX={700} endY={255}
+          endX={928} endY={281}
           appearAt={188}
           clickAt={CLICK_HOURS_FRAME}
         />
 
         <BenefitTag text="תזכורת אוטומטית לכל תור" appearAt={275} />
       </div>
-
-      {/* HighlightBox: WA + timing cards (right col) — adjust after preview */}
-      <HighlightBox x={545} y={122} width={497} height={178} startFrame={248} endFrame={400} borderRadius={12} />
 
       {painVisible && (
         <TeaserPainPhase

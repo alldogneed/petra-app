@@ -11,7 +11,6 @@ import {
 import { TeaserPainPhase } from "../../components/teaser/TeaserPainPhase";
 import { BenefitTag } from "../../components/teaser/BenefitTag";
 import { CursorAnimation } from "../../components/teaser/CursorAnimation";
-import { HighlightBox } from "../HighlightBox";
 
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 const ORANGE = "#ea580c";
@@ -247,11 +246,11 @@ export const TeaserBookingSceneV2: React.FC = () => {
           </div>
         )}
 
-        {/* Cursor 1: moves to first service, clicks */}
+        {/* Cursor 1: moves to טיפוח מלא (first service row), clicks */}
         <div style={{ opacity: phase1Opacity }}>
           <CursorAnimation
             startX={780} startY={200}
-            endX={620} endY={332}
+            endX={640} endY={192}
             appearAt={150}
             clickAt={PAIN_FRAMES + CLICK_SERVICE_UFRAME}
           />
@@ -261,7 +260,7 @@ export const TeaserBookingSceneV2: React.FC = () => {
         <div style={{ opacity: phase2Opacity }}>
           <CursorAnimation
             startX={560} startY={300}
-            endX={486} endY={508}
+            endX={815} endY={322}
             appearAt={PAIN_FRAMES + PHASE2_START_UFRAME + 6}
             clickAt={PAIN_FRAMES + CLICK_SLOT_UFRAME}
           />
@@ -269,9 +268,6 @@ export const TeaserBookingSceneV2: React.FC = () => {
 
         <BenefitTag text="הלקוח מזמין לבד — 24/7" appearAt={298} />
       </div>
-
-      {/* HighlightBox: confirm button area — adjust after preview */}
-      <HighlightBox x={370} y={390} width={540} height={65} startFrame={450} endFrame={555} borderRadius={12} />
 
       {painVisible && (
         <TeaserPainPhase
