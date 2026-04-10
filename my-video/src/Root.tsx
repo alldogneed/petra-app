@@ -45,6 +45,12 @@ import {
   calculateTasksMetadata,
 } from "./TasksTutorial";
 import { TASKS_SCENES } from "../voiceover-tasks-config";
+import {
+  BookingTutorial,
+  BookingTutorialProps,
+  calculateBookingMetadata,
+} from "./BookingTutorial";
+import { BOOKING_SCENES } from "../voiceover-booking-config";
 
 const FPS = 30;
 
@@ -66,6 +72,10 @@ const settingsDefaultProps: SettingsTutorialProps = {
 
 const tasksDefaultProps: TasksTutorialProps = {
   sceneDurationsFrames: TASKS_SCENES.map((s) => s.defaultDurationSec * FPS),
+};
+
+const bookingDefaultProps: BookingTutorialProps = {
+  sceneDurationsFrames: BOOKING_SCENES.map((s) => s.defaultDurationSec * FPS),
 };
 
 export const RemotionRoot: React.FC = () => {
@@ -191,6 +201,18 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={tasksDefaultProps}
+      />
+      <Composition
+        id="PetraBookingTutorial"
+        component={BookingTutorial}
+        calculateMetadata={calculateBookingMetadata}
+        durationInFrames={
+          BOOKING_SCENES.reduce((sum, s) => sum + s.defaultDurationSec, 0) * FPS
+        }
+        fps={FPS}
+        width={1280}
+        height={720}
+        defaultProps={bookingDefaultProps}
       />
     </>
   );
