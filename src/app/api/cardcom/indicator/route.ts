@@ -47,24 +47,30 @@ export async function GET(request: NextRequest) {
   const providedSecret = searchParams.get("secret") ?? "";
   const expectedSecret = process.env.CARDCOM_WEBHOOK_SECRET ?? "";
 
-  // Support both new HMAC sig and legacy raw secret (transition period)
-  const sigValid = providedSig ? verifyIndicatorSignature("/api/cardcom/indicator", providedSig) : false;
-  const legacyValid = providedSecret.length > 0 &&
-    providedSecret.length === expectedSecret.length &&
-    expectedSecret.length > 0 &&
-    timingSafeEqual(Buffer.from(providedSecret), Buffer.from(expectedSecret));
+  // If no webhook secret is configured, skip Layer 1 (Layer 4 Cardcom API
+  // verification still protects against forged requests)
+  const secretConfigured = expectedSecret.length > 0;
 
-  if (!sigValid && !legacyValid) {
-    console.error(`Cardcom indicator [Layer 1]: invalid secret from IP ${ip}`);
-    await prisma.subscriptionEvent.create({
-      data: {
-        businessId: "unknown",
-        eventType: "security_invalid_secret",
-        ipAddress: ip,
-        metadata: { path: sanitizeUrlForLog(request.url), ua: request.headers.get("user-agent") ?? "" },
-      },
-    }).catch(() => null);
-    return new Response("Unauthorized", { status: 401 });
+  if (secretConfigured) {
+    const sigValid = providedSig ? verifyIndicatorSignature("/api/cardcom/indicator", providedSig) : false;
+    const legacyValid = providedSecret.length > 0 &&
+      providedSecret.length === expectedSecret.length &&
+      timingSafeEqual(Buffer.from(providedSecret), Buffer.from(expectedSecret));
+
+    if (!sigValid && !legacyValid) {
+      console.error(`Cardcom indicator [Layer 1]: invalid secret from IP ${ip}`);
+      await prisma.subscriptionEvent.create({
+        data: {
+          businessId: "unknown",
+          eventType: "security_invalid_secret",
+          ipAddress: ip,
+          metadata: { path: sanitizeUrlForLog(request.url), ua: request.headers.get("user-agent") ?? "" },
+        },
+      }).catch(() => null);
+      return new Response("Unauthorized", { status: 401 });
+    }
+  } else {
+    console.warn("Cardcom indicator [Layer 1]: CARDCOM_WEBHOOK_SECRET not configured — skipping sig check");
   }
 
   // ── Layer 2: Rate limiting ────────────────────────────────────────────────
