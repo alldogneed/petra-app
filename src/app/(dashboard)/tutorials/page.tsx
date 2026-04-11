@@ -135,33 +135,35 @@ function VideoModal({
   onClose: () => void;
 }) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-backdrop" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-0 sm:p-4" onClick={onClose}>
       <div
-        className="relative z-10 w-full max-w-4xl mx-auto"
+        className="relative z-10 w-full sm:max-w-4xl mx-auto flex flex-col h-full sm:h-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close button */}
-        <div className="flex items-center justify-between mb-3 px-1">
+        {/* Close button + title */}
+        <div className="flex items-center justify-between p-3 sm:mb-3 sm:px-1">
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+            className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors flex-shrink-0"
           >
-            <X className="w-4 h-4 text-white" />
+            <X className="w-5 h-5 text-white" />
           </button>
-          <div className="text-right">
-            <h3 className="text-white font-bold text-lg">{video.title}</h3>
-            <p className="text-slate-400 text-sm">{video.description}</p>
+          <div className="text-right flex-1 mr-2">
+            <h3 className="text-white font-bold text-base sm:text-lg">{video.title}</h3>
+            <p className="text-slate-400 text-xs sm:text-sm hidden sm:block">{video.description}</p>
           </div>
         </div>
 
         {/* Video player */}
-        <div className="rounded-2xl overflow-hidden shadow-2xl bg-black">
+        <div className="sm:rounded-2xl overflow-hidden shadow-2xl bg-black flex-1 sm:flex-none">
           <video
             src={video.url}
             controls
             autoPlay
-            className="w-full max-h-[70vh]"
+            playsInline
+            webkit-playsinline="true"
+            x5-playsinline="true"
+            className="w-full h-full sm:h-auto sm:max-h-[70vh]"
             style={{ display: "block" }}
           >
             הדפדפן שלך לא תומך בהפעלת וידאו.
