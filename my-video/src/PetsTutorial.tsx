@@ -14,7 +14,7 @@ import { PetsIntroScene } from "./scenes/PetsIntroScene";
 import { PetsSpeciesScene } from "./scenes/PetsSpeciesScene";
 import { PetsAddScene } from "./scenes/PetsAddScene";
 import { PetsProfileScene } from "./scenes/PetsProfileScene";
-// import { PetsFamilyScene } from "./scenes/PetsFamilyScene";
+import { PetsFamilyScene } from "./scenes/PetsFamilyScene";
 // import { PetsOutroScene } from "./scenes/PetsOutroScene";
 import { PETS_SCENES } from "../voiceover-pets-config";
 
@@ -84,9 +84,13 @@ export const PetraPetsTutorial: React.FC<PetsTutorialProps> = ({
           <PetsProfileScene />
           <Sequence layout="none"><Audio src={staticFile("voiceover/pets-profile.wav")} /></Sequence>
         </Series.Sequence>
-        <Series.Sequence durationInFrames={family + outro}>
-          {/* placeholder for scenes 5-6 */}
-          <AbsoluteFill style={{ background: "#f1f5f9" }} />
+        <Series.Sequence durationInFrames={family} premountFor={fps}>
+          <PetsFamilyScene />
+          <Sequence layout="none"><Audio src={staticFile("voiceover/pets-family.wav")} /></Sequence>
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={outro}>
+          {/* placeholder for scene 6 */}
+          <AbsoluteFill style={{ background: "#0f172a" }} />
         </Series.Sequence>
       </Series>
     </AbsoluteFill>
