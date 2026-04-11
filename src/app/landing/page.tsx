@@ -18,7 +18,6 @@ import { WhatsAppFAB } from "./_components/WhatsAppFAB";
 import { AccessibilityButton } from "./_components/AccessibilityButton";
 import { ClientsMarquee } from "./_components/ClientsMarquee";
 import { LandingNav } from "./_components/LandingNav";
-import { DashboardMockup } from "./_components/DashboardMockup";
 import { FeaturesSection } from "./_components/FeaturesSection";
 import {
   TrainerMockup,
@@ -262,12 +261,33 @@ export default function LandingPage() {
                 </ul>
               </div>
 
-              {/* Visual col — dashboard mockup (hidden on mobile) */}
+              {/* Visual col — real dashboard screenshot (hidden on mobile) */}
               <div aria-hidden="true" className="relative mt-2 lg:mt-0 animate-fadeIn hidden md:block" style={{ animationDelay: "150ms" }}>
-                {/* Glow ring behind the mockup */}
+                {/* Glow ring behind the screenshot */}
                 <div className="absolute -inset-6 rounded-3xl bg-brand-500/8 blur-3xl pointer-events-none" />
                 <div className="relative scale-90 lg:scale-100 origin-top">
-                  <DashboardMockup />
+                  {/* Browser chrome */}
+                  <div className="bg-[#1e293b] rounded-t-2xl px-4 py-2.5 flex items-center gap-3 border border-b-0 border-white/10">
+                    <div className="flex gap-1.5 shrink-0">
+                      <div className="w-3 h-3 rounded-full bg-[#ff5f57]/80" />
+                      <div className="w-3 h-3 rounded-full bg-[#ffbd2e]/80" />
+                      <div className="w-3 h-3 rounded-full bg-[#28c840]/80" />
+                    </div>
+                    <div className="flex-1 bg-[#0f172a]/60 rounded-md px-3 py-1 text-slate-400 text-[11px] text-center font-mono tracking-tight">
+                      app.petra-app.com
+                    </div>
+                    <div className="w-16 shrink-0" />
+                  </div>
+                  <div className="rounded-b-2xl overflow-hidden border border-t-0 border-white/10">
+                    <Image
+                      src="/dashboard-screenshot.png"
+                      alt="לוח הבקרה של פטרה"
+                      width={900}
+                      height={600}
+                      className="w-full h-auto block"
+                      priority
+                    />
+                  </div>
                 </div>
               </div>
             </div>
