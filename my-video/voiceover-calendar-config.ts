@@ -26,6 +26,11 @@ export const CALENDAR_SCENES = [
     defaultDurationSec: 12,
   },
   {
+    id: "calendar-gcal",
+    text: "מְחַבְּרִים את פטרה לגוגל קלנדר — תורים מסתנכרנים אוטומטית, ואירועים מגוגל חוסמים זמינות ללקוחות בהזמנה העצמית.",
+    defaultDurationSec: 12,
+  },
+  {
     id: "calendar-outro",
     text: "יומן פטרה — הזמן שלכם, בשליטה שלכם.",
     defaultDurationSec: 10,

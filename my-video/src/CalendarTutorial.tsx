@@ -15,6 +15,7 @@ import { CalendarWeekScene } from "./scenes/CalendarWeekScene";
 import { CalendarAddScene } from "./scenes/CalendarAddScene";
 import { CalendarRecurringScene } from "./scenes/CalendarRecurringScene";
 import { CalendarAvailabilityScene } from "./scenes/CalendarAvailabilityScene";
+import { CalendarGCalScene } from "./scenes/CalendarGCalScene";
 import { CalendarOutroScene } from "./scenes/CalendarOutroScene";
 import { CALENDAR_SCENES } from "../voiceover-calendar-config";
 
@@ -49,7 +50,7 @@ export const PetraCalendarTutorial: React.FC<CalendarTutorialProps> = ({
 }) => {
   const { fps, durationInFrames } = useVideoConfig();
   const totalFrames = durationInFrames;
-  const [intro, week, add, recurring, availability, outro] = sceneDurationsFrames;
+  const [intro, week, add, recurring, availability, gcal, outro] = sceneDurationsFrames;
 
   return (
     <AbsoluteFill>
@@ -86,6 +87,10 @@ export const PetraCalendarTutorial: React.FC<CalendarTutorialProps> = ({
         <Series.Sequence durationInFrames={availability} premountFor={fps}>
           <CalendarAvailabilityScene />
           <Sequence layout="none"><Audio src={staticFile("voiceover/calendar-availability.wav")} /></Sequence>
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={gcal} premountFor={fps}>
+          <CalendarGCalScene />
+          <Sequence layout="none"><Audio src={staticFile("voiceover/calendar-gcal.wav")} /></Sequence>
         </Series.Sequence>
         <Series.Sequence durationInFrames={outro} premountFor={fps}>
           <CalendarOutroScene />
