@@ -11,7 +11,7 @@ import {
 } from "remotion";
 import { getAudioDuration } from "./get-audio-duration";
 import { PetsIntroScene } from "./scenes/PetsIntroScene";
-// import { PetsSpeciesScene } from "./scenes/PetsSpeciesScene";
+import { PetsSpeciesScene } from "./scenes/PetsSpeciesScene";
 // import { PetsAddScene } from "./scenes/PetsAddScene";
 // import { PetsProfileScene } from "./scenes/PetsProfileScene";
 // import { PetsFamilyScene } from "./scenes/PetsFamilyScene";
@@ -72,8 +72,12 @@ export const PetraPetsTutorial: React.FC<PetsTutorialProps> = ({
           <PetsIntroScene />
           <Sequence layout="none"><Audio src={staticFile("voiceover/pets-intro.wav")} /></Sequence>
         </Series.Sequence>
-        <Series.Sequence durationInFrames={species + add + profile + family + outro}>
-          {/* placeholder for scenes 2-6 */}
+        <Series.Sequence durationInFrames={species} premountFor={fps}>
+          <PetsSpeciesScene />
+          <Sequence layout="none"><Audio src={staticFile("voiceover/pets-species.wav")} /></Sequence>
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={add + profile + family + outro}>
+          {/* placeholder for scenes 3-6 */}
           <AbsoluteFill style={{ background: "#f1f5f9" }} />
         </Series.Sequence>
       </Series>
