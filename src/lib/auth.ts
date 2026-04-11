@@ -181,13 +181,12 @@ export async function getCurrentUser() {
     }),
   ]);
 
-  // Effective tier: if trial OR subscription expired, downgrade to "free"
+  // Effective tier: if subscription expired, downgrade to "free"
   const storedTier = business?.tier ?? "free";
   const trialEndsAt = business?.trialEndsAt ?? null;
   const subscriptionEndsAt = business?.subscriptionEndsAt ?? null;
-  const trialExpired = trialEndsAt && trialEndsAt < new Date();
   const subscriptionExpired = subscriptionEndsAt && subscriptionEndsAt < new Date();
-  const businessEffectiveTier = (trialExpired || subscriptionExpired) ? "free" : storedTier;
+  const businessEffectiveTier = subscriptionExpired ? "free" : storedTier;
 
   const platformRole = session.user.platformRole;
   return {

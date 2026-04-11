@@ -109,9 +109,9 @@ function RegisterForm() {
         return;
       }
 
-      // Plan selected — go to checkout to enter card details (trial starts after tokenization)
+      // Plan selected — go to checkout to enter card details
       if (planParam && VALID_PLANS.has(planParam)) {
-        router.push(`/checkout?tier=${planParam}&trial=1`);
+        router.push(`/checkout?tier=${planParam}`);
         return;
       }
       // Registered + logged in → go to onboarding wizard

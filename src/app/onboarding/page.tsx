@@ -33,8 +33,6 @@ interface BusinessInfo {
   name: string;
   phone: string;
   tier: TierKey;
-  trialActive: boolean;
-  trialEndsAt: string | null;
 }
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
@@ -63,11 +61,9 @@ function OnboardingInner() {
           name: d.name ?? "",
           phone: d.phone ?? "",
           tier: (d.effectiveTier ?? d.tier ?? "free") as TierKey,
-          trialActive: d.trialActive ?? false,
-          trialEndsAt: d.trialEndsAt ?? null,
         });
       })
-      .catch(() => setBusiness({ name: "", phone: "", tier: "free", trialActive: false, trialEndsAt: null }));
+      .catch(() => setBusiness({ name: "", phone: "", tier: "free" }));
   }, []);
 
   // Detect return from Google OAuth (keep for backward-compat)
@@ -96,10 +92,6 @@ function OnboardingInner() {
     }
   }
 
-  const trialDaysLeft = business?.trialEndsAt
-    ? Math.max(0, Math.ceil((new Date(business.trialEndsAt).getTime() - Date.now()) / 86400000))
-    : null;
-
   return (
     <div className="w-full max-w-2xl">
 
@@ -110,14 +102,6 @@ function OnboardingInner() {
         </div>
         <span className="text-lg font-bold text-petra-text tracking-tight">Petra</span>
       </div>
-
-      {/* ── Trial badge ── */}
-      {business?.trialActive && trialDaysLeft !== null && step < 4 && (
-        <div className="flex items-center justify-center gap-2 mb-5 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 font-medium">
-          <Sparkles className="w-4 h-4 text-amber-500" />
-          תקופת ניסיון פרו פעילה — עוד {trialDaysLeft} ימים עם גישה לכל הפיצ׳רים
-        </div>
-      )}
 
       {/* ── Skip button — only from client step (3) onwards ── */}
       {step === 3 && (
@@ -192,7 +176,6 @@ function OnboardingInner() {
           <StepWelcome
             businessName={business?.name ?? ""}
             tier={tier}
-            trialActive={business?.trialActive ?? false}
             onNext={() => setStep(1)}
           />
         ) : step === 1 ? (
@@ -253,12 +236,10 @@ const FEATURES_BY_TIER: Record<string, { icon: React.ComponentType<{ className?:
 function StepWelcome({
   businessName,
   tier,
-  trialActive,
   onNext,
 }: {
   businessName: string;
   tier: TierKey;
-  trialActive: boolean;
   onNext: () => void;
 }) {
   const features = FEATURES_BY_TIER[tier] ?? FEATURES_BY_TIER.default;
@@ -292,13 +273,6 @@ function StepWelcome({
           ))}
         </div>
       </div>
-
-      {trialActive && (
-        <div className="flex items-center gap-2 p-3 bg-brand-50 border border-brand-100 rounded-xl text-sm text-brand-700">
-          <Sparkles className="w-4 h-4 flex-shrink-0 text-brand-500" />
-          <span>תקופת הניסיון שלך פעילה — כל הפיצ׳רים פתוחים. תוכל לבחור מנוי בהמשך.</span>
-        </div>
-      )}
 
       <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
         <p className="text-sm text-petra-muted text-center">

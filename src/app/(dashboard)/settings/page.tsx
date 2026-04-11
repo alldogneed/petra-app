@@ -164,7 +164,7 @@ const TIER_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
 function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: string; customerCount: number; appointmentCount: number }) {
   const queryClient = useQueryClient();
   const { refreshUser } = useAuth();
-  const { subscriptionEndsAt, subscriptionDaysLeft, subscriptionExpired, subscriptionActive, cancelPending, subscriptionStatus, trialActive, trialDaysLeft, trialEndsAt } = usePlan();
+  const { subscriptionEndsAt, subscriptionDaysLeft, subscriptionExpired, subscriptionActive, cancelPending, subscriptionStatus } = usePlan();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
@@ -178,8 +178,6 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
     ? "חינמי"
     : cancelPending
     ? `בתהליך ביטול — גישה מלאה עד ${endsAtFormatted}`
-    : trialActive
-    ? `ניסיון חינמי — נשארו ${trialDaysLeft} ימים`
     : subscriptionExpired
     ? "פג תוקף"
     : subscriptionActive
@@ -190,13 +188,11 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
     ? "text-red-500"
     : cancelPending
     ? "text-amber-600"
-    : trialActive
-    ? "text-amber-600"
     : subscriptionActive && subscriptionDaysLeft <= 7
     ? "text-amber-500"
     : "text-emerald-500";
 
-  const canCancel = !isFree && !cancelPending && (trialActive || subscriptionActive || subscriptionStatus === "active");
+  const canCancel = !isFree && !cancelPending && (subscriptionActive || subscriptionStatus === "active");
 
   async function handleCancel() {
     setCancelling(true);
@@ -242,16 +238,6 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
       {cancelPending && (
         <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 flex items-center justify-between">
           <span>הביטול נקלט — גישה מלאה עד <strong>{endsAtFormatted}</strong>. לאחר מכן תעבור למסלול חינמי.</span>
-        </div>
-      )}
-
-      {/* Trial active info */}
-      {trialActive && (
-        <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 flex items-center justify-between">
-          <span>
-            ניסיון חינמי — יסתיים ב-<strong>{trialEndsAt ? new Date(trialEndsAt).toLocaleDateString("he-IL") : ""}</strong>.
-            לאחר מכן תחויב אוטומטית.
-          </span>
         </div>
       )}
 

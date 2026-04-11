@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { Shield, Check, Loader2, Crown, ArrowRight, Lock, Gift, CreditCard, ChevronLeft } from "lucide-react";
+import { Shield, Check, Loader2, Crown, ArrowRight, Lock, CreditCard, ChevronLeft } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, Suspense } from "react";
@@ -48,7 +48,7 @@ function CheckoutContent() {
   const { user, loading: authLoading } = useAuth();
 
   const tier = (searchParams.get("tier") ?? "") as PlanKey;
-  const isTrial = searchParams.get("trial") === "1";
+  // trial param is read but ignored — trial flow removed
   const plan = PLAN_DETAILS[tier];
 
   // ── Cardcom iframe state ──────────────────────────────────────────────────
@@ -115,7 +115,7 @@ function CheckoutContent() {
 
       if (user) {
         // Authenticated user — invoice fields only
-        endpoint = isTrial ? "/api/cardcom/create-tokenization" : "/api/cardcom/create-payment";
+        endpoint = "/api/cardcom/create-payment";
         body = {
           tier,
           phone: formPhone || undefined,
@@ -126,7 +126,7 @@ function CheckoutContent() {
         };
       } else {
         // New user — full checkout-first form
-        endpoint = isTrial ? "/api/cardcom/create-trial" : "/api/cardcom/create-checkout";
+        endpoint = "/api/cardcom/create-checkout";
         body = {
           name: formName,
           email: formEmail,
@@ -148,7 +148,7 @@ function CheckoutContent() {
       });
 
       if (res.status === 401) {
-        router.replace(`/login?redirect=/checkout?tier=${tier}${isTrial ? "&trial=1" : ""}`);
+        router.replace(`/login?redirect=/checkout?tier=${tier}`);
         return;
       }
 
@@ -197,7 +197,7 @@ function CheckoutContent() {
           />
           <span className="text-slate-300 mx-0.5 hidden sm:inline">·</span>
           <span className="text-slate-500 text-sm hidden sm:inline">
-            {isTrial ? "ניסיון חינמי 14 יום" : isNewUser ? "רכישת מנוי" : "שדרוג מנוי"}
+            {isNewUser ? "רכישת מנוי" : "שדרוג מנוי"}
           </span>
         </div>
         <button
@@ -247,52 +247,19 @@ function CheckoutContent() {
               </ul>
 
               {/* Total row */}
-              {isTrial ? (
-                <div className="py-3 border-t border-slate-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-slate-700">חיוב היום</span>
-                    <span className="text-base font-extrabold text-emerald-600">₪0</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500">לאחר 14 יום ניסיון</span>
-                    <span className="text-sm font-semibold text-slate-700">₪{plan.price} <span className="text-xs font-normal text-slate-400">/ חודש</span></span>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between py-3 border-t border-slate-200">
-                  <span className="text-sm font-semibold text-slate-700">סה״כ לתשלום</span>
-                  <span className="text-base font-extrabold text-slate-900">₪{plan.price} <span className="text-xs font-normal text-slate-400">/ חודש</span></span>
-                </div>
-              )}
+              <div className="flex items-center justify-between py-3 border-t border-slate-200">
+                <span className="text-sm font-semibold text-slate-700">סה״כ לתשלום</span>
+                <span className="text-base font-extrabold text-slate-900">₪{plan.price} <span className="text-xs font-normal text-slate-400">/ חודש</span></span>
+              </div>
 
               {/* Trust section */}
-              {isTrial ? (
-                <div className="mt-4 space-y-2">
-                  <ul className="space-y-1.5">
-                    <li className="flex items-center gap-2 text-xs text-slate-600">
-                      <span className="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-600 font-bold text-[10px]">✓</span>
-                      <span><strong>היום:</strong> לא תחויב כלום — הכרטיס רק נשמר</span>
-                    </li>
-                    <li className="flex items-center gap-2 text-xs text-slate-600">
-                      <span className="w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 text-amber-600 font-bold text-[10px]">14</span>
-                      <span><strong>לאחר 14 יום:</strong> חיוב אוטומטי ₪{plan.price}/חודש</span>
-                    </li>
-                    <li className="flex items-center gap-2 text-xs text-slate-600">
-                      <span className="w-4 h-4 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 text-red-500 font-bold text-[10px]">✕</span>
-                      <span><strong>בטלת בניסיון?</strong> ₪0 — ללא שום חיוב</span>
-                    </li>
-                  </ul>
-                  <p className="text-[10px] text-slate-400 pt-1">ביטול בכל עת מהגדרות → ניהול מנוי</p>
-                </div>
-              ) : (
-                <div className="mt-4 flex items-start gap-2.5 p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl">
-                  <Lock className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-emerald-700 leading-relaxed">
-                    תשלום מאובטח בתקן PCI DSS.<br />
-                    חשבונית מס תישלח אוטומטית למייל.
-                  </p>
-                </div>
-              )}
+              <div className="mt-4 flex items-start gap-2.5 p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl">
+                <Lock className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-emerald-700 leading-relaxed">
+                  תשלום מאובטח בתקן PCI DSS.<br />
+                  חשבונית מס תישלח אוטומטית למייל.
+                </p>
+              </div>
 
               {/* Bottom badges */}
               <div className="mt-4 flex items-center justify-center gap-3 text-[10px] text-slate-400">
@@ -317,7 +284,7 @@ function CheckoutContent() {
                 <div className="flex items-center gap-2">
                   <Lock className="w-3.5 h-3.5 text-emerald-500" />
                   <h2 className="font-semibold text-slate-800 text-sm">
-                    {isTrial ? "אימות כרטיס — לא יחויב עכשיו" : "פרטי תשלום"}
+                    פרטי תשלום
                   </h2>
                 </div>
                 {/* Step indicator */}
@@ -347,9 +314,7 @@ function CheckoutContent() {
                   <p className="text-sm text-slate-600 leading-relaxed mb-2">
                     {user
                       ? "אנא אמת/י את פרטי החשבונית לפני המשך לתשלום."
-                      : isTrial
-                        ? "הזן את הפרטים שלך — נשלח לך כניסה למערכת באימייל לאחר שמירת הכרטיס."
-                        : "הזן את הפרטים שלך — נשלח לך כניסה למערכת באימייל לאחר השלמת התשלום."}
+                      : "הזן את הפרטים שלך — נשלח לך כניסה למערכת באימייל לאחר השלמת התשלום."}
                   </p>
 
                   {/* ── New-user only fields ── */}
@@ -551,24 +516,12 @@ function CheckoutContent() {
                       <p className="text-sm text-red-600">{formError}</p>
                       {formErrorCode === "email_exists" && (
                         <Link
-                          href={`/login?redirect=/checkout?tier=${tier}${isTrial ? "&trial=1" : ""}`}
+                          href={`/login?redirect=/checkout?tier=${tier}`}
                           className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline"
                         >
                           כבר יש לך חשבון? התחבר ←
                         </Link>
                       )}
-                    </div>
-                  )}
-
-                  {/* Trial note — only shown when isTrial and new user */}
-                  {isTrial && !user && (
-                    <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl">
-                      <Gift className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-amber-700">
-                        לאחר שמירת הכרטיס תקבל אימייל עם פרטי הכניסה למערכת.
-                        <br />
-                        <span className="font-semibold">לא תחויב כלום עד תום 14 ימי הניסיון.</span>
-                      </p>
                     </div>
                   )}
 
@@ -581,7 +534,7 @@ function CheckoutContent() {
                     {formSubmitting ? (
                       <><Loader2 className="w-4 h-4 animate-spin" /> טוען...</>
                     ) : (
-                      <><CreditCard className="w-4 h-4" /> {isTrial ? "המשך לאימות כרטיס" : "המשך לתשלום"}</>
+                      <><CreditCard className="w-4 h-4" /> המשך לתשלום</>
                     )}
                   </button>
 

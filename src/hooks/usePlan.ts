@@ -33,13 +33,11 @@ export function usePlan() {
 
   const now = new Date();
 
-  // Trial info
-  const trialEndsAt = user?.businessTrialEndsAt ? new Date(user.businessTrialEndsAt) : null;
-  const trialActive = trialEndsAt !== null && trialEndsAt > now;
-  const trialExpired = trialEndsAt !== null && trialEndsAt <= now;
-  const trialDaysLeft = trialActive
-    ? Math.max(0, Math.ceil((trialEndsAt!.getTime() - now.getTime()) / 86400000))
-    : 0;
+  // Trial info — trials removed, always inactive
+  const trialEndsAt = null;
+  const trialActive = false;
+  const trialExpired = false;
+  const trialDaysLeft = 0;
 
   // Subscription info
   const subscriptionEndsAt = user?.businessSubscriptionEndsAt ? new Date(user.businessSubscriptionEndsAt) : null;
