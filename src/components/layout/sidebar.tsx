@@ -34,6 +34,7 @@ import {
   AlertTriangle,
   ShieldCheck,
   Lock,
+  PlayCircle,
 } from "lucide-react";
 import { hasFeatureWithOverrides, type FeatureKey, type TierKey } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
@@ -485,6 +486,34 @@ export function Sidebar({
                 )}
               </>
             )}
+
+            {/* Tutorials link */}
+            <Link
+              href="/tutorials"
+              onClick={isMobile ? onMobileClose : undefined}
+              title={!isMobile && collapsed ? "סרטוני הדרכה" : undefined}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group",
+                pathname.startsWith("/tutorials")
+                  ? "text-white"
+                  : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
+              )}
+              style={
+                pathname.startsWith("/tutorials")
+                  ? { background: "rgba(249,115,22,0.15)", boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.2)" }
+                  : undefined
+              }
+            >
+              <div className={cn("flex-shrink-0 relative", pathname.startsWith("/tutorials") ? "text-brand-400" : "text-slate-500 group-hover:text-slate-300")}>
+                <PlayCircle className="w-[18px] h-[18px]" />
+              </div>
+              {isExpanded && (
+                <>
+                  <span className="flex-1">סרטוני הדרכה</span>
+                  <span className="text-[10px] font-bold bg-brand-500 text-white px-1.5 py-0.5 rounded-full leading-none">חדש</span>
+                </>
+              )}
+            </Link>
 
             {/* Help button */}
             <button
