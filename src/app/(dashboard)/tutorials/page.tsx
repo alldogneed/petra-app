@@ -157,13 +157,13 @@ function VideoModal({
         {/* Video player */}
         <div className="flex-1 sm:flex-none sm:rounded-2xl overflow-hidden shadow-2xl bg-black min-h-0">
           <video
-            src={video.url}
+            key={video.id}
             controls
             playsInline
-            webkit-playsinline="true"
-            x5-playsinline="true"
+            preload="metadata"
             className="w-full h-full sm:h-auto object-contain block sm:max-h-[70vh]"
           >
+            <source src={video.url} type="video/mp4" />
             הדפדפן שלך לא תומך בהפעלת וידאו.
           </video>
         </div>
