@@ -14,7 +14,7 @@ import { CalendarIntroScene } from "./scenes/CalendarIntroScene";
 import { CalendarWeekScene } from "./scenes/CalendarWeekScene";
 import { CalendarAddScene } from "./scenes/CalendarAddScene";
 import { CalendarRecurringScene } from "./scenes/CalendarRecurringScene";
-// import { CalendarAvailabilityScene } from "./scenes/CalendarAvailabilityScene";
+import { CalendarAvailabilityScene } from "./scenes/CalendarAvailabilityScene";
 // import { CalendarOutroScene } from "./scenes/CalendarOutroScene";
 import { CALENDAR_SCENES } from "../voiceover-calendar-config";
 
@@ -84,9 +84,13 @@ export const PetraCalendarTutorial: React.FC<CalendarTutorialProps> = ({
           <CalendarRecurringScene />
           <Sequence layout="none"><Audio src={staticFile("voiceover/calendar-recurring.wav")} /></Sequence>
         </Series.Sequence>
-        <Series.Sequence durationInFrames={availability + outro}>
-          {/* placeholder for scenes 5–6 */}
-          <AbsoluteFill style={{ background: "#f1f5f9" }} />
+        <Series.Sequence durationInFrames={availability} premountFor={fps}>
+          <CalendarAvailabilityScene />
+          <Sequence layout="none"><Audio src={staticFile("voiceover/calendar-availability.wav")} /></Sequence>
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={outro}>
+          {/* placeholder for scene 6 */}
+          <AbsoluteFill style={{ background: "#0f172a" }} />
         </Series.Sequence>
       </Series>
     </AbsoluteFill>
