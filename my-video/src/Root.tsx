@@ -63,6 +63,12 @@ import {
   calculateAdminMetadata,
 } from "./AdminTutorial";
 import { ADMIN_SCENES } from "../voiceover-admin-config";
+import {
+  PetraPetsTutorial,
+  PetsTutorialProps,
+  calculatePetsMetadata,
+} from "./PetsTutorial";
+import { PETS_SCENES } from "../voiceover-pets-config";
 
 const FPS = 30;
 
@@ -96,6 +102,10 @@ const dashboardDefaultProps: DashboardTutorialProps = {
 
 const adminDefaultProps: AdminTutorialProps = {
   sceneDurationsFrames: ADMIN_SCENES.map((s) => s.defaultDurationSec * FPS),
+};
+
+const petsDefaultProps: PetsTutorialProps = {
+  sceneDurationsFrames: PETS_SCENES.map((s) => s.defaultDurationSec * FPS),
 };
 
 export const RemotionRoot: React.FC = () => {
@@ -257,6 +267,16 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={adminDefaultProps}
+      />
+      <Composition
+        id="PetraPetsTutorial"
+        component={PetraPetsTutorial}
+        calculateMetadata={calculatePetsMetadata}
+        durationInFrames={PETS_SCENES.reduce((sum, s) => sum + s.defaultDurationSec, 0) * FPS}
+        fps={FPS}
+        width={1280}
+        height={720}
+        defaultProps={petsDefaultProps}
       />
     </>
   );
