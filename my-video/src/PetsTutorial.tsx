@@ -15,7 +15,7 @@ import { PetsSpeciesScene } from "./scenes/PetsSpeciesScene";
 import { PetsAddScene } from "./scenes/PetsAddScene";
 import { PetsProfileScene } from "./scenes/PetsProfileScene";
 import { PetsFamilyScene } from "./scenes/PetsFamilyScene";
-// import { PetsOutroScene } from "./scenes/PetsOutroScene";
+import { PetsOutroScene } from "./scenes/PetsOutroScene";
 import { PETS_SCENES } from "../voiceover-pets-config";
 
 export type PetsTutorialProps = {
@@ -49,7 +49,6 @@ export const PetraPetsTutorial: React.FC<PetsTutorialProps> = ({
 }) => {
   const { fps, durationInFrames } = useVideoConfig();
   const totalFrames = durationInFrames;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [intro, species, add, profile, family, outro] = sceneDurationsFrames;
 
   return (
@@ -88,9 +87,9 @@ export const PetraPetsTutorial: React.FC<PetsTutorialProps> = ({
           <PetsFamilyScene />
           <Sequence layout="none"><Audio src={staticFile("voiceover/pets-family.wav")} /></Sequence>
         </Series.Sequence>
-        <Series.Sequence durationInFrames={outro}>
-          {/* placeholder for scene 6 */}
-          <AbsoluteFill style={{ background: "#0f172a" }} />
+        <Series.Sequence durationInFrames={outro} premountFor={fps}>
+          <PetsOutroScene />
+          <Sequence layout="none"><Audio src={staticFile("voiceover/pets-outro.wav")} /></Sequence>
         </Series.Sequence>
       </Series>
     </AbsoluteFill>
