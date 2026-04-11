@@ -262,7 +262,7 @@ export default function LandingPage() {
               </div>
 
               {/* Visual col — real dashboard screenshot (hidden on mobile) */}
-              <div aria-hidden="true" className="relative mt-2 lg:mt-0 animate-fadeIn hidden md:block" style={{ animationDelay: "150ms" }}>
+              <div aria-hidden="true" className="relative mt-6 lg:mt-0 animate-fadeIn" style={{ animationDelay: "150ms" }}>
                 {/* Glow ring behind the screenshot */}
                 <div className="absolute -inset-6 rounded-3xl bg-brand-500/8 blur-3xl pointer-events-none" />
                 <div className="relative scale-90 lg:scale-100 origin-top">
