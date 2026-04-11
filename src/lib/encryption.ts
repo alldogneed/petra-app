@@ -87,8 +87,8 @@ const CARDCOM_KEY = "CARDCOM_ENCRYPTION_KEY";
 
 export function encryptCardcomToken(plaintext: string): string {
   if (!process.env[CARDCOM_KEY] || process.env[CARDCOM_KEY]!.length !== 64) {
-    // No key configured — return plaintext (backwards compat)
-    return plaintext;
+    console.error("[SECURITY] CARDCOM_ENCRYPTION_KEY missing or invalid — refusing to store payment token as plaintext");
+    throw new Error("Payment encryption key not configured");
   }
   return encrypt(plaintext, CARDCOM_KEY);
 }

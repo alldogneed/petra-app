@@ -41,15 +41,18 @@ export async function POST(request: NextRequest) {
     select: { webhookSecretEncrypted: true, status: true },
   });
 
-  // If webhook secret is configured, verify the signature
-  if (stripeSettings?.webhookSecretEncrypted) {
-    const webhookSecret = decryptStripeSecret(stripeSettings.webhookSecretEncrypted);
-    try {
-      constructStripeEvent(rawBody, signature, webhookSecret);
-    } catch (err) {
-      console.error("[Stripe webhook] Signature verification failed:", err);
-      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
-    }
+  // Verify the Stripe signature — MANDATORY, never skip
+  if (!stripeSettings?.webhookSecretEncrypted) {
+    console.error(`[Stripe webhook] No webhook secret configured for business ${businessId} — rejecting`);
+    return NextResponse.json({ error: "Webhook not configured for this business" }, { status: 400 });
+  }
+
+  const webhookSecret = decryptStripeSecret(stripeSettings.webhookSecretEncrypted);
+  try {
+    constructStripeEvent(rawBody, signature, webhookSecret);
+  } catch (err) {
+    console.error("[Stripe webhook] Signature verification failed:", err);
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
   // Handle the event

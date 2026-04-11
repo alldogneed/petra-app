@@ -2,7 +2,8 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, setSessionCookie, createSession } from "@/lib/auth";
+import { deleteAllUserSessions } from "@/lib/session";
 
 // POST /api/account/set-password
 // For Google-only users to set a password for the first time.
@@ -59,6 +60,11 @@ export async function POST(request: NextRequest) {
         authProvider: "both",
       },
     });
+
+    // Invalidate all sessions and create a fresh one (credential change = force re-login)
+    await deleteAllUserSessions(currentUser.id);
+    const { token } = await createSession(currentUser.id, request);
+    setSessionCookie(token);
 
     return NextResponse.json({ success: true });
   } catch (error) {

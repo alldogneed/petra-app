@@ -2,7 +2,8 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, setSessionCookie, createSession } from "@/lib/auth";
+import { deleteAllUserSessions } from "@/lib/session";
 
 // POST /api/account/change-password
 // Body: { currentPassword, newPassword }
@@ -58,12 +59,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Hash and save new password
+    // Hash and save new password + invalidate all sessions (force re-login everywhere)
     const newHash = await bcrypt.hash(newPassword, 12);
     await prisma.platformUser.update({
       where: { id: currentUser.id },
       data: { passwordHash: newHash },
     });
+
+    await deleteAllUserSessions(currentUser.id);
+
+    // Create a fresh session for the current user so they stay logged in
+    const { token } = await createSession(currentUser.id, request);
+    setSessionCookie(token);
 
     return NextResponse.json({ success: true });
   } catch (error) {
