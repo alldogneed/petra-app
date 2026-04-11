@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
         status: "pending",
         notes: notes || null,
         source: "online",
+        customerToken: require("crypto").randomBytes(32).toString("hex"),
       },
       include: {
         priceListItem: true,

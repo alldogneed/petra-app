@@ -284,6 +284,7 @@ export async function POST(request: NextRequest) {
           status: "confirmed",
           source: "manual",
           notes: notes || null,
+          customerToken: require("crypto").randomBytes(32).toString("hex"),
           ...(petId ? { dogs: { create: { petId } } } : {}),
         },
       });

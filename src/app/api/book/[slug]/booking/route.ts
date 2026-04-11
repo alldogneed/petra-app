@@ -274,6 +274,7 @@ export async function POST(
               create: petIds.map((petId) => ({ petId })),
             },
             depositPaid: false,
+            customerToken: require("crypto").randomBytes(32).toString("hex"),
           },
           select: { id: true, customerToken: true },
         })

@@ -76,9 +76,10 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
     if (existing) {
+      // Return 400 with a generic message to prevent email enumeration
       return NextResponse.json(
-        { error: "כבר קיים חשבון עם אימייל זה" },
-        { status: 409 }
+        { error: "לא ניתן ליצור חשבון עם הפרטים שהוזנו" },
+        { status: 400 }
       );
     }
 
