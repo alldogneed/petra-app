@@ -155,17 +155,16 @@ function VideoModal({
         </div>
 
         {/* Video player */}
-        <div className="sm:rounded-2xl overflow-hidden shadow-2xl bg-black flex-1 sm:flex-none">
+        <div className="sm:rounded-2xl overflow-hidden shadow-2xl bg-black">
           <video
-            src={video.url}
             controls
             playsInline
-            preload="metadata"
             webkit-playsinline="true"
             x5-playsinline="true"
-            className="w-full h-full sm:h-auto sm:max-h-[70vh]"
-            style={{ display: "block" }}
+            className="w-full block"
+            style={{ maxHeight: "70vh" }}
           >
+            <source src={video.url} type="video/mp4" />
             הדפדפן שלך לא תומך בהפעלת וידאו.
           </video>
         </div>
