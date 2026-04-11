@@ -69,6 +69,8 @@ import {
   calculatePetsMetadata,
 } from "./PetsTutorial";
 import { PETS_SCENES } from "../voiceover-pets-config";
+import { PetraCalendarTutorial, CalendarTutorialProps, calculateCalendarMetadata } from "./CalendarTutorial";
+import { CALENDAR_SCENES } from "../voiceover-calendar-config";
 
 const FPS = 30;
 
@@ -106,6 +108,10 @@ const adminDefaultProps: AdminTutorialProps = {
 
 const petsDefaultProps: PetsTutorialProps = {
   sceneDurationsFrames: PETS_SCENES.map((s) => s.defaultDurationSec * FPS),
+};
+
+const calendarDefaultProps: CalendarTutorialProps = {
+  sceneDurationsFrames: CALENDAR_SCENES.map((s) => s.defaultDurationSec * FPS),
 };
 
 export const RemotionRoot: React.FC = () => {
@@ -277,6 +283,16 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={petsDefaultProps}
+      />
+      <Composition
+        id="PetraCalendarTutorial"
+        component={PetraCalendarTutorial}
+        calculateMetadata={calculateCalendarMetadata}
+        durationInFrames={CALENDAR_SCENES.reduce((sum, s) => sum + s.defaultDurationSec, 0) * FPS}
+        fps={FPS}
+        width={1280}
+        height={720}
+        defaultProps={calendarDefaultProps}
       />
     </>
   );
