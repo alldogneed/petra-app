@@ -155,13 +155,13 @@ function VideoModal({
         </div>
 
         {/* Video player */}
-        <div className="sm:rounded-2xl overflow-hidden shadow-2xl bg-black">
+        <div className="flex-1 sm:flex-none sm:rounded-2xl overflow-hidden shadow-2xl bg-black min-h-0">
           <video
             controls
             playsInline
             webkit-playsinline="true"
             x5-playsinline="true"
-            className="w-full block"
+            className="w-full h-full sm:h-auto object-contain block"
             style={{ maxHeight: "70vh" }}
           >
             <source src={video.url} type="video/mp4" />
