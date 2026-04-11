@@ -142,8 +142,31 @@ async function executeApprovedAction(
 ) {
   switch (action) {
     case "DELETE_CUSTOMER": {
-      const id = payload.customerId as string;
-      await prisma.customer.delete({ where: { id, businessId } });
+      const cid = payload.customerId as string;
+      // Full cascading cleanup (must match /api/customers/[id] DELETE logic)
+      await prisma.invoiceDocument.updateMany({ where: { customerId: cid }, data: { originalInvoiceId: null } });
+      await prisma.invoiceDocument.deleteMany({ where: { customerId: cid } });
+      await prisma.invoiceJob.deleteMany({ where: { customerId: cid } });
+      await prisma.payment.deleteMany({ where: { customerId: cid } });
+      await prisma.appointment.deleteMany({ where: { customerId: cid } });
+      const orders = await prisma.order.findMany({ where: { customerId: cid }, select: { id: true } });
+      if (orders.length > 0) {
+        await prisma.orderLine.deleteMany({ where: { orderId: { in: orders.map((o: { id: string }) => o.id) } } });
+      }
+      await prisma.order.deleteMany({ where: { customerId: cid } });
+      await prisma.boardingStay.updateMany({ where: { customerId: cid }, data: { customerId: null } });
+      await prisma.lead.updateMany({ where: { customerId: cid }, data: { customerId: null } });
+      await prisma.trainingProgram.updateMany({ where: { customerId: cid }, data: { customerId: null } });
+      await prisma.booking.deleteMany({ where: { customerId: cid } });
+      await prisma.scheduledMessage.deleteMany({ where: { customerId: cid } });
+      await prisma.contractRequest.deleteMany({ where: { customerId: cid } });
+      await prisma.intakeForm.deleteMany({ where: { customerId: cid } });
+      await prisma.timelineEvent.deleteMany({ where: { customerId: cid } });
+      await prisma.serviceDogRecipient.deleteMany({ where: { customerId: cid } });
+      await prisma.trainingGroupParticipant.deleteMany({ where: { customerId: cid } });
+      await prisma.task.deleteMany({ where: { relatedEntityType: "CUSTOMER", relatedEntityId: cid } });
+      await prisma.pet.deleteMany({ where: { customerId: cid } });
+      await prisma.customer.delete({ where: { id: cid, businessId } });
       break;
     }
     case "DELETE_PET": {

@@ -1092,7 +1092,7 @@ model Booking {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  customerToken    String?  @unique @default(cuid()) // for "My Booking" self-service access
+  customerToken    String?  @unique // for "My Booking" self-service access — generated via crypto.randomBytes at app level
 
   // Google Calendar sync fields
   gcalEventId      String?   // Google Calendar event ID once synced

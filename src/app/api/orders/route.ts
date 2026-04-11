@@ -83,6 +83,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "הערות ארוכות מדי (מקסימום 2000 תווים)" }, { status: 400 });
     }
 
+    // ── IDOR Prevention: validate customerId belongs to this business ──
+    const customerCheck = await prisma.customer.findFirst({
+      where: { id: customerId, businessId: authResult.businessId },
+      select: { id: true },
+    });
+    if (!customerCheck) {
+      return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
+    }
+
     // Validate assignedToUserId belongs to this business
     if (assignedToUserId) {
       const membership = await prisma.businessUser.findUnique({

@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { createSession, setSessionCookie } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { logAudit, AUDIT_ACTIONS, getRequestContext } from "@/lib/audit";
+import { invalidateUserSessionCache } from "@/lib/session";
 
 const RESET_RATE_LIMIT = { max: 10, windowMs: 15 * 60 * 1000 };
 
@@ -109,6 +110,9 @@ export async function POST(request: NextRequest) {
         where: { userId: user.id },
       }),
     ]);
+
+    // Immediately clear cached sessions so old tokens are rejected right away
+    invalidateUserSessionCache(user.id);
 
     // Create a new session so user is logged in immediately after reset
     const { token: sessionToken } = await createSession(user.id, request);

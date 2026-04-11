@@ -98,6 +98,45 @@ export async function POST(request: NextRequest) {
     // Service dogs have no customer — accept null/empty customerId
     const resolvedCustomerId = customerId || null;
 
+    // ── IDOR Prevention: validate petId and customerId belong to this business ──
+    const petCheck = await prisma.pet.findFirst({
+      where: { id: petId, OR: [{ customer: { businessId: authResult.businessId } }, { businessId: authResult.businessId }] },
+      select: { id: true },
+    });
+    if (!petCheck) {
+      return NextResponse.json({ error: "חיית מחמד לא נמצאה" }, { status: 404 });
+    }
+
+    if (resolvedCustomerId) {
+      const customerCheck = await prisma.customer.findFirst({
+        where: { id: resolvedCustomerId, businessId: authResult.businessId },
+        select: { id: true },
+      });
+      if (!customerCheck) {
+        return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
+      }
+    }
+
+    if (roomId) {
+      const roomCheck = await prisma.room.findFirst({
+        where: { id: roomId, businessId: authResult.businessId },
+        select: { id: true },
+      });
+      if (!roomCheck) {
+        return NextResponse.json({ error: "חדר לא נמצא" }, { status: 404 });
+      }
+    }
+
+    if (yardId) {
+      const yardCheck = await prisma.yard.findFirst({
+        where: { id: yardId, businessId: authResult.businessId },
+        select: { id: true },
+      });
+      if (!yardCheck) {
+        return NextResponse.json({ error: "חצר לא נמצאה" }, { status: 404 });
+      }
+    }
+
     // Sequential room availability check + create (no interactive $transaction — Supabase PgBouncer incompatible)
     if (roomId) {
       const room = await prisma.room.findUnique({ where: { id: roomId } });

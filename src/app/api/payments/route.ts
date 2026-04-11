@@ -125,6 +125,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── IDOR Prevention: validate all referenced entity IDs belong to this business ──
+    const customerCheck = await prisma.customer.findFirst({
+      where: { id: customerId, businessId: authResult.businessId },
+      select: { id: true },
+    });
+    if (!customerCheck) {
+      return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
+    }
+
+    if (appointmentId) {
+      const apptCheck = await prisma.appointment.findFirst({
+        where: { id: appointmentId, businessId: authResult.businessId },
+        select: { id: true },
+      });
+      if (!apptCheck) {
+        return NextResponse.json({ error: "תור לא נמצא" }, { status: 404 });
+      }
+    }
+
+    if (boardingStayId) {
+      const stayCheck = await prisma.boardingStay.findFirst({
+        where: { id: boardingStayId, businessId: authResult.businessId },
+        select: { id: true },
+      });
+      if (!stayCheck) {
+        return NextResponse.json({ error: "שהייה לא נמצאה" }, { status: 404 });
+      }
+    }
+
+    if (orderId) {
+      const orderCheck = await prisma.order.findFirst({
+        where: { id: orderId, businessId: authResult.businessId },
+        select: { id: true },
+      });
+      if (!orderCheck) {
+        return NextResponse.json({ error: "הזמנה לא נמצאה" }, { status: 404 });
+      }
+    }
+
     const payment = await prisma.payment.create({
       data: {
         amount,

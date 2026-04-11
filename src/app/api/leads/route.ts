@@ -188,6 +188,17 @@ export async function POST(request: NextRequest) {
       resolvedStage = await getFirstLeadStageId(authResult.businessId);
     }
 
+    // ── IDOR Prevention: validate customerId belongs to this business ──
+    if (customerId) {
+      const customerCheck = await prisma.customer.findFirst({
+        where: { id: customerId, businessId: authResult.businessId },
+        select: { id: true },
+      });
+      if (!customerCheck) {
+        return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
+      }
+    }
+
     const lead = await prisma.lead.create({
       data: {
         businessId: authResult.businessId,

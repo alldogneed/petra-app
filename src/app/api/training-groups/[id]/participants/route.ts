@@ -46,6 +46,22 @@ export async function POST(
       return NextResponse.json({ error: "Group is full" }, { status: 400 });
     }
 
+    // Verify customer and dog belong to this business
+    const customer = await prisma.customer.findFirst({
+      where: { id: customerId, businessId: authResult.businessId },
+      select: { id: true },
+    });
+    if (!customer) {
+      return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
+    }
+    const dog = await prisma.pet.findFirst({
+      where: { id: dogId, customer: { businessId: authResult.businessId } },
+      select: { id: true },
+    });
+    if (!dog) {
+      return NextResponse.json({ error: "כלב לא נמצא" }, { status: 404 });
+    }
+
     const participant = await prisma.trainingGroupParticipant.create({
       data: {
         trainingGroupId: params.id,

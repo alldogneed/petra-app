@@ -64,6 +64,17 @@ export async function PATCH(
     const body = await request.json();
     const { docType, notes, linesJson, customerId } = body;
 
+    // Verify customerId belongs to this business
+    if (customerId) {
+      const cust = await prisma.customer.findFirst({
+        where: { id: customerId, businessId: authResult.businessId },
+        select: { id: true },
+      });
+      if (!cust) {
+        return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = {};
     if (docType !== undefined) data.docType = docType;

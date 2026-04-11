@@ -44,12 +44,22 @@ export async function verifyTotp(
   const now = Math.floor(Date.now() / 1000);
   const counter = Math.floor(now / TOTP_PERIOD);
 
-  // Check current window and ±1 for clock drift tolerance
+  // Check ALL windows before returning to prevent timing attacks.
+  // Use constant-time comparison via crypto.timingSafeEqual.
+  let matched = false;
   for (const offset of [-1, 0, 1]) {
     const expected = await generateHotp(secret, counter + offset);
-    if (expected === normalizedToken) return true;
+    try {
+      const isEqual = require("crypto").timingSafeEqual(
+        Buffer.from(expected, "utf8"),
+        Buffer.from(normalizedToken, "utf8")
+      );
+      if (isEqual) matched = true;
+    } catch {
+      // Buffer length mismatch — should not happen since both are 6-digit strings
+    }
   }
-  return false;
+  return matched;
 }
 
 /** Generate TOTP URI for QR code display */

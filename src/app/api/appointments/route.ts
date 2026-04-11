@@ -110,6 +110,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── IDOR Prevention: validate all referenced entity IDs belong to this business ──
+    const customerCheck = await prisma.customer.findFirst({
+      where: { id: customerId, businessId: authResult.businessId },
+      select: { id: true },
+    });
+    if (!customerCheck) {
+      return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
+    }
+
+    if (petId) {
+      const petCheck = await prisma.pet.findFirst({
+        where: { id: petId, OR: [{ customer: { businessId: authResult.businessId } }, { businessId: authResult.businessId }] },
+        select: { id: true },
+      });
+      if (!petCheck) {
+        return NextResponse.json({ error: "חיית מחמד לא נמצאה" }, { status: 404 });
+      }
+    }
+
+    if (serviceId) {
+      const serviceCheck = await prisma.service.findFirst({
+        where: { id: serviceId, businessId: authResult.businessId },
+        select: { id: true },
+      });
+      if (!serviceCheck) {
+        return NextResponse.json({ error: "שירות לא נמצא" }, { status: 404 });
+      }
+    }
+
+    if (priceListItemId) {
+      const pliCheck = await prisma.priceListItem.findFirst({
+        where: { id: priceListItemId, priceList: { businessId: authResult.businessId } },
+        select: { id: true },
+      });
+      if (!pliCheck) {
+        return NextResponse.json({ error: "פריט מחירון לא נמצא" }, { status: 404 });
+      }
+    }
+
     // Validate time format (HH:mm)
     const timeRegex = /^\d{2}:\d{2}$/;
     if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {

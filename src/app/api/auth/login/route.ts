@@ -20,7 +20,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Rate limiting
+    // Rate limiting: use both IP-only and IP+email keys to prevent
+    // brute-force attacks on specific accounts while also rate-limiting
+    // broad credential-stuffing attacks from a single IP.
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     const rl = rateLimit("auth:login", ip, RATE_LIMITS.AUTH_LOGIN);
     if (!rl.allowed) {
@@ -28,6 +30,17 @@ export async function POST(request: NextRequest) {
         { error: "יותר מדי ניסיונות התחברות. נסה שוב מאוחר יותר." },
         { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
       );
+    }
+    // Per-email+IP rate limit to prevent targeted brute-force against specific accounts
+    const emailNorm = (email || "").toString().toLowerCase().trim();
+    if (emailNorm) {
+      const rlEmail = rateLimit("auth:login:email", `${ip}:${emailNorm}`, { max: 5, windowMs: 15 * 60 * 1000 });
+      if (!rlEmail.allowed) {
+        return NextResponse.json(
+          { error: "יותר מדי ניסיונות התחברות לחשבון זה. נסה שוב מאוחר יותר." },
+          { status: 429, headers: { "Retry-After": String(Math.ceil(rlEmail.retryAfterMs / 1000)) } }
+        );
+      }
     }
 
     // Find user by email

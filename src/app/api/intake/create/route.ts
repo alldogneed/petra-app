@@ -12,6 +12,26 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { customerId, dogId, phone } = body;
 
+    // Verify referenced entities belong to this business
+    if (customerId) {
+      const cust = await prisma.customer.findFirst({
+        where: { id: customerId, businessId: authResult.businessId },
+        select: { id: true },
+      });
+      if (!cust) {
+        return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
+      }
+    }
+    if (dogId) {
+      const pet = await prisma.pet.findFirst({
+        where: { id: dogId, customer: { businessId: authResult.businessId } },
+        select: { id: true },
+      });
+      if (!pet) {
+        return NextResponse.json({ error: "חיית מחמד לא נמצאה" }, { status: 404 });
+      }
+    }
+
     // Generate token
     const token = crypto.randomBytes(32).toString("hex");
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");

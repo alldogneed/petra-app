@@ -81,6 +81,26 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    // ── IDOR Prevention: validate dogId and customerId belong to this business ──
+    if (body.dogId) {
+      const dogCheck = await prisma.pet.findFirst({
+        where: { id: body.dogId, OR: [{ customer: { businessId: authResult.businessId } }, { businessId: authResult.businessId }] },
+        select: { id: true },
+      });
+      if (!dogCheck) {
+        return NextResponse.json({ error: "כלב לא נמצא" }, { status: 404 });
+      }
+    }
+    if (body.customerId) {
+      const customerCheck = await prisma.customer.findFirst({
+        where: { id: body.customerId, businessId: authResult.businessId },
+        select: { id: true },
+      });
+      if (!customerCheck) {
+        return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
+      }
+    }
+
     // If packageId provided, auto-fill sessions and price from package
     let totalSessions = body.totalSessions ?? null;
     let price = body.price ?? null;
