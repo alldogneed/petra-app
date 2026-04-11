@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const tier: string = body.tier;
+    const phone: string | undefined = body.phone?.replace(/[\s\-]/g, "").trim() || undefined;
     const address: string | undefined = body.address?.trim() || undefined;
     const vatNumber: string | undefined = body.vatNumber?.trim() || undefined;
     const businessType: string | undefined = body.businessType?.trim() || undefined;
@@ -78,6 +79,10 @@ export async function POST(request: NextRequest) {
     // Encode businessId + tier into UserId so indicator can read both back
     const encodedUserId = `${businessId}::${tier}`;
 
+    const invoiceEmail = billingEmail ?? business.email ?? "";
+    const invoicePhone = phone ?? business.phone ?? "";
+    const isVatFree = businessType === "עוסק פטור";
+
     const params = new URLSearchParams({
       TerminalNumber:   process.env.CARDCOM_TERMINAL_NUMBER ?? "",
       UserName:         process.env.CARDCOM_API_USERNAME ?? "",
@@ -95,7 +100,22 @@ export async function POST(request: NextRequest) {
       IndicatorURL:     `${appUrl}/api/cardcom/indicator?secret=${process.env.CARDCOM_WEBHOOK_SECRET ?? ""}`,
       UserId:           encodedUserId,
       ShowLogoutButton: "false",
-      ...(billingEmail ?? business.email ?? undefined ? { Email: (billingEmail ?? business.email)! } : {}),
+      ...(invoiceEmail ? { Email: invoiceEmail } : {}),
+      ...(invoicePhone ? { PhoneNumber: invoicePhone } : {}),
+      // ── Automatic invoice ──
+      "InvoiceHead.CustName":        business.name || "לקוח פטרה",
+      "InvoiceHead.CustAddresLine1": address ?? "",
+      "InvoiceHead.SendByEmail":     "true",
+      "InvoiceHead.Language":        "he",
+      "InvoiceHead.Email":           invoiceEmail,
+      "InvoiceHead.Phone":           invoicePhone,
+      "InvoiceHead.CoinID":          "1",
+      ...(vatNumber ? { "InvoiceHead.CompID": vatNumber } : {}),
+      ...(isVatFree ? { "InvoiceHead.ExtIsVatFree": "true" } : {}),
+      "InvoiceLines1.Description":   `מנוי ${plan.label} — חודשי`,
+      "InvoiceLines1.Price":         plan.price.toString(),
+      "InvoiceLines1.Quantity":      "1",
+      "InvoiceLines1.IsVat":         isVatFree ? "false" : "true",
     });
 
     const cardcomRes = await fetch(

@@ -118,6 +118,7 @@ function CheckoutContent() {
         endpoint = isTrial ? "/api/cardcom/create-tokenization" : "/api/cardcom/create-payment";
         body = {
           tier,
+          phone: formPhone || undefined,
           address: formAddress || undefined,
           vatNumber: formVatNumber || undefined,
           businessType: formBusinessType || undefined,
@@ -424,20 +425,36 @@ function CheckoutContent() {
 
                   {/* Billing Email (authenticated users only — show their email) */}
                   {user && (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                        אימייל לחשבונית <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={formBillingEmail}
-                        onChange={(e) => setFormBillingEmail(e.target.value)}
-                        placeholder="name@example.com"
-                        dir="ltr"
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
-                      />
-                    </div>
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                          אימייל לחשבונית <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          value={formBillingEmail}
+                          onChange={(e) => setFormBillingEmail(e.target.value)}
+                          placeholder="name@example.com"
+                          dir="ltr"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                          טלפון לחיוב <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          value={formPhone}
+                          onChange={(e) => setFormPhone(e.target.value)}
+                          placeholder="05X-XXXXXXX"
+                          dir="ltr"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
+                        />
+                      </div>
+                    </>
                   )}
 
                   {/* Business Type */}

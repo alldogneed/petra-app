@@ -132,6 +132,9 @@ export async function POST(request: NextRequest) {
     // UserId encodes the PendingCheckout id so the indicator can retrieve it
     const encodedUserId = `pending:${checkout.id}::${tier}`;
 
+    const invoiceEmail = cleanBillingEmail || emailNorm;
+    const isVatFree = cleanBusinessType === "עוסק פטור";
+
     const params = new URLSearchParams({
       TerminalNumber:   process.env.CARDCOM_TERMINAL_NUMBER ?? "",
       UserName:         process.env.CARDCOM_API_USERNAME ?? "",
@@ -149,8 +152,22 @@ export async function POST(request: NextRequest) {
       IndicatorURL:     `${appUrl}/api/cardcom/checkout-indicator?secret=${process.env.CARDCOM_WEBHOOK_SECRET ?? ""}`,
       UserId:           encodedUserId,
       ShowLogoutButton: "false",
-      Email:            cleanBillingEmail || emailNorm,
+      Email:            invoiceEmail,
       PhoneNumber:      phoneClean,
+      // ── Automatic invoice ──
+      "InvoiceHead.CustName":        cleanBusiness || cleanName,
+      "InvoiceHead.CustAddresLine1": cleanAddress,
+      "InvoiceHead.SendByEmail":     "true",
+      "InvoiceHead.Language":        "he",
+      "InvoiceHead.Email":           invoiceEmail,
+      "InvoiceHead.Phone":           phoneClean,
+      "InvoiceHead.CoinID":          "1",
+      ...(cleanVatNumber ? { "InvoiceHead.CompID": cleanVatNumber } : {}),
+      ...(isVatFree ? { "InvoiceHead.ExtIsVatFree": "true" } : {}),
+      "InvoiceLines1.Description":   `מנוי ${plan.label} — חודשי`,
+      "InvoiceLines1.Price":         String(plan.price),
+      "InvoiceLines1.Quantity":      "1",
+      "InvoiceLines1.IsVat":         isVatFree ? "false" : "true",
     });
 
     const cardcomRes = await fetch(
