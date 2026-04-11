@@ -3,13 +3,14 @@ import {
   AbsoluteFill,
   Audio,
   CalculateMetadataFunction,
+  Sequence,
   Series,
   interpolate,
   staticFile,
   useVideoConfig,
 } from "remotion";
 import { getAudioDuration } from "./get-audio-duration";
-// import { PetsIntroScene } from "./scenes/PetsIntroScene";
+import { PetsIntroScene } from "./scenes/PetsIntroScene";
 // import { PetsSpeciesScene } from "./scenes/PetsSpeciesScene";
 // import { PetsAddScene } from "./scenes/PetsAddScene";
 // import { PetsProfileScene } from "./scenes/PetsProfileScene";
@@ -67,9 +68,13 @@ export const PetraPetsTutorial: React.FC<PetsTutorialProps> = ({
         }
       />
       <Series>
-        <Series.Sequence durationInFrames={intro + species + add + profile + family + outro}>
-          {/* placeholder — scenes will be wired in Task 9 */}
-          <AbsoluteFill style={{ background: "#0f172a" }} />
+        <Series.Sequence durationInFrames={intro} premountFor={fps}>
+          <PetsIntroScene />
+          <Sequence layout="none"><Audio src={staticFile("voiceover/pets-intro.wav")} /></Sequence>
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={species + add + profile + family + outro}>
+          {/* placeholder for scenes 2-6 */}
+          <AbsoluteFill style={{ background: "#f1f5f9" }} />
         </Series.Sequence>
       </Series>
     </AbsoluteFill>
