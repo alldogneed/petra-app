@@ -82,7 +82,7 @@ function VideoCard({
   return (
     <button
       onClick={onPlay}
-      className="group card text-right w-full overflow-hidden hover:shadow-card-hover hover:-translate-y-[1px] transition-all duration-200"
+      className="group card text-right w-full overflow-hidden hover:shadow-card-hover hover:-translate-y-[1px] transition-all duration-200 cursor-pointer"
     >
       {/* Thumbnail area */}
       <div className="relative bg-gradient-to-br from-slate-800 to-slate-900 h-40 flex items-center justify-center">
@@ -159,8 +159,8 @@ function VideoModal({
           <video
             src={video.url}
             controls
-            autoPlay
             playsInline
+            preload="metadata"
             webkit-playsinline="true"
             x5-playsinline="true"
             className="w-full h-full sm:h-auto sm:max-h-[70vh]"
