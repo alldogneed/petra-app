@@ -4,10 +4,10 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Home,
-  Target,
   UserPlus,
   ListChecks,
   Calendar,
+  PlayCircle,
   X,
   Loader2,
 } from "lucide-react";
@@ -164,12 +164,12 @@ export function MobileBottomNav() {
       isCenter: false,
     },
     {
-      key: "leads",
-      icon: Target,
-      label: "לידים",
-      onClick: () => router.push("/leads"),
+      key: "tutorials",
+      icon: PlayCircle,
+      label: "הדרכה",
+      onClick: () => router.push("/tutorials"),
       isCenter: false,
-      active: pathname.startsWith("/leads"),
+      active: pathname.startsWith("/tutorials"),
     },
     {
       key: "home",
