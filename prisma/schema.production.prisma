@@ -221,6 +221,7 @@ model Business {
   cardcomDealId        String?   // last successful Cardcom deal number
   cardcomToken         String?   // Cardcom recurring billing token (future use)
   cardcomTokenExpiry   String?   // Card expiry from Cardcom (MMYY format, used for token charges)
+  cardcomRecurringId   String?   // Cardcom recurring order ID (for cancellation of הוראת קבע)
   vatNumber          String?
   businessRegNumber  String?   // ח.פ / עוסק מורשה / בע"מ
   vatEnabled         Boolean  @default(true)

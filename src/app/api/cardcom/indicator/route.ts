@@ -6,6 +6,7 @@ import { checkRateLimit } from "@/lib/security/rateLimiter";
 import { timingSafeEqual } from "crypto";
 import { verifyIndicatorSignature, sanitizeUrlForLog } from "@/lib/security/cardcom-helpers";
 import { encryptCardcomToken } from "@/lib/encryption";
+import { createCardcomRecurring, getPlanPrice } from "@/lib/cardcom-recurring";
 
 const TIER_DAYS: Record<string, number> = {
   basic: 30, pro: 30, groomer: 30, service_dog: 30,
@@ -138,10 +139,10 @@ export async function GET(request: NextRequest) {
     return new Response("OK");
   }
 
-  // Verify the business exists
+  // Verify the business exists and get details for recurring
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { id: true },
+    select: { id: true, name: true, email: true, cardcomRecurringId: true },
   });
   if (!business) {
     console.error(`Cardcom indicator: business not found: ${businessId}`);
@@ -179,6 +180,42 @@ export async function GET(request: NextRequest) {
   });
 
   console.log(`Cardcom: activated ${tier} for business ${businessId}, deal ${data.DealNumber}`);
+
+  // ── Create recurring order (הוראת קבע) in Cardcom ──────────────────────
+  // Fire-and-forget — don't block the indicator response
+  const plan = getPlanPrice(tier);
+  if (plan && business) {
+    createCardcomRecurring({
+      lowProfileDealGuid: lowProfileCode,
+      price: plan.price,
+      invoiceDescription: `מנוי ${plan.label} — חודשי`,
+      companyName: business.name ?? "לקוח פטרה",
+      email: business.email ?? "",
+      existingRecurringId: business.cardcomRecurringId ?? undefined,
+    }).then(async (result) => {
+      if (result.success && result.recurringId) {
+        await prisma.business.update({
+          where: { id: businessId },
+          data: { cardcomRecurringId: result.recurringId },
+        });
+        console.log(`Cardcom: recurring order ${result.recurringId} created for business ${businessId}`);
+      } else {
+        console.error(`Cardcom: failed to create recurring for business ${businessId}:`, result.error);
+      }
+      // Log the attempt
+      await prisma.subscriptionEvent.create({
+        data: {
+          businessId,
+          eventType: result.success ? "recurring_created" : "recurring_failed",
+          tier,
+          metadata: { recurringId: result.recurringId ?? null, error: result.error ?? null },
+        },
+      }).catch(() => null);
+    }).catch((err) => {
+      console.error(`Cardcom: recurring creation error for business ${businessId}:`, err);
+    });
+  }
+
   return new Response("OK");
   } catch (error) {
     console.error("Cardcom indicator: unhandled error:", error);

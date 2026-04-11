@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { validateOrigin } from "@/lib/security/cardcom-helpers";
+import { cancelCardcomRecurring } from "@/lib/cardcom-recurring";
 
 /**
  * POST /api/subscription/cancel
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     const business = await prisma.business.findUnique({
       where: { id: businessId },
-      select: { tier: true, subscriptionStatus: true, subscriptionEndsAt: true, cardcomToken: true },
+      select: { tier: true, subscriptionStatus: true, subscriptionEndsAt: true, cardcomToken: true, cardcomRecurringId: true },
     });
 
     if (!business) {
@@ -40,6 +41,15 @@ export async function POST(request: NextRequest) {
 
     const previousTier = business.tier;
 
+    // Cancel recurring order in Cardcom (הוראת קבע) if exists
+    if (business.cardcomRecurringId) {
+      const cancelResult = await cancelCardcomRecurring(business.cardcomRecurringId);
+      if (!cancelResult.success) {
+        console.error(`Cancel recurring failed for business ${businessId}:`, cancelResult.error);
+        // Don't block cancellation — log and continue
+      }
+    }
+
     if (business.subscriptionStatus === "active" && business.subscriptionEndsAt) {
       // Active paid subscription — schedule cancellation at end of billing period
       await prisma.business.update({
@@ -48,7 +58,7 @@ export async function POST(request: NextRequest) {
           subscriptionStatus: "cancel_pending",
           cardcomToken:       null,
           cardcomTokenExpiry: null,
-          // tier + subscriptionEndsAt stay as-is — access continues until period ends
+          cardcomRecurringId: null,
         },
       });
     } else {
@@ -60,6 +70,7 @@ export async function POST(request: NextRequest) {
           subscriptionStatus: "cancelled",
           cardcomToken:       null,
           cardcomTokenExpiry: null,
+          cardcomRecurringId: null,
           subscriptionEndsAt: null,
           trialEndsAt:        null,
         },
