@@ -14,27 +14,37 @@ function generateKey(): string {
 }
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireBusinessAuth(request);
-  if (isGuardError(authResult)) return authResult;
+  try {
+    const authResult = await requireBusinessAuth(request);
+    if (isGuardError(authResult)) return authResult;
 
-  const business = await prisma.business.findUnique({
-    where: { id: authResult.businessId },
-    select: { webhookApiKey: true },
-  });
+    const business = await prisma.business.findUnique({
+      where: { id: authResult.businessId },
+      select: { webhookApiKey: true },
+    });
 
-  return NextResponse.json({ key: business?.webhookApiKey ?? null });
+    return NextResponse.json({ key: business?.webhookApiKey ?? null });
+  } catch (error) {
+    console.error("Failed to get webhook key:", error);
+    return NextResponse.json({ error: "Failed to get webhook key" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
-  const authResult = await requireBusinessAuth(request);
-  if (isGuardError(authResult)) return authResult;
+  try {
+    const authResult = await requireBusinessAuth(request);
+    if (isGuardError(authResult)) return authResult;
 
-  const newKey = generateKey();
+    const newKey = generateKey();
 
-  await prisma.business.update({
-    where: { id: authResult.businessId },
-    data: { webhookApiKey: newKey },
-  });
+    await prisma.business.update({
+      where: { id: authResult.businessId },
+      data: { webhookApiKey: newKey, webhookApiKeyCreatedAt: new Date() },
+    });
 
-  return NextResponse.json({ key: newKey });
+    return NextResponse.json({ key: newKey });
+  } catch (error) {
+    console.error("Failed to generate webhook key:", error);
+    return NextResponse.json({ error: "Failed to generate webhook key" }, { status: 500 });
+  }
 }

@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
 
         // ── Pre-check: skip if token has expired (MMYY format) ──────────────
         if (biz.cardcomTokenExpiry) {
-          const expiry = biz.cardcomTokenExpiry; // e.g. "0128" = Jan 2028
+          const expiry = decryptCardcomToken(biz.cardcomTokenExpiry); // e.g. "0128" = Jan 2028
           const expMonth = parseInt(expiry.slice(0, 2), 10);
           const expYear = 2000 + parseInt(expiry.slice(2, 4), 10);
           const expiryDate = new Date(expYear, expMonth, 0); // last day of exp month
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
           CoinID:         "1",          // ILS
           ProductName:    plan.label,
           Token:          decryptCardcomToken(biz.cardcomToken!),
-          ...(biz.cardcomTokenExpiry ? { TokenExDate: biz.cardcomTokenExpiry } : {}),
+          ...(biz.cardcomTokenExpiry ? { TokenExDate: decryptCardcomToken(biz.cardcomTokenExpiry) } : {}),
           UserId:         `${biz.id}::${biz.tier}`,
           // ── Invoice generation (חשבונית מס קבלה) ──────────────────────────
           "InvoiceHead.CustName":        biz.name ?? "",

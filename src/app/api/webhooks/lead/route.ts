@@ -61,10 +61,17 @@ export async function POST(request: NextRequest) {
   if (apiKey.startsWith("pk_")) {
     const business = await prisma.business.findUnique({
       where: { webhookApiKey: apiKey },
-      select: { id: true },
+      select: { id: true, webhookApiKeyCreatedAt: true },
     });
     if (!business) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    // Check webhook key expiry (90 days)
+    if (business.webhookApiKeyCreatedAt) {
+      const ageMs = Date.now() - new Date(business.webhookApiKeyCreatedAt).getTime();
+      if (ageMs > 90 * 24 * 60 * 60 * 1000) {
+        return NextResponse.json({ error: "API key expired — please regenerate" }, { status: 401 });
+      }
     }
     businessId = business.id;
   } else {

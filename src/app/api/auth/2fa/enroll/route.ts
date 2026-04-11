@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveSession } from "@/lib/auth-guards";
 import { generateTotpSecret, totpUri, generateBackupCodes } from "@/lib/totp";
 import { prisma } from "@/lib/prisma";
+import { encryptTwoFaSecret } from "@/lib/encryption";
 
 /** Step 1: Generate and return the TOTP setup info */
 export async function POST(request: NextRequest) {
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
     const secret = generateTotpSecret();
     await prisma.platformUser.update({
       where: { id: user.id },
-      data: { twoFaSecret: secret }, // stored but twoFaEnabled still false
+      data: { twoFaSecret: encryptTwoFaSecret(secret) }, // stored but twoFaEnabled still false
     });
 
     const uri = totpUri(secret, user.email);

@@ -229,7 +229,7 @@ export async function GET(request: NextRequest) {
         subscriptionStatus:  "active",
         subscriptionEndsAt,
         cardcomToken:        data.Token ? encryptCardcomToken(data.Token) : null,
-        cardcomTokenExpiry:  data.TokenExDate ?? null,
+        cardcomTokenExpiry:  data.TokenExDate ? encryptCardcomToken(data.TokenExDate) : null,
         cardcomDealId:       data.DealNumber ?? null,
         ...(checkout.phone        ? { phone:             checkout.phone }        : {}),
         ...(checkout.address      ? { address:           checkout.address }      : {}),
@@ -310,7 +310,7 @@ export async function GET(request: NextRequest) {
       subscriptionStatus:  "active",
       subscriptionEndsAt,
       cardcomToken:        data.Token ? encryptCardcomToken(data.Token) : null,
-      cardcomTokenExpiry:  data.TokenExDate ?? null,
+      cardcomTokenExpiry:  data.TokenExDate ? encryptCardcomToken(data.TokenExDate) : null,
       cardcomDealId:       data.DealNumber ?? null,
     },
   });

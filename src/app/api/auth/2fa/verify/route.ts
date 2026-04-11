@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveSession } from "@/lib/auth-guards";
 import { verifyTotp } from "@/lib/totp";
 import { prisma } from "@/lib/prisma";
+import { decryptTwoFaSecret } from "@/lib/encryption";
 import { markSessionTwoFaVerified, SESSION_COOKIE } from "@/lib/session";
 import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
 
   // Try TOTP first
   if (normalizedCode.length === 6) {
-    verified = await verifyTotp(user.twoFaSecret, normalizedCode);
+    verified = await verifyTotp(decryptTwoFaSecret(user.twoFaSecret), normalizedCode);
   }
 
   // Try backup codes if TOTP failed

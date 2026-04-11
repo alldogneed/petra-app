@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveSession } from "@/lib/auth-guards";
 import { verifyTotp, generateBackupCodes } from "@/lib/totp";
 import { prisma } from "@/lib/prisma";
+import { decryptTwoFaSecret } from "@/lib/encryption";
 import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "2FA is already enabled" }, { status: 400 });
   }
 
-  const valid = await verifyTotp(user.twoFaSecret, body.code);
+  const valid = await verifyTotp(decryptTwoFaSecret(user.twoFaSecret), body.code);
   if (!valid) {
     return NextResponse.json({ error: "Invalid code" }, { status: 400 });
   }
