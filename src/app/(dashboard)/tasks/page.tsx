@@ -488,16 +488,6 @@ export default function TasksPage() {
               </button>
             )
           )}
-          <Link
-            href={tab === "automation" ? "/tasks" : "/tasks?tab=automation"}
-            className={cn(
-              "btn-secondary flex items-center gap-2",
-              tab === "automation" && "!bg-brand-50 !text-brand-700 !border-brand-300"
-            )}
-          >
-            <Repeat2 className="w-4 h-4" />
-            {tab === "automation" ? "חזור למשימות" : "אוטומציה"}
-          </Link>
         </div>
 
         {/* Left: title + count + refresh */}
