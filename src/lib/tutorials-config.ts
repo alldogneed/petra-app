@@ -40,6 +40,15 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     durationLabel: "~3 דק׳",
     isNew: true,
   },
+  {
+    id: "calendar",
+    title: "יומן",
+    description: "ניהול יומן תורים, פגישות, תצוגות שונות וסנכרון Google Calendar",
+    url: `${BASE}/%D7%99%D7%95%D7%9E%D7%9F%20%D7%A4%D7%98%D7%A8%D7%94%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
+    category: "start",
+    durationLabel: "~3 דק׳",
+    isNew: true,
+  },
 
   // ── לקוחות ובעלי חיים ─────────────────────────────────────────────────────
   {
