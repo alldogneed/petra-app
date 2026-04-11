@@ -4,12 +4,13 @@ import {
   Audio,
   CalculateMetadataFunction,
   Series,
+  Sequence,
   interpolate,
   staticFile,
   useVideoConfig,
 } from "remotion";
 import { getAudioDuration } from "./get-audio-duration";
-// import { CalendarIntroScene } from "./scenes/CalendarIntroScene";
+import { CalendarIntroScene } from "./scenes/CalendarIntroScene";
 // import { CalendarWeekScene } from "./scenes/CalendarWeekScene";
 // import { CalendarAddScene } from "./scenes/CalendarAddScene";
 // import { CalendarRecurringScene } from "./scenes/CalendarRecurringScene";
@@ -67,9 +68,13 @@ export const PetraCalendarTutorial: React.FC<CalendarTutorialProps> = ({
         }
       />
       <Series>
-        <Series.Sequence durationInFrames={intro + week + add + recurring + availability + outro}>
-          {/* placeholder — scenes will be wired in Task 9 */}
-          <AbsoluteFill style={{ background: "#0f172a" }} />
+        <Series.Sequence durationInFrames={intro} premountFor={fps}>
+          <CalendarIntroScene />
+          <Sequence layout="none"><Audio src={staticFile("voiceover/calendar-intro.wav")} /></Sequence>
+        </Series.Sequence>
+        <Series.Sequence durationInFrames={week + add + recurring + availability + outro}>
+          {/* placeholder for scenes 2–6 */}
+          <AbsoluteFill style={{ background: "#f1f5f9" }} />
         </Series.Sequence>
       </Series>
     </AbsoluteFill>
