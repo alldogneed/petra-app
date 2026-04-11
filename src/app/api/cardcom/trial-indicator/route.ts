@@ -6,7 +6,8 @@ import { checkRateLimit } from "@/lib/security/rateLimiter";
 import { ensureUserHasBusiness } from "@/lib/auth";
 import { sendTrialWelcomeEmail } from "@/lib/email";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
-import { randomBytes, randomInt, timingSafeEqual } from "crypto";
+import { randomInt, timingSafeEqual } from "crypto";
+import { verifyIndicatorSignature } from "@/lib/security/cardcom-helpers";
 import bcrypt from "bcryptjs";
 import { logAudit, AUDIT_ACTIONS } from "@/lib/audit";
 
@@ -70,14 +71,16 @@ export async function GET(request: NextRequest) {
   try {
   const { searchParams } = new URL(request.url);
 
-  // ── Layer 1: Secret validation (constant-time) ───────────────────────────
+  // ── Layer 1: Secret validation (HMAC sig or legacy secret) ───────────────
+  const providedSig = searchParams.get("sig") ?? "";
   const providedSecret = searchParams.get("secret") ?? "";
   const expectedSecret = process.env.CARDCOM_WEBHOOK_SECRET ?? "";
-  const secretsMatch =
+  const sigValid = providedSig ? verifyIndicatorSignature("/api/cardcom/trial-indicator", providedSig) : false;
+  const legacyValid = providedSecret.length > 0 &&
     providedSecret.length === expectedSecret.length &&
     expectedSecret.length > 0 &&
     timingSafeEqual(Buffer.from(providedSecret), Buffer.from(expectedSecret));
-  if (!secretsMatch) {
+  if (!sigValid && !legacyValid) {
     console.error(`trial-indicator [L1]: invalid secret from IP ${ip}`);
     await prisma.subscriptionEvent.create({
       data: { businessId: "unknown", eventType: "security_invalid_secret", ipAddress: ip, metadata: { path: "trial-indicator" } },

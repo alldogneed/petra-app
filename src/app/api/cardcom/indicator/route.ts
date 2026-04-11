@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { isValidTier } from "@/lib/feature-flags";
 import { checkRateLimit } from "@/lib/security/rateLimiter";
 import { timingSafeEqual } from "crypto";
+import { verifyIndicatorSignature, sanitizeUrlForLog } from "@/lib/security/cardcom-helpers";
 
 const TIER_DAYS: Record<string, number> = {
   basic: 30, pro: 30, groomer: 30, service_dog: 30,
@@ -39,24 +40,28 @@ export async function GET(request: NextRequest) {
   try {
   const { searchParams } = new URL(request.url);
 
-  // ── Layer 1: Secret validation (constant-time) ──────────────────────────
+  // ── Layer 1: Secret validation (HMAC signature or legacy secret) ────────
+  const providedSig = searchParams.get("sig") ?? "";
   const providedSecret = searchParams.get("secret") ?? "";
   const expectedSecret = process.env.CARDCOM_WEBHOOK_SECRET ?? "";
-  const secretsMatch =
+
+  // Support both new HMAC sig and legacy raw secret (transition period)
+  const sigValid = providedSig ? verifyIndicatorSignature("/api/cardcom/indicator", providedSig) : false;
+  const legacyValid = providedSecret.length > 0 &&
     providedSecret.length === expectedSecret.length &&
     expectedSecret.length > 0 &&
     timingSafeEqual(Buffer.from(providedSecret), Buffer.from(expectedSecret));
-  if (!secretsMatch) {
+
+  if (!sigValid && !legacyValid) {
     console.error(`Cardcom indicator [Layer 1]: invalid secret from IP ${ip}`);
-    // Log security event (best-effort — no businessId yet)
     await prisma.subscriptionEvent.create({
       data: {
         businessId: "unknown",
         eventType: "security_invalid_secret",
         ipAddress: ip,
-        metadata: { path: request.url, ua: request.headers.get("user-agent") ?? "" },
+        metadata: { path: sanitizeUrlForLog(request.url), ua: request.headers.get("user-agent") ?? "" },
       },
-    }).catch(() => null); // don't let logging failure break the response
+    }).catch(() => null);
     return new Response("Unauthorized", { status: 401 });
   }
 

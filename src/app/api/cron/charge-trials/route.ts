@@ -309,14 +309,8 @@ export async function GET(request: NextRequest) {
       console.log(`charge-trials: downgraded ${downgraded} cancel_pending businesses`);
     }
 
-    return NextResponse.json({
-      ok: true,
-      charged,
-      errors,
-      total: businesses.length,
-      downgraded,
-      timestamp: now.toISOString(),
-    });
+    // Minimal response — internal counts logged to console only
+    return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("charge-trials cron error:", error);
     return NextResponse.json({ error: "שגיאה בביצוע הcron" }, { status: 500 });

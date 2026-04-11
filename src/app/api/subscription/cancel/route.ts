@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { validateOrigin } from "@/lib/security/cardcom-helpers";
 
 /**
  * POST /api/subscription/cancel
@@ -15,6 +16,11 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
  */
 export async function POST(request: NextRequest) {
   try {
+    // CSRF protection
+    if (!validateOrigin(request)) {
+      return NextResponse.json({ error: "בקשה לא מורשית" }, { status: 403 });
+    }
+
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
     const { businessId } = authResult;

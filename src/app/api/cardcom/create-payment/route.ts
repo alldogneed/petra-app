@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { isValidTier, type TierKey } from "@/lib/feature-flags";
 import { createOwnerLead } from "@/lib/owner-lead";
+import { buildIndicatorUrl, validateOrigin, validateInvoiceFields } from "@/lib/security/cardcom-helpers";
 
 // ─── Cardcom plan definitions ─────────────────────────────────────────────────
 // Maps Petra tier keys to Cardcom billing params.
@@ -25,13 +26,14 @@ export async function POST(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
     const { businessId } = authResult;
 
+    // CSRF protection
+    if (!validateOrigin(request)) {
+      return NextResponse.json({ error: "בקשה לא מורשית" }, { status: 403 });
+    }
+
     const body = await request.json();
     const tier: string = body.tier;
-    const phone: string | undefined = body.phone?.replace(/[\s\-]/g, "").trim() || undefined;
-    const address: string | undefined = body.address?.trim() || undefined;
-    const vatNumber: string | undefined = body.vatNumber?.trim() || undefined;
-    const businessType: string | undefined = body.businessType?.trim() || undefined;
-    const billingEmail: string | undefined = body.billingEmail?.toLowerCase().trim() || undefined;
+    const { phone, address, vatNumber, businessType, billingEmail } = validateInvoiceFields(body);
 
     if (!isValidTier(tier) || !(tier in CARDCOM_PLANS)) {
       return NextResponse.json({ error: "מסלול לא תקין" }, { status: 400 });
@@ -74,7 +76,7 @@ export async function POST(request: NextRequest) {
       billingEmail,
     }).catch(() => null);
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://petra-app.vercel.app";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://petra-app.com";
 
     // Encode businessId + tier into UserId so indicator can read both back
     const encodedUserId = `${businessId}::${tier}`;
@@ -97,7 +99,7 @@ export async function POST(request: NextRequest) {
       SuccessRedirectUrl: `${appUrl}/payment/success?tier=${tier}`,
       ErrorURL:           `${appUrl}/payment/error`,
       ErrorRedirectUrl:   `${appUrl}/payment/error`,
-      IndicatorURL:     `${appUrl}/api/cardcom/indicator?secret=${process.env.CARDCOM_WEBHOOK_SECRET ?? ""}`,
+      IndicatorURL:     buildIndicatorUrl("/api/cardcom/indicator"),
       UserId:           encodedUserId,
       ShowLogoutButton: "false",
       ...(invoiceEmail ? { Email: invoiceEmail } : {}),

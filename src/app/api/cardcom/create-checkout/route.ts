@@ -5,6 +5,7 @@ import { isValidTier } from "@/lib/feature-flags";
 import { rateLimit } from "@/lib/rate-limit";
 import { sanitizeName } from "@/lib/validation";
 import { createOwnerLead } from "@/lib/owner-lead";
+import { buildIndicatorUrl } from "@/lib/security/cardcom-helpers";
 
 const CARDCOM_PLANS: Record<string, { label: string; price: number }> = {
   basic: { label: "Petra Basic",  price: 99  },
@@ -149,7 +150,7 @@ export async function POST(request: NextRequest) {
       SuccessRedirectUrl: `${appUrl}/payment/success?tier=${tier}&newuser=1`,
       ErrorURL:           `${appUrl}/payment/error`,
       ErrorRedirectUrl:   `${appUrl}/payment/error`,
-      IndicatorURL:     `${appUrl}/api/cardcom/checkout-indicator?secret=${process.env.CARDCOM_WEBHOOK_SECRET ?? ""}`,
+      IndicatorURL:     buildIndicatorUrl("/api/cardcom/checkout-indicator"),
       UserId:           encodedUserId,
       ShowLogoutButton: "false",
       Email:            invoiceEmail,
