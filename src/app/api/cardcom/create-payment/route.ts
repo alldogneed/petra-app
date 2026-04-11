@@ -152,8 +152,10 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ url: result.url ?? result.LowProfileCode });
-  } catch (error) {
-    console.error("POST /api/cardcom/create-payment error:", error);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack?.split("\n").slice(0, 3).join(" | ") : "";
+    console.error("POST /api/cardcom/create-payment error:", msg, stack);
     return NextResponse.json({ error: "שגיאה ביצירת דף תשלום" }, { status: 500 });
   }
 }
