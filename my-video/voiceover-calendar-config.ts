@@ -2,7 +2,7 @@
 export const CALENDAR_SCENES = [
   {
     id: "calendar-intro",
-    text: "יומן פטרה — כל התורים שלכם, בתצוגה ברורה, עם ניהול זמן מלא.",
+    text: "יומן פטרה — כל התורים שלכם, בתצוגה ברורה, עם נִיהוּל זְמַן מָלֵא.",
     defaultDurationSec: 10,
   },
   {
@@ -22,7 +22,7 @@ export const CALENDAR_SCENES = [
   },
   {
     id: "calendar-availability",
-    text: "בהגדרות הזמינות קוֹבְעִים שעות פעילות לכל יום — ואפשר לחסום ימי חופשה בקלות.",
+    text: "בְּהַגְדָּרוֹת הַזְּמִינוּת קוֹבְעִים שעות פעילות לכל יום — ואפשר לחסום ימי חופשה בקלות.",
     defaultDurationSec: 12,
   },
   {
