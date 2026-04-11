@@ -16,8 +16,10 @@ function SuccessContent() {
   const router = useRouter();
   const tier = searchParams.get("tier") ?? "";
   const tierLabel = TIER_LABELS[tier] ?? tier;
-  // Cardcom appends lowprofilecode to the success URL
-  const lowProfileCode = searchParams.get("lowprofilecode") ?? searchParams.get("LowProfileCode") ?? "";
+  // Get lowprofilecode from URL params (Cardcom redirect) or localStorage (checkout page saved it)
+  const urlCode = searchParams.get("lowprofilecode") ?? searchParams.get("LowProfileCode") ?? "";
+  const storedCode = typeof window !== "undefined" ? (localStorage.getItem("pendingLowProfileCode") ?? "") : "";
+  const lowProfileCode = urlCode || storedCode;
 
   useEffect(() => {
     // Break out of Cardcom iframe if we're embedded
@@ -26,9 +28,10 @@ function SuccessContent() {
       return;
     }
 
-    // Fallback: call success-redirect to activate subscription server-side.
-    // success-redirect verifies payment via Cardcom API (no sig needed).
+    // Activate subscription via success-redirect (verifies with Cardcom API, no sig needed).
     if (lowProfileCode) {
+      // Clear stored code so we don't re-activate on page refresh
+      try { localStorage.removeItem("pendingLowProfileCode"); } catch {}
       fetch(`/api/cardcom/success-redirect?lowprofilecode=${encodeURIComponent(lowProfileCode)}&tier=${encodeURIComponent(tier)}`)
         .then(() => {
           // Wait a moment then redirect to dashboard

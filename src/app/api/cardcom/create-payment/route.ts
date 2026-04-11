@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ url: result.url ?? result.LowProfileCode });
+    return NextResponse.json({ url: result.url ?? result.LowProfileCode, lowProfileCode: result.LowProfileCode ?? null });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
     const stack = error instanceof Error ? error.stack?.split("\n").slice(0, 3).join(" | ") : "";

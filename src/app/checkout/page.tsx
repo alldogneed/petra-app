@@ -163,6 +163,10 @@ function CheckoutContent() {
       }
 
       if (data.url) {
+        // Save lowProfileCode for success page to activate subscription
+        if (data.lowProfileCode) {
+          try { localStorage.setItem("pendingLowProfileCode", data.lowProfileCode); } catch {}
+        }
         setCardcomUrl(data.url);
         setOnStep2(true);
       } else {
