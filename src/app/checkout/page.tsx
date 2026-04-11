@@ -49,6 +49,7 @@ function CheckoutContent() {
 
   const tier = (searchParams.get("tier") ?? "") as PlanKey;
   // trial param is read but ignored — trial flow removed
+  const testAmount = searchParams.get("test_amount");
   const plan = PLAN_DETAILS[tier];
 
   // ── Cardcom iframe state ──────────────────────────────────────────────────
@@ -123,6 +124,7 @@ function CheckoutContent() {
           vatNumber: formVatNumber || undefined,
           businessType: formBusinessType || undefined,
           billingEmail: formBillingEmail || undefined,
+          ...(testAmount ? { testAmount } : {}),
         };
       } else {
         // New user — full checkout-first form
@@ -231,8 +233,17 @@ function CheckoutContent() {
                   <p className="text-xs text-slate-500 leading-snug max-w-[180px]">{plan.tagline}</p>
                 </div>
                 <div className="text-left flex-shrink-0 mr-2">
-                  <div className="text-3xl font-extrabold text-slate-900 leading-none">₪{plan.price}</div>
-                  <div className="text-xs text-slate-400 mt-1 text-center">/חודש</div>
+                  {testAmount ? (
+                    <>
+                      <div className="text-3xl font-extrabold text-red-600 leading-none">₪{testAmount}</div>
+                      <div className="text-xs text-red-400 mt-1 text-center line-through">₪{plan.price}</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-3xl font-extrabold text-slate-900 leading-none">₪{plan.price}</div>
+                      <div className="text-xs text-slate-400 mt-1 text-center">/חודש</div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -249,8 +260,15 @@ function CheckoutContent() {
               {/* Total row */}
               <div className="flex items-center justify-between py-3 border-t border-slate-200">
                 <span className="text-sm font-semibold text-slate-700">סה״כ לתשלום</span>
-                <span className="text-base font-extrabold text-slate-900">₪{plan.price} <span className="text-xs font-normal text-slate-400">/ חודש</span></span>
+                <span className={`text-base font-extrabold ${testAmount ? "text-red-600" : "text-slate-900"}`}>
+                  ₪{testAmount ?? plan.price} <span className="text-xs font-normal text-slate-400">/ חודש</span>
+                </span>
               </div>
+              {testAmount && (
+                <div className="mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 text-center font-medium">
+                  🧪 מצב בדיקה — חיוב ₪{testAmount} בלבד (במקום ₪{plan.price})
+                </div>
+              )}
 
               {/* Trust section */}
               <div className="mt-4 flex items-start gap-2.5 p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl">

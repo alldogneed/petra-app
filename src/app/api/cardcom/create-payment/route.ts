@@ -48,6 +48,17 @@ export async function POST(request: NextRequest) {
 
     const plan = CARDCOM_PLANS[tier];
 
+    // ── Test mode: allow admin/owner to override price for QA ─────────────
+    const OWNER_EMAIL = "alldogneed@gmail.com";
+    const testAmount = body.testAmount ? parseFloat(body.testAmount) : null;
+    const isTestMode = testAmount != null && testAmount > 0 && testAmount < plan.price;
+    // Only allow test amount for the platform owner
+    const { session } = authResult;
+    if (isTestMode && session.user.email !== OWNER_EMAIL) {
+      return NextResponse.json({ error: "מצב בדיקה זמין רק לבעל המערכת" }, { status: 403 });
+    }
+    const chargeAmount = isTestMode ? testAmount : plan.price;
+
     // Fetch business email for pre-filling Cardcom form + save invoice fields
     const business = await prisma.business.findUnique({
       where: { id: businessId },
@@ -70,7 +81,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Create lead in owner's Petra account (fire-and-forget)
-    const { session } = authResult;
     createOwnerLead({
       name: session.user.name,
       email: billingEmail ?? business.email ?? undefined,
@@ -99,9 +109,9 @@ export async function POST(request: NextRequest) {
       codepage:         "65001",
       Operation:        "1",          // charge
       Language:         "he",
-      SumToBill:        plan.price.toString(),
+      SumToBill:        chargeAmount.toString(),
       CoinID:           "1",          // ILS
-      ProductName:      plan.label,
+      ProductName:      isTestMode ? `[בדיקה] ${plan.label}` : plan.label,
       GoodURL:            `${appUrl}/payment/success?tier=${tier}`,
       SuccessRedirectUrl: `${appUrl}/payment/success?tier=${tier}`,
       ErrorURL:           `${appUrl}/payment/error`,
@@ -121,8 +131,8 @@ export async function POST(request: NextRequest) {
       "InvoiceHead.CoinID":          "1",
       ...(vatNumber ? { "InvoiceHead.CompID": vatNumber } : {}),
       ...(isVatFree ? { "InvoiceHead.ExtIsVatFree": "true" } : {}),
-      "InvoiceLines1.Description":   `מנוי ${plan.label} — חודשי`,
-      "InvoiceLines1.Price":         plan.price.toString(),
+      "InvoiceLines1.Description":   isTestMode ? `[בדיקה] מנוי ${plan.label}` : `מנוי ${plan.label} — חודשי`,
+      "InvoiceLines1.Price":         chargeAmount.toString(),
       "InvoiceLines1.Quantity":      "1",
       "InvoiceLines1.IsVat":         isVatFree ? "false" : "true",
     });
