@@ -51,6 +51,8 @@ interface NavItem {
   lockedFeature?: FeatureKey;
   /** Tiers for which this item is completely hidden (not shown at all). */
   hiddenForTiers?: TierKey[];
+  /** Show orange "חדש" badge */
+  isNew?: boolean;
 }
 
 interface NavGroup {
@@ -83,16 +85,16 @@ const navEntries: NavEntry[] = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
   { name: "לקוחות", href: "/customers", icon: Users, minRole: "manager" },
   { name: "מערכת מכירות", href: "/leads", icon: Target, minRole: "manager", lockedFeature: "leads" },
-  { name: "ניהול משימות", href: "/tasks", icon: ListTodo },
+  { name: "ניהול משימות", href: "/tasks", icon: ListTodo, isNew: true },
   { name: "ניהול תורים אונליין", href: "/scheduler", icon: CalendarCheck, minRole: "manager", lockedFeature: "online_bookings" },
   { name: "פנסיון", href: "/boarding", icon: Hotel, lockedFeature: "boarding", hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "פיננסים", href: "/pricing", icon: Wallet, minRole: "manager" },
   { name: "ניהול כלבי שירות", href: "/service-dogs", icon: Shield, lockedFeature: "service_dogs", hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "ניהול תהליכי אילוף", href: "/training", icon: Dog, hiddenForTiers: ["groomer", "groomer_plus"] },
-  { name: "חיות מחמד", href: "/pets", icon: PawPrint, minRole: "manager", lockedFeature: "pets_advanced" },
-  { name: "יומן", href: "/calendar", icon: Calendar, minRole: "manager" },
+  { name: "חיות מחמד", href: "/pets", icon: PawPrint, minRole: "manager", lockedFeature: "pets_advanced", isNew: true },
+  { name: "יומן", href: "/calendar", icon: Calendar, minRole: "manager", isNew: true },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner", lockedFeature: "analytics" },
-  { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner", lockedFeature: "staff_management" },
+  { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner", lockedFeature: "staff_management", isNew: true },
   { name: "הגדרות", href: "/settings", icon: Settings, minRole: "owner" },
 ];
 
@@ -307,6 +309,9 @@ export function Sidebar({
           <span title={badgeTooltip} aria-label={badgeTooltip} className="min-w-[20px] h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none flex-shrink-0">
             {badge > 99 ? "99+" : badge}
           </span>
+        )}
+        {item.isNew && !locked && badge === 0 && isExpanded && (
+          <span className="text-[10px] font-bold bg-brand-500 text-white px-1.5 py-0.5 rounded-full leading-none flex-shrink-0">חדש</span>
         )}
         {!locked && isActive && isExpanded && (
           <span
