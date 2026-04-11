@@ -25,6 +25,7 @@ export const TUTORIAL_CATEGORIES: TutorialCategory[] = [
   { id: "clients",    label: "לקוחות ובעלי חיים",   icon: "Users" },
   { id: "sales",      label: "מכירות ומשימות",      icon: "Target" },
   { id: "bookings",   label: "הזמנות ופיננסים",     icon: "ShoppingBag" },
+  { id: "boarding",   label: "פנסיון",               icon: "Hotel" },
   { id: "management", label: "ניהול עסק",            icon: "Settings" },
 ];
 
@@ -105,6 +106,17 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     description: "מעקב הכנסות, חשבוניות, דוחות כספיים וניהול תשלומים",
     url: `${BASE}/%D7%9E%D7%A2%D7%A8%D7%9B%D7%AA%20%D7%A4%D7%99%D7%A0%D7%A0%D7%A1%D7%99%D7%9D%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94%20.mp4`,
     category: "bookings",
+    durationLabel: "~6 דק׳",
+    isNew: true,
+  },
+
+  // ── פנסיון ────────────────────────────────────────────────────────────────
+  {
+    id: "boarding",
+    title: "מערכת הפנסיון",
+    description: "ניהול צ׳ק-אין ואאוט, חדרים, לוח יומי והזנה לכלבים בפנסיון",
+    url: `${BASE}/%D7%9E%D7%A2%D7%A8%D7%9B%D7%AA%20%D7%94%D7%A4%D7%A0%D7%A1%D7%99%D7%95%D7%9F%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
+    category: "boarding",
     durationLabel: "~6 דק׳",
     isNew: true,
   },

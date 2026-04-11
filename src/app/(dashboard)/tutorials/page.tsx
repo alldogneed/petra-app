@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Play, X, Users, ShoppingBag, Clock, Sparkles, LayoutDashboard, Target, Settings } from "lucide-react";
+import { Play, X, Users, ShoppingBag, Clock, Sparkles, LayoutDashboard, Target, Settings, Hotel } from "lucide-react";
 import { TUTORIAL_VIDEOS, TUTORIAL_CATEGORIES, type TutorialVideo } from "@/lib/tutorials-config";
 
 const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
@@ -10,6 +10,7 @@ const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
   Target:          ({ className }) => <Target className={className} />,
   ShoppingBag:     ({ className }) => <ShoppingBag className={className} />,
   Settings:        ({ className }) => <Settings className={className} />,
+  Hotel:           ({ className }) => <Hotel className={className} />,
 };
 
 export default function TutorialsPage() {
