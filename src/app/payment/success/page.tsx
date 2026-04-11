@@ -26,10 +26,10 @@ function SuccessContent() {
       return;
     }
 
-    // Fallback: call the indicator ourselves if Cardcom didn't call it server-to-server.
-    // The indicator has Layer 4 (Cardcom API verification) so this is safe.
+    // Fallback: call success-redirect to activate subscription server-side.
+    // success-redirect verifies payment via Cardcom API (no sig needed).
     if (lowProfileCode) {
-      fetch(`/api/cardcom/indicator?lowprofilecode=${encodeURIComponent(lowProfileCode)}`)
+      fetch(`/api/cardcom/success-redirect?lowprofilecode=${encodeURIComponent(lowProfileCode)}&tier=${encodeURIComponent(tier)}`)
         .then(() => {
           // Wait a moment then redirect to dashboard
           setTimeout(() => window.location.replace("/dashboard"), 2000);
