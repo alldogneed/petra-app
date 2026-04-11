@@ -41,6 +41,7 @@ const PUBLIC_EXACT_PATHS = new Set([
   "/api/booking/slots",
   "/api/booking/book",
   "/api/cardcom/indicator",
+  "/api/cardcom/success-redirect",
   "/api/cardcom/create-trial",
   "/api/cardcom/create-checkout",
   "/api/cardcom/checkout-indicator",

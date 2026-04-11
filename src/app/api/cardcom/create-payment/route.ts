@@ -112,8 +112,8 @@ export async function POST(request: NextRequest) {
       SumToBill:        chargeAmount.toString(),
       CoinID:           "1",          // ILS
       ProductName:      isTestMode ? `[בדיקה] ${plan.label}` : plan.label,
-      GoodURL:            `${appUrl}/payment/success?tier=${tier}`,
-      SuccessRedirectUrl: `${appUrl}/payment/success?tier=${tier}`,
+      GoodURL:            `${appUrl}/api/cardcom/success-redirect?tier=${tier}`,
+      SuccessRedirectUrl: `${appUrl}/api/cardcom/success-redirect?tier=${tier}`,
       ErrorURL:           `${appUrl}/payment/error`,
       ErrorRedirectUrl:   `${appUrl}/payment/error`,
       IndicatorURL:     buildIndicatorUrl("/api/cardcom/indicator"),
