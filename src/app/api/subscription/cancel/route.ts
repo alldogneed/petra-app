@@ -38,21 +38,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "אין מנוי פעיל לביטול" }, { status: 400 });
     }
 
-    if (business.subscriptionStatus !== "active") {
-      return NextResponse.json({ error: "אין מנוי פעיל לביטול" }, { status: 400 });
-    }
-
     const previousTier = business.tier;
 
-    await prisma.business.update({
-      where: { id: businessId },
-      data: {
-        subscriptionStatus: "cancel_pending",
-        cardcomToken:       null,
-        cardcomTokenExpiry: null,
-        // tier + subscriptionEndsAt stay as-is — access continues until period ends
-      },
-    });
+    if (business.subscriptionStatus === "active" && business.subscriptionEndsAt) {
+      // Active paid subscription — schedule cancellation at end of billing period
+      await prisma.business.update({
+        where: { id: businessId },
+        data: {
+          subscriptionStatus: "cancel_pending",
+          cardcomToken:       null,
+          cardcomTokenExpiry: null,
+          // tier + subscriptionEndsAt stay as-is — access continues until period ends
+        },
+      });
+    } else {
+      // No active subscription (manually assigned tier or expired) — downgrade immediately
+      await prisma.business.update({
+        where: { id: businessId },
+        data: {
+          tier: "free",
+          subscriptionStatus: "cancelled",
+          cardcomToken:       null,
+          cardcomTokenExpiry: null,
+          subscriptionEndsAt: null,
+          trialEndsAt:        null,
+        },
+      });
+    }
 
     await prisma.subscriptionEvent.create({
       data: {

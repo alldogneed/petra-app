@@ -128,7 +128,7 @@ const TIER_RANK: Record<string, number> = {
 const CARDCOM_TIERS = new Set(["basic", "pro"]);
 
 export default function UpgradePage() {
-  const { tier, subscriptionStatus, cancelPending, subscriptionActive, trialActive, subscriptionEndsAt } = usePlan();
+  const { tier, cancelPending, subscriptionEndsAt } = usePlan();
   const { refreshUser } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -137,7 +137,7 @@ export default function UpgradePage() {
 
   const endsAtFormatted = subscriptionEndsAt ? new Date(subscriptionEndsAt).toLocaleDateString("he-IL") : "";
   const isFree = tier === "free";
-  const canCancel = !isFree && !cancelPending && (trialActive || subscriptionActive || subscriptionStatus === "active");
+  const canCancel = !isFree && !cancelPending;
 
   async function handleCancel() {
     setCancelling(true);
