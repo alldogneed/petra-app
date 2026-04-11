@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Play, X, Users, ShoppingBag, Clock, Sparkles } from "lucide-react";
+import { Play, X, Users, ShoppingBag, Clock, Sparkles, LayoutDashboard, Target, Settings } from "lucide-react";
 import { TUTORIAL_VIDEOS, TUTORIAL_CATEGORIES, type TutorialVideo } from "@/lib/tutorials-config";
 
 const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
-  Users: ({ className }) => <Users className={className} />,
-  ShoppingBag: ({ className }) => <ShoppingBag className={className} />,
+  LayoutDashboard: ({ className }) => <LayoutDashboard className={className} />,
+  Users:           ({ className }) => <Users className={className} />,
+  Target:          ({ className }) => <Target className={className} />,
+  ShoppingBag:     ({ className }) => <ShoppingBag className={className} />,
+  Settings:        ({ className }) => <Settings className={className} />,
 };
 
 export default function TutorialsPage() {
