@@ -16,6 +16,8 @@ function SuccessContent() {
   const router = useRouter();
   const tier = searchParams.get("tier") ?? "";
   const tierLabel = TIER_LABELS[tier] ?? tier;
+  // Cardcom appends lowprofilecode to the success URL
+  const lowProfileCode = searchParams.get("lowprofilecode") ?? searchParams.get("LowProfileCode") ?? "";
 
   useEffect(() => {
     // Break out of Cardcom iframe if we're embedded
@@ -23,13 +25,26 @@ function SuccessContent() {
       window.top!.location.href = window.location.href;
       return;
     }
-    // Wait 4s for Cardcom indicator to fire and update DB,
-    // then hard-navigate so auth context re-fetches fresh session data.
-    const t = setTimeout(() => {
-      window.location.replace("/dashboard");
-    }, 4000);
-    return () => clearTimeout(t);
-  }, []);
+
+    // Fallback: call the indicator ourselves if Cardcom didn't call it server-to-server.
+    // The indicator has Layer 4 (Cardcom API verification) so this is safe.
+    if (lowProfileCode) {
+      fetch(`/api/cardcom/indicator?lowprofilecode=${encodeURIComponent(lowProfileCode)}`)
+        .then(() => {
+          // Wait a moment then redirect to dashboard
+          setTimeout(() => window.location.replace("/dashboard"), 2000);
+        })
+        .catch(() => {
+          setTimeout(() => window.location.replace("/dashboard"), 2000);
+        });
+    } else {
+      // No lowprofilecode — just redirect after delay
+      const t = setTimeout(() => {
+        window.location.replace("/dashboard");
+      }, 4000);
+      return () => clearTimeout(t);
+    }
+  }, [lowProfileCode]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-green-50 to-white p-8 text-center" dir="rtl">
