@@ -1197,11 +1197,16 @@ function BillingTab() {
             </div>
           ))}
         </div>
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <a href="/upgrade" className="btn-primary text-sm gap-2 inline-flex">
             <CreditCard className="w-4 h-4" />
-            {subscriptionActive ? "שנה מסלול" : "רכוש מנוי"}
+            {subscriptionActive ? "שנה מסלול" : tier === "free" ? "רכוש מנוי" : "שנה מסלול"}
           </a>
+          {tier !== "free" && (
+            <a href="/upgrade" className="text-sm text-slate-400 hover:text-red-500 transition-colors underline">
+              בטל מנוי / שנמך
+            </a>
+          )}
         </div>
       </div>
 
