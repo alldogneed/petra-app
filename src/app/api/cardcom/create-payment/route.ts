@@ -161,7 +161,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ url: result.url ?? result.LowProfileCode, lowProfileCode: result.LowProfileCode ?? null });
+    // Store the pending code so the success page can activate without needing URL params
+    const lpCode = result.LowProfileCode ?? null;
+    if (lpCode) {
+      await prisma.business.update({
+        where: { id: businessId },
+        data: { cardcomPendingCode: lpCode },
+      });
+    }
+
+    return NextResponse.json({ url: result.url ?? lpCode, lowProfileCode: lpCode });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
     const stack = error instanceof Error ? error.stack?.split("\n").slice(0, 3).join(" | ") : "";

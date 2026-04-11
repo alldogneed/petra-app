@@ -1,8 +1,8 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, Suspense } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { useEffect, useState, Suspense } from "react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 
 const TIER_LABELS: Record<string, string> = {
   basic:       "בייסיק",
@@ -13,13 +13,10 @@ const TIER_LABELS: Record<string, string> = {
 
 function SuccessContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const tier = searchParams.get("tier") ?? "";
   const tierLabel = TIER_LABELS[tier] ?? tier;
-  // Get lowprofilecode from URL params (Cardcom redirect) or localStorage (checkout page saved it)
-  const urlCode = searchParams.get("lowprofilecode") ?? searchParams.get("LowProfileCode") ?? "";
-  const storedCode = typeof window !== "undefined" ? (localStorage.getItem("pendingLowProfileCode") ?? "") : "";
-  const lowProfileCode = urlCode || storedCode;
+  const [activating, setActivating] = useState(true);
+  const [activated, setActivated] = useState(false);
 
   useEffect(() => {
     // Break out of Cardcom iframe if we're embedded
@@ -28,26 +25,28 @@ function SuccessContent() {
       return;
     }
 
-    // Activate subscription via success-redirect (verifies with Cardcom API, no sig needed).
-    if (lowProfileCode) {
-      // Clear stored code so we don't re-activate on page refresh
-      try { localStorage.removeItem("pendingLowProfileCode"); } catch {}
-      fetch(`/api/cardcom/success-redirect?lowprofilecode=${encodeURIComponent(lowProfileCode)}&tier=${encodeURIComponent(tier)}`)
-        .then(() => {
-          // Wait a moment then redirect to dashboard
-          setTimeout(() => window.location.replace("/dashboard"), 2000);
-        })
-        .catch(() => {
-          setTimeout(() => window.location.replace("/dashboard"), 2000);
-        });
-    } else {
-      // No lowprofilecode — just redirect after delay
-      const t = setTimeout(() => {
-        window.location.replace("/dashboard");
-      }, 4000);
-      return () => clearTimeout(t);
-    }
-  }, [lowProfileCode]);
+    // Call activate-pending — authenticated endpoint that reads
+    // the stored lowProfileCode from DB and activates the subscription.
+    // No URL params or localStorage needed.
+    fetch("/api/cardcom/activate-pending", { method: "POST" })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          setActivated(true);
+          console.log("Subscription activated:", data);
+        } else {
+          console.warn("activate-pending:", data.error ?? res.status);
+        }
+      })
+      .catch((err) => {
+        console.error("activate-pending error:", err);
+      })
+      .finally(() => {
+        setActivating(false);
+        // Redirect to dashboard after a short delay
+        setTimeout(() => window.location.replace("/dashboard"), 3000);
+      });
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-green-50 to-white p-8 text-center" dir="rtl">
@@ -57,8 +56,14 @@ function SuccessContent() {
       <h1 className="text-3xl font-bold text-slate-900 mb-3">התשלום הצליח! 🎉</h1>
       {tierLabel && (
         <p className="text-lg text-slate-600 mb-2">
-          המנוי שלך למסלול <span className="font-bold text-green-600">{tierLabel}</span> פעיל עכשיו
+          המנוי שלך למסלול <span className="font-bold text-green-600">{tierLabel}</span> {activated ? "פעיל עכשיו" : "מופעל..."}
         </p>
+      )}
+      {activating && (
+        <div className="flex items-center gap-2 text-slate-400 text-sm mb-4">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          מפעיל את המנוי...
+        </div>
       )}
       <p className="text-slate-400 text-sm mb-8">מועבר לדאשבורד בעוד מספר שניות...</p>
       <button
@@ -67,9 +72,6 @@ function SuccessContent() {
       >
         עבור לדאשבורד עכשיו
       </button>
-      <p className="mt-6 text-xs text-slate-400 max-w-xs">
-        אם לא רואה את השינוי מיד — רענן את הדף. הנתונים מתעדכנים תוך שניות ספורות.
-      </p>
     </div>
   );
 }
