@@ -2,7 +2,7 @@
  * Shared AES-256-GCM encryption helpers.
  *
  * Used by Google Calendar (GCAL_ENCRYPTION_KEY), Invoicing (INVOICING_ENCRYPTION_KEY),
- * and Stripe (STRIPE_ENCRYPTION_KEY).
+ * Stripe (STRIPE_ENCRYPTION_KEY), Cardcom (CARDCOM_ENCRYPTION_KEY), and 2FA (TWOFA_ENCRYPTION_KEY).
  * Key format: 64-char hex string (32 bytes).
  */
 
@@ -77,4 +77,50 @@ export function encryptStripeSecret(plaintext: string): string {
 
 export function decryptStripeSecret(ciphertext: string): string {
   return decrypt(ciphertext, STRIPE_KEY);
+}
+
+// ─── Cardcom token wrappers ─────────────────────────────────────────────────
+// Uses CARDCOM_ENCRYPTION_KEY (generate with: openssl rand -hex 32)
+// Falls back to storing plaintext if key is not configured (backwards compat)
+
+const CARDCOM_KEY = "CARDCOM_ENCRYPTION_KEY";
+
+export function encryptCardcomToken(plaintext: string): string {
+  if (!process.env[CARDCOM_KEY] || process.env[CARDCOM_KEY]!.length !== 64) {
+    // No key configured — return plaintext (backwards compat)
+    return plaintext;
+  }
+  return encrypt(plaintext, CARDCOM_KEY);
+}
+
+export function decryptCardcomToken(ciphertext: string): string {
+  // Detect if stored as plaintext (legacy — no ":" separators from AES-GCM format)
+  if (!ciphertext.includes(":")) return ciphertext;
+  if (!process.env[CARDCOM_KEY] || process.env[CARDCOM_KEY]!.length !== 64) {
+    // Key not available — can't decrypt, return as-is
+    return ciphertext;
+  }
+  return decrypt(ciphertext, CARDCOM_KEY);
+}
+
+// ─── 2FA secret wrappers ──────────────────────────────────────────────────
+// Uses TWOFA_ENCRYPTION_KEY (generate with: openssl rand -hex 32)
+// Falls back to plaintext if key is not configured (backwards compat)
+
+const TWOFA_KEY = "TWOFA_ENCRYPTION_KEY";
+
+export function encryptTwoFaSecret(plaintext: string): string {
+  if (!process.env[TWOFA_KEY] || process.env[TWOFA_KEY]!.length !== 64) {
+    return plaintext;
+  }
+  return encrypt(plaintext, TWOFA_KEY);
+}
+
+export function decryptTwoFaSecret(ciphertext: string): string {
+  // Legacy plaintext TOTP secrets are base32-encoded (no ":" separators)
+  if (!ciphertext.includes(":")) return ciphertext;
+  if (!process.env[TWOFA_KEY] || process.env[TWOFA_KEY]!.length !== 64) {
+    return ciphertext;
+  }
+  return decrypt(ciphertext, TWOFA_KEY);
 }

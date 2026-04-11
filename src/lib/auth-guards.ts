@@ -264,13 +264,28 @@ export async function requireBusinessAuth(
     );
   }
 
-  // Check if the business is suspended/closed
+  // Check if the business is suspended/closed + auto-downgrade expired subscriptions
   const biz = await prisma.business.findUnique({
     where: { id: membership.businessId },
-    select: { status: true },
+    select: { status: true, tier: true, subscriptionStatus: true, subscriptionEndsAt: true },
   });
   if (biz?.status === "suspended") return NextResponse.json({ error: "business_suspended" }, { status: 403 });
   if (biz?.status === "closed") return NextResponse.json({ error: "business_closed" }, { status: 403 });
+
+  // Auto-downgrade: if subscription period has ended and status is cancel_pending,
+  // immediately downgrade to free (don't wait for daily cron)
+  if (
+    biz &&
+    biz.subscriptionStatus === "cancel_pending" &&
+    biz.subscriptionEndsAt &&
+    biz.subscriptionEndsAt < new Date() &&
+    biz.tier !== "free"
+  ) {
+    await prisma.business.update({
+      where: { id: membership.businessId },
+      data: { tier: "free", subscriptionStatus: "cancelled", subscriptionEndsAt: null },
+    }).catch(() => null); // best-effort — cron will catch it if this fails
+  }
 
   return { session, businessId: membership.businessId };
 }

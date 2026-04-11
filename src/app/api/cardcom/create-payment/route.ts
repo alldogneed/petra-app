@@ -5,6 +5,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { isValidTier, type TierKey } from "@/lib/feature-flags";
 import { createOwnerLead } from "@/lib/owner-lead";
 import { buildIndicatorUrl, validateOrigin, validateInvoiceFields } from "@/lib/security/cardcom-helpers";
+import { rateLimitRedis, RL } from "@/lib/security/redis-rate-limiter";
 
 // ─── Cardcom plan definitions ─────────────────────────────────────────────────
 // Maps Petra tier keys to Cardcom billing params.
@@ -29,6 +30,12 @@ export async function POST(request: NextRequest) {
     // CSRF protection
     if (!validateOrigin(request)) {
       return NextResponse.json({ error: "בקשה לא מורשית" }, { status: 403 });
+    }
+
+    // Rate limiting per business
+    const rl = await rateLimitRedis("cardcom:payment", businessId, RL.CARDCOM_AUTH);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "יותר מדי ניסיונות. נסה שוב בעוד מספר דקות." }, { status: 429 });
     }
 
     const body = await request.json();

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { sendEmail } from "@/lib/email";
+import { decryptCardcomToken } from "@/lib/encryption";
 
 const CARDCOM_PLANS: Record<string, { price: number; label: string }> = {
   basic:       { price: 99,  label: "Petra בייסיק" },
@@ -75,6 +76,22 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
+        // ── Pre-check: skip if token has expired (MMYY format) ──────────────
+        if (biz.cardcomTokenExpiry) {
+          const expiry = biz.cardcomTokenExpiry; // e.g. "0128" = Jan 2028
+          const expMonth = parseInt(expiry.slice(0, 2), 10);
+          const expYear = 2000 + parseInt(expiry.slice(2, 4), 10);
+          const expiryDate = new Date(expYear, expMonth, 0); // last day of exp month
+          if (expiryDate < now) {
+            console.warn(`charge-trials: token expired (${expiry}) for business ${biz.id} — skipping`);
+            await prisma.subscriptionEvent.create({
+              data: { businessId: biz.id, eventType: "token_expired", tier: biz.tier, metadata: { tokenExpiry: expiry } },
+            }).catch(() => null);
+            errors++;
+            continue;
+          }
+        }
+
         // ── Charge via Cardcom BillGold token API ────────────────────────────
         const chargeParams = new URLSearchParams({
           TerminalNumber: process.env.CARDCOM_TERMINAL_NUMBER ?? "",
@@ -85,7 +102,7 @@ export async function GET(request: NextRequest) {
           SumToBill:      plan.price.toString(),
           CoinID:         "1",          // ILS
           ProductName:    plan.label,
-          Token:          biz.cardcomToken!,
+          Token:          decryptCardcomToken(biz.cardcomToken!),
           ...(biz.cardcomTokenExpiry ? { TokenExDate: biz.cardcomTokenExpiry } : {}),
           UserId:         `${biz.id}::${biz.tier}`,
           // ── Invoice generation (חשבונית מס קבלה) ──────────────────────────

@@ -5,6 +5,7 @@ import { isValidTier } from "@/lib/feature-flags";
 import { checkRateLimit } from "@/lib/security/rateLimiter";
 import { timingSafeEqual } from "crypto";
 import { verifyIndicatorSignature, sanitizeUrlForLog } from "@/lib/security/cardcom-helpers";
+import { encryptCardcomToken } from "@/lib/encryption";
 
 const TIER_DAYS: Record<string, number> = {
   basic: 30, pro: 30, groomer: 30, service_dog: 30,
@@ -159,7 +160,7 @@ export async function GET(request: NextRequest) {
       subscriptionStatus:  "active",
       subscriptionEndsAt,
       cardcomDealId:       data.DealNumber ?? null,
-      cardcomToken:        data.Token ?? null,
+      cardcomToken:        data.Token ? encryptCardcomToken(data.Token) : null,
     },
   });
 

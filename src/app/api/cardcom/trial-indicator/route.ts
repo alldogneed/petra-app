@@ -8,6 +8,7 @@ import { sendTrialWelcomeEmail } from "@/lib/email";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 import { randomInt, timingSafeEqual } from "crypto";
 import { verifyIndicatorSignature } from "@/lib/security/cardcom-helpers";
+import { encryptCardcomToken } from "@/lib/encryption";
 import bcrypt from "bcryptjs";
 import { logAudit, AUDIT_ACTIONS } from "@/lib/audit";
 
@@ -225,7 +226,7 @@ export async function GET(request: NextRequest) {
       data: {
         tier,
         trialEndsAt,
-        cardcomToken:       data.Token ?? null,
+        cardcomToken:       data.Token ? encryptCardcomToken(data.Token) : null,
         cardcomTokenExpiry: data.TokenExDate ?? null,
         cardcomDealId:      data.DealNumber ?? null,
         ...(checkout.phone        ? { phone:             checkout.phone }        : {}),
@@ -305,7 +306,7 @@ export async function GET(request: NextRequest) {
     data: {
       tier,
       trialEndsAt,
-      cardcomToken:       data.Token ?? null,
+      cardcomToken:       data.Token ? encryptCardcomToken(data.Token) : null,
       cardcomTokenExpiry: data.TokenExDate ?? null,
       cardcomDealId:      data.DealNumber ?? null,
     },
