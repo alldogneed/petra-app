@@ -161,12 +161,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Store the pending code so the success page can activate without needing URL params
+    // Store the pending code + tier so the success page can activate without needing URL params
     const lpCode = result.LowProfileCode ?? null;
     if (lpCode) {
       await prisma.business.update({
         where: { id: businessId },
-        data: { cardcomPendingCode: lpCode },
+        data: { cardcomPendingCode: `${lpCode}::${tier}` },
       });
     }
 

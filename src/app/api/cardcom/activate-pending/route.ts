@@ -32,7 +32,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "אין תשלום ממתין" }, { status: 400 });
     }
 
-    const lowProfileCode = business.cardcomPendingCode;
+    // Format: "lowProfileCode::tier" (tier stored alongside code)
+    const parts = business.cardcomPendingCode.split("::");
+    const lowProfileCode = parts[0];
+    const storedTier = parts[1] ?? null;
 
     // ── Idempotency ──────────────────────────────────────────────────────
     const existing = await prisma.subscriptionEvent.findFirst({
@@ -68,12 +71,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "התשלום לא אושר" }, { status: 400 });
     }
 
-    // ── Decode tier from UserId ──────────────────────────────────────────
-    const rawUserId = data.UserId ?? "";
-    const [, tier] = rawUserId.split("::");
-
-    if (!isValidTier(tier)) {
-      console.error(`activate-pending: invalid tier in UserId: ${rawUserId}`);
+    // ── Get tier from stored pending code (Cardcom doesn't return UserId) ──
+    const tier = storedTier;
+    if (!tier || !isValidTier(tier)) {
+      console.error(`activate-pending: invalid tier in pending code: ${business.cardcomPendingCode}`);
       return NextResponse.json({ error: "מסלול לא תקין" }, { status: 400 });
     }
 
