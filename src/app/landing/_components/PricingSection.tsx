@@ -389,11 +389,11 @@ export function PricingSection() {
                 ) : (
                   <div className="flex flex-col gap-1.5">
                     <Link
-                      href={user ? "/upgrade" : "/register"}
+                      href="/register"
                       aria-label={`התחל בחינם — מסלול ${plan.name}`}
                       className="text-sm py-2.5 rounded-xl text-center font-semibold transition-colors bg-slate-900 hover:bg-slate-800 text-white"
                     >
-                      {user ? "נסה עכשיו" : "אני רוצה לנסות"}
+                      נסה עכשיו
                     </Link>
                     {!user && (
                       <p className="text-[10px] text-center text-emerald-600 font-medium leading-snug px-1">
