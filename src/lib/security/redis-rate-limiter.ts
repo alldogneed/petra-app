@@ -79,14 +79,14 @@ export async function rateLimitRedis(
   key: string,
   opts: RateLimitOpts
 ): Promise<RateLimitResult> {
-  const limiter = getLimiter(namespace, opts.max, opts.windowSec);
-
-  if (!limiter) {
-    // Fallback to in-memory (dev or no Redis configured)
-    return memoryRateLimit(`${namespace}:${key}`, opts.max, opts.windowSec * 1000);
-  }
-
   try {
+    const limiter = getLimiter(namespace, opts.max, opts.windowSec);
+
+    if (!limiter) {
+      // Fallback to in-memory (dev or no Redis configured)
+      return memoryRateLimit(`${namespace}:${key}`, opts.max, opts.windowSec * 1000);
+    }
+
     const result = await limiter.limit(key);
     return { allowed: result.success };
   } catch (err) {
