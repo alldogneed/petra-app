@@ -54,7 +54,7 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     id: "pets",
     title: "חיות מחמד",
     description: "ניהול פרופיל חיית המחמד, חיסונים, מסמכים ונתוני בריאות",
-    url: `${BASE}/%D7%97%D7%99%D7%95%D7%AA%20%D7%9E%D7%97%D7%9E%D7%93%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94%20.mp4`,
+    url: `${BASE}/%D7%97%D7%99%D7%95%D7%AA%20%D7%9E%D7%97%D7%9E%D7%93%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
     category: "clients",
     durationLabel: "~2 דק׳",
     isNew: true,
