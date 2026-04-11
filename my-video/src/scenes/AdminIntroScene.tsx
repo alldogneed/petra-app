@@ -65,16 +65,6 @@ export const AdminIntroScene: React.FC = () => {
         <span style={{ color: "rgba(255,255,255,0.9)", fontSize: 24, fontWeight: 700, letterSpacing: 1 }}>PETRA</span>
       </div>
 
-      {/* Badge */}
-      <div style={{
-        opacity: badgeOpacity,
-        background: "rgba(234,88,12,0.15)", border: "1px solid rgba(234,88,12,0.5)",
-        borderRadius: 99, padding: "5px 16px", marginBottom: 20,
-        color: "#fb923c", fontSize: 13, fontWeight: 600,
-      }}>
-        מדריך מהיר
-      </div>
-
       {/* Title */}
       <h1 style={{
         color: "white", fontSize: 60, fontWeight: 800,

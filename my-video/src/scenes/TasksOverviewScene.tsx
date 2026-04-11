@@ -7,6 +7,7 @@ import {
   useVideoConfig,
 } from "remotion";
 import { PetraSidebar } from "./PetraSidebar";
+import { CursorOverlay, CursorWaypoint } from "./CursorOverlay";
 
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 const ORANGE = "#ea580c";
@@ -14,13 +15,28 @@ const SIDEBAR_W = 210;
 
 const CATEGORY_TABS = ["כל", "כללי", "פנסיון", "האכלה", "תרופות", "לידים", "בריאות"];
 
-// Tab switching: כל(0-150) → פנסיון(150-310) → תרופות(310-460) → כל(460+)
+// Audio: ~19s = 570f @ 30fps. Silence analysis: "כללי,פנסיון,תרופות" section starts at frame 384.
+// Approx: פנסיון spoken ~frame 400, תרופות ~frame 420, back to כל at ~440.
+// Tab switching: כל(0-400) → פנסיון(400-420) → תרופות(420-440) → כל(440+)
 function getActiveTab(frame: number): string {
-  if (frame < 150) return "כל";
-  if (frame < 310) return "פנסיון";
-  if (frame < 460) return "תרופות";
+  if (frame < 400) return "כל";
+  if (frame < 420) return "פנסיון";
+  if (frame < 440) return "תרופות";
   return "כל";
 }
+
+// RTL canvas layout: sidebar right (x=1070-1280), content left (x=0-1070).
+// Zoom 1.06, origin (535,302). Tab y≈53 on canvas.
+// Tab centers (canvas): כל≈1051, פנסיון≈923, תרופות≈766.
+const CURSOR_WAYPOINTS: CursorWaypoint[] = [
+  { frame: 0,   x: 600, y: 300 },
+  { frame: 392, x: 923, y: 53  },
+  { frame: 400, x: 923, y: 53, action: "click" },
+  { frame: 413, x: 766, y: 53  },
+  { frame: 420, x: 766, y: 53, action: "click" },
+  { frame: 433, x: 1051, y: 53 },
+  { frame: 440, x: 1051, y: 53, action: "click" },
+];
 
 const STATUS_STYLE = {
   overdue:   { bg: "#fef2f2", text: "#dc2626", dot: "#ef4444", label: "באיחור" },
@@ -65,10 +81,10 @@ export const TasksOverviewScene: React.FC = () => {
   const activeTab = getActiveTab(frame);
   const visibleTasks = getVisibleTasks(activeTab, frame);
 
-  // Content cross-fade on tab switch
+  // Content cross-fade on tab switch (synced to audio analysis)
   const contentOpacity = interpolate(
     frame,
-    [148, 155, 160, 308, 315, 320, 458, 465, 470],
+    [398, 404, 408, 418, 424, 428, 438, 444, 448],
     [1,   0,   1,   1,   0,   1,   1,   0,   1],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
@@ -185,6 +201,7 @@ export const TasksOverviewScene: React.FC = () => {
         </div>
       </div>
 
+      <CursorOverlay waypoints={CURSOR_WAYPOINTS} />
     </AbsoluteFill>
   );
 };

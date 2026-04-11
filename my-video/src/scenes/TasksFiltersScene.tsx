@@ -7,6 +7,7 @@ import {
   useVideoConfig,
 } from "remotion";
 import { PetraSidebar } from "./PetraSidebar";
+import { CursorOverlay, CursorWaypoint } from "./CursorOverlay";
 
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 const ORANGE = "#ea580c";
@@ -16,6 +17,16 @@ const SIDEBAR_W = 210;
 const SEARCH_START  = 20;  // search bar highlighted, text appears
 const FILTER_START  = 145; // status filter "באיחור" activates
 const DATE_START    = 270; // date filter "היום" activates
+
+// RTL canvas: content x=0-1070, zoom 1.05 origin (535,274).
+// Toolbar y≈70. Search center x≈720. "באיחור" x≈300.
+const CURSOR_WAYPOINTS: CursorWaypoint[] = [
+  { frame: 0,   x: 720, y: 300 },
+  { frame: 14,  x: 720, y: 70  },
+  { frame: 20,  x: 720, y: 70, action: "click" },
+  { frame: 136, x: 300, y: 70  },
+  { frame: 145, x: 300, y: 70, action: "click" },
+];
 
 // Typewriter: "תרופה" typed character by character
 const SEARCH_TEXT = "תרופה";
@@ -182,6 +193,7 @@ export const TasksFiltersScene: React.FC = () => {
         </div>
       </div>
 
+      <CursorOverlay waypoints={CURSOR_WAYPOINTS} />
     </AbsoluteFill>
   );
 };

@@ -7,10 +7,21 @@ import {
   useVideoConfig,
 } from "remotion";
 import { PetraSidebar } from "./PetraSidebar";
+import { CursorOverlay, CursorWaypoint } from "./CursorOverlay";
 
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 const ORANGE = "#ea580c";
 const SIDEBAR_W = 210;
+
+// RTL canvas: "+ משימה חדשה" button right side x≈987, header y≈26.
+// Modal save button centered at x≈640, y≈503.
+const CURSOR_WAYPOINTS: CursorWaypoint[] = [
+  { frame: 0,   x: 700, y: 300 },
+  { frame: 12,  x: 987, y: 26  },
+  { frame: 18,  x: 987, y: 26, action: "click" },
+  { frame: 214, x: 640, y: 503 },
+  { frame: 220, x: 640, y: 503, action: "click" },
+];
 
 // Timeline (all in local frames):
 const MODAL_OPEN   = 18;
@@ -182,6 +193,7 @@ export const TasksCreateScene: React.FC = () => {
           </div>
         </div>
       )}
+      <CursorOverlay waypoints={CURSOR_WAYPOINTS} />
     </AbsoluteFill>
   );
 };

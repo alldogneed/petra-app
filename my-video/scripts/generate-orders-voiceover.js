@@ -10,7 +10,7 @@ const configContent = fs.readFileSync(
 );
 // Extract the scenes array via eval after stripping TS syntax
 const cleaned = configContent
-  .replace(/export const ORDERS_SCENES =/, "const ORDERS_SCENES =")
+  .replace(/export const ORDERS_SCENES =/, "var ORDERS_SCENES =")
   .replace(/ as const;/, ";")
   .replace(/^\/\/.*/gm, "");
 eval(cleaned);

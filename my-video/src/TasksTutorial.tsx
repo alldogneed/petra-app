@@ -58,14 +58,15 @@ export const TasksTutorial: React.FC<TasksTutorialProps> = ({
 
   return (
     <AbsoluteFill>
+      {/* Background music — fades in over 1s, fades out over last 2s */}
       <Audio
-        src={staticFile("teaser-music.mp3")}
+        src={staticFile("bg-music.mp3")}
         loop
         volume={(f) =>
           interpolate(
             f,
             [0, fps, durationInFrames - fps * 2, durationInFrames],
-            [0, 0.12, 0.12, 0],
+            [0, 0.13, 0.13, 0],
             { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
           )
         }

@@ -10,128 +10,329 @@ import {
 } from "remotion";
 import { PainOverlay } from "../../components/teaser/PainOverlay";
 import { BenefitTag } from "../../components/teaser/BenefitTag";
+import { CursorAnimation } from "../../components/teaser/CursorAnimation";
 
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 const ORANGE = "#ea580c";
+const BRAND = "#f97316";
 
 const SERVICES = [
-  { label: "אילוף גורים", price: "₪350/חודש", selected: false, delay: 58 },
-  { label: "פנסיון", price: "₪150/לילה", selected: true, delay: 66 },
-  { label: "טיפוח", price: "₪120", selected: false, delay: 74 },
+  {
+    label: "טיפוח מלא",
+    duration: "90 דקות",
+    price: "₪180",
+    color: "#ea580c",
+    colorBg: "rgba(234,88,12,0.10)",
+    delay: 58,
+  },
+  {
+    label: "אמבטיה ותספורת",
+    duration: "60 דקות",
+    price: "₪140",
+    color: "#3b82f6",
+    colorBg: "rgba(59,130,246,0.10)",
+    delay: 66,
+  },
+  {
+    label: "קיצוץ ציפורניים",
+    duration: "20 דקות",
+    price: "₪50",
+    color: "#8b5cf6",
+    colorBg: "rgba(139,92,246,0.10)",
+    delay: 74,
+  },
 ];
 
-const SLOTS = ["09:00", "10:30", "12:00", "14:00", "15:30"];
+const SLOTS = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30"];
+const SELECTED_SLOT = 3; // "10:30"
+
+const CLICK_SERVICE_FRAME = 88;
+const PHASE2_START = 94;
+const CLICK_SLOT_FRAME = 118;
+const CHECK_FRAME = CLICK_SLOT_FRAME + 8;
 
 export const TeaserBookingScene: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps, durationInFrames } = useVideoConfig();
-
-  const fadeIn = interpolate(frame, [0, fps * 0.4], [0, 1], { extrapolateRight: "clamp" });
-  const fadeOut = interpolate(frame, [durationInFrames - fps * 0.4, durationInFrames], [1, 0], { extrapolateLeft: "clamp" });
-  const opacity = Math.min(fadeIn, fadeOut);
+  const { fps } = useVideoConfig();
 
   const headerOpacity = interpolate(frame, [50, 62], [0, 1], { extrapolateRight: "clamp" });
-  const slotsOpacity = interpolate(frame, [80, 92], [0, 1], { extrapolateRight: "clamp" });
-  const btnOpacity = interpolate(frame, [95, 108], [0, 1], { extrapolateRight: "clamp" });
+
+  // Phase transition
+  const phase1Opacity = interpolate(frame, [CLICK_SERVICE_FRAME, CLICK_SERVICE_FRAME + 10], [1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const phase2Opacity = interpolate(frame, [PHASE2_START, PHASE2_START + 10], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  // Service selection highlight — builds when cursor clicks
+  const serviceSelectP = interpolate(frame, [CLICK_SERVICE_FRAME - 4, CLICK_SERVICE_FRAME + 6], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const isServiceSelected = serviceSelectP > 0.5;
+
+  // Progress bar width
+  const progressBarWidth = interpolate(
+    frame,
+    [PHASE2_START, PHASE2_START + 12],
+    [33, 66],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+  );
+  const showPhase2Label = phase2Opacity > 0.5;
+
+  // Zoom
+  const zoomP = spring({ frame: frame - 52, fps, config: { damping: 320, stiffness: 45 } });
+  const zoomScale = interpolate(zoomP, [0, 1], [1.0, 1.12]);
+
+  // Confirm button press
+  const btnScale = interpolate(
+    frame,
+    [CLICK_SLOT_FRAME, CLICK_SLOT_FRAME + 4, CLICK_SLOT_FRAME + 10],
+    [1, 0.95, 1],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+  );
+
+  // Checkmark
+  const checkOpacity = interpolate(frame, [CHECK_FRAME, CHECK_FRAME + 10], [0, 1], { extrapolateRight: "clamp" });
+  const checkScale = spring({ frame: frame - CHECK_FRAME, fps, config: { damping: 160, stiffness: 280 } });
+  const checkCircleScale = spring({ frame: frame - CHECK_FRAME - 4, fps, config: { damping: 200, stiffness: 180 } });
 
   return (
-    <AbsoluteFill style={{ background: "#f8fafc", opacity, fontFamily: FONT, direction: "rtl" }}>
-      {/* Public booking page — no sidebar */}
-      <div style={{
-        position: "absolute", inset: 0,
-        display: "flex", flexDirection: "column",
-        alignItems: "center",
-      }}>
-        {/* Top bar */}
-        <div style={{
-          width: "100%", background: "white",
-          borderBottom: "1px solid #e2e8f0",
-          padding: "0 32px", height: 56,
-          display: "flex", alignItems: "center",
-          gap: 10, opacity: headerOpacity,
-        }}>
-          <Img src={staticFile("petra-icon.png")} style={{ width: 28, height: 28 }} />
-          <span style={{ fontSize: 15, fontWeight: 800, color: "#0f172a" }}>הזמנה אונליין — כלבית הכלב המאושר</span>
-        </div>
+    <AbsoluteFill style={{ background: "#f8fafc", fontFamily: FONT, direction: "rtl" }}>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", overflow: "hidden" }}>
+        <div style={{ transform: `scale(${zoomScale})`, transformOrigin: "50% 44%", width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
 
-        {/* Content */}
-        <div style={{
-          width: 520, marginTop: 24,
-          display: "flex", flexDirection: "column", gap: 16,
-        }}>
-          {/* Service selection */}
+          {/* Sticky header */}
           <div style={{
-            background: "white", borderRadius: 16,
-            border: "1px solid #e2e8f0", padding: "20px 24px",
-            opacity: headerOpacity,
+            width: "100%", background: "white",
+            borderBottom: "1px solid #e2e8f0",
+            padding: "0 32px", height: 52,
+            display: "flex", alignItems: "center", gap: 10,
+            opacity: headerOpacity, flexShrink: 0,
           }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#64748b", marginBottom: 12 }}>בחר שירות</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {SERVICES.map((svc) => {
-                const p = spring({ frame: frame - svc.delay, fps, config: { damping: 200 } });
-                const y = interpolate(p, [0, 1], [10, 0]);
-                const svcOpacity = interpolate(frame, [svc.delay, svc.delay + 10], [0, 1], { extrapolateRight: "clamp" });
-                return (
-                  <div key={svc.label} style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    padding: "10px 14px", borderRadius: 10,
-                    border: `2px solid ${svc.selected ? ORANGE : "#e2e8f0"}`,
-                    background: svc.selected ? "#fff7ed" : "white",
-                    opacity: svcOpacity, transform: `translateY(${y}px)`,
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{
-                        width: 18, height: 18, borderRadius: "50%",
-                        border: `2px solid ${svc.selected ? ORANGE : "#cbd5e1"}`,
-                        background: svc.selected ? ORANGE : "white",
-                        display: "flex", alignItems: "center", justifyContent: "center",
+            <Img src={staticFile("petra-icon.png")} style={{ width: 26, height: 26 }} />
+            <span style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>מרכז טיפוח הכלב המאושר</span>
+          </div>
+
+          {/* Progress bar */}
+          <div style={{
+            width: "100%", background: "white",
+            borderBottom: "1px solid #f1f5f9",
+            padding: "8px 32px 0",
+            opacity: headerOpacity, flexShrink: 0,
+          }}>
+            <div style={{ height: 5, background: "#e2e8f0", borderRadius: 99, overflow: "hidden", marginBottom: 5 }}>
+              <div style={{
+                height: "100%",
+                width: `${progressBarWidth}%`,
+                background: BRAND,
+                borderRadius: 99,
+              }} />
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, paddingBottom: 7 }}>
+              {showPhase2Label ? "שלב 2 מתוך 3: בחר מועד" : "שלב 1 מתוך 3: בחר שירות"}
+            </div>
+          </div>
+
+          {/* Content area — fixed height so phases don't shift layout */}
+          <div style={{ width: 520, marginTop: 14, position: "relative", height: 400 }}>
+
+            {/* ── PHASE 1 : Service selection ── */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, opacity: phase1Opacity }}>
+              <div style={{
+                background: "white", borderRadius: 16,
+                border: "1px solid #e2e8f0", padding: "18px 22px",
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a", marginBottom: 12 }}>בחר שירות</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {SERVICES.map((svc, i) => {
+                    const p = spring({ frame: frame - svc.delay, fps, config: { damping: 200 } });
+                    const y = interpolate(p, [0, 1], [10, 0]);
+                    const svcOpacity = interpolate(frame, [svc.delay, svc.delay + 10], [0, 1], { extrapolateRight: "clamp" });
+                    const selected = i === 0 && isServiceSelected;
+
+                    return (
+                      <div key={svc.label} style={{
+                        display: "flex", alignItems: "center", gap: 12,
+                        padding: "11px 14px", borderRadius: 12,
+                        border: `2px solid ${selected ? "#FDBA74" : "#e2e8f0"}`,
+                        background: selected ? "#FFF7ED" : "white",
+                        boxShadow: selected ? "0 0 0 1px #fed7aa" : "none",
+                        opacity: svcOpacity,
+                        transform: `translateY(${y}px)`,
                       }}>
-                        {svc.selected && <div style={{ width: 6, height: 6, background: "white", borderRadius: "50%" }} />}
+                        {/* Icon box */}
+                        <div style={{
+                          width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+                          background: selected ? "rgba(234,88,12,0.12)" : svc.colorBg,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          <div style={{
+                            width: 18, height: 18, borderRadius: "50%",
+                            background: selected ? ORANGE : svc.color,
+                          }} />
+                        </div>
+                        {/* Info */}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{svc.label}</div>
+                          <div style={{ marginTop: 3 }}>
+                            <span style={{
+                              fontSize: 10, fontWeight: 600,
+                              background: "#f1f5f9", color: "#64748b",
+                              borderRadius: 4, padding: "1px 6px",
+                            }}>{svc.duration}</span>
+                          </div>
+                        </div>
+                        {/* Price + chevron */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <span style={{
+                            fontSize: 14, fontWeight: 800,
+                            color: selected ? ORANGE : "#0f172a",
+                          }}>{svc.price}</span>
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                            <path d="M5 3.5L9 7L5 10.5" stroke={selected ? ORANGE : "#94a3b8"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
                       </div>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{svc.label}</span>
-                    </div>
-                    <span style={{ fontSize: 12, color: "#64748b" }}>{svc.price}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Time slots */}
-          <div style={{
-            background: "white", borderRadius: 16,
-            border: "1px solid #e2e8f0", padding: "20px 24px",
-            opacity: slotsOpacity,
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#64748b", marginBottom: 12 }}>בחר שעה — יום שני 7.4</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {SLOTS.map((slot, i) => (
-                <div key={slot} style={{
-                  padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  background: i === 2 ? ORANGE : "#f1f5f9",
-                  color: i === 2 ? "white" : "#475569",
-                  border: `1px solid ${i === 2 ? ORANGE : "#e2e8f0"}`,
-                }}>
-                  {slot}
+                    );
+                  })}
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
 
-          {/* Book button */}
-          <div style={{
-            background: ORANGE, borderRadius: 12,
-            padding: "14px", textAlign: "center",
-            fontSize: 16, fontWeight: 800, color: "white",
-            opacity: btnOpacity,
-            boxShadow: "0 4px 20px rgba(234,88,12,0.4)",
-          }}>
-            אשר הזמנה
+            {/* ── PHASE 2 : Time slot selection ── */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, opacity: phase2Opacity }}>
+              {/* Service summary banner */}
+              <div style={{
+                background: "#FFF7ED", borderRadius: 12,
+                border: "1px solid #FED7AA",
+                padding: "9px 16px", marginBottom: 10,
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                opacity: interpolate(frame, [PHASE2_START, PHASE2_START + 12], [0, 1], { extrapolateRight: "clamp" }),
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: ORANGE }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>טיפוח מלא</span>
+                  <span style={{
+                    fontSize: 10, fontWeight: 600, background: "#f1f5f9",
+                    color: "#64748b", borderRadius: 4, padding: "1px 6px",
+                  }}>90 דקות</span>
+                </div>
+                <span style={{ fontSize: 14, fontWeight: 800, color: ORANGE }}>₪180</span>
+              </div>
+
+              {/* Time slot card */}
+              <div style={{
+                background: "white", borderRadius: 16,
+                border: "1px solid #e2e8f0", padding: "18px 22px",
+                opacity: interpolate(frame, [PHASE2_START + 2, PHASE2_START + 14], [0, 1], { extrapolateRight: "clamp" }),
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a", marginBottom: 2 }}>בחר שעה</div>
+                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 14 }}>יום שני, 7 באפריל</div>
+
+                {/* 3-column slot grid */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                  {SLOTS.map((slot, i) => {
+                    const slotDelay = PHASE2_START + 10 + i * 6;
+                    const slotOpacity = interpolate(frame, [slotDelay, slotDelay + 8], [0, 1], { extrapolateRight: "clamp" });
+                    const slotP = spring({ frame: frame - slotDelay, fps, config: { damping: 200 } });
+                    const slotY = interpolate(slotP, [0, 1], [8, 0]);
+                    const isSelected = i === SELECTED_SLOT && frame >= CLICK_SLOT_FRAME - 2;
+
+                    return (
+                      <div key={slot} style={{
+                        padding: "11px 8px", borderRadius: 10,
+                        textAlign: "center", fontSize: 14, fontWeight: 700,
+                        border: `2px solid ${isSelected ? BRAND : "#e2e8f0"}`,
+                        background: isSelected ? BRAND : "white",
+                        color: isSelected ? "white" : "#475569",
+                        boxShadow: isSelected ? "0 4px 14px rgba(249,115,22,0.35)" : "none",
+                        opacity: slotOpacity,
+                        transform: `translateY(${slotY}px)`,
+                      }}>
+                        {slot}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Confirm button */}
+              <div style={{
+                marginTop: 12,
+                background: ORANGE, borderRadius: 12,
+                padding: "13px", textAlign: "center",
+                fontSize: 15, fontWeight: 800, color: "white",
+                transform: `scale(${btnScale})`,
+                boxShadow: "0 4px 20px rgba(234,88,12,0.4)",
+                opacity: interpolate(frame, [PHASE2_START + 22, PHASE2_START + 34], [0, 1], { extrapolateRight: "clamp" }),
+              }}>
+                אשר הזמנה
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
 
-      <PainOverlay text="הלקוחות מחכים לאישור ידני" fadeOutStart={35} fadeOutEnd={52} />
+      {/* Green checkmark overlay */}
+      {checkOpacity > 0.02 && (
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: `rgba(8,12,20,${checkOpacity * 0.55})`,
+          zIndex: 85,
+        }}>
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 14,
+            opacity: checkOpacity,
+            transform: `scale(${checkScale})`,
+          }}>
+            <div style={{
+              width: 88, height: 88, borderRadius: "50%",
+              background: "#dcfce7", border: "3px solid #86efac",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transform: `scale(${checkCircleScale})`,
+              boxShadow: "0 0 32px rgba(34,197,94,0.4)",
+            }}>
+              <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+                <path d="M10 22 L18 32 L34 14" stroke="#16a34a" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: "white", textShadow: "0 2px 12px rgba(0,0,0,0.4)" }}>
+              ההזמנה אושרה!
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.75)" }}>
+              אישור נשלח ב-WhatsApp ✓
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cursor phase 1 — moves to "טיפוח מלא" service card and clicks */}
+      <div style={{ opacity: phase1Opacity }}>
+        <CursorAnimation
+          startX={780} startY={200}
+          endX={620} endY={332}
+          appearAt={62}
+          clickAt={CLICK_SERVICE_FRAME}
+        />
+      </div>
+
+      {/* Cursor phase 2 — moves from service position down to "10:30" slot and clicks */}
+      <div style={{ opacity: phase2Opacity }}>
+        <CursorAnimation
+          startX={560} startY={300}
+          endX={486} endY={508}
+          appearAt={PHASE2_START + 6}
+          clickAt={CLICK_SLOT_FRAME}
+        />
+      </div>
+
+      <PainOverlay text="לקוחות קובעים תור לבד" fadeOutStart={35} fadeOutEnd={52} />
       <BenefitTag text="הזמנות אונליין 24/7" appearAt={68} />
     </AbsoluteFill>
   );

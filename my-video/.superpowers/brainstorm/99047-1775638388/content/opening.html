@@ -1,0 +1,127 @@
+<h2>פתיחת הסרטון — 3–4 שניות ראשונות</h2>
+<p class="subtitle">הפתיחה קובעת את הטון. 3 אופציות:</p>
+
+<style>
+.open-mock {
+  border-radius: 10px;
+  overflow: hidden;
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  margin: 10px 0 6px;
+  position: relative;
+  text-align: center;
+}
+.open-chaos {
+  background: #0f172a;
+  flex-direction: column;
+  gap: 0;
+  padding: 12px;
+}
+.chaos-line {
+  font-size: 12px;
+  font-weight: 800;
+  direction: rtl;
+  line-height: 1.5;
+}
+.chaos-line.red { color: #f87171; }
+.chaos-line.amber { color: #fbbf24; }
+.chaos-line.orange { color: #fb923c; }
+.open-logo {
+  background: linear-gradient(135deg, #ea580c, #c2410c);
+  flex-direction: column;
+  gap: 6px;
+}
+.open-logo .logo-box {
+  width: 42px; height: 42px;
+  background: white;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 900; color: #ea580c;
+}
+.open-logo .tagline { font-size: 11px; color: rgba(255,255,255,0.85); direction: rtl; }
+.open-logo .brand { font-size: 16px; font-weight: 900; color: white; letter-spacing: 2px; }
+.open-split {
+  display: flex;
+  height: 110px;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 10px 0 6px;
+}
+.split-left {
+  background: #0f172a;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px;
+}
+.split-left .q { font-size: 11px; color: #f87171; font-weight: 800; direction: rtl; text-align: center; }
+.split-right {
+  background: #ea580c;
+  width: 90px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.split-right .logo-sm { width: 32px; height: 32px; background: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900; color: #ea580c; }
+.split-right .name { font-size: 11px; color: white; font-weight: 800; letter-spacing: 1px; }
+</style>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>כאוס ישיר — 3 שורות כאב מהירות</h3>
+      <p>הסרטון פותח בלי הקדמה — 3 שורות כאב מוצגות בזו אחר זו על רקע שחור. אחרי 3 שניות — נכנסת האפליקציה.</p>
+      <div class="open-mock open-chaos">
+        <div class="chaos-line red">לידים נופלים בין הכסאות</div>
+        <div class="chaos-line amber">תורים נשכחים ברגע האחרון</div>
+        <div class="chaos-line orange">מי שילם? מי חייב?</div>
+      </div>
+      <p style="font-size:11px;color:#64748b">🔥 הכי אגרסיבי — מושך תשומת לב מיידית בסושיאל</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>לוגו + Tagline — 3 שניות מיתוג</h3>
+      <p>הסרטון פותח בלוגו פטרה על רקע כתום, עם הטאגליין "ניהול עסק חיות המחמד — בכיף". מיד אחרי — קפיצה לאפליקציה.</p>
+      <div class="open-mock open-logo">
+        <div class="logo-box">P</div>
+        <div class="brand">PETRA</div>
+        <div class="tagline">ניהול עסק חיות המחמד — בכיף</div>
+      </div>
+      <p style="font-size:11px;color:#64748b">מתאים יותר לאתר — פחות punch לסושיאל</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>כאוס + לוגו — 4 שניות פתיחה</h3>
+      <p>2 שורות כאב מהירות על שחור → חיתוך קצר ללוגו פטרה ("הפתרון") → נכנסים לאפליקציה.</p>
+      <div class="open-split">
+        <div class="split-left">
+          <div class="q">לידים נופלים<br>תורים נשכחים</div>
+          <div style="font-size:9px;color:#475569;margin-top:4px;direction:rtl">0–2 שניות</div>
+        </div>
+        <div class="split-right">
+          <div class="logo-sm">P</div>
+          <div class="name">PETRA</div>
+          <div style="font-size:8px;color:rgba(255,255,255,0.7);margin-top:2px">2–4 שניות</div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:#64748b">✅ <strong>המלצתי</strong> — גם punch וגם מיתוג, עובד בכל פלטפורמה</p>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,156 @@
+<h2>איך מציגים את הכאב?</h2>
+<p class="subtitle">לפני כל מסך אפליקציה — ~1.5 שניות "כאב" מהיר. איך הוא נראה?</p>
+
+<style>
+.preview-row {
+  display: flex;
+  gap: 14px;
+  margin: 10px 0;
+  direction: ltr;
+}
+.screen-mock {
+  border-radius: 8px;
+  overflow: hidden;
+  flex: 1;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  position: relative;
+}
+.arrow-mock {
+  display: flex;
+  align-items: center;
+  color: #94a3b8;
+  font-size: 20px;
+  padding: 0 4px;
+}
+/* Style A - dark card */
+.pain-dark {
+  background: #0f172a;
+  color: white;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+  padding: 12px;
+}
+.pain-dark .q { font-size: 15px; color: #f87171; font-weight: 800; direction: rtl; }
+.pain-dark .sub { font-size: 10px; color: #64748b; direction: rtl; }
+/* Style B - overlay */
+.pain-overlay {
+  background: linear-gradient(135deg, #1e293b 30%, #334155);
+  flex-direction: column;
+  text-align: center;
+  padding: 10px;
+}
+.pain-overlay .blurred-app {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(0deg, #e2e8f0 0px, #e2e8f0 2px, #f1f5f9 2px, #f1f5f9 14px);
+  opacity: 0.15;
+}
+.pain-overlay .text-layer {
+  position: relative; z-index: 1;
+  color: white; text-align: center; direction: rtl;
+}
+.pain-overlay .text-layer .q { font-size: 14px; color: #fca5a5; font-weight: 800; }
+.pain-overlay .text-layer .sub { font-size: 10px; color: #94a3b8; margin-top: 4px; }
+/* Style C - split */
+.pain-split-left {
+  background: #fef2f2;
+  border: 2px solid #fca5a5;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  text-align: center;
+  direction: rtl;
+}
+.pain-split-left .q { font-size: 13px; color: #dc2626; font-weight: 800; }
+.pain-split-left .x { font-size: 22px; color: #dc2626; }
+.app-mock {
+  background: #f1f5f9;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border: 1.5px solid #e2e8f0;
+}
+.app-mock .bar { height: 6px; background: #e2e8f0; border-radius: 3px; width: 80%; margin: 2px auto; }
+.app-mock .bar.orange { background: #ea580c; width: 40%; }
+.app-mock .bar.short { width: 55%; }
+.app-mock-label { font-size: 10px; color: #64748b; direction: rtl; }
+</style>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>כרטיס כאב כהה — חיתוך מהיר לאפליקציה</h3>
+      <p>1 שניה טקסט לבן על רקע שחור/כהה → חיתוך פתאומי למסך האפליקציה הבהיר. ניגוד חזק.</p>
+      <div class="preview-row">
+        <div class="screen-mock pain-dark">
+          <div class="q">לידים נופלים<br>בין הכסאות?</div>
+          <div class="sub">כאב</div>
+        </div>
+        <div class="arrow-mock">→</div>
+        <div class="screen-mock app-mock">
+          <div class="bar orange"></div>
+          <div class="bar"></div>
+          <div class="bar short"></div>
+          <div class="app-mock-label">מסך לידים</div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:#64748b">ניגוד כהה↔בהיר — דרמטי, מתאים לסושיאל</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>טקסט על רקע כהה + fade לאפליקציה</h3>
+      <p>הכאב מופיע כטקסט על רקע כהה, ואז מתפוגג ומתגלה מסך האפליקציה מאחוריו.</p>
+      <div class="preview-row">
+        <div class="screen-mock pain-overlay">
+          <div class="blurred-app"></div>
+          <div class="text-layer">
+            <div class="q">לידים נופלים<br>בין הכסאות?</div>
+            <div class="sub">↓ הכירו את הפתרון</div>
+          </div>
+        </div>
+        <div class="arrow-mock">→</div>
+        <div class="screen-mock app-mock">
+          <div class="bar orange"></div>
+          <div class="bar"></div>
+          <div class="bar short"></div>
+          <div class="app-mock-label">מסך לידים</div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:#64748b">רך יותר — מתאים לאתר, פחות punch לסושיאל</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>טקסט כאב ישיר על מסך האפליקציה</h3>
+      <p>מסך האפליקציה נכנס מיד — הכאב מופיע כ-overlay טקסט עליו לשנייה, ואז נעלם.</p>
+      <div class="preview-row">
+        <div class="screen-mock pain-split-left">
+          <div class="x">✗</div>
+          <div class="q">לידים נופלים<br>בין הכסאות</div>
+        </div>
+        <div class="arrow-mock">→</div>
+        <div class="screen-mock app-mock">
+          <div class="bar orange"></div>
+          <div class="bar"></div>
+          <div class="bar short"></div>
+          <div class="app-mock-label">מסך לידים</div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:#64748b">✅ <strong>המלצתי</strong> — קצבי, ישיר, אפס זמן מבוזבז</p>
+    </div>
+  </div>
+
+</div>

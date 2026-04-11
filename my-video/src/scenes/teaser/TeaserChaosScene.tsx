@@ -4,26 +4,12 @@ import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 
 const LINES = [
-  "לידים נופלים בין הכסאות",
-  "תורים נשכחים ברגע האחרון",
+  { text: "העסק גדל — ואתה מאבד שליטה?", start: 0, show: 24, hide: 30 },
+  { text: "לקוחות נופלים, תורים נשכחים", start: 25, show: 49, hide: 58 },
 ];
 
 export const TeaserChaosScene: React.FC = () => {
   const frame = useCurrentFrame();
-
-  // Line 1: frames 0–28
-  const line1Opacity = interpolate(frame, [0, 6, 24, 30], [0, 1, 1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  // Line 2: frames 25–60
-  const line2Opacity = interpolate(frame, [25, 32, 56, 60], [0, 1, 1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  const opacities = [line1Opacity, line2Opacity];
 
   return (
     <AbsoluteFill
@@ -35,41 +21,46 @@ export const TeaserChaosScene: React.FC = () => {
         justifyContent: "center",
         fontFamily: FONT,
         direction: "rtl",
-        gap: 0,
       }}
     >
-      {LINES.map((line, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            opacity: opacities[i],
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-          }}
-        >
-          <span
+      {LINES.map((line, i) => {
+        const opacity = interpolate(
+          frame,
+          [line.start, line.start + 7, line.show, line.hide],
+          [0, 1, 1, 0],
+          { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+        );
+        const y = interpolate(frame, [line.start, line.start + 10], [10, 0], { extrapolateRight: "clamp" });
+
+        return (
+          <div
+            key={i}
             style={{
-              fontSize: 36,
-              fontWeight: 900,
-              color: "#ef4444",
+              position: "absolute",
+              opacity,
+              transform: `translateY(${y}px)`,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 10,
             }}
           >
-            ✗
-          </span>
-          <span
-            style={{
-              fontSize: 30,
-              fontWeight: 800,
-              color: "white",
-              textShadow: "0 0 30px rgba(239,68,68,0.4)",
-            }}
-          >
-            {line}
-          </span>
-        </div>
-      ))}
+            {/* Red accent bar */}
+            <div style={{ width: 44, height: 3, background: "#ef4444", borderRadius: 2 }} />
+            <span
+              style={{
+                fontSize: 32,
+                fontWeight: 900,
+                color: "white",
+                textShadow: "0 0 40px rgba(239,68,68,0.35)",
+                textAlign: "center",
+              }}
+            >
+              {line.text}
+            </span>
+          </div>
+        );
+      })}
     </AbsoluteFill>
   );
 };

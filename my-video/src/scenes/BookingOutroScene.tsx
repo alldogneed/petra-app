@@ -111,7 +111,7 @@ export const BookingOutroScene: React.FC = () => {
         display: "flex", alignItems: "center", gap: 12,
         direction: "rtl",
       }}>
-        <span style={{ color: "white", fontSize: 18, fontWeight: 800 }}>התחילו בחינם</span>
+        <span style={{ color: "white", fontSize: 18, fontWeight: 800 }}>נסו עכשיו</span>
         <span style={{ color: "white", fontSize: 20 }}>←</span>
       </div>
 

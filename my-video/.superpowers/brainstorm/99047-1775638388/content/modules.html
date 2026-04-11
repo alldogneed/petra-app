@@ -1,0 +1,111 @@
+<h2>4 הזוגות כאב → מסך</h2>
+<p class="subtitle">בחר 4 מתוך 6 — כל אחד יקבל ~5 שניות בסרטון</p>
+
+<style>
+.module-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 16px;
+}
+.module-card {
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: white;
+  direction: rtl;
+}
+.module-card:hover { border-color: #94a3b8; }
+.module-card.selected { border-color: #ea580c; background: #fff7ed; }
+.module-card .pain-line {
+  font-size: 12px;
+  color: #dc2626;
+  font-weight: 700;
+  margin-bottom: 6px;
+  background: #fef2f2;
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: inline-block;
+}
+.module-card .solution-line {
+  font-size: 12px;
+  color: #16a34a;
+  font-weight: 600;
+  margin-top: 6px;
+}
+.module-card h3 {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 6px 0 4px;
+}
+.module-card p {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+.rec-badge {
+  font-size: 10px;
+  background: #ea580c;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-weight: 700;
+  float: left;
+}
+</style>
+
+<div class="module-grid">
+
+  <div class="module-card" onclick="this.classList.toggle('selected')">
+    <div class="pain-line">לידים נופלים בין הכסאות</div>
+    <h3>מערכת מכירות (CRM)</h3>
+    <p>קנבן של לידים — מי פנה, מי ממתין, מי סגר. לא שוכחים אף פנייה.</p>
+    <div class="solution-line">✓ כל ליד במקום אחד</div>
+    <span class="rec-badge">מומלץ</span>
+  </div>
+
+  <div class="module-card" onclick="this.classList.toggle('selected')">
+    <div class="pain-line">תורים נשכחים / מתנגשים</div>
+    <h3>יומן תורים</h3>
+    <p>יומן חכם עם כל התורים, תזכורות WhatsApp אוטומטיות ללקוחות.</p>
+    <div class="solution-line">✓ אפס ביטולי הפתעה</div>
+    <span class="rec-badge">מומלץ</span>
+  </div>
+
+  <div class="module-card" onclick="this.classList.toggle('selected')">
+    <div class="pain-line">פנסיון — מי בא? מי יצא? איזה כלוב?</div>
+    <h3>לוח פנסיון</h3>
+    <p>לוח חדרים ויזואלי, צ'ק-אין/אאוט, ניהול תפוסה בזמן אמת.</p>
+    <div class="solution-line">✓ אפס בלבול בפנסיון</div>
+    <span class="rec-badge">מומלץ</span>
+  </div>
+
+  <div class="module-card" onclick="this.classList.toggle('selected')">
+    <div class="pain-line">אילוף — איפה היינו? מה נשאר?</div>
+    <h3>תהליכי אילוף</h3>
+    <p>כרטיס תהליך לכל כלב — שלבים, הערות, התקדמות מול הלקוח.</p>
+    <div class="solution-line">✓ כל כלב — תהליך ברור</div>
+  </div>
+
+  <div class="module-card" onclick="this.classList.toggle('selected')">
+    <div class="pain-line">כסף — מי שילם? מי חייב?</div>
+    <h3>הזמנות ותשלומים</h3>
+    <p>הזמנה אחת יוצרת פנסיון + חשבונית + תזכורת תשלום בוואטסאפ.</p>
+    <div class="solution-line">✓ תשלום בלחיצה</div>
+    <span class="rec-badge">מומלץ</span>
+  </div>
+
+  <div class="module-card" onclick="this.classList.toggle('selected')">
+    <div class="pain-line">לא זוכר מה דיברנו עם הלקוח</div>
+    <h3>פרופיל לקוח + כלב</h3>
+    <p>היסטוריה מלאה, חיסונים, הערות, כל ההזמנות הקודמות — בכרטיס אחד.</p>
+    <div class="solution-line">✓ הכל על הלקוח בשנייה</div>
+  </div>
+
+</div>
+
+<p style="font-size:12px;color:#94a3b8;margin-top:16px;direction:rtl">לחץ על עד 4 כרטיסים לבחירה. ה-4 המומלצים: מכירות, יומן, פנסיון, הזמנות.</p>

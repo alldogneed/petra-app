@@ -3,9 +3,9 @@ import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 
 interface PainOverlayProps {
-  text: string; // e.g. "לידים נופלים בין הכסאות"
-  fadeOutStart?: number; // frame when fade-out begins (default: 35)
-  fadeOutEnd?: number; // frame when fully gone (default: 50)
+  text: string;
+  fadeOutStart?: number;
+  fadeOutEnd?: number;
 }
 
 export const PainOverlay: React.FC<PainOverlayProps> = ({
@@ -17,24 +17,19 @@ export const PainOverlay: React.FC<PainOverlayProps> = ({
 
   const overlayOpacity = interpolate(
     frame,
-    [0, 8, fadeOutStart, fadeOutEnd],
+    [0, 6, fadeOutStart, fadeOutEnd],
     [0, 1, 1, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
 
-  const textScale = interpolate(
-    frame,
-    [0, 12],
-    [0.92, 1],
-    { extrapolateRight: "clamp" }
-  );
+  const textY = interpolate(frame, [0, 10], [10, 0], { extrapolateRight: "clamp" });
 
   if (overlayOpacity <= 0) return null;
 
   return (
     <AbsoluteFill
       style={{
-        background: "rgba(10, 14, 23, 0.82)",
+        background: "rgba(8, 12, 20, 0.93)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -44,36 +39,21 @@ export const PainOverlay: React.FC<PainOverlayProps> = ({
         direction: "rtl",
       }}
     >
-      <div
-        style={{
-          transform: `scale(${textScale})`,
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 32,
-            fontWeight: 900,
-            color: "#ef4444",
-            lineHeight: 1,
-          }}
-        >
-          ✗
-        </span>
-        <span
-          style={{
-            fontSize: 26,
-            fontWeight: 800,
-            color: "white",
-            textAlign: "center",
-            lineHeight: 1.3,
-            textShadow: "0 2px 12px rgba(0,0,0,0.5)",
-          }}
-        >
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, transform: `translateY(${textY}px)` }}>
+        {/* Red accent line */}
+        <div style={{ width: 52, height: 3, background: "#ef4444", borderRadius: 2 }} />
+        {/* Pain text */}
+        <div style={{
+          fontSize: 32,
+          fontWeight: 900,
+          color: "white",
+          textAlign: "center",
+          lineHeight: 1.3,
+          textShadow: "0 2px 20px rgba(0,0,0,0.5)",
+          maxWidth: 700,
+        }}>
           {text}
-        </span>
+        </div>
       </div>
     </AbsoluteFill>
   );

@@ -12,16 +12,7 @@ const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 
 export const TeaserLogoScene: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps, durationInFrames } = useVideoConfig();
-
-  const fadeIn = interpolate(frame, [0, 8], [0, 1], { extrapolateRight: "clamp" });
-  const fadeOut = interpolate(
-    frame,
-    [durationInFrames - 8, durationInFrames],
-    [1, 0],
-    { extrapolateLeft: "clamp" }
-  );
-  const opacity = Math.min(fadeIn, fadeOut);
+  const { fps } = useVideoConfig();
 
   const logoScale = spring({ frame: frame - 2, fps, config: { damping: 160 } });
 
@@ -42,7 +33,6 @@ export const TeaserLogoScene: React.FC = () => {
         justifyContent: "center",
         fontFamily: FONT,
         direction: "rtl",
-        opacity,
       }}
     >
       {/* Logo + brand */}
@@ -55,10 +45,17 @@ export const TeaserLogoScene: React.FC = () => {
           gap: 12,
         }}
       >
-        <Img
-          src={staticFile("petra-icon.png")}
-          style={{ width: 80, height: 80, objectFit: "contain" }}
-        />
+        <div style={{
+          width: 96, height: 96, borderRadius: "50%",
+          background: "white",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <Img
+            src={staticFile("petra-icon.png")}
+            style={{ width: 62, height: 62, objectFit: "contain" }}
+          />
+        </div>
         <div
           style={{
             opacity: textOpacity,

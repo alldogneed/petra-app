@@ -1,0 +1,99 @@
+<h2>מבנה סרטון מודול הלקוחות</h2>
+<p class="subtitle">8 סצנות — כ-2 דקות. לחצו על סצנה שתרצו לשנות / הוסיף.</p>
+
+<style>
+  .scenes { display: flex; flex-direction: column; gap: 10px; direction: rtl; margin: 0 auto; max-width: 780px; }
+  .scene-row { display: flex; align-items: center; gap: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 18px; cursor: pointer; transition: border-color .2s; }
+  .scene-row:hover { border-color: rgba(251,146,60,0.5); }
+  .scene-row.selected { border-color: #fb923c; background: rgba(251,146,60,0.08); }
+  .scene-num { font-size: 13px; font-weight: 700; color: #fb923c; min-width: 24px; }
+  .scene-id { font-size: 11px; color: #64748b; font-family: monospace; min-width: 180px; }
+  .scene-title { font-size: 15px; font-weight: 700; color: #e2e8f0; flex: 1; }
+  .scene-desc { font-size: 12px; color: #94a3b8; flex: 2; }
+  .scene-dur { font-size: 12px; color: #fb923c; min-width: 40px; text-align: left; }
+  .section-label { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .08em; margin: 8px 0 4px 0; text-align: right; }
+  .total { text-align: center; margin-top: 18px; font-size: 13px; color: #94a3b8; }
+  .total strong { color: #fb923c; }
+</style>
+
+<div class="scenes">
+
+  <div class="section-label">פתיחה</div>
+
+  <div class="scene-row" data-choice="1" onclick="toggleSelect(this)">
+    <span class="scene-num">1</span>
+    <span class="scene-id">customers-intro</span>
+    <span class="scene-title">פתיחה — מודול הלקוחות</span>
+    <span class="scene-desc">לוגו פטרה, כותרת "ניהול לקוחות", 3–4 נקודות מפתח</span>
+    <span class="scene-dur">8s</span>
+  </div>
+
+  <div class="section-label">רשימת לקוחות</div>
+
+  <div class="scene-row" data-choice="2" onclick="toggleSelect(this)">
+    <span class="scene-num">2</span>
+    <span class="scene-id">customers-list</span>
+    <span class="scene-title">סקירת רשימת הלקוחות</span>
+    <span class="scene-desc">טבלה עם שמות, סטטוסים (פעיל/רדום/VIP), תגיות, חיות מחמד, כפתורי חיפוש וסינון</span>
+    <span class="scene-dur">14s</span>
+  </div>
+
+  <div class="scene-row" data-choice="3" onclick="toggleSelect(this)">
+    <span class="scene-num">3</span>
+    <span class="scene-id">customers-add</span>
+    <span class="scene-title">הוספת לקוח חדש</span>
+    <span class="scene-desc">לחיצה על "לקוח חדש" → מילוי שם, טלפון, אימייל, תגיות → שמירה → ברוכים הבאים WhatsApp</span>
+    <span class="scene-dur">16s</span>
+  </div>
+
+  <div class="section-label">כרטיס לקוח</div>
+
+  <div class="scene-row" data-choice="4" onclick="toggleSelect(this)">
+    <span class="scene-num">4</span>
+    <span class="scene-id">customers-profile</span>
+    <span class="scene-title">כרטיס הלקוח — סקירה כללית</span>
+    <span class="scene-desc">פרטי קשר, סטטוס כספי (הכנסות / חוב), כרטיסיות: תורים / הזמנות / מסמכים / ציר זמן</span>
+    <span class="scene-dur">16s</span>
+  </div>
+
+  <div class="scene-row" data-choice="5" onclick="toggleSelect(this)">
+    <span class="scene-num">5</span>
+    <span class="scene-id">customers-pets</span>
+    <span class="scene-title">הוספת חיית מחמד</span>
+    <span class="scene-desc">כרטיס חיות המחמד ← כפתור "+" ← מילוי שם/מין/גזע/גיל ← שמור. אנימציה של כרטיס מתווסף</span>
+    <span class="scene-dur">18s</span>
+  </div>
+
+  <div class="section-label">פעולות</div>
+
+  <div class="scene-row" data-choice="6" onclick="toggleSelect(this)">
+    <span class="scene-num">6</span>
+    <span class="scene-id">customers-actions</span>
+    <span class="scene-title">פעולות מהכרטיס</span>
+    <span class="scene-desc">WhatsApp, קביעת תור, הזמנה חדשה, חיוב — כל כפתור עם הסבר קצר + אנימציית highlight</span>
+    <span class="scene-dur">20s</span>
+  </div>
+
+  <div class="scene-row" data-choice="7" onclick="toggleSelect(this)">
+    <span class="scene-num">7</span>
+    <span class="scene-id">customers-timeline</span>
+    <span class="scene-title">ציר הזמן</span>
+    <span class="scene-desc">היסטוריה אוטומטית — לקוח נוסף, תור נקבע, הזמנה שולמה. "הכל נשמר, שום דבר לא הולך לאיבוד"</span>
+    <span class="scene-dur">14s</span>
+  </div>
+
+  <div class="section-label">סיום</div>
+
+  <div class="scene-row" data-choice="8" onclick="toggleSelect(this)">
+    <span class="scene-num">8</span>
+    <span class="scene-id">customers-outro</span>
+    <span class="scene-title">אאוטרו — CTA</span>
+    <span class="scene-desc">לוגו + "מודול הלקוחות של פטרה — כל לקוח במקום אחד" + petra-app.com</span>
+    <span class="scene-dur">10s</span>
+  </div>
+
+</div>
+
+<div class="total">
+  סה"כ: <strong>~116 שניות (~2 דקות)</strong> · 8 סצנות · אותו pipeline כמו סרטון המכירות
+</div>

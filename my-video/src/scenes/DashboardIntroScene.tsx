@@ -77,18 +77,6 @@ export const DashboardIntroScene: React.FC = () => {
         </span>
       </div>
 
-      {/* Badge */}
-      <div style={{
-        opacity: badgeOpacity,
-        background: "rgba(234,88,12,0.15)",
-        border: "1px solid rgba(234,88,12,0.5)",
-        borderRadius: 99, padding: "5px 16px",
-        marginBottom: 20,
-        color: "#fb923c", fontSize: 13, fontWeight: 600,
-      }}>
-        מדריך מהיר
-      </div>
-
       {/* Title */}
       <h1 style={{
         color: "white", fontSize: 60, fontWeight: 800,
@@ -99,7 +87,7 @@ export const DashboardIntroScene: React.FC = () => {
         lineHeight: 1.15,
         textShadow: "0 2px 20px rgba(234,88,12,0.3)",
       }}>
-        לוח הבקרה
+        דשבורד
       </h1>
 
       {/* Subtitle */}

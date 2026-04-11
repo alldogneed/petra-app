@@ -7,6 +7,7 @@ import {
   useVideoConfig,
 } from "remotion";
 import { PetraSidebar } from "./PetraSidebar";
+import { CursorOverlay, CursorWaypoint } from "./CursorOverlay";
 
 const FONT = "'Segoe UI', -apple-system, 'Arial Hebrew', Arial, sans-serif";
 const ORANGE = "#ea580c";
@@ -18,6 +19,23 @@ const CHECK_1        = 60;   // task 1 checked
 const CHECK_2        = 78;   // task 2 checked
 const CHECK_3        = 96;   // task 3 checked
 const BULK_COMPLETE  = 130;  // "סמן כהושלם" clicked
+
+// RTL canvas: "בחר" button x≈887, y≈26. Checkboxes rightmost in rows x≈1024.
+// Task row 1 y≈84; rows 2,3 shift down ~40px after bulk bar appears at CHECK_1.
+// Bulk bar "סמן כהושלם" leftmost buttons area: x≈134, y≈72.
+const CURSOR_WAYPOINTS: CursorWaypoint[] = [
+  { frame: 0,              x: 700,  y: 300 },
+  { frame: 29,             x: 887,  y: 26  },
+  { frame: SELECT_MODE_ON, x: 887,  y: 26,  action: "click" },
+  { frame: 54,             x: 1024, y: 84  },
+  { frame: CHECK_1,        x: 1024, y: 84,  action: "click" },
+  { frame: 72,             x: 1024, y: 172 },
+  { frame: CHECK_2,        x: 1024, y: 172, action: "click" },
+  { frame: 90,             x: 1024, y: 220 },
+  { frame: CHECK_3,        x: 1024, y: 220, action: "click" },
+  { frame: 124,            x: 134,  y: 72  },
+  { frame: BULK_COMPLETE,  x: 134,  y: 72,  action: "click" },
+];
 const TASKS_DONE     = 142;  // tasks show completed
 const SELECT_MODE_2  = 220;  // second selection batch
 const CHECK_4        = 248;
@@ -225,6 +243,7 @@ export const TasksBulkScene: React.FC = () => {
           </div>
         </div>
       )}
+      <CursorOverlay waypoints={CURSOR_WAYPOINTS} />
     </AbsoluteFill>
   );
 };

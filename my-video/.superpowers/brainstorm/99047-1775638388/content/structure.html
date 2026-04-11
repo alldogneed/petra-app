@@ -1,0 +1,85 @@
+<h2>מבנה 30 השניות</h2>
+<p class="subtitle">כל אופציה מחולקת לשלבים — תוכן + זמן</p>
+
+<style>
+.timeline {
+  display: flex;
+  gap: 4px;
+  margin: 12px 0 6px;
+  direction: ltr;
+}
+.beat {
+  flex: 1;
+  border-radius: 6px;
+  padding: 8px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  color: white;
+  line-height: 1.35;
+}
+.beat.pain    { background: #dc2626; }
+.beat.bridge  { background: #6366f1; }
+.beat.module  { background: #0f172a; }
+.beat.cta     { background: #ea580c; }
+.beat.text-dark    { color: #0f172a; background: #fbbf24; }
+.beat-label { font-size: 10px; color: #94a3b8; text-align: center; margin-bottom: 2px; direction: ltr; }
+.beat-time  { font-size: 10px; opacity: 0.8; display: block; margin-top: 4px; }
+</style>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>כאב ← פתרון ← CTA</h3>
+      <p>פותחים עם 3 שניות כאוס (<span style="color:#dc2626">טקסט אדום כהה</span>), אחר כך עובר ל-5 מסכים מהאפליקציה, נסגר ב-CTA.</p>
+      <div class="timeline">
+        <div class="beat pain">כאוס<br>3 כאבים<span class="beat-time">0–6s</span></div>
+        <div class="beat bridge">הכירו<br>פטרה<span class="beat-time">6–9s</span></div>
+        <div class="beat module">לידים<span class="beat-time">9–13s</span></div>
+        <div class="beat module">תורים<span class="beat-time">13–17s</span></div>
+        <div class="beat module">פנסיון<br>+אילוף<span class="beat-time">17–22s</span></div>
+        <div class="beat module">תשלום<span class="beat-time">22–26s</span></div>
+        <div class="beat cta">הרשמו<br>חינם<span class="beat-time">26–30s</span></div>
+      </div>
+      <p style="font-size:12px;color:#64748b">⚠️ הכאב מפורד מהפתרון — צריך שהחיבור יהיה ברור</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>כאב + פתרון בכל מסך</h3>
+      <p>כל סצנה = כאב אחד + מסך מהאפליקציה שפותר אותו. קצב מהיר, מחובר ישיר.</p>
+      <div class="timeline">
+        <div class="beat pain">פתיחה<br>3 כאבים<span class="beat-time">0–4s</span></div>
+        <div class="beat module">כאב→<br>לידים<span class="beat-time">4–9s</span></div>
+        <div class="beat module">כאב→<br>תורים<span class="beat-time">9–14s</span></div>
+        <div class="beat module">כאב→<br>פנסיון<span class="beat-time">14–19s</span></div>
+        <div class="beat module">כאב→<br>הזמנה<span class="beat-time">19–24s</span></div>
+        <div class="beat cta">הרשמו<br>חינם<span class="beat-time">24–30s</span></div>
+      </div>
+      <p style="font-size:12px;color:#64748b">✅ <strong>המלצתי</strong> — הצופה רואה כל הזמן "הכאב שלי → הפתרון". מאוד גבוה בהמרה.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>אפליקציה מהסיבה — עם טקסט overlay</h3>
+      <p>קופצים ישר לאפליקציה. כל מסך מלווה בטקסט שמסביר את הערך. בלי "כאב" מפורש — האפליקציה מדברת בעד עצמה.</p>
+      <div class="timeline">
+        <div class="beat bridge">לוגו +<br>Tagline<span class="beat-time">0–3s</span></div>
+        <div class="beat module">לידים<br>+ טקסט<span class="beat-time">3–8s</span></div>
+        <div class="beat module">תורים<br>+ טקסט<span class="beat-time">8–13s</span></div>
+        <div class="beat module">פנסיון<br>+ טקסט<span class="beat-time">13–18s</span></div>
+        <div class="beat module">אילוף<br>+ טקסט<span class="beat-time">18–23s</span></div>
+        <div class="beat module">תשלום<br>+ טקסט<span class="beat-time">23–27s</span></div>
+        <div class="beat cta">CTA<span class="beat-time">27–30s</span></div>
+      </div>
+      <p style="font-size:12px;color:#64748b">⚠️ פחות מכאיב — מתאים יותר לאתר מאשר לסושיאל</p>
+    </div>
+  </div>
+
+</div>

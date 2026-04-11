@@ -15,77 +15,93 @@ export const TeaserCTAScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const fadeIn = interpolate(frame, [0, 10], [0, 1], { extrapolateRight: "clamp" });
-
   const logoScale = spring({ frame: frame - 2, fps, config: { damping: 160 } });
 
-  const mainTextOpacity = interpolate(frame, [8, 20], [0, 1], { extrapolateRight: "clamp" });
-  const mainTextY = interpolate(
-    spring({ frame: frame - 8, fps, config: { damping: 200 } }),
-    [0, 1], [24, 0]
-  );
+  const tagOpacity = interpolate(frame, [6, 16], [0, 1], { extrapolateRight: "clamp" });
+  const tagY = interpolate(spring({ frame: frame - 6, fps, config: { damping: 200 } }), [0, 1], [14, 0]);
 
-  const subOpacity = interpolate(frame, [20, 32], [0, 1], { extrapolateRight: "clamp" });
+  const mainOpacity = interpolate(frame, [14, 26], [0, 1], { extrapolateRight: "clamp" });
+  const mainY = interpolate(spring({ frame: frame - 14, fps, config: { damping: 200 } }), [0, 1], [18, 0]);
 
-  // Pulse effect on main text
-  const pulse = interpolate(frame % 30, [0, 15, 30], [1, 1.02, 1]);
+  const subOpacity = interpolate(frame, [24, 36], [0, 1], { extrapolateRight: "clamp" });
+  const urlOpacity = interpolate(frame, [32, 44], [0, 1], { extrapolateRight: "clamp" });
+
+  const pulse = 1 + interpolate(frame % 30, [0, 15, 30], [0, 0.015, 0]);
 
   return (
     <AbsoluteFill
       style={{
-        background: "linear-gradient(145deg, #ea580c 0%, #c2410c 100%)",
+        background: "linear-gradient(145deg, #ea580c 0%, #b63a07 100%)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         fontFamily: FONT,
         direction: "rtl",
-        opacity: fadeIn,
         gap: 0,
       }}
     >
-      {/* Background shine */}
+      {/* Radial shine */}
       <div style={{
         position: "absolute",
-        top: "10%", left: "50%",
+        top: "5%", left: "50%",
         transform: "translateX(-50%)",
-        width: 600, height: 400,
-        background: "radial-gradient(ellipse, rgba(255,255,255,0.12) 0%, transparent 70%)",
+        width: 700, height: 500,
+        background: "radial-gradient(ellipse, rgba(255,255,255,0.13) 0%, transparent 68%)",
         pointerEvents: "none",
       }} />
 
       {/* Logo */}
+      <div style={{ transform: `scale(${logoScale})`, marginBottom: 18 }}>
+        <Img src={staticFile("petra-icon.png")} style={{ width: 68, height: 68, objectFit: "contain" }} />
+      </div>
+
+      {/* Tagline */}
       <div style={{
-        transform: `scale(${logoScale})`,
-        marginBottom: 20,
+        opacity: tagOpacity,
+        transform: `translateY(${tagY}px)`,
+        fontSize: 16,
+        fontWeight: 700,
+        color: "rgba(255,255,255,0.75)",
+        letterSpacing: 2,
+        textTransform: "uppercase",
+        marginBottom: 12,
       }}>
-        <Img
-          src={staticFile("petra-icon.png")}
-          style={{ width: 64, height: 64, objectFit: "contain" }}
-        />
+        PETRA — ניהול עסק חיות המחמד
       </div>
 
       {/* Main CTA */}
       <div style={{
-        opacity: mainTextOpacity,
-        transform: `translateY(${mainTextY}px) scale(${pulse})`,
-        fontSize: 52,
+        opacity: mainOpacity,
+        transform: `translateY(${mainY}px) scale(${pulse})`,
+        fontSize: 50,
         fontWeight: 900,
         color: "white",
         textAlign: "center",
-        textShadow: "0 3px 20px rgba(0,0,0,0.2)",
-        marginBottom: 14,
-        lineHeight: 1.15,
+        textShadow: "0 3px 24px rgba(0,0,0,0.25)",
+        lineHeight: 1.2,
+        marginBottom: 10,
       }}>
-        נסו פטרה חינם
+        מחזירים לך את השליטה לעסק
       </div>
 
-      {/* Subtitle */}
+      {/* Sub CTA */}
       <div style={{
         opacity: subOpacity,
-        fontSize: 20,
-        color: "rgba(255,255,255,0.85)",
+        fontSize: 22,
+        fontWeight: 700,
+        color: "rgba(255,255,255,0.92)",
+        marginBottom: 18,
+      }}>
+        התחל עכשיו בחינם — ללא כרטיס אשראי
+      </div>
+
+      {/* URL */}
+      <div style={{
+        opacity: urlOpacity,
+        fontSize: 16,
         fontWeight: 600,
+        color: "rgba(255,255,255,0.6)",
         letterSpacing: 1,
       }}>
         petra-app.com
