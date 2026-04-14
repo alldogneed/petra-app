@@ -2232,9 +2232,10 @@ model PendingCheckout {
   address      String?   // optional billing address (for invoice)
   vatNumber    String?   // optional VAT / business reg number (ח.פ / עוסק מורשה)
   businessType String?   // "חברה (ח.פ)" | "עוסק מורשה (ע.מ)" | "עוסק פטור"
-  billingEmail String?   // email for invoice (may differ from login email)
-  expiresAt    DateTime                       // 2 hours after creation
-  processed    Boolean   @default(false)
+  billingEmail    String?   // email for invoice (may differ from login email)
+  lowProfileCode  String?   // Cardcom LowProfileCode — stored so success-redirect can verify
+  expiresAt       DateTime                       // 2 hours after creation
+  processed       Boolean   @default(false)
   processedAt  DateTime?
   createdAt    DateTime  @default(now())
 

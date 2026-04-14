@@ -163,9 +163,14 @@ function CheckoutContent() {
       }
 
       if (data.url) {
-        // Save lowProfileCode for success page to activate subscription
+        // Save lowProfileCode for success page to activate subscription (auth user flow)
         if (data.lowProfileCode) {
           try { localStorage.setItem("pendingLowProfileCode", data.lowProfileCode); } catch {}
+        }
+        // Save checkoutId for new user flow (not actually needed since success-redirect handles it,
+        // but kept for diagnostics)
+        if (data.checkoutId) {
+          try { localStorage.setItem("pendingCheckoutId", data.checkoutId); } catch {}
         }
         setCardcomUrl(data.url);
         setOnStep2(true);

@@ -146,8 +146,8 @@ export async function POST(request: NextRequest) {
       SumToBill:        String(plan.price), // actual plan price
       CoinID:           "1",               // ILS
       ProductName:      plan.label,
-      GoodURL:            `${appUrl}/payment/success?tier=${tier}&newuser=1`,
-      SuccessRedirectUrl: `${appUrl}/payment/success?tier=${tier}&newuser=1`,
+      GoodURL:            `${appUrl}/api/cardcom/success-redirect?tier=${tier}&checkoutId=${checkout.id}`,
+      SuccessRedirectUrl: `${appUrl}/api/cardcom/success-redirect?tier=${tier}&checkoutId=${checkout.id}`,
       ErrorURL:           `${appUrl}/payment/error`,
       ErrorRedirectUrl:   `${appUrl}/payment/error`,
       IndicatorURL:     buildIndicatorUrl("/api/cardcom/checkout-indicator"),
@@ -194,7 +194,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ url: result.url ?? result.LowProfileCode });
+    // Store the LowProfileCode on PendingCheckout so success-redirect can verify later
+    const lpCode = result.LowProfileCode ?? null;
+    if (lpCode) {
+      await prisma.pendingCheckout.update({
+        where: { id: checkout.id },
+        data: { lowProfileCode: lpCode },
+      });
+    }
+
+    return NextResponse.json({ url: result.url ?? lpCode, checkoutId: checkout.id });
   } catch (error) {
     console.error("POST /api/cardcom/create-checkout error:", error);
     return NextResponse.json({ error: "שגיאה בשרת. נסה שוב." }, { status: 500 });
