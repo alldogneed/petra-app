@@ -5,7 +5,7 @@ import { isValidTier } from "@/lib/feature-flags";
 import { encryptCardcomToken } from "@/lib/encryption";
 import { createCardcomRecurring, getPlanPrice } from "@/lib/cardcom-recurring";
 import { ensureUserHasBusiness } from "@/lib/auth";
-import { sendCheckoutWelcomeEmail } from "@/lib/email";
+import { sendCheckoutWelcomeEmail, sendUpgradeConfirmationEmail } from "@/lib/email";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 import { randomInt } from "crypto";
 import bcrypt from "bcryptjs";
@@ -385,6 +385,17 @@ export async function GET(request: NextRequest) {
     });
 
     console.log(`success-redirect [FlowB]: activated ${tier} for business ${businessId}, deal ${data.DealNumber}`);
+
+    // ── Send upgrade confirmation email (fire-and-forget) ────────────────
+    const plan = getPlanPrice(tier);
+    if (plan && business.email) {
+      sendUpgradeConfirmationEmail({
+        to: business.email,
+        name: business.name ?? "",
+        tierName: plan.label,
+        tierPrice: plan.price,
+      }).catch((e) => console.error("success-redirect [FlowB]: upgrade email failed:", e));
+    }
 
     // ── Create recurring order (fire-and-forget) ─────────────────────────
     createRecurringForBusiness(

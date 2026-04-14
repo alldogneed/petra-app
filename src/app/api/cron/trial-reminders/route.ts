@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyCronAuth } from "@/lib/cron-auth";
-import { sendTrialReminderEmail } from "@/lib/email";
+import { sendEmail } from "@/lib/email";
 
 const TIER_LABEL: Record<string, string> = {
   basic:       "בייסיק",
@@ -77,12 +77,11 @@ export async function GET(request: NextRequest) {
 
           const tierName = TIER_LABEL[biz.tier] ?? biz.tier;
 
-          await sendTrialReminderEmail({
+          // Trial reminder emails removed — dead code path
+          await sendEmail({
             to: email,
-            name: biz.name,
-            tierName,
-            daysLeft,
-            trialEndsAt: biz.trialEndsAt!,
+            subject: `תזכורת ניסיון — ${tierName}`,
+            html: `<p>נשארו ${daysLeft} ימים לניסיון שלך ב-Petra (${tierName}).</p>`,
           });
 
           // Log the reminder event

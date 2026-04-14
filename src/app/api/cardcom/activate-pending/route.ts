@@ -5,6 +5,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { isValidTier } from "@/lib/feature-flags";
 import { encryptCardcomToken } from "@/lib/encryption";
 import { createCardcomRecurring, getPlanPrice } from "@/lib/cardcom-recurring";
+import { sendUpgradeConfirmationEmail } from "@/lib/email";
 
 const TIER_DAYS: Record<string, number> = {
   basic: 30, pro: 30, groomer: 30, service_dog: 30,
@@ -108,8 +109,18 @@ export async function POST(request: NextRequest) {
 
     console.log(`activate-pending: ${tier} activated for ${businessId}, deal ${data.DealNumber}`);
 
-    // ── Create recurring order (fire-and-forget) ─────────────────────────
+    // ── Send upgrade confirmation email (fire-and-forget) ────────────────
     const plan = getPlanPrice(tier);
+    if (plan && business.email) {
+      sendUpgradeConfirmationEmail({
+        to: business.email,
+        name: business.name ?? "",
+        tierName: plan.label,
+        tierPrice: plan.price,
+      }).catch((e) => console.error("activate-pending: upgrade email failed:", e));
+    }
+
+    // ── Create recurring order (fire-and-forget) ─────────────────────────
     if (plan) {
       createCardcomRecurring({
         cardToken: data["ExtShvaParams.CardToken"] ?? "",

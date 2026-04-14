@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { isValidTier } from "@/lib/feature-flags";
 import { checkRateLimit } from "@/lib/security/rateLimiter";
 import { ensureUserHasBusiness } from "@/lib/auth";
-import { sendTrialWelcomeEmail } from "@/lib/email";
+import { sendCheckoutWelcomeEmail } from "@/lib/email";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 import { randomInt, timingSafeEqual } from "crypto";
 import { verifyIndicatorSignature } from "@/lib/security/cardcom-helpers";
@@ -271,7 +271,7 @@ export async function GET(request: NextRequest) {
     });
 
     // ── Send welcome email with temp credentials ──────────────────────────
-    await sendTrialWelcomeEmail({
+    await sendCheckoutWelcomeEmail({
       to:           checkout.email,
       name:         checkout.name,
       tierName:     TIER_LABEL[tier] ?? tier,
