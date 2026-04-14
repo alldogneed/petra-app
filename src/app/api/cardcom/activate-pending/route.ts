@@ -112,7 +112,10 @@ export async function POST(request: NextRequest) {
     const plan = getPlanPrice(tier);
     if (plan) {
       createCardcomRecurring({
-        lowProfileDealGuid: lowProfileCode,
+        cardToken: data["ExtShvaParams.CardToken"] ?? "",
+        cardMonth: (data.CardValidityMonth ?? "").trim(),
+        cardYear: data.CardValidityYear ?? "",
+        cardOwnerId: data.CardOwnerID ?? "",
         price: plan.price,
         invoiceDescription: `מנוי ${plan.label} — חודשי`,
         companyName: business.name ?? "לקוח פטרה",

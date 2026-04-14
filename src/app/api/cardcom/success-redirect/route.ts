@@ -78,7 +78,7 @@ async function verifyCardcomPayment(lowProfileCode: string): Promise<Record<stri
 
 /** Fire-and-forget: create recurring order in Cardcom and save recurringId */
 function createRecurringForBusiness(
-  lowProfileCode: string,
+  data: Record<string, string>,
   tier: string,
   businessId: string,
   businessName: string,
@@ -88,7 +88,10 @@ function createRecurringForBusiness(
   const plan = getPlanPrice(tier);
   if (!plan) return;
   createCardcomRecurring({
-    lowProfileDealGuid: lowProfileCode,
+    cardToken: data["ExtShvaParams.CardToken"] ?? "",
+    cardMonth: (data.CardValidityMonth ?? "").trim(),
+    cardYear: data.CardValidityYear ?? "",
+    cardOwnerId: data.CardOwnerID ?? "",
     price: plan.price,
     invoiceDescription: `מנוי ${plan.label} — חודשי`,
     companyName: businessName || "לקוח פטרה",
@@ -283,7 +286,7 @@ export async function GET(request: NextRequest) {
 
       // ── Create recurring order (fire-and-forget) ─────────────────────
       createRecurringForBusiness(
-        lpCode, tier, businessId,
+        data, tier, businessId,
         checkout.businessName || checkout.name,
         checkout.billingEmail || checkout.email,
       );
@@ -385,7 +388,7 @@ export async function GET(request: NextRequest) {
 
     // ── Create recurring order (fire-and-forget) ─────────────────────────
     createRecurringForBusiness(
-      lowProfileCode, tier, businessId,
+      data, tier, businessId,
       business.name ?? "לקוח פטרה",
       business.email ?? "",
       business.cardcomRecurringId ?? undefined,

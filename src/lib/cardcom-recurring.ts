@@ -2,7 +2,8 @@
  * Cardcom Recurring Billing (הוראת קבע) helpers.
  *
  * After a successful one-time charge (via LowProfile Operation=1),
- * we create a recurring order in Cardcom so they handle monthly billing.
+ * we create a recurring order in Cardcom using the card token
+ * so Cardcom handles monthly billing automatically.
  * On cancellation, we deactivate the recurring order.
  */
 
@@ -36,8 +37,14 @@ export function getPlanPrice(tier: string): { price: number; label: string } | n
 // ── Create recurring order ──────────────────────────────────────────────────
 
 interface CreateRecurringParams {
-  /** LowProfileDealGuid or lowprofilecode from the indicator webhook */
-  lowProfileDealGuid: string;
+  /** Card token (GUID) from Cardcom deal — ExtShvaParams.CardToken */
+  cardToken: string;
+  /** Card expiry month (1-12) */
+  cardMonth: string;
+  /** Card expiry year (e.g. "2030") */
+  cardYear: string;
+  /** Card owner ID number */
+  cardOwnerId?: string;
   /** Monthly price in ILS */
   price: number;
   /** Description for invoices */
@@ -53,6 +60,7 @@ interface CreateRecurringParams {
 interface RecurringResult {
   success: boolean;
   recurringId?: string;
+  accountId?: string;
   error?: string;
 }
 
@@ -64,6 +72,10 @@ export async function createCardcomRecurring(params: CreateRecurringParams): Pro
     return { success: false, error: "Missing Cardcom credentials" };
   }
 
+  if (!params.cardToken) {
+    return { success: false, error: "Missing card token" };
+  }
+
   // Next billing date = 30 days from now
   const nextDate = new Date();
   nextDate.setDate(nextDate.getDate() + 30);
@@ -73,14 +85,18 @@ export async function createCardcomRecurring(params: CreateRecurringParams): Pro
     TerminalNumber: terminalNumber,
     UserName: userName,
     Operation: "NewAndUpdate",
-    LowProfileDealGuid: params.lowProfileDealGuid,
     // Account
     "Account.CompanyName": params.companyName || "לקוח פטרה",
     "Account.Email": params.email,
+    // Credit card token (from Cardcom deal)
+    "CreditCard_1.Token": params.cardToken,
+    ...(params.cardMonth ? { "CreditCard_1.Month": params.cardMonth } : {}),
+    ...(params.cardYear ? { "CreditCard_1.Year": params.cardYear } : {}),
+    ...(params.cardOwnerId ? { "CreditCard_1.CardOwnerID": params.cardOwnerId } : {}),
     // Recurring order
     "RecurringPayments.InternalDecription": params.invoiceDescription,
     "RecurringPayments.NextDateToBill": nextDateStr,
-    "RecurringPayments.TotalNumOfBills": "0", // unlimited
+    "RecurringPayments.TotalNumOfBills": "99999", // effectively unlimited
     "RecurringPayments.TimeIntervalId": "1", // monthly
     "RecurringPayments.FinalDebitCoinId": "1", // ILS
     "RecurringPayments.IsActive": "true",
@@ -109,7 +125,8 @@ export async function createCardcomRecurring(params: CreateRecurringParams): Pro
 
     // Extract recurring ID from response
     const recurringId = data["Recurring0.RecurringId"] ?? data.RecurringId;
-    return { success: true, recurringId };
+    const accountId = data.AccountId;
+    return { success: true, recurringId, accountId };
   } catch (err) {
     console.error("Cardcom createRecurring fetch error:", err);
     return { success: false, error: String(err) };
