@@ -9,8 +9,8 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 const DEFAULT_STAGES = [
   { key: "LEAD",              name: "ליד",                  color: "bg-slate-100 text-slate-600",     sortOrder: 0, isBuiltIn: true },
-  { key: "INTAKE",            name: "קבלה",                 color: "bg-purple-100 text-purple-700",   sortOrder: 1, isBuiltIn: true },
-  { key: "WAITLIST",          name: "המתנה",                color: "bg-amber-100 text-amber-700",     sortOrder: 2, isBuiltIn: true },
+  { key: "INTAKE",            name: "בדיקה נוספת",           color: "bg-purple-100 text-purple-700",   sortOrder: 1, isBuiltIn: true },
+  { key: "WAITLIST",          name: "המתנה לשיבוץ",          color: "bg-amber-100 text-amber-700",     sortOrder: 2, isBuiltIn: true },
   { key: "MATCHED",           name: "שובץ",                 color: "bg-blue-100 text-blue-700",       sortOrder: 3, isBuiltIn: true },
   { key: "ADVANCED_TRAINING", name: "אימון מתקדם",          color: "bg-indigo-100 text-indigo-700",   sortOrder: 4, isBuiltIn: true },
   { key: "ACTIVE",            name: "נמסר כלב",             color: "bg-emerald-100 text-emerald-700", sortOrder: 5, isBuiltIn: true },
