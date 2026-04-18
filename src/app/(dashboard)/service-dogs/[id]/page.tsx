@@ -710,8 +710,8 @@ function ServiceDogProfilePageContent() {
         {activeTab === "vaccinations" && <VaccinationsTab dog={dog} dogId={dogId} />}
       </div>
 
-      {/* Notes */}
-      {dog.notes && (
+      {/* Notes — תיק כלב only */}
+      {activeTab === "dogfile" && dog.notes && (
         <div className="card p-4 border-r-4 border-r-amber-400 bg-amber-50">
           <div className="flex items-start gap-2">
             <FileText className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />

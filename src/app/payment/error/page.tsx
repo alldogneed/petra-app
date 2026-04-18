@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { XCircle, MessageCircle } from "lucide-react";
 
-const WHATSAPP_SUPPORT = "972504828080";
+const WHATSAPP_SUPPORT = "972542560964";
 
 export default function PaymentErrorPage() {
   const router = useRouter();

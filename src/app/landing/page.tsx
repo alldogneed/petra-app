@@ -748,7 +748,7 @@ export default function LandingPage() {
                     name: "חינמי",
                     price: "0",
                     priceCurrency: "ILS",
-                    description: "עד 50 לקוחות, ללא כרטיס אשראי",
+                    description: "עד 30 לקוחות, ללא כרטיס אשראי",
                   },
                   {
                     "@type": "Offer",

@@ -379,7 +379,7 @@ export function PricingSection() {
                       {user ? "שדרג עכשיו" : "רכוש עכשיו"}
                     </Link>
                     <p className="text-[10px] text-center text-slate-400 leading-snug px-1">
-                      חיוב מיידי · ביטול בכל עת · חשבונית במייל
+                      חיוב מיידי · ביטול בכל עת · קבלה במייל
                     </p>
                   </div>
                 ) : (
