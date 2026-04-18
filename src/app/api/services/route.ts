@@ -48,6 +48,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Input validation
+    if (typeof name !== "string" || name.length > 200) {
+      return NextResponse.json({ error: "שם שירות לא תקין (מקסימום 200 תווים)" }, { status: 400 });
+    }
+    if (description && typeof description === "string" && description.length > 2000) {
+      return NextResponse.json({ error: "תיאור ארוך מדי (מקסימום 2000 תווים)" }, { status: 400 });
+    }
+    const parsedDuration = Number(duration);
+    const parsedPrice = Number(price);
+    if (isNaN(parsedDuration) || parsedDuration < 1 || parsedDuration > 1440) {
+      return NextResponse.json({ error: "משך שירות לא תקין (1-1440 דקות)" }, { status: 400 });
+    }
+    if (isNaN(parsedPrice) || parsedPrice < 0 || parsedPrice > 100000) {
+      return NextResponse.json({ error: "מחיר לא תקין" }, { status: 400 });
+    }
+    if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) {
+      return NextResponse.json({ error: "צבע לא תקין" }, { status: 400 });
+    }
+
     const service = await prisma.service.create({
       data: {
         name,

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     if (batch.status === "imported") return NextResponse.json({ error: "מנה כבר יובאה" }, { status: 409 });
     if (batch.status === "rolled_back") return NextResponse.json({ error: "מנה בוטלה" }, { status: 409 });
 
-    const stats = JSON.parse(batch.statsJson) as {
+    let stats: {
       customers: RawCustomerRow[];
       pets: RawPetRow[];
       totalCustomers: number;
@@ -39,6 +39,11 @@ export async function POST(req: NextRequest) {
       inFileDuplicates: number;
       dbDuplicates: number;
     };
+    try {
+      stats = JSON.parse(batch.statsJson);
+    } catch {
+      return NextResponse.json({ error: "נתוני מנה פגומים" }, { status: 500 });
+    }
 
     const createdCustomerIds: string[] = [];
     const createdPetIds: string[] = [];

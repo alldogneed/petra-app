@@ -48,6 +48,23 @@ export async function POST(
     const body = await request.json();
     const { neuteredSpayed, behavioralTags, ...petFields } = body;
 
+    // Input validation
+    if (!petFields.name || typeof petFields.name !== "string" || !petFields.name.trim()) {
+      return NextResponse.json({ error: "שם חיית מחמד חובה" }, { status: 400 });
+    }
+    if (petFields.name.length > 100) {
+      return NextResponse.json({ error: "שם חיית מחמד ארוך מדי (מקסימום 100 תווים)" }, { status: 400 });
+    }
+    if (petFields.breed && petFields.breed.length > 100) {
+      return NextResponse.json({ error: "גזע ארוך מדי (מקסימום 100 תווים)" }, { status: 400 });
+    }
+    if (petFields.medicalNotes && petFields.medicalNotes.length > 5000) {
+      return NextResponse.json({ error: "הערות רפואיות ארוכות מדי (מקסימום 5000 תווים)" }, { status: 400 });
+    }
+    if (petFields.microchip && petFields.microchip.length > 50) {
+      return NextResponse.json({ error: "מספר שבב ארוך מדי (מקסימום 50 תווים)" }, { status: 400 });
+    }
+
     const pet = await prisma.pet.create({
       data: {
         name: petFields.name,

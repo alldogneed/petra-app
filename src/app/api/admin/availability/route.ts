@@ -45,11 +45,15 @@ export async function GET(request: NextRequest) {
       orderBy: { dayOfWeek: "asc" },
     })
 
-    // Seed defaults if none exist
+    // Seed defaults if none exist (use upsert to avoid race conditions)
     if (rules.length === 0) {
       rules = await Promise.all(
         DEFAULT_RULES.map((r) =>
-          prisma.availabilityRule.create({ data: { ...r, businessId } })
+          prisma.availabilityRule.upsert({
+            where: { businessId_dayOfWeek: { businessId, dayOfWeek: r.dayOfWeek } },
+            update: {},
+            create: { ...r, businessId },
+          })
         )
       )
     }

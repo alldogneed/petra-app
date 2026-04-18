@@ -73,8 +73,14 @@ export async function POST(req: NextRequest) {
     if (!title?.trim()) {
       return NextResponse.json({ error: "כותרת חובה" }, { status: 400 });
     }
+    if (title.length > 500) {
+      return NextResponse.json({ error: "כותרת ארוכה מדי (מקסימום 500 תווים)" }, { status: 400 });
+    }
     if (!content?.trim()) {
       return NextResponse.json({ error: "תוכן ההודעה חובה" }, { status: 400 });
+    }
+    if (content.length > 5000) {
+      return NextResponse.json({ error: "תוכן ארוך מדי (מקסימום 5000 תווים)" }, { status: 400 });
     }
 
     // Validate actionUrl format if provided

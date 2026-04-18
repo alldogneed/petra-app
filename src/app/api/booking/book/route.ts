@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { notifyNewBooking } from "@/lib/engagement-service";
+import { localTimeToUtc } from "@/lib/slots";
 
 // Public endpoint - no auth required
 export async function POST(request: NextRequest) {
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
     const businessId = item.businessId;
     const duration = item.durationMinutes ?? 60;
 
-    // Find or create customer
+    // Find or create customer (retry on race condition — no unique constraint on phone)
     let customer = await prisma.customer.findFirst({
       where: {
         businessId,
@@ -61,13 +62,27 @@ export async function POST(request: NextRequest) {
           phone: customerPhone,
           email: customerEmail || null,
         },
+      }).catch(async () => {
+        // Race condition: another request created the same customer between our read and write
+        const existing = await prisma.customer.findFirst({
+          where: { businessId, phone: customerPhone },
+        });
+        if (!existing) throw new Error("Failed to create or find customer");
+        return existing;
       });
     }
 
-    // Calculate start and end times
+    // Calculate start and end times in Israel timezone
     const [h, m] = time.split(":").map(Number);
-    const startAt = new Date(date);
-    startAt.setHours(h, m, 0, 0);
+    if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) {
+      return NextResponse.json({ error: "שעה לא תקינה" }, { status: 400 });
+    }
+    // Validate date format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(new Date(date + "T00:00:00Z").getTime())) {
+      return NextResponse.json({ error: "תאריך לא תקין" }, { status: 400 });
+    }
+    // Use existing localTimeToUtc helper for proper Israel timezone conversion
+    const startAt = localTimeToUtc(time, date, "Asia/Jerusalem");
     const endAt = new Date(startAt.getTime() + duration * 60000);
 
     // Check for conflicts

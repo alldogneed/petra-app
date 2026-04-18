@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const customers = await prisma.customer.findMany({
       where: { businessId: authResult.businessId },
       orderBy: { name: "asc" },
+      take: 10000, // Safety limit to prevent memory exhaustion
       include: {
         pets: {
           select: {

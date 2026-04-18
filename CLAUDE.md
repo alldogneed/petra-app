@@ -190,7 +190,6 @@ import { prisma } from "@/lib/prisma"
 | Owner notifications | `src/lib/notify-owner.ts` — `notifyOwnerNewUser()` sends WhatsApp + email on new registration |
 | SEO sitemap | `src/app/sitemap.ts` — 6 public URLs, `/landing` priority 1.0 |
 | SEO robots | `src/app/robots.ts` — allows landing/register/login, disallows api/admin/dashboard |
-| Test notify endpoint | `GET /api/test-notify?secret=CRON_SECRET` — triggers fake registration notification (temporary) |
 | In-app notifications bell | `src/components/layout/InAppNotificationBell.tsx` — title "הודעות מערכת"; per-message "קראתי" button (dismiss); "קראתי הכל" dismisses all |
 | Customers page | Selection mode: "בחר" button toggles `selectionMode`; checkboxes hidden by default. Email badge → Gmail compose (`https://mail.google.com/mail/?view=cm&to=...`). No quick-book button. |
 | Tasks page | Same selection mode pattern as customers (`selectionMode` state, "בחר" button, "בטל בחירה" exits mode) |

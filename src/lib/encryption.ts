@@ -111,6 +111,7 @@ const TWOFA_KEY = "TWOFA_ENCRYPTION_KEY";
 
 export function encryptTwoFaSecret(plaintext: string): string {
   if (!process.env[TWOFA_KEY] || process.env[TWOFA_KEY]!.length !== 64) {
+    console.error("[SECURITY] TWOFA_ENCRYPTION_KEY missing or invalid — 2FA secret stored as plaintext. Set a 64-char hex key.");
     return plaintext;
   }
   return encrypt(plaintext, TWOFA_KEY);

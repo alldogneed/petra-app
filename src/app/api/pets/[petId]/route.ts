@@ -79,6 +79,23 @@ export async function PATCH(
     const body = await request.json();
     const { neuteredSpayed, neuteredSpayedDate, ...petData } = body;
 
+    // Input length validation
+    if (petData.name !== undefined && (typeof petData.name !== "string" || petData.name.length > 100)) {
+      return NextResponse.json({ error: "שם חיית מחמד ארוך מדי (מקסימום 100 תווים)" }, { status: 400 });
+    }
+    if (petData.breed !== undefined && typeof petData.breed === "string" && petData.breed.length > 100) {
+      return NextResponse.json({ error: "גזע ארוך מדי (מקסימום 100 תווים)" }, { status: 400 });
+    }
+    if (petData.medicalNotes !== undefined && typeof petData.medicalNotes === "string" && petData.medicalNotes.length > 5000) {
+      return NextResponse.json({ error: "הערות רפואיות ארוכות מדי (מקסימום 5000 תווים)" }, { status: 400 });
+    }
+    if (petData.foodNotes !== undefined && typeof petData.foodNotes === "string" && petData.foodNotes.length > 2000) {
+      return NextResponse.json({ error: "הערות מזון ארוכות מדי (מקסימום 2000 תווים)" }, { status: 400 });
+    }
+    if (petData.behaviorNotes !== undefined && typeof petData.behaviorNotes === "string" && petData.behaviorNotes.length > 2000) {
+      return NextResponse.json({ error: "הערות התנהגות ארוכות מדי (מקסימום 2000 תווים)" }, { status: 400 });
+    }
+
     const pet = await prisma.pet.update({
       where: { id: params.petId },
       data: {

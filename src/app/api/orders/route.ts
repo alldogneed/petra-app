@@ -26,6 +26,22 @@ export async function GET(request: NextRequest) {
     const startFrom = searchParams.get("startFrom");
     const startTo = searchParams.get("startTo");
 
+    // Validate date params
+    const validateDateParam = (val: string | null, label: string) => {
+      if (!val) return null;
+      const d = new Date(val + "T00:00:00");
+      if (isNaN(d.getTime())) return NextResponse.json({ error: `${label} לא תקין` }, { status: 400 });
+      return null;
+    };
+    const fromErr = validateDateParam(from, "תאריך התחלה");
+    if (fromErr) return fromErr;
+    const toErr = validateDateParam(to, "תאריך סיום");
+    if (toErr) return toErr;
+    const startFromErr = validateDateParam(startFrom, "תאריך התחלה");
+    if (startFromErr) return startFromErr;
+    const startToErr = validateDateParam(startTo, "תאריך סיום");
+    if (startToErr) return startToErr;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { businessId: authResult.businessId };
     if (status) where.status = status;

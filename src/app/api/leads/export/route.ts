@@ -15,6 +15,14 @@ export async function GET(request: NextRequest) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
 
+  // Validate date params to avoid Invalid Date objects in queries
+  if (from && isNaN(new Date(from + "T00:00:00").getTime())) {
+    return NextResponse.json({ error: "תאריך התחלה לא תקין" }, { status: 400 });
+  }
+  if (to && isNaN(new Date(to + "T23:59:59").getTime())) {
+    return NextResponse.json({ error: "תאריך סיום לא תקין" }, { status: 400 });
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { businessId: authResult.businessId };
   if (from || to) {
@@ -33,6 +41,7 @@ export async function GET(request: NextRequest) {
         callLogs: { select: { createdAt: true }, orderBy: { createdAt: "desc" }, take: 1 },
       },
       orderBy: { createdAt: "desc" },
+      take: 10000, // Safety limit to prevent memory exhaustion
     }),
     prisma.leadStage.findMany({
       where: { businessId: authResult.businessId },

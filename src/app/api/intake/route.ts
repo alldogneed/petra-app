@@ -50,6 +50,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { customerId, dogId, phone, messageOverride } = body;
 
+    // Validate messageOverride to prevent injection of arbitrary content
+    if (messageOverride && (typeof messageOverride !== "string" || messageOverride.length > 2000)) {
+      return NextResponse.json({ error: "הודעה מותאמת ארוכה מדי (מקסימום 2000 תווים)" }, { status: 400 });
+    }
+
     // Get customer and business info
     const [customer, business] = await Promise.all([
       customerId

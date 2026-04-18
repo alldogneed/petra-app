@@ -47,7 +47,6 @@ const PUBLIC_EXACT_PATHS = new Set([
   "/api/cardcom/checkout-indicator",
   "/api/cardcom/trial-indicator",
   "/api/integrations/google/callback",
-  "/api/test-notify",
 ]);
 
 /** Validate token format: must be exactly 64 hex characters */

@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { startAt: "desc" },
+      take: 500,
     });
 
     return NextResponse.json(bookings);

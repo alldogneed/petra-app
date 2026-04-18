@@ -56,8 +56,17 @@ export async function POST(request: NextRequest) {
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json({ error: "שדה שם חובה" }, { status: 400 });
     }
+    if (name.length > 200) {
+      return NextResponse.json({ error: "שם תבנית ארוך מדי (מקסימום 200 תווים)" }, { status: 400 });
+    }
     if (!templateBody || typeof templateBody !== "string" || !templateBody.trim()) {
       return NextResponse.json({ error: "שדה תוכן הודעה חובה" }, { status: 400 });
+    }
+    if (templateBody.length > 10000) {
+      return NextResponse.json({ error: "תוכן הודעה ארוך מדי (מקסימום 10000 תווים)" }, { status: 400 });
+    }
+    if (subject && typeof subject === "string" && subject.length > 500) {
+      return NextResponse.json({ error: "נושא ארוך מדי (מקסימום 500 תווים)" }, { status: 400 });
     }
 
     const template = await prisma.messageTemplate.create({

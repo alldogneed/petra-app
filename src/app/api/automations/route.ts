@@ -44,6 +44,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (typeof name !== "string" || name.length > 200) {
+      return NextResponse.json({ error: "שם אוטומציה לא תקין (מקסימום 200 תווים)" }, { status: 400 });
+    }
 
     const rule = await prisma.automationRule.create({
       data: {

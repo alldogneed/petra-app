@@ -54,6 +54,18 @@ export async function GET(request: NextRequest) {
       }).catch(() => {});
     }
 
+    // Validate date params
+    if (from && isNaN(new Date(from).getTime())) {
+      return new Response(JSON.stringify({ error: "תאריך התחלה לא תקין" }), {
+        status: 400, headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (to && isNaN(new Date(to + "T23:59:59").getTime())) {
+      return new Response(JSON.stringify({ error: "תאריך סיום לא תקין" }), {
+        status: 400, headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const dateFilter: { createdAt?: { gte?: Date; lte?: Date } } = {};
     if (from) dateFilter.createdAt = { ...dateFilter.createdAt, gte: new Date(from) };
     if (to) dateFilter.createdAt = { ...dateFilter.createdAt, lte: new Date(to + "T23:59:59") };
