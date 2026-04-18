@@ -72,6 +72,7 @@ import { PETS_SCENES } from "../voiceover-pets-config";
 import { PetraCalendarTutorial, CalendarTutorialProps, calculateCalendarMetadata } from "./CalendarTutorial";
 import { CALENDAR_SCENES } from "../voiceover-calendar-config";
 import { GoogleContactsDemo, GOOGLE_CONTACTS_DURATION } from "./GoogleContactsDemo";
+import { GoogleContactsOAuthDemo, OAUTH_DEMO_DURATION } from "./GoogleContactsOAuthDemo";
 
 const FPS = 30;
 
@@ -294,6 +295,14 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={calendarDefaultProps}
+      />
+      <Composition
+        id="GoogleContactsOAuthDemo"
+        component={GoogleContactsOAuthDemo}
+        durationInFrames={OAUTH_DEMO_DURATION}
+        fps={FPS}
+        width={1280}
+        height={720}
       />
       <Composition
         id="GoogleContactsDemo"

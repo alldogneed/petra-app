@@ -989,7 +989,7 @@ function EditRecipientModal({
             <div>
               <label className="label text-xs">שלב/סטטוס</label>
               <select className="input w-full text-sm" value={status} onChange={(e) => setStatus(e.target.value)}>
-                {stages.map((s) => <option key={s.key} value={s.key}>{s.name}</option>)}
+                {stages.filter((s) => s.key !== "REJECTED" || s.key === status).map((s) => <option key={s.key} value={s.key}>{s.name}</option>)}
               </select>
             </div>
             <div className="col-span-2">
