@@ -110,13 +110,16 @@ export async function GET(request: NextRequest) {
     // Redirect: new/existing users without ToS consent go to /tos-accept, others to /dashboard
     const redirectPath = consent ? "/dashboard" : "/tos-accept";
     const response = NextResponse.redirect(new URL(redirectPath, APP_URL));
-    response.cookies.set("petra_session", token, {
+    const cookieOpts = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "lax" as const,
       path: "/",
       maxAge: 30 * 24 * 60 * 60, // 30 days — matches SESSION_TTL_REMEMBER_ME in session.ts
-    });
+    };
+    response.cookies.set("petra_session", token, cookieOpts);
+    // Companion flag cookie: tells middleware to roll the session cookie forward on each request
+    response.cookies.set("petra_rm", "1", cookieOpts);
     // Clear the OAuth state cookie
     response.cookies.delete("google_oauth_state");
 
