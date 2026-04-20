@@ -114,6 +114,7 @@ model AdminSession {
   expiresAt    DateTime
   createdAt    DateTime @default(now())
   lastSeenAt   DateTime @default(now())
+  rememberMe   Boolean  @default(false)
 
   // Impersonation fields (set when super_admin is acting as a tenant)
   impersonatedBusinessId String?

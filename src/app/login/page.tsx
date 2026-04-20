@@ -23,7 +23,7 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState(
     googleError ? GOOGLE_ERROR_MESSAGES[googleError] || "שגיאה בהתחברות עם Google" : ""
   );
@@ -121,22 +121,29 @@ function LoginForm() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-300 text-brand-500 accent-orange-500 cursor-pointer"
-            />
-            <span className="text-xs text-petra-muted">זכור אותי</span>
-          </label>
-          <Link
-            href="/forgot-password"
-            className="text-xs text-petra-muted hover:text-brand-500 transition-colors"
-          >
-            שכחתי סיסמה
-          </Link>
+        <div>
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-brand-500 accent-orange-500 cursor-pointer"
+              />
+              <span className="text-xs text-petra-muted">זכור אותי במכשיר זה</span>
+            </label>
+            <Link
+              href="/forgot-password"
+              className="text-xs text-petra-muted hover:text-brand-500 transition-colors"
+            >
+              שכחתי סיסמה
+            </Link>
+          </div>
+          <p className="text-[11px] text-petra-muted mt-1.5 leading-relaxed">
+            {rememberMe
+              ? "ההתחברות תישמר למשך 30 יום כל עוד אתה פעיל. אל תסמן בשימוש במחשב משותף."
+              : "ניתוק אוטומטי לאחר 8 שעות. מומלץ במחשב משותף או ציבורי."}
+          </p>
         </div>
 
         <button

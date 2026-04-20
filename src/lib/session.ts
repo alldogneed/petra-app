@@ -126,6 +126,7 @@ export async function createSession(
       ipAddress: options.ip ?? null,
       userAgent: options.userAgent ?? null,
       expiresAt,
+      rememberMe: !!options.rememberMe,
     },
   });
 
@@ -184,11 +185,17 @@ export async function getSessionByToken(token: string): Promise<FullSession | nu
   }
   if (!session.user.isActive) return null;
 
-  // Refresh lastSeenAt at most once every 5 minutes to avoid an extra DB write on every request
+  // Refresh lastSeenAt at most once every 5 minutes to avoid an extra DB write on every request.
+  // For remember-me sessions, also roll expiresAt forward so the DB session stays alive as long as
+  // the user remains active (sliding 30-day window instead of fixed 30 days from login).
   const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
   if (session.lastSeenAt < fiveMinutesAgo) {
+    const data: { lastSeenAt: Date; expiresAt?: Date } = { lastSeenAt: now };
+    if (session.rememberMe) {
+      data.expiresAt = new Date(now.getTime() + SESSION_TTL_REMEMBER_ME);
+    }
     prisma.adminSession
-      .update({ where: { token: tokenHashed }, data: { lastSeenAt: now } })
+      .update({ where: { token: tokenHashed }, data })
       .catch(() => null); // fire-and-forget — non-blocking
   }
 

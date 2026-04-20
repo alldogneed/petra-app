@@ -107,7 +107,31 @@ export function middleware(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  return NextResponse.next();
+  // Rolling remember-me: when the companion flag cookie indicates remember-me,
+  // re-set both cookies with a fresh 30-day Max-Age so active users don't get
+  // logged out at the 30-day mark from their original login. DB expiresAt is
+  // extended in parallel inside getSessionByToken.
+  const rememberMe = request.cookies.get("petra_rm")?.value === "1";
+  const response = NextResponse.next();
+  if (rememberMe) {
+    const isProd = process.env.NODE_ENV === "production";
+    const maxAge = 30 * 24 * 60 * 60;
+    response.cookies.set("petra_session", sessionToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      path: "/",
+      maxAge,
+    });
+    response.cookies.set("petra_rm", "1", {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      path: "/",
+      maxAge,
+    });
+  }
+  return response;
 }
 
 export const config = {

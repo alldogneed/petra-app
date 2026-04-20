@@ -112,20 +112,43 @@ export function getSessionToken(): string | null {
   return cookies().get(SESSION_COOKIE)?.value ?? null;
 }
 
+/**
+ * Companion flag cookie: lets middleware (Edge runtime, no DB access) know whether
+ * to refresh the session cookie's Max-Age on each request (rolling remember-me).
+ */
+const REMEMBER_ME_COOKIE = "petra_rm";
+
 export function setSessionCookie(token: string, rememberMe = false) {
+  const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 8 * 60 * 60; // 30 days or 8 hours
+  const isProd = process.env.NODE_ENV === "production";
   cookies().set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: isProd,
     sameSite: "lax",
     path: "/",
-    maxAge: rememberMe ? 30 * 24 * 60 * 60 : 8 * 60 * 60, // 30 days or 8 hours
+    maxAge,
+  });
+  cookies().set(REMEMBER_ME_COOKIE, rememberMe ? "1" : "0", {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "lax",
+    path: "/",
+    maxAge,
   });
 }
 
 export function clearSessionCookie() {
+  const isProd = process.env.NODE_ENV === "production";
   cookies().set(SESSION_COOKIE, "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: isProd,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+  cookies().set(REMEMBER_ME_COOKIE, "", {
+    httpOnly: true,
+    secure: isProd,
     sameSite: "lax",
     path: "/",
     maxAge: 0,
