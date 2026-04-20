@@ -57,6 +57,7 @@ import { useSearchParams } from "next/navigation";
 import { cn, fetchJSON, formatRelativeTime, copyToClipboard } from "@/lib/utils";
 import { MessagesPanel } from "@/components/messages/messages-panel";
 import { PendingApprovalsPanel } from "@/components/settings/PendingApprovalsPanel";
+import { SecurityTab } from "@/components/settings/SecurityTab";
 import { toast } from "sonner";
 import { TIERS, SERVICE_TYPES } from "@/lib/constants";
 import { useAuth } from "@/providers/auth-provider";
@@ -4378,8 +4379,8 @@ export default function SettingsPage() {
   const { isOwner, isManager } = useAuth();
   const { isFree, isBasic, isGroomer, can } = usePlan();
   const invoicingParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<"business" | "booking" | "boarding" | "team" | "payments" | "integrations" | "data" | "messages" | "service-dogs">(
-    gcalParam ? "integrations" : invoicingParam === "booking" ? "booking" : invoicingParam === "boarding" ? "boarding" : invoicingParam === "payments" ? "payments" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : "business"
+  const [activeTab, setActiveTab] = useState<"business" | "booking" | "boarding" | "team" | "payments" | "integrations" | "data" | "messages" | "service-dogs" | "security">(
+    gcalParam ? "integrations" : invoicingParam === "booking" ? "booking" : invoicingParam === "boarding" ? "boarding" : invoicingParam === "payments" ? "payments" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : invoicingParam === "security" ? "security" : "business"
   );
 
   // Tabs locked per tier
@@ -4398,6 +4399,7 @@ export default function SettingsPage() {
     ...(!isGroomer ? [{ id: "service-dogs" as const, label: "כלבי שירות", icon: PawPrint }] : []),
     { id: "data" as const, label: "נתונים", icon: Database },
     { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
+    { id: "security" as const, label: "אבטחה", icon: Shield },
   ];
 
   return (
@@ -4476,6 +4478,7 @@ export default function SettingsPage() {
           ? <PaywallCard title="אינטגרציות" description="חבר יומן Google, WhatsApp ועוד — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
           : <IntegrationsTab />
       )}
+      {activeTab === "security" && <SecurityTab />}
     </div>
   );
 }

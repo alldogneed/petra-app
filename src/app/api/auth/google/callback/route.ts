@@ -5,6 +5,7 @@ import { createSession, ensureUserHasBusiness } from "@/lib/auth";
 import { exchangeCodeForTokens, fetchGoogleProfile } from "@/lib/google-oauth";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 import { notifyOwnerNewUser } from "@/lib/notify-owner";
+import { alertIfNewDevice } from "@/lib/login-alerts";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
@@ -91,10 +92,21 @@ export async function GET(request: NextRequest) {
       user.name || profile.name || profile.email.split("@")[0]
     );
 
-    // Invalidate all prior sessions before creating a new one (session fixation protection)
-    await prisma.adminSession.deleteMany({ where: { userId: user.id } });
+    // Send new-device alert if this UA+OS hasn't been seen in the last 90 days.
+    // Must run BEFORE createSession so the new session doesn't count as "known".
+    // Skipped for brand-new users since they have no baseline to compare against.
+    if (!isNewUser) {
+      await alertIfNewDevice({
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        request,
+        method: "google",
+      });
+    }
 
-    // Google OAuth always creates a 30-day persistent session (mobile-friendly)
+    // Google OAuth always creates a 30-day persistent session (mobile-friendly).
+    // Prior sessions on other devices are preserved — user can revoke them from settings.
     const { token } = await createSession(user.id, request, true);
 
     // Check if user has accepted current ToS version

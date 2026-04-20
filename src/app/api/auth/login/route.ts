@@ -5,9 +5,11 @@ import bcrypt from "bcryptjs";
 import { createSession, setSessionCookie, ensureUserHasBusiness } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-log";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { alertIfNewDevice } from "@/lib/login-alerts";
 
-// Pre-computed bcrypt hash used to prevent timing attacks when user is not found
-const DUMMY_HASH = "$2a$12$K4GzBqH5T5r5X5r5X5r5XuYJ5XZJXZJXZJXZJXZJXZJXZJXZJXZJX";
+// Pre-computed valid bcrypt hash of a random value — used to prevent timing attacks
+// when user is not found (always runs bcrypt.compare even with no real hash).
+const DUMMY_HASH = "$2b$12$VkSyeTwghHjmcVAgruaXleHCA7Lxg29f6iWsNUR1n.TtpZNxi8wtC";
 
 export async function POST(request: NextRequest) {
   try {
@@ -74,12 +76,18 @@ export async function POST(request: NextRequest) {
       await ensureUserHasBusiness(user.id, user.name);
     }
 
-    // Invalidate all existing sessions for this user to prevent session fixation
-    await prisma.adminSession.deleteMany({
-      where: { userId: user.id }
+    // Send new-device alert email if this UA+OS hasn't been seen in the last 90 days.
+    // Must run BEFORE createSession so the new session doesn't count as "known".
+    await alertIfNewDevice({
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      request,
+      method: "password",
     });
 
-    // Create session (rememberMe=true → 30-day DB session + cookie)
+    // Create session (rememberMe=true → 30-day DB session + cookie). Prior sessions
+    // on other devices are preserved — the user can revoke them from /settings?tab=security.
     const { token } = await createSession(user.id, request, !!rememberMe);
     setSessionCookie(token, !!rememberMe);
 
