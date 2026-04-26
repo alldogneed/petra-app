@@ -24,12 +24,14 @@ export async function POST(
     if (msg.status === "SENT") return NextResponse.json({ error: "ההודעה כבר נשלחה" }, { status: 400 });
     if (msg.status === "CANCELED") return NextResponse.json({ error: "ההודעה בוטלה" }, { status: 400 });
 
-    const payload = JSON.parse(msg.payloadJson || "{}");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let payload: Record<string, any> = {};
+    try { payload = JSON.parse(msg.payloadJson || "{}"); } catch { /* corrupted JSON — use empty */ }
 
     // Build body — direct body takes priority
     let body: string;
     if (payload.body) {
-      body = payload.body;
+      body = String(payload.body);
     } else {
       // Try a matching template
       const template = await prisma.messageTemplate.findFirst({
@@ -45,8 +47,8 @@ export async function POST(
         : `שלום ${msg.customer?.name ?? "לקוח"}, תזכורת מ-Petra. אם יש שאלות, אנחנו כאן!`;
     }
 
-    const phone = payload.to ?? (msg.customer ? toWhatsAppPhone(msg.customer.phone) : null);
-    const result = await sendWhatsAppMessage({ to: phone, body });
+    const phone = String(payload.to ?? (msg.customer ? toWhatsAppPhone(msg.customer.phone) : ""));
+    const result = await sendWhatsAppMessage({ to: phone || "", body });
 
     await prisma.scheduledMessage.update({
       where: { id: params.id },

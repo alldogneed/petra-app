@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
             { notes: { contains: q } },
           ],
         },
-        select: { id: true, name: true, phone: true, email: true, stage: true },
+        select: { id: true, name: true, phone: true, email: true, stage: true, wonAt: true, lostAt: true },
         take: 5,
         orderBy: { createdAt: "desc" },
       }),
