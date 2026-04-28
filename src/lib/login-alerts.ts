@@ -14,7 +14,7 @@
  */
 
 import prisma from "./prisma";
-import { sendEmail } from "./email";
+import { sendEmail, brandHeader, brandFooter } from "./email";
 
 const LOOKBACK_DAYS = 90;
 
@@ -127,10 +127,9 @@ export async function sendNewDeviceAlertEmail(params: {
 
   const html = `
     <div dir="rtl" style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;color:#1e293b;background:#ffffff;">
-      <div style="background:linear-gradient(135deg,#f97316,#fb923c);padding:28px 24px;text-align:center;border-radius:12px 12px 0 0;">
-        <h1 style="color:#fff;margin:0;font-size:22px;font-weight:800;">Petra — התראת אבטחה</h1>
-      </div>
+      ${brandHeader()}
       <div style="padding:24px;border:1px solid #e2e8f0;border-top:none;">
+        <h2 style="margin:0 0 16px;font-size:18px;font-weight:700;color:#1e293b;">🔔 התראת אבטחה</h2>
         <p style="margin:0 0 12px;font-size:15px;">שלום ${escape(name)},</p>
         <p style="margin:0 0 16px;font-size:14px;line-height:1.6;">
           זיהינו התחברות לחשבון שלך ב-Petra ממכשיר או מיקום שלא ראינו קודם. אם זה אתה — אין צורך לעשות כלום.
@@ -155,9 +154,7 @@ export async function sendNewDeviceAlertEmail(params: {
           </a>
         </div>
       </div>
-      <div style="background:#f8fafc;padding:14px 24px;text-align:center;border-radius:0 0 12px 12px;border:1px solid #e2e8f0;border-top:none;">
-        <p style="margin:0;font-size:11px;color:#94a3b8;">Petra — <a href="https://petra-app.com" style="color:#f97316;text-decoration:none;">petra-app.com</a></p>
-      </div>
+      ${brandFooter()}
     </div>
   `;
 

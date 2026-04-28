@@ -34,7 +34,7 @@ function getFromEmail(): string {
 
 // ─── Brand email wrapper helpers ────────────────────────────────────────────
 
-function brandHeader(): string {
+export function brandHeader(): string {
   return `
         <div style="background:linear-gradient(135deg,#f97316,#fb923c);padding:32px 24px;text-align:center;border-radius:12px 12px 0 0;">
           <img src="https://petra-app.com/petra-logo.png" alt="Petra" width="64" height="64" style="display:block;margin:0 auto 12px;border-radius:12px;" />
@@ -43,7 +43,7 @@ function brandHeader(): string {
         </div>`;
 }
 
-function brandFooter(): string {
+export function brandFooter(): string {
   return `
         <div style="background:#f8fafc;padding:16px 24px;text-align:center;border-radius:0 0 12px 12px;border-top:1px solid #e2e8f0;">
           <p style="margin:0;font-size:12px;color:#94a3b8;">Petra — ניהול עסקי חיות מחמד — <a href="https://petra-app.com" style="color:#f97316;text-decoration:none;">petra-app.com</a></p>
