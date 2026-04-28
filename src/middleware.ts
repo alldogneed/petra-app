@@ -11,7 +11,7 @@ const PUBLIC_PREFIX_PATHS = [
   "/my-booking",    // /my-booking/[token]
   "/api/my-booking", // /api/my-booking/[token]
   "/api/cron/",     // /api/cron/* — trailing slash ensures /api/cronXXX won't match
-  "/api/webhooks/", // /api/webhooks/* — trailing slash prevents prefix collision
+  "/api/webhooks/", // /api/webhooks/* — trailing slash prevents prefix collision (paycall webhook auth handled in-route)
   "/api/service-dogs/id-card", // /api/service-dogs/id-card/[token]
 ];
 
