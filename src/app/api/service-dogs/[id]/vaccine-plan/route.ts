@@ -6,7 +6,7 @@ import { buildAdultYearPlan, ADULT_TREATMENTS, PUPPY_TREATMENTS, type VaccinePla
 
 // ─── helpers ───
 
-type Entry = { planned: string | null; done: string | null };
+type Entry = { planned: string | null; done: string | null; notVaccinated?: boolean };
 
 /**
  * Computes the next due date for a treatment after entries are updated.
@@ -167,11 +167,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
-    const { planType, treatmentKey, index, doneDate } = body as {
+    const { planType, treatmentKey, index, doneDate, notVaccinated } = body as {
       planType: "adults" | "puppies";
       treatmentKey: string;
       index: number;
-      doneDate: string | null;
+      doneDate?: string | null;
+      notVaccinated?: boolean;
     };
 
     const dog = await prisma.serviceDogProfile.findFirst({
@@ -195,7 +196,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (index >= entries.length) return NextResponse.json({ error: "ערך לא נמצא" }, { status: 400 });
 
     // Update the specific dose — preserves all other done dates (history)
-    entries[index] = { ...entries[index], done: doneDate };
+    if (notVaccinated !== undefined) {
+      // Toggle "not vaccinated" flag; clearing it also clears done
+      entries[index] = { ...entries[index], notVaccinated, done: notVaccinated ? null : entries[index].done };
+    } else {
+      // Mark done (or undo): clearing done also clears notVaccinated
+      entries[index] = { ...entries[index], done: doneDate ?? null, notVaccinated: doneDate ? false : entries[index].notVaccinated };
+    }
     (section as Record<string, unknown>)[treatmentKey] = entries;
     const newPlan: VaccinePlan = planType === "adults"
       ? { ...currentPlan, adults: section as VaccinePlan["adults"] }

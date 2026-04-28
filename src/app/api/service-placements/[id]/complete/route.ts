@@ -26,21 +26,19 @@ export async function POST(
       return NextResponse.json({ error: "שיבוץ לא נמצא" }, { status: 404 });
     }
 
-    // Atomically terminate the whole process
-    const [updatedPlacement] = await prisma.$transaction([
-      prisma.serviceDogPlacement.update({
-        where: { id: params.id, businessId: authResult.businessId },
-        data: { status: "TERMINATED", terminatedAt: new Date() },
-      }),
-      prisma.serviceDogProfile.update({
-        where: { id: placement.serviceDogId, businessId: authResult.businessId },
-        data: { phase: "RETIRED" },
-      }),
-      prisma.serviceDogRecipient.update({
-        where: { id: placement.recipientId, businessId: authResult.businessId },
-        data: { status: "CLOSED" },
-      }),
-    ]);
+    // Sequential operations (no $transaction — Supabase PgBouncer incompatible)
+    const updatedPlacement = await prisma.serviceDogPlacement.update({
+      where: { id: params.id, businessId: authResult.businessId },
+      data: { status: "TERMINATED", terminatedAt: new Date() },
+    });
+    await prisma.serviceDogProfile.update({
+      where: { id: placement.serviceDogId, businessId: authResult.businessId },
+      data: { phase: "RETIRED" },
+    });
+    await prisma.serviceDogRecipient.update({
+      where: { id: placement.recipientId, businessId: authResult.businessId },
+      data: { status: "CLOSED" },
+    });
 
     // Create compliance event
     await createComplianceEvent(

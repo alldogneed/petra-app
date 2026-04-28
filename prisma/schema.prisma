@@ -1553,6 +1553,7 @@ model DogHealth {
   fleaTickDate         DateTime?
   fleaTickExpiryDate   DateTime?
   fleaTickHistory      Json?
+  notVaccinatedFlags   Json?
   allergies            String?
   medicalConditions    String?
   surgeriesHistory     String?

@@ -100,16 +100,14 @@ export async function POST(request: NextRequest) {
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // Update password + invalidate all existing sessions (security: force re-login everywhere)
-    await prisma.$transaction([
-      prisma.platformUser.update({
-        where: { id: user.id },
-        data: { passwordHash },
-      }),
-      prisma.adminSession.deleteMany({
-        where: { userId: user.id },
-      }),
-    ]);
+    // Update password + invalidate all existing sessions (sequential — no $transaction due to Supabase PgBouncer)
+    await prisma.platformUser.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+    await prisma.adminSession.deleteMany({
+      where: { userId: user.id },
+    });
 
     // Immediately clear cached sessions so old tokens are rejected right away
     invalidateUserSessionCache(user.id);

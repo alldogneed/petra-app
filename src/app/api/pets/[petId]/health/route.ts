@@ -49,6 +49,7 @@ export async function PATCH(
     ];
     const stringFields = ["allergies", "medicalConditions", "surgeriesHistory", "activityLimitations", "vetName", "vetPhone", "originInfo", "timeWithOwner", "fleaTickType"];
     const boolFields = ["neuteredSpayed", "rabiesUnknown"];
+    const jsonFields = ["notVaccinatedFlags"];
 
     for (const f of dateFields) {
       if (f in body) data[f] = body[f] ? new Date(body[f]) : null;
@@ -58,6 +59,9 @@ export async function PATCH(
     }
     for (const f of boolFields) {
       if (f in body) data[f] = Boolean(body[f]);
+    }
+    for (const f of jsonFields) {
+      if (f in body) data[f] = body[f] ?? null;
     }
 
     // ── Vaccination history: when updating a vaccine date, append the old date to history ──

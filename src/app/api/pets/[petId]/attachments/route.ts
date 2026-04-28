@@ -7,6 +7,12 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
+const ALLOWED_FILE_EXTENSIONS = [
+  "pdf", "jpg", "jpeg", "png", "gif", "webp",
+  "doc", "docx", "xls", "xlsx", "csv",
+  "txt", "rtf", "heic", "heif",
+] as const;
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { petId: string } }
@@ -43,8 +49,16 @@ export async function POST(
     });
     if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
 
+    // Validate file extension
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    if (!ALLOWED_FILE_EXTENSIONS.includes(ext as typeof ALLOWED_FILE_EXTENSIONS[number])) {
+      return NextResponse.json(
+        { error: `סוג קובץ לא נתמך (.${ext}). סוגים מותרים: ${ALLOWED_FILE_EXTENSIONS.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
     // Upload to Vercel Blob
-    const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
     const fileId = crypto.randomBytes(16).toString("hex");
     const blobPath = `pets/${params.petId}/${fileId}.${ext}`;
     const blob = await put(blobPath, file, { access: "public" });

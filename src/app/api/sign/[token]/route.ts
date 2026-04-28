@@ -157,6 +157,11 @@ export async function POST(
       return NextResponse.json({ error: "חתימה חסרה" }, { status: 400 });
     }
 
+    // Limit signature size to 500KB (base64-encoded PNG should be well under this)
+    if (signatureBase64.length > 500 * 1024) {
+      return NextResponse.json({ error: "קובץ חתימה גדול מדי" }, { status: 400 });
+    }
+
     // Load original PDF
     const pdfResponse = await fetch(contractRequest.template.fileUrl);
     if (!pdfResponse.ok) {

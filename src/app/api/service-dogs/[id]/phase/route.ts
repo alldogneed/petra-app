@@ -47,39 +47,35 @@ export async function PATCH(
     const completedKeys = dog.medicalProtocols.map((p) => p.protocolKey);
     const newProtocols = diffProtocolsForPhaseChange(phase, completedKeys);
 
-    // Transaction: update phase + create new protocols + compliance event
-    const [updated] = await prisma.$transaction([
-      prisma.serviceDogProfile.update({
-        where: { id: params.id, businessId: authResult.businessId },
-        data: {
+    // Sequential operations (no $transaction — Supabase PgBouncer incompatible)
+    const updated = await prisma.serviceDogProfile.update({
+      where: { id: params.id, businessId: authResult.businessId },
+      data: {
+        phase,
+        phaseChangedAt: new Date(),
+        // Auto-update training status on certification/decertification
+        ...(phase === "CERTIFIED" && { trainingStatus: "CERTIFIED" }),
+        ...(phase === "DECERTIFIED" && { trainingStatus: "FAILED" }),
+        ...(phase === "IN_TRAINING" && dog.trainingStatus === "NOT_STARTED"
+          ? { trainingStatus: "IN_PROGRESS", trainingStartDate: new Date() }
+          : {}),
+      },
+      include: { pet: true },
+    });
+    // Create new medical protocols
+    if (newProtocols.length > 0) {
+      await prisma.serviceDogMedicalProtocol.createMany({
+        data: newProtocols.map((p) => ({
+          serviceDogId: params.id,
+          businessId: authResult.businessId,
           phase,
-          phaseChangedAt: new Date(),
-          // Auto-update training status on certification/decertification
-          ...(phase === "CERTIFIED" && { trainingStatus: "CERTIFIED" }),
-          ...(phase === "DECERTIFIED" && { trainingStatus: "FAILED" }),
-          ...(phase === "IN_TRAINING" && dog.trainingStatus === "NOT_STARTED"
-            ? { trainingStatus: "IN_PROGRESS", trainingStartDate: new Date() }
-            : {}),
-        },
-        include: { pet: true },
-      }),
-      // Create new medical protocols
-      ...(newProtocols.length > 0
-        ? [
-            prisma.serviceDogMedicalProtocol.createMany({
-              data: newProtocols.map((p) => ({
-                serviceDogId: params.id,
-                businessId: authResult.businessId,
-                phase,
-                protocolKey: p.key,
-                protocolLabel: p.label,
-                category: p.category,
-                status: "PENDING",
-              })),
-            }),
-          ]
-        : []),
-    ]);
+          protocolKey: p.key,
+          protocolLabel: p.label,
+          category: p.category,
+          status: "PENDING",
+        })),
+      });
+    }
 
     // Create compliance event (outside transaction for simplicity)
     const phaseLabel = SERVICE_DOG_PHASES.find((p) => p.id === phase)?.label || phase;

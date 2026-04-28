@@ -6,7 +6,8 @@ import { put } from "@vercel/blob";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/svg+xml", "image/gif"];
+// SVG excluded — can contain embedded JavaScript (stored XSS risk)
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: "סוג קובץ לא נתמך – יש להשתמש ב-PNG, JPG, WebP, SVG או GIF" },
+        { error: "סוג קובץ לא נתמך – יש להשתמש ב-PNG, JPG, WebP או GIF" },
         { status: 400 }
       );
     }

@@ -1527,7 +1527,7 @@ interface VaccinationAlert {
   customerName: string;
   customerPhone: string;
   rabiesValidUntil: string | null;
-  status: "expired" | "expiring_soon" | "valid";
+  status: "expired" | "expiring_soon" | "valid" | "not_vaccinated";
 }
 
 interface HealthAlertsData {
@@ -1535,6 +1535,7 @@ interface HealthAlertsData {
   totalAlerts: number;
   expired: number;
   expiringSoon: number;
+  notVaccinated: number;
 }
 
 function VaccinationAlertBanner() {
@@ -1548,8 +1549,14 @@ function VaccinationAlertBanner() {
 
   if (!data || data.totalAlerts === 0) return null;
 
-  const shown = expanded ? data.alerts : data.alerts.slice(0, 3);
-  const hasMore = data.alerts.length > 3;
+  const shownAlerts = data.alerts.filter(a => a.status !== "not_vaccinated");
+  const notVaccinatedAlerts = data.alerts.filter(a => a.status === "not_vaccinated");
+  const allShown = expanded ? data.alerts : data.alerts.slice(0, 3);
+
+  const summaryParts: string[] = [];
+  if (data.expired > 0) summaryParts.push(`${data.expired} פג תוקף`);
+  if ((data.notVaccinated ?? 0) > 0) summaryParts.push(`${data.notVaccinated} לא חוסן`);
+  if (data.expiringSoon > 0) summaryParts.push(`${data.expiringSoon} פוגים בקרוב`);
 
   return (
     <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 overflow-hidden">
@@ -1560,15 +1567,8 @@ function VaccinationAlertBanner() {
         <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" />
         <div className="flex-1 min-w-0">
           <span className="text-sm font-semibold text-amber-900">
-            {data.expired > 0
-              ? `${data.expired} כלבים עם חיסון פג תוקף`
-              : `${data.expiringSoon} כלבים עם חיסון פג בקרוב`}
+            {summaryParts.length > 0 ? `כלבים: ${summaryParts.join(" · ")}` : `${data.expiringSoon} כלבים עם חיסון פג בקרוב`}
           </span>
-          {data.expired > 0 && data.expiringSoon > 0 && (
-            <span className="text-xs text-amber-700 mr-2">
-              (+{data.expiringSoon} שפוגים ב-30 יום)
-            </span>
-          )}
         </div>
         <ChevronDown
           className={cn(
@@ -1580,10 +1580,13 @@ function VaccinationAlertBanner() {
 
       {expanded && (
         <div className="border-t border-amber-200 divide-y divide-amber-100">
-          {shown.map((alert) => {
+          {allShown.map((alert) => {
             const waPhone = toWhatsAppPhone(alert.customerPhone);
+            const isNotVaccinated = alert.status === "not_vaccinated";
             const msg = encodeURIComponent(
-              `שלום ${alert.customerName}, חיסון הכלוף של ${alert.petName} פג תוקף${alert.rabiesValidUntil ? ` בתאריך ${formatDate(alert.rabiesValidUntil)}` : ""}. נא לחדש לפני הכניסה לפנסיון.`
+              isNotVaccinated
+                ? `שלום ${alert.customerName}, הכלב ${alert.petName} אינו מחוסן. נא לחסן לפני הכניסה לפנסיון.`
+                : `שלום ${alert.customerName}, חיסון הכלב של ${alert.petName} פג תוקף${alert.rabiesValidUntil ? ` בתאריך ${formatDate(alert.rabiesValidUntil)}` : ""}. נא לחדש לפני הכניסה לפנסיון.`
             );
             return (
               <div
@@ -1593,7 +1596,9 @@ function VaccinationAlertBanner() {
                 <div
                   className={cn(
                     "w-2 h-2 rounded-full shrink-0",
-                    alert.status === "expired" ? "bg-red-500" : "bg-amber-400"
+                    alert.status === "expired" ? "bg-red-500"
+                    : alert.status === "not_vaccinated" ? "bg-orange-500"
+                    : "bg-amber-400"
                   )}
                 />
                 <div className="flex-1 min-w-0">
@@ -1603,7 +1608,9 @@ function VaccinationAlertBanner() {
                   <span className="text-xs text-petra-muted mr-2">
                     ({alert.customerName})
                   </span>
-                  {alert.rabiesValidUntil && (
+                  {isNotVaccinated ? (
+                    <span className="text-xs font-medium text-orange-600">לא חוסן</span>
+                  ) : alert.rabiesValidUntil ? (
                     <span
                       className={cn(
                         "text-xs font-medium",
@@ -1612,7 +1619,7 @@ function VaccinationAlertBanner() {
                     >
                       כלב: {formatDate(alert.rabiesValidUntil)}
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 {waPhone && (
                   <a
@@ -1628,7 +1635,7 @@ function VaccinationAlertBanner() {
               </div>
             );
           })}
-          {hasMore && !expanded && (
+          {!expanded && data.alerts.length > 3 && (
             <button
               onClick={() => setExpanded(true)}
               className="w-full text-xs text-amber-700 py-2 hover:bg-amber-100"

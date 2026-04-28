@@ -12,7 +12,7 @@ export async function GET() {
     response.cookies.set("google_oauth_state", state, {
       httpOnly: true,
       secure: true,
-      sameSite: "none",
+      sameSite: "lax",
       path: "/",
       maxAge: 600, // 10 minutes
     });

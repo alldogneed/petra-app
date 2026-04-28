@@ -33,15 +33,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update sortOrder in a transaction
-    await prisma.$transaction(
-      stageIds.map((id: string, index: number) =>
-        prisma.leadStage.update({
-          where: { id },
-          data: { sortOrder: index },
-        })
-      )
-    );
+    // Update sortOrder sequentially (no $transaction — Supabase PgBouncer incompatible)
+    for (let index = 0; index < stageIds.length; index++) {
+      await prisma.leadStage.update({
+        where: { id: stageIds[index] },
+        data: { sortOrder: index },
+      });
+    }
 
     const updated = await prisma.leadStage.findMany({
       where: { businessId: authResult.businessId },

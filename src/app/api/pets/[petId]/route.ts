@@ -195,14 +195,12 @@ export async function DELETE(
       );
     }
 
-    // Delete related records first (no cascade in schema)
-    await prisma.$transaction([
-      prisma.dogMedication.deleteMany({ where: { petId: params.petId } }),
-      prisma.dogHealth.deleteMany({ where: { petId: params.petId } }),
-      prisma.dogBehavior.deleteMany({ where: { petId: params.petId } }),
-      prisma.petWeightEntry.deleteMany({ where: { petId: params.petId } }),
-      prisma.pet.delete({ where: { id: params.petId } }),
-    ]);
+    // Delete related records first (sequential — no $transaction due to Supabase PgBouncer)
+    await prisma.dogMedication.deleteMany({ where: { petId: params.petId } });
+    await prisma.dogHealth.deleteMany({ where: { petId: params.petId } });
+    await prisma.dogBehavior.deleteMany({ where: { petId: params.petId } });
+    await prisma.petWeightEntry.deleteMany({ where: { petId: params.petId } });
+    await prisma.pet.delete({ where: { id: params.petId } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -217,10 +217,17 @@ export async function sendWhatsAppTemplate(params: MetaTemplateMessage): Promise
 
 /**
  * Replace {key} placeholders in a template body with provided values.
+ * Sanitizes variable values to prevent template injection (user-supplied
+ * content containing {placeholders} that could leak other variable values).
  */
 export function interpolateTemplate(
   body: string,
   vars: Record<string, string>
 ): string {
-  return body.replace(/\{(\w+)\}/g, (match, key) => vars[key] ?? match);
+  // Sanitize values: strip curly braces to prevent recursive interpolation
+  const safeVars: Record<string, string> = {};
+  for (const [k, v] of Object.entries(vars)) {
+    safeVars[k] = v.replace(/[{}]/g, "");
+  }
+  return body.replace(/\{(\w+)\}/g, (match, key) => safeVars[key] ?? match);
 }

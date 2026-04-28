@@ -97,15 +97,16 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "rules must be an array" }, { status: 400 })
     }
 
-    const updated = await prisma.$transaction(
-      rules.map((r: { dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string }) =>
-        prisma.availabilityRule.upsert({
-          where: { businessId_dayOfWeek: { businessId, dayOfWeek: r.dayOfWeek } },
-          update: { isOpen: r.isOpen, openTime: r.openTime, closeTime: r.closeTime },
-          create: { businessId, dayOfWeek: r.dayOfWeek, isOpen: r.isOpen, openTime: r.openTime, closeTime: r.closeTime },
-        })
-      )
-    )
+    // Sequential operations (no $transaction — Supabase PgBouncer incompatible)
+    const updated = [];
+    for (const r of rules as { dayOfWeek: number; isOpen: boolean; openTime: string; closeTime: string }[]) {
+      const result = await prisma.availabilityRule.upsert({
+        where: { businessId_dayOfWeek: { businessId, dayOfWeek: r.dayOfWeek } },
+        update: { isOpen: r.isOpen, openTime: r.openTime, closeTime: r.closeTime },
+        create: { businessId, dayOfWeek: r.dayOfWeek, isOpen: r.isOpen, openTime: r.openTime, closeTime: r.closeTime },
+      });
+      updated.push(result);
+    }
 
     return NextResponse.json({ rules: updated })
   } catch (error) {

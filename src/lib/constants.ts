@@ -41,13 +41,8 @@ export const TIERS = {
 
 export const VAT_RATE = 0.17;
 
-export const LEAD_STAGES = [
-  { id: "new", label: "חדש", color: "#8B5CF6" },
-  { id: "contacted", label: "נוצר קשר", color: "#3B82F6" },
-  { id: "qualified", label: "מתאים", color: "#6366F1" },
-  { id: "won", label: "נסגר", color: "#22C55E" },
-  { id: "lost", label: "אבוד", color: "#EF4444" },
-] as const;
+// Lead stages are UUIDs from DB (LeadStage table) — see src/lib/lead-stages.ts
+// Do NOT add hardcoded stage strings here.
 
 export const LEAD_SOURCES = [
   { id: "google", label: "גוגל" },

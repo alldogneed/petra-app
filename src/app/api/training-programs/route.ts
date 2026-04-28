@@ -82,6 +82,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // ── IDOR Prevention: validate dogId and customerId belong to this business ──
+    // Length validation for text fields
+    const MAX_NAME = 200;
+    const MAX_TEXT = 5000;
+    if (body.name && body.name.length > MAX_NAME) {
+      return NextResponse.json({ error: "שם תוכנית ארוך מדי (מקסימום 200 תווים)" }, { status: 400 });
+    }
+    for (const field of ["workPlan", "behaviorBaseline", "customerExpectations", "notes"] as const) {
+      if (body[field] && typeof body[field] === "string" && body[field].length > MAX_TEXT) {
+        return NextResponse.json({ error: `השדה ארוך מדי (מקסימום 5000 תווים)` }, { status: 400 });
+      }
+    }
+
     if (body.dogId) {
       const dogCheck = await prisma.pet.findFirst({
         where: { id: body.dogId, OR: [{ customer: { businessId: authResult.businessId } }, { businessId: authResult.businessId }] },

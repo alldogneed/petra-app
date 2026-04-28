@@ -22,8 +22,21 @@ export async function POST(request: NextRequest) {
   if (!title || typeof title !== "string" || title.trim().length < 3) {
     return NextResponse.json({ error: "כותרת קצרה מדי" }, { status: 400 });
   }
+  if (title.trim().length > 200) {
+    return NextResponse.json({ error: "כותרת ארוכה מדי (מקסימום 200 תווים)" }, { status: 400 });
+  }
   if (!description || typeof description !== "string" || description.trim().length < 10) {
     return NextResponse.json({ error: "תיאור קצר מדי" }, { status: 400 });
+  }
+  if (description.trim().length > 5000) {
+    return NextResponse.json({ error: "תיאור ארוך מדי (מקסימום 5000 תווים)" }, { status: 400 });
+  }
+  if (typeof pageUrl === "string" && pageUrl.length > 2000) {
+    return NextResponse.json({ error: "כתובת עמוד ארוכה מדי" }, { status: 400 });
+  }
+  // Limit screenshot to ~2MB base64 (~2.7M chars)
+  if (typeof screenshotBase64 === "string" && screenshotBase64.length > 2_800_000) {
+    return NextResponse.json({ error: "צילום מסך גדול מדי (מקסימום 2MB)" }, { status: 400 });
   }
 
   const [ticket, business] = await Promise.all([

@@ -161,7 +161,7 @@ export async function PATCH(
         if (resourceName && resourceName !== (lead as { googleContactId?: string | null }).googleContactId) {
           await prisma.lead.update({ where: { id: lead.id }, data: { googleContactId: resourceName } });
         }
-      }).catch(() => {});
+      }).catch((err) => console.error("Google Contacts sync (lead update) failed:", err));
     }
 
     return NextResponse.json(lead);

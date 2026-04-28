@@ -9,6 +9,7 @@ import { toWhatsAppPhone } from "@/lib/utils"
 import { enqueueSyncJob } from "@/lib/sync-jobs"
 import { getFirstLeadStageId } from "@/lib/lead-stages"
 import { syncAppointmentToGcal } from "@/lib/google-calendar"
+import { sanitizeName } from "@/lib/validation"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://petra-app.vercel.app"
 
@@ -77,8 +78,8 @@ const BookingSchema = z.object({
   phone: z.string({ required_error: "phone is required" }).min(9).max(15),
   customerName: z.string().min(2, "שם באורך של לפחות 2 תווים").optional(),
   customerEmail: z.string().email("כתובת אימייל לא חוקית").optional().or(z.literal("")),
-  customerNotes: z.string().optional(),
-  customerAddress: z.string().optional(),
+  customerNotes: z.string().max(2000, "הערות ארוכות מדי — מקסימום 2000 תווים").optional(),
+  customerAddress: z.string().max(500).optional(),
   dogs: z.array(DogSchema).optional(),
 })
 
@@ -204,7 +205,7 @@ export async function POST(
         customer = await prisma.customer.create({
           data: {
             businessId: business.id,
-            name: customerName,
+            name: sanitizeName(customerName).slice(0, 100),
             phone,
             phoneNorm,
             email: customerEmail ?? null,

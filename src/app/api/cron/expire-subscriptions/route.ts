@@ -35,26 +35,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ok: true, expired: 0, timestamp: now.toISOString() });
     }
 
-    // Downgrade each business and log the event
-    await prisma.$transaction([
-      prisma.business.updateMany({
-        where: { id: { in: expired.map((b) => b.id) } },
+    // Sequential operations (no $transaction — Supabase PgBouncer incompatible)
+    await prisma.business.updateMany({
+      where: { id: { in: expired.map((b) => b.id) } },
+      data: {
+        subscriptionStatus: "expired",
+        tier: "free",
+      },
+    });
+    for (const b of expired) {
+      await prisma.subscriptionEvent.create({
         data: {
-          subscriptionStatus: "expired",
-          tier: "free",
+          businessId: b.id,
+          eventType: "expired",
+          tier: b.tier,
+          metadata: { previousTier: b.tier, expiredAt: now.toISOString() },
         },
-      }),
-      ...expired.map((b) =>
-        prisma.subscriptionEvent.create({
-          data: {
-            businessId: b.id,
-            eventType: "expired",
-            tier: b.tier,
-            metadata: { previousTier: b.tier, expiredAt: now.toISOString() },
-          },
-        })
-      ),
-    ]);
+      });
+    }
 
     console.log(`expire-subscriptions: expired ${expired.length} businesses`);
 

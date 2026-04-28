@@ -145,7 +145,7 @@ export async function PATCH(request: NextRequest) {
         sendWhatsAppMessage({
           to: phoneFormatted,
           body: `שלום מ-Petra! 👋\n\nהודעות ה-WhatsApp שלך פועלות בהצלחה.\nלקוחות יקבלו תזכורות ועדכונים אוטומטית ישירות לנייד. 🐾\n\n— הצוות של Petra`,
-        }).catch(() => {});
+        }).catch((err) => console.error("WhatsApp verification message failed:", err));
       }
     }
 

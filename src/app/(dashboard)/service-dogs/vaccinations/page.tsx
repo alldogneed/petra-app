@@ -99,7 +99,7 @@ export default function VaccinationsPage() {
       // Adults (and puppies with no done doses): show the most urgent upcoming/expiring entry
       const sorted = [...entries].sort((a, b) => {
         const sa = getCellStatus(a), sb = getCellStatus(b);
-        const order: Record<string, number> = { overdue: 0, soon: 1, upcoming: 2, unknown: 4 };
+        const order: Record<string, number> = { overdue: 0, soon: 1, upcoming: 2, unknown: 4, not_vaccinated: 3 };
         return (order[sa] ?? 5) - (order[sb] ?? 5);
       });
       return sorted[0] ?? null;
@@ -144,7 +144,7 @@ export default function VaccinationsPage() {
     }
     // Always sort by rabies status priority: overdue → soon → upcoming → done → unknown
     const rabiesKey = dogTab === "adults" ? "RABIES_BOOSTER" : "RABIES_PRIMARY";
-    const STATUS_PRIORITY: Record<string, number> = { overdue: 0, soon: 1, upcoming: 2, done: 3, unknown: 4 };
+    const STATUS_PRIORITY: Record<string, number> = { overdue: 0, soon: 1, upcoming: 2, done: 3, not_vaccinated: 3, unknown: 4 };
     result = [...result].sort((a, b) => {
       const getRabiesStatus = (dog: DogRow): string => {
         const sec = dogTab === "adults" ? dog.vaccinePlan.adults : dog.vaccinePlan.puppies;
@@ -165,6 +165,7 @@ export default function VaccinationsPage() {
     soon: "bg-amber-50 text-amber-700 border-amber-200",
     upcoming: "bg-sky-50 text-sky-700 border-sky-100",
     unknown: "bg-slate-50 text-slate-400 border-slate-200",
+    not_vaccinated: "bg-orange-50 text-orange-700 border-orange-200",
   };
 
   return (
@@ -312,6 +313,7 @@ export default function VaccinationsPage() {
                               {status === "done" && entry?.done
                                 ? `✓ ${new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "short", year: "numeric" }).format(new Date(entry.done))}`
                                 : status === "overdue" ? "פג תוקף"
+                                : status === "not_vaccinated" ? "לא חוסן"
                                 : status === "soon" && entry?.planned ? formatPlannedDisplay(entry.planned)
                                 : status === "upcoming" && entry?.planned ? formatPlannedDisplay(entry.planned)
                                 : "לא יודע"

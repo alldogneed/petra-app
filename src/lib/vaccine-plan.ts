@@ -3,6 +3,7 @@
 export interface VaccinePlanEntry {
   planned: string | null; // "2026-04" for adults (YYYY-MM), ISO date for puppies
   done: string | null;    // ISO date string when completed
+  notVaccinated?: boolean; // explicitly marked as never vaccinated
 }
 
 /** Business-level default schedule: which months each treatment is given */
@@ -125,8 +126,9 @@ export function getEmptyPuppyPlan(): VaccinePlan["puppies"] {
 }
 
 /** Returns cell status for display */
-export function getCellStatus(entry: VaccinePlanEntry | null | undefined): "done" | "overdue" | "upcoming" | "soon" | "unknown" {
+export function getCellStatus(entry: VaccinePlanEntry | null | undefined): "done" | "overdue" | "upcoming" | "soon" | "unknown" | "not_vaccinated" {
   if (!entry) return "unknown";
+  if (entry.notVaccinated) return "not_vaccinated";
   if (entry.done) return "done";
   if (!entry.planned) return "unknown";
 

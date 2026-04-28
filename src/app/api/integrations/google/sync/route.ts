@@ -120,7 +120,7 @@ export async function POST() {
             gcalSyncStatus: "error",
             gcalSyncError: "Sync failed",
           },
-        }).catch(() => {});
+        }).catch((err) => console.error("Failed to update booking sync status:", err));
       }
     }
 

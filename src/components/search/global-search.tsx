@@ -38,6 +38,9 @@ interface SearchResults {
     phone: string;
     email: string | null;
     stage: string;
+    wonAt: string | null;
+    lostAt: string | null;
+    leadStage: { name: string } | null;
   }[];
   tasks: {
     id: string;
@@ -266,11 +269,9 @@ export function GlobalSearch() {
                   id: l.id,
                   title: l.name,
                   subtitle: `${l.phone}${l.email ? ` · ${l.email}` : ""} · ${
-                    l.stage === "new" ? "חדש" :
-                    l.stage === "contacted" ? "פנייה בוצעה" :
-                    l.stage === "qualified" ? "מוכשר" :
-                    l.stage === "won" ? "נסגר בהצלחה" :
-                    l.stage === "lost" ? "אבוד" : l.stage
+                    l.wonAt ? "נסגר בהצלחה" :
+                    l.lostAt ? "אבוד" :
+                    l.leadStage?.name ?? "חדש"
                   }`,
                   onClick: () => navigate(`/leads`),
                 }))}

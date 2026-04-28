@@ -16,11 +16,15 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const cutoff = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
-    // Pets that have a rabies validity date set and it's expiring soon / expired
+    // Pets with expired/expiring rabies or explicitly not vaccinated
     const healthRecords = await prisma.dogHealth.findMany({
       where: {
         pet: { customer: { businessId: authResult.businessId } },
-        rabiesValidUntil: { lte: cutoff },
+        OR: [
+          { rabiesValidUntil: { lte: cutoff } },
+          // JSON path filter: notVaccinatedFlags.rabies = true
+          { notVaccinatedFlags: { path: ["rabies"], equals: true } },
+        ],
       },
       include: {
         pet: {
@@ -53,19 +57,23 @@ export async function GET(request: NextRequest) {
       take: 20,
     });
 
-    const alerts = healthRecords.map((h) => ({
-      petId: h.pet.id,
-      petName: h.pet.name,
-      species: h.pet.species,
-      breed: h.pet.breed,
-      customerId: h.pet.customer?.id ?? "",
-      customerName: h.pet.customer?.name ?? "",
-      customerPhone: h.pet.customer?.phone ?? "",
-      rabiesLastDate: h.rabiesLastDate,
-      rabiesValidUntil: h.rabiesValidUntil,
-      rabiesUnknown: h.rabiesUnknown,
-      status: getVaccinationStatus(h.rabiesValidUntil, now),
-    }));
+    const alerts = healthRecords.map((h) => {
+      const flags = (h.notVaccinatedFlags as Record<string, boolean> | null) ?? {};
+      const isNotVaccinated = flags.rabies === true || (h.rabiesUnknown && !h.rabiesLastDate);
+      return {
+        petId: h.pet.id,
+        petName: h.pet.name,
+        species: h.pet.species,
+        breed: h.pet.breed,
+        customerId: h.pet.customer?.id ?? "",
+        customerName: h.pet.customer?.name ?? "",
+        customerPhone: h.pet.customer?.phone ?? "",
+        rabiesLastDate: h.rabiesLastDate,
+        rabiesValidUntil: h.rabiesValidUntil,
+        rabiesUnknown: h.rabiesUnknown,
+        status: isNotVaccinated ? ("not_vaccinated" as const) : getVaccinationStatus(h.rabiesValidUntil, now),
+      };
+    });
 
     return NextResponse.json({
       alerts,
@@ -82,6 +90,7 @@ export async function GET(request: NextRequest) {
       totalAlerts: alerts.length,
       expired: alerts.filter((a) => a.status === "expired").length,
       expiringSoon: alerts.filter((a) => a.status === "expiring_soon").length,
+      notVaccinated: alerts.filter((a) => a.status === "not_vaccinated").length,
     });
   } catch (error) {
     console.error("GET health-alerts error:", error);

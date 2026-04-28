@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       await prisma.exportJob.update({
         where: { id: jobId },
         data: { status: "completed" },
-      }).catch(() => {});
+      }).catch((err) => console.error("Failed to mark export job as completed:", err));
     }
 
     // Validate date params

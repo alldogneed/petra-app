@@ -1591,7 +1591,7 @@ function PlacementsTab({ dog }: { dog: ServiceDogDetail }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const perms = usePermissions();
-  const activePlacement = dog.placements.find((p) => ["ACTIVE", "TRIAL"].includes(p.status));
+  const activePlacement = dog.placements.find((p) => p.status === "ACTIVE");
   const [showAddModal, setShowAddModal] = useState(false);
   const [recipientId, setRecipientId] = useState("");
   const [placementDate, setPlacementDate] = useState(new Date().toISOString().split("T")[0]);
@@ -5978,12 +5978,28 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
     onError: () => toast.error("שגיאה בעדכון"),
   });
 
+  const notVaccinatedMutation = useMutation({
+    mutationFn: ({ treatmentKey, index, notVaccinated }: { treatmentKey: string; index: number; notVaccinated: boolean }) =>
+      fetch(`/api/service-dogs/${dogId}/vaccine-plan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planType: effectivePlanType, treatmentKey, index, notVaccinated }),
+      }).then(r => { if (!r.ok) throw new Error("שגיאה"); return r.json(); }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vaccine-plan", dogId] });
+      queryClient.invalidateQueries({ queryKey: ["service-dogs-vaccinations"] });
+      toast.success("סטטוס עודכן");
+    },
+    onError: () => toast.error("שגיאה בעדכון"),
+  });
+
   const cellBg: Record<string, string> = {
     done: "bg-green-50 text-green-700 border-green-200",
     overdue: "bg-red-50 text-red-600 border-red-200",
     soon: "bg-amber-50 text-amber-700 border-amber-200",
     upcoming: "bg-sky-50 text-sky-700 border-sky-100",
     unknown: "bg-slate-50 text-slate-400 border-slate-200",
+    not_vaccinated: "bg-orange-50 text-orange-700 border-orange-200",
   };
 
   // Enter edit mode: initialize drafts from current planned dates
@@ -6270,17 +6286,35 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
                               {status === "done" && entry?.done
                                 ? `✓ ${new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "short", year: "numeric" }).format(new Date(entry.done))}`
                                 : status === "overdue" ? "פג תוקף"
+                                : status === "not_vaccinated" ? "לא חוסן"
                                 : status === "soon" && entry?.planned ? formatPlannedDisplay(entry.planned)
                                 : status === "upcoming" && entry?.planned ? formatPlannedDisplay(entry.planned)
                                 : "לא יודע"}
                             </div>
-                            {status !== "done" && (
-                              <div>
+                            {status !== "done" && status !== "not_vaccinated" && (
+                              <div className="flex items-center justify-center gap-2">
                                 <button
                                   onClick={() => { setMarkingOpen(markKey); setMarkDate(""); }}
                                   className="text-[11px] text-orange-500 hover:text-orange-600 font-medium"
                                 >
                                   ✓ בוצע
+                                </button>
+                                <span className="text-slate-300 text-[10px]">|</span>
+                                <button
+                                  onClick={() => notVaccinatedMutation.mutate({ treatmentKey: t.key, index: i, notVaccinated: true })}
+                                  className="text-[11px] text-slate-400 hover:text-orange-600 font-medium"
+                                >
+                                  לא חוסן
+                                </button>
+                              </div>
+                            )}
+                            {status === "not_vaccinated" && (
+                              <div>
+                                <button
+                                  onClick={() => notVaccinatedMutation.mutate({ treatmentKey: t.key, index: i, notVaccinated: false })}
+                                  className="text-[11px] text-slate-400 hover:text-red-500 font-medium"
+                                >
+                                  בטל
                                 </button>
                               </div>
                             )}

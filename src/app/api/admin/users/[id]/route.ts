@@ -138,18 +138,16 @@ export async function DELETE(
     return NextResponse.json({ error: "Cannot delete another super_admin" }, { status: 403 });
   }
 
-  // Cascade-delete all user-related records, then the user
-  await prisma.$transaction([
-    prisma.adminSession.deleteMany({ where: { userId: params.id } }),
-    prisma.activityLog.deleteMany({ where: { userId: params.id } }),
-    prisma.businessUser.deleteMany({ where: { userId: params.id } }),
-    prisma.userConsent.deleteMany({ where: { userId: params.id } }),
-    prisma.passwordResetToken.deleteMany({ where: { userId: params.id } }),
-    prisma.notification.deleteMany({ where: { userId: params.id } }),
-    prisma.onboardingProgress.deleteMany({ where: { userId: params.id } }),
-    prisma.onboardingProfile.deleteMany({ where: { userId: params.id } }),
-    prisma.exportJob.deleteMany({ where: { userId: params.id } }),
-  ]);
+  // Cascade-delete all user-related records sequentially (no $transaction — Supabase PgBouncer)
+  await prisma.adminSession.deleteMany({ where: { userId: params.id } });
+  await prisma.activityLog.deleteMany({ where: { userId: params.id } });
+  await prisma.businessUser.deleteMany({ where: { userId: params.id } });
+  await prisma.userConsent.deleteMany({ where: { userId: params.id } });
+  await prisma.passwordResetToken.deleteMany({ where: { userId: params.id } });
+  await prisma.notification.deleteMany({ where: { userId: params.id } });
+  await prisma.onboardingProgress.deleteMany({ where: { userId: params.id } });
+  await prisma.onboardingProfile.deleteMany({ where: { userId: params.id } });
+  await prisma.exportJob.deleteMany({ where: { userId: params.id } });
   await prisma.platformUser.delete({ where: { id: params.id } });
 
   const { ip, userAgent } = getRequestContext(request);

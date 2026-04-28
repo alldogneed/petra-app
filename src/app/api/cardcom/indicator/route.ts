@@ -70,7 +70,8 @@ export async function GET(request: NextRequest) {
       return new Response("Unauthorized", { status: 401 });
     }
   } else {
-    console.warn("Cardcom indicator [Layer 1]: CARDCOM_WEBHOOK_SECRET not configured — skipping sig check");
+    console.error("Cardcom indicator [Layer 1]: CARDCOM_WEBHOOK_SECRET not configured — rejecting request");
+    return new Response("Server misconfiguration", { status: 500 });
   }
 
   // ── Layer 2: Rate limiting ────────────────────────────────────────────────

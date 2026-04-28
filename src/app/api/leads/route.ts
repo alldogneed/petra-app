@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
         if (resourceName) {
           await prisma.lead.update({ where: { id: lead.id }, data: { googleContactId: resourceName } });
         }
-      }).catch(() => {});
+      }).catch((err) => console.error("Google Contacts sync (lead create) failed:", err));
     }
 
     return NextResponse.json({ ...lead, existingCustomer, duplicateLead }, { status: 201 });

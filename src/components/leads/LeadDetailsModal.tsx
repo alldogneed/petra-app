@@ -99,7 +99,7 @@ export default function LeadDetailsModal({
   const [lostModalOpen, setLostModalOpen] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const closed = lead.stage === "won" || lead.stage === "lost";
+  const closed = lead.wonAt !== null || lead.lostAt !== null;
 
   const addToast = useCallback((message: string, type: "success" | "error", customerId?: string) => {
     const id = crypto.randomUUID();
@@ -302,12 +302,12 @@ export default function LeadDetailsModal({
             <div
               className="rounded-xl px-4 py-3 mb-4 flex items-center gap-2 text-sm font-medium"
               style={{
-                backgroundColor: lead.stage === "won" ? "#F0FDF4" : "#FEF2F2",
-                color: lead.stage === "won" ? "#16A34A" : "#DC2626",
-                border: `1px solid ${lead.stage === "won" ? "#BBF7D0" : "#FECACA"}`,
+                backgroundColor: lead.wonAt ? "#F0FDF4" : "#FEF2F2",
+                color: lead.wonAt ? "#16A34A" : "#DC2626",
+                border: `1px solid ${lead.wonAt ? "#BBF7D0" : "#FECACA"}`,
               }}
             >
-              {lead.stage === "won" ? (
+              {lead.wonAt ? (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
                   ליד נסגר בהצלחה

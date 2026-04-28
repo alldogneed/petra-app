@@ -7,6 +7,7 @@ import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { notifyNewBooking } from "@/lib/engagement-service";
 import { localTimeToUtc } from "@/lib/slots";
+import { sanitizeName, validateName, validateIsraeliPhone, validateEmail, normalizeIsraeliPhone } from "@/lib/validation";
 
 // Public endpoint - no auth required
 export async function POST(request: NextRequest) {
@@ -37,6 +38,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate and sanitize inputs
+    const nameError = validateName(customerName);
+    if (nameError) {
+      return NextResponse.json({ error: nameError }, { status: 400 });
+    }
+    const sanitizedName = sanitizeName(customerName).slice(0, 100);
+
+    const phoneError = validateIsraeliPhone(customerPhone);
+    if (phoneError) {
+      return NextResponse.json({ error: phoneError }, { status: 400 });
+    }
+    const normalizedPhone = normalizeIsraeliPhone(customerPhone);
+
+    if (customerEmail) {
+      const emailError = validateEmail(customerEmail);
+      if (emailError) {
+        return NextResponse.json({ error: emailError }, { status: 400 });
+      }
+    }
+
+    // Limit notes length (same as authenticated endpoint)
+    if (notes && typeof notes === "string" && notes.length > 2000) {
+      return NextResponse.json(
+        { error: "הערות ארוכות מדי — מקסימום 2000 תווים" },
+        { status: 400 }
+      );
+    }
+
     // Get price list item for duration + businessId
     const item = await prisma.priceListItem.findUnique({ where: { id: priceListItemId } });
     if (!item) {
@@ -50,7 +79,7 @@ export async function POST(request: NextRequest) {
     let customer = await prisma.customer.findFirst({
       where: {
         businessId,
-        phone: customerPhone,
+        phone: normalizedPhone,
       },
     });
 
@@ -58,14 +87,14 @@ export async function POST(request: NextRequest) {
       customer = await prisma.customer.create({
         data: {
           businessId,
-          name: customerName,
-          phone: customerPhone,
-          email: customerEmail || null,
+          name: sanitizedName,
+          phone: normalizedPhone,
+          email: customerEmail?.trim().toLowerCase() || null,
         },
       }).catch(async () => {
         // Race condition: another request created the same customer between our read and write
         const existing = await prisma.customer.findFirst({
-          where: { businessId, phone: customerPhone },
+          where: { businessId, phone: normalizedPhone },
         });
         if (!existing) throw new Error("Failed to create or find customer");
         return existing;
@@ -110,7 +139,7 @@ export async function POST(request: NextRequest) {
         startAt,
         endAt,
         status: "pending",
-        notes: notes || null,
+        notes: notes ? String(notes).slice(0, 2000) : null,
         source: "online",
         customerToken: require("crypto").randomBytes(32).toString("hex"),
       },

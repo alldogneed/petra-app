@@ -24,12 +24,17 @@ export async function POST(req: NextRequest) {
     if (batch.status === "rolled_back") return NextResponse.json({ error: "מנה בוטלה" }, { status: 409 });
 
     const businessId = batch.businessId;
-    const stats = JSON.parse(batch.statsJson) as {
+    let stats: {
       customers: RawCustomerRow[];
       pets: RawPetRow[];
       totalCustomers: number;
       totalPets: number;
     };
+    try {
+      stats = JSON.parse(batch.statsJson);
+    } catch {
+      return NextResponse.json({ error: "נתוני המנה פגומים" }, { status: 400 });
+    }
 
     const createdCustomerIds: string[] = [];
     const createdPetIds: string[] = [];

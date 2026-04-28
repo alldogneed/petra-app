@@ -24,31 +24,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid ToS version" }, { status: 400 });
     }
 
-    // Record consent (idempotent — upsert by userId + version)
-    await prisma.$transaction([
-      prisma.userConsent.upsert({
-        where: { id: `${session.user.id}:${version}` },
-        create: {
-          id: `${session.user.id}:${version}`,
-          userId: session.user.id,
-          termsVersion: version,
-          ipAddress: ip,
-          userAgent,
-        },
-        update: {
-          acceptedAt: new Date(),
-          ipAddress: ip,
-          userAgent,
-        },
-      }),
-      prisma.platformUser.update({
-        where: { id: session.user.id },
-        data: {
-          tosAcceptedVersion: version,
-          tosAcceptedAt: new Date(),
-        },
-      }),
-    ]);
+    // Sequential operations (no $transaction — Supabase PgBouncer incompatible)
+    await prisma.userConsent.upsert({
+      where: { id: `${session.user.id}:${version}` },
+      create: {
+        id: `${session.user.id}:${version}`,
+        userId: session.user.id,
+        termsVersion: version,
+        ipAddress: ip,
+        userAgent,
+      },
+      update: {
+        acceptedAt: new Date(),
+        ipAddress: ip,
+        userAgent,
+      },
+    });
+    await prisma.platformUser.update({
+      where: { id: session.user.id },
+      data: {
+        tosAcceptedVersion: version,
+        tosAcceptedAt: new Date(),
+      },
+    });
 
     return NextResponse.json({ ok: true, version });
   } catch (error) {
