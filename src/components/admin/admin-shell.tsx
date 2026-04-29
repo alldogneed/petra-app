@@ -17,9 +17,20 @@ import {
   Megaphone,
   Database,
   Shield,
+  Building2,
+  HeartHandshake,
+  LifeBuoy,
+  FileText,
 } from "lucide-react";
 
-const NAV_ITEMS = [
+interface NavItem {
+  name: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+}
+
+const ADMIN_ITEMS: NavItem[] = [
   { name: "דשבורד", href: "/admin", icon: LayoutDashboard, exact: true },
   { name: "משתמשים", href: "/admin/users", icon: Users },
   { name: "הודעות שידור", href: "/admin/messages", icon: Megaphone },
@@ -29,12 +40,22 @@ const NAV_ITEMS = [
   { name: "תנאי שימוש חתומים", href: "/admin/consents", icon: Shield },
 ];
 
+// Owner Panel items — only shown to platform admins (not legacy MASTER without platformRole)
+const OWNER_ITEMS: NavItem[] = [
+  { name: "עסקים (Impersonate)", href: "/owner/tenants", icon: Building2 },
+  { name: "Customer Success", href: "/owner/customer-success", icon: HeartHandshake },
+  { name: "תמיכה", href: "/owner/support", icon: LifeBuoy },
+  { name: "יומן פעולות", href: "/owner/audit-logs", icon: FileText },
+];
+
 interface AdminShellProps {
   userName: string;
+  /** When true, also render the Owner Panel section in the sidebar. */
+  showOwnerSection?: boolean;
   children: React.ReactNode;
 }
 
-export default function AdminShell({ userName, children }: AdminShellProps) {
+export default function AdminShell({ userName, showOwnerSection = false, children }: AdminShellProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -87,7 +108,7 @@ export default function AdminShell({ userName, children }: AdminShellProps) {
 
         {/* Nav */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map((item) => {
+          {ADMIN_ITEMS.map((item) => {
             const active = isActive(item.href, item.exact);
             return (
               <Link
@@ -106,6 +127,36 @@ export default function AdminShell({ userName, children }: AdminShellProps) {
               </Link>
             );
           })}
+
+          {showOwnerSection && (
+            <>
+              {!collapsed && (
+                <div className="pt-4 pb-1 px-3 text-[10px] uppercase tracking-wider font-bold text-slate-600">
+                  Owner Panel
+                </div>
+              )}
+              {collapsed && <div className="my-2 mx-3 border-t border-slate-800" />}
+              {OWNER_ITEMS.map((item) => {
+                const active = isActive(item.href, item.exact);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                      active
+                        ? "text-violet-300"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                    }`}
+                    style={active ? { background: "rgba(139, 92, 246, 0.12)" } : undefined}
+                  >
+                    <item.icon className={`w-[18px] h-[18px] flex-shrink-0 ${active ? "text-violet-400" : ""}`} />
+                    {!collapsed && <span>{item.name}</span>}
+                  </Link>
+                );
+              })}
+            </>
+          )}
         </nav>
 
         {/* Bottom */}

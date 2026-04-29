@@ -22,5 +22,13 @@ export default async function AdminLayout({
     redirect("/dashboard");
   }
 
-  return <AdminShell userName={session.user.name}>{children}</AdminShell>;
+  // Owner Panel is only accessible to platform admins (super_admin, admin, support).
+  // Don't show its links to legacy MASTER users without a platformRole — they'd hit /403.
+  const showOwnerSection = !!session.user.platformRole;
+
+  return (
+    <AdminShell userName={session.user.name} showOwnerSection={showOwnerSection}>
+      {children}
+    </AdminShell>
+  );
 }
