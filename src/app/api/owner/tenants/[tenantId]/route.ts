@@ -47,7 +47,7 @@ export async function GET(
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const [monthlyAppointments, monthlyRevenue, lastSession] = await Promise.all([
     prisma.appointment.count({
-      where: { businessId: params.tenantId, date: { gte: startOfMonth.toISOString().slice(0, 10) } },
+      where: { businessId: params.tenantId, date: { gte: startOfMonth } },
     }),
     prisma.payment.aggregate({
       where: { businessId: params.tenantId, createdAt: { gte: startOfMonth } },
