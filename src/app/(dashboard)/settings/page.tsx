@@ -1116,7 +1116,8 @@ function IntegrationsTab() {
 
       {integrations?.filter((integ) =>
         integ.id !== "invoicing" && integ.id !== "stripe" &&
-        (integ.id !== "resend" || user?.isAdmin === true)
+        (integ.id !== "resend" || user?.isAdmin === true) &&
+        (integ.id !== "whatsapp" || user?.isAdmin === true)
       ).map((integ) => {
         const Icon = ICON_MAP[integ.icon] ?? Plug;
         const isInvoicing = integ.id === "invoicing";
