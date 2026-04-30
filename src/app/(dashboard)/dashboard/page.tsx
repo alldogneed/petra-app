@@ -342,19 +342,21 @@ function StatCard({
     <div className="stat-card group p-5">
       <div className="flex items-start justify-between">
         <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center"
-          style={{ background: `${color}15` }}
+          className="w-12 h-12 rounded-2xl flex items-center justify-center"
+          style={{ background: `${color}1A` }}
         >
-          <Icon className="w-[22px] h-[22px]" style={{ color }} />
+          <Icon className="w-6 h-6" style={{ color }} />
         </div>
         {href && (
-          <ArrowLeft className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
+          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-400 group-hover:bg-brand-50 group-hover:border-brand-200 group-hover:text-brand-600 transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+          </div>
         )}
       </div>
-      <div className="mt-3.5 leading-tight">
-        <div className="text-[30px] font-bold text-petra-text tracking-tight leading-none">{value}</div>
-        <div className="mt-1.5 text-[13px] font-medium text-petra-text">{title}</div>
-        {subtitle && <div className="mt-0.5 text-xs text-petra-muted">{subtitle}</div>}
+      <div className="mt-5 leading-tight">
+        <div className="text-[36px] font-bold text-petra-text tracking-tight leading-none">{value}</div>
+        <div className="mt-2 text-sm font-semibold text-petra-text">{title}</div>
+        {subtitle && <div className="mt-1 text-[12px] text-petra-muted">{subtitle}</div>}
       </div>
     </div>
   );
@@ -602,38 +604,39 @@ function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
     <div className="card overflow-hidden"
       style={{ borderTop: "3px solid #F97316" }}
     >
-      <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-orange-50">
-            <Flame className="w-4 h-4 text-orange-500" />
+      <div className="px-6 pt-5 pb-4 flex items-start justify-between border-b border-slate-100">
+        <div>
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-orange-700">
+            <Flame className="w-3.5 h-3.5" />
+            <span>מיקוד יומי</span>
           </div>
-          <div>
-            <h2 className="text-sm font-bold text-petra-text">מיקוד יומי</h2>
-            <p className="text-[11px] text-petra-muted flex items-center gap-1">
-              {overdueTasks.length > 0 && (
-                <button
-                  onClick={() => setFocusFilter(focusFilter === "overdue" ? null : "overdue")}
-                  className={cn("font-medium transition-colors", focusFilter === "overdue" ? "text-red-600 underline" : "text-red-500 hover:text-red-600")}
-                >
-                  {overdueTasks.length} באיחור
-                </button>
-              )}
-              {overdueTasks.length > 0 && todayTasks.length > 0 && <span>·</span>}
-              {todayTasks.length > 0 && (
-                <button
-                  onClick={() => setFocusFilter(focusFilter === "today" ? null : "today")}
-                  className={cn("transition-colors", focusFilter === "today" ? "text-blue-600 underline" : "hover:text-petra-text")}
-                >
-                  {todayTasks.length} להיום
-                </button>
-              )}
-              {focusFilter && <button onClick={() => setFocusFilter(null)} className="text-slate-400 hover:text-slate-600 mr-1">× הכל</button>}
-            </p>
-          </div>
+          <h2 className="mt-2 text-base font-bold text-petra-text leading-tight">
+            {allFocusTasks.length} {allFocusTasks.length === 1 ? "משימה" : "משימות"} מחכות
+          </h2>
+          <p className="mt-1 text-[12px] text-petra-muted flex items-center gap-1.5">
+            {overdueTasks.length > 0 && (
+              <button
+                onClick={() => setFocusFilter(focusFilter === "overdue" ? null : "overdue")}
+                className={cn("font-medium transition-colors", focusFilter === "overdue" ? "text-red-600 underline" : "text-red-500 hover:text-red-600")}
+              >
+                {overdueTasks.length} באיחור
+              </button>
+            )}
+            {overdueTasks.length > 0 && todayTasks.length > 0 && <span className="text-slate-300">·</span>}
+            {todayTasks.length > 0 && (
+              <button
+                onClick={() => setFocusFilter(focusFilter === "today" ? null : "today")}
+                className={cn("transition-colors", focusFilter === "today" ? "text-blue-600 underline" : "hover:text-petra-text")}
+              >
+                {todayTasks.length} להיום
+              </button>
+            )}
+            {focusFilter && <button onClick={() => setFocusFilter(null)} className="text-slate-400 hover:text-slate-600 mr-1">× הכל</button>}
+          </p>
         </div>
         <Link
           href="/tasks"
-          className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
+          className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1 mt-1"
         >
           כל המשימות
           <ArrowLeft className="w-3 h-3" />
