@@ -4,14 +4,10 @@ import { useState, useEffect } from "react";
 import { X, Download, Share } from "lucide-react";
 
 const DISMISS_KEY = "pwa-install-dismissed";
-const DISMISS_DAYS = 30;
 
 function isDismissed(): boolean {
   try {
-    const raw = localStorage.getItem(DISMISS_KEY);
-    if (!raw) return false;
-    const ts = parseInt(raw, 10);
-    return Date.now() - ts < DISMISS_DAYS * 24 * 60 * 60 * 1000;
+    return localStorage.getItem(DISMISS_KEY) === "1";
   } catch {
     return false;
   }
@@ -19,7 +15,7 @@ function isDismissed(): boolean {
 
 function dismiss() {
   try {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()));
+    localStorage.setItem(DISMISS_KEY, "1");
   } catch {}
 }
 
