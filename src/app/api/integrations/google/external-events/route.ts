@@ -21,6 +21,13 @@ export async function GET(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // While impersonating a tenant, hide the impersonator's personal Google Calendar.
+  // Each business owner's own calendar is tied to their own PlatformUser, not to the
+  // Business, so we can't substitute it in safely from a privacy standpoint either.
+  if (session.impersonatedBusinessId) {
+    return NextResponse.json({ events: [] });
+  }
+
   const { searchParams } = new URL(request.url);
   const start = searchParams.get("start");
   const end = searchParams.get("end");

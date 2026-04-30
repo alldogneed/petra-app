@@ -16,17 +16,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No active business" }, { status: 403 });
     }
 
-    // Fetch real gcal status from PlatformUser
+    // While impersonating, never expose the impersonator's personal Google connection.
+    // Show as disconnected so the support agent can't accidentally bind their own
+    // Google account to the impersonated business.
+    const isImpersonating = !!session.impersonatedBusinessId;
+
+    // Fetch real gcal status from PlatformUser (skipped during impersonation)
     const [user, invoicingSettings, stripeSettings] = await Promise.all([
-      prisma.platformUser.findUnique({
-        where: { id: session.user.id },
-        select: {
-          gcalConnected: true,
-          gcalConnectedEmail: true,
-          gcalSyncEnabled: true,
-          gcalLastConnectedAt: true,
-        },
-      }),
+      isImpersonating
+        ? Promise.resolve(null)
+        : prisma.platformUser.findUnique({
+            where: { id: session.user.id },
+            select: {
+              gcalConnected: true,
+              gcalConnectedEmail: true,
+              gcalSyncEnabled: true,
+              gcalLastConnectedAt: true,
+            },
+          }),
       prisma.invoicingSettings.findUnique({
         where: { businessId },
         select: { providerName: true, status: true, connectedAt: true },

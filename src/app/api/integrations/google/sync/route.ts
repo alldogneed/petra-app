@@ -18,6 +18,15 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Block sync while impersonating — would push the impersonated business's data
+    // to the impersonator's personal Google calendar.
+    if (session.impersonatedBusinessId) {
+      return NextResponse.json(
+        { error: "Cannot sync Google Calendar while impersonating a tenant" },
+        { status: 403 }
+      );
+    }
+
     const businessId = session.memberships.find((m) => m.isActive)?.businessId;
     if (!businessId) {
       return NextResponse.json({ error: "No active business" }, { status: 403 });

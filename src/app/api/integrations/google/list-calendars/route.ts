@@ -12,6 +12,11 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Don't expose the impersonator's calendars during impersonation
+  if (session.impersonatedBusinessId) {
+    return NextResponse.json({ calendars: [], selected: [] });
+  }
+
   const user = await prisma.platformUser.findUnique({
     where: { id: session.user.id },
     select: {
