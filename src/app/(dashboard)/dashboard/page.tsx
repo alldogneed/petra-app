@@ -2404,7 +2404,7 @@ export default function DashboardPage() {
       {perms.canSeeFinance && <TopDebtorsWidget debtors={data.topDebtors || []} />}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:[grid-template-columns:repeat(auto-fit,minmax(180px,1fr))] gap-3">
         {perms.canSeeRevenueSummary && (
           <StatCard
             title="הכנסות החודש"
