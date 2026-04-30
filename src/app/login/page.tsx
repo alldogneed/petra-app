@@ -239,7 +239,7 @@ export default function LoginPage() {
       >
         <span className="inline-flex items-center gap-2 self-start px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/15 backdrop-blur-sm border border-white/20">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          30+ עסקים פעילים בישראל
+          130 עסקים פעילים בישראל
         </span>
 
         <div>
@@ -261,7 +261,7 @@ export default function LoginPage() {
 
         <div className="grid grid-cols-3 gap-4 pt-8 border-t border-white/15">
           <div>
-            <div className="text-2xl font-bold tracking-tight">30+</div>
+            <div className="text-2xl font-bold tracking-tight">130</div>
             <div className="text-[11px] text-white/70 mt-0.5 uppercase tracking-wider">עסקים פעילים</div>
           </div>
           <div>
