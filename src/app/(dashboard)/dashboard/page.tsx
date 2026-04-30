@@ -353,9 +353,9 @@ function StatCard({
           </div>
         )}
       </div>
-      <div className="mt-5 leading-tight">
-        <div className="text-[36px] font-bold text-petra-text tracking-tight leading-none">{value}</div>
-        <div className="mt-2 text-sm font-semibold text-petra-text">{title}</div>
+      <div className="mt-4 sm:mt-5 leading-tight">
+        <div className="text-[28px] sm:text-[32px] lg:text-[36px] font-bold text-petra-text tracking-tight leading-none">{value}</div>
+        <div className="mt-1.5 sm:mt-2 text-[13px] sm:text-sm font-semibold text-petra-text">{title}</div>
         {subtitle && <div className="mt-1 text-[12px] text-petra-muted">{subtitle}</div>}
       </div>
     </div>
@@ -398,10 +398,10 @@ function AppointmentRow({
   const tod = hour < 12 ? "בוקר" : hour < 14 ? "צהריים" : hour < 17 ? "אחה\"צ" : "ערב";
 
   return (
-    <div className="grid grid-cols-[60px_1fr_auto] items-center gap-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50/40 px-1 rounded-lg transition-colors">
+    <div className="grid grid-cols-[52px_1fr_auto] sm:grid-cols-[60px_1fr_auto] items-center gap-3 sm:gap-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50/40 px-1 rounded-lg transition-colors">
       {/* Time column */}
       <div className="text-petra-text">
-        <div className="text-sm font-bold leading-none">{appointment.startTime}</div>
+        <div className="text-[13px] sm:text-sm font-bold leading-none">{appointment.startTime}</div>
         <div className="text-[11px] text-petra-muted font-medium mt-1">{tod}</div>
       </div>
 
