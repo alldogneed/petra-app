@@ -147,20 +147,21 @@ export function GlobalSearch() {
     );
   }
 
+  const closeModal = () => {
+    setOpen(false);
+    setQuery("");
+    setResults(null);
+  };
+
   return (
     <>
-      {/* Backdrop */}
+      {/* Combined backdrop + dialog wrapper — single layer so taps anywhere
+          outside the modal close it (was broken on mobile because the dialog
+          wrapper at z-101 was eating clicks before the backdrop at z-100). */}
       <div
-        className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
-        onClick={() => {
-          setOpen(false);
-          setQuery("");
-          setResults(null);
-        }}
-      />
-
-      {/* Dialog */}
-      <div className="fixed inset-0 z-[101] flex items-start justify-center pt-[15vh] px-4">
+        className="fixed inset-0 z-[100] flex items-start justify-center pt-[10vh] sm:pt-[15vh] px-4 bg-black/40 backdrop-blur-sm"
+        onClick={closeModal}
+      >
         <div
           className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-scale-in"
           onClick={(e) => e.stopPropagation()}
@@ -192,6 +193,7 @@ export function GlobalSearch() {
                   inputRef.current?.focus();
                 }}
                 className="p-1 rounded-md hover:bg-slate-100 text-slate-400"
+                aria-label="נקה חיפוש"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -199,6 +201,14 @@ export function GlobalSearch() {
             <kbd className="hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-medium text-slate-400 bg-slate-100 rounded border border-slate-200">
               ESC
             </kbd>
+            {/* Close button — always visible (mobile escape hatch when input is empty) */}
+            <button
+              onClick={closeModal}
+              className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500"
+              aria-label="סגור חיפוש"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Results */}
