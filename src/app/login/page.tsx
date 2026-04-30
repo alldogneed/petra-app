@@ -57,23 +57,22 @@ function LoginForm() {
   }
 
   return (
-    <div className="w-full max-w-sm">
-      {/* Logo */}
-      <div className="text-center mb-8">
-        <div className="w-16 h-16 rounded-2xl mx-auto mb-4 overflow-hidden">
-          <Image src="/logo.svg" alt="Petra" width={64} height={64} className="w-full h-full object-cover" priority />
+    <div className="w-full max-w-[400px]">
+      {/* Brand */}
+      <div className="flex items-center gap-3 mb-9">
+        <div className="w-11 h-11 rounded-xl border border-slate-200 bg-white shadow-card flex items-center justify-center overflow-hidden">
+          <Image src="/logo.svg" alt="Petra" width={30} height={30} className="object-contain" priority />
         </div>
-        <h1 className="text-2xl font-bold text-petra-text">Petra</h1>
-        <p className="text-sm text-petra-muted mt-1">ניהול עסקי חיות מחמד</p>
+        <span className="text-[22px] font-extrabold tracking-tight text-petra-text">Petra</span>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="card p-6 space-y-4">
-        <div>
-          <h2 className="text-lg font-bold text-petra-text">התחברות</h2>
-          <p className="text-sm text-petra-muted mt-0.5">הכנס את פרטי החשבון שלך</p>
-        </div>
+      {/* Heading */}
+      <h1 className="text-[28px] font-bold tracking-tight text-petra-text leading-tight">ברוכים השבים</h1>
+      <p className="text-sm text-petra-muted mt-1.5 mb-7 leading-relaxed">
+        התחבר לחשבון הניהול של העסק שלך — לקוחות, תורים ופנסיון במקום אחד.
+      </p>
 
+      <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-600">
             {error}
@@ -166,7 +165,7 @@ function LoginForm() {
             <div className="w-full border-t border-slate-200" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-white px-2 text-petra-muted">או</span>
+            <span className="bg-petra-bg px-2 text-petra-muted">או</span>
           </div>
         </div>
 
@@ -220,10 +219,60 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-petra-bg p-4">
-      <Suspense>
-        <LoginForm />
-      </Suspense>
-    </div>
+    <div className="min-h-screen grid lg:grid-cols-2 bg-petra-bg">
+      {/* Form side */}
+      <div className="flex items-center justify-center p-6 sm:p-10">
+        <Suspense>
+          <LoginForm />
+        </Suspense>
+      </div>
+
+      {/* Hero side — desktop only */}
+      <div
+        className="hidden lg:flex relative overflow-hidden text-white p-12 flex-col justify-between"
+        style={{
+          backgroundImage:
+            "linear-gradient(180deg, rgba(15,23,42,0.5) 0%, rgba(15,23,42,0.85) 100%), url('/trainer-black-shepherd.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <span className="inline-flex items-center gap-2 self-start px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/15 backdrop-blur-sm border border-white/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          1,840+ עסקים בישראל
+        </span>
+
+        <div>
+          <p className="text-[28px] font-semibold tracking-tight leading-snug max-w-md">
+            <span className="text-brand-300 font-bold">&ldquo;</span>
+            פטרה הוציאה את הניהול היומי מהראש שלי. תורים, חוזים, חיובים — הכל זורם, ויש לי זמן לכלבים
+            <span className="text-brand-300 font-bold">.&rdquo;</span>
+          </p>
+          <div className="mt-6 flex items-center gap-3">
+            <div className="w-11 h-11 rounded-full bg-brand-300 text-slate-900 flex items-center justify-center font-bold">
+              דר
+            </div>
+            <div>
+              <div className="text-sm font-semibold">דורית רוזנברג</div>
+              <div className="text-xs text-white/70 mt-0.5">בעלת פנסיון &quot;ביתי&quot; · רעננה</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4 pt-8 border-t border-white/15">
+          <div>
+            <div className="text-2xl font-bold tracking-tight">1.8K+</div>
+            <div className="text-[11px] text-white/70 mt-0.5 uppercase tracking-wider">עסקים פעילים</div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold tracking-tight">24K</div>
+            <div className="text-[11px] text-white/70 mt-0.5 uppercase tracking-wider">תורים בחודש</div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold tracking-tight">98%</div>
+            <div className="text-[11px] text-white/70 mt-0.5 uppercase tracking-wider">שביעות רצון</div>
+          </div>
+        </div>
+      </div>
   );
 }
