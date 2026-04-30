@@ -2193,7 +2193,7 @@ export default function DashboardPage() {
           <a href="/upgrade" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</a>
         </div>
       )}
-      {subscriptionActive && subscriptionDaysLeft <= 14 && (
+      {!isFree && subscriptionActive && subscriptionDaysLeft <= 14 && (
         <div className="rounded-xl px-4 py-3 flex items-center justify-between bg-amber-50 border border-amber-200 text-amber-800">
           <span className="text-sm font-medium">⏳ המנוי שלך מסתיים בעוד {subscriptionDaysLeft} ימים</span>
           <a href="/upgrade" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</a>
