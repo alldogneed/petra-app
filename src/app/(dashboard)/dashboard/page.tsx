@@ -339,22 +339,22 @@ function StatCard({
   href?: string;
 }) {
   const content = (
-    <div className="stat-card group">
-      <div className="flex items-start justify-between mb-4">
+    <div className="stat-card group p-5">
+      <div className="flex items-start justify-between">
         <div
           className="w-11 h-11 rounded-xl flex items-center justify-center"
           style={{ background: `${color}15` }}
         >
-          <Icon className="w-5 h-5" style={{ color }} />
+          <Icon className="w-[22px] h-[22px]" style={{ color }} />
         </div>
         {href && (
           <ArrowLeft className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
         )}
       </div>
-      <div className="space-y-0.5">
-        <div className="text-2xl font-bold text-petra-text">{value}</div>
-        <div className="text-sm font-medium text-petra-text">{title}</div>
-        {subtitle && <div className="text-xs text-petra-muted">{subtitle}</div>}
+      <div className="mt-3.5 leading-tight">
+        <div className="text-[30px] font-bold text-petra-text tracking-tight leading-none">{value}</div>
+        <div className="mt-1.5 text-[13px] font-medium text-petra-text">{title}</div>
+        {subtitle && <div className="mt-0.5 text-xs text-petra-muted">{subtitle}</div>}
       </div>
     </div>
   );
