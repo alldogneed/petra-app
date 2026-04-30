@@ -342,7 +342,7 @@ export default function LandingPage() {
             <div className="grid lg:grid-cols-[1fr_1.15fr] gap-[60px] items-center">
 
               {/* Text column — right side in RTL */}
-              <div className="min-w-0">
+              <div className="min-w-0 text-center lg:text-right">
                 {/* Eyebrow pill */}
                 <span className="mb-7 inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium"
                   style={{ background: "rgba(249,115,22,0.10)", borderColor: "rgba(249,115,22,0.20)", color: "#FDBA74" }}>
@@ -374,11 +374,11 @@ export default function LandingPage() {
                   את העסק שלכם.
                 </h1>
 
-                <p className="mb-8 max-w-[540px] text-lg leading-[1.6]" style={{ color: "rgba(226,232,240,0.85)" }}>
+                <p className="mb-8 max-w-[540px] mx-auto lg:mx-0 text-lg leading-[1.6]" style={{ color: "rgba(226,232,240,0.85)" }}>
                   כדי שתפסיקו לאבד לקוחות מתזכורות שנשכחו, ולא תטבעו בהודעות וואטסאפ,{" "}ותחזרו לעשות את מה שאתם באמת אוהבים לעבוד עם בעלי החיים שלכם.
                 </p>
 
-                <div className="flex flex-wrap items-center gap-3.5 mb-7">
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3.5 mb-7">
                   <Link
                     href="/register"
                     className="inline-flex items-center gap-2 rounded-xl px-7 py-3.5 text-[15px] font-semibold text-white transition-all hover:-translate-y-px focus:outline-none focus:ring-2 focus:ring-brand-400"
@@ -400,7 +400,7 @@ export default function LandingPage() {
                   </Link>
                 </div>
 
-                <ul className="flex flex-wrap gap-x-5 gap-y-2 list-none p-0 m-0">
+                <ul className="flex flex-wrap justify-center lg:justify-start gap-x-5 gap-y-2 list-none p-0 m-0">
                   {["ללא כרטיס אשראי למנוי החינמי", "מעבר קל ממערכות אחרות", "מסלול חינמי לצמיתות — ללא כרטיס אשראי"].map((t) => (
                     <li key={t} className="flex items-center gap-2 text-sm" style={{ color: "rgba(226,232,240,0.75)" }}>
                       <span className="inline-flex w-[18px] h-[18px] rounded-full items-center justify-center shrink-0" style={{ background: "rgba(249,115,22,0.20)" }}>
