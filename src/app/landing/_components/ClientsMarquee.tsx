@@ -104,7 +104,7 @@ export function ClientsMarquee() {
       {/* Stats */}
       <div className="mt-12 flex items-center justify-center gap-10 px-4 flex-wrap">
         {[
-          { num: "117", label: "עסקים פעילים בישראל" },
+          { num: "117+", label: "עסקים פעילים בישראל" },
           { num: "24/7", label: "תזכורות אוטומטיות" },
         ].map(({ num, label }, i, arr) => (
           <div key={label} className="flex items-center gap-10">
