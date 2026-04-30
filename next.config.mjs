@@ -15,6 +15,15 @@ const nextConfig = {
   },
   productionBrowserSourceMaps: false,
   eslint: { ignoreDuringBuilds: true },
+  // Dev-only: disable webpack persistent file-system cache. Hebrew characters
+  // in the project path break PackFileCacheStrategy snapshotting on macOS,
+  // which causes /dashboard to stall mid-compile. Memory cache works fine.
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.cache = { type: "memory" };
+    }
+    return config;
+  },
   images: {
     // Allow Next.js Image component to optimize images from any HTTPS source
     // Business logos and pet photos can be hosted anywhere
