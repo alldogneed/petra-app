@@ -76,6 +76,17 @@ async function sendOwnerWhatsApp(message: string, templateParams?: string[]): Pr
   }
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ── Email ─────────────────────────────────────────────────────────────────────
 
 async function sendOwnerEmail(subject: string, html: string): Promise<void> {
@@ -159,7 +170,11 @@ export async function notifyOwnerNewUser(params: NewUserParams): Promise<void> {
     `בהצלחה! 🐾`;
 
   // ── Email ─────────────────────────────────────────────────────────────────
-  const emailSubject = `משתמש חדש נרשם לפטרה — ${name}`;
+  const safeName = escapeHtml(name);
+  const safeEmail = escapeHtml(email);
+  const safePhone = phone ? escapeHtml(phone) : "";
+
+  const emailSubject = `משתמש חדש נרשם לפטרה — ${safeName}`;
   const emailHtml = `
     <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; background: #f8fafc; border-radius: 12px;">
       <div style="background: #1e293b; padding: 20px 24px; border-radius: 8px 8px 0 0; text-align: center;">
@@ -172,13 +187,13 @@ export async function notifyOwnerNewUser(params: NewUserParams): Promise<void> {
         <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
           <tr style="border-bottom: 1px solid #f1f5f9;">
             <td style="padding: 8px 4px; color: #64748b; font-size: 13px; width: 100px;">שם</td>
-            <td style="padding: 8px 4px; color: #1e293b; font-weight: 600;">${name}</td>
+            <td style="padding: 8px 4px; color: #1e293b; font-weight: 600;">${safeName}</td>
           </tr>
           <tr style="border-bottom: 1px solid #f1f5f9;">
             <td style="padding: 8px 4px; color: #64748b; font-size: 13px;">אימייל</td>
-            <td style="padding: 8px 4px; color: #1e293b;">${email}</td>
+            <td style="padding: 8px 4px; color: #1e293b;">${safeEmail}</td>
           </tr>
-          ${phone ? `<tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px 4px; color: #64748b; font-size: 13px;">טלפון</td><td style="padding: 8px 4px; color: #1e293b;">${phone}</td></tr>` : ""}
+          ${safePhone ? `<tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px 4px; color: #64748b; font-size: 13px;">טלפון</td><td style="padding: 8px 4px; color: #1e293b;">${safePhone}</td></tr>` : ""}
           <tr style="border-bottom: 1px solid #f1f5f9;">
             <td style="padding: 8px 4px; color: #64748b; font-size: 13px;">מסלול</td>
             <td style="padding: 8px 4px; color: #f97316; font-weight: 600;">${planLabel}</td>

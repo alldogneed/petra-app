@@ -13,7 +13,11 @@ export async function GET(request: NextRequest) {
       id: true,
       name: true,
       tier: true,
+      phone: true,
       createdAt: true,
+      trialEndsAt: true,
+      subscriptionStatus: true,
+      subscriptionEndsAt: true,
       members: {
         where: { role: "owner", isActive: true },
         take: 1,
@@ -56,6 +60,17 @@ export async function GET(request: NextRequest) {
     const customerCount = customerMap[b.id] ?? 0;
     const appointmentCount = apptMap[b.id] ?? 0;
 
+    // Trial status
+    const trialActive = b.trialEndsAt ? new Date(b.trialEndsAt) > now : false;
+    const trialDaysLeft = trialActive && b.trialEndsAt
+      ? Math.ceil((new Date(b.trialEndsAt).getTime() - now.getTime()) / 86400000)
+      : null;
+
+    // Subscription status
+    const subDaysLeft = b.subscriptionEndsAt
+      ? Math.ceil((new Date(b.subscriptionEndsAt).getTime() - now.getTime()) / 86400000)
+      : null;
+
     // Churn risk heuristic
     let churnRisk: "high" | "medium" | "healthy";
     if (
@@ -76,6 +91,7 @@ export async function GET(request: NextRequest) {
       businessId: b.id,
       businessName: b.name,
       tier: b.tier,
+      phone: b.phone ?? null,
       createdAt: b.createdAt,
       daysActive,
       ownerName: owner?.name ?? null,
@@ -84,6 +100,10 @@ export async function GET(request: NextRequest) {
       lastLoginDaysAgo,
       customerCount,
       appointmentCount,
+      trialActive,
+      trialDaysLeft,
+      subscriptionStatus: b.subscriptionStatus ?? null,
+      subDaysLeft,
       churnRisk,
     };
   });

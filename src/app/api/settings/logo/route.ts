@@ -35,7 +35,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+    const MIME_TO_EXT: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+      "image/gif": "gif",
+    };
+    const ext = MIME_TO_EXT[file.type] || "png";
     const fileId = crypto.randomBytes(12).toString("hex");
     const blobPath = `logos/${authResult.businessId}/${fileId}.${ext}`;
     const blob = await put(blobPath, file, { access: "public" });

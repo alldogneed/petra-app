@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards";
 import { PLATFORM_PERMS, PLATFORM_ROLES } from "@/lib/permissions";
 import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
+import { z } from "zod";
 
 export async function GET(
   request: NextRequest,
@@ -70,6 +71,11 @@ export async function GET(
   return NextResponse.json({ ...user, totalActivity });
 }
 
+const PatchSchema = z.object({
+  isActive: z.boolean().optional(),
+  platformRole: z.enum(["super_admin", "admin", "support"]).optional().nullable(),
+}).strict();
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -77,13 +83,37 @@ export async function PATCH(
   try {
   const guard = await requirePlatformPermission(request, PLATFORM_PERMS.USERS_WRITE);
   if (isGuardError(guard)) return guard;
+  const { session } = guard;
 
-  const body = await request.json();
-  const { isActive, platformRole } = body;
+  // Prevent self-modification of role/active status
+  if (params.id === session.user.id) {
+    return NextResponse.json(
+      { error: "Cannot modify your own account via this endpoint" },
+      { status: 400 }
+    );
+  }
+
+  let body: z.infer<typeof PatchSchema>;
+  try {
+    body = PatchSchema.parse(await request.json());
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  // Only super_admin can grant super_admin role
+  if (
+    body.platformRole === PLATFORM_ROLES.SUPER_ADMIN &&
+    session.user.platformRole !== PLATFORM_ROLES.SUPER_ADMIN
+  ) {
+    return NextResponse.json(
+      { error: "Only super_admin can grant super_admin role" },
+      { status: 403 }
+    );
+  }
 
   const data: Record<string, unknown> = {};
-  if (typeof isActive === "boolean") data.isActive = isActive;
-  if (platformRole !== undefined) data.platformRole = platformRole || null;
+  if (typeof body.isActive === "boolean") data.isActive = body.isActive;
+  if (body.platformRole !== undefined) data.platformRole = body.platformRole || null;
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });

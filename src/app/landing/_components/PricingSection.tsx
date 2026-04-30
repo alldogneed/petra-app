@@ -37,10 +37,10 @@ const PLANS: {
       "ניהול משימות",
     ],
     notIncluded: [
-      "תזכורות WhatsApp ללקוחות",
-      "Google Calendar סנכרון",
-      "אנליטיקס ודוחות",
-      "לינקי תשלום ללקוחות",
+      "תזכורות WhatsApp אוטומטיות",
+      "סנכרון Google Calendar",
+      "דוחות ואנליטיקס",
+      "שליחת בקשת תשלום",
     ],
   },
   {
@@ -50,18 +50,18 @@ const PLANS: {
     price: 99,
     badge: null,
     highlight: false,
-    description: "ניהול מקצועי יומיומי — יומן, תורים, תשלומים ותזכורות",
+    description: "ניהול מקצועי יומיומי — יומן, תורים, תשלומים ובקשות תשלום",
     features: [
       { text: "לקוחות ותורים ללא הגבלה", star: true },
       { text: "יומן תורים ופגישות + Google Calendar", star: true },
-      { text: "תזכורות WhatsApp אוטומטיות", star: true },
-      { text: "בקשת תשלום + טפסי קליטה דיגיטליים", star: true },
+      { text: "שליחת בקשת תשלום + טפסי קליטה דיגיטליים", star: true },
       { text: "תיק עבודות לפני/אחרי", star: true },
       "משתמש יחיד (ללא ניהול צוות)",
       "דוחות ואנליטיקס",
       "תמיכה אישית בוואטסאפ",
     ],
     notIncluded: [
+      "תזכורות WhatsApp אוטומטיות",
       "אוטומציות WhatsApp מתקדמות",
     ],
   },
@@ -80,6 +80,7 @@ const PLANS: {
       { text: "מודול אילוף מתקדם", star: true },
       { text: "הזמנות אונליין — לקוחות קובעים לבד 24/7", star: true },
       { text: "אוטומציות WhatsApp מתקדמות", star: true },
+      { text: "חתימת חוזים דיגיטלית", star: true },
       { text: "דוחות כספיים + ייצוא Excel", star: true },
       { text: "תמיכה אישית מועדפת בוואטסאפ", star: true },
     ],
@@ -107,7 +108,6 @@ const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
     category: "יומן ותורים",
     features: [
       { name: "יומן תורים ופגישות", free: "עד 20 תורים", basic: true, pro: true },
-      { name: "מערכת ניהול תורים", free: "עד 20 תורים", basic: true, pro: true },
       { name: "הזמנות אונליין (לקוח קובע לבד)", free: false, basic: false, pro: true },
       { name: "סנכרון Google Calendar", free: false, basic: true, pro: true },
     ],
@@ -115,7 +115,7 @@ const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
   {
     category: "WhatsApp ותקשורת",
     features: [
-      { name: "תזכורות WhatsApp", free: false, basic: true, pro: true },
+      { name: "תזכורות WhatsApp אוטומטיות", free: false, basic: false, pro: true },
       { name: "בקשת תשלום WhatsApp", free: false, basic: true, pro: true },
       { name: "אוטומציות WhatsApp מתקדמות", free: false, basic: false, pro: true },
       { name: "הודעות מותאמות אישית", free: false, basic: false, pro: true },
@@ -135,10 +135,10 @@ const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
     category: "פיננסים ודוחות",
     features: [
       { name: "שליחת בקשת תשלום", free: false, basic: true, pro: true },
+      { name: "חתימת חוזים דיגיטלית", free: false, basic: false, pro: true },
       { name: "ניהול הזמנות", free: "עד 15", basic: true, pro: true },
-      { name: "דוחות כספיים + ייצוא Excel", free: false, basic: false, pro: true },
       { name: "דוחות ואנליטיקס", free: false, basic: true, pro: true },
-      { name: "ייצוא Excel", free: false, basic: false, pro: true },
+      { name: "דוחות כספיים + ייצוא Excel", free: false, basic: false, pro: true },
     ],
   },
   {
@@ -168,7 +168,7 @@ const FAQ = [
   },
   {
     q: "מה ההבדל בין Basic ל-Pro?",
-    a: "Basic מיועד לגרומרים ומאלפים עצמאיים — משתמש יחיד עם יומן, WhatsApp, טפסי קליטה ותיק עבודות לפני/אחרי. Pro מיועד לפנסיונים ומרכזי אילוף — כולל ניהול פנסיון וחדרים, הזמנות אונליין 24/7, ניהול צוות עם הרשאות, מודול אילוף מתקדם ואוטומציות WhatsApp מתקדמות.",
+    a: "Basic מיועד לגרומרים ומאלפים עצמאיים — משתמש יחיד עם יומן, שליחת בקשת תשלום בוואטסאפ, טפסי קליטה ותיק עבודות לפני/אחרי. Pro מיועד לפנסיונים ומרכזי אילוף — כולל תזכורות WhatsApp אוטומטיות, ניהול פנסיון וחדרים, הזמנות אונליין 24/7, ניהול צוות עם הרשאות, מודול אילוף מתקדם ואוטומציות WhatsApp מתקדמות.",
   },
   {
     q: "האם פטרה עובדת בנייד?",
@@ -176,7 +176,7 @@ const FAQ = [
   },
   {
     q: "איך עובדות תזכורות WhatsApp אוטומטיות?",
-    a: "פטרה שולחת תזכורות WhatsApp ללקוחות אוטומטית לפני תורים, אישורי כניסה/יציאה מפנסיון ועוד — דרך ה-API הרשמי של Meta. ניתן לקבוע כמה שעות מראש לשלוח (24/48/72/96 שעות) ולהתאים את נוסח ההודעה. הפיצ'ר זמין במסלול Basic ומעלה.",
+    a: "פטרה שולחת תזכורות WhatsApp ללקוחות אוטומטית לפני תורים, אישורי כניסה/יציאה מפנסיון ועוד — דרך ה-API הרשמי של Meta. ניתן לקבוע כמה שעות מראש לשלוח (24/48/72/96 שעות) ולהתאים את נוסח ההודעה. הפיצ'ר זמין במסלול Pro בלבד.",
   },
   {
     q: "האם לקוחות יכולים לקבוע תורים לבד?",
@@ -414,7 +414,7 @@ export function PricingSection() {
           <div className="flex-1 min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-600 mb-1">ייחודי בישראל</p>
             <h3 className="text-lg font-bold text-slate-900 mb-1 leading-snug">
-              ארגון כלבי שירות? יש לנו פתרון ייעודי עבורך
+              מרכז הכשרת כלבי שירות? יש לנו פתרון ייעודי עבורך
             </h3>
             <p className="text-slate-500 text-sm leading-relaxed">
               פלטפורמה מלאה לניהול זכאים, הכשרות ועמידה בדרישות משרד החקלאות.

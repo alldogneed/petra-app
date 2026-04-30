@@ -22,8 +22,8 @@ export async function POST(
   if (isGuardError(authResult)) return authResult;
 
   const [appt, biz] = await Promise.all([
-    prisma.appointment.findUnique({
-      where: { id: params.id },
+    prisma.appointment.findFirst({
+      where: { id: params.id, businessId: authResult.businessId },
       include: {
         customer: { select: { name: true, phone: true } },
         service: { select: { name: true } },
@@ -45,7 +45,7 @@ export async function POST(
     );
   }
 
-  if (!appt || appt.businessId !== authResult.businessId) {
+  if (!appt) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

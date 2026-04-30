@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Users, Activity, Loader2, TrendingUp, Clock, PauseCircle, CalendarCheck } from "lucide-react";
+import { Building2, Users, Activity, Loader2, TrendingUp, Clock, PauseCircle, CalendarCheck, AlertTriangle, Zap } from "lucide-react";
 import Link from "next/link";
 import { fetchJSON, cn } from "@/lib/utils";
 
@@ -10,6 +10,13 @@ interface TierBreakdownRow {
   count: number;
   pricePerMonth: number;
   contribution: number;
+}
+
+interface RecentPayment {
+  id: string;
+  eventType: string;
+  createdAt: string;
+  business: { name: string } | null;
 }
 
 interface Stats {
@@ -23,6 +30,9 @@ interface Stats {
   trialCount: number;
   tierBreakdown: TierBreakdownRow[];
   gcalConnectedCount: number;
+  activeSubscriptions: number;
+  expiringIn7Days: number;
+  recentPayments: RecentPayment[];
 }
 
 const TIER_LABEL: Record<string, string> = {
@@ -54,35 +64,6 @@ export default function OwnerDashboard() {
     queryFn: () => fetchJSON("/api/owner/audit-logs?limit=10"),
   });
 
-  const statCards = stats
-    ? [
-        {
-          title: "סה״כ עסקים",
-          value: stats.totalTenants,
-          sub: `${stats.activeTenants} פעילים · ${stats.suspendedTenants} מושהים`,
-          icon: Building2,
-          color: "bg-blue-500",
-          href: "/owner/tenants",
-        },
-        {
-          title: "משתמשי פלטפורמה",
-          value: stats.totalUsers,
-          sub: `${stats.activeUsers} פעילים`,
-          icon: Users,
-          color: "bg-violet-500",
-          href: "/owner/users",
-        },
-        {
-          title: "אירועי ביקורת (24ש׳)",
-          value: stats.recentAuditLogs,
-          sub: "24 שעות אחרונות",
-          icon: Activity,
-          color: "bg-orange-500",
-          href: "/owner/audit-logs",
-        },
-      ]
-    : [];
-
   return (
     <div>
       <h1 className="page-title mb-6">דשבורד פלטפורמה</h1>
@@ -94,6 +75,23 @@ export default function OwnerDashboard() {
         </div>
       ) : stats && (
         <div className="mb-6 space-y-4">
+
+          {/* Expiring-soon alert */}
+          {stats.expiringIn7Days > 0 && (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
+              <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-semibold text-amber-800">
+                  {stats.expiringIn7Days} עסקים עם מנוי שיפוג תוך 7 ימים
+                </span>
+                <span className="text-xs text-amber-600 mr-2">— כדאי לבדוק ולחדש</span>
+              </div>
+              <Link href="/owner/tenants" className="text-xs font-semibold text-amber-700 hover:text-amber-900 flex-shrink-0">
+                צפה ←
+              </Link>
+            </div>
+          )}
+
           {/* MRR stat cards row */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
             <div className="card p-5">
@@ -147,60 +145,117 @@ export default function OwnerDashboard() {
             </div>
           </div>
 
-          {/* Tier breakdown table */}
-          {stats.tierBreakdown.length > 0 && (
-            <div className="card overflow-hidden">
-              <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-orange-500" />
-                <h2 className="font-semibold text-slate-900 text-sm">פירוט לפי מנוי</h2>
+          {/* Bottom row: tier breakdown + recent activations */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-4">
+
+            {/* Tier breakdown table */}
+            {stats.tierBreakdown.length > 0 && (
+              <div className="card overflow-hidden">
+                <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-orange-500" />
+                  <h2 className="font-semibold text-slate-900 text-sm">פירוט לפי מנוי</h2>
+                </div>
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="table-header-cell">מנוי</th>
+                      <th className="table-header-cell text-center">עסקים</th>
+                      <th className="table-header-cell text-center">מחיר/חודש</th>
+                      <th className="table-header-cell text-center">תרומה ל-MRR</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {stats.tierBreakdown
+                      .sort((a, b) => b.contribution - a.contribution)
+                      .map((row) => (
+                        <tr key={row.tier} className="hover:bg-slate-50/50">
+                          <td className="table-cell">
+                            <span className="font-medium text-sm text-slate-800">
+                              {TIER_LABEL[row.tier] ?? row.tier}
+                            </span>
+                          </td>
+                          <td className="table-cell text-center text-sm">{row.count}</td>
+                          <td className="table-cell text-center text-sm">₪{row.pricePerMonth}</td>
+                          <td className="table-cell text-center">
+                            <span className="font-semibold text-sm text-green-700">
+                              ₪{row.contribution.toLocaleString()}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    <tr className="bg-slate-50 border-t-2 border-slate-200">
+                      <td className="table-cell font-bold text-slate-900">סה״כ MRR</td>
+                      <td className="table-cell text-center font-bold">{stats.activeTenants}</td>
+                      <td className="table-cell" />
+                      <td className="table-cell text-center">
+                        <span className="font-bold text-green-700">₪{stats.mrr.toLocaleString()}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="table-header-cell">מנוי</th>
-                    <th className="table-header-cell text-center">עסקים</th>
-                    <th className="table-header-cell text-center">מחיר/חודש</th>
-                    <th className="table-header-cell text-center">תרומה ל-MRR</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {stats.tierBreakdown
-                    .sort((a, b) => b.contribution - a.contribution)
-                    .map((row) => (
-                      <tr key={row.tier} className="hover:bg-slate-50/50">
-                        <td className="table-cell">
-                          <span className="font-medium text-sm text-slate-800">
-                            {TIER_LABEL[row.tier] ?? row.tier}
-                          </span>
-                        </td>
-                        <td className="table-cell text-center text-sm">{row.count}</td>
-                        <td className="table-cell text-center text-sm">₪{row.pricePerMonth}</td>
-                        <td className="table-cell text-center">
-                          <span className="font-semibold text-sm text-green-700">
-                            ₪{row.contribution.toLocaleString()}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  <tr className="bg-slate-50 border-t-2 border-slate-200">
-                    <td className="table-cell font-bold text-slate-900">סה״כ MRR</td>
-                    <td className="table-cell text-center font-bold">{stats.activeTenants}</td>
-                    <td className="table-cell" />
-                    <td className="table-cell text-center">
-                      <span className="font-bold text-green-700">₪{stats.mrr.toLocaleString()}</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
+            )}
+
+            {/* Recent activations panel */}
+            {stats.recentPayments.length > 0 && (
+              <div className="card overflow-hidden">
+                <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-green-500" />
+                  <h2 className="font-semibold text-slate-900 text-sm">הפעלות אחרונות</h2>
+                </div>
+                <div className="divide-y divide-slate-50">
+                  {stats.recentPayments.slice(0, 8).map((p) => (
+                    <div key={p.id} className="px-4 py-2.5 flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-slate-800 truncate">
+                          {p.business?.name ?? "—"}
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          {new Date(p.createdAt).toLocaleDateString("he-IL", { day: "numeric", month: "short" })}
+                        </div>
+                      </div>
+                      <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">
+                        הופעל
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Other stat cards */}
       {!statsLoading && stats && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          {statCards.map((card) => {
+          {[
+            {
+              title: "סה״כ עסקים",
+              value: stats.totalTenants,
+              sub: `${stats.activeTenants} פעילים · ${stats.suspendedTenants} מושהים`,
+              icon: Building2,
+              color: "bg-blue-500",
+              href: "/owner/tenants",
+            },
+            {
+              title: "משתמשי פלטפורמה",
+              value: stats.totalUsers,
+              sub: `${stats.activeUsers} פעילים`,
+              icon: Users,
+              color: "bg-violet-500",
+              href: "/owner/users",
+            },
+            {
+              title: "אירועי ביקורת (24ש׳)",
+              value: stats.recentAuditLogs,
+              sub: "24 שעות אחרונות",
+              icon: Activity,
+              color: "bg-orange-500",
+              href: "/owner/audit-logs",
+            },
+          ].map((card) => {
             const Icon = card.icon;
             return (
               <Link key={card.title} href={card.href}>

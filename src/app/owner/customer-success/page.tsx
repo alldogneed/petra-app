@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -11,12 +12,15 @@ import {
   Calendar,
   Clock,
   TrendingUp,
+  MessageCircle,
+  Phone,
 } from "lucide-react";
 
 interface CSRow {
   businessId: string;
   businessName: string;
   tier: string;
+  phone: string | null;
   createdAt: string;
   daysActive: number;
   ownerName: string | null;
@@ -25,6 +29,10 @@ interface CSRow {
   lastLoginDaysAgo: number | null;
   customerCount: number;
   appointmentCount: number;
+  trialActive: boolean;
+  trialDaysLeft: number | null;
+  subscriptionStatus: string | null;
+  subDaysLeft: number | null;
   churnRisk: "high" | "medium" | "healthy";
 }
 
@@ -64,7 +72,44 @@ function RiskBadge({ risk }: { risk: "high" | "medium" | "healthy" }) {
   );
 }
 
+function TrialBadge({ row }: { row: CSRow }) {
+  if (row.trialActive && row.trialDaysLeft !== null) {
+    const urgent = row.trialDaysLeft <= 3;
+    return (
+      <span className={cn(
+        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold",
+        urgent ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"
+      )}>
+        <Clock className="w-3 h-3" />
+        {row.trialDaysLeft}י׳
+      </span>
+    );
+  }
+  if (row.subscriptionStatus === "active" && row.subDaysLeft !== null && row.subDaysLeft <= 14) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 text-xs font-semibold">
+        <AlertCircle className="w-3 h-3" />
+        מנוי {row.subDaysLeft}י׳
+      </span>
+    );
+  }
+  if (row.subscriptionStatus === "active") {
+    return <span className="text-xs text-green-400">מנוי ✓</span>;
+  }
+  return <span className="text-xs text-slate-500">—</span>;
+}
+
+function toWhatsApp(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  const normalized = digits.startsWith("0") ? "972" + digits.slice(1) : digits;
+  return `https://wa.me/${normalized}`;
+}
+
+type RiskFilter = "all" | "high" | "medium" | "healthy";
+
 export default function CustomerSuccessPage() {
+  const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
+
   const { data, isLoading } = useQuery<CSData>({
     queryKey: ["owner-cs"],
     queryFn: () => fetch("/api/owner/customer-success").then((r) => r.json()),
@@ -72,7 +117,18 @@ export default function CustomerSuccessPage() {
   });
 
   const stats = data?.stats;
-  const rows = data?.rows ?? [];
+  const allRows = data?.rows ?? [];
+
+  const rows = riskFilter === "all"
+    ? allRows
+    : allRows.filter((r) => r.churnRisk === riskFilter);
+
+  const TABS: { key: RiskFilter; label: string; count: number | undefined; color: string }[] = [
+    { key: "all",     label: "הכל",       count: stats?.total,    color: "text-slate-300" },
+    { key: "high",    label: "סיכון גבוה", count: stats?.highRisk, color: "text-red-400" },
+    { key: "medium",  label: "מעקב",      count: stats?.medium,   color: "text-amber-400" },
+    { key: "healthy", label: "פעילים",    count: stats?.healthy,  color: "text-green-400" },
+  ];
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -84,10 +140,10 @@ export default function CustomerSuccessPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "סה״כ עסקים", value: stats?.total ?? "—", icon: TrendingUp, color: "text-cyan-400" },
-          { label: "סיכון גבוה", value: stats?.highRisk ?? "—", icon: AlertTriangle, color: "text-red-400" },
-          { label: "מעקב", value: stats?.medium ?? "—", icon: AlertCircle, color: "text-amber-400" },
-          { label: "פעילים", value: stats?.healthy ?? "—", icon: CheckCircle, color: "text-green-400" },
+          { label: "סה״כ עסקים",  value: stats?.total    ?? "—", icon: TrendingUp,   color: "text-cyan-400" },
+          { label: "סיכון גבוה",   value: stats?.highRisk ?? "—", icon: AlertTriangle, color: "text-red-400" },
+          { label: "מעקב",        value: stats?.medium   ?? "—", icon: AlertCircle,   color: "text-amber-400" },
+          { label: "פעילים",      value: stats?.healthy  ?? "—", icon: CheckCircle,   color: "text-green-400" },
         ].map((s) => (
           <div
             key={s.label}
@@ -103,6 +159,29 @@ export default function CustomerSuccessPage() {
         ))}
       </div>
 
+      {/* Risk filter tabs */}
+      <div className="flex items-center gap-1 p-1 rounded-xl w-fit" style={{ background: "#0D0D14", border: "1px solid #1E1E2E" }}>
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setRiskFilter(tab.key)}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+              riskFilter === tab.key
+                ? "bg-white/10 text-white"
+                : "text-slate-500 hover:text-slate-300"
+            )}
+          >
+            <span>{tab.label}</span>
+            {tab.count !== undefined && (
+              <span className={cn("text-xs font-bold", riskFilter === tab.key ? tab.color : "text-slate-600")}>
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* Table */}
       <div className="rounded-xl overflow-hidden" style={{ background: "#0D0D14", border: "1px solid #1E1E2E" }}>
         {isLoading ? (
@@ -112,7 +191,7 @@ export default function CustomerSuccessPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: "1px solid #1E1E2E" }}>
-                  {["עסק", "מסלול", "בעלים", "פעיל מ", "כניסה אחרונה", "לקוחות", "תורים", "סיכון נטישה"].map((h) => (
+                  {["עסק", "מסלול", "בעלים", "פעיל מ", "כניסה אחרונה", "לקוחות", "תורים", "מנוי/טריאל", "יצירת קשר", "סיכון נטישה"].map((h) => (
                     <th
                       key={h}
                       className="px-4 py-3 text-right text-xs font-semibold text-slate-500 whitespace-nowrap"
@@ -129,6 +208,7 @@ export default function CustomerSuccessPage() {
                     className="transition-colors hover:bg-white/[0.02]"
                     style={{ borderBottom: "1px solid #1A1A2A" }}
                   >
+                    {/* Business */}
                     <td className="px-4 py-3">
                       <Link
                         href={`/owner/tenants/${row.businessId}`}
@@ -137,6 +217,8 @@ export default function CustomerSuccessPage() {
                         {row.businessName}
                       </Link>
                     </td>
+
+                    {/* Tier */}
                     <td className="px-4 py-3">
                       <span
                         className={cn(
@@ -147,18 +229,24 @@ export default function CustomerSuccessPage() {
                         {TIER_LABELS[row.tier]?.label ?? row.tier}
                       </span>
                     </td>
+
+                    {/* Owner */}
                     <td className="px-4 py-3">
                       <div className="text-slate-300 font-medium">{row.ownerName ?? "—"}</div>
                       {row.ownerEmail && (
                         <div className="text-xs text-slate-500">{row.ownerEmail}</div>
                       )}
                     </td>
+
+                    {/* Days active */}
                     <td className="px-4 py-3 text-slate-400 whitespace-nowrap">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 text-slate-600" />
                         {row.daysActive} ימים
                       </div>
                     </td>
+
+                    {/* Last login */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       {row.lastLoginAt ? (
                         <div
@@ -182,13 +270,53 @@ export default function CustomerSuccessPage() {
                         <span className="text-slate-600 text-xs">לא התחבר</span>
                       )}
                     </td>
+
+                    {/* Customers */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 text-slate-300">
                         <Users className="w-3.5 h-3.5 text-slate-600" />
                         {row.customerCount}
                       </div>
                     </td>
+
+                    {/* Appointments */}
                     <td className="px-4 py-3 text-slate-400">{row.appointmentCount}</td>
+
+                    {/* Trial/Subscription */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <TrialBadge row={row} />
+                    </td>
+
+                    {/* Contact */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {row.phone && (
+                          <a
+                            href={toWhatsApp(row.phone)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`WhatsApp: ${row.phone}`}
+                            className="w-7 h-7 rounded-lg bg-[#25D366]/10 flex items-center justify-center hover:bg-[#25D366]/20 transition-colors"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-[#25D366]" />
+                          </a>
+                        )}
+                        {row.ownerEmail && (
+                          <a
+                            href={`mailto:${row.ownerEmail}`}
+                            title={`מייל: ${row.ownerEmail}`}
+                            className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center hover:bg-blue-500/20 transition-colors"
+                          >
+                            <Phone className="w-3.5 h-3.5 text-blue-400" />
+                          </a>
+                        )}
+                        {!row.phone && !row.ownerEmail && (
+                          <span className="text-slate-600 text-xs">—</span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Churn risk */}
                     <td className="px-4 py-3">
                       <RiskBadge risk={row.churnRisk} />
                     </td>
@@ -196,7 +324,7 @@ export default function CustomerSuccessPage() {
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-slate-500">
+                    <td colSpan={10} className="px-4 py-10 text-center text-slate-500">
                       אין נתונים
                     </td>
                   </tr>

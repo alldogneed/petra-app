@@ -9,10 +9,12 @@
 
   html {
     direction: rtl;
+    overflow-x: clip;
   }
 
   body {
     @apply bg-petra-bg text-petra-text font-sans antialiased;
+    overflow-x: clip;
   }
 
   ::-webkit-scrollbar {

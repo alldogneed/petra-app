@@ -50,15 +50,17 @@ export default function TenantsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [tierFilter, setTierFilter] = useState("");
   const [page, setPage] = useState(1);
   const [showCreate, setShowCreate] = useState(false);
 
   const { data, isLoading, error } = useQuery<{ tenants: Tenant[]; total: number }>({
-    queryKey: ["owner", "tenants", { search, statusFilter, page }],
+    queryKey: ["owner", "tenants", { search, statusFilter, tierFilter, page }],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), limit: "20" });
       if (search) params.set("search", search);
       if (statusFilter) params.set("status", statusFilter);
+      if (tierFilter) params.set("tier", tierFilter);
       return fetchJSON(`/api/owner/tenants?${params}`);
     },
   });
@@ -112,6 +114,16 @@ export default function TenantsPage() {
           <option value="suspended">מושהה</option>
           <option value="closed">סגור</option>
         </select>
+        <select
+          value={tierFilter}
+          onChange={(e) => { setTierFilter(e.target.value); setPage(1); }}
+          className="input w-auto"
+        >
+          <option value="">כל המנויים</option>
+          {TIERS.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* Error */}
@@ -156,6 +168,9 @@ export default function TenantsPage() {
                         </Link>
                         {tenant.email && (
                           <div className="text-xs text-slate-400">{tenant.email}</div>
+                        )}
+                        {tenant.phone && (
+                          <div className="text-xs text-slate-400">{tenant.phone}</div>
                         )}
                       </div>
                     </div>

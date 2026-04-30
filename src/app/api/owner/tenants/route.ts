@@ -20,11 +20,15 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") ?? "";
   const status = searchParams.get("status") ?? undefined;
+  const tier = searchParams.get("tier") ?? undefined;
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
   const limit = Math.min(100, parseInt(searchParams.get("limit") ?? "20"));
 
+  const VALID_TIERS = ["free", "basic", "pro", "groomer", "groomer_plus", "service_dog"];
+
   const where: Record<string, unknown> = {};
   if (status) where.status = status;
+  if (tier && VALID_TIERS.includes(tier)) where.tier = tier;
   if (search) {
     where.OR = [
       { name: { contains: search } },
