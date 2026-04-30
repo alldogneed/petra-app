@@ -108,7 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queryClient.clear();
     const data = await fetch("/api/auth/me").then((r) => (r.ok ? r.json() : null));
     setUser(data?.user || null);
-    router.push("/owner/tenants");
+    // Send super_admin back to Master Admin home; the tenants list is one click away from there.
+    router.push("/admin");
     router.refresh();
   }, [router, queryClient]);
 

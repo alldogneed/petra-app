@@ -39,9 +39,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
           <button
             onClick={exitImpersonation}
-            className="underline font-semibold hover:text-red-100 transition-colors"
+            className="bg-white/15 hover:bg-white/25 px-3 py-1 rounded-md font-semibold transition-colors flex items-center gap-1.5"
           >
-            יציאה מהתחזות ←
+            ← חזרה ל-Master Admin
           </button>
         </div>
       )}
