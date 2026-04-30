@@ -85,7 +85,7 @@ const navEntries: NavEntry[] = [
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
   { name: "לקוחות", href: "/customers", icon: Users, minRole: "manager" },
   { name: "מערכת מכירות", href: "/leads", icon: Target, minRole: "manager", lockedFeature: "leads" },
-  { name: "ניהול משימות", href: "/tasks", icon: ListTodo, isNew: true },
+  { name: "ניהול משימות", href: "/tasks", icon: ListTodo },
   { name: "ניהול תורים אונליין", href: "/scheduler", icon: CalendarCheck, minRole: "manager", lockedFeature: "online_bookings" },
   { name: "פנסיון", href: "/boarding", icon: Hotel, lockedFeature: "boarding", hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "פיננסים", href: "/pricing", icon: Wallet, minRole: "manager" },
