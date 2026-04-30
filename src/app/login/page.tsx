@@ -239,34 +239,34 @@ export default function LoginPage() {
       >
         <span className="inline-flex items-center gap-2 self-start px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/15 backdrop-blur-sm border border-white/20">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          1,840+ עסקים בישראל
+          30+ עסקים פעילים בישראל
         </span>
 
         <div>
           <p className="text-[28px] font-semibold tracking-tight leading-snug max-w-md">
             <span className="text-brand-300 font-bold">&ldquo;</span>
-            פטרה הוציאה את הניהול היומי מהראש שלי. תורים, חוזים, חיובים — הכל זורם, ויש לי זמן לכלבים
+            פטרה שינתה לי את החיים. כל הלקוחות, התוכניות, התזכורות — הכל במקום אחד. חסכתי 2 שעות ביום לפחות
             <span className="text-brand-300 font-bold">.&rdquo;</span>
           </p>
           <div className="mt-6 flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-brand-300 text-slate-900 flex items-center justify-center font-bold">
-              דר
+              יע
             </div>
             <div>
-              <div className="text-sm font-semibold">דורית רוזנברג</div>
-              <div className="text-xs text-white/70 mt-0.5">בעלת פנסיון &quot;ביתי&quot; · רעננה</div>
+              <div className="text-sm font-semibold">יעל כהן</div>
+              <div className="text-xs text-white/70 mt-0.5">מאלפת כלבים בכירה · סטודיו קנין, תל אביב</div>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-3 gap-4 pt-8 border-t border-white/15">
           <div>
-            <div className="text-2xl font-bold tracking-tight">1.8K+</div>
+            <div className="text-2xl font-bold tracking-tight">30+</div>
             <div className="text-[11px] text-white/70 mt-0.5 uppercase tracking-wider">עסקים פעילים</div>
           </div>
           <div>
-            <div className="text-2xl font-bold tracking-tight">24K</div>
-            <div className="text-[11px] text-white/70 mt-0.5 uppercase tracking-wider">תורים בחודש</div>
+            <div className="text-2xl font-bold tracking-tight">5,000+</div>
+            <div className="text-[11px] text-white/70 mt-0.5 uppercase tracking-wider">תורים שנקבעו</div>
           </div>
           <div>
             <div className="text-2xl font-bold tracking-tight">98%</div>
