@@ -916,8 +916,7 @@ function BookingTab() {
 function PaymentsTab() {
   return (
     <div className="space-y-10">
-      <InvoicingTab />
-      <div className="border-t border-slate-100" />
+      {/* InvoicingTab (Morning) hidden — feature under construction */}
       <ContractsTab />
     </div>
   );
