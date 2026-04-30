@@ -64,10 +64,19 @@ interface NavGroup {
   minRole?: "owner" | "manager" | "user" | "volunteer";
 }
 
-type NavEntry = NavItem | NavGroup;
+interface NavEyebrow {
+  /** Section label rendered as an uppercase eyebrow above the next group of items. */
+  eyebrow: string;
+}
+
+type NavEntry = NavItem | NavGroup | NavEyebrow;
 
 function isGroup(entry: NavEntry): entry is NavGroup {
   return "children" in entry;
+}
+
+function isEyebrow(entry: NavEntry): entry is NavEyebrow {
+  return "eyebrow" in entry;
 }
 
 const ROLE_LEVEL: Record<string, number> = { owner: 0, admin: 0, manager: 1, user: 2, volunteer: 3 };
@@ -82,17 +91,22 @@ function canSee(item: { minRole?: string }, role: string | null, isAdmin?: boole
 }
 
 const navEntries: NavEntry[] = [
+  { eyebrow: "תפריט ראשי" },
   { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
   { name: "לקוחות", href: "/customers", icon: Users, minRole: "manager" },
   { name: "מערכת מכירות", href: "/leads", icon: Target, minRole: "manager", lockedFeature: "leads" },
   { name: "ניהול משימות", href: "/tasks", icon: ListTodo },
   { name: "ניהול תורים אונליין", href: "/scheduler", icon: CalendarCheck, minRole: "manager", lockedFeature: "online_bookings" },
+  { name: "יומן", href: "/calendar", icon: Calendar, minRole: "manager" },
+
+  { eyebrow: "מודולים" },
   { name: "פנסיון", href: "/boarding", icon: Hotel, lockedFeature: "boarding", hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "פיננסים", href: "/pricing", icon: Wallet, minRole: "manager" },
   { name: "ניהול כלבי שירות", href: "/service-dogs", icon: Shield, lockedFeature: "service_dogs", hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "ניהול תהליכי אילוף", href: "/training", icon: Dog, hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "חיות מחמד", href: "/pets", icon: PawPrint, minRole: "manager", lockedFeature: "pets_advanced" },
-  { name: "יומן", href: "/calendar", icon: Calendar, minRole: "manager" },
+
+  { eyebrow: "ניהול" },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner", lockedFeature: "analytics" },
   { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner", lockedFeature: "staff_management" },
   { name: "הגדרות", href: "/settings", icon: Settings, minRole: "owner" },
@@ -199,10 +213,10 @@ export function Sidebar({
   const [lockedSectionOpen, setLockedSectionOpen] = useState(false);
 
   const visibleEntries = navEntries
-    .filter((entry) => canSee(entry, user?.businessRole ?? null, user?.isAdmin))
-    .filter((entry) => !isGroup(entry) ? !isItemHidden(entry as NavItem) : true);
-  const mainNavEntries = visibleEntries.filter(e => isGroup(e) || !isItemLocked(e as NavItem));
-  const lockedNavEntries = visibleEntries.filter(e => !isGroup(e) && isItemLocked(e as NavItem)) as NavItem[];
+    .filter((entry) => isEyebrow(entry) || canSee(entry, user?.businessRole ?? null, user?.isAdmin))
+    .filter((entry) => isGroup(entry) || isEyebrow(entry) ? true : !isItemHidden(entry as NavItem));
+  const mainNavEntries = visibleEntries.filter(e => isEyebrow(e) || isGroup(e) || !isItemLocked(e as NavItem));
+  const lockedNavEntries = visibleEntries.filter(e => !isGroup(e) && !isEyebrow(e) && isItemLocked(e as NavItem)) as NavItem[];
 
   const { data: counters } = useQuery<{ openTasks: number; overdueFollowUps: number; pendingBookings: number; activeBoarding: number }>({
     queryKey: ["sidebar-counters"],
@@ -281,7 +295,7 @@ export function Sidebar({
           !locked && isActive
             ? {
                 background: "rgba(249,115,22,0.15)",
-                boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.2)",
+                boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.4)",
               }
             : undefined
         }
@@ -351,7 +365,7 @@ export function Sidebar({
             anyChildActive
               ? {
                   background: "rgba(249,115,22,0.15)",
-                  boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.2)",
+                  boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.4)",
                 }
               : undefined
           }
@@ -381,7 +395,7 @@ export function Sidebar({
             anyChildActive && !isOpen
               ? {
                   background: "rgba(249,115,22,0.15)",
-                  boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.2)",
+                  boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.4)",
                 }
               : undefined
           }
@@ -471,11 +485,25 @@ export function Sidebar({
         <nav ref={!isMobile ? navRef : undefined} aria-label="ניווט ראשי" className="sidebar-nav flex-1 px-3 py-2 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.3) transparent", overflowAnchor: "none" }}>
           <div className="space-y-0.5">
             {/* Main nav — unlocked items (expanded) or all items (collapsed) */}
-            {(isExpanded ? mainNavEntries : visibleEntries).map((entry) =>
-              isGroup(entry)
+            {(isExpanded ? mainNavEntries : visibleEntries.filter(e => !isEyebrow(e))).map((entry, idx) => {
+              if (isEyebrow(entry)) {
+                if (!isExpanded) return null;
+                return (
+                  <div
+                    key={`eyebrow-${idx}-${entry.eyebrow}`}
+                    className={cn(
+                      "px-3 text-[10px] font-bold uppercase tracking-[0.08em] text-white/40",
+                      idx === 0 ? "pt-1 pb-1.5" : "pt-4 pb-1.5"
+                    )}
+                  >
+                    {entry.eyebrow}
+                  </div>
+                );
+              }
+              return isGroup(entry)
                 ? renderGroup(entry, isMobile)
-                : renderNavItem(entry as NavItem, isMobile)
-            )}
+                : renderNavItem(entry as NavItem, isMobile);
+            })}
 
             {/* Locked features — collapsible section (expanded sidebar only) */}
             {lockedNavEntries.length > 0 && isExpanded && (
@@ -511,7 +539,7 @@ export function Sidebar({
               )}
               style={
                 pathname.startsWith("/tutorials")
-                  ? { background: "rgba(249,115,22,0.15)", boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.2)" }
+                  ? { background: "rgba(249,115,22,0.15)", boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.4)" }
                   : undefined
               }
             >
