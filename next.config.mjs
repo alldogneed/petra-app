@@ -64,7 +64,7 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
               "media-src 'self' blob: https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com",
-              "connect-src 'self' https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com https://*.ingest.sentry.io",
+              "connect-src 'self' https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io",
               "frame-ancestors 'self'",
               "frame-src 'self' blob: https:",
               "object-src 'self' blob:",
@@ -78,7 +78,7 @@ const nextConfig = {
 
 export default withSentryConfig(nextConfig, {
   org: "petra-app",
-  project: "petra-nextjs",
+  project: "petra-app",
   silent: !process.env.CI,
   widenClientFileUpload: true,
   hideSourceMaps: true,
