@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
         ? prisma.pet.findMany({ where: { id: { in: petIds }, customer: { businessId: authResult.businessId } }, select: { id: true, name: true, customerId: true } })
         : [],
       leadIds.length > 0
-        ? prisma.lead.findMany({ where: { id: { in: leadIds }, businessId: authResult.businessId }, select: { id: true, name: true } })
+        ? prisma.lead.findMany({ where: { id: { in: leadIds }, businessId: authResult.businessId }, select: { id: true, name: true, lostAt: true, wonAt: true } })
         : [],
     ]);
 
@@ -110,7 +110,20 @@ export async function GET(request: NextRequest) {
     const petMap = new Map(relPets.map(p => [p.id, { name: p.name, customerId: p.customerId }]));
     const leadNameMap = new Map(relLeads.map(l => [l.id, l.name]));
 
-    const enrichedTasks = tasks.map(t => ({
+    // Leads that are closed (lost or won) — hide their tasks from the general list
+    const closedLeadIds = new Set(
+      relLeads.filter(l => l.lostAt || l.wonAt).map(l => l.id)
+    );
+
+    const filteredTasks = relatedEntityId
+      ? tasks  // when viewing a specific entity's tasks, show all
+      : tasks.filter(t =>
+          t.relatedEntityType !== "LEAD" ||
+          !t.relatedEntityId ||
+          !closedLeadIds.has(t.relatedEntityId)
+        );
+
+    const enrichedTasks = filteredTasks.map(t => ({
       ...t,
       relatedEntityName:
         t.relatedEntityType === "CUSTOMER" ? (customerNameMap.get(t.relatedEntityId!) ?? null)
