@@ -393,41 +393,54 @@ function AppointmentRow({
     ? rawCategory
     : rawServiceType ? (FILTER_TO_LABEL[rawServiceType] ?? rawServiceType) : null;
 
+  // Time-of-day band (בוקר/צהריים/אחה"צ/ערב) inferred from startTime "HH:MM"
+  const hour = parseInt(appointment.startTime.split(":")[0] ?? "0", 10);
+  const tod = hour < 12 ? "בוקר" : hour < 14 ? "צהריים" : hour < 17 ? "אחה\"צ" : "ערב";
+
   return (
-    <div className="flex items-center gap-3 py-3 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 px-1 rounded-lg transition-colors">
-      <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ background: status.bg }}
-      >
-        <StatusIcon className="w-4 h-4" style={{ color: status.color }} />
+    <div className="grid grid-cols-[60px_1fr_auto] items-center gap-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50/40 px-1 rounded-lg transition-colors">
+      {/* Time column */}
+      <div className="text-petra-text">
+        <div className="text-sm font-bold leading-none">{appointment.startTime}</div>
+        <div className="text-[11px] text-petra-muted font-medium mt-1">{tod}</div>
       </div>
 
-      <div className="flex-1 min-w-0">
+      {/* Name + meta */}
+      <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="text-sm font-medium text-petra-text truncate">
+          <span className="text-sm font-semibold text-petra-text truncate">
             {appointment.customer.name}
           </span>
           {appointment.pet && (
-            <span className="text-xs text-petra-muted flex items-center gap-0.5">
+            <span className="text-xs text-petra-muted flex items-center gap-0.5 shrink-0">
               <PawPrint className="w-3 h-3" />
               {appointment.pet.name}
             </span>
           )}
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-xs text-petra-muted truncate">{itemName}</span>
+          <span className="text-xs text-petra-muted truncate">
+            {itemName}
+            {appointment.startTime && dayStr && <span className="text-slate-300 mx-1">·</span>}
+            <span className="text-petra-muted">{dayStr}</span>
+          </span>
           {typeLabel && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-brand-50 text-brand-600 font-medium shrink-0">
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-brand-50 text-brand-700 font-medium shrink-0">
               {typeLabel}
             </span>
           )}
         </div>
       </div>
 
-      <div className="text-right flex-shrink-0">
-        <div className="text-xs font-medium text-petra-text">{appointment.startTime}</div>
-        <div className="text-xs text-petra-muted">{dayStr}</div>
-      </div>
+      {/* Status badge */}
+      <span
+        className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded-full whitespace-nowrap shrink-0"
+        style={{ background: status.bg, color: status.color }}
+      >
+        <span className="w-1.5 h-1.5 rounded-full" style={{ background: status.color }} />
+        <StatusIcon className="w-3 h-3 hidden" />
+        {status.label}
+      </span>
     </div>
   );
 }
@@ -445,42 +458,41 @@ function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
   }
 
   return (
-    <div className="space-y-1">
+    <div className="divide-y divide-slate-50">
       {activities.slice(0, 10).map((item) => {
         const iconInfo = ACTIVITY_ICONS[item.action] || ACTIVITY_ICONS.LOGIN;
         const IconComp = iconInfo.icon;
         return (
           <div
             key={item.id}
-            className="flex items-center gap-3 py-2.5 px-1 hover:bg-slate-50/50 rounded-lg transition-colors"
+            className="flex items-start gap-3 py-3 px-1 hover:bg-slate-50/40 rounded-lg transition-colors"
           >
             <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+              className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
               style={{ background: iconInfo.bg }}
             >
-              <IconComp className="w-3.5 h-3.5" style={{ color: iconInfo.color }} />
+              <IconComp className="w-4 h-4" style={{ color: iconInfo.color }} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-petra-text truncate">{item.description}</p>
-              <p className="text-[11px] text-petra-muted">{item.userName}</p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {item.type === "whatsapp" && item.status && (
-                <span
-                  className={cn(
-                    "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
-                    item.status === "SENT"
-                      ? "bg-green-50 text-green-700"
-                      : "bg-red-50 text-red-700"
-                  )}
-                >
-                  {item.status === "SENT" ? "נשלח" : "נכשל"}
-                </span>
-              )}
-              <span className="text-[11px] text-petra-muted whitespace-nowrap">
+              <p className="text-sm text-petra-text leading-snug">{item.description}</p>
+              <p className="text-[11px] text-petra-muted mt-0.5">
+                {item.userName}
+                <span className="text-slate-300 mx-1.5">·</span>
                 {relativeTime(item.createdAt)}
-              </span>
+              </p>
             </div>
+            {item.type === "whatsapp" && item.status && (
+              <span
+                className={cn(
+                  "text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 mt-1",
+                  item.status === "SENT"
+                    ? "bg-green-50 text-green-700"
+                    : "bg-red-50 text-red-700"
+                )}
+              >
+                {item.status === "SENT" ? "נשלח" : "נכשל"}
+              </span>
+            )}
           </div>
         );
       })}
