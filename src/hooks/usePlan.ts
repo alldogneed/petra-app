@@ -49,13 +49,21 @@ export function usePlan() {
     ? Math.max(0, Math.ceil((subscriptionEndsAt!.getTime() - now.getTime()) / 86400000))
     : 0;
 
+  // While auth is loading, the tier is unknown. Reporting `isFree = true` would
+  // briefly lock paid features in UI before the real tier hydrates, producing a
+  // visible "downgrade flash" reported by users on slow connections. Treat all
+  // tier flags as `false` until we know the answer; consumers should fall back
+  // to the optimistic `can()` (which already returns true while loading) and
+  // the server-side route guards remain authoritative.
+  const tierKnown = !loading;
+
   return {
     tier,
-    isFree: tier === "free",
-    isBasic: tier === "basic",
-    isPro: tier === "pro",
-    isGroomer: tier === "groomer" || tier === ("groomer_plus" as TierKey),
-    isServiceDog: tier === "service_dog",
+    isFree: tierKnown && tier === "free",
+    isBasic: tierKnown && tier === "basic",
+    isPro: tierKnown && tier === "pro",
+    isGroomer: tierKnown && (tier === "groomer" || tier === ("groomer_plus" as TierKey)),
+    isServiceDog: tierKnown && tier === "service_dog",
     can,
     cannot: (feature: FeatureKey) => !can(feature),
     // Trial

@@ -53,3 +53,15 @@ prisma/dev.db-journal
 
 # claude code local settings
 .claude/settings.local.json
+
+# local audit / security reports (not for version control)
+security-audit-*.md
+SECURITY-AUDIT-*.md
+SECURITY_AUDIT_*.md
+audit-report-*.md
+
+# local planning docs
+docs/superpowers/
+
+# local scripts
+scripts/migrate-*.mjs

@@ -114,7 +114,7 @@ export function Sidebar({
   onHelpOpen,
 }: SidebarProps) {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const isMaster = user?.isAdmin === true;
 
   // Ref to the desktop nav element for scroll management
@@ -174,6 +174,10 @@ export function Sidebar({
 
   function isItemLocked(item: NavItem): boolean {
     if (!item.lockedFeature) return false;
+    // Optimistic during auth load: treat as unlocked so the user doesn't see a
+    // "free tier" flash before /api/auth/me hydrates the real tier. Server
+    // routes remain authoritative — locking is a UX hint, not a security gate.
+    if (authLoading || !user) return false;
     return !hasFeatureWithOverrides(userTier, item.lockedFeature, userOverrides);
   }
 
@@ -181,6 +185,8 @@ export function Sidebar({
   const HIDDEN_WHEN_LOCKED: FeatureKey[] = ["pets_advanced"];
 
   function isItemHidden(item: NavItem): boolean {
+    // While auth is loading, never hide an item — same optimistic policy as locking.
+    if (authLoading || !user) return false;
     // Hidden if tier is in the item's hiddenForTiers list
     if (item.hiddenForTiers?.includes(userTier)) return true;
     // Hidden if in HIDDEN_WHEN_LOCKED and feature is disabled
