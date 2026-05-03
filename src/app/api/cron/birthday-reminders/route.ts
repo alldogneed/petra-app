@@ -53,6 +53,10 @@ export async function GET(request: NextRequest) {
 
     for (const pet of pets) {
       if (!pet.birthDate) continue;
+      // Skip standalone service dogs — they have no customer to send a WhatsApp birthday message to.
+      // Without this guard, pets with null customerId fall through with businessId="" and customerId="",
+      // which violates the FK constraint on ScheduledMessage and causes a P2003 → 500 error.
+      if (!pet.customer) continue;
 
       const bday = new Date(pet.birthDate);
       // Set birthday to this year
