@@ -227,7 +227,14 @@ export async function POST(request: NextRequest) {
     if (canNotify) {
       const serviceParam = lead.requestedService || "לא צוין";
       const phoneParam = lead.phone || "לא צוין";
-      const msg = `ליד חדש נכנס לפטרה!\n\nשם: ${lead.name}\nטלפון: ${phoneParam}\nשירות: ${serviceParam}\n\nכנס לניהול הלידים בפטרה לפרטים.`;
+      const cityParam = lead.city || "לא צוין";
+      const SOURCE_LABELS: Record<string, string> = {
+        manual: "הוספה ידנית", facebook: "פייסבוק", instagram: "אינסטגרם",
+        website: "אתר אינטרנט", google: "גוגל", tiktok: "טיקטוק",
+        referral: "המלצה מלקוח", signage: "שלט", other: "אחר",
+      };
+      const sourceParam = SOURCE_LABELS[lead.source] ?? lead.source ?? "לא צוין";
+      const msg = `ליד חדש נכנס לפטרה!\n\nשם: ${lead.name}\nטלפון: ${phoneParam}\nשירות: ${serviceParam}\nאזור: ${cityParam}\nמקור: ${sourceParam}\n\nכנס לניהול הלידים בפטרה לפרטים.`;
 
       // Build list of phones to notify: business.phone + any extra phones from featureOverrides
       const extraPhones = Array.isArray(bizOverrides?.lead_notification_phones)
@@ -246,7 +253,7 @@ export async function POST(request: NextRequest) {
         sendWhatsAppTemplate({
           to: phone,
           templateName: "petra_biz_lead_alert",
-          bodyParams: [lead.name, phoneParam, serviceParam],
+          bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
         }).catch(() => {
           sendWhatsAppMessage({ to: phone, body: msg }).catch((err) =>
             console.error("Lead notification WA (fallback) failed:", err)
