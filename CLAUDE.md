@@ -113,16 +113,29 @@ Card badge uses identical condition — never add extra conditions to one withou
 
 ### 19. Lead notifications — PRO+ only
 `lead_notifications` feature flag in `src/lib/feature-flags.ts`: true for `pro` + `service_dog` only.
-When a new lead is created (manual or via webhook), `POST /api/leads` fires-and-forgets WhatsApp notifications.
+When a new lead is created (manual or via webhook), `POST /api/leads` fires-and-forgets a WhatsApp to the business owner's phone.
 Uses approved template `petra_biz_lead_alert` (WABA `25882288788086856`) with fallback to free-form.
-Body params order: `[lead.name, phone, service, city, source]` — 5 params (city + source added May 2026).
-Sends to: `business.phone` + any phones in `featureOverrides.lead_notification_phones` (string array) — deduplicated.
-all-dog has `featureOverrides.lead_notification_phones: ["0542560964", "0504828080"]` set in DB.
+Body params order: `[lead.name, lead.phone || "לא צוין", lead.requestedService || "לא צוין"]`.
 For non-PRO businesses the feature is silently skipped (no UI shown in leads page — handled by TierGate elsewhere).
 
 ### 20. Analytics page is named "דוחות"
 Sidebar entry and page title are "דוחות" (not "אנליטיקס"). Route remains `/analytics`.
 `src/components/layout/sidebar.tsx` line: `{ name: "דוחות", href: "/analytics", ... }`
+
+### 21. Sidebar nav is grouped by eyebrows
+`navEntries` in `src/components/layout/sidebar.tsx` is interleaved with `{ eyebrow: "..." }` markers. Three sections: **תפריט ראשי** (dashboard/customers/leads/tasks/scheduler/calendar), **מודולים** (boarding/pricing/service-dogs/training/pets), **ניהול** (analytics/business-admin/settings). When adding a new nav item, place it in the correct group; eyebrows render as uppercase white/40 labels above each group.
+
+### 22. Marketing stats must stay aligned
+Login hero (`src/app/login/page.tsx`) and `AnimatedStats.tsx` both display the same three metrics: **130 / 5,000+ / 98%**. Update both files together if any number changes.
+
+### 23. Subscription expiry banner only for paid tiers
+Dashboard renewal banner uses `!isFree && subscriptionActive && subscriptionDaysLeft <= 14`. Never show "renew" warning to a user on free tier even if they have a stale `subscriptionEndsAt` from a former paid plan.
+
+### 24. Dev webpack uses memory cache (Hebrew path)
+`next.config.mjs` sets `config.cache = { type: "memory" }` in dev. The default PackFileCacheStrategy fails snapshot resolve on the Hebrew project path (`פיתוח`) and stalls compilation. Don't remove. Production build uses default cache and is unaffected.
+
+### 25. Search modal must close on mobile
+`src/components/search/global-search.tsx` has a permanent X button in the header (always visible, not just when `query` is filled) **and** the backdrop+dialog wrapper is a single layer so taps outside the modal close it. Without these two together, mobile users get stuck — no ESC key, X is hidden, backdrop click eaten by the dialog wrapper.
 
 ---
 
