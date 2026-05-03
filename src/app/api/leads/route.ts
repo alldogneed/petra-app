@@ -222,22 +222,33 @@ export async function POST(request: NextRequest) {
     logCurrentUserActivity("CREATE_LEAD");
 
     // Fire-and-forget: WhatsApp notification to business owner on new lead (PRO+ only)
-    const bizOverrides = (business?.featureOverrides as Record<string, boolean> | null) ?? null;
-    const canNotify = hasFeatureWithOverrides(business?.tier ?? "free", "lead_notifications", bizOverrides);
-    if (canNotify && business?.phone) {
-      const ownerPhone = toWhatsAppPhone(business.phone);
-      if (ownerPhone) {
-        const serviceParam = lead.requestedService || "לא צוין";
-        const phoneParam = lead.phone || "לא צוין";
-        // Use approved template (no 24h window restriction); fallback to free-form
+    const bizOverrides = (business?.featureOverrides as Record<string, unknown> | null) ?? null;
+    const canNotify = hasFeatureWithOverrides(business?.tier ?? "free", "lead_notifications", bizOverrides as Record<string, boolean> | null);
+    if (canNotify) {
+      const serviceParam = lead.requestedService || "לא צוין";
+      const phoneParam = lead.phone || "לא צוין";
+      const msg = `ליד חדש נכנס לפטרה!\n\nשם: ${lead.name}\nטלפון: ${phoneParam}\nשירות: ${serviceParam}\n\nכנס לניהול הלידים בפטרה לפרטים.`;
+
+      // Build list of phones to notify: business.phone + any extra phones from featureOverrides
+      const extraPhones = Array.isArray(bizOverrides?.lead_notification_phones)
+        ? (bizOverrides!.lead_notification_phones as string[])
+        : [];
+      const allPhones = [
+        ...(business?.phone ? [business.phone] : []),
+        ...extraPhones,
+      ]
+        .map(toWhatsAppPhone)
+        .filter((p): p is string => !!p);
+      // Deduplicate
+      const uniquePhones = [...new Set(allPhones)];
+
+      for (const phone of uniquePhones) {
         sendWhatsAppTemplate({
-          to: ownerPhone,
+          to: phone,
           templateName: "petra_biz_lead_alert",
           bodyParams: [lead.name, phoneParam, serviceParam],
         }).catch(() => {
-          // Fallback: free-form (works within 24h window)
-          const msg = `ליד חדש נכנס לפטרה!\n\nשם: ${lead.name}\nטלפון: ${phoneParam}\nשירות: ${serviceParam}\n\nכנס לניהול הלידים בפטרה לפרטים.`;
-          sendWhatsAppMessage({ to: ownerPhone, body: msg }).catch((err) =>
+          sendWhatsAppMessage({ to: phone, body: msg }).catch((err) =>
             console.error("Lead notification WA (fallback) failed:", err)
           );
         });
