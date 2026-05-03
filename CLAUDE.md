@@ -113,9 +113,11 @@ Card badge uses identical condition — never add extra conditions to one withou
 
 ### 19. Lead notifications — PRO+ only
 `lead_notifications` feature flag in `src/lib/feature-flags.ts`: true for `pro` + `service_dog` only.
-When a new lead is created (manual or via webhook), `POST /api/leads` fires-and-forgets a WhatsApp to the business owner's phone.
+When a new lead is created (manual or via webhook), `POST /api/leads` fires-and-forgets WhatsApp notifications.
 Uses approved template `petra_biz_lead_alert` (WABA `25882288788086856`) with fallback to free-form.
-Body params order: `[lead.name, lead.phone || "לא צוין", lead.requestedService || "לא צוין"]`.
+Body params order: `[lead.name, phone, service, city, source]` — 5 params (city + source added May 2026).
+Sends to: `business.phone` + any phones in `featureOverrides.lead_notification_phones` (string array) — deduplicated.
+all-dog has `featureOverrides.lead_notification_phones: ["0542560964", "0504828080"]` set in DB.
 For non-PRO businesses the feature is silently skipped (no UI shown in leads page — handled by TierGate elsewhere).
 
 ### 20. Analytics page is named "דוחות"
