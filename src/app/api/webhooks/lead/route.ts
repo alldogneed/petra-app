@@ -31,6 +31,9 @@ import { timingSafeEqual } from "crypto";
 import prisma from "@/lib/prisma";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getFirstLeadStageId } from "@/lib/lead-stages";
+import { hasFeatureWithOverrides } from "@/lib/feature-flags";
+import { sendWhatsAppMessage, sendWhatsAppTemplate } from "@/lib/whatsapp";
+import { toWhatsAppPhone } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
   // ── Rate limiting ─────────────────────────────────────────────────────────
@@ -57,11 +60,12 @@ export async function POST(request: NextRequest) {
 
   // ── Auth: try per-business key first ──────────────────────────────────────
   let businessId: string | undefined;
+  let businessMeta: { phone: string | null; tier: string; featureOverrides: unknown } | null = null;
 
   if (apiKey.startsWith("pk_")) {
     const business = await prisma.business.findUnique({
       where: { webhookApiKey: apiKey },
-      select: { id: true, webhookApiKeyCreatedAt: true },
+      select: { id: true, webhookApiKeyCreatedAt: true, phone: true, tier: true, featureOverrides: true },
     });
     if (!business) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -74,6 +78,7 @@ export async function POST(request: NextRequest) {
       }
     }
     businessId = business.id;
+    businessMeta = { phone: business.phone, tier: business.tier, featureOverrides: business.featureOverrides };
   } else {
     // Legacy: validate against MAKE_WEBHOOK_SECRET
     const secret = process.env.MAKE_WEBHOOK_SECRET;
@@ -99,6 +104,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    businessMeta = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { phone: true, tier: true, featureOverrides: true },
+    }) ?? null;
   }
 
   // ── Resolve fields ────────────────────────────────────────────────────────
@@ -146,10 +155,47 @@ export async function POST(request: NextRequest) {
         email: email || undefined,
         source,
         stage: firstStageId,
+        city: city || undefined,
+        requestedService: service || undefined,
         notes: notes || undefined,
       },
       select: { id: true, name: true, stage: true, createdAt: true },
     });
+
+    // Fire-and-forget: WhatsApp notification (same logic as POST /api/leads)
+    const bizOverrides = (businessMeta?.featureOverrides as Record<string, unknown> | null) ?? null;
+    const canNotify = hasFeatureWithOverrides(businessMeta?.tier ?? "free", "lead_notifications", bizOverrides as Record<string, boolean> | null);
+    if (canNotify) {
+      const phoneParam = phone || "לא צוין";
+      const serviceParam = service || "לא צוין";
+      const cityParam = city || "לא צוין";
+      const SOURCE_LABELS: Record<string, string> = {
+        manual: "הוספה ידנית", facebook: "פייסבוק", instagram: "אינסטגרם",
+        website: "אתר אינטרנט", google: "גוגל", tiktok: "טיקטוק",
+        referral: "המלצה מלקוח", signage: "שלט", other: "אחר",
+      };
+      const sourceParam = SOURCE_LABELS[source] ?? source ?? "לא צוין";
+      const msg = `ליד חדש נכנס לפטרה!\n\nשם: ${lead.name}\nטלפון: ${phoneParam}\nשירות: ${serviceParam}\nאזור: ${cityParam}\nמקור: ${sourceParam}\n\nכנס לניהול הלידים בפטרה לפרטים.`;
+
+      const extraPhones = Array.isArray(bizOverrides?.lead_notification_phones)
+        ? (bizOverrides!.lead_notification_phones as string[])
+        : [];
+      const allPhones = [
+        ...(businessMeta?.phone ? [businessMeta.phone] : []),
+        ...extraPhones,
+      ].map(toWhatsAppPhone).filter((p): p is string => !!p);
+      const uniquePhones = [...new Set(allPhones)];
+
+      for (const p of uniquePhones) {
+        sendWhatsAppTemplate({
+          to: p,
+          templateName: "petra_biz_lead_alert",
+          bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
+        }).catch(() => {
+          sendWhatsAppMessage({ to: p, body: msg }).catch(() => {});
+        });
+      }
+    }
 
     return NextResponse.json(
       { success: true, leadId: lead.id, name: lead.name, stage: lead.stage },
