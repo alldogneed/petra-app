@@ -181,6 +181,7 @@ interface ServiceDogDetail {
   feedingInstructions: string | null;
   dogPhoto: string | null;
   currentLocation: string;
+  intakeDate: string | null;
   createdAt: string;
   pet: {
     id: string;
@@ -3439,6 +3440,10 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
             <p className="font-medium">{pet.weight ? `${pet.weight} ק״ג` : <span className="text-petra-muted text-xs">לא הוזן</span>}</p>
           </div>
           <div>
+            <p className="text-xs text-petra-muted">תאריך קליטה</p>
+            <p className="font-medium">{dog.intakeDate ? formatDate(dog.intakeDate) : <span className="text-petra-muted text-xs">לא הוזן</span>}</p>
+          </div>
+          <div>
             <p className="text-xs text-petra-muted">צבע</p>
             <p className="font-medium">{pet.color || <span className="text-petra-muted text-xs">לא הוזן</span>}</p>
           </div>
@@ -3477,7 +3482,7 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
           )}
         </div>
         {showEditPetModal && (
-          <EditPetModal pet={pet} petId={pet.id} dogId={dogId} certificationDate={dog.certificationDate} initialNotes={dog.notes} onClose={() => setShowEditPetModal(false)} onSaved={invalidate} />
+          <EditPetModal pet={pet} petId={pet.id} dogId={dogId} certificationDate={dog.certificationDate} initialNotes={dog.notes} initialIntakeDate={dog.intakeDate} onClose={() => setShowEditPetModal(false)} onSaved={invalidate} />
         )}
 
         {/* Training hours — manual edit */}
@@ -3950,6 +3955,7 @@ function EditPetModal({
   dogId,
   certificationDate: initialCertDate,
   initialNotes,
+  initialIntakeDate,
   onClose,
   onSaved,
 }: {
@@ -3958,6 +3964,7 @@ function EditPetModal({
   dogId: string;
   certificationDate: string | null;
   initialNotes: string | null;
+  initialIntakeDate: string | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -3976,6 +3983,9 @@ function EditPetModal({
   );
   const [certificationDate, setCertificationDate] = useState(
     initialCertDate ? new Date(initialCertDate).toISOString().slice(0, 10) : ""
+  );
+  const [intakeDate, setIntakeDate] = useState(
+    initialIntakeDate ? new Date(initialIntakeDate).toISOString().slice(0, 10) : ""
   );
   const [notes, setNotes] = useState(initialNotes ?? "");
 
@@ -3999,7 +4009,7 @@ function EditPetModal({
       await fetch(`/api/service-dogs/${dogId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ certificationDate: certificationDate || null, notes: notes.trim() || null }),
+        body: JSON.stringify({ certificationDate: certificationDate || null, intakeDate: intakeDate || null, notes: notes.trim() || null }),
       }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); });
     },
     onSuccess: () => {
@@ -4056,6 +4066,10 @@ function EditPetModal({
           <div>
             <label className="label text-xs">תאריך הסמכה</label>
             <input type="date" lang="he" className="input w-full" value={certificationDate} onChange={(e) => setCertificationDate(e.target.value)} />
+          </div>
+          <div>
+            <label className="label text-xs">תאריך קליטה</label>
+            <input type="date" lang="he" className="input w-full" value={intakeDate} onChange={(e) => setIntakeDate(e.target.value)} />
           </div>
           <div className="col-span-2 flex items-center gap-2 pt-1">
             <input

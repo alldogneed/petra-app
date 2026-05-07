@@ -1766,6 +1766,7 @@ model ServiceDogProfile {
   licenseNumber         String?   // רשיון עירוני
   licenseExpiry         DateTime? // תוקף רשיון עירוני
   maintenanceNotes      String?   // הערות אחזקה
+  intakeDate            DateTime? // תאריך קליטה
   // Boarding / logistics
   yardGroup             String?   // קבוצת חצר (גורים, רטריברים, כו')
   feedingInstructions   String?   // הוראות האכלה מיוחדות
