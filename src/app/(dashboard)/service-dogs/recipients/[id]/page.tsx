@@ -238,6 +238,18 @@ function RecipientDetailPageContent() {
     patchMutation.mutate({ attachments });
   };
 
+  const renameAttachment = (attId: string, currentName: string) => {
+    if (!recipient) return;
+    const next = window.prompt("שם המסמך:", currentName);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === currentName) return;
+    const attachments = safeJsonArray<Attachment>(recipient.attachments).map((a) =>
+      a.id === attId ? { ...a, name: trimmed } : a
+    );
+    patchMutation.mutate({ attachments });
+  };
+
   const saveContactPerson = (cp: ContactPerson) => {
     if (!recipient) return;
     const contactPersons = [...safeJsonArray<ContactPerson>(recipient.contactPersons)];
@@ -527,8 +539,16 @@ function RecipientDetailPageContent() {
                                     </a>
                                   )}
                                   <button
+                                    onClick={() => renameAttachment(f.id, f.name)}
+                                    className="opacity-0 group-hover/file:opacity-100 w-6 h-6 rounded flex items-center justify-center hover:bg-slate-200 transition-all"
+                                    title="ערוך שם"
+                                  >
+                                    <Pencil className="w-3 h-3 text-slate-500" />
+                                  </button>
+                                  <button
                                     onClick={() => deleteAttachment(f.id)}
                                     className="opacity-0 group-hover/file:opacity-100 w-6 h-6 rounded flex items-center justify-center hover:bg-red-100 transition-all"
+                                    title="מחק"
                                   >
                                     <Trash2 className="w-3 h-3 text-red-500" />
                                   </button>
@@ -691,6 +711,13 @@ function RecipientDetailPageContent() {
                             <ExternalLink className="w-4 h-4 text-brand-500" />
                           </a>
                         )}
+                        <button
+                          onClick={() => renameAttachment(att.id, att.name)}
+                          className="opacity-0 group-hover:opacity-100 w-8 h-8 rounded flex items-center justify-center hover:bg-slate-200 transition-all"
+                          title="ערוך שם"
+                        >
+                          <Pencil className="w-4 h-4 text-slate-500" />
+                        </button>
                         <button
                           onClick={() => deleteAttachment(att.id)}
                           className="opacity-0 group-hover:opacity-100 w-8 h-8 rounded flex items-center justify-center hover:bg-red-100 transition-all"
