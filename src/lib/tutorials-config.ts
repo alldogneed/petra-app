@@ -37,7 +37,7 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     description: "סקירת לוח הבקרה הראשי — נתוני תקופה, תורים קרובים ופעולות מהירות",
     url: `${BASE}/%D7%93%D7%A9%D7%91%D7%95%D7%A8%D7%93%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
     category: "start",
-    durationLabel: "~3 דק׳",
+    durationLabel: "1:09",
     isNew: true,
   },
   {
@@ -46,7 +46,7 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     description: "ניהול יומן תורים, פגישות, תצוגות שונות וסנכרון Google Calendar",
     url: `${BASE}/%D7%99%D7%95%D7%9E%D7%9F%20%D7%A4%D7%98%D7%A8%D7%94%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
     category: "start",
-    durationLabel: "~3 דק׳",
+    durationLabel: "0:48",
     isNew: true,
   },
 
@@ -57,7 +57,7 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     description: "ניהול פרופילי לקוחות, היסטוריית טיפולים ותיעוד",
     url: `${BASE}/%D7%9E%D7%A2%D7%A8%D7%9B%D7%AA%20%D7%9C%D7%A7%D7%95%D7%97%D7%95%D7%AA%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94%20.mp4`,
     category: "clients",
-    durationLabel: "~5 דק׳",
+    durationLabel: "1:47",
     isNew: true,
   },
   {
@@ -66,7 +66,7 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     description: "ניהול פרופיל חיית המחמד, חיסונים, מסמכים ונתוני בריאות",
     url: `${BASE}/%D7%97%D7%99%D7%95%D7%AA%20%D7%9E%D7%97%D7%9E%D7%93%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
     category: "clients",
-    durationLabel: "~2 דק׳",
+    durationLabel: "0:40",
     isNew: true,
   },
 
@@ -77,7 +77,7 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     description: "ניהול לידים, קנבן מכירות ומעקב אחר לקוחות פוטנציאליים",
     url: `${BASE}/%D7%9E%D7%A2%D7%A8%D7%9B%D7%AA%20%D7%9E%D7%9B%D7%99%D7%A8%D7%95%D7%AA%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94%20.mp4`,
     category: "sales",
-    durationLabel: "~4 דק׳",
+    durationLabel: "1:18",
     isNew: true,
   },
   {
@@ -86,7 +86,7 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     description: "יצירת משימות, תיוג לפי קטגוריה, מעקב ותזכורות",
     url: `${BASE}/%D7%9E%D7%A2%D7%A8%D7%9B%D7%AA%20%D7%9E%D7%A9%D7%99%D7%9E%D7%95%D7%AA%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94%20.mp4`,
     category: "sales",
-    durationLabel: "~4 דק׳",
+    durationLabel: "1:31",
     isNew: true,
   },
 
@@ -97,7 +97,7 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     description: "הגדרת עמוד הזמנה ציבורי — לקוחות קובעים לבד 24/7",
     url: `${BASE}/%D7%94%D7%96%D7%9E%D7%A0%D7%95%D7%AA%20%D7%90%D7%95%D7%A0%D7%9C%D7%99%D7%99%D7%9F%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
     category: "bookings",
-    durationLabel: "~4 דק׳",
+    durationLabel: "1:18",
     isNew: true,
   },
   {
@@ -106,7 +106,7 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     description: "יצירה וניהול הזמנות, רשימת מחירים, תשלומים ומסמכים",
     url: `${BASE}/%D7%9E%D7%A2%D7%A8%D7%9B%D7%AA%20%D7%94%D7%96%D7%9E%D7%A0%D7%95%D7%AA%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94%20.mp4`,
     category: "bookings",
-    durationLabel: "~5 דק׳",
+    durationLabel: "1:33",
     isNew: true,
   },
   {
@@ -115,7 +115,7 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     description: "מעקב הכנסות, חשבוניות, דוחות כספיים וניהול תשלומים",
     url: `${BASE}/%D7%9E%D7%A2%D7%A8%D7%9B%D7%AA%20%D7%A4%D7%99%D7%A0%D7%A0%D7%A1%D7%99%D7%9D%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94%20.mp4`,
     category: "bookings",
-    durationLabel: "~6 דק׳",
+    durationLabel: "2:09",
     isNew: true,
   },
 
@@ -126,7 +126,7 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     description: "ניהול צ׳ק-אין ואאוט, חדרים, לוח יומי והזנה לכלבים בפנסיון",
     url: `${BASE}/%D7%9E%D7%A2%D7%A8%D7%9B%D7%AA%20%D7%94%D7%A4%D7%A0%D7%A1%D7%99%D7%95%D7%9F%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
     category: "boarding",
-    durationLabel: "~6 דק׳",
+    durationLabel: "2:08",
     isNew: true,
   },
 
@@ -137,7 +137,7 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     description: "ניהול עובדים, הרשאות, יומן צוות ודוחות מנהל",
     url: `${BASE}/%D7%9C%D7%95%D7%97%20%D7%95%D7%94%D7%A7%D7%A8%D7%94%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
     category: "management",
-    durationLabel: "~3 דק׳",
+    durationLabel: "1:01",
     isNew: true,
   },
   {
@@ -146,7 +146,7 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     description: "תוכניות אילוף, מעקב התקדמות, שיעורים ויומן אימונים",
     url: `${BASE}/%D7%A0%D7%99%D7%94%D7%95%D7%9C%20%D7%AA%D7%94%D7%9C%D7%99%D7%9B%D7%99%20%D7%90%D7%99%D7%9C%D7%95%D7%A3%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94%20.mp4`,
     category: "management",
-    durationLabel: "~5 דק׳",
+    durationLabel: "1:38",
     isNew: true,
   },
   {
@@ -155,7 +155,7 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     description: "הגדרות עסק, שירותים, תשלומים, צוות ואינטגרציות",
     url: `${BASE}/%D7%94%D7%92%D7%93%D7%A8%D7%95%D7%AA%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
     category: "management",
-    durationLabel: "~18 דק׳",
+    durationLabel: "2:22",
     isNew: true,
   },
 ];

@@ -1,33 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Play, X, Users, ShoppingBag, Clock, Sparkles, LayoutDashboard, Target, Settings, Hotel } from "lucide-react";
 import { TUTORIAL_VIDEOS, TUTORIAL_CATEGORIES, type TutorialVideo } from "@/lib/tutorials-config";
-
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-function useVideoDurations(videos: TutorialVideo[]): Record<string, string> {
-  const [durations, setDurations] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    videos.forEach((video) => {
-      const el = document.createElement("video");
-      el.preload = "metadata";
-      el.onloadedmetadata = () => {
-        if (isFinite(el.duration) && el.duration > 0) {
-          setDurations((prev) => ({ ...prev, [video.id]: formatDuration(el.duration) }));
-        }
-      };
-      el.src = video.url;
-    });
-  }, [videos]);
-
-  return durations;
-}
 
 const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
   LayoutDashboard: ({ className }) => <LayoutDashboard className={className} />,
@@ -40,7 +15,6 @@ const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
 
 export default function TutorialsPage() {
   const [activeVideo, setActiveVideo] = useState<TutorialVideo | null>(null);
-  const durations = useVideoDurations(TUTORIAL_VIDEOS);
 
   return (
     <div>
@@ -81,7 +55,6 @@ export default function TutorialsPage() {
                   <VideoCard
                     key={video.id}
                     video={video}
-                    duration={durations[video.id]}
                     onPlay={() => setActiveVideo(video)}
                   />
                 ))}
@@ -101,11 +74,9 @@ export default function TutorialsPage() {
 
 function VideoCard({
   video,
-  duration,
   onPlay,
 }: {
   video: TutorialVideo;
-  duration?: string;
   onPlay: () => void;
 }) {
   return (
@@ -143,7 +114,7 @@ function VideoCard({
         {/* Duration */}
         <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
           <Clock className="w-3 h-3" />
-          {duration ?? video.durationLabel}
+          {video.durationLabel}
         </div>
       </div>
 
