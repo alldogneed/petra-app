@@ -191,6 +191,10 @@ export async function POST(request: NextRequest) {
           to: p,
           templateName: "petra_biz_lead_alert",
           bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
+        }).then((result) => {
+          if (!result.success) {
+            sendWhatsAppMessage({ to: p, body: msg }).catch(() => {});
+          }
         }).catch(() => {
           sendWhatsAppMessage({ to: p, body: msg }).catch(() => {});
         });

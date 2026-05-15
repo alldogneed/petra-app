@@ -139,6 +139,7 @@ export async function PATCH(
         ...(body.feedingInstructions !== undefined && { feedingInstructions: body.feedingInstructions }),
         ...(body.dogPhoto !== undefined && { dogPhoto: body.dogPhoto }),
         ...(body.currentLocation !== undefined && { currentLocation: body.currentLocation }),
+        ...(body.intakeDate !== undefined && { intakeDate: body.intakeDate ? new Date(body.intakeDate) : null }),
       },
       include: { pet: true },
     });

@@ -31,8 +31,8 @@ export interface MetaTemplateMessage {
 // ---------------------------------------------------------------------------
 
 async function sendViaMetaCloudApi(params: SendParams): Promise<SendResult | null> {
-  const token = process.env.META_WHATSAPP_TOKEN;
-  const phoneNumberId = process.env.META_PHONE_NUMBER_ID;
+  const token = process.env.META_WHATSAPP_TOKEN?.trim();
+  const phoneNumberId = process.env.META_PHONE_NUMBER_ID?.trim();
 
   if (!token || !phoneNumberId) return null;
 
@@ -80,8 +80,8 @@ async function sendViaMetaCloudApi(params: SendParams): Promise<SendResult | nul
 // ---------------------------------------------------------------------------
 
 async function sendViaMetaCloudApiTemplate(params: MetaTemplateMessage): Promise<SendResult | null> {
-  const token = process.env.META_WHATSAPP_TOKEN;
-  const phoneNumberId = process.env.META_PHONE_NUMBER_ID;
+  const token = process.env.META_WHATSAPP_TOKEN?.trim();
+  const phoneNumberId = process.env.META_PHONE_NUMBER_ID?.trim();
   if (!token || !phoneNumberId) return null;
 
   const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
