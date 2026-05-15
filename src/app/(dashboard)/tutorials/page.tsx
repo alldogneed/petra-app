@@ -158,14 +158,12 @@ function VideoModal({
         <div className="flex-1 sm:flex-none sm:rounded-2xl overflow-hidden shadow-2xl bg-black min-h-0">
           <video
             key={video.id}
+            src={video.url}
             controls
             playsInline
-            preload="metadata"
+            preload="none"
             className="w-full h-full sm:h-auto object-contain block sm:max-h-[70vh]"
-          >
-            <source src={video.url} type="video/mp4" />
-            הדפדפן שלך לא תומך בהפעלת וידאו.
-          </video>
+          />
         </div>
       </div>
     </div>
