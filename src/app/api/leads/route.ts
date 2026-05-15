@@ -254,6 +254,12 @@ export async function POST(request: NextRequest) {
           to: phone,
           templateName: "petra_biz_lead_alert",
           bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
+        }).then((result) => {
+          if (!result.success) {
+            sendWhatsAppMessage({ to: phone, body: msg }).catch((err) =>
+              console.error("Lead notification WA (fallback) failed:", err)
+            );
+          }
         }).catch(() => {
           sendWhatsAppMessage({ to: phone, body: msg }).catch((err) =>
             console.error("Lead notification WA (fallback) failed:", err)
