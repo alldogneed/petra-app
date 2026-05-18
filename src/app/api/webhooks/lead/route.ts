@@ -186,19 +186,22 @@ export async function POST(request: NextRequest) {
       ].map(toWhatsAppPhone).filter((p): p is string => !!p);
       const uniquePhones = [...new Set(allPhones)];
 
-      for (const p of uniquePhones) {
-        sendWhatsAppTemplate({
-          to: p,
-          templateName: "petra_biz_lead_alert",
-          bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
-        }).then((result) => {
-          if (!result.success) {
-            sendWhatsAppMessage({ to: p, body: msg }).catch(() => {});
+      await Promise.allSettled(
+        uniquePhones.map(async (p) => {
+          try {
+            const result = await sendWhatsAppTemplate({
+              to: p,
+              templateName: "petra_biz_lead_alert",
+              bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
+            });
+            if (!result.success) {
+              await sendWhatsAppMessage({ to: p, body: msg });
+            }
+          } catch {
+            await sendWhatsAppMessage({ to: p, body: msg }).catch(() => {});
           }
-        }).catch(() => {
-          sendWhatsAppMessage({ to: p, body: msg }).catch(() => {});
-        });
-      }
+        })
+      );
     }
 
     return NextResponse.json(
