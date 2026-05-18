@@ -3436,12 +3436,12 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
             </div>
           )}
           <div>
-            <p className="text-xs text-petra-muted">משקל</p>
-            <p className="font-medium">{pet.weight ? `${pet.weight} ק״ג` : <span className="text-petra-muted text-xs">לא הוזן</span>}</p>
-          </div>
-          <div>
             <p className="text-xs text-petra-muted">תאריך קליטה</p>
             <p className="font-medium">{dog.intakeDate ? formatDate(dog.intakeDate) : <span className="text-petra-muted text-xs">לא הוזן</span>}</p>
+          </div>
+          <div>
+            <p className="text-xs text-petra-muted">משקל</p>
+            <p className="font-medium">{pet.weight ? `${pet.weight} ק״ג` : <span className="text-petra-muted text-xs">לא הוזן</span>}</p>
           </div>
           <div>
             <p className="text-xs text-petra-muted">צבע</p>
