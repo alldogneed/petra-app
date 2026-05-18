@@ -249,23 +249,24 @@ export async function POST(request: NextRequest) {
       // Deduplicate
       const uniquePhones = [...new Set(allPhones)];
 
-      for (const phone of uniquePhones) {
-        sendWhatsAppTemplate({
-          to: phone,
-          templateName: "petra_biz_lead_alert",
-          bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
-        }).then((result) => {
-          if (!result.success) {
-            sendWhatsAppMessage({ to: phone, body: msg }).catch((err) =>
+      await Promise.allSettled(
+        uniquePhones.map(async (phone) => {
+          try {
+            const result = await sendWhatsAppTemplate({
+              to: phone,
+              templateName: "petra_biz_lead_alert",
+              bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
+            });
+            if (!result.success) {
+              await sendWhatsAppMessage({ to: phone, body: msg });
+            }
+          } catch {
+            await sendWhatsAppMessage({ to: phone, body: msg }).catch((err) =>
               console.error("Lead notification WA (fallback) failed:", err)
             );
           }
-        }).catch(() => {
-          sendWhatsAppMessage({ to: phone, body: msg }).catch((err) =>
-            console.error("Lead notification WA (fallback) failed:", err)
-          );
-        });
-      }
+        })
+      );
     }
 
     // Fire-and-forget: sync to Google Contacts if enabled
