@@ -78,11 +78,11 @@ export async function PATCH(
 
     // Manage scheduled reminders
     if (status === "canceled" || status === "completed") {
-      cancelAppointmentReminders(id).catch((err) =>
+      await cancelAppointmentReminders(id).catch((err) =>
         console.error("Failed to cancel appointment reminders:", err)
       );
     } else if (date !== undefined || startTime !== undefined) {
-      rescheduleAppointmentReminder({
+      await rescheduleAppointmentReminder({
         id: appointment.id,
         businessId: authResult.businessId,
         customerId: appointment.customerId,

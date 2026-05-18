@@ -220,11 +220,11 @@ export async function POST(request: NextRequest) {
             serviceName,
             petName: appointment.pet?.name ?? "",
           });
-          sendWhatsAppMessage({ to: phone, body }).catch((err) =>
+          await sendWhatsAppMessage({ to: phone, body }).catch((err) =>
             console.error("Appointment confirmation WA (custom) failed:", err)
           );
         } else {
-          sendWhatsAppTemplate({
+          await sendWhatsAppTemplate({
             to: phone,
             templateName: "petra_appointment_confirmation",
             bodyParams: [appointment.customer.name, formattedDate, appointment.startTime, serviceName],
@@ -233,8 +233,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Schedule WhatsApp reminder (fire-and-forget)
-    scheduleAppointmentReminder({
+    // Schedule WhatsApp reminder
+    await scheduleAppointmentReminder({
       id: appointment.id,
       businessId: authResult.businessId,
       customerId: appointment.customerId,

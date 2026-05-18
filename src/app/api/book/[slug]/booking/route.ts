@@ -13,7 +13,7 @@ import { sanitizeName } from "@/lib/validation"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://petra-app.vercel.app"
 
-function notifyCustomerConfirmed(
+async function notifyCustomerConfirmed(
   booking: { id: string; customerToken?: string | null },
   customer: { phone: string; name: string },
   service: { name: string },
@@ -24,10 +24,10 @@ function notifyCustomerConfirmed(
   const phone = toWhatsAppPhone(customer.phone)
   const myBookingUrl = booking.customerToken ? `${APP_URL}/my-booking/${booking.customerToken}` : ""
   const body = `שלום ${customer.name}! ✅ הזמנתך אושרה!\n\nשירות: ${service.name}\nתאריך: ${dateLabel}\nשעה: ${timeLabel}${myBookingUrl ? `\n\nלצפייה/ביטול ההזמנה:\n${myBookingUrl}` : ""}`
-  sendWhatsAppMessage({ to: phone, body }).catch(console.error)
+  await sendWhatsAppMessage({ to: phone, body }).catch(console.error)
 }
 
-function notifyCustomerPending(
+async function notifyCustomerPending(
   booking: { id: string; customerToken?: string | null },
   customer: { phone: string; name: string },
   service: { name: string },
@@ -38,10 +38,10 @@ function notifyCustomerPending(
   const phone = toWhatsAppPhone(customer.phone)
   const myBookingUrl = booking.customerToken ? `${APP_URL}/my-booking/${booking.customerToken}` : ""
   const body = `שלום ${customer.name}! ⏳ בקשת ההזמנה שלך התקבלה.\n\nשירות: ${service.name}\nתאריך: ${dateLabel}\nשעה: ${timeLabel}\n\nנחזור אליך עם אישור בהקדם.${myBookingUrl ? `\n\nלצפייה בהזמנה:\n${myBookingUrl}` : ""}`
-  sendWhatsAppMessage({ to: phone, body }).catch(console.error)
+  await sendWhatsAppMessage({ to: phone, body }).catch(console.error)
 }
 
-function notifyOwnerNewPending(
+async function notifyOwnerNewPending(
   businessPhone: string | null | undefined,
   customerName: string,
   service: { name: string },
@@ -50,7 +50,7 @@ function notifyOwnerNewPending(
   if (!businessPhone) return
   const phone = toWhatsAppPhone(businessPhone)
   const body = `🔔 הזמנה חדשה ממתינה לאישור!\n\nלקוח: ${customerName}\nשירות: ${service.name}\nתאריך: ${dateLabel}\n\nנא לאשר/לדחות בפנל הניהול.`
-  sendWhatsAppMessage({ to: phone, body }).catch(console.error)
+  await sendWhatsAppMessage({ to: phone, body }).catch(console.error)
 }
 
 // Zod Schema for input validation
@@ -407,10 +407,10 @@ export async function POST(
       }
     }
 
-    notifyCustomerConfirmed(booking, customer, { name: serviceName }, dateLabel, timeLabel)
+    await notifyCustomerConfirmed(booking, customer, { name: serviceName }, dateLabel, timeLabel)
   } else {
-    notifyCustomerPending(booking, customer, { name: serviceName }, dateLabel, timeLabel)
-    notifyOwnerNewPending(business.phone, customer.name, { name: serviceName }, dateLabel)
+    await notifyCustomerPending(booking, customer, { name: serviceName }, dateLabel, timeLabel)
+    await notifyOwnerNewPending(business.phone, customer.name, { name: serviceName }, dateLabel)
   }
 
   return NextResponse.json(
