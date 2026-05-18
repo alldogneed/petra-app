@@ -142,7 +142,7 @@ export async function PATCH(request: NextRequest) {
     if (wasPhoneEmpty && phone) {
       const phoneFormatted = toWhatsAppPhone(String(phone));
       if (phoneFormatted) {
-        sendWhatsAppMessage({
+        await sendWhatsAppMessage({
           to: phoneFormatted,
           body: `שלום מ-Petra! 👋\n\nהודעות ה-WhatsApp שלך פועלות בהצלחה.\nלקוחות יקבלו תזכורות ועדכונים אוטומטית ישירות לנייד. 🐾\n\n— הצוות של Petra`,
         }).catch((err) => console.error("WhatsApp verification message failed:", err));

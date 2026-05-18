@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
         const checkOutStr = stay.checkOut
           ? stay.checkOut.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })
           : "טרם נקבע";
-        sendWhatsAppTemplate({
+        await sendWhatsAppTemplate({
           to: phone,
           templateName: "petra_boarding_confirmation",
           bodyParams: [stay.customer.name, stay.pet.name, checkInStr, checkOutStr],
@@ -212,10 +212,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Schedule WhatsApp reminder 24h before checkout (fire-and-forget)
+    // Schedule WhatsApp reminder 24h before checkout
     // Skip for service dogs (no customer to message)
     if (stay.checkOut && stay.customerId) {
-      scheduleBoardingCheckoutReminder({
+      await scheduleBoardingCheckoutReminder({
         id: stay.id,
         businessId: authResult.businessId,
         customerId: stay.customerId,

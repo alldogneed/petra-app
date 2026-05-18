@@ -78,7 +78,7 @@ export async function PATCH(
             },
           });
           // Schedule boarding checkout reminder
-          scheduleBoardingCheckoutReminder({
+          await scheduleBoardingCheckoutReminder({
             id: newStay.id,
             businessId: booking.businessId,
             customerId: booking.customerId,
@@ -125,7 +125,7 @@ export async function PATCH(
           });
           // Schedule appointment reminder (48h before)
           if (newAppt.service) {
-            scheduleAppointmentReminder({
+            await scheduleAppointmentReminder({
               id: newAppt.id,
               businessId: booking.businessId,
               customerId: booking.customerId,

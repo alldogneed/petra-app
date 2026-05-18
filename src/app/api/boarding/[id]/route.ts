@@ -140,9 +140,9 @@ export async function PATCH(
 
     // Handle checkout reminders and thank-you message (skip for service dogs without customer)
     if (body.status === "checked_out") {
-      cancelBoardingCheckoutReminders(params.id).catch(console.error);
+      await cancelBoardingCheckoutReminders(params.id).catch(console.error);
       if (stay.customerId) {
-        scheduleBoardingThankYou({
+        await scheduleBoardingThankYou({
           id: stay.id,
           businessId: stay.businessId,
           customerId: stay.customerId,
@@ -152,7 +152,7 @@ export async function PATCH(
         }).catch(console.error);
       }
     } else if (body.checkOut !== undefined && stay.customerId) {
-      rescheduleBoardingCheckoutReminder({
+      await rescheduleBoardingCheckoutReminder({
         id: stay.id,
         businessId: stay.businessId,
         customerId: stay.customerId,

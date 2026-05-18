@@ -407,11 +407,11 @@ export async function POST(request: NextRequest) {
               serviceName,
               petName,
             });
-            sendWhatsAppMessage({ to: phone, body: msgBody }).catch((err) =>
+            await sendWhatsAppMessage({ to: phone, body: msgBody }).catch((err) =>
               console.error("Order appointment confirmation WA (custom) failed:", err)
             );
           } else {
-            sendWhatsAppTemplate({
+            await sendWhatsAppTemplate({
               to: phone,
               templateName: "petra_appointment_confirmation",
               bodyParams: [customer.name, formattedDate, appointmentData.startTime as string, serviceName],
