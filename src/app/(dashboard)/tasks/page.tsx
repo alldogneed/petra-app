@@ -334,6 +334,12 @@ export default function TasksPage() {
       return { prev };
     },
     onSuccess: (_data, { status }) => {
+      type Counters = { openTasks: number; overdueFollowUps: number; pendingBookings: number; activeBoarding: number };
+      queryClient.setQueryData<Counters>(["sidebar-counters"], (old) => {
+        if (!old) return old;
+        const delta = status === "COMPLETED" ? -1 : 1;
+        return { ...old, openTasks: Math.max(0, old.openTasks + delta) };
+      });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
@@ -378,6 +384,10 @@ export default function TasksPage() {
         body: JSON.stringify({ status: "COMPLETED" }),
       }))),
     onSuccess: (_, ids) => {
+      type Counters = { openTasks: number; overdueFollowUps: number; pendingBookings: number; activeBoarding: number };
+      queryClient.setQueryData<Counters>(["sidebar-counters"], (old) =>
+        old ? { ...old, openTasks: Math.max(0, old.openTasks - ids.length) } : old
+      );
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });

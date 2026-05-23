@@ -326,8 +326,11 @@ export async function checkIpWhitelist(
 /** Simple CIDR matching for IPv4 */
 function ipMatchesCidr(ip: string, cidr: string): boolean {
   if (!cidr.includes("/")) return ip === cidr;
-  const [range, bits] = cidr.split("/");
-  const mask = ~(0xffffffff >>> parseInt(bits, 10));
+  const [range, bitsStr] = cidr.split("/");
+  const bits = parseInt(bitsStr, 10);
+  // Validate prefix length: must be 1-32 (0 would match all IPs, bypassing the whitelist)
+  if (isNaN(bits) || bits < 1 || bits > 32) return false;
+  const mask = ~(0xffffffff >>> bits);
   const ipNum = ipToNum(ip);
   const rangeNum = ipToNum(range);
   return ipNum !== null && rangeNum !== null && (ipNum & mask) === (rangeNum & mask);

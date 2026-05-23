@@ -852,7 +852,7 @@ export function CreateOrderModal({
               onChange={(e) => setCustomerSearch(e.target.value)}
             />
           </div>
-          <div className="max-h-48 overflow-y-auto border border-petra-border rounded-xl divide-y divide-petra-border">
+          <div className={cn("max-h-48 overflow-y-auto border rounded-xl divide-y divide-petra-border", customerId ? "border-petra-border" : "border-amber-300")}>
             {customers.slice(0, 20).map((c) => (
               <button
                 key={c.id}

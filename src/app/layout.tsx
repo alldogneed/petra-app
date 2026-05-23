@@ -117,7 +117,7 @@ export default function RootLayout({
           <Toaster
             position="bottom-left"
             toastOptions={{
-              style: { fontFamily: "Heebo, sans-serif", direction: "rtl" },
+              style: { fontFamily: "Heebo, sans-serif" },
               classNames: {
                 success: "!bg-green-50 !border-green-200 !text-green-800",
                 error: "!bg-red-50 !border-red-200 !text-red-700",
