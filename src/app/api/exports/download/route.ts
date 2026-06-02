@@ -5,10 +5,13 @@ export const dynamic = 'force-dynamic';
  * Query params: type (customers|pets|both), format (xlsx|csv), from, to
  */
 
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { rateLimit } from "@/lib/rate-limit";
 import * as XLSX from "xlsx";
+
+const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 };
 
 // Map ExportJob.exportType → download "type" param
 const EXPORT_TYPE_MAP: Record<string, string> = {
@@ -22,6 +25,11 @@ export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    const rl = rateLimit("export:download", authResult.businessId, EXPORT_RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "יותר מדי בקשות ייצוא. נסה שוב בעוד דקה." }, { status: 429 });
+    }
 
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get("jobId");

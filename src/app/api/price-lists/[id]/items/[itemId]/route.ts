@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { validateSafeUrl } from "@/lib/validation";
 
 // GET /api/price-lists/[id]/items/[itemId]
 export async function GET(
@@ -41,8 +42,13 @@ export async function PATCH(
 
     const body = await request.json();
 
+    if (body.paymentUrl) {
+      const urlError = validateSafeUrl(body.paymentUrl);
+      if (urlError) return NextResponse.json({ error: urlError }, { status: 400 });
+    }
+
     const item = await prisma.priceListItem.update({
-      where: { id: params.itemId },
+      where: { id: params.itemId, businessId: authResult.businessId },
       data: {
         ...(body.name !== undefined && { name: body.name }),
         ...(body.description !== undefined && { description: body.description }),
@@ -83,7 +89,7 @@ export async function DELETE(
     });
     if (!existing) return NextResponse.json({ error: "פריט לא נמצא" }, { status: 404 });
 
-    await prisma.priceListItem.delete({ where: { id: params.itemId } });
+    await prisma.priceListItem.delete({ where: { id: params.itemId, businessId: authResult.businessId } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

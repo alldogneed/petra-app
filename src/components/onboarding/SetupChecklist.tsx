@@ -85,19 +85,24 @@ export function SetupChecklist() {
   const completed = countCompletedSteps(progress);
   const total = TOTAL_STEPS;
 
-  // All 3 steps done — mark completedAt and hide
-  if (completed === total && !progress.completedAt) {
-    fetch("/api/onboarding/progress", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ completedAt: new Date().toISOString() }),
-    })
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ["onboarding-progress"] });
+  // All 3 steps done — mark completedAt
+  const allDone = completed === total && !progress.completedAt;
+  useEffect(() => {
+    if (allDone) {
+      fetch("/api/onboarding/progress", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completedAt: new Date().toISOString() }),
       })
-      .catch(() => {});
-    return null;
-  }
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ["onboarding-progress"] });
+        })
+        .catch(() => {});
+    }
+  }, [allDone, queryClient]);
+
+  // Hide once all steps done
+  if (allDone) return null;
 
   const incompleteSteps = SETUP_STEPS.filter((s) => !isCompleted(progress, s.step));
   const pct = Math.round((completed / total) * 100);

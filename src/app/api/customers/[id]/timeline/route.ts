@@ -17,6 +17,9 @@ export async function POST(
     if (!description?.trim()) {
       return NextResponse.json({ error: "Description is required" }, { status: 400 });
     }
+    if (description.trim().length > 2000) {
+      return NextResponse.json({ error: "תיאור ארוך מדי (עד 2000 תווים)" }, { status: 400 });
+    }
 
     // Verify customer belongs to this business
     const customer = await prisma.customer.findFirst({

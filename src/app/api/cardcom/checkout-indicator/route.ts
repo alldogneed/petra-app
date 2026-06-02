@@ -119,6 +119,10 @@ export async function GET(request: NextRequest) {
   verifyUrl.searchParams.set("lowprofilecode", lowProfileCode);
 
   const verifyRes = await fetch(verifyUrl.toString());
+  if (!verifyRes.ok) {
+    console.error(`checkout-indicator [L4]: HTTP ${verifyRes.status} from Cardcom API for code ${lowProfileCode}`);
+    return new Response("Cardcom API verification failed", { status: 502 });
+  }
   const verifyText = await verifyRes.text();
 
   const data: Record<string, string> = {};

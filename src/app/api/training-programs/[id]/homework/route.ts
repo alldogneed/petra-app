@@ -18,6 +18,12 @@ export async function POST(
     if (!title) {
       return NextResponse.json({ error: "title is required" }, { status: 400 });
     }
+    if (typeof title !== "string" || title.length > 300) {
+      return NextResponse.json({ error: "title too long (max 300)" }, { status: 400 });
+    }
+    if (description !== undefined && description !== null && (typeof description !== "string" || description.length > 2000)) {
+      return NextResponse.json({ error: "description too long (max 2000)" }, { status: 400 });
+    }
 
     // Verify program belongs to this business
     const program = await prisma.trainingProgram.findFirst({

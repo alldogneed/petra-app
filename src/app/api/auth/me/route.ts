@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, getSessionToken, validateSession } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { sanitizeName } from "@/lib/validation";
 
 export async function GET() {
   try {
@@ -33,9 +34,14 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "שם לא תקין" }, { status: 400 });
     }
 
+    const safeName = sanitizeName(name);
+    if (!safeName) {
+      return NextResponse.json({ error: "שם לא תקין" }, { status: 400 });
+    }
+
     await prisma.platformUser.update({
       where: { id: session.user.id },
-      data: { name: name.trim() },
+      data: { name: safeName },
     });
 
     return NextResponse.json({ ok: true });

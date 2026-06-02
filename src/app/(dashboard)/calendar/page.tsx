@@ -12,7 +12,6 @@ import {
   Clock,
   Phone,
   PawPrint,
-  ShoppingCart,
   ListTodo,
   Hotel,
   MessageCircle,
@@ -91,19 +90,6 @@ interface BoardingStayEvent {
   assignedTo: { id: string; name: string } | null;
 }
 
-interface OrderEvent {
-  id: string;
-  orderType: string;
-  status: string;
-  startAt: string | null;
-  endAt: string | null;
-  total: number;
-  notes: string | null;
-  customer: { id: string; name: string; phone: string };
-  lines: { id: string; name: string; quantity: number; unitPrice: number }[];
-  assignedTo: { id: string; name: string } | null;
-}
-
 interface TaskEvent {
   id: string;
   title: string;
@@ -166,19 +152,6 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
   consultation: "ייעוץ",
   other: "אחר",
 };
-
-const ORDER_TYPE_COLORS: Record<string, string> = {
-  // Legacy
-  sale: "#F97316",
-  appointment: "#6366F1",
-  // New types
-  products: "#F97316",
-  boarding: "#10B981",
-  training: "#3B82F6",
-  grooming: "#EC4899",
-  service_dog: "#8B5CF6",
-};
-
 
 const TASK_PRIORITY_COLORS: Record<string, string> = {
   URGENT: "#EF4444",
@@ -954,12 +927,6 @@ function CalendarContent() {
     enabled: viewMode !== "month",
   });
 
-  const { data: orders = [] } = useQuery<OrderEvent[]>({
-    queryKey: ["orders-calendar", from, to],
-    queryFn: () =>
-      fetchJSON(`/api/orders?startFrom=${from}&startTo=${to}`),
-  });
-
   const { data: tasks = [] } = useQuery<TaskEvent[]>({
     queryKey: ["tasks-calendar", from, to],
     queryFn: () =>
@@ -1011,25 +978,12 @@ function CalendarContent() {
         types.add("other");
       }
     }
-    for (const o of orders) {
-      if (SERVICE_TYPE_COLORS[o.orderType]) types.add(o.orderType);
-    }
     for (const b of pendingBookingsRaw) {
       if (SERVICE_TYPE_COLORS[b.service.type]) types.add(b.service.type);
     }
     return Object.keys(SERVICE_TYPE_COLORS).filter((t) => types.has(t));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appointments, orders, pendingBookingsRaw]);
-
-  // Filter orders by active service-type filter and staff filter
-  const filteredOrders = useMemo(
-    () => orders.filter((o) => {
-      if (serviceTypeFilters.length > 0 && !serviceTypeFilters.includes(o.orderType)) return false;
-      if (staffFilter.length > 0 && !staffFilter.includes(o.assignedTo?.id ?? "__none__")) return false;
-      return true;
-    }),
-    [orders, serviceTypeFilters, staffFilter]
-  );
+  }, [appointments, pendingBookingsRaw]);
 
   // Filter boarding stays — boarding stays are always "boarding" type.
   // Show them when no filter or when "boarding" filter is active.
@@ -1324,13 +1278,6 @@ function CalendarContent() {
     return filteredAppointments.filter((a) => a.date.slice(0, 10) === dayStr);
   }, [filteredAppointments, selectedDay, viewMode]);
 
-  // ── Day view helpers for orders & tasks ──
-  const dayOrders = useMemo(() => {
-    if (viewMode !== "day") return [];
-    const dayStr = toLocalDateString(selectedDay);
-    return filteredOrders.filter((o) => o.startAt && dateTimeToDateStr(o.startAt) === dayStr);
-  }, [filteredOrders, selectedDay, viewMode]);
-
   const dayTimedTasks = useMemo(() => {
     if (viewMode !== "day") return [];
     const dayStr = toLocalDateString(selectedDay);
@@ -1418,40 +1365,6 @@ function CalendarContent() {
             <div className="w-6 h-0.5 bg-white/60 rounded-full" />
           </div>
         )}
-      </div>
-    );
-  };
-
-  // ── Render order block (shared by day/week) ──
-  const renderOrderBlock = (
-    order: OrderEvent,
-    style: React.CSSProperties,
-    compact: boolean
-  ) => {
-    const color = ORDER_TYPE_COLORS[order.orderType] || "#F97316";
-    return (
-      <div
-        key={`order-${order.id}`}
-        className={cn(
-          "absolute rounded-lg px-2 py-1 overflow-hidden bg-white border border-slate-200",
-          compact ? "text-xs" : "text-sm"
-        )}
-        style={{
-          ...style,
-          borderLeft: `3px solid ${color}`,
-          zIndex: 10,
-        }}
-      >
-        <div className="flex items-center gap-1 font-medium text-petra-text truncate">
-          <ShoppingCart className="w-3 h-3 flex-shrink-0" style={{ color }} />
-          {order.customer.name}
-        </div>
-        {order.lines.length > 0 && (
-          <div className="text-petra-muted truncate">{order.lines[0].name}</div>
-        )}
-        <div className="font-medium" style={{ color }}>
-          ₪{order.total.toLocaleString()}
-        </div>
       </div>
     );
   };
@@ -2022,31 +1935,6 @@ function CalendarContent() {
                   });
                 })}
 
-                {/* Order blocks */}
-                {weekDates.map((date, dayIdx) => {
-                  const dateStr = toLocalDateString(date);
-                  const dayOrd = filteredOrders.filter(
-                    (o) => o.startAt && dateTimeToDateStr(o.startAt) === dateStr
-                  );
-                  return dayOrd.map((order) => {
-                    const startTime = dateTimeToTime(order.startAt!);
-                    const endTime = order.endAt
-                      ? dateTimeToTime(order.endAt)
-                      : addMinutes(startTime, 60);
-                    const { top, height } = appointmentStyle(startTime, endTime);
-                    return renderOrderBlock(
-                      order,
-                      {
-                        top,
-                        height,
-                        right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
-                        width: `calc((100% - 60px) / 7 - 4px)`,
-                        marginRight: 2,
-                      },
-                      true
-                    );
-                  });
-                })}
 
                 {/* Pending online booking blocks */}
                 {weekDates.map((date, dayIdx) => {
@@ -2399,25 +2287,6 @@ function CalendarContent() {
               );
             })}
 
-            {/* Order blocks */}
-            {dayOrders.map((order) => {
-              const startTime = dateTimeToTime(order.startAt!);
-              const endTime = order.endAt
-                ? dateTimeToTime(order.endAt)
-                : addMinutes(startTime, 60);
-              const { top, height } = appointmentStyle(startTime, endTime);
-              return renderOrderBlock(
-                order,
-                {
-                  top,
-                  height,
-                  right: 60,
-                  width: "calc(100% - 64px)",
-                },
-                false
-              );
-            })}
-
             {/* Timed task blocks */}
             {dayTimedTasks.map((task) => {
               const startTime = dateTimeToTime(task.dueAt!);
@@ -2590,9 +2459,6 @@ function CalendarContent() {
               const dayAppts = filteredAppointments.filter(
                 (a) => a.date.slice(0, 10) === dateStr
               );
-              const dayOrd = filteredOrders.filter(
-                (o) => o.startAt && dateTimeToDateStr(o.startAt) === dateStr
-              );
               const dayTsk = tasks.filter(
                 (t) =>
                   (t.dueAt && dateTimeToDateStr(t.dueAt) === dateStr) ||
@@ -2608,14 +2474,6 @@ function CalendarContent() {
                   color: getAppointmentColor(apt.service, apt.priceListItem),
                   label: `${apt.startTime} ${apt.customer.name}`,
                   onClick: (e) => { e.stopPropagation(); setSelectedAppointment(apt); },
-                });
-              });
-              dayOrd.forEach((order) => {
-                const time = dateTimeToTime(order.startAt!);
-                entries.push({
-                  key: `ord-${order.id}`,
-                  color: ORDER_TYPE_COLORS[order.orderType] || "#F97316",
-                  label: `${time} ${order.customer.name} ₪${order.total}`,
                 });
               });
               dayTsk.forEach((task) => {
@@ -2733,19 +2591,6 @@ function CalendarContent() {
               color: getAppointmentColor(a.service, a.priceListItem),
               href: `/customers/${a.customer.id}`,
               icon: "📅",
-            }));
-
-          filteredOrders
-            .filter((o) => o.startAt && dateTimeToDateStr(o.startAt) === dateStr)
-            .forEach((o) => items.push({
-              key: `ord-${o.id}`,
-              time: dateTimeToTime(o.startAt!),
-              sortKey: dateTimeToTime(o.startAt!),
-              title: o.customer.name,
-              subtitle: `הזמנה · ₪${o.total.toLocaleString()}`,
-              color: ORDER_TYPE_COLORS[o.orderType] || "#F97316",
-              href: `/orders/${o.id}`,
-              icon: "🛒",
             }));
 
           tasks

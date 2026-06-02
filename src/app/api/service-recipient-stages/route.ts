@@ -60,6 +60,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, color } = body;
     if (!name?.trim()) return NextResponse.json({ error: "שם שלב חסר" }, { status: 400 });
+    if (typeof name !== "string" || name.trim().length > 100) {
+      return NextResponse.json({ error: "שם שלב ארוך מדי (מקסימום 100 תווים)" }, { status: 400 });
+    }
+    if (color !== undefined && (typeof color !== "string" || color.length > 100)) {
+      return NextResponse.json({ error: "ערך צבע לא תקין" }, { status: 400 });
+    }
 
     // Generate unique key for custom stage
     const key = "CUSTOM_" + Date.now().toString(36).toUpperCase();

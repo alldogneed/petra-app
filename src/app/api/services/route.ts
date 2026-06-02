@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { validateSafeUrl } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
   try {
@@ -65,6 +66,10 @@ export async function POST(request: NextRequest) {
     }
     if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) {
       return NextResponse.json({ error: "צבע לא תקין" }, { status: 400 });
+    }
+    if (paymentUrl) {
+      const urlError = validateSafeUrl(paymentUrl);
+      if (urlError) return NextResponse.json({ error: urlError }, { status: 400 });
     }
 
     const service = await prisma.service.create({

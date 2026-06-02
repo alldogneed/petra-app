@@ -25,12 +25,20 @@ export async function GET(request: NextRequest) {
     const roleMap = Object.fromEntries(businessUsers.map((bu) => [bu.userId, bu.role]));
 
     // Sessions filtered strictly to this business's members
+    // SECURITY: select only safe fields — never expose token, impersonation metadata
     const sessions = await prisma.adminSession.findMany({
       where: {
         userId: { in: bizUserIds },
         expiresAt: { gt: new Date() },
       },
-      include: {
+      select: {
+        id: true,
+        userId: true,
+        userAgent: true,
+        ipAddress: true,
+        lastSeenAt: true,
+        createdAt: true,
+        expiresAt: true,
         user: {
           select: { id: true, name: true, email: true, avatarUrl: true },
         },

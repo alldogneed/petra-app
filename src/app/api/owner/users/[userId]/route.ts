@@ -73,7 +73,10 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const existing = await prisma.platformUser.findUnique({ where: { id: params.userId } });
+  const existing = await prisma.platformUser.findUnique({
+    where: { id: params.userId },
+    select: { id: true, isActive: true, platformRole: true, email: true },
+  });
   if (!existing) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   // Only super_admin can grant super_admin role

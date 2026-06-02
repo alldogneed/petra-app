@@ -253,10 +253,12 @@ export async function deleteAllUserSessions(userId: string): Promise<void> {
 /** Set session cookie on response (call from login API route) */
 export function buildSessionCookie(
   token: string,
-  options: { isPlatformAdmin?: boolean } = {}
+  options: { isPlatformAdmin?: boolean; rememberMe?: boolean } = {}
 ): string {
   const maxAge = options.isPlatformAdmin
     ? SESSION_TTL_ADMIN / 1000
+    : options.rememberMe
+    ? SESSION_TTL_REMEMBER_ME / 1000
     : SESSION_TTL_REGULAR / 1000;
 
   const isProd = process.env.NODE_ENV === "production";

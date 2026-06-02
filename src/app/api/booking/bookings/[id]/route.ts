@@ -33,7 +33,7 @@ export async function PATCH(
     }
 
     const booking = await prisma.booking.update({
-      where: { id: params.id },
+      where: { id: params.id, businessId: authResult.businessId },
       data: {
         ...(body.status !== undefined && { status: body.status }),
         ...(body.notes !== undefined && { notes: body.notes }),

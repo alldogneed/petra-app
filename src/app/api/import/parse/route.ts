@@ -11,6 +11,11 @@ import { parseImportFile, normalizePhone } from "@/lib/import-utils";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit } from "@/lib/rate-limit";
 
+/** Sanitize a filename: strip path separators and dangerous chars, limit length */
+function sanitizeFilename(name: string): string {
+  return name.replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").slice(0, 255);
+}
+
 export async function POST(req: NextRequest) {
   const authResult = await requireBusinessAuth(req);
   if (isGuardError(authResult)) return authResult;
@@ -27,6 +32,11 @@ export async function POST(req: NextRequest) {
 
     if (!file) {
       return NextResponse.json({ error: "קובץ לא סופק" }, { status: 400 });
+    }
+
+    const MAX_IMPORT_SIZE = 5 * 1024 * 1024; // 5 MB
+    if (file.size > MAX_IMPORT_SIZE) {
+      return NextResponse.json({ error: "קובץ גדול מדי – מקסימום 5MB" }, { status: 400 });
     }
 
     const bytes = await file.arrayBuffer();
@@ -87,7 +97,7 @@ export async function POST(req: NextRequest) {
     const batch = await prisma.importBatch.create({
       data: {
         businessId: authResult.businessId,
-        sourceFilename: file.name,
+        sourceFilename: sanitizeFilename(file.name),
         status: "validated",
         rollbackDeadline,
         statsJson: JSON.stringify({

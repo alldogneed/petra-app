@@ -37,7 +37,6 @@ export async function GET(request: NextRequest) {
               take: 1,
               select: {
                 lastSeenAt: true,
-                ipAddress: true,
                 userAgent: true,
                 createdAt: true,
               },

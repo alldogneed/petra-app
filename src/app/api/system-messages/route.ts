@@ -51,6 +51,17 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    // Input length validation
+    if (!body.title || typeof body.title !== "string" || body.title.length > 500) {
+      return NextResponse.json({ error: "כותרת חובה (מקסימום 500 תווים)" }, { status: 400 });
+    }
+    if (!body.content || typeof body.content !== "string" || body.content.length > 5000) {
+      return NextResponse.json({ error: "תוכן חובה (מקסימום 5000 תווים)" }, { status: 400 });
+    }
+    if (body.actionLabel && (typeof body.actionLabel !== "string" || body.actionLabel.length > 200)) {
+      return NextResponse.json({ error: "תווית כפתור ארוכה מדי (מקסימום 200 תווים)" }, { status: 400 });
+    }
+
     // Validate actionUrl format if provided
     if (body.actionUrl?.trim()) {
       const trimmedUrl = body.actionUrl.trim();

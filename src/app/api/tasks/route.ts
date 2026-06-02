@@ -210,6 +210,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const validStatuses = ["OPEN", "IN_PROGRESS", "COMPLETED", "CANCELED"];
+    if (status && !validStatuses.includes(status)) {
+      return NextResponse.json(
+        { error: "Invalid status value" },
+        { status: 400 }
+      );
+    }
+
     const task = await prisma.task.create({
       data: {
         businessId: authResult.businessId,

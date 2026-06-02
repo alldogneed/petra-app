@@ -3,13 +3,22 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { rateLimit } from "@/lib/rate-limit";
 import * as XLSX from "xlsx";
+
+const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 }; // 5 exports per minute
 
 // GET /api/customers/export
 // Returns an XLSX workbook with all customers and their pets.
 export async function GET(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+
+  // Rate limit exports to prevent abuse
+  const rl = rateLimit("export:customers", authResult.businessId, EXPORT_RATE_LIMIT);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "יותר מדי בקשות ייצוא. נסה שוב בעוד דקה." }, { status: 429 });
+  }
 
   const { session } = authResult;
   logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.EXPORT_CUSTOMERS);

@@ -96,7 +96,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Use Israel timezone for date boundary (app serves Israeli businesses)
+    const israelDateStr = now.toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" }); // "YYYY-MM-DD"
+    const [y, m, d] = israelDateStr.split("-").map(Number);
+    const today = new Date(Date.UTC(y, m - 1, d)); // midnight UTC for the Israel calendar day
 
     // WhatsApp reminders at 30 and 7 days
     const WINDOWS = [
@@ -109,9 +112,10 @@ export async function GET(request: NextRequest) {
     let tasksCreated = 0;
     let sysMessagesCreated = 0;
 
-    // Fetch all health records with relevant fields
+    // Fetch health records with relevant fields (limit to prevent OOM on large datasets)
     const healths = await prisma.dogHealth.findMany({
       where: { pet: { customer: { businessId: { not: undefined } } } },
+      take: 5000,
       select: {
         id: true,
         rabiesLastDate: true, rabiesValidUntil: true, rabiesUnknown: true,
@@ -161,7 +165,8 @@ export async function GET(request: NextRequest) {
 
           const urgency = daysAhead <= 7 ? "בעוד שבוע" : "בעוד 30 יום";
           const body = `שלום ${customerName}, תזכורת: ${def.label} של ${petName} פוקע/ת ${urgency} (${formattedExpiry}). אנחנו ממליצים לחדש בהקדם. 🐾💉`;
-          const sendAt = new Date(today); sendAt.setHours(7, 0, 0, 0);
+          // 07:00 Israel time = 04:00 UTC (summer) or 05:00 UTC (winter)
+          const sendAt = new Date(today); sendAt.setUTCHours(4, 0, 0, 0);
 
           await prisma.scheduledMessage.create({
             data: {

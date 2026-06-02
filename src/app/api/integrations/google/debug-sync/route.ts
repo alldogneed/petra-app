@@ -14,10 +14,11 @@ const GOOGLE_CALENDAR_BASE = "https://www.googleapis.com/calendar/v3";
 /**
  * GET /api/integrations/google/debug-sync
  * Returns step-by-step diagnostic for appointment GCal sync.
- * Dev-only — disabled in production.
+ * SECURITY: Always disabled in production. Dev-only diagnostic tool.
  */
 export async function GET() {
-  if (process.env.NODE_ENV === "production") {
+  // Double protection: block in production AND if ENABLE_DEBUG_ENDPOINTS is not explicitly set
+  if (process.env.NODE_ENV === "production" || process.env.ENABLE_DEBUG_ENDPOINTS !== "true") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   try {

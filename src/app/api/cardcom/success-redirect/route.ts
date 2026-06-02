@@ -67,6 +67,10 @@ async function verifyCardcomPayment(lowProfileCode: string): Promise<Record<stri
   verifyUrl.searchParams.set("lowprofilecode", lowProfileCode);
 
   const res = await fetch(verifyUrl.toString());
+  if (!res.ok) {
+    console.error(`success-redirect: HTTP ${res.status} from Cardcom verify API for code ${lowProfileCode}`);
+    return null;
+  }
   const text = await res.text();
   const data = parseCardcomKV(text);
 

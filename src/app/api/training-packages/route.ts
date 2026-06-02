@@ -55,6 +55,18 @@ export async function POST(request: NextRequest) {
     if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
       return NextResponse.json({ error: "מחיר לא תקין" }, { status: 400 });
     }
+    if (durationDays) {
+      const parsedDays = parseInt(durationDays);
+      if (!Number.isFinite(parsedDays) || parsedDays < 1) {
+        return NextResponse.json({ error: "משך ימים לא תקין" }, { status: 400 });
+      }
+    }
+    if (name && typeof name === "string" && name.length > 200) {
+      return NextResponse.json({ error: "שם חבילה ארוך מדי (מקסימום 200 תווים)" }, { status: 400 });
+    }
+    if (description && typeof description === "string" && description.length > 2000) {
+      return NextResponse.json({ error: "תיאור ארוך מדי (מקסימום 2000 תווים)" }, { status: 400 });
+    }
 
     const pkg = await prisma.trainingPackage.create({
       data: {

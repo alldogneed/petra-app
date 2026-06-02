@@ -20,6 +20,33 @@ export async function PATCH(
 
     const body = await request.json();
 
+    // Validate numeric fields
+    if (body.sessions !== undefined) {
+      const n = parseInt(body.sessions);
+      if (!Number.isFinite(n) || n < 1) {
+        return NextResponse.json({ error: "מספר מפגשים חייב להיות מספר חיובי" }, { status: 400 });
+      }
+    }
+    if (body.price !== undefined) {
+      const n = parseFloat(body.price);
+      if (!Number.isFinite(n) || n < 0) {
+        return NextResponse.json({ error: "מחיר לא תקין" }, { status: 400 });
+      }
+    }
+    if (body.durationDays !== undefined && body.durationDays) {
+      const n = parseInt(body.durationDays);
+      if (!Number.isFinite(n) || n < 1) {
+        return NextResponse.json({ error: "משך ימים לא תקין" }, { status: 400 });
+      }
+    }
+    // Validate string lengths
+    if (body.name !== undefined && (typeof body.name !== "string" || body.name.length > 200)) {
+      return NextResponse.json({ error: "שם חבילה ארוך מדי (מקסימום 200 תווים)" }, { status: 400 });
+    }
+    if (body.description !== undefined && typeof body.description === "string" && body.description.length > 2000) {
+      return NextResponse.json({ error: "תיאור ארוך מדי (מקסימום 2000 תווים)" }, { status: 400 });
+    }
+
     const pkg = await prisma.trainingPackage.update({
       where: { id: params.id, businessId: authResult.businessId },
       data: {

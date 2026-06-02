@@ -2,6 +2,9 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { rateLimit } from "@/lib/rate-limit";
+
+const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 };
 
 // GET /api/leads/export?from=YYYY-MM-DD&to=YYYY-MM-DD
 // Returns UTF-8 CSV (with BOM for Excel) of all leads in the date range.
@@ -10,6 +13,11 @@ export async function GET(request: NextRequest) {
   try {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+
+  const rl = rateLimit("export:leads", authResult.businessId, EXPORT_RATE_LIMIT);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "יותר מדי בקשות ייצוא. נסה שוב בעוד דקה." }, { status: 429 });
+  }
 
   const { searchParams } = new URL(request.url);
   const from = searchParams.get("from");

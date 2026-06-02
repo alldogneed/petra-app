@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { getCurrentUser, setSessionCookie, createSession } from "@/lib/auth";
 import { deleteAllUserSessions } from "@/lib/session";
+import { rateLimit } from "@/lib/rate-limit";
 
 // POST /api/account/set-password
 // For Google-only users to set a password for the first time.
@@ -13,6 +14,12 @@ export async function POST(request: NextRequest) {
     const currentUser = await getCurrentUser();
     if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Rate limit: 5 attempts per 15 minutes (consistent with change-password)
+    const rl = rateLimit("account:set-password", currentUser.id, { max: 5, windowMs: 15 * 60 * 1000 });
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "יותר מדי ניסיונות — נסה שוב מאוחר יותר" }, { status: 429 });
     }
 
     const body = await request.json();

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { getAvailableSlots } from "@/lib/slots"
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 // GET /api/book/[slug]/slots?priceListItemId=...&date=YYYY-MM-DD
 // Public: returns available time slots
@@ -10,6 +11,12 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
+    const ip = req.headers.get("x-forwarded-for") || req.ip || "127.0.0.1"
+    const rl = rateLimit("book:slots", ip, RATE_LIMITS.PUBLIC_READ)
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 })
+    }
+
     const { searchParams } = new URL(req.url)
     const priceListItemId = searchParams.get("priceListItemId")
     const date = searchParams.get("date") // YYYY-MM-DD in business's local timezone

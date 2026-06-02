@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const source = request.headers.get("x-webhook-source") || "unknown";
 
-    console.log(`Webhook received from: ${source}`, JSON.stringify(body).slice(0, 200));
+    console.log(`Webhook received from: ${source}`);
 
     // Route to specific handler based on source
     switch (source) {

@@ -5,10 +5,13 @@ export const dynamic = "force-dynamic";
  *   Sheet 1 — "האכלות"   : dogs that have feeding data entered
  *   Sheet 2 — "תרופות"   : dogs that have medications entered (one row per medication)
  */
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { rateLimit } from "@/lib/rate-limit";
 import * as XLSX from "xlsx";
+
+const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 };
 
 function fmtDate(d: Date | string | null | undefined): string {
   if (!d) return "";
@@ -21,6 +24,11 @@ export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    const rl = rateLimit("export:service-dogs-care", authResult.businessId, EXPORT_RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "יותר מדי בקשות ייצוא. נסה שוב בעוד דקה." }, { status: 429 });
+    }
 
     const dogs = await prisma.serviceDogProfile.findMany({
       where: { businessId: authResult.businessId },

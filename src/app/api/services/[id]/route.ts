@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { validateSafeUrl } from "@/lib/validation";
 
 export async function PATCH(
   request: NextRequest,
@@ -33,7 +34,13 @@ export async function PATCH(
     if (body.includesVat !== undefined) data.includesVat = body.includesVat;
     if (body.isPublicBookable !== undefined) data.isPublicBookable = body.isPublicBookable;
     if (body.bookingMode !== undefined) data.bookingMode = body.bookingMode;
-    if (body.paymentUrl !== undefined) data.paymentUrl = body.paymentUrl || null;
+    if (body.paymentUrl !== undefined) {
+      if (body.paymentUrl) {
+        const urlError = validateSafeUrl(body.paymentUrl);
+        if (urlError) return NextResponse.json({ error: urlError }, { status: 400 });
+      }
+      data.paymentUrl = body.paymentUrl || null;
+    }
     if (body.depositRequired !== undefined) data.depositRequired = body.depositRequired;
     if (body.depositAmount !== undefined) data.depositAmount = body.depositAmount ? Number(body.depositAmount) : null;
 

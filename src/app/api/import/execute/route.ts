@@ -10,6 +10,13 @@ import { prisma } from "@/lib/prisma";
 import { normalizePhone, RawCustomerRow, RawPetRow } from "@/lib/import-utils";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit } from "@/lib/rate-limit";
+import { sanitizeName } from "@/lib/validation";
+
+/** Strip HTML tags and limit string length to prevent stored XSS and oversized values */
+function sanitizeField(value: string | null | undefined, maxLen = 500): string | null {
+  if (!value) return null;
+  return value.replace(/<[^>]*>/g, "").replace(/[<>{}[\]]/g, "").trim().slice(0, maxLen) || null;
+}
 
 export async function POST(req: NextRequest) {
   const authResult = await requireBusinessAuth(req);
@@ -86,12 +93,12 @@ export async function POST(req: NextRequest) {
         const newCustomer = await prisma.customer.create({
           data: {
             businessId: authResult.businessId,
-            name: row.full_name!,
+            name: sanitizeName(row.full_name || ""),
             phone: phoneRaw,
             phoneNorm,
-            email: row.email ?? null,
-            address: row.city ?? null,
-            notes: row.notes ?? null,
+            email: sanitizeField(row.email, 254),
+            address: sanitizeField(row.city, 200),
+            notes: sanitizeField(row.notes, 2000),
             source: "import",
           },
           select: { id: true },
@@ -109,11 +116,11 @@ export async function POST(req: NextRequest) {
       const newPet = await prisma.pet.create({
         data: {
           customerId,
-          name: row.pet_name!,
+          name: sanitizeName(row.pet_name || ""),
           species: "dog", // default; user can change later
-          breed: row.breed ?? null,
-          gender: row.sex ?? null,
-          medicalNotes: row.notes ?? null,
+          breed: sanitizeField(row.breed, 100),
+          gender: sanitizeField(row.sex, 20),
+          medicalNotes: sanitizeField(row.notes, 2000),
         },
         select: { id: true },
       });

@@ -9,6 +9,7 @@ import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
 import { PLATFORM_PERMS } from "@/lib/permissions";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { z } from "zod";
 
 export async function GET(
@@ -76,7 +77,7 @@ export async function POST(
   if (!user) {
     // Create new user
     const passwordHash = await bcrypt.hash(
-      body.temporaryPassword ?? Math.random().toString(36).slice(-10) + "A1!",
+      body.temporaryPassword ?? crypto.randomBytes(12).toString("base64url") + "A1!",
       12
     );
     user = await prisma.platformUser.create({

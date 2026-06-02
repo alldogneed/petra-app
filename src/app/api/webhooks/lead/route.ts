@@ -34,6 +34,7 @@ import { getFirstLeadStageId } from "@/lib/lead-stages";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { sendWhatsAppMessage, sendWhatsAppTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
+import { sanitizeName } from "@/lib/validation";
 
 export async function POST(request: NextRequest) {
   // ── Rate limiting ─────────────────────────────────────────────────────────
@@ -110,22 +111,23 @@ export async function POST(request: NextRequest) {
     }) ?? null;
   }
 
-  // ── Resolve fields ────────────────────────────────────────────────────────
-  const firstName = str(body.firstName);
-  const lastName = str(body.lastName);
-  const name =
-    str(body.name) ||
-    str(body.fullName) ||
-    [firstName, lastName].filter(Boolean).join(" ");
+  // ── Resolve fields (with length limits to prevent abuse) ───────────────
+  const firstName = sanitizeName(str(body.firstName).slice(0, 200));
+  const lastName = sanitizeName(str(body.lastName).slice(0, 200));
+  const name = sanitizeName(
+    str(body.name).slice(0, 200) ||
+    str(body.fullName).slice(0, 200) ||
+    [firstName, lastName].filter(Boolean).join(" ")
+  );
 
-  const phone = str(body.phone) || undefined;
-  const email = str(body.email) || undefined;
-  const source = str(body.source) || "website";
-  const petName = str(body.petName) || undefined;
-  const petBreed = str(body.petBreed) || str(body.breed) || undefined;
-  const city = str(body.city) || undefined;
-  const service = str(body.service) || undefined;
-  const rawNotes = str(body.notes) || undefined;
+  const phone = str(body.phone).slice(0, 50) || undefined;
+  const email = str(body.email).slice(0, 254) || undefined;
+  const source = sanitizeName(str(body.source).slice(0, 100)) || "website";
+  const petName = sanitizeName(str(body.petName).slice(0, 100)) || undefined;
+  const petBreed = sanitizeName((str(body.petBreed) || str(body.breed)).slice(0, 100)) || undefined;
+  const city = sanitizeName(str(body.city).slice(0, 100)) || undefined;
+  const service = sanitizeName(str(body.service).slice(0, 200)) || undefined;
+  const rawNotes = str(body.notes).slice(0, 5000).replace(/<[^>]*>/g, "").replace(/[<>{}[\]]/g, "") || undefined;
 
   if (!name && !phone) {
     return NextResponse.json(
@@ -198,7 +200,9 @@ export async function POST(request: NextRequest) {
               await sendWhatsAppMessage({ to: p, body: msg });
             }
           } catch {
-            await sendWhatsAppMessage({ to: p, body: msg }).catch(() => {});
+            await sendWhatsAppMessage({ to: p, body: msg }).catch((fallbackErr) => {
+              console.error("[webhook/lead] WhatsApp fallback also failed for", p, fallbackErr);
+            });
           }
         })
       );

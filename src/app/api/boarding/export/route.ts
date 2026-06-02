@@ -2,13 +2,21 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { rateLimit } from "@/lib/rate-limit";
 import * as XLSX from "xlsx";
 import { formatDate } from "@/lib/utils";
+
+const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 };
 
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    const rl = rateLimit("export:boarding", authResult.businessId, EXPORT_RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "יותר מדי בקשות ייצוא. נסה שוב בעוד דקה." }, { status: 429 });
+    }
 
     const stays = await prisma.boardingStay.findMany({
       where: {

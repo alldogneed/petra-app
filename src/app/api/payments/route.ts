@@ -25,6 +25,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
 
+    const VALID_STATUSES = ["pending", "paid", "canceled"];
+    if (status && !VALID_STATUSES.includes(status)) {
+      return NextResponse.json({ error: "סטטוס לא תקין" }, { status: 400 });
+    }
+
     const where: any = { businessId: authResult.businessId };
     if (status) {
       where.status = status;

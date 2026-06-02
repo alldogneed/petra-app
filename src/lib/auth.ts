@@ -200,6 +200,7 @@ export async function getCurrentUser() {
       : Promise.resolve(null),
     prisma.platformUser.findUnique({
       where: { id: session.user.id },
+      // passwordHash is selected ONLY to derive `hasPassword: boolean` below — never returned to the client.
       select: { avatarUrl: true, authProvider: true, passwordHash: true },
     }),
   ]);

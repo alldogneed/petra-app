@@ -10,7 +10,7 @@ const PatchTaskSchema = z.object({
   description: z.string().max(2000).nullable().optional(),
   category: z.enum(["GENERAL", "BOARDING", "TRAINING", "LEADS", "HEALTH", "MEDICATION", "FEEDING"]).optional(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
-  status: z.enum(["OPEN", "COMPLETED", "CANCELED"]).optional(),
+  status: z.enum(["OPEN", "IN_PROGRESS", "COMPLETED", "CANCELED"]).optional(),
   dueAt: z.string().datetime().nullable().optional(),
   dueDate: z.string().nullable().optional(),
   relatedEntityType: z.string().max(50).nullable().optional(),

@@ -31,13 +31,17 @@ export async function GET(request: NextRequest) {
   try {
     const now = new Date();
 
-    // Build date windows for D-3 and D-1
+    // Build date windows for D-3 and D-1 using Israel timezone
+    // (app serves Israeli businesses; cron runs on Vercel which may be in a different TZ)
+    const israelDateStr = now.toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" }); // "YYYY-MM-DD"
+    const [iy, im, id] = israelDateStr.split("-").map(Number);
+    const israelToday = new Date(Date.UTC(iy, im - 1, id)); // midnight UTC for Israel's calendar day
+
     function dayWindow(daysFromNow: number): { gte: Date; lte: Date } {
-      const start = new Date(now);
-      start.setDate(now.getDate() + daysFromNow);
-      start.setHours(0, 0, 0, 0);
+      const start = new Date(israelToday);
+      start.setUTCDate(start.getUTCDate() + daysFromNow);
       const end = new Date(start);
-      end.setHours(23, 59, 59, 999);
+      end.setUTCHours(23, 59, 59, 999);
       return { gte: start, lte: end };
     }
 

@@ -3,8 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { InvoicingService } from "@/lib/invoicing/invoicing-service";
-import type { DocumentType } from "@/lib/invoicing/types";
+import { DOCUMENT_TYPES, type DocumentType } from "@/lib/invoicing/types";
 import { maskSensitive, logInvoicing } from "@/lib/invoicing/logger";
+
+const VALID_DOC_TYPES = new Set(Object.values(DOCUMENT_TYPES));
 
 // POST /api/invoicing/issue — issue a document
 // Supports two flows:
@@ -86,6 +88,11 @@ export async function POST(request: NextRequest) {
     // Flow 2: Direct issue from payment (original flow)
     if (!paymentId) {
       return NextResponse.json({ error: "חסר paymentId או invoiceId" }, { status: 400 });
+    }
+
+    // Validate docType if provided
+    if (docType !== undefined && !VALID_DOC_TYPES.has(docType)) {
+      return NextResponse.json({ error: "סוג מסמך לא תקין" }, { status: 400 });
     }
 
     const result = await InvoicingService.issue(

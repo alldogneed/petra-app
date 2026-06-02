@@ -48,6 +48,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "שם אוטומציה לא תקין (מקסימום 200 תווים)" }, { status: 400 });
     }
 
+    // Verify the template belongs to this business (prevent IDOR)
+    const template = await prisma.messageTemplate.findFirst({
+      where: { id: templateId, businessId: authResult.businessId },
+    });
+    if (!template) {
+      return NextResponse.json({ error: "תבנית לא נמצאה" }, { status: 404 });
+    }
+
     const rule = await prisma.automationRule.create({
       data: {
         businessId: authResult.businessId,

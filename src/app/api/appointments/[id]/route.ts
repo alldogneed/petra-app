@@ -55,8 +55,24 @@ export async function PATCH(
     if (date !== undefined) data.date = new Date(date);
     if (startTime !== undefined) data.startTime = startTime;
     if (endTime !== undefined) data.endTime = endTime;
-    if (serviceId !== undefined) data.serviceId = serviceId;
-    if (priceListItemId !== undefined) data.priceListItemId = priceListItemId;
+    // Validate serviceId belongs to this business (IDOR prevention)
+    if (serviceId !== undefined) {
+      const svc = await prisma.service.findFirst({ where: { id: serviceId, businessId: authResult.businessId } });
+      if (!svc) {
+        return NextResponse.json({ error: "שירות לא נמצא" }, { status: 400 });
+      }
+      data.serviceId = serviceId;
+    }
+    // Validate priceListItemId belongs to this business (IDOR prevention)
+    if (priceListItemId !== undefined) {
+      const pli = await prisma.priceListItem.findFirst({
+        where: { id: priceListItemId, priceList: { businessId: authResult.businessId } },
+      });
+      if (!pli) {
+        return NextResponse.json({ error: "פריט מחירון לא נמצא" }, { status: 400 });
+      }
+      data.priceListItemId = priceListItemId;
+    }
 
     const appointment = await prisma.appointment.update({
       where: { id, businessId: authResult.businessId },

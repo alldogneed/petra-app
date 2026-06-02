@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     prisma.platformUser.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
-    }).catch(() => {}); // fire-and-forget
+    }).catch((err) => console.error("[login] lastLoginAt update failed:", err)); // fire-and-forget
 
     logActivity(user.id, user.name, "LOGIN");
 

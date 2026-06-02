@@ -5,7 +5,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards"
 
 // Stub notification
 function notifyCustomer(booking: { id: string }, customer: { phone: string; name: string }, status: string) {
-  console.log(`[NOTIFY] Booking ${booking.id} is now ${status} for ${customer.name} (${customer.phone})`)
+  console.log(`[NOTIFY] Booking ${booking.id} is now ${status} for customer ${customer.name}`)
 }
 
 // PATCH /api/admin/bookings/[id]

@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { sanitizeName } from "@/lib/validation";
 
 type Recipient = Record<string, unknown>;
 
@@ -81,10 +82,15 @@ export async function POST(request: NextRequest) {
     if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
 
     const body = await request.json();
-    const { name, phone, mobile, email, idNumber, address, disabilityType, disabilityNotes, customerId, notes, fundingSource, intakeDate } = body;
+    const { name: rawName, phone, mobile, email, idNumber, address, disabilityType, disabilityNotes, customerId, notes, fundingSource, intakeDate } = body;
 
-    if (!name) {
+    if (!rawName) {
       return NextResponse.json({ error: "נדרש שם" }, { status: 400 });
+    }
+
+    const name = sanitizeName(rawName);
+    if (!name) {
+      return NextResponse.json({ error: "שם לא תקין" }, { status: 400 });
     }
 
     // Verify customerId belongs to this business

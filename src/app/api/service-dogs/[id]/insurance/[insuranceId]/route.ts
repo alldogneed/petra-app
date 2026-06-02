@@ -22,7 +22,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const body = await request.json();
 
     const updated = await prisma.serviceDogInsurance.update({
-      where: { id: params.insuranceId },
+      where: { id: params.insuranceId, businessId: auth.businessId },
       data: {
         ...(body.provider !== undefined && { provider: body.provider || null }),
         ...(body.policyNumber !== undefined && { policyNumber: body.policyNumber || null }),
@@ -53,7 +53,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     const existing = await verifyOwnership(params.id, params.insuranceId, auth.businessId);
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    await prisma.serviceDogInsurance.delete({ where: { id: params.insuranceId } });
+    await prisma.serviceDogInsurance.delete({ where: { id: params.insuranceId, businessId: auth.businessId } });
 
     return NextResponse.json({ success: true });
   } catch (e) {

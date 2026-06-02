@@ -4,13 +4,22 @@ import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { rateLimit } from "@/lib/rate-limit";
 // @ts-ignore
 import * as XLSX from "xlsx";
+
+const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 };
 
 export async function GET(request: NextRequest) {
   try {
   const auth = await requireBusinessAuth(request);
   if (isGuardError(auth)) return auth;
+
+  const rl = rateLimit("export:pets", auth.businessId, EXPORT_RATE_LIMIT);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "יותר מדי בקשות ייצוא. נסה שוב בעוד דקה." }, { status: 429 });
+  }
+
   const { businessId } = auth;
 
   const pets = await prisma.pet.findMany({

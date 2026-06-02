@@ -6,6 +6,21 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { parseServiceDogFile } from "@/lib/import-utils";
 import { seedMedicalProtocols } from "@/lib/service-dog-engine";
+import { sanitizeName } from "@/lib/validation";
+import { SERVICE_DOG_PHASES } from "@/lib/service-dogs";
+
+/** Strip HTML tags and limit string length to prevent stored XSS */
+function sanitizeField(value: string | null | undefined, maxLen = 500): string | null {
+  if (!value) return null;
+  return value.replace(/<[^>]*>/g, "").replace(/[<>{}[\]]/g, "").trim().slice(0, maxLen) || null;
+}
+
+/** Sanitize a filename: strip path separators and dangerous chars, limit length */
+function sanitizeFilename(name: string): string {
+  return name.replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").slice(0, 255);
+}
+
+const validPhaseKeys = SERVICE_DOG_PHASES.map((p) => p.id);
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,26 +68,27 @@ export async function POST(request: NextRequest) {
         // Sequential operations (no interactive $transaction — Supabase PgBouncer incompatible)
         const pet = await prisma.pet.create({
           data: {
-            name: dog.name,
+            name: sanitizeName(dog.name || ""),
             species: "dog",
-            breed: dog.breed || null,
-            gender: dog.gender || null,
+            breed: sanitizeField(dog.breed, 100),
+            gender: sanitizeField(dog.gender, 20),
             birthDate: dog.birthDate ? new Date(dog.birthDate) : null,
-            microchip: dog.microchip || null,
+            microchip: sanitizeField(dog.microchip, 50),
             businessId,
           },
         });
 
-        const initialPhase = dog.phase || "SELECTION";
+        // Validate phase against allowed values to prevent arbitrary strings in DB
+        const initialPhase = dog.phase && (validPhaseKeys as string[]).includes(dog.phase) ? dog.phase : "SELECTION";
 
         const result = await prisma.serviceDogProfile.create({
           data: {
             petId: pet.id,
             businessId,
             phase: initialPhase,
-            serviceType: dog.serviceType || null,
+            serviceType: sanitizeField(dog.serviceType, 50),
             currentLocation: dog.location || "TRAINER",
-            notes: dog.notes || null,
+            notes: sanitizeField(dog.notes, 2000),
           },
         });
 
@@ -118,7 +134,7 @@ export async function POST(request: NextRequest) {
     const batch = await prisma.importBatch.create({
       data: {
         businessId,
-        sourceFilename: file.name,
+        sourceFilename: sanitizeFilename(file.name),
         status: "imported",
         statsJson,
         rollbackDeadline,

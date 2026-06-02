@@ -54,3 +54,19 @@ export function validateName(name: string): string | null {
   if (sanitized.length < 2) return "שם לא תקין — נא להזין לפחות 2 תווים";
   return null;
 }
+
+/** Validates a URL has a safe scheme (http/https only). Returns null if valid or empty, error message if invalid. */
+export function validateSafeUrl(url: string): string | null {
+  if (!url || !url.trim()) return null;
+  const trimmed = url.trim();
+  if (trimmed.length > 2000) return "כתובת URL ארוכה מדי (מקסימום 2000 תווים)";
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return "כתובת URL חייבת להתחיל ב-https:// או http://";
+    }
+    return null;
+  } catch {
+    return "כתובת URL לא תקינה";
+  }
+}

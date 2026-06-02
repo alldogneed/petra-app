@@ -3,11 +3,14 @@ export const dynamic = "force-dynamic";
  * GET /api/service-dogs/export
  * Downloads an XLSX file with all service dogs and their key details.
  */
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { rateLimit } from "@/lib/rate-limit";
 import * as XLSX from "xlsx";
 import { computeMedicalComplianceStatus } from "@/lib/service-dog-engine";
+
+const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 };
 
 const PHASE_LABELS: Record<string, string> = {
   SELECTION: "בחירה",
@@ -72,6 +75,11 @@ export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    const rl = rateLimit("export:service-dogs", authResult.businessId, EXPORT_RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "יותר מדי בקשות ייצוא. נסה שוב בעוד דקה." }, { status: 429 });
+    }
 
     const dogs = await prisma.serviceDogProfile.findMany({
       where: { businessId: authResult.businessId },

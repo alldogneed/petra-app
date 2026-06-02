@@ -34,6 +34,17 @@ export async function POST(request: NextRequest) {
   if (typeof pageUrl === "string" && pageUrl.length > 2000) {
     return NextResponse.json({ error: "כתובת עמוד ארוכה מדי" }, { status: 400 });
   }
+  // Validate URL scheme to prevent javascript: / data: XSS when rendered as a link
+  if (typeof pageUrl === "string" && pageUrl.trim()) {
+    try {
+      const parsedUrl = new URL(pageUrl.trim());
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        return NextResponse.json({ error: "כתובת עמוד לא תקינה" }, { status: 400 });
+      }
+    } catch {
+      // Not a valid URL — store as-is (safe as plain text, just won't be a clickable link)
+    }
+  }
   // Limit screenshot to ~2MB base64 (~2.7M chars)
   if (typeof screenshotBase64 === "string" && screenshotBase64.length > 2_800_000) {
     return NextResponse.json({ error: "צילום מסך גדול מדי (מקסימום 2MB)" }, { status: 400 });

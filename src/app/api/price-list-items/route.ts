@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { validateSafeUrl } from "@/lib/validation";
 
 // Map English category IDs (used by frontend) to Hebrew (stored in DB)
 const CATEGORY_ID_TO_HE: Record<string, string> = {
@@ -64,6 +65,10 @@ export async function POST(request: NextRequest) {
     const parsedBasePrice = Number(basePrice);
     if (!Number.isFinite(parsedBasePrice) || parsedBasePrice < 0) {
       return NextResponse.json({ error: "basePrice must be a valid number >= 0" }, { status: 400 });
+    }
+    if (paymentUrl) {
+      const urlError = validateSafeUrl(paymentUrl);
+      if (urlError) return NextResponse.json({ error: urlError }, { status: 400 });
     }
 
     // Auto-create default PriceList if none exists

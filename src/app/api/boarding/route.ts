@@ -83,6 +83,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (notes && (typeof notes !== "string" || notes.length > 2000)) {
+      return NextResponse.json({ error: "הערות ארוכות מדי (מקסימום 2000 תווים)" }, { status: 400 });
+    }
 
     // Validate assignedToUserId belongs to this business
     if (assignedToUserId) {
@@ -139,22 +142,23 @@ export async function POST(request: NextRequest) {
 
     // Sequential room availability check + create (no interactive $transaction — Supabase PgBouncer incompatible)
     if (roomId) {
-      const room = await prisma.room.findUnique({ where: { id: roomId } });
-      if (room) {
-        const activeCount = await prisma.boardingStay.count({
-          where: {
-            roomId,
-            status: { in: ["reserved", "checked_in"] },
-            checkIn: { lt: checkOut ? new Date(checkOut) : new Date("2099-12-31") },
-            OR: [
-              { checkOut: { gt: new Date(checkIn) } },
-              { checkOut: null },
-            ],
-          },
-        });
-        if (activeCount >= room.capacity) {
-          return NextResponse.json({ error: "החדר מלא בתאריכים אלו" }, { status: 409 });
-        }
+      const room = await prisma.room.findFirst({ where: { id: roomId, businessId: authResult.businessId } });
+      if (!room) {
+        return NextResponse.json({ error: "חדר לא נמצא" }, { status: 404 });
+      }
+      const activeCount = await prisma.boardingStay.count({
+        where: {
+          roomId,
+          status: { in: ["reserved", "checked_in"] },
+          checkIn: { lt: checkOut ? new Date(checkOut) : new Date("2099-12-31") },
+          OR: [
+            { checkOut: { gt: new Date(checkIn) } },
+            { checkOut: null },
+          ],
+        },
+      });
+      if (activeCount >= room.capacity) {
+        return NextResponse.json({ error: "החדר מלא בתאריכים אלו" }, { status: 409 });
       }
     }
 

@@ -36,10 +36,36 @@ export async function POST(
     const sessionStatus = status || "COMPLETED";
     const mins = durationMinutes ? parseInt(durationMinutes) : 60;
 
+    // Validate numeric fields
+    if (!Number.isFinite(mins) || mins < 1 || mins > 1440) {
+      return NextResponse.json({ error: "משך מפגש לא תקין (1-1440 דקות)" }, { status: 400 });
+    }
+    if (sessionNumber) {
+      const sn = parseInt(sessionNumber);
+      if (!Number.isFinite(sn) || sn < 1) {
+        return NextResponse.json({ error: "מספר מפגש לא תקין" }, { status: 400 });
+      }
+    }
+    if (rating) {
+      const r = parseInt(rating);
+      if (!Number.isFinite(r) || r < 1 || r > 10) {
+        return NextResponse.json({ error: "דירוג לא תקין (1-10)" }, { status: 400 });
+      }
+    }
+    // Validate date
+    const parsedDate = new Date(sessionDate);
+    if (isNaN(parsedDate.getTime())) {
+      return NextResponse.json({ error: "תאריך לא תקין" }, { status: 400 });
+    }
+    // Validate string lengths
+    if (summary && typeof summary === "string" && summary.length > 5000) {
+      return NextResponse.json({ error: "סיכום ארוך מדי (מקסימום 5000 תווים)" }, { status: 400 });
+    }
+
     const session = await prisma.trainingProgramSession.create({
       data: {
         trainingProgramId: params.id,
-        sessionDate: new Date(sessionDate),
+        sessionDate: parsedDate,
         durationMinutes: mins,
         sessionNumber: sessionNumber ? parseInt(sessionNumber) : null,
         summary: summary || null,

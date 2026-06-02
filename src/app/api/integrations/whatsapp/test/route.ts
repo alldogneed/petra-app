@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { rateLimit } from "@/lib/rate-limit";
 
 // POST /api/integrations/whatsapp/test
 // Sends a test WhatsApp message to a given phone number.
@@ -9,6 +10,18 @@ import { sendWhatsAppMessage } from "@/lib/whatsapp";
 export async function POST(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+
+  // Rate limit: 3 test messages per 5 minutes per business
+  const rl = await rateLimit(`wa-test:${authResult.businessId}`, authResult.businessId, {
+    max: 3,
+    windowMs: 5 * 60 * 1000,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "יותר מדי ניסיונות. נסה שוב בעוד מספר דקות." },
+      { status: 429 }
+    );
+  }
 
   try {
     const body = await request.json();

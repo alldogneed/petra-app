@@ -51,6 +51,20 @@ export async function PATCH(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
+    // Validate allowed values
+    const VALID_STATUSES = ["draft", "confirmed", "in_progress", "completed", "cancelled"];
+    const VALID_ORDER_TYPES = ["one_time", "recurring", "package"];
+
+    if (body.status !== undefined && !VALID_STATUSES.includes(body.status)) {
+      return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
+    }
+    if (body.orderType !== undefined && !VALID_ORDER_TYPES.includes(body.orderType)) {
+      return NextResponse.json({ error: "Invalid orderType value" }, { status: 400 });
+    }
+    if (body.notes !== undefined && typeof body.notes === "string" && body.notes.length > 2000) {
+      return NextResponse.json({ error: "Notes too long (max 2000 chars)" }, { status: 400 });
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = {};
     if (body.status !== undefined) data.status = body.status;
@@ -71,6 +85,7 @@ export async function PATCH(
     if (body.status === "cancelled") {
       await prisma.scheduledMessage.updateMany({
         where: {
+          businessId: authResult.businessId,
           relatedEntityType: "ORDER",
           relatedEntityId: params.id,
           status: "PENDING",
@@ -108,6 +123,7 @@ export async function DELETE(
     // Cancel any pending reminders
     await prisma.scheduledMessage.updateMany({
       where: {
+        businessId: authResult.businessId,
         relatedEntityType: "ORDER",
         relatedEntityId: params.id,
         status: "PENDING",

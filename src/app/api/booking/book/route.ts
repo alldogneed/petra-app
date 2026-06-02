@@ -144,8 +144,8 @@ export async function POST(request: NextRequest) {
         customerToken: require("crypto").randomBytes(32).toString("hex"),
       },
       include: {
-        priceListItem: true,
-        customer: true,
+        priceListItem: { select: { name: true, category: true } },
+        customer: { select: { name: true, phone: true } },
       },
     });
 
@@ -200,7 +200,16 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    return NextResponse.json(booking, { status: 201 });
+    // Return only safe fields to the public caller (exclude businessId, internal IDs, etc.)
+    return NextResponse.json({
+      id: booking.id,
+      status: booking.status,
+      startAt: booking.startAt,
+      endAt: booking.endAt,
+      customerToken: booking.customerToken,
+      serviceName: booking.priceListItem?.name ?? null,
+      customerName: booking.customer.name,
+    }, { status: 201 });
   } catch (error) {
     console.error("POST booking error:", error);
     return NextResponse.json({ error: "שגיאה ביצירת הזמנה" }, { status: 500 });

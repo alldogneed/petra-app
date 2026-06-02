@@ -23,7 +23,6 @@ export async function GET(
       startAt: true,
       endAt: true,
       notes: true,
-      customerToken: true,
       customer: { select: { name: true, phone: true } },
       priceListItem: { select: { name: true, category: true } },
       service: { select: { name: true } },
@@ -81,7 +80,7 @@ export async function PATCH(
   const updated = await prisma.booking.update({
     where: { id: booking.id },
     data: { status: "cancelled" },
-    select: { id: true, status: true, customerToken: true },
+    select: { id: true, status: true },
   });
 
   return NextResponse.json(updated);

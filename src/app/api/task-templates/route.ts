@@ -41,6 +41,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "name and defaultTitleTemplate are required" }, { status: 400 });
     }
 
+    // Input length validation
+    if (typeof name !== "string" || name.length > 200) {
+      return NextResponse.json({ error: "name too long (max 200)" }, { status: 400 });
+    }
+    if (typeof defaultTitleTemplate !== "string" || defaultTitleTemplate.length > 500) {
+      return NextResponse.json({ error: "title template too long (max 500)" }, { status: 400 });
+    }
+    if (defaultDescriptionTemplate && (typeof defaultDescriptionTemplate !== "string" || defaultDescriptionTemplate.length > 2000)) {
+      return NextResponse.json({ error: "description template too long (max 2000)" }, { status: 400 });
+    }
+
+    const VALID_CATEGORIES = ["GENERAL", "CUSTOMER", "PET", "APPOINTMENT", "BOARDING", "TRAINING", "SERVICE_DOG"];
+    if (!VALID_CATEGORIES.includes(defaultCategory)) {
+      return NextResponse.json({ error: "Invalid category" }, { status: 400 });
+    }
+    const VALID_PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"];
+    if (!VALID_PRIORITIES.includes(defaultPriority)) {
+      return NextResponse.json({ error: "Invalid priority" }, { status: 400 });
+    }
+
     const template = await prisma.taskTemplate.create({
       data: {
         name,

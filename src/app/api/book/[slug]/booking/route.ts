@@ -313,8 +313,12 @@ export async function POST(
 
   // Auto-create lead for new customers (fire-and-forget)
   if (isNewCustomer) {
-    getFirstLeadStageId(business.id).then((stageId) =>
-      prisma.lead.create({
+    getFirstLeadStageId(business.id).then((stageId) => {
+      if (!stageId) {
+        console.warn("[booking] No lead stages configured for business", business.id, "— skipping lead creation");
+        return;
+      }
+      return prisma.lead.create({
         data: {
           businessId: business.id,
           customerId: customer.id,
@@ -324,8 +328,8 @@ export async function POST(
           source: "website",
           notes: `הזמנה מהאתר: ${item.name}`,
         },
-      })
-    ).catch((err) => console.error("Failed to create lead from booking:", err))
+      });
+    }).catch((err) => console.error("Failed to create lead from booking:", err))
   }
 
   // Build human-readable date/time labels for notifications

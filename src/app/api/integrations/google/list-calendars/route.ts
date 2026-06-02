@@ -43,8 +43,8 @@ export async function GET() {
   );
 
   if (!res.ok) {
-    const err = await res.text();
-    return NextResponse.json({ error: err }, { status: res.status });
+    console.error("Google Calendar API error:", res.status, await res.text());
+    return NextResponse.json({ error: "שגיאה בטעינת יומנים מגוגל" }, { status: res.status });
   }
 
   const data = await res.json();

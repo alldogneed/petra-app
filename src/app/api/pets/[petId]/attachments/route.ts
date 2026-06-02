@@ -13,6 +13,16 @@ const ALLOWED_FILE_EXTENSIONS = [
   "txt", "rtf", "heic", "heif",
 ] as const;
 
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/csv", "text/plain", "application/rtf", "text/rtf",
+]);
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { petId: string } }
@@ -49,9 +59,9 @@ export async function POST(
     });
     if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
 
-    // Validate file extension
+    // Validate file extension and MIME type
     const ext = file.name.split(".").pop()?.toLowerCase() || "";
-    if (!ALLOWED_FILE_EXTENSIONS.includes(ext as typeof ALLOWED_FILE_EXTENSIONS[number])) {
+    if (!ALLOWED_FILE_EXTENSIONS.includes(ext as typeof ALLOWED_FILE_EXTENSIONS[number]) || !ALLOWED_MIME_TYPES.has(file.type)) {
       return NextResponse.json(
         { error: `סוג קובץ לא נתמך (.${ext}). סוגים מותרים: ${ALLOWED_FILE_EXTENSIONS.join(", ")}` },
         { status: 400 }

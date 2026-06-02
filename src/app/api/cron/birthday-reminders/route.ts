@@ -17,8 +17,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date();
-    const today = new Date(now);
-    today.setHours(0, 0, 0, 0);
+    // Use Israel timezone for date boundary (app serves Israeli businesses)
+    const israelDateStr = now.toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+    const [iy, im, id] = israelDateStr.split("-").map(Number);
+    const today = new Date(Date.UTC(iy, im - 1, id));
 
     // Pre-fetch all active birthday rules for all businesses
     const birthdayRules = await prisma.automationRule.findMany({

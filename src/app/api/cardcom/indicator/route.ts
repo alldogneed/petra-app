@@ -112,6 +112,10 @@ export async function GET(request: NextRequest) {
   indicatorUrl.searchParams.set("lowprofilecode", lowProfileCode);
 
   const res = await fetch(indicatorUrl.toString());
+  if (!res.ok) {
+    console.error(`Cardcom indicator [Layer 4]: HTTP ${res.status} from Cardcom API for code ${lowProfileCode}`);
+    return new Response("Cardcom API verification failed", { status: 502 });
+  }
   const text = await res.text();
 
   const data: Record<string, string> = {};

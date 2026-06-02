@@ -59,6 +59,16 @@ export async function PATCH(
 
     const body = await request.json();
 
+    // Validate boardingStayId belongs to this business (IDOR prevention)
+    if (body.boardingStayId) {
+      const stay = await prisma.boardingStay.findFirst({
+        where: { id: body.boardingStayId, businessId: authResult.businessId },
+      });
+      if (!stay) {
+        return NextResponse.json({ error: "שהייה בפנסיון לא נמצאה" }, { status: 400 });
+      }
+    }
+
     const program = await prisma.trainingProgram.update({
       where: { id: params.id, businessId: authResult.businessId },
       data: {

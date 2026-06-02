@@ -59,7 +59,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       expired: expired.length,
-      businessIds: expired.map((b) => b.id),
       timestamp: now.toISOString(),
     });
   } catch (error) {

@@ -2,9 +2,16 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAvailableSlots } from "@/lib/slots";
+import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for") || request.ip || "127.0.0.1";
+    const rl = rateLimit("booking:slots", ip, RATE_LIMITS.PUBLIC_READ);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+
     const { searchParams } = new URL(request.url);
     const dateStr         = searchParams.get("date");
     const serviceId       = searchParams.get("serviceId");

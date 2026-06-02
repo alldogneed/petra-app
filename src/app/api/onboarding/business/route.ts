@@ -11,14 +11,26 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { name, phone, address, vatNumber, timezone } = body;
 
-        if (!name) {
+        if (!name || typeof name !== "string") {
             return NextResponse.json({ error: "Business name is required" }, { status: 400 });
         }
+        if (name.length > 200) {
+            return NextResponse.json({ error: "שם עסק ארוך מדי (עד 200 תווים)" }, { status: 400 });
+        }
+        if (phone && (typeof phone !== "string" || phone.length > 50)) {
+            return NextResponse.json({ error: "מספר טלפון לא תקין" }, { status: 400 });
+        }
+        if (address && (typeof address !== "string" || address.length > 500)) {
+            return NextResponse.json({ error: "כתובת ארוכה מדי (עד 500 תווים)" }, { status: 400 });
+        }
+        if (vatNumber && (typeof vatNumber !== "string" || vatNumber.length > 50)) {
+            return NextResponse.json({ error: "מספר עוסק לא תקין" }, { status: 400 });
+        }
 
-        // Since a user can have memberships, checking if they exist
+        // SECURITY: Only allow updating businesses the user OWNS (not just any membership)
         const userDb = await prisma.platformUser.findUnique({
             where: { id: currentUser.id },
-            include: { businessMemberships: true },
+            include: { businessMemberships: { where: { role: "owner" } } },
         });
 
         let businessId = userDb?.businessMemberships?.[0]?.businessId;

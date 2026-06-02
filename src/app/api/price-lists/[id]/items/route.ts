@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { getMaxPriceItems, normalizeTier } from "@/lib/feature-flags";
+import { validateSafeUrl } from "@/lib/validation";
 
 export async function GET(
   request: NextRequest,
@@ -62,6 +63,10 @@ export async function POST(
 
     if (!name || basePrice === undefined) {
       return NextResponse.json({ error: "name and basePrice are required" }, { status: 400 });
+    }
+    if (body.paymentUrl) {
+      const urlError = validateSafeUrl(body.paymentUrl);
+      if (urlError) return NextResponse.json({ error: urlError }, { status: 400 });
     }
 
     const item = await prisma.priceListItem.create({

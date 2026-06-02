@@ -6,8 +6,11 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { rateLimit } from "@/lib/rate-limit";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import * as XLSX from "xlsx";
+
+const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 };
 
 const STATUS_LABELS: Record<string, string> = {
   LEAD: "ליד",
@@ -52,6 +55,11 @@ export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    const rl = rateLimit("export:recipients", authResult.businessId, EXPORT_RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "יותר מדי בקשות ייצוא. נסה שוב בעוד דקה." }, { status: 429 });
+    }
 
     // Staff cannot export recipients
     const membership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);

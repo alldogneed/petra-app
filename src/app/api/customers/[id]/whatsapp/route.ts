@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
+import { rateLimit } from "@/lib/rate-limit";
 
 // POST /api/customers/[id]/whatsapp
 // Sends a one-off WhatsApp message to a customer.
@@ -14,6 +15,18 @@ export async function POST(
 ) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+
+  // Rate limit: 20 messages per 10 minutes per business
+  const rl = await rateLimit(`wa-send:${authResult.businessId}`, authResult.businessId, {
+    max: 20,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "יותר מדי הודעות. נסה שוב בעוד מספר דקות." },
+      { status: 429 }
+    );
+  }
 
   try {
     const customer = await prisma.customer.findFirst({
@@ -45,7 +58,7 @@ export async function POST(
         type: "whatsapp_sent",
         description: `הודעת WhatsApp נשלחה: "${message.trim().slice(0, 80)}${message.length > 80 ? "..." : ""}"`,
       },
-    }).catch(() => {}); // fire-and-forget
+    }).catch((err) => console.error("[whatsapp] timeline event write failed:", err)); // fire-and-forget
 
     return NextResponse.json({
       success: true,

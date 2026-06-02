@@ -33,6 +33,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "נדרש קובץ" }, { status: 400 });
     }
 
+    const MAX_IMPORT_SIZE = 5 * 1024 * 1024; // 5 MB
+    if (file.size > MAX_IMPORT_SIZE) {
+      return NextResponse.json({ error: "קובץ גדול מדי – מקסימום 5MB" }, { status: 400 });
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
     const { recipients, issues, confidence } = parseRecipientFile(buffer, file.name);
 

@@ -1,8 +1,13 @@
 export const dynamic = "force-dynamic";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { rateLimit } from "@/lib/rate-limit";
 import * as XLSX from "xlsx";
+
+const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 };
+/** Safety cap per query to prevent memory exhaustion on large date ranges */
+const MAX_EXPORT_ROWS = 50_000;
 
 function fmt(d: Date | string | null | undefined): string {
   if (!d) return "";
@@ -109,6 +114,11 @@ export async function GET(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
     const { businessId } = authResult;
 
+    const rl = rateLimit("export:analytics", businessId, EXPORT_RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "יותר מדי בקשות ייצוא. נסה שוב בעוד דקה." }, { status: 429 });
+    }
+
     const { searchParams } = new URL(request.url);
     const fromParam = searchParams.get("from");
     const toParam = searchParams.get("to");
@@ -152,6 +162,7 @@ export async function GET(request: NextRequest) {
           _count: { select: { pets: true, appointments: true } },
         },
         orderBy: { createdAt: "desc" },
+        take: MAX_EXPORT_ROWS,
       }),
       // 2. Appointments in range
       prisma.appointment.findMany({
@@ -162,6 +173,7 @@ export async function GET(request: NextRequest) {
           service: { select: { name: true } },
         },
         orderBy: { date: "desc" },
+        take: MAX_EXPORT_ROWS,
       }),
       // 3. Payments in range
       prisma.payment.findMany({
@@ -170,6 +182,7 @@ export async function GET(request: NextRequest) {
           customer: { select: { name: true } },
         },
         orderBy: { createdAt: "desc" },
+        take: MAX_EXPORT_ROWS,
       }),
       // 4. Orders in range
       prisma.order.findMany({
@@ -180,11 +193,13 @@ export async function GET(request: NextRequest) {
           payments: { select: { amount: true, status: true } },
         },
         orderBy: { createdAt: "desc" },
+        take: MAX_EXPORT_ROWS,
       }),
       // 5. Leads in range
       prisma.lead.findMany({
         where: { businessId, createdAt: { gte: fromDate, lte: toDate } },
         orderBy: { createdAt: "desc" },
+        take: MAX_EXPORT_ROWS,
       }),
       // Lead stages for name lookup
       prisma.leadStage.findMany({
@@ -200,6 +215,7 @@ export async function GET(request: NextRequest) {
           sessions: { select: { id: true } },
         },
         orderBy: { startDate: "desc" },
+        take: MAX_EXPORT_ROWS,
       }),
       // 7. Boarding stays in range
       prisma.boardingStay.findMany({
@@ -210,11 +226,13 @@ export async function GET(request: NextRequest) {
           room: { select: { name: true } },
         },
         orderBy: { checkIn: "desc" },
+        take: MAX_EXPORT_ROWS,
       }),
       // 8. Tasks in range
       prisma.task.findMany({
         where: { businessId, createdAt: { gte: fromDate, lte: toDate } },
         orderBy: { createdAt: "desc" },
+        take: MAX_EXPORT_ROWS,
       }),
       // 9. Pets created in range
       prisma.pet.findMany({
@@ -229,6 +247,7 @@ export async function GET(request: NextRequest) {
           customer: { select: { name: true } },
         },
         orderBy: { createdAt: "desc" },
+        take: MAX_EXPORT_ROWS,
       }),
     ]);
 

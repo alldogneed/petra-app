@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from "next/server";
 import { resolveSession } from "@/lib/auth-guards";
-import { generateTotpSecret, totpUri, generateBackupCodes } from "@/lib/totp";
+import { generateTotpSecret, totpUri } from "@/lib/totp";
 import { prisma } from "@/lib/prisma";
 import { encryptTwoFaSecret } from "@/lib/encryption";
 
@@ -40,12 +40,11 @@ export async function POST(request: NextRequest) {
     });
 
     const uri = totpUri(secret, user.email);
-    const backupCodes = generateBackupCodes(8);
 
+    // Note: backup codes are generated and stored in the /confirm step,
+    // not here — showing them before 2FA is confirmed would be misleading.
     return NextResponse.json({
-      secret,
-      uri,
-      backupCodes, // Show once — user must save these
+      uri, // contains the secret embedded in the otpauth:// URI for QR scanning
     });
   } catch (error) {
     console.error("2fa/enroll POST error:", error);

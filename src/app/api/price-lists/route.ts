@@ -27,6 +27,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, currency, isActive } = body;
 
+    // Input validation
+    if (name !== undefined && (typeof name !== "string" || name.length > 200)) {
+      return NextResponse.json({ error: "שם מחירון ארוך מדי (מקסימום 200 תווים)" }, { status: 400 });
+    }
+    const VALID_CURRENCIES = ["ILS", "USD", "EUR", "GBP"];
+    if (currency !== undefined && !VALID_CURRENCIES.includes(currency)) {
+      return NextResponse.json({ error: "מטבע לא תקין" }, { status: 400 });
+    }
+
     const priceList = await prisma.priceList.create({
       data: {
         businessId: authResult.businessId,

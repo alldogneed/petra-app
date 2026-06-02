@@ -400,6 +400,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: emailErr }, { status: 400 });
       }
     }
+    // Length limits for free-text fields
+    if (body.notes && typeof body.notes === "string" && body.notes.length > 5000) {
+      return NextResponse.json({ error: "הערות ארוכות מדי (מקסימום 5000 תווים)" }, { status: 400 });
+    }
+    if (body.address && typeof body.address === "string" && body.address.length > 500) {
+      return NextResponse.json({ error: "כתובת ארוכה מדי (מקסימום 500 תווים)" }, { status: 400 });
+    }
 
     // Normalize phone to local display format (05X-XXXXXXX)
     const normalizedPhone = normalizeIsraeliPhone(body.phone);

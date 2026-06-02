@@ -123,6 +123,12 @@ export async function GET(request: NextRequest) {
           "https://secure.cardcom.solutions/Interface/BillGold.aspx",
           { method: "POST", body: chargeParams }
         );
+        if (!chargeRes.ok) {
+          console.error(`charge-trials: HTTP ${chargeRes.status} from Cardcom BillGold API for business ${biz.id}`);
+          console.error(`charge-trials: Cardcom API HTTP ${chargeRes.status} for business ${biz.id}`);
+          errors++;
+          continue;
+        }
         const chargeText = await chargeRes.text();
 
         const result: Record<string, string> = {};

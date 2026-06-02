@@ -51,10 +51,27 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json();
 
+    // Input validation
+    if (body.name !== undefined) {
+      if (typeof body.name !== "string" || body.name.length > 100) {
+        return NextResponse.json({ error: "שם לא תקין (עד 100 תווים)" }, { status: 400 });
+      }
+    }
+    if (body.avatarUrl !== undefined) {
+      if (typeof body.avatarUrl !== "string" || body.avatarUrl.length > 500) {
+        return NextResponse.json({ error: "כתובת תמונה לא תקינה" }, { status: 400 });
+      }
+      // Block javascript: and data: URIs to prevent stored XSS
+      const lower = body.avatarUrl.toLowerCase().trim();
+      if (lower.startsWith("javascript:") || lower.startsWith("data:")) {
+        return NextResponse.json({ error: "כתובת תמונה לא תקינה" }, { status: 400 });
+      }
+    }
+
     const user = await prisma.platformUser.update({
       where: { id: currentUser.id },
       data: {
-        ...(body.name !== undefined && { name: body.name }),
+        ...(body.name !== undefined && { name: body.name.trim() }),
         ...(body.avatarUrl !== undefined && { avatarUrl: body.avatarUrl }),
       },
       select: {

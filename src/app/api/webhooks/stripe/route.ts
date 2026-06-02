@@ -42,25 +42,27 @@ export async function POST(request: NextRequest) {
   });
 
   // Verify the Stripe signature — MANDATORY, never skip
+  // Use identical error responses to prevent business ID enumeration
   if (!stripeSettings?.webhookSecretEncrypted) {
-    console.error(`[Stripe webhook] No webhook secret configured for business ${businessId} — rejecting`);
-    return NextResponse.json({ error: "Webhook not configured for this business" }, { status: 400 });
+    console.error(`[Stripe webhook] No webhook secret configured for business — rejecting`);
+    return NextResponse.json({ error: "Webhook verification failed" }, { status: 400 });
   }
 
   const webhookSecret = decryptStripeSecret(stripeSettings.webhookSecretEncrypted);
+  let verifiedEvent: Stripe.Event;
   try {
-    constructStripeEvent(rawBody, signature, webhookSecret);
+    verifiedEvent = constructStripeEvent(rawBody, signature, webhookSecret);
   } catch (err) {
     console.error("[Stripe webhook] Signature verification failed:", err);
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    return NextResponse.json({ error: "Webhook verification failed" }, { status: 400 });
   }
 
-  // Handle the event
+  // Handle the verified event — use verifiedEvent (not prelimEvent) for all processing
   try {
-    const eventType = prelimEvent.type;
+    const eventType = verifiedEvent.type;
 
     if (eventType === "checkout.session.completed") {
-      const session = prelimEvent.data.object as Stripe.Checkout.Session;
+      const session = verifiedEvent.data.object as Stripe.Checkout.Session;
       await handleCheckoutCompleted(session, businessId);
     }
     // Add more event types here as needed (e.g., payment_intent.payment_failed)

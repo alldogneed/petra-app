@@ -10,7 +10,8 @@ export async function GET(
 ) {
     try {
         const ip = req.headers.get("x-forwarded-for") || req.ip || "127.0.0.1"
-        const rl = rateLimit("public_customer_lookup", ip, { max: 10, windowMs: 60 * 1000 })
+        // SECURITY: Tight rate limit to prevent phone enumeration attacks
+        const rl = rateLimit("public_customer_lookup", ip, { max: 5, windowMs: 60 * 1000 })
         if (!rl.allowed) {
             return NextResponse.json({ error: "Too many requests" }, { status: 429 })
         }
@@ -61,10 +62,16 @@ export async function GET(
             return NextResponse.json({ exists: false })
         }
 
+        // SECURITY: Return only first name initial + pet names for booking UX
+        // Avoids full PII exposure through phone enumeration
+        const maskedName = customer.name
+            ? customer.name.split(" ")[0] + (customer.name.includes(" ") ? " " + customer.name.split(" ").slice(1).map((w: string) => w[0] + ".").join(" ") : "")
+            : "";
+
         return NextResponse.json({
             exists: true,
-            name: customer.name,
-            dogs: customer.pets,
+            name: maskedName,
+            dogs: customer.pets?.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })) ?? [],
         })
     } catch (error) {
         console.error("GET book/[slug]/customer error:", error)

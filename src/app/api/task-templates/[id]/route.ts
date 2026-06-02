@@ -12,6 +12,30 @@ export async function PATCH(
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
+
+    // Input validation
+    if (body.name !== undefined && (typeof body.name !== "string" || body.name.length > 200)) {
+      return NextResponse.json({ error: "name too long (max 200)" }, { status: 400 });
+    }
+    if (body.defaultTitleTemplate !== undefined && (typeof body.defaultTitleTemplate !== "string" || body.defaultTitleTemplate.length > 500)) {
+      return NextResponse.json({ error: "title template too long (max 500)" }, { status: 400 });
+    }
+    if (body.defaultDescriptionTemplate !== undefined && body.defaultDescriptionTemplate && (typeof body.defaultDescriptionTemplate !== "string" || body.defaultDescriptionTemplate.length > 2000)) {
+      return NextResponse.json({ error: "description template too long (max 2000)" }, { status: 400 });
+    }
+    if (body.defaultCategory !== undefined) {
+      const VALID_CATEGORIES = ["GENERAL", "CUSTOMER", "PET", "APPOINTMENT", "BOARDING", "TRAINING", "SERVICE_DOG"];
+      if (!VALID_CATEGORIES.includes(body.defaultCategory)) {
+        return NextResponse.json({ error: "Invalid category" }, { status: 400 });
+      }
+    }
+    if (body.defaultPriority !== undefined) {
+      const VALID_PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"];
+      if (!VALID_PRIORITIES.includes(body.defaultPriority)) {
+        return NextResponse.json({ error: "Invalid priority" }, { status: 400 });
+      }
+    }
+
     const existing = await prisma.taskTemplate.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
     });

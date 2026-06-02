@@ -58,6 +58,10 @@ export async function POST(request: NextRequest) {
     verifyUrl.searchParams.set("lowprofilecode", lowProfileCode);
 
     const res = await fetch(verifyUrl.toString());
+    if (!res.ok) {
+      console.error(`activate-pending: HTTP ${res.status} from Cardcom verify API for code ${lowProfileCode}`);
+      return NextResponse.json({ error: "שגיאה באימות התשלום" }, { status: 502 });
+    }
     const text = await res.text();
 
     const data: Record<string, string> = {};
