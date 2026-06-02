@@ -153,6 +153,16 @@ interface PetMedication {
   endDate: string | null;
 }
 
+interface FeedingEntry {
+  id: string;
+  date: string;
+  foodBrand: string;
+  foodType?: string;
+  foodGramsPerDay?: number;
+  foodFrequency?: string;
+  foodNotes?: string;
+}
+
 interface ServiceDogDetail {
   id: string;
   petId: string;
@@ -209,6 +219,7 @@ interface ServiceDogDetail {
   idCards: IDCard[];
   documents: unknown[];
   trainingTests: unknown[];
+  feedingHistory: unknown[];
   medicalCompliance: {
     totalProtocols: number;
     completedCount: number;
@@ -967,82 +978,22 @@ function TrainingTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
             <p className="text-petra-muted">אין מפגשי אימון עדיין</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {dog.trainingLogs.map((log) => {
               const skills: string[] = (() => {
                 try { return JSON.parse(log.skillCategories) || []; } catch { return []; }
               })();
               return (
-                <div key={log.id} className="card p-4 hover:shadow-sm transition-shadow">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="flex items-center gap-1.5 text-sm font-medium">
-                          <Calendar className="w-4 h-4 text-petra-muted" />
-                          {formatDate(log.sessionDate)}
-                        </div>
-                        <div className="flex items-center gap-1 text-sm text-petra-muted">
-                          <Clock className="w-3.5 h-3.5" />
-                          {log.durationMinutes} דקות
-                          {log.cumulativeHours !== null && (
-                            <span className="text-blue-600 font-medium mr-1">
-                              ({log.cumulativeHours.toFixed(1)} מצטבר)
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4 text-sm text-petra-muted mb-2">
-                        {log.trainerName && (
-                          <span className="flex items-center gap-1">
-                            <User className="w-3.5 h-3.5" />
-                            {log.trainerName}
-                          </span>
-                        )}
-                        {log.location && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5" />
-                            {log.location}
-                          </span>
-                        )}
-                      </div>
-
-                      {skills.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mb-2">
-                          {skills.map((skillId) => {
-                            const skill = ADI_SKILL_CATEGORIES.find((s) => s.id === skillId);
-                            return (
-                              <span
-                                key={skillId}
-                                className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full"
-                              >
-                                {skill?.label || skillId}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {log.notes && (
-                        <p className="text-sm text-petra-muted">{log.notes}</p>
-                      )}
-                    </div>
-
-                    {log.rating !== null && (
-                      <div className="flex gap-0.5 flex-shrink-0">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className={cn(
-                              "w-4 h-4",
-                              i < log.rating! ? "fill-amber-400 text-amber-400" : "text-petra-muted/20"
-                            )}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <TrainingLogRow
+                  key={log.id}
+                  log={log}
+                  skills={skills}
+                  dogId={dogId}
+                  onMutated={() => {
+                    queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+                    queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
+                  }}
+                />
               );
             })}
           </div>
@@ -1052,39 +1003,170 @@ function TrainingTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
   );
 }
 
-// ─── Add Training Form ───
+// ─── Training Log Row (display + inline edit) ───
 
-function AddTrainingForm({ dogId, onDone }: { dogId: string; onDone: () => void }) {
-  const [sessionDate, setSessionDate] = useState(new Date().toISOString().split("T")[0]);
-  const [durationMinutes, setDurationMinutes] = useState(60);
-  const [trainerName, setTrainerName] = useState("");
-  const [location, setLocation] = useState("");
-  const [notes, setNotes] = useState("");
-  const [rating, setRating] = useState<number>(0);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+function TrainingLogRow({
+  log, skills, dogId, onMutated,
+}: {
+  log: TrainingLog;
+  skills: string[];
+  dogId: string;
+  onMutated: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  const createMutation = useMutation({
-    mutationFn: (data: Record<string, unknown>) =>
-      fetch(`/api/service-dogs/${dogId}/training`, {
-        method: "POST",
+  if (editing) {
+    return (
+      <TrainingLogForm
+        dogId={dogId}
+        log={log}
+        onDone={() => { setEditing(false); onMutated(); }}
+        onCancel={() => setEditing(false)}
+      />
+    );
+  }
+
+  const handleDelete = async () => {
+    if (!confirm("למחוק מפגש אימון זה?")) return;
+    setDeleting(true);
+    try {
+      const r = await fetch(`/api/service-dogs/${dogId}/training/${log.id}`, { method: "DELETE" });
+      if (r.ok) { onMutated(); toast.success("מפגש נמחק"); }
+      else toast.error("שגיאה במחיקת מפגש");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="card p-3 hover:shadow-sm transition-shadow group">
+      {/* Main row: date · duration · trainer · location */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap text-sm">
+            <span className="flex items-center gap-1 font-medium">
+              <Calendar className="w-3.5 h-3.5 text-petra-muted shrink-0" />
+              {formatDate(log.sessionDate)}
+            </span>
+            <span className="flex items-center gap-1 text-petra-muted">
+              <Clock className="w-3.5 h-3.5 shrink-0" />
+              {log.durationMinutes} דקות
+              {log.cumulativeHours !== null && (
+                <span className="text-blue-600 font-medium">({log.cumulativeHours.toFixed(1)} מצטבר)</span>
+              )}
+            </span>
+            {log.trainerName && (
+              <span className="flex items-center gap-1 text-petra-muted">
+                <User className="w-3.5 h-3.5 shrink-0" />
+                {log.trainerName}
+              </span>
+            )}
+            {log.location && (
+              <span className="flex items-center gap-1 text-petra-muted">
+                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                {log.location}
+              </span>
+            )}
+            {/* Skills inline */}
+            {skills.length > 0 && skills.map((skillId) => {
+              const skill = ADI_SKILL_CATEGORIES.find((s) => s.id === skillId);
+              return (
+                <span key={skillId} className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  {skill?.label || skillId}
+                </span>
+              );
+            })}
+          </div>
+          {log.notes && <p className="text-xs text-petra-muted mt-1">{log.notes}</p>}
+        </div>
+
+        {/* Rating + actions */}
+        <div className="flex items-center gap-1 shrink-0">
+          {log.rating !== null && (
+            <div className="flex gap-0.5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star key={i} className={cn("w-3.5 h-3.5", i < log.rating! ? "fill-amber-400 text-amber-400" : "text-petra-muted/20")} />
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => setEditing(true)}
+            className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded hover:bg-brand-50 transition-all"
+            title="ערוך מפגש"
+          >
+            <Pencil className="w-3.5 h-3.5 text-brand-500" />
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 transition-all disabled:opacity-40"
+            title="מחק מפגש"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Training Log Form (add + edit) ───
+
+function TrainingLogForm({
+  dogId, log, onDone, onCancel,
+}: {
+  dogId: string;
+  log?: TrainingLog;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [sessionDate, setSessionDate] = useState(log ? log.sessionDate.split("T")[0] : new Date().toISOString().split("T")[0]);
+  const [durationMinutes, setDurationMinutes] = useState(log?.durationMinutes ?? 60);
+  const [trainerName, setTrainerName] = useState(log?.trainerName ?? "");
+  const [location, setLocation] = useState(log?.location ?? "");
+  const [notes, setNotes] = useState(log?.notes ?? "");
+  const [rating, setRating] = useState<number>(log?.rating ?? 0);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>(() => {
+    if (!log) return [];
+    try { return JSON.parse(log.skillCategories) || []; } catch { return []; }
+  });
+
+  const isEdit = !!log;
+
+  const mutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) => {
+      const url = isEdit
+        ? `/api/service-dogs/${dogId}/training/${log!.id}`
+        : `/api/service-dogs/${dogId}/training`;
+      return fetch(url, {
+        method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Failed");
-        return r.json();
-      }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; });
+    },
     onSuccess: () => {
-      toast.success("מפגש אימון נוסף");
+      toast.success(isEdit ? "מפגש עודכן" : "מפגש אימון נוסף");
       onDone();
     },
-    onError: () => toast.error("שגיאה בהוספת מפגש"),
+    onError: () => toast.error(isEdit ? "שגיאה בעדכון מפגש" : "שגיאה בהוספת מפגש"),
+  });
+
+  const handleSave = () => mutation.mutate({
+    sessionDate,
+    durationMinutes,
+    trainerName: trainerName || null,
+    location: location || null,
+    skillCategories: selectedSkills,
+    notes: notes || null,
+    rating: rating > 0 ? rating : null,
   });
 
   return (
-    <div className="card p-4 mb-4 border-2 border-brand-200 bg-brand-50/30">
+    <div className="card p-4 mb-2 border-2 border-brand-200 bg-brand-50/30">
       <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
         <Plus className="w-4 h-4 text-brand-500" />
-        מפגש אימון חדש
+        {isEdit ? "עריכת מפגש" : "מפגש אימון חדש"}
       </h4>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
@@ -1115,9 +1197,7 @@ function AddTrainingForm({ dogId, onDone }: { dogId: string; onDone: () => void 
               type="button"
               onClick={() =>
                 setSelectedSkills((prev) =>
-                  prev.includes(skill.id)
-                    ? prev.filter((s) => s !== skill.id)
-                    : [...prev, skill.id]
+                  prev.includes(skill.id) ? prev.filter((s) => s !== skill.id) : [...prev, skill.id]
                 )
               }
               className={cn(
@@ -1138,56 +1218,31 @@ function AddTrainingForm({ dogId, onDone }: { dogId: string; onDone: () => void 
           <label className="label">דירוג מפגש</label>
           <div className="flex gap-1 mt-1">
             {[1, 2, 3, 4, 5].map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setRating(r === rating ? 0 : r)}
-                className="transition-transform hover:scale-110"
-              >
-                <Star
-                  className={cn(
-                    "w-6 h-6 transition-colors",
-                    r <= rating ? "fill-amber-400 text-amber-400" : "text-petra-muted/25"
-                  )}
-                />
+              <button key={r} type="button" onClick={() => setRating(r === rating ? 0 : r)} className="transition-transform hover:scale-110">
+                <Star className={cn("w-6 h-6 transition-colors", r <= rating ? "fill-amber-400 text-amber-400" : "text-petra-muted/25")} />
               </button>
             ))}
           </div>
         </div>
         <div>
           <label className="label">הערות</label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="input w-full"
-            rows={2}
-            placeholder="הערות לגבי המפגש..."
-          />
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input w-full" rows={2} placeholder="הערות לגבי המפגש..." />
         </div>
       </div>
 
       <div className="flex gap-2">
-        <button
-          onClick={() =>
-            createMutation.mutate({
-              sessionDate,
-              durationMinutes,
-              trainerName: trainerName || null,
-              location: location || null,
-              skillCategories: selectedSkills,
-              notes: notes || null,
-              rating: rating > 0 ? rating : null,
-            })
-          }
-          disabled={!sessionDate || !durationMinutes || createMutation.isPending}
-          className="btn-primary"
-        >
-          {createMutation.isPending ? "שומר..." : "שמור מפגש"}
+        <button onClick={handleSave} disabled={!sessionDate || !durationMinutes || mutation.isPending} className="btn-primary">
+          {mutation.isPending ? "שומר..." : isEdit ? "שמור שינויים" : "שמור מפגש"}
         </button>
-        <button onClick={onDone} className="btn-secondary">ביטול</button>
+        <button onClick={onCancel} className="btn-secondary">ביטול</button>
       </div>
     </div>
   );
+}
+
+// ─── Add Training Form (thin wrapper kept for backward compat) ───
+function AddTrainingForm({ dogId, onDone }: { dogId: string; onDone: () => void }) {
+  return <TrainingLogForm dogId={dogId} onDone={onDone} onCancel={onDone} />;
 }
 
 // ─── Medical Tab ───
@@ -2332,9 +2387,7 @@ function AddTrainingTestModal({
       try {
         const fd = new FormData();
         fd.append("file", selectedFile);
-        fd.append("name", `מבחן ${TEST_TYPE_MAP[testType] || testType} — ${date}`);
-        fd.append("docType", "TRAINING_CERT");
-        const res = await fetch(`/api/service-dogs/${selectedDogId}/documents`, { method: "POST", body: fd });
+        const res = await fetch(`/api/service-dogs/${selectedDogId}/upload`, { method: "POST", body: fd });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           toast.error(err.error || "שגיאה בהעלאת הקובץ");
@@ -2721,7 +2774,9 @@ function DocumentsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) 
   const queryClient = useQueryClient();
   const [showUploadModal, setShowUploadModal] = useState(false);
 
-  const documents: DogDocument[] = Array.isArray(dog.documents) ? (dog.documents as DogDocument[]) : [];
+  // Exclude training-test file attachments — they belong only in the tests tab
+  const documents: DogDocument[] = (Array.isArray(dog.documents) ? (dog.documents as DogDocument[]) : [])
+    .filter((d) => d.docType !== "TRAINING_CERT");
 
   const deleteMutation = useMutation({
     mutationFn: (docs: DogDocument[]) =>
@@ -3545,42 +3600,87 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
             className="btn-ghost flex items-center gap-1.5 text-sm"
             onClick={() => setShowFeedingModal(true)}
           >
-            <Pencil className="w-3.5 h-3.5" />
-            ערוך
+            <Plus className="w-3.5 h-3.5" />
+            עדכון
           </button>
         </div>
-        {pet.foodBrand || pet.foodGramsPerDay || pet.foodFrequency || pet.foodNotes ? (
-          <div className="space-y-2 text-sm">
-            {pet.foodBrand && (
-              <div className="flex gap-2">
-                <span className="text-petra-muted">מותג:</span>
-                <span className="font-medium">{pet.foodBrand}</span>
+        {(() => {
+          const history = (Array.isArray(dog.feedingHistory) ? dog.feedingHistory : []) as FeedingEntry[];
+          if (history.length > 0) {
+            return (
+              <div className="space-y-2">
+                {history.map((entry, idx) => (
+                  <div key={entry.id} className={`flex items-start justify-between p-3 rounded-xl border group ${idx === 0 ? "bg-amber-50/50 border-amber-200" : "bg-slate-50/50"}`}>
+                    <div className="text-sm space-y-0.5 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {idx === 0 && <span className="text-[10px] font-semibold bg-amber-500 text-white px-1.5 py-0.5 rounded">עדכני</span>}
+                        <span className="font-medium">{entry.foodBrand}{entry.foodType ? ` — ${entry.foodType}` : ""}</span>
+                      </div>
+                      <div className="flex gap-4 text-xs text-petra-muted flex-wrap">
+                        {entry.foodGramsPerDay && <span>כמות: {entry.foodGramsPerDay} גרם/יום</span>}
+                        {entry.foodFrequency && <span>תדירות: {entry.foodFrequency}</span>}
+                        {entry.date && <span className="text-slate-400">{formatDate(entry.date)}</span>}
+                      </div>
+                      {entry.foodNotes && <p className="text-xs text-petra-muted">{entry.foodNotes}</p>}
+                    </div>
+                    <button
+                      className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded hover:bg-red-100 transition-all shrink-0"
+                      title="מחק רשומה"
+                      onClick={async () => {
+                        if (!confirm("למחוק רשומה זו?")) return;
+                        const newHistory = history.filter((e) => e.id !== entry.id);
+                        const r = await fetch(`/api/service-dogs/${dog.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ feedingHistory: newHistory }),
+                        });
+                        if (r.ok) queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dog.id] });
+                        else toast.error("שגיאה במחיקת רשומת האכלה");
+                      }}
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                    </button>
+                  </div>
+                ))}
               </div>
-            )}
-            <div className="flex gap-6">
-              {pet.foodGramsPerDay && (
-                <div className="flex gap-2">
-                  <span className="text-petra-muted">כמות:</span>
-                  <span className="font-medium">{pet.foodGramsPerDay} גרם/יום</span>
+            );
+          }
+          if (pet.foodBrand || pet.foodGramsPerDay || pet.foodFrequency || pet.foodNotes) {
+            return (
+              <div className="space-y-2 text-sm">
+                {pet.foodBrand && (
+                  <div className="flex gap-2">
+                    <span className="text-petra-muted">מותג:</span>
+                    <span className="font-medium">{pet.foodBrand}</span>
+                  </div>
+                )}
+                <div className="flex gap-6">
+                  {pet.foodGramsPerDay && (
+                    <div className="flex gap-2">
+                      <span className="text-petra-muted">כמות:</span>
+                      <span className="font-medium">{pet.foodGramsPerDay} גרם/יום</span>
+                    </div>
+                  )}
+                  {pet.foodFrequency && (
+                    <div className="flex gap-2">
+                      <span className="text-petra-muted">תדירות:</span>
+                      <span>{pet.foodFrequency}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-              {pet.foodFrequency && (
-                <div className="flex gap-2">
-                  <span className="text-petra-muted">תדירות:</span>
-                  <span>{pet.foodFrequency}</span>
-                </div>
-              )}
-            </div>
-            {pet.foodNotes && <p className="text-petra-muted text-xs">{pet.foodNotes}</p>}
-          </div>
-        ) : (
-          <button
-            className="w-full text-sm text-amber-400 hover:text-amber-600 py-2 border border-dashed border-amber-200 hover:border-amber-300 rounded-xl transition-colors"
-            onClick={() => setShowFeedingModal(true)}
-          >
-            + הוסף פרטי האכלה
-          </button>
-        )}
+                {pet.foodNotes && <p className="text-petra-muted text-xs">{pet.foodNotes}</p>}
+              </div>
+            );
+          }
+          return (
+            <button
+              className="w-full text-sm text-amber-400 hover:text-amber-600 py-2 border border-dashed border-amber-200 hover:border-amber-300 rounded-xl transition-colors"
+              onClick={() => setShowFeedingModal(true)}
+            >
+              + הוסף פרטי האכלה
+            </button>
+          );
+        })()}
       </div>
 
       {/* Medications */}
@@ -3894,6 +3994,7 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
           petName={pet.name}
           pet={pet}
           dogId={dogId}
+          dog={dog}
           onClose={() => setShowFeedingModal(false)}
         />
       )}
@@ -5703,25 +5804,53 @@ function SDBehaviorModal({
 // ─── SD Feeding Modal ───
 
 function SDFeedingModal({
-  petId, petName, pet, dogId, onClose,
+  petId, petName, pet, dogId, dog, onClose,
 }: {
   petId: string;
   petName: string;
   pet: ServiceDogDetail["pet"];
   dogId: string;
+  dog: ServiceDogDetail;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const existingHistory = (Array.isArray(dog.feedingHistory) ? dog.feedingHistory : []) as FeedingEntry[];
+  const latest = existingHistory[0];
+  const today = new Date().toISOString().split("T")[0];
+
   const [form, setForm] = useState({
-    foodBrand: pet.foodBrand ?? "",
-    foodGramsPerDay: pet.foodGramsPerDay?.toString() ?? "",
-    foodFrequency: pet.foodFrequency ?? "",
-    foodNotes: pet.foodNotes ?? "",
+    foodBrand: latest?.foodBrand ?? pet.foodBrand ?? "",
+    foodType: latest?.foodType ?? "",
+    foodGramsPerDay: (latest?.foodGramsPerDay ?? pet.foodGramsPerDay)?.toString() ?? "",
+    foodFrequency: latest?.foodFrequency ?? pet.foodFrequency ?? "",
+    foodNotes: latest?.foodNotes ?? pet.foodNotes ?? "",
+    date: today,
   });
 
   const mutation = useMutation({
-    mutationFn: () =>
-      fetch(`/api/pets/${petId}`, {
+    mutationFn: async () => {
+      const newEntry: FeedingEntry = {
+        id: crypto.randomUUID(),
+        date: form.date || today,
+        foodBrand: form.foodBrand.trim(),
+        ...(form.foodType.trim() && { foodType: form.foodType.trim() }),
+        ...(form.foodGramsPerDay && { foodGramsPerDay: parseFloat(form.foodGramsPerDay) }),
+        ...(form.foodFrequency && { foodFrequency: form.foodFrequency }),
+        ...(form.foodNotes.trim() && { foodNotes: form.foodNotes.trim() }),
+      };
+      const newHistory = [newEntry, ...existingHistory];
+
+      // Update feedingHistory on the service dog profile
+      const r1 = await fetch(`/api/service-dogs/${dogId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedingHistory: newHistory }),
+      });
+      const d1 = await r1.json();
+      if (!r1.ok) throw new Error(d1.error || "שגיאה");
+
+      // Keep Pet food fields in sync for legacy display
+      await fetch(`/api/pets/${petId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -5730,13 +5859,15 @@ function SDFeedingModal({
           foodFrequency: form.foodFrequency || null,
           foodNotes: form.foodNotes || null,
         }),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
+      });
+      return d1;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
       onClose();
-      toast.success("פרטי האכלה עודכנו");
+      toast.success("רשומת האכלה נוספה");
     },
-    onError: () => toast.error("שגיאה בעדכון פרטי האכלה"),
+    onError: () => toast.error("שגיאה בשמירת פרטי האכלה"),
   });
 
   return (
@@ -5744,13 +5875,15 @@ function SDFeedingModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-sm mx-4 p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold">האכלה — {petName}</h2>
+          <h2 className="text-lg font-bold">עדכון האכלה — {petName}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="space-y-3">
-          <div><label className="label">מותג אוכל</label><input className="input" value={form.foodBrand} onChange={(e) => setForm({ ...form, foodBrand: e.target.value })} /></div>
+          <div><label className="label">תאריך עדכון</label><input className="input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
+          <div><label className="label">מותג אוכל</label><input className="input" placeholder="למשל: רויאל קנין" value={form.foodBrand} onChange={(e) => setForm({ ...form, foodBrand: e.target.value })} /></div>
+          <div><label className="label">סוג</label><input className="input" placeholder="למשל: סלומון בוגרים, גורים" value={form.foodType} onChange={(e) => setForm({ ...form, foodType: e.target.value })} /></div>
           <div><label className="label">כמות (גרם/יום)</label><input className="input" type="number" value={form.foodGramsPerDay} onChange={(e) => setForm({ ...form, foodGramsPerDay: e.target.value })} /></div>
           <div>
             <label className="label">תדירות האכלה</label>
@@ -5765,8 +5898,8 @@ function SDFeedingModal({
           <div><label className="label">הערות</label><textarea className="input min-h-[60px]" value={form.foodNotes} onChange={(e) => setForm({ ...form, foodNotes: e.target.value })} /></div>
         </div>
         <div className="flex gap-3 mt-6">
-          <button className="btn-primary flex-1" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
-            {mutation.isPending ? "שומר..." : "שמור שינויים"}
+          <button className="btn-primary flex-1" disabled={mutation.isPending || !form.foodBrand.trim()} onClick={() => mutation.mutate()}>
+            {mutation.isPending ? "שומר..." : "הוסף עדכון"}
           </button>
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>

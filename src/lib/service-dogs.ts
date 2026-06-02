@@ -187,14 +187,19 @@ export const PHASE_MEDICAL_PROTOCOLS: Record<string, string[]> = {
 
 export const ADI_SKILL_CATEGORIES = [
   { id: "BASIC_OBEDIENCE", label: "משמעת בסיסית" },
-  { id: "PUBLIC_ACCESS", label: "גישה לציבור" },
+  { id: "PUBLIC_ACCESS", label: "אימון מרחב ציבורי" },
   { id: "TASK_TRAINING", label: "אימון משימה" },
   { id: "SOCIALIZATION", label: "חברות" },
   { id: "DISTRACTION", label: "הסחות" },
   { id: "HANDLER_SKILLS", label: "כישורי מטפל" },
   { id: "SCENT_WORK", label: "עבודת ריח" },
-  { id: "RECALL", label: "חזרה לקריאה" },
+  { id: "RECALL", label: "ציות לקריאה" },
   { id: "POSITIONING", label: "שינויי מיקום" },
+  { id: "CHILDREN", label: "ילדים" },
+  { id: "ADULTS", label: "מבוגרים" },
+  { id: "OTHER_ANIMALS", label: "חיות אחרות" },
+  { id: "TRANSPORTATION", label: "תחבורה" },
+  { id: "HOME_TRAINING", label: "אימון בית מגורים" },
   { id: "OTHER", label: "אחר" },
 ] as const;
 

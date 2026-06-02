@@ -50,10 +50,13 @@ export async function GET(
 
     let parsedDocuments: unknown[] = [];
     try { parsedDocuments = JSON.parse((dog.documents as string) || "[]"); } catch { parsedDocuments = []; }
+    let parsedFeedingHistory: unknown[] = [];
+    try { parsedFeedingHistory = JSON.parse((dog.feedingHistory as string) || "[]"); } catch { parsedFeedingHistory = []; }
 
     return NextResponse.json({
       ...dog,
       documents: parsedDocuments,
+      feedingHistory: parsedFeedingHistory,
       medicalCompliance,
       trainingProgress,
     });
@@ -98,6 +101,11 @@ export async function PATCH(
       try { tests = typeof body.trainingTests === "string" ? JSON.parse(body.trainingTests) : body.trainingTests; } catch { tests = []; }
       if (Array.isArray(tests) && tests.length > 100) return NextResponse.json({ error: "יותר מדי בחינות (מקסימום 100)" }, { status: 400 });
     }
+    if (body.feedingHistory !== undefined) {
+      let entries: unknown;
+      try { entries = typeof body.feedingHistory === "string" ? JSON.parse(body.feedingHistory) : body.feedingHistory; } catch { entries = []; }
+      if (Array.isArray(entries) && entries.length > 500) return NextResponse.json({ error: "יותר מדי רשומות האכלה (מקסימום 500)" }, { status: 400 });
+    }
 
     // URL validation for dogPhoto
     if (body.dogPhoto != null && body.dogPhoto !== "") {
@@ -137,6 +145,7 @@ export async function PATCH(
         ...(body.maintenanceNotes !== undefined && { maintenanceNotes: body.maintenanceNotes }),
         ...(body.yardGroup !== undefined && { yardGroup: body.yardGroup }),
         ...(body.feedingInstructions !== undefined && { feedingInstructions: body.feedingInstructions }),
+        ...(body.feedingHistory !== undefined && { feedingHistory: typeof body.feedingHistory === "string" ? body.feedingHistory : JSON.stringify(body.feedingHistory) }),
         ...(body.dogPhoto !== undefined && { dogPhoto: body.dogPhoto }),
         ...(body.currentLocation !== undefined && { currentLocation: body.currentLocation }),
         ...(body.intakeDate !== undefined && { intakeDate: body.intakeDate ? new Date(body.intakeDate) : null }),
