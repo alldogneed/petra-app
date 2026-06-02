@@ -98,11 +98,13 @@ function ItemModal({
   onClose,
   onSave,
   isSaving,
+  isVatExempt,
 }: {
   item?: PriceListItem | null;
   onClose: () => void;
   onSave: (data: ItemFormData) => void;
   isSaving: boolean;
+  isVatExempt?: boolean;
 }) {
   const isEdit = Boolean(item);
   const [form, setForm] = useState<ItemFormData>({
@@ -112,7 +114,7 @@ function ItemModal({
     unit: item?.unit ?? "per_session",
     basePrice: item?.basePrice?.toString() ?? "",
     description: item?.description ?? "",
-    taxMode: item?.taxMode ?? "taxable",
+    taxMode: isVatExempt ? "exempt" : (item?.taxMode ?? "taxable"),
     durationMinutes: item?.durationMinutes?.toString() ?? "",
     paymentUrl: item?.paymentUrl ?? "",
     isBookableOnline: item?.isBookableOnline ?? false,
@@ -223,18 +225,20 @@ function ItemModal({
                 required
               />
             </div>
-            <div>
-              <label className="label">מע״מ</label>
-              <select
-                className="input mt-1"
-                value={form.taxMode}
-                onChange={(e) => setForm({ ...form, taxMode: e.target.value })}
-              >
-                <option value="taxable">חייב מע״מ</option>
-                <option value="exempt">פטור מע״מ</option>
-                <option value="inherit">לפי הגדרת עסק</option>
-              </select>
-            </div>
+            {!isVatExempt && (
+              <div>
+                <label className="label">מע״מ</label>
+                <select
+                  className="input mt-1"
+                  value={form.taxMode}
+                  onChange={(e) => setForm({ ...form, taxMode: e.target.value })}
+                >
+                  <option value="taxable">חייב מע״מ</option>
+                  <option value="exempt">פטור מע״מ</option>
+                  <option value="inherit">לפי הגדרת עסק</option>
+                </select>
+              </div>
+            )}
           </div>
 
           {form.type === "service" && (
@@ -411,12 +415,14 @@ function ItemRow({
   onDuplicate,
   onToggle,
   onDelete,
+  isVatExempt,
 }: {
   item: PriceListItem;
   onEdit: () => void;
   onDuplicate: () => void;
   onToggle: () => void;
   onDelete: () => void;
+  isVatExempt?: boolean;
 }) {
   return (
     <div
@@ -457,7 +463,7 @@ function ItemRow({
         {/* Price — always top-right */}
         <div className="text-left flex-shrink-0">
           <p className="text-sm font-bold text-petra-text">{formatCurrency(item.basePrice)}</p>
-          {item.taxMode && item.taxMode !== "inherit" && (
+          {!isVatExempt && item.taxMode && item.taxMode !== "inherit" && (
             <p className="text-[10px] text-petra-muted">{TAX_LABELS[item.taxMode]}</p>
           )}
         </div>
@@ -542,6 +548,12 @@ function PricingPageContent() {
   const queryClient = useQueryClient();
   const [showAddItem, setShowAddItem] = useState(false);
   const [editItem, setEditItem] = useState<PriceListItem | null>(null);
+
+  const { data: settings } = useQuery<{ legalEntityType: string | null }>({
+    queryKey: ["settings"],
+    queryFn: () => fetch("/api/settings").then((r) => r.json()),
+  });
+  const isVatExempt = settings?.legalEntityType === "עוסק פטור";
 
   // Fetch all price lists, use the first active one (or first one)
   const { data: priceLists = [], isLoading: listsLoading } = useQuery<PriceList[]>({
@@ -749,6 +761,14 @@ function PricingPageContent() {
         )}
       </div>
 
+      {/* VAT exempt banner */}
+      {isVatExempt && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-800">
+          <span className="font-semibold">עוסק פטור</span>
+          <span className="text-emerald-600">— כל פריטי המחירון פטורים ממע״מ. שדה מע״מ לא יוצג בהזמנות.</span>
+        </div>
+      )}
+
       {/* Free tier item limit banner */}
       {isFree && maxPriceItems !== null && (
         <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border ${
@@ -841,6 +861,7 @@ function PricingPageContent() {
                 <ItemRow
                   key={item.id}
                   item={item}
+                  isVatExempt={isVatExempt}
                   onEdit={() => setEditItem(item)}
                   onDuplicate={() => duplicateMutation.mutate(item)}
                   onToggle={() =>
@@ -869,6 +890,7 @@ function PricingPageContent() {
                 <ItemRow
                   key={item.id}
                   item={item}
+                  isVatExempt={isVatExempt}
                   onEdit={() => setEditItem(item)}
                   onDuplicate={() => duplicateMutation.mutate(item)}
                   onToggle={() =>
@@ -892,6 +914,7 @@ function PricingPageContent() {
           onClose={() => setShowAddItem(false)}
           onSave={(data) => addMutation.mutate(data)}
           isSaving={addMutation.isPending}
+          isVatExempt={isVatExempt}
         />
       )}
 
@@ -902,6 +925,7 @@ function PricingPageContent() {
           onClose={() => setEditItem(null)}
           onSave={(data) => editMutation.mutate(data)}
           isSaving={editMutation.isPending}
+          isVatExempt={isVatExempt}
         />
       )}
     </div>

@@ -116,6 +116,7 @@ interface Business {
   address: string | null;
   tier: string;
   vatNumber: string | null;
+  legalEntityType: string | null;
   slug: string | null;
   logo: string | null;
   boardingCheckInTime: string | null;
@@ -432,10 +433,30 @@ function BusinessTab() {
           />
         </div>
         <div>
-          <label className="label">מספר עוסק מורשה</label>
-          <input className={cn("input", errors.vatNumber && "border-red-300 focus:ring-red-200")} placeholder="000000000" value={editing.vatNumber ?? ""} onChange={(e) => { setForm({ ...editing, vatNumber: e.target.value }); if (errors.vatNumber) setErrors({ ...errors, vatNumber: undefined }); }} />
-          {errors.vatNumber && <p className="text-xs text-red-500 mt-1">{errors.vatNumber}</p>}
+          <label className="label">סוג ישות משפטית</label>
+          <select
+            className="input mt-1"
+            value={editing.legalEntityType ?? ""}
+            onChange={(e) => setForm({ ...editing, legalEntityType: e.target.value || null })}
+          >
+            <option value="">לא מוגדר</option>
+            <option value="עוסק מורשה">עוסק מורשה (ע.מ)</option>
+            <option value="עוסק פטור">עוסק פטור</option>
+            <option value="חברה">חברה (ח.פ)</option>
+          </select>
+          {editing.legalEntityType === "עוסק פטור" && (
+            <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mt-2">
+              עוסק פטור פטור ממע״מ — לא יחושב מע״מ בהזמנות ובמחירון.
+            </p>
+          )}
         </div>
+        {editing.legalEntityType !== "עוסק פטור" && (
+          <div>
+            <label className="label">{editing.legalEntityType === "חברה" ? "מספר ח.פ" : "מספר עוסק מורשה"}</label>
+            <input className={cn("input", errors.vatNumber && "border-red-300 focus:ring-red-200")} placeholder="000000000" value={editing.vatNumber ?? ""} onChange={(e) => { setForm({ ...editing, vatNumber: e.target.value }); if (errors.vatNumber) setErrors({ ...errors, vatNumber: undefined }); }} />
+            {errors.vatNumber && <p className="text-xs text-red-500 mt-1">{errors.vatNumber}</p>}
+          </div>
+        )}
       </div>
 
       <button
@@ -3039,8 +3060,11 @@ function AddEmployeeModal({
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: () =>
-      fetch(`/api/admin/${businessId}/members`, {
+    mutationFn: () => {
+      if (!businessId) {
+        throw new Error("לא ניתן להוסיף עובד — מזהה העסק חסר. נסה לרענן את הדף.");
+      }
+      return fetch(`/api/admin/${businessId}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, role, temporaryPassword: password }),
@@ -3050,7 +3074,8 @@ function AddEmployeeModal({
           throw new Error(data.error || "שגיאה ביצירת עובד");
         }
         return r.json();
-      }),
+      });
+    },
     onSuccess,
     onError: (err: Error) => setError(err.message),
   });

@@ -42,6 +42,12 @@ export async function GET(request: NextRequest) {
     const startToErr = validateDateParam(startTo, "תאריך סיום");
     if (startToErr) return startToErr;
 
+    // Validate status if provided
+    const VALID_ORDER_STATUSES = ["draft", "confirmed", "in_progress", "completed", "cancelled"];
+    if (status && !VALID_ORDER_STATUSES.includes(status)) {
+      return NextResponse.json({ error: "סטטוס הזמנה לא תקין" }, { status: 400 });
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { businessId: authResult.businessId };
     if (status) where.status = status;
@@ -92,8 +98,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { customerId, orderType, startAt, endAt, lines, discountType, discountValue, notes, status, appointmentData, trainingSubType, trainingPackageId, trainingBoardingStart, trainingBoardingEnd, assignedToUserId } = body;
 
-    if (!customerId || !lines || lines.length === 0) {
+    if (!customerId || !lines || !Array.isArray(lines) || lines.length === 0) {
       return NextResponse.json({ error: "customerId and at least one line are required" }, { status: 400 });
+    }
+    if (lines.length > 100) {
+      return NextResponse.json({ error: "מקסימום 100 שורות להזמנה" }, { status: 400 });
+    }
+    // Validate each line item has required fields with correct types
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      if (!l || typeof l !== "object") {
+        return NextResponse.json({ error: `שורה ${i + 1}: פריט לא תקין` }, { status: 400 });
+      }
+      if (typeof l.quantity !== "number" || l.quantity <= 0 || !isFinite(l.quantity)) {
+        return NextResponse.json({ error: `שורה ${i + 1}: כמות לא תקינה` }, { status: 400 });
+      }
+      if (typeof l.unitPrice !== "number" || l.unitPrice < 0 || !isFinite(l.unitPrice)) {
+        return NextResponse.json({ error: `שורה ${i + 1}: מחיר לא תקין` }, { status: 400 });
+      }
     }
     if (notes && typeof notes === "string" && notes.length > 2000) {
       return NextResponse.json({ error: "הערות ארוכות מדי (מקסימום 2000 תווים)" }, { status: 400 });
@@ -135,7 +157,7 @@ export async function POST(request: NextRequest) {
     // Fetch business VAT settings
     const business = await prisma.business.findUnique({
       where: { id: authResult.businessId },
-      select: { vatEnabled: true, vatRate: true },
+      select: { vatEnabled: true, vatRate: true, legalEntityType: true },
     });
 
     if (!business) {
@@ -155,7 +177,7 @@ export async function POST(request: NextRequest) {
       lines: calcInput,
       discountType: discountType || "none",
       discountValue: discountValue || 0,
-      vatEnabled: business.vatEnabled,
+      vatEnabled: business.legalEntityType === "עוסק פטור" ? false : business.vatEnabled,
       vatRate: business.vatRate,
     });
 

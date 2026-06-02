@@ -55,6 +55,7 @@ interface OrderLineForm {
 interface Business {
   vatEnabled: boolean;
   vatRate: number;
+  legalEntityType: string | null;
   boardingCalcMode: string;      // "nights" | "days"
   boardingMinNights: number;
   boardingCheckInTime: string;   // "HH:MM"
@@ -1699,12 +1700,16 @@ export function CreateOrderModal({
             <span dir="ltr">−{fmt(calc.discountAmount)}</span>
           </div>
         )}
-        {calc.taxTotal > 0 && (
+        {business?.legalEntityType === "עוסק פטור" ? (
+          <div className="flex justify-between text-sm text-petra-muted">
+            <span className="text-emerald-600 font-medium">עוסק פטור — ללא מע&quot;מ</span>
+          </div>
+        ) : calc.taxTotal > 0 ? (
           <div className="flex justify-between text-sm text-petra-muted">
             <span>כולל מע&quot;מ ({((business?.vatRate ?? 0.17) * 100).toFixed(0)}%)</span>
             <span dir="ltr">{fmt(calc.taxTotal)}</span>
           </div>
-        )}
+        ) : null}
         <div className="flex justify-between text-base font-bold text-petra-text border-t border-petra-border pt-1.5 mt-1.5">
           <span>סה&quot;כ לתשלום</span>
           <span dir="ltr">{fmt(calc.total)}</span>

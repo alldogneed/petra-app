@@ -226,6 +226,7 @@ model Business {
   cardcomPendingCode   String?   // LowProfileCode from pending payment (cleared after activation)
   vatNumber          String?
   businessRegNumber  String?   // ח.פ / עוסק מורשה / בע"מ
+  legalEntityType    String?   // "עוסק פטור" | "עוסק מורשה" | "חברה"
   vatEnabled         Boolean  @default(true)
   vatRate            Float    @default(0.17)
   boardingCalcMode   String   @default("nights")
