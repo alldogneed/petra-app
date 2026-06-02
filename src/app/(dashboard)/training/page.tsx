@@ -1103,7 +1103,13 @@ function TrainingPageContent() {
         <>
           {/* ═══ OVERVIEW TAB ═══ */}
           {activeTab === "overview" && (
-            <OverviewTab dogs={filteredDogs} />
+            <OverviewTab
+              dogs={filteredDogs}
+              onNavigate={(type) => {
+                const tab = type === "individual" ? "individual" : type === "boarding" ? "boarding" : "groups";
+                setActiveTab(tab);
+              }}
+            />
           )}
 
           {/* ═══ INDIVIDUAL TAB ═══ */}
@@ -1607,7 +1613,7 @@ function OverviewDogCard({ dog }: { dog: UnifiedDog }) {
   );
 }
 
-function OverviewDogRow({ dog }: { dog: UnifiedDog }) {
+function OverviewDogRow({ dog, onNavigate }: { dog: UnifiedDog; onNavigate: (type: TrainingType) => void }) {
   const badge = TYPE_BADGE[dog.type];
   const isLowSessions = dog.sessionsRemaining !== undefined && dog.sessionsRemaining <= 2 && dog.status === "ACTIVE";
   const isOverdue = dog.daysSinceLastSession !== undefined && dog.daysSinceLastSession >= 14 && dog.status === "ACTIVE";
@@ -1618,7 +1624,10 @@ function OverviewDogRow({ dog }: { dog: UnifiedDog }) {
     : null;
 
   return (
-    <tr className={cn("border-b last:border-0 hover:bg-slate-50/60 transition-colors", isCompleted && "opacity-60")}>
+    <tr
+      className={cn("border-b last:border-0 hover:bg-brand-50/60 transition-colors cursor-pointer", isCompleted && "opacity-60")}
+      onClick={() => onNavigate(dog.type)}
+    >
       <td className="p-3">
         <div className="flex items-center gap-2">
           <DogStatusDot dog={dog} />
@@ -1660,6 +1669,7 @@ function OverviewDogRow({ dog }: { dog: UnifiedDog }) {
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className="flex items-center gap-1 text-[11px] text-green-700 hover:text-green-800 font-medium bg-green-50 hover:bg-green-100 px-2 py-1 rounded-lg transition-colors border border-green-200"
           >
             <Send className="w-3 h-3" />
@@ -1671,7 +1681,7 @@ function OverviewDogRow({ dog }: { dog: UnifiedDog }) {
   );
 }
 
-function OverviewTab({ dogs }: { dogs: UnifiedDog[] }) {
+function OverviewTab({ dogs, onNavigate }: { dogs: UnifiedDog[]; onNavigate: (type: TrainingType) => void }) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   if (dogs.length === 0) {
@@ -1752,7 +1762,7 @@ function OverviewTab({ dogs }: { dogs: UnifiedDog[] }) {
                       {section.label}
                     </td>
                   </tr>
-                  {section.dogs.map((dog) => <OverviewDogRow key={dog.key} dog={dog} />)}
+                  {section.dogs.map((dog) => <OverviewDogRow key={dog.key} dog={dog} onNavigate={onNavigate} />)}
                 </>
               ))}
             </tbody>

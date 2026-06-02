@@ -24,6 +24,7 @@ import {
   AlertCircle,
   Share2,
   Sparkles,
+  ExternalLink,
 } from "lucide-react";
 import {
   cn,
@@ -1080,7 +1081,10 @@ function CalendarContent() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      fetchJSON(`/api/appointments/${id}`, { method: "DELETE" }),
+      fetchJSON(`/api/appointments/${id}`, {
+        method: "DELETE",
+        headers: { "x-confirm-action": `DELETE_APPOINTMENT_${id}` },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       setSelectedAppointment(null);
@@ -3037,7 +3041,16 @@ function CalendarContent() {
               </div>
             )}
 
-            <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
+            <a
+              href={`/customers/${selectedAppointment.customer.id}`}
+              onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setCancellationNote(""); setEditingNotes(false); }}
+              className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              כרטיס לקוח
+            </a>
+
+            <div className="flex gap-2 mt-2 pt-3 border-t border-slate-100">
               {confirmDeleteId === selectedAppointment.id ? (
                 <div className="flex-1 flex items-center gap-2 bg-red-50 rounded-xl px-3 py-2">
                   <span className="text-xs text-red-700 flex-1">למחוק את התור לצמיתות?</span>
