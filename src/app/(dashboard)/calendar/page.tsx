@@ -2868,7 +2868,7 @@ function CalendarContent() {
         <div className="modal-overlay">
           <div
             className="modal-backdrop"
-            onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setCancellationNote(""); setEditingNotes(false); }}
+            onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setConfirmDeleteId(null); setCancellationNote(""); setEditingNotes(false); }}
           />
           <div className="modal-content max-w-sm mx-4 p-5">
             <div className="flex items-center justify-between mb-4">
@@ -2876,7 +2876,7 @@ function CalendarContent() {
                 <a
                   href={`/customers/${selectedAppointment.customer.id}`}
                   className="text-lg font-bold text-petra-text hover:text-brand-600 transition-colors"
-                  onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setCancellationNote(""); setEditingNotes(false); }}
+                  onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setConfirmDeleteId(null); setCancellationNote(""); setEditingNotes(false); }}
                 >
                   {selectedAppointment.customer.name}
                 </a>
@@ -2885,7 +2885,7 @@ function CalendarContent() {
                 </p>
               </div>
               <button
-                onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setCancellationNote(""); setEditingNotes(false); }}
+                onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setConfirmDeleteId(null); setCancellationNote(""); setEditingNotes(false); }}
                 className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
               >
                 <X className="w-4 h-4" />
@@ -3043,7 +3043,7 @@ function CalendarContent() {
 
             <a
               href={`/customers/${selectedAppointment.customer.id}`}
-              onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setCancellationNote(""); setEditingNotes(false); }}
+              onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setConfirmDeleteId(null); setCancellationNote(""); setEditingNotes(false); }}
               className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors"
             >
               <ExternalLink className="w-3.5 h-3.5" />
