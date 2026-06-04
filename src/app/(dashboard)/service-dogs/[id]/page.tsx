@@ -65,6 +65,7 @@ import {
   SERVICE_DOG_PHASE_COLORS,
   SERVICE_DOG_TYPES,
   ADI_SKILL_CATEGORIES,
+  ADI_SKILL_MAP,
   MEDICAL_PROTOCOL_CATEGORIES,
   MEDICAL_PROTOCOL_MAP,
   COMPLIANCE_EVENT_MAP,
@@ -219,7 +220,7 @@ interface ServiceDogDetail {
   idCards: IDCard[];
   documents: unknown[];
   trainingTests: unknown[];
-  feedingHistory: unknown[];
+  feedingHistory: FeedingEntry[];
   medicalCompliance: {
     totalProtocols: number;
     completedCount: number;
@@ -962,13 +963,14 @@ function TrainingTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
         </div>
 
         {showAddForm && (
-          <AddTrainingForm
+          <TrainingLogForm
             dogId={dogId}
             onDone={() => {
               setShowAddForm(false);
               queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
               queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
             }}
+            onCancel={() => setShowAddForm(false)}
           />
         )}
 
@@ -1070,7 +1072,7 @@ function TrainingLogRow({
             )}
             {/* Skills inline */}
             {skills.length > 0 && skills.map((skillId) => {
-              const skill = ADI_SKILL_CATEGORIES.find((s) => s.id === skillId);
+              const skill = ADI_SKILL_MAP[skillId] ? { label: ADI_SKILL_MAP[skillId] } : undefined;
               return (
                 <span key={skillId} className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full whitespace-nowrap">
                   {skill?.label || skillId}
@@ -1238,11 +1240,6 @@ function TrainingLogForm({
       </div>
     </div>
   );
-}
-
-// ─── Add Training Form (thin wrapper kept for backward compat) ───
-function AddTrainingForm({ dogId, onDone }: { dogId: string; onDone: () => void }) {
-  return <TrainingLogForm dogId={dogId} onDone={onDone} onCancel={onDone} />;
 }
 
 // ─── Medical Tab ───
@@ -5840,26 +5837,25 @@ function SDFeedingModal({
       };
       const newHistory = [newEntry, ...existingHistory];
 
-      // Update feedingHistory on the service dog profile
-      const r1 = await fetch(`/api/service-dogs/${dogId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ feedingHistory: newHistory }),
-      });
+      const [r1] = await Promise.all([
+        fetch(`/api/service-dogs/${dogId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ feedingHistory: newHistory }),
+        }),
+        fetch(`/api/pets/${petId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            foodBrand: form.foodBrand || null,
+            foodGramsPerDay: form.foodGramsPerDay ? parseFloat(form.foodGramsPerDay) : null,
+            foodFrequency: form.foodFrequency || null,
+            foodNotes: form.foodNotes || null,
+          }),
+        }),
+      ]);
       const d1 = await r1.json();
       if (!r1.ok) throw new Error(d1.error || "שגיאה");
-
-      // Keep Pet food fields in sync for legacy display
-      await fetch(`/api/pets/${petId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          foodBrand: form.foodBrand || null,
-          foodGramsPerDay: form.foodGramsPerDay ? parseFloat(form.foodGramsPerDay) : null,
-          foodFrequency: form.foodFrequency || null,
-          foodNotes: form.foodNotes || null,
-        }),
-      });
       return d1;
     },
     onSuccess: () => {

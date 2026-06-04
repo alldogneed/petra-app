@@ -4,18 +4,7 @@ import prisma from "@/lib/prisma";
 import crypto from "crypto";
 import { put } from "@vercel/blob";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const ALLOWED_EXTENSIONS = new Set(["pdf", "jpg", "jpeg", "png", "gif", "webp", "doc", "docx", "xls", "xlsx", "csv", "txt"]);
-const ALLOWED_MIME_TYPES = new Set([
-  "application/pdf",
-  "image/jpeg", "image/png", "image/gif", "image/webp",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "text/csv", "text/plain",
-]);
+import { MAX_FILE_SIZE, ALLOWED_FILE_EXTENSIONS, ALLOWED_MIME_TYPES } from "@/lib/file-upload-constants";
 
 // Upload a file to Vercel Blob and return the URL — does NOT add to the documents list.
 // Used by training test file attachments so they appear only in the tests tab.
@@ -38,7 +27,7 @@ export async function POST(
       );
     }
     const ext = file.name.split(".").pop()?.toLowerCase() || "";
-    if (!ALLOWED_EXTENSIONS.has(ext) || !ALLOWED_MIME_TYPES.has(file.type)) {
+    if (!(ALLOWED_FILE_EXTENSIONS as readonly string[]).includes(ext) || !ALLOWED_MIME_TYPES.has(file.type)) {
       return NextResponse.json({ error: "סוג קובץ לא מורשה" }, { status: 400 });
     }
 

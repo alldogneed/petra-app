@@ -5,11 +5,26 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { computeADIProgress } from "@/lib/service-dog-engine";
 
 async function recalcTotalHours(serviceDogId: string, businessId: string): Promise<number> {
-  const logs = await prisma.serviceDogTrainingLog.findMany({
+  const agg = await prisma.serviceDogTrainingLog.aggregate({
     where: { serviceDogId, businessId, status: "COMPLETED" },
-    select: { durationMinutes: true },
+    _sum: { durationMinutes: true },
   });
-  return logs.reduce((sum, l) => sum + l.durationMinutes / 60, 0);
+  return (agg._sum.durationMinutes ?? 0) / 60;
+}
+
+async function applyRecalc(
+  dog: { id: string; trainingStartDate: Date | null; trainingTargetHours: number | null; trainingTargetMonths: number | null },
+  businessId: string
+) {
+  const newTotalHours = await recalcTotalHours(dog.id, businessId);
+  const progress = computeADIProgress(
+    dog.trainingStartDate, newTotalHours, dog.trainingTargetHours ?? 0, dog.trainingTargetMonths ?? 0
+  );
+  await prisma.serviceDogProfile.update({
+    where: { id: dog.id, businessId },
+    data: { trainingTotalHours: newTotalHours },
+  });
+  return { newTotalHours, progress };
 }
 
 export async function PATCH(
@@ -52,16 +67,7 @@ export async function PATCH(
       },
     });
 
-    // Recalculate total hours and update cumulative on all logs
-    const newTotalHours = await recalcTotalHours(params.id, authResult.businessId);
-    const progress = computeADIProgress(
-      dog.trainingStartDate, newTotalHours, dog.trainingTargetHours, dog.trainingTargetMonths
-    );
-    await prisma.serviceDogProfile.update({
-      where: { id: params.id, businessId: authResult.businessId },
-      data: { trainingTotalHours: newTotalHours },
-    });
-
+    const { newTotalHours, progress } = await applyRecalc(dog, authResult.businessId);
     return NextResponse.json({ success: true, totalHours: newTotalHours, progress });
   } catch (error) {
     console.error("PATCH training log error:", error);
@@ -89,15 +95,7 @@ export async function DELETE(
 
     await prisma.serviceDogTrainingLog.delete({ where: { id: params.logId } });
 
-    const newTotalHours = await recalcTotalHours(params.id, authResult.businessId);
-    const progress = computeADIProgress(
-      dog.trainingStartDate, newTotalHours, dog.trainingTargetHours, dog.trainingTargetMonths
-    );
-    await prisma.serviceDogProfile.update({
-      where: { id: params.id, businessId: authResult.businessId },
-      data: { trainingTotalHours: newTotalHours },
-    });
-
+    const { newTotalHours, progress } = await applyRecalc(dog, authResult.businessId);
     return NextResponse.json({ success: true, totalHours: newTotalHours, progress });
   } catch (error) {
     console.error("DELETE training log error:", error);

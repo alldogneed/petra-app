@@ -4,8 +4,7 @@ import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { put, del } from "@vercel/blob";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+import { MAX_FILE_SIZE, ALLOWED_FILE_EXTENSIONS, ALLOWED_MIME_TYPES } from "@/lib/file-upload-constants";
 
 const DOCUMENT_CATEGORIES = [
   "contract",      // חוזה
@@ -17,21 +16,6 @@ const DOCUMENT_CATEGORIES = [
   "other",         // אחר
 ] as const;
 
-const ALLOWED_FILE_EXTENSIONS = [
-  "pdf", "jpg", "jpeg", "png", "gif", "webp",
-  "doc", "docx", "xls", "xlsx", "csv",
-  "txt", "rtf", "heic", "heif",
-] as const;
-
-const ALLOWED_MIME_TYPES = new Set([
-  "application/pdf",
-  "image/jpeg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "text/csv", "text/plain", "application/rtf", "text/rtf",
-]);
 
 export async function GET(
   request: NextRequest,
