@@ -98,8 +98,15 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: "desc" },
         take: 5,
       }),
-      prisma.payment.count({
-        where: { businessId, status: "pending" },
+      // Outstanding orders: confirmed orders where sum(paid) < total
+      prisma.order.findMany({
+        where: { businessId, status: "confirmed", total: { gt: 0 } },
+        select: {
+          id: true,
+          total: true,
+          payments: { where: { status: "paid" }, select: { amount: true } },
+          customer: { select: { id: true, name: true, phone: true } },
+        },
       }),
       prisma.payment.aggregate({
         where: {
@@ -115,10 +122,7 @@ export async function GET(request: NextRequest) {
       prisma.order.count({
         where: { businessId, status: { in: ["draft", "confirmed"] } },
       }),
-      prisma.payment.aggregate({
-        where: { businessId, status: "pending" },
-        _sum: { amount: true },
-      }),
+      Promise.resolve(null), // replaced by outstanding orders computation below
       prisma.appointment.count({
         where: {
           businessId,
@@ -236,14 +240,7 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { startTime: "asc" },
       }),
-      // Pending payments for top debtors
-      prisma.payment.findMany({
-        where: { businessId, status: "pending" },
-        select: {
-          amount: true,
-          customer: { select: { id: true, name: true, phone: true } },
-        },
-      }),
+      Promise.resolve([]), // top debtors now computed from outstandingOrdersRaw below
       // At-risk customers
       prisma.customer.findMany({
         where: {
@@ -298,14 +295,29 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    // Top debtors: group pending payments by customer in JS
+    // Compute outstanding orders: confirmed orders where sum(paid) < total
+    type OutstandingOrderRaw = { id: string; total: number; payments: { amount: number }[]; customer: { id: string; name: string; phone: string } };
+    const outstandingOrdersRaw = pendingPayments as unknown as OutstandingOrderRaw[];
+    const outstandingOrders = outstandingOrdersRaw.filter((o) => {
+      const paid = o.payments.reduce((s, p) => s + p.amount, 0);
+      return paid < o.total - 0.009; // floating-point tolerance of ~1 agorot
+    });
+    const pendingPaymentsCount = outstandingOrders.length;
+    const pendingPaymentsSum = outstandingOrders.reduce((s, o) => {
+      const paid = o.payments.reduce((s2, p) => s2 + p.amount, 0);
+      return s + (o.total - paid);
+    }, 0);
+
+    // Top debtors: group outstanding order balances by customer
     const debtorMap = new Map<string, { id: string; name: string; phone: string; total: number }>();
-    for (const row of pendingPaymentRows) {
-      const key = row.customer.id;
+    for (const order of outstandingOrders) {
+      const paid = order.payments.reduce((s, p) => s + p.amount, 0);
+      const outstanding = order.total - paid;
+      const key = order.customer.id;
       if (!debtorMap.has(key)) {
-        debtorMap.set(key, { ...row.customer, total: 0 });
+        debtorMap.set(key, { ...order.customer, total: 0 });
       }
-      debtorMap.get(key)!.total += row.amount;
+      debtorMap.get(key)!.total += outstanding;
     }
     const topDebtors = Array.from(debtorMap.values())
       .sort((a, b) => b.total - a.total)
@@ -397,10 +409,10 @@ export async function GET(request: NextRequest) {
       todayRevenue: canSeeRevenueSummary ? todayRevenue : null,
       upcomingAppointments,
       recentTasks,
-      pendingPayments,
+      pendingPayments: pendingPaymentsCount,
       openLeads,
       activeOrders,
-      pendingPaymentsAmount: canSeeRevenueSummary ? (pendingPaymentsAmount._sum.amount || 0) : null,
+      pendingPaymentsAmount: canSeeRevenueSummary ? pendingPaymentsSum : null,
       upcomingByType: {
         training: upcomingTraining,
         grooming: upcomingGrooming,

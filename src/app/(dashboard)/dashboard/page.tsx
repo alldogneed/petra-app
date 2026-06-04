@@ -908,10 +908,10 @@ function TopDebtorsWidget({ debtors }: { debtors: DashboardStats["topDebtors"] }
           </div>
         </div>
         <Link
-          href="/payments?status=pending"
+          href="/orders"
           className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
         >
-          לכל התשלומים
+          לכל ההזמנות
           <ArrowLeft className="w-3 h-3" />
         </Link>
       </div>
@@ -2426,12 +2426,12 @@ export default function DashboardPage() {
         )}
         {perms.canSeeFinance && (
           <StatCard
-            title="תשלומים ממתינים"
+            title="הזמנות לתשלום"
             value={data.pendingPayments}
             subtitle={perms.canSeeRevenueSummary && data.pendingPaymentsAmount > 0 ? formatCurrency(data.pendingPaymentsAmount) : undefined}
             icon={CreditCard}
             color="#F59E0B"
-            href="/payments"
+            href="/orders"
           />
         )}
         <StatCard
