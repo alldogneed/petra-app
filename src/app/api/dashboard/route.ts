@@ -50,11 +50,11 @@ export async function GET(request: NextRequest) {
       todayAppointments,
       upcomingAppointments,
       recentTasks,
-      pendingPayments,
+      confirmedOrdersRaw,
       monthPayments,
       openLeads,
       activeOrders,
-      pendingPaymentsAmount,
+      _unusedPendingPaymentsAmount,
       upcomingTraining,
       upcomingGrooming,
       activeBoardingStays,
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       todayArrivals,
       todayDepartures,
       tomorrowAppointments,
-      pendingPaymentRows,
+      _unusedPendingPaymentRows,
       atRiskRaw,
       allPetsWithBirthdays,
       todayRevenueAgg,
@@ -98,7 +98,6 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: "desc" },
         take: 5,
       }),
-      // Outstanding orders: confirmed orders where sum(paid) < total
       prisma.order.findMany({
         where: { businessId, status: "confirmed", total: { gt: 0 } },
         select: {
@@ -107,6 +106,7 @@ export async function GET(request: NextRequest) {
           payments: { where: { status: "paid" }, select: { amount: true } },
           customer: { select: { id: true, name: true, phone: true } },
         },
+        take: 500,
       }),
       prisma.payment.aggregate({
         where: {
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
       prisma.order.count({
         where: { businessId, status: { in: ["draft", "confirmed"] } },
       }),
-      Promise.resolve(null), // replaced by outstanding orders computation below
+      Promise.resolve(null),
       prisma.appointment.count({
         where: {
           businessId,
@@ -240,7 +240,7 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { startTime: "asc" },
       }),
-      Promise.resolve([]), // top debtors now computed from outstandingOrdersRaw below
+      Promise.resolve([]),
       // At-risk customers
       prisma.customer.findMany({
         where: {
@@ -263,7 +263,6 @@ export async function GET(request: NextRequest) {
         },
         take: 30,
       }),
-      // Pets with birthdays
       prisma.pet.findMany({
         where: { customer: { businessId }, birthDate: { not: null } },
         select: {
@@ -274,6 +273,7 @@ export async function GET(request: NextRequest) {
           birthDate: true,
           customer: { select: { id: true, name: true, phone: true } },
         },
+        take: 300,
       }),
       // Today's revenue
       prisma.payment.aggregate({
@@ -295,29 +295,23 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    // Compute outstanding orders: confirmed orders where sum(paid) < total
-    type OutstandingOrderRaw = { id: string; total: number; payments: { amount: number }[]; customer: { id: string; name: string; phone: string } };
-    const outstandingOrdersRaw = pendingPayments as unknown as OutstandingOrderRaw[];
-    const outstandingOrders = outstandingOrdersRaw.filter((o) => {
-      const paid = o.payments.reduce((s, p) => s + p.amount, 0);
-      return paid < o.total - 0.009; // floating-point tolerance of ~1 agorot
-    });
-    const pendingPaymentsCount = outstandingOrders.length;
-    const pendingPaymentsSum = outstandingOrders.reduce((s, o) => {
-      const paid = o.payments.reduce((s2, p) => s2 + p.amount, 0);
-      return s + (o.total - paid);
-    }, 0);
-
-    // Top debtors: group outstanding order balances by customer
+    // Single pass: filter orders with unpaid balance, sum totals, build debtor map
+    let pendingPaymentsCount = 0;
+    let pendingPaymentsSum = 0;
     const debtorMap = new Map<string, { id: string; name: string; phone: string; total: number }>();
-    for (const order of outstandingOrders) {
+    for (const order of confirmedOrdersRaw) {
       const paid = order.payments.reduce((s, p) => s + p.amount, 0);
       const outstanding = order.total - paid;
+      if (outstanding < 0.009) continue; // ~1 agorot floating-point tolerance
+      pendingPaymentsCount++;
+      pendingPaymentsSum += outstanding;
       const key = order.customer.id;
-      if (!debtorMap.has(key)) {
-        debtorMap.set(key, { ...order.customer, total: 0 });
+      const entry = debtorMap.get(key);
+      if (entry) {
+        entry.total += outstanding;
+      } else {
+        debtorMap.set(key, { ...order.customer, total: outstanding });
       }
-      debtorMap.get(key)!.total += outstanding;
     }
     const topDebtors = Array.from(debtorMap.values())
       .sort((a, b) => b.total - a.total)
