@@ -361,6 +361,8 @@ function NewAppointmentModal({
   const [repeatEvery, setRepeatEvery] = useState<"week" | "2weeks" | "month">("week");
   const [occurrences, setOccurrences] = useState(4);
 
+  const [customerSearch, setCustomerSearch] = useState("");
+
   // Sync form with props when modal opens with new date/time
   useEffect(() => {
     if (isOpen) {
@@ -373,6 +375,7 @@ function NewAppointmentModal({
       setRecurring(false);
       setRepeatEvery("week");
       setOccurrences(4);
+      setCustomerSearch("");
     }
   }, [isOpen, defaultDate, defaultTime]);
 
@@ -381,6 +384,13 @@ function NewAppointmentModal({
     queryFn: () => fetchJSON("/api/customers?full=1"),
     enabled: isOpen,
   });
+
+  const filteredCustomers = customerSearch.trim()
+    ? customers.filter((c) =>
+        c.name.includes(customerSearch) ||
+        (c.phone && c.phone.includes(customerSearch))
+      )
+    : customers;
 
   const { data: priceListItems = [] } = useQuery<PriceListItem[]>({
     queryKey: ["price-list-items-all-active"],
@@ -489,6 +499,13 @@ function NewAppointmentModal({
         <div className="space-y-4">
           <div>
             <label className="label">לקוח *</label>
+            <input
+              type="text"
+              className="input mb-1"
+              placeholder="חיפוש לפי שם או טלפון..."
+              value={customerSearch}
+              onChange={(e) => setCustomerSearch(e.target.value)}
+            />
             <select
               className="input"
               value={form.customerId}
@@ -497,7 +514,7 @@ function NewAppointmentModal({
               }
             >
               <option value="">בחר לקוח...</option>
-              {customers.map((c) => (
+              {filteredCustomers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} — {c.phone}
                 </option>
@@ -1016,6 +1033,26 @@ function CalendarContent() {
   });
   const gcalEvents = gcalExternalData?.events ?? [];
 
+  // ── Training group sessions overlay ──
+  interface TrainingGroupCalEvent {
+    id: string;
+    sessionDatetime: string;
+    sessionNumber: number | null;
+    status: string;
+    trainingGroup: {
+      id: string;
+      name: string;
+      groupType: string;
+      location: string | null;
+    };
+    attendance: { id: string }[];
+  }
+  const { data: trainingGroupSessions = [] } = useQuery<TrainingGroupCalEvent[]>({
+    queryKey: ["training-group-sessions-cal", from, to],
+    queryFn: () => fetchJSON(`/api/training-groups/calendar?from=${from}&to=${to}`),
+    staleTime: 2 * 60_000,
+  });
+
   const statusMutation = useMutation({
     mutationFn: ({ id, status, cancellationNote }: { id: string; status: string; cancellationNote?: string }) =>
       fetch(`/api/appointments/${id}`, {
@@ -1112,7 +1149,7 @@ function CalendarContent() {
       d.setDate(d.getDate() + direction);
       setSelectedDay(d);
       setAnchor(d);
-    } else if (viewMode === "week") {
+    } else if (viewMode === "week" || viewMode === "agenda") {
       const d = new Date(anchor);
       d.setDate(d.getDate() + direction * 7);
       setAnchor(d);
@@ -2643,6 +2680,23 @@ function CalendarContent() {
                 icon: "G",
               }));
           }
+
+          trainingGroupSessions
+            .filter((s) => s.status !== "CANCELED" && s.sessionDatetime.slice(0, 10) === dateStr)
+            .forEach((s) => {
+              const time = dateTimeToTime(s.sessionDatetime);
+              const isWorkshop = s.trainingGroup.groupType === "WORKSHOP";
+              items.push({
+                key: `tg-${s.id}`,
+                time,
+                sortKey: time,
+                title: s.trainingGroup.name,
+                subtitle: isWorkshop ? "סדנה" : "קבוצת אימון",
+                color: isWorkshop ? "#EC4899" : "#8B5CF6",
+                href: "/training",
+                icon: isWorkshop ? "🎓" : "👥",
+              });
+            });
 
           items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
           return { date, dateStr, items };

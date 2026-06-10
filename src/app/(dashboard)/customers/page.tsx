@@ -6,6 +6,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useCallback, useEffect, useRef, DragEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Users,
   Plus,
@@ -1242,6 +1243,7 @@ function NewCustomerModal({
   presetTags: string[];
 }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -1292,7 +1294,7 @@ function NewCustomerModal({
         }
         return r.json();
       }),
-    onSuccess: (newCustomer: { name: string; phone: string | null }) => {
+    onSuccess: (newCustomer: { id: string; name: string; phone: string | null }) => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       onClose();
@@ -1310,6 +1312,7 @@ function NewCustomerModal({
       } else {
         toast.success("הלקוח נוצר בהצלחה");
       }
+      router.push(`/customers/${newCustomer.id}`);
     },
     onError: (err: Error) => {
       if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
