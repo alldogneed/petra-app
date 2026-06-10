@@ -87,7 +87,9 @@ export default function InstallPWABanner() {
   return (
     <div
       dir="rtl"
-      className="fixed bottom-0 inset-x-0 z-50 bg-slate-900 text-white p-4 shadow-2xl flex items-start gap-3"
+      // z-40: below modals (.modal-overlay is z-50) so it never covers their
+      // bottom action buttons on mobile; above the bottom nav (z-30).
+      className="fixed bottom-0 inset-x-0 z-40 bg-slate-900 text-white p-4 shadow-2xl flex items-start gap-3"
     >
       {/* App icon */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
