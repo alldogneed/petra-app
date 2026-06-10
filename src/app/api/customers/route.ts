@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     // PostgreSQL C collation sorts Hebrew (U+05D0-U+05EA) after ASCII, so we
     // bucket by first-character code point: Hebrew=0, English=1, Digits=2, Other=3.
     if (sortBy === "name_asc") {
-      const offset = cursor && /^\d+$/.test(cursor) ? parseInt(cursor, 10) : 0;
+      const offset = cursor && /^\d+$/.test(cursor) ? Math.min(parseInt(cursor, 10), 100_000) : 0;
 
       const searchFrag = search
         ? Prisma.sql`AND (

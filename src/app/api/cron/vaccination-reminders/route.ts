@@ -113,8 +113,9 @@ export async function GET(request: NextRequest) {
     let sysMessagesCreated = 0;
 
     // Fetch health records with relevant fields (limit to prevent OOM on large datasets)
+    // Only include pets that have a customer (service dogs without customers are skipped)
     const healths = await prisma.dogHealth.findMany({
-      where: { pet: { customer: { businessId: { not: undefined } } } },
+      where: { pet: { customerId: { not: null } } },
       take: 5000,
       select: {
         id: true,
@@ -134,7 +135,9 @@ export async function GET(request: NextRequest) {
     });
 
     for (const h of healths) {
-      const businessId = h.pet.customer?.businessId ?? "";
+      // Skip if customer relation is missing (shouldn't happen given the where clause, but defensive)
+      if (!h.pet.customer) continue;
+      const businessId = h.pet.customer.businessId;
 
       for (const def of VAX_DEFS) {
         const expiry = def.getExpiry(h as HealthRow);

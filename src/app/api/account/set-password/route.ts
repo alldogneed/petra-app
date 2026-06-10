@@ -29,6 +29,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "נדרשת סיסמה חדשה" }, { status: 400 });
     }
 
+    // Cap password length to prevent bcrypt CPU exhaustion DoS
+    if (typeof newPassword !== "string" || newPassword.length > 1000) {
+      return NextResponse.json({ error: "הסיסמה ארוכה מדי" }, { status: 400 });
+    }
+
     // Must match registration requirements: 12+ chars, uppercase + lowercase + digit
     if (
       newPassword.length < 12 ||

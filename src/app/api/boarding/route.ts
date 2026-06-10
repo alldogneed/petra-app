@@ -74,6 +74,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "יותר מדי בקשות" }, { status: 429 });
     }
 
+    // Tier check: boarding is BASIC+ only
+    const bizForTier = await prisma.business.findUnique({
+      where: { id: authResult.businessId },
+      select: { tier: true, featureOverrides: true },
+    });
+    const tierOverrides = (bizForTier?.featureOverrides as Record<string, boolean> | null) ?? null;
+    if (!hasFeatureWithOverrides(bizForTier?.tier ?? "free", "boarding", tierOverrides)) {
+      return NextResponse.json({ error: "פנסיון זמין רק בתוכנית בסיסית ומעלה" }, { status: 403 });
+    }
+
     const body = await request.json();
     const { checkIn, checkOut, petId, customerId, roomId, yardId, status, notes, assignedToUserId } = body;
 
@@ -191,6 +201,26 @@ export async function POST(request: NextRequest) {
         assignedTo: { select: { id: true, name: true } },
       },
     });
+
+    // Post-creation race-condition guard: re-check room capacity after create.
+    // If a concurrent request slipped through, delete the one we just created.
+    if (roomId && stay.room) {
+      const postCreateCount = await prisma.boardingStay.count({
+        where: {
+          roomId,
+          status: { in: ["reserved", "checked_in"] },
+          checkIn: { lt: checkOut ? new Date(checkOut) : new Date("2099-12-31") },
+          OR: [
+            { checkOut: { gt: new Date(checkIn) } },
+            { checkOut: null },
+          ],
+        },
+      });
+      if (postCreateCount > stay.room.capacity) {
+        await prisma.boardingStay.delete({ where: { id: stay.id } });
+        return NextResponse.json({ error: "החדר מלא בתאריכים אלו" }, { status: 409 });
+      }
+    }
 
     logCurrentUserActivity("CREATE_BOARDING_STAY");
 

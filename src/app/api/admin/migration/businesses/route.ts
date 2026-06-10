@@ -6,22 +6,12 @@ export const dynamic = "force-dynamic";
  */
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { resolveSession } from "@/lib/auth-guards";
-import { PLATFORM_ROLES } from "@/lib/permissions";
-
-async function requireMasterAccess(req: NextRequest) {
-  const session = await resolveSession(req);
-  if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-  if (!session.user.isActive) return NextResponse.json({ error: "Account is disabled" }, { status: 403 });
-  const isLegacyMaster = (session.user as { role?: string }).role === "MASTER";
-  const isSuperAdmin = session.user.platformRole === PLATFORM_ROLES.SUPER_ADMIN;
-  if (!isLegacyMaster && !isSuperAdmin) return NextResponse.json({ error: "Master admin access required" }, { status: 403 });
-  return null;
-}
+import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards";
+import { PLATFORM_PERMS } from "@/lib/permissions";
 
 export async function GET(req: NextRequest) {
-  const deny = await requireMasterAccess(req);
-  if (deny) return deny;
+  const authResult = await requirePlatformPermission(req, PLATFORM_PERMS.SETTINGS_WRITE);
+  if (isGuardError(authResult)) return authResult;
 
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search")?.trim() ?? "";

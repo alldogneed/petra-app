@@ -89,7 +89,6 @@ interface MemberUser {
   id: string;
   email: string;
   name: string;
-  platformRole: string | null;
   isActive: boolean;
   createdAt: string;
   sessions: { lastSeenAt: string }[];

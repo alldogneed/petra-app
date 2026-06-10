@@ -73,6 +73,16 @@ export async function POST(request: NextRequest) {
     }
 
     const businessId = item.businessId;
+
+    // Verify business is active (prevents bookings for suspended/closed businesses)
+    const business = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { status: true },
+    });
+    if (!business || business.status !== "active") {
+      return NextResponse.json({ error: "העסק אינו זמין כרגע" }, { status: 404 });
+    }
+
     const duration = item.durationMinutes ?? 60;
 
     // Find or create customer (retry on race condition — no unique constraint on phone)
@@ -148,6 +158,26 @@ export async function POST(request: NextRequest) {
         customer: { select: { name: true, phone: true } },
       },
     });
+
+    // Post-creation race-condition guard: verify no OTHER active booking overlaps the
+    // same slot. If a concurrent request slipped through between our conflict check
+    // and create, delete the one we just created and return 409.
+    const overlapping = await prisma.booking.count({
+      where: {
+        businessId,
+        startAt: { lt: endAt },
+        endAt: { gt: startAt },
+        status: { in: ["pending", "confirmed"] },
+        id: { not: booking.id },
+      },
+    });
+    if (overlapping > 0) {
+      await prisma.booking.delete({ where: { id: booking.id } });
+      return NextResponse.json(
+        { error: "המשבצת כבר תפוסה. נסה שעה אחרת." },
+        { status: 409 }
+      );
+    }
 
     // Enqueue Google Calendar sync (fire-and-forget, don't block response)
     enqueueSyncJob(booking.id, businessId, "create").catch((err) =>

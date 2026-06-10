@@ -42,7 +42,7 @@ export async function POST(
     const blobPath = `service-dogs/${params.id}/${fileId}.${ext}`;
     const blob = await put(blobPath, file, { access: "public" });
 
-    return NextResponse.json({ url: blob.url, fileName: file.name }, { status: 201 });
+    return NextResponse.json({ url: blob.url, fileName: file.name.replace(/[<>"'&]/g, "").slice(0, 255) }, { status: 201 });
   } catch (error) {
     console.error("POST service-dog upload error:", error);
     return NextResponse.json({ error: "שגיאה בהעלאת הקובץ" }, { status: 500 });

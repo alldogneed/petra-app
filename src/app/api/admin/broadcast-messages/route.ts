@@ -1,36 +1,15 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { resolveSession } from "@/lib/auth-guards";
-import { PLATFORM_ROLES } from "@/lib/permissions";
-
-/** Only legacy MASTER role or super_admin platformRole may broadcast. */
-async function requireMasterAccess(req: NextRequest): Promise<NextResponse | null> {
-  const session = await resolveSession(req);
-
-  if (!session) {
-    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-  }
-  if (!session.user.isActive) {
-    return NextResponse.json({ error: "Account is disabled" }, { status: 403 });
-  }
-
-  const isLegacyMaster = (session.user as { role?: string }).role === "MASTER";
-  const isSuperAdmin = session.user.platformRole === PLATFORM_ROLES.SUPER_ADMIN;
-
-  if (!isLegacyMaster && !isSuperAdmin) {
-    return NextResponse.json({ error: "Master admin access required" }, { status: 403 });
-  }
-
-  return null; // authorized
-}
+import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards";
+import { PLATFORM_PERMS } from "@/lib/permissions";
 
 // ─── GET: broadcast history ────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
   try {
-    const deny = await requireMasterAccess(req);
-    if (deny) return deny;
+    const authResult = await requirePlatformPermission(req, PLATFORM_PERMS.SETTINGS_WRITE);
+    if (isGuardError(authResult)) return authResult;
 
     // Group by title + content + type (deduplicate per broadcast wave)
     // NOTE: PostgreSQL requires double-quoting for camelCase identifiers
@@ -64,8 +43,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const deny = await requireMasterAccess(req);
-    if (deny) return deny;
+    const authResult = await requirePlatformPermission(req, PLATFORM_PERMS.SETTINGS_WRITE);
+    if (isGuardError(authResult)) return authResult;
 
     const body = await req.json();
     const { title, content, type, actionUrl, actionLabel, expiresAt } = body;

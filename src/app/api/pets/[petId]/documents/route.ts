@@ -15,7 +15,7 @@ export async function GET(
     if (isGuardError(authResult)) return authResult;
 
     const pet = await prisma.pet.findFirst({
-      where: { id: params.petId, customer: { businessId: authResult.businessId } },
+      where: { id: params.petId, OR: [{ customer: { businessId: authResult.businessId } }, { businessId: authResult.businessId }] },
       select: { attachments: true },
     });
     if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
@@ -53,7 +53,7 @@ export async function POST(
     }
 
     const pet = await prisma.pet.findFirst({
-      where: { id: params.petId, customer: { businessId: authResult.businessId } },
+      where: { id: params.petId, OR: [{ customer: { businessId: authResult.businessId } }, { businessId: authResult.businessId }] },
       select: { attachments: true },
     });
     if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
@@ -72,9 +72,12 @@ export async function POST(
     const blobPath = `pets/${params.petId}/${fileId}.${ext}`;
     const blob = await put(blobPath, file, { access: "public" });
 
+    // Sanitize file name to prevent stored XSS and cap length
+    const sanitizedFileName = file.name.replace(/[<>"'&]/g, "").slice(0, 255);
+
     const newDoc = {
       id: fileId,
-      name: file.name,
+      name: sanitizedFileName,
       mimeType: file.type || "application/octet-stream",
       size: file.size,
       url: blob.url,
@@ -109,7 +112,7 @@ export async function DELETE(
     const docId = searchParams.get("docId");
 
     const pet = await prisma.pet.findFirst({
-      where: { id: params.petId, customer: { businessId: authResult.businessId } },
+      where: { id: params.petId, OR: [{ customer: { businessId: authResult.businessId } }, { businessId: authResult.businessId }] },
       select: { attachments: true },
     });
     if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });

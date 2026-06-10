@@ -25,12 +25,20 @@ const nextConfig = {
     return config;
   },
   images: {
-    // Allow Next.js Image component to optimize images from any HTTPS source
-    // Business logos and pet photos can be hosted anywhere
+    // Restrict image optimization proxy to known hosts to prevent SSRF.
+    // Vercel Blob storage hosts business logos and pet photos.
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "**",
+        hostname: "*.public.blob.vercel-storage.com",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "vd0izwltrfibbypf.public.blob.vercel-storage.com",
       },
     ],
     // SVGs are served as-is (no raster optimization)
