@@ -44,6 +44,22 @@ export async function deleteSession(token: string) {
 // ─── Business membership helper ───────────────────────────────────────────────
 
 /**
+ * Build a unique-ish booking slug from a business/display name.
+ * Used at business creation and to lazily backfill businesses created
+ * before slugs existed (their owners would otherwise copy /book/ links
+ * with no slug — a dead URL).
+ */
+export function generateBusinessSlug(name: string): string {
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9֐-׿]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 30) || "business";
+  const suffix = Math.random().toString(36).slice(2, 7);
+  return `${base}-${suffix}`;
+}
+
+/**
  * Ensures a user has at least one active Business membership.
  * If not, auto-creates a Business + BusinessUser (owner).
  * Used for new registrations (Google OAuth, legacy users without membership).
@@ -60,13 +76,7 @@ export async function ensureUserHasBusiness(
   if (existing) return existing.businessId;
 
   // Auto-create a business for this user (atomic transaction)
-  const slugBase = displayName
-    .toLowerCase()
-    .replace(/[^a-z0-9\u0590-\u05ff]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 30) || "business";
-  const slugSuffix = Math.random().toString(36).slice(2, 7);
-  const slug = `${slugBase}-${slugSuffix}`;
+  const slug = generateBusinessSlug(displayName);
 
   // Sequential operations (no interactive $transaction — Supabase PgBouncer incompatible)
   const biz = await prisma.business.create({
@@ -205,6 +215,21 @@ export async function getCurrentUser() {
     }),
   ]);
 
+  // Lazily backfill a booking slug for businesses created before slug
+  // generation existed — every /book/ link consumer relies on it.
+  let businessSlug = business?.slug ?? null;
+  if (business && !businessSlug && effectiveBusinessId) {
+    try {
+      businessSlug = generateBusinessSlug(business.name);
+      await prisma.business.update({
+        where: { id: effectiveBusinessId },
+        data: { slug: businessSlug },
+      });
+    } catch {
+      businessSlug = null; // unique collision / write failure — retried on next load
+    }
+  }
+
   // Effective tier: if subscription expired, downgrade to "free"
   const storedTier = business?.tier ?? "free";
   const trialEndsAt = business?.trialEndsAt ?? null;
@@ -222,7 +247,7 @@ export async function getCurrentUser() {
     isAdmin: platformRole === "super_admin" || platformRole === "admin",
     businessId: effectiveBusinessId,
     businessName: business?.name ?? null,
-    businessSlug: business?.slug ?? null,
+    businessSlug,
     businessTier: storedTier,
     businessEffectiveTier,
     businessTrialEndsAt: trialEndsAt?.toISOString() ?? null,

@@ -29,6 +29,7 @@ import {
 } from "@/lib/utils";
 import { TierGate } from "@/components/paywall/TierGate";
 import { useAuth } from "@/providers/auth-provider";
+import { toast } from "sonner";
 
 /* ─────────────── Types ─────────────── */
 
@@ -175,6 +176,10 @@ function SchedulerContent() {
   const bookingLink = `${origin}/book/${user?.businessSlug || ""}`;
 
   function copyLink() {
+    if (!user?.businessSlug) {
+      toast.error("קישור ההזמנה עדיין לא מוכן — רענן את הדף ונסה שוב");
+      return;
+    }
     copyToClipboard(bookingLink);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
