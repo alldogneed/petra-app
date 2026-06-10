@@ -29,6 +29,9 @@ export async function GET(request: NextRequest) {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
+    // The kanban + its funnel stats are computed client-side over this full
+    // list — a low cap silently drops the oldest leads from both the board
+    // and every stat (a real business already passed 200).
     const leads = await prisma.lead.findMany({
       where: { businessId: authResult.businessId },
       include: {
@@ -36,7 +39,7 @@ export async function GET(request: NextRequest) {
         callLogs: true,
       },
       orderBy: { createdAt: "desc" },
-      take: 200,
+      take: 1000,
     });
 
     // ── Duplicate detection ────────────────────────────────────────────────

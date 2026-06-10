@@ -1675,19 +1675,32 @@ function LeadsPageContent() {
   const activeStages = stages.filter((s) => !s.isWon && !s.isLost);
 
   const funnelStats = useMemo(() => {
-    let statsLeads = leads;
-    if (statsFilter === "month") {
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      statsLeads = leads.filter((l) => new Date(l.createdAt) >= monthStart);
-    }
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const isMonth = statsFilter === "month";
 
-    const wonCount = wonStage ? statsLeads.filter((l) => l.stage === wonStage.id).length : 0;
-    const lostCount = lostStage ? statsLeads.filter((l) => l.stage === lostStage.id).length : 0;
+    // Won/lost are counted by close date (wonAt/lostAt) — same definition as
+    // the reports page (/analytics), so both screens show the same numbers.
+    // New/active leads are scoped by createdAt.
+    const statsLeads = isMonth
+      ? leads.filter((l) => new Date(l.createdAt) >= monthStart)
+      : leads;
+    const wonLeadsInScope = leads.filter((l) =>
+      (wonStage && l.stage === wonStage.id) &&
+      (!isMonth || (l.wonAt && new Date(l.wonAt) >= monthStart))
+    );
+    const lostLeadsInScope = leads.filter((l) =>
+      (lostStage && l.stage === lostStage.id) &&
+      (!isMonth || (l.lostAt && new Date(l.lostAt) >= monthStart))
+    );
+
+    const wonCount = wonLeadsInScope.length;
+    const lostCount = lostLeadsInScope.length;
     const activeCount = statsLeads.filter((l) => {
       const s = stages.find((s) => s.id === l.stage);
       return s && !s.isWon && !s.isLost;
     }).length;
+    const totalCount = activeCount + wonCount + lostCount;
     const conversionRate = wonCount + lostCount > 0 ? Math.round((wonCount / (wonCount + lostCount)) * 100) : 0;
 
     const stageBreakdown = activeStages.map((s) => ({
@@ -1706,7 +1719,7 @@ function LeadsPageContent() {
       ? LEAD_SOURCES.find((s) => s.id === topSourceId)?.label ?? topSourceId
       : null;
 
-    return { wonCount, lostCount, activeCount, conversionRate, stageBreakdown, topSource };
+    return { totalCount, wonCount, lostCount, activeCount, conversionRate, stageBreakdown, topSource };
   }, [leads, stages, activeStages, wonStage, lostStage, statsFilter]);
 
   return (
@@ -1985,8 +1998,8 @@ function LeadsPageContent() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <p className="text-2xl font-bold text-petra-text">{funnelStats.activeCount}</p>
-            <p className="text-xs text-petra-muted mt-0.5">סה"כ לידים בטיפול</p>
+            <p className="text-2xl font-bold text-petra-text">{funnelStats.totalCount}</p>
+            <p className="text-xs text-petra-muted mt-0.5">סה"כ לידים</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <p className="text-2xl font-bold text-brand-600">{funnelStats.activeCount}</p>
