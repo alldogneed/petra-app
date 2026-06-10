@@ -226,7 +226,23 @@ export async function DELETE(
       );
     }
 
-    await prisma.lead.delete({ where: { id, businessId } });
+    // Clean up follow-up tasks linked to this lead (created by PATCH) so they
+    // don't linger as orphans pointing to a deleted lead. CallLogs cascade via FK.
+    await prisma.task.deleteMany({
+      where: { businessId, relatedEntityType: "LEAD", relatedEntityId: id },
+    });
+
+    try {
+      await prisma.lead.delete({ where: { id, businessId } });
+    } catch (err) {
+      // P2025 = record already deleted (e.g. a concurrent delete from another
+      // team member). The lead is gone, which is the desired end state — treat
+      // as success instead of surfacing a confusing 500.
+      if (err && typeof err === "object" && (err as { code?: string }).code === "P2025") {
+        return NextResponse.json({ success: true, alreadyDeleted: true });
+      }
+      throw err;
+    }
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_LEAD);
 
     return NextResponse.json({ success: true });

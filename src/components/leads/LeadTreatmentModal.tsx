@@ -448,13 +448,21 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                 method: "DELETE",
                 headers: { "x-confirm-action": `DELETE_LEAD_${lead!.id}` },
             });
-            const data = await r.json();
-            if (!r.ok && r.status !== 202) throw new Error(data.error || "שגיאה");
+            // Parse defensively — a transient non-JSON response (timeout/gateway)
+            // shouldn't blow up with a cryptic SyntaxError.
+            const data = await r.json().catch(() => ({}));
+            // 404 = lead already gone (e.g. another team member deleted it while
+            // this board was stale). The end state is what the user wanted, so
+            // treat it as done rather than an error.
+            if (r.status === 404) return { status: 404, data };
+            if (!r.ok && r.status !== 202) throw new Error(data.error || "שגיאה במחיקת הליד");
             return { status: r.status, data };
         },
         onSuccess: ({ status, data }) => {
             if (status === 202) {
                 toast.success(data.message || "הבקשה נשלחה לאישור הבעלים");
+            } else if (status === 404) {
+                toast.success("הליד כבר נמחק");
             } else {
                 toast.success("הליד נמחק");
             }
