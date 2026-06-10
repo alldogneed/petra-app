@@ -1315,8 +1315,12 @@ function CalendarContent() {
   // ── Hover handlers ──
   const handleHoverEnter = (apt: AppointmentEvent, e: React.MouseEvent) => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    // Capture the element now — React nulls e.currentTarget once the handler
+    // returns, so reading it inside the timeout throws on null.
+    const target = e.currentTarget as HTMLElement;
     hoverTimerRef.current = setTimeout(() => {
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      if (!target || !target.isConnected) return;
+      const rect = target.getBoundingClientRect();
       setHoveredApt({ apt, x: rect.left, y: rect.top + rect.height / 2 });
     }, 300);
   };
