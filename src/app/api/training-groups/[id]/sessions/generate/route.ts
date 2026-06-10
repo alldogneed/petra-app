@@ -44,7 +44,8 @@ export async function POST(
     // Resolve the first session date
     let firstDate: Date;
     if (body.startDate) {
-      firstDate = new Date(`${body.startDate}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`);
+      // startDate is sent as a full ISO string from the browser (local→UTC already converted)
+      firstDate = new Date(body.startDate);
       if (isNaN(firstDate.getTime())) {
         return NextResponse.json({ error: "תאריך התחלה לא תקין" }, { status: 400 });
       }

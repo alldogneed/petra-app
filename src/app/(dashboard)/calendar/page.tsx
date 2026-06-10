@@ -852,6 +852,8 @@ function CalendarContent() {
 
   const [allDayCollapsed, setAllDayCollapsed] = useState(true);
   const [showGcal, setShowGcal] = useState(true);
+  const [showGroupSessions, setShowGroupSessions] = useState(true);
+  const [showProgramSessions, setShowProgramSessions] = useState(true);
   const [dragging, setDragging] = useState<{ apt: AppointmentEvent; durationMins: number; offsetMins: number } | null>(null);
   const [dropPreview, setDropPreview] = useState<{ date: string; startMins: number } | null>(null);
   const [showLeads, setShowLeads] = useState(true);
@@ -1686,10 +1688,10 @@ function CalendarContent() {
       <div className="hidden md:flex items-center gap-2 flex-wrap mb-4 px-1">
         {/* הכל button */}
         <button
-          onClick={() => { setServiceTypeFilters([]); setShowGcal(true); setShowLeads(true); setStaffFilter([]); }}
+          onClick={() => { setServiceTypeFilters([]); setShowGcal(true); setShowLeads(true); setShowGroupSessions(true); setShowProgramSessions(true); setStaffFilter([]); }}
           className={cn(
             "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
-            serviceTypeFilters.length === 0 && showGcal && showLeads && staffFilter.length === 0
+            serviceTypeFilters.length === 0 && showGcal && showLeads && showGroupSessions && showProgramSessions && staffFilter.length === 0
               ? "border-petra-text font-medium shadow-sm bg-petra-text text-white"
               : "border-petra-border hover:border-petra-text hover:bg-petra-bg text-petra-muted"
           )}
@@ -1763,6 +1765,40 @@ function CalendarContent() {
           <div className="w-2.5 h-2.5 rounded-full bg-violet-400 flex-shrink-0" />
           <span>מכירות</span>
         </button>
+
+        {/* Training group sessions toggle */}
+        {trainingGroupSessions.length > 0 && (
+          <button
+            onClick={() => setShowGroupSessions((v) => !v)}
+            className={cn(
+              "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
+              showGroupSessions
+                ? "border-purple-400 font-medium shadow-sm text-purple-600"
+                : "border-transparent opacity-40 hover:opacity-70 text-petra-muted"
+            )}
+            title="הצג/הסתר מפגשי קבוצות"
+          >
+            <div className="w-2.5 h-2.5 rounded-full bg-purple-400 flex-shrink-0" />
+            <span>קבוצות</span>
+          </button>
+        )}
+
+        {/* Training program sessions toggle */}
+        {trainingProgramSessions.length > 0 && (
+          <button
+            onClick={() => setShowProgramSessions((v) => !v)}
+            className={cn(
+              "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
+              showProgramSessions
+                ? "border-blue-400 font-medium shadow-sm text-blue-600"
+                : "border-transparent opacity-40 hover:opacity-70 text-petra-muted"
+            )}
+            title="הצג/הסתר מפגשי תוכניות אישיות"
+          >
+            <div className="w-2.5 h-2.5 rounded-full bg-blue-400 flex-shrink-0" />
+            <span>תוכניות</span>
+          </button>
+        )}
 
         {/* Staff filter chips */}
         {staffList.length > 0 && (
@@ -2206,7 +2242,7 @@ function CalendarContent() {
                 })}
 
                 {/* Training group sessions - week */}
-                {trainingGroupSessions.filter((s) => s.status !== "CANCELED").map((s) => {
+                {showGroupSessions && trainingGroupSessions.filter((s) => s.status !== "CANCELED").map((s) => {
                   const dateStr = dateTimeToDateStr(s.sessionDatetime);
                   const dayIdx = weekDates.findIndex((d) => toLocalDateString(d) === dateStr);
                   if (dayIdx === -1) return null;
@@ -2227,7 +2263,7 @@ function CalendarContent() {
                 })}
 
                 {/* Training program sessions - week */}
-                {trainingProgramSessions.filter((s) => s.status !== "CANCELED").map((s) => {
+                {showProgramSessions && trainingProgramSessions.filter((s) => s.status !== "CANCELED").map((s) => {
                   const dateStr = dateTimeToDateStr(s.sessionDate);
                   const dayIdx = weekDates.findIndex((d) => toLocalDateString(d) === dateStr);
                   if (dayIdx === -1) return null;
@@ -2503,7 +2539,7 @@ function CalendarContent() {
             })}
 
             {/* Training group sessions - day */}
-            {trainingGroupSessions.filter((s) => s.status !== "CANCELED" && dateTimeToDateStr(s.sessionDatetime) === toLocalDateString(selectedDay)).map((s) => {
+            {showGroupSessions && trainingGroupSessions.filter((s) => s.status !== "CANCELED" && dateTimeToDateStr(s.sessionDatetime) === toLocalDateString(selectedDay)).map((s) => {
               const startTime = dateTimeToTime(s.sessionDatetime);
               const startMins = timeToMinutes(startTime);
               if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
@@ -2522,7 +2558,7 @@ function CalendarContent() {
             })}
 
             {/* Training program sessions - day */}
-            {trainingProgramSessions.filter((s) => s.status !== "CANCELED" && dateTimeToDateStr(s.sessionDate) === toLocalDateString(selectedDay)).map((s) => {
+            {showProgramSessions && trainingProgramSessions.filter((s) => s.status !== "CANCELED" && dateTimeToDateStr(s.sessionDate) === toLocalDateString(selectedDay)).map((s) => {
               const startTime = dateTimeToTime(s.sessionDate);
               const startMins = timeToMinutes(startTime);
               if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
@@ -2640,27 +2676,31 @@ function CalendarContent() {
               });
 
               // Training group sessions - month
-              trainingGroupSessions
-                .filter((s) => s.status !== "CANCELED" && dateTimeToDateStr(s.sessionDatetime) === dateStr)
-                .forEach((s) => {
-                  const isWorkshop = s.trainingGroup.groupType === "WORKSHOP";
-                  entries.push({
-                    key: `tg-${s.id}`,
-                    color: isWorkshop ? "#EC4899" : "#8B5CF6",
-                    label: `${dateTimeToTime(s.sessionDatetime)} ${s.trainingGroup.name}`,
+              if (showGroupSessions) {
+                trainingGroupSessions
+                  .filter((s) => s.status !== "CANCELED" && dateTimeToDateStr(s.sessionDatetime) === dateStr)
+                  .forEach((s) => {
+                    const isWorkshop = s.trainingGroup.groupType === "WORKSHOP";
+                    entries.push({
+                      key: `tg-${s.id}`,
+                      color: isWorkshop ? "#EC4899" : "#8B5CF6",
+                      label: `${dateTimeToTime(s.sessionDatetime)} ${s.trainingGroup.name}`,
+                    });
                   });
-                });
+              }
 
               // Training program sessions - month
-              trainingProgramSessions
-                .filter((s) => s.status !== "CANCELED" && dateTimeToDateStr(s.sessionDate) === dateStr)
-                .forEach((s) => {
-                  entries.push({
-                    key: `tp-${s.id}`,
-                    color: "#3B82F6",
-                    label: `${dateTimeToTime(s.sessionDate)} ${s.program.dog?.name ?? s.program.name}`,
+              if (showProgramSessions) {
+                trainingProgramSessions
+                  .filter((s) => s.status !== "CANCELED" && dateTimeToDateStr(s.sessionDate) === dateStr)
+                  .forEach((s) => {
+                    entries.push({
+                      key: `tp-${s.id}`,
+                      color: "#3B82F6",
+                      label: `${dateTimeToTime(s.sessionDate)} ${s.program.dog?.name ?? s.program.name}`,
+                    });
                   });
-                });
+              }
 
               const shown = entries.slice(0, 3);
               const overflow = entries.length - 3;
@@ -2811,39 +2851,43 @@ function CalendarContent() {
               }));
           }
 
-          trainingGroupSessions
-            .filter((s) => s.status !== "CANCELED" && s.sessionDatetime.slice(0, 10) === dateStr)
-            .forEach((s) => {
-              const time = dateTimeToTime(s.sessionDatetime);
-              const isWorkshop = s.trainingGroup.groupType === "WORKSHOP";
-              items.push({
-                key: `tg-${s.id}`,
-                time,
-                sortKey: time,
-                title: s.trainingGroup.name,
-                subtitle: isWorkshop ? "סדנה" : "קבוצת אימון",
-                color: isWorkshop ? "#EC4899" : "#8B5CF6",
-                href: "/training",
-                icon: isWorkshop ? "🎓" : "👥",
+          if (showGroupSessions) {
+            trainingGroupSessions
+              .filter((s) => s.status !== "CANCELED" && dateTimeToDateStr(s.sessionDatetime) === dateStr)
+              .forEach((s) => {
+                const time = dateTimeToTime(s.sessionDatetime);
+                const isWorkshop = s.trainingGroup.groupType === "WORKSHOP";
+                items.push({
+                  key: `tg-${s.id}`,
+                  time,
+                  sortKey: time,
+                  title: s.trainingGroup.name,
+                  subtitle: isWorkshop ? "סדנה" : "קבוצת אימון",
+                  color: isWorkshop ? "#EC4899" : "#8B5CF6",
+                  href: "/training",
+                  icon: isWorkshop ? "🎓" : "👥",
+                });
               });
-            });
+          }
 
-          trainingProgramSessions
-            .filter((s) => s.status !== "CANCELED" && s.sessionDate.slice(0, 10) === dateStr)
-            .forEach((s) => {
-              const time = dateTimeToTime(s.sessionDate);
-              const label = s.program.dog?.name ?? s.program.name;
-              items.push({
-                key: `tp-${s.id}`,
-                time,
-                sortKey: time,
-                title: label,
-                subtitle: s.program.customer ? `אילוף · ${s.program.customer.name}` : "אילוף",
-                color: "#3B82F6",
-                href: "/training",
-                icon: "🐕",
+          if (showProgramSessions) {
+            trainingProgramSessions
+              .filter((s) => s.status !== "CANCELED" && dateTimeToDateStr(s.sessionDate) === dateStr)
+              .forEach((s) => {
+                const time = dateTimeToTime(s.sessionDate);
+                const label = s.program.dog?.name ?? s.program.name;
+                items.push({
+                  key: `tp-${s.id}`,
+                  time,
+                  sortKey: time,
+                  title: label,
+                  subtitle: s.program.customer ? `אילוף · ${s.program.customer.name}` : "אילוף",
+                  color: "#3B82F6",
+                  href: "/training",
+                  icon: "🐕",
+                });
               });
-            });
+          }
 
           items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
           return { date, dateStr, items };

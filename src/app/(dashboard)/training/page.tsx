@@ -3250,7 +3250,7 @@ function GroupCard({
       fetchJSON(`/api/training-groups/${group.id}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionDatetime: `${newSessionDate}T${newSessionTime}:00`, status: "SCHEDULED" }),
+        body: JSON.stringify({ sessionDatetime: new Date(`${newSessionDate}T${newSessionTime}:00`).toISOString(), status: "SCHEDULED" }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
@@ -3265,7 +3265,7 @@ function GroupCard({
       fetchJSON(`/api/training-groups/${group.id}/sessions/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ count: seriesCount, startDate: newSessionDate, time: newSessionTime }),
+        body: JSON.stringify({ count: seriesCount, startDate: new Date(`${newSessionDate}T${newSessionTime}:00`).toISOString(), time: newSessionTime }),
       }) as Promise<{ created?: number }>,
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
