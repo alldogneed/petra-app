@@ -29,6 +29,16 @@ export async function GET(
       return NextResponse.json({ error: "החוזה טרם נחתם" }, { status: 409 });
     }
 
+    // SSRF guard: only fetch from Vercel Blob storage
+    try {
+      const fileHost = new URL(contractRequest.signedFileUrl).hostname;
+      if (!fileHost.endsWith("vercel-storage.com") && !fileHost.endsWith("blob.vercel.app")) {
+        return NextResponse.json({ error: "כתובת קובץ לא תקינה" }, { status: 400 });
+      }
+    } catch {
+      return NextResponse.json({ error: "כתובת קובץ לא תקינה" }, { status: 400 });
+    }
+
     const pdfResponse = await fetch(contractRequest.signedFileUrl);
     if (!pdfResponse.ok) {
       return NextResponse.json({ error: "לא ניתן לטעון את הקובץ" }, { status: 502 });

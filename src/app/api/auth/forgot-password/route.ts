@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import prisma from "@/lib/prisma";
 import { sendPasswordResetEmail } from "@/lib/email";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimitAsync } from "@/lib/rate-limit";
 
 const RESET_RATE_LIMIT = { max: 3, windowMs: 15 * 60 * 1000 }; // 3 per 15 min per IP
 const TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const ip =
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       "unknown";
-    const rl = rateLimit("auth:forgot-password", ip, RESET_RATE_LIMIT);
+    const rl = await rateLimitAsync("auth:forgot-password", ip, RESET_RATE_LIMIT);
     if (!rl.allowed) {
       return NextResponse.json(
         { error: "יותר מדי בקשות. נסה שוב בעוד 15 דקות." },

@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { createSession, setSessionCookie, ensureUserHasBusiness } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-log";
-import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { rateLimitAsync, RATE_LIMITS } from "@/lib/rate-limit";
 import { alertIfNewDevice } from "@/lib/login-alerts";
 
 // Pre-computed valid bcrypt hash of a random value — used to prevent timing attacks
@@ -22,11 +22,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Cap password length to prevent bcrypt CPU exhaustion DoS.
+    // bcrypt only processes the first 72 bytes anyway; anything longer is wasted work.
+    if (typeof password !== "string" || password.length > 1000) {
+      return NextResponse.json(
+        { error: "אימייל או סיסמה שגויים" },
+        { status: 401 }
+      );
+    }
+
     // Rate limiting: use both IP-only and IP+email keys to prevent
     // brute-force attacks on specific accounts while also rate-limiting
     // broad credential-stuffing attacks from a single IP.
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    const rl = rateLimit("auth:login", ip, RATE_LIMITS.AUTH_LOGIN);
+    const rl = await rateLimitAsync("auth:login", ip, RATE_LIMITS.AUTH_LOGIN);
     if (!rl.allowed) {
       return NextResponse.json(
         { error: "יותר מדי ניסיונות התחברות. נסה שוב מאוחר יותר." },
@@ -36,7 +45,7 @@ export async function POST(request: NextRequest) {
     // Per-email+IP rate limit to prevent targeted brute-force against specific accounts
     const emailNorm = (email || "").toString().toLowerCase().trim();
     if (emailNorm) {
-      const rlEmail = rateLimit("auth:login:email", `${ip}:${emailNorm}`, { max: 5, windowMs: 15 * 60 * 1000 });
+      const rlEmail = await rateLimitAsync("auth:login:email", `${ip}:${emailNorm}`, { max: 5, windowMs: 15 * 60 * 1000 });
       if (!rlEmail.allowed) {
         return NextResponse.json(
           { error: "יותר מדי ניסיונות התחברות לחשבון זה. נסה שוב מאוחר יותר." },
@@ -45,13 +54,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Find user by email
+    // Find user by email — select only the fields we need.
+    // Avoids loading sensitive fields (twoFaSecret, gcalRefreshToken, etc.) into memory.
     const user = await prisma.platformUser.findUnique({
       where: { email: email.toLowerCase() },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatarUrl: true,
+        passwordHash: true,
+        platformRole: true,
         businessMemberships: {
           where: { isActive: true },
-          include: { business: true },
+          select: {
+            businessId: true,
+            role: true,
+            business: { select: { id: true, name: true } },
+          },
         },
       },
     });
@@ -107,7 +127,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.name,
         avatarUrl: user.avatarUrl,
-        role: (user as any).role || "USER",
+        role: membership?.role || "USER",
         isAdmin: user.platformRole === "super_admin" || user.platformRole === "admin",
         businessId: membership?.businessId || null,
         businessName: membership?.business?.name || null,

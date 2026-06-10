@@ -27,7 +27,16 @@ export async function POST(request: NextRequest) {
   }
 
   const signature = request.headers.get("x-webhook-signature") ?? "";
-  const provider = request.headers.get("x-webhook-provider") ?? "morning";
+  const rawProvider = request.headers.get("x-webhook-provider") ?? "morning";
+
+  // Validate provider against allowlist to prevent unbounded strings in DB queries/logs
+  const VALID_PROVIDERS = ["morning"] as const;
+  const provider = VALID_PROVIDERS.includes(rawProvider as typeof VALID_PROVIDERS[number])
+    ? rawProvider
+    : null;
+  if (!provider) {
+    return NextResponse.json({ error: "Unknown provider" }, { status: 400 });
+  }
 
   logInvoicing("info", "Webhook received", { provider, ip });
 
@@ -74,16 +83,14 @@ export async function POST(request: NextRequest) {
 
   const eventType = (payload.event as string) ?? (payload.type as string) ?? "unknown";
 
-  // Mask sensitive data before storing
-  const maskedPayload = JSON.stringify(maskSensitive(payload));
-
-  // Log the webhook
-  await logWebhook(provider, eventType, maskedPayload, signatureValid, null, ip);
-
   if (!signatureValid) {
     logInvoicing("warn", "Invalid webhook signature", { provider, ip });
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
+
+  // Log the webhook only after signature is verified (prevents DB fill by unsigned requests)
+  const maskedPayload = JSON.stringify(maskSensitive(payload));
+  await logWebhook(provider, eventType, maskedPayload, true, null, ip);
 
   // Process the webhook event
   try {

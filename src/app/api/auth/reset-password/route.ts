@@ -4,7 +4,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { createSession, setSessionCookie } from "@/lib/auth";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimitAsync } from "@/lib/rate-limit";
 import { logAudit, AUDIT_ACTIONS, getRequestContext } from "@/lib/audit";
 import { invalidateUserSessionCache } from "@/lib/session";
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const ip =
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       "unknown";
-    const rl = rateLimit("auth:reset-password", ip, RESET_RATE_LIMIT);
+    const rl = await rateLimitAsync("auth:reset-password", ip, RESET_RATE_LIMIT);
     if (!rl.allowed) {
       return NextResponse.json({ error: "יותר מדי ניסיונות" }, { status: 429 });
     }
@@ -35,6 +35,14 @@ export async function POST(request: NextRequest) {
     if (!token || !password) {
       return NextResponse.json(
         { error: "טוקן וסיסמה נדרשים" },
+        { status: 400 }
+      );
+    }
+
+    // Cap password length to prevent bcrypt CPU exhaustion DoS
+    if (typeof password !== "string" || password.length > 1000) {
+      return NextResponse.json(
+        { error: "הסיסמה ארוכה מדי" },
         { status: 400 }
       );
     }

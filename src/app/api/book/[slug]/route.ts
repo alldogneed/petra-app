@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
-    const ip = req.headers.get("x-forwarded-for") || req.ip || "127.0.0.1"
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1"
     const rl = rateLimit("book:info", ip, RATE_LIMITS.PUBLIC_READ)
     if (!rl.allowed) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 })

@@ -6,6 +6,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { type TenantRole } from "@/lib/permissions";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
+import { validateIsraeliPhone, validateEmail } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
   try {
@@ -109,7 +110,7 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: "כתובת לוגו לא תקינה" }, { status: 400 });
       }
       const lower = logo.toLowerCase().trim();
-      if (lower.startsWith("javascript:") || lower.startsWith("data:text")) {
+      if (lower.startsWith("javascript:") || lower.startsWith("data:")) {
         return NextResponse.json({ error: "כתובת לוגו לא תקינה" }, { status: 400 });
       }
     }
@@ -138,6 +139,27 @@ export async function PATCH(request: NextRequest) {
       if (!Number.isFinite(n) || n < 0 || n > 168) {
         return NextResponse.json({ error: "שעות תזכורת לא תקינות (0-168)" }, { status: 400 });
       }
+    }
+
+    // Validate contact fields
+    if (phone !== undefined && phone !== null) {
+      if (typeof phone !== "string" || !validateIsraeliPhone(String(phone))) {
+        return NextResponse.json({ error: "מספר טלפון לא תקין" }, { status: 400 });
+      }
+    }
+    if (email !== undefined && email !== null) {
+      if (typeof email !== "string" || email.length > 254 || !validateEmail(email)) {
+        return NextResponse.json({ error: "כתובת אימייל לא תקינה" }, { status: 400 });
+      }
+    }
+    if (address !== undefined && typeof address === "string" && address.length > 500) {
+      return NextResponse.json({ error: "כתובת ארוכה מדי (עד 500 תווים)" }, { status: 400 });
+    }
+    if (vatNumber !== undefined && typeof vatNumber === "string" && vatNumber.length > 20) {
+      return NextResponse.json({ error: "ח.פ./עוסק לא תקין" }, { status: 400 });
+    }
+    if (businessRegNumber !== undefined && typeof businessRegNumber === "string" && businessRegNumber.length > 20) {
+      return NextResponse.json({ error: "מספר רישום עסק לא תקין" }, { status: 400 });
     }
 
     // Validate string length for text fields
@@ -179,21 +201,43 @@ export async function PATCH(request: NextRequest) {
       if (legalEntityType === "עוסק פטור") data.vatEnabled = false;
       else if (legalEntityType && vatEnabled === undefined) data.vatEnabled = true;
     }
-    if (vatEnabled !== undefined) data.vatEnabled = vatEnabled;
+    if (vatEnabled !== undefined) data.vatEnabled = Boolean(vatEnabled);
     if (vatRate !== undefined) data.vatRate = Number(vatRate);
-    if (boardingCalcMode !== undefined) data.boardingCalcMode = boardingCalcMode;
+    const VALID_BOARDING_CALC_MODES = ["nights", "days", "calendar_days"];
+    if (boardingCalcMode !== undefined) {
+      if (!VALID_BOARDING_CALC_MODES.includes(boardingCalcMode)) {
+        return NextResponse.json({ error: "מצב חישוב פנסיון לא תקין" }, { status: 400 });
+      }
+      data.boardingCalcMode = boardingCalcMode;
+    }
     if (boardingMinNights !== undefined) data.boardingMinNights = Number(boardingMinNights);
-    if (boardingCheckInTime !== undefined) data.boardingCheckInTime = boardingCheckInTime;
-    if (boardingCheckOutTime !== undefined) data.boardingCheckOutTime = boardingCheckOutTime;
+    const TIME_RE = /^\d{2}:\d{2}$/;
+    if (boardingCheckInTime !== undefined) {
+      if (typeof boardingCheckInTime !== "string" || !TIME_RE.test(boardingCheckInTime)) {
+        return NextResponse.json({ error: "שעת צ'ק-אין לא תקינה (HH:MM)" }, { status: 400 });
+      }
+      data.boardingCheckInTime = boardingCheckInTime;
+    }
+    if (boardingCheckOutTime !== undefined) {
+      if (typeof boardingCheckOutTime !== "string" || !TIME_RE.test(boardingCheckOutTime)) {
+        return NextResponse.json({ error: "שעת צ'ק-אאוט לא תקינה (HH:MM)" }, { status: 400 });
+      }
+      data.boardingCheckOutTime = boardingCheckOutTime;
+    }
     if (boardingPricePerNight !== undefined) data.boardingPricePerNight = Number(boardingPricePerNight);
-    if (customerTags !== undefined) data.customerTags = customerTags;
+    if (customerTags !== undefined) {
+      if (!Array.isArray(customerTags) || customerTags.length > 100 || customerTags.some((t: unknown) => typeof t !== "string" || t.length > 50)) {
+        return NextResponse.json({ error: "תגיות לקוח לא תקינות (מקסימום 100 תגיות, 50 תווים לכל אחת)" }, { status: 400 });
+      }
+      data.customerTags = customerTags;
+    }
     if (cancellationPolicy !== undefined) data.cancellationPolicy = cancellationPolicy;
     if (bookingWelcomeText !== undefined) data.bookingWelcomeText = bookingWelcomeText;
     if (depositInstructions !== undefined) data.depositInstructions = depositInstructions;
     if (sdSettings !== undefined) data.sdSettings = sdSettings;
-    if (whatsappRemindersEnabled !== undefined) data.whatsappRemindersEnabled = whatsappRemindersEnabled;
+    if (whatsappRemindersEnabled !== undefined) data.whatsappRemindersEnabled = Boolean(whatsappRemindersEnabled);
     if (whatsappReminderLeadHours !== undefined) data.whatsappReminderLeadHours = whatsappReminderLeadHours;
-    if (googleContactsSync !== undefined) data.googleContactsSync = googleContactsSync;
+    if (googleContactsSync !== undefined) data.googleContactsSync = Boolean(googleContactsSync);
 
     const business = await prisma.business.update({
       where: { id: authResult.businessId },

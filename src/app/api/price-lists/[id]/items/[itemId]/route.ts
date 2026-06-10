@@ -42,6 +42,34 @@ export async function PATCH(
 
     const body = await request.json();
 
+    // Validate string lengths
+    if (body.name !== undefined && (typeof body.name !== "string" || body.name.length > 200)) {
+      return NextResponse.json({ error: "שם פריט ארוך מדי (עד 200 תווים)" }, { status: 400 });
+    }
+    if (body.description !== undefined && body.description !== null && (typeof body.description !== "string" || body.description.length > 2000)) {
+      return NextResponse.json({ error: "תיאור ארוך מדי (עד 2000 תווים)" }, { status: 400 });
+    }
+    if (body.category !== undefined && body.category !== null && (typeof body.category !== "string" || body.category.length > 100)) {
+      return NextResponse.json({ error: "קטגוריה לא תקינה" }, { status: 400 });
+    }
+
+    // Validate numeric bounds
+    const numericFields: Array<[string, number, number]> = [
+      ["basePrice", 0, 1_000_000],
+      ["durationMinutes", 1, 1440],
+      ["depositAmount", 0, 1_000_000],
+      ["maxBookingsPerDay", 1, 1000],
+      ["defaultQuantity", 1, 10000],
+    ];
+    for (const [field, min, max] of numericFields) {
+      if (body[field] !== undefined && body[field] !== null) {
+        const n = Number(body[field]);
+        if (!Number.isFinite(n) || n < min || n > max) {
+          return NextResponse.json({ error: `ערך לא תקין עבור ${field}` }, { status: 400 });
+        }
+      }
+    }
+
     if (body.paymentUrl) {
       const urlError = validateSafeUrl(body.paymentUrl);
       if (urlError) return NextResponse.json({ error: urlError }, { status: 400 });

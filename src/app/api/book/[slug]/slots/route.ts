@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
-import { getAvailableSlots } from "@/lib/slots"
+import { getAvailableSlots, localTimeToUtc } from "@/lib/slots"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 // GET /api/book/[slug]/slots?priceListItemId=...&date=YYYY-MM-DD
@@ -11,7 +11,7 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
-    const ip = req.headers.get("x-forwarded-for") || req.ip || "127.0.0.1"
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1"
     const rl = rateLimit("book:slots", ip, RATE_LIMITS.PUBLIC_READ)
     if (!rl.allowed) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 })
@@ -51,10 +51,12 @@ export async function GET(
     const slots = await getAvailableSlots(business.id, item.durationMinutes ?? 60, date)
 
     // Capacity check: if maxBookingsPerDay is set, count confirmed bookings for this item on this date
+    // Use Israel timezone boundaries (bookings store startAt in UTC)
     let capacityReached = false
     if (item.maxBookingsPerDay) {
-      const dayStart = new Date(`${date}T00:00:00.000Z`)
-      const dayEnd = new Date(`${date}T23:59:59.999Z`)
+      const dayStart = localTimeToUtc("00:00", date, "Asia/Jerusalem")
+      const dayEnd = localTimeToUtc("23:59", date, "Asia/Jerusalem")
+      dayEnd.setSeconds(59, 999)
       const confirmedCount = await prisma.booking.count({
         where: {
           businessId: business.id,

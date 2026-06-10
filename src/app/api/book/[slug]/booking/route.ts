@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { getAvailableSlots, utcToLocalDateStr } from "@/lib/slots"
 import { z } from "zod"
-import { rateLimit } from "@/lib/rate-limit"
+import { rateLimitAsync } from "@/lib/rate-limit"
 import { sendWhatsAppMessage } from "@/lib/whatsapp"
 import { toWhatsAppPhone } from "@/lib/utils"
 import { enqueueSyncJob } from "@/lib/sync-jobs"
@@ -56,11 +56,11 @@ async function notifyOwnerNewPending(
 // Zod Schema for input validation
 const DogSchema = z.object({
   id: z.string().optional(),
-  name: z.string().optional(),
-  breed: z.string().optional(),
-  age: z.string().optional(),
-  sex: z.string().optional(),
-  notes: z.string().optional(),
+  name: z.string().max(200).optional(),
+  breed: z.string().max(200).optional(),
+  age: z.string().max(50).optional(),
+  sex: z.string().max(20).optional(),
+  notes: z.string().max(2000).optional(),
 }).refine((d) => d.id || (d.name && d.name.trim().length > 0), {
   message: "שם הכלב הוא שדה חובה",
   path: ["name"],
@@ -90,8 +90,8 @@ export async function POST(
   { params }: { params: { slug: string } }
 ) {
   // Rate Limiting
-  const ip = req.headers.get("x-forwarded-for") || req.ip || "127.0.0.1"
-  const rateLimitResult = rateLimit("public_booking", ip, { max: 5, windowMs: 60 * 1000 })
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1"
+  const rateLimitResult = await rateLimitAsync("public_booking", ip, { max: 5, windowMs: 60 * 1000 })
   if (!rateLimitResult.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },

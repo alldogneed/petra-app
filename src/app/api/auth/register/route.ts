@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { createSession, setSessionCookie, ensureUserHasBusiness } from "@/lib/auth";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimitAsync } from "@/lib/rate-limit";
 import { logAudit, AUDIT_ACTIONS, getRequestContext } from "@/lib/audit";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 import { notifyOwnerNewUser } from "@/lib/notify-owner";
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const ip =
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       "unknown";
-    const rl = rateLimit("auth:register", ip, REGISTER_RATE_LIMIT);
+    const rl = await rateLimitAsync("auth:register", ip, REGISTER_RATE_LIMIT);
     if (!rl.allowed) {
       return NextResponse.json(
         { error: "יותר מדי ניסיונות הרשמה. נסה שוב מאוחר יותר." },
@@ -52,6 +52,22 @@ export async function POST(request: NextRequest) {
         { error: "שם, אימייל וסיסמה הם שדות חובה" },
         { status: 400 }
       );
+    }
+
+    // Cap password length to prevent bcrypt CPU exhaustion DoS
+    if (typeof password !== "string" || password.length > 1000) {
+      return NextResponse.json(
+        { error: "הסיסמה ארוכה מדי" },
+        { status: 400 }
+      );
+    }
+
+    // Cap name and businessName length
+    if (name.trim().length > 200) {
+      return NextResponse.json({ error: "שם ארוך מדי" }, { status: 400 });
+    }
+    if (businessName && typeof businessName === "string" && businessName.trim().length > 200) {
+      return NextResponse.json({ error: "שם העסק ארוך מדי" }, { status: 400 });
     }
 
     const emailNorm = email.toLowerCase().trim();

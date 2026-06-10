@@ -162,6 +162,16 @@ export async function POST(
       return NextResponse.json({ error: "קובץ חתימה גדול מדי" }, { status: 400 });
     }
 
+    // SSRF guard: only fetch from Vercel Blob storage
+    try {
+      const fileHost = new URL(contractRequest.template.fileUrl).hostname;
+      if (!fileHost.endsWith("vercel-storage.com") && !fileHost.endsWith("blob.vercel.app")) {
+        return NextResponse.json({ error: "כתובת קובץ לא תקינה" }, { status: 400 });
+      }
+    } catch {
+      return NextResponse.json({ error: "כתובת קובץ לא תקינה" }, { status: 400 });
+    }
+
     // Load original PDF
     const pdfResponse = await fetch(contractRequest.template.fileUrl);
     if (!pdfResponse.ok) {

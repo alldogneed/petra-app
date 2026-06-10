@@ -76,6 +76,10 @@ export async function GET(request: NextRequest) {
   const providedSig = searchParams.get("sig") ?? "";
   const providedSecret = searchParams.get("secret") ?? "";
   const expectedSecret = process.env.CARDCOM_WEBHOOK_SECRET ?? "";
+  if (!expectedSecret && !providedSig) {
+    console.error("trial-indicator: CARDCOM_WEBHOOK_SECRET not configured");
+    return new Response("Server misconfiguration", { status: 500 });
+  }
   const sigValid = providedSig ? verifyIndicatorSignature("/api/cardcom/trial-indicator", providedSig) : false;
   const legacyValid = providedSecret.length > 0 &&
     providedSecret.length === expectedSecret.length &&

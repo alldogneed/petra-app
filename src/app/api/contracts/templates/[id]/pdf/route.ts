@@ -20,6 +20,16 @@ export async function GET(
       return NextResponse.json({ error: "תבנית לא נמצאה" }, { status: 404 });
     }
 
+    // SSRF guard: only fetch from Vercel Blob storage
+    try {
+      const fileHost = new URL(template.fileUrl).hostname;
+      if (!fileHost.endsWith("vercel-storage.com") && !fileHost.endsWith("blob.vercel.app")) {
+        return NextResponse.json({ error: "כתובת קובץ לא תקינה" }, { status: 400 });
+      }
+    } catch {
+      return NextResponse.json({ error: "כתובת קובץ לא תקינה" }, { status: 400 });
+    }
+
     const pdfResponse = await fetch(template.fileUrl);
     if (!pdfResponse.ok) {
       return NextResponse.json({ error: "לא ניתן לטעון PDF" }, { status: 502 });

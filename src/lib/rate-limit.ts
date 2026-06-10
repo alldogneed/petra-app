@@ -1,11 +1,16 @@
 /**
- * In-memory rate limiter (MVP).
- * Replace with Upstash Redis in production for distributed deployments.
+ * Rate limiter — Upstash Redis in production, in-memory fallback in dev.
  *
- * Usage:
- *   const result = await rateLimit("auth", ip, { max: 10, windowMs: 10 * 60 * 1000 });
- *   if (!result.allowed) return 429 response;
+ * Sync usage (legacy, in-memory only — use for low-sensitivity endpoints):
+ *   const result = rateLimit("api:x", ip, { max: 120, windowMs: 60_000 });
+ *   if (!result.allowed) return 429;
+ *
+ * Async usage (distributed, use for auth + public endpoints):
+ *   const result = await rateLimitAsync("auth:login", ip, { max: 10, windowMs: 600_000 });
+ *   if (!result.allowed) return 429;
  */
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 
 interface RateLimitEntry {
   count: number;
@@ -92,6 +97,64 @@ export const RATE_LIMITS = {
   /** Sensitive token endpoints (intake, QR): 10 per minute per IP — prevents brute-force enumeration */
   STRICT_TOKEN: { max: 10, windowMs: 60 * 1000 },
 } as const;
+
+// ─── Distributed rate limiter (Upstash Redis) ────────────────────────────────
+
+let _redis: Redis | null = null;
+function _getRedis(): Redis | null {
+  if (_redis) return _redis;
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+  _redis = new Redis({ url, token });
+  return _redis;
+}
+
+const _limiters = new Map<string, Ratelimit>();
+function _getLimiter(namespace: string, max: number, windowSec: number): Ratelimit | null {
+  const r = _getRedis();
+  if (!r) return null;
+  const key = `${namespace}:${max}:${windowSec}`;
+  if (!_limiters.has(key)) {
+    _limiters.set(key, new Ratelimit({
+      redis: r,
+      limiter: Ratelimit.slidingWindow(max, `${windowSec} s`),
+      prefix: `rl:${namespace}`,
+    }));
+  }
+  return _limiters.get(key)!;
+}
+
+/**
+ * Distributed rate limit check — uses Upstash Redis when configured,
+ * falls back to in-memory for local dev.
+ * Use this for all auth and public-facing endpoints.
+ */
+export async function rateLimitAsync(
+  namespace: string,
+  key: string,
+  options: RateLimitOptions
+): Promise<RateLimitResult> {
+  const windowSec = Math.ceil(options.windowMs / 1000);
+  try {
+    const limiter = _getLimiter(namespace, options.max, windowSec);
+    if (limiter) {
+      const result = await limiter.limit(key);
+      const now = Date.now();
+      const retryAfterMs = result.success ? 0 : result.reset - now;
+      return {
+        allowed: result.success,
+        remaining: result.remaining,
+        resetAt: result.reset,
+        retryAfterMs: Math.max(0, retryAfterMs),
+      };
+    }
+  } catch (err) {
+    console.error("Redis rate limit error, falling back to memory:", err);
+  }
+  // Fallback: in-memory
+  return rateLimit(namespace, key, options);
+}
 
 /** Periodic cleanup of expired entries (call from a cron or app init) */
 export function cleanupRateLimitStore(): number {

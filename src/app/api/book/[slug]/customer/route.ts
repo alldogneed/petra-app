@@ -9,7 +9,7 @@ export async function GET(
     { params }: { params: { slug: string } }
 ) {
     try {
-        const ip = req.headers.get("x-forwarded-for") || req.ip || "127.0.0.1"
+        const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1"
         // SECURITY: Tight rate limit to prevent phone enumeration attacks
         const rl = rateLimit("public_customer_lookup", ip, { max: 5, windowMs: 60 * 1000 })
         if (!rl.allowed) {
