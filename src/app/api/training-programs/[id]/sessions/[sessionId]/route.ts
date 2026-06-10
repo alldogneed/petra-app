@@ -2,6 +2,10 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import {
+  scheduleTrainingSessionReminder,
+  cancelTrainingSessionReminder,
+} from "@/lib/reminder-service";
 
 // PATCH /api/training-programs/[id]/sessions/[sessionId] — edit a session
 export async function PATCH(
@@ -15,6 +19,10 @@ export async function PATCH(
     // Verify program belongs to this business
     const program = await prisma.trainingProgram.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
+      include: {
+        customer: { select: { id: true, name: true, phone: true } },
+        dog: { select: { name: true } },
+      },
     });
     if (!program) {
       return NextResponse.json({ error: "Training program not found" }, { status: 404 });
@@ -32,10 +40,12 @@ export async function PATCH(
             practiceItems, nextSessionGoals, homeworkForCustomer, trainerName } = body;
 
     const data: Record<string, unknown> = {};
+    let dateChanged = false;
     if (sessionDate !== undefined) {
       const d = new Date(sessionDate);
       if (isNaN(d.getTime())) return NextResponse.json({ error: "תאריך לא חוקי" }, { status: 400 });
       data.sessionDate = d;
+      dateChanged = d.getTime() !== session.sessionDate.getTime();
     }
     if (durationMinutes !== undefined) {
       const parsed = parseInt(durationMinutes, 10);
@@ -63,6 +73,26 @@ export async function PATCH(
       where: { id: session.id },
       data,
     });
+
+    // If the date moved, cancel the old reminder and reschedule (awaited —
+    // Vercel kills unawaited promises).
+    if (dateChanged && program.customer) {
+      try {
+        await cancelTrainingSessionReminder(session.id);
+        await scheduleTrainingSessionReminder({
+          sessionId: updated.id,
+          sessionDate: updated.sessionDate,
+          businessId: authResult.businessId,
+          customerId: program.customer.id,
+          customerName: program.customer.name,
+          customerPhone: program.customer.phone,
+          dogName: program.dog.name,
+          programName: program.name,
+        });
+      } catch (err) {
+        console.error("training session reminder reschedule failed (non-critical):", err);
+      }
+    }
 
     return NextResponse.json(updated);
   } catch (error) {
@@ -106,6 +136,14 @@ export async function DELETE(
           data: { trainingTotalHours: { decrement: session.durationMinutes / 60 } },
         });
       }
+    }
+
+    // Cancel any pending reminder so it doesn't fire for a deleted session
+    // (awaited — Vercel kills unawaited promises).
+    try {
+      await cancelTrainingSessionReminder(session.id);
+    } catch (err) {
+      console.error("cancelTrainingSessionReminder failed (non-critical):", err);
     }
 
     // Defence-in-depth: use the verified session's id

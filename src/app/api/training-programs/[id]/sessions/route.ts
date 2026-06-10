@@ -48,8 +48,8 @@ export async function POST(
     }
     if (rating) {
       const r = parseInt(rating);
-      if (!Number.isFinite(r) || r < 1 || r > 10) {
-        return NextResponse.json({ error: "דירוג לא תקין (1-10)" }, { status: 400 });
+      if (!Number.isFinite(r) || r < 1 || r > 5) {
+        return NextResponse.json({ error: "דירוג לא תקין (1-5)" }, { status: 400 });
       }
     }
     // Validate date
@@ -78,18 +78,24 @@ export async function POST(
       },
     });
 
-    // Schedule WhatsApp reminder if session is in the future and customer exists
+    // Schedule WhatsApp reminder if session is in the future and customer exists.
+    // Must be awaited — Vercel kills unawaited promises before they complete,
+    // which silently drops the reminder.
     if (program.customer) {
-      scheduleTrainingSessionReminder({
-        sessionId: session.id,
-        sessionDate: session.sessionDate,
-        businessId: authResult.businessId,
-        customerId: program.customer.id,
-        customerName: program.customer.name,
-        customerPhone: program.customer.phone,
-        dogName: program.dog.name,
-        programName: program.name,
-      }).catch(() => { /* non-critical — ignore errors */ });
+      try {
+        await scheduleTrainingSessionReminder({
+          sessionId: session.id,
+          sessionDate: session.sessionDate,
+          businessId: authResult.businessId,
+          customerId: program.customer.id,
+          customerName: program.customer.name,
+          customerPhone: program.customer.phone,
+          dogName: program.dog.name,
+          programName: program.name,
+        });
+      } catch (err) {
+        console.error("scheduleTrainingSessionReminder failed (non-critical):", err);
+      }
     }
 
     // Auto-accumulate training hours for service dogs

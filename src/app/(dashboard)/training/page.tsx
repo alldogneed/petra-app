@@ -718,7 +718,12 @@ function TrainingPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const e = new Error(err.error || "Failed");
+        (e as unknown as Record<string, unknown>).code = err.code;
+        throw e;
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -727,7 +732,13 @@ function TrainingPageContent() {
       setShowNewWorkshop(false);
       toast.success("הקבוצה נוצרה בהצלחה");
     },
-    onError: () => toast.error("שגיאה ביצירת הקבוצה. נסה שוב."),
+    onError: (err: Error) => {
+      if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
+        triggerLimitModal(err.message);
+      } else {
+        toast.error(err.message || "שגיאה ביצירת הקבוצה. נסה שוב.");
+      }
+    },
   });
 
   const addParticipantMutation = useMutation({
@@ -777,7 +788,9 @@ function TrainingPageContent() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed");
+        const e = new Error(err.error || "Failed");
+        (e as unknown as Record<string, unknown>).code = err.code;
+        throw e;
       }
       return res.json();
     },
@@ -3230,6 +3243,7 @@ function GroupCard({
   const defaultTime = group.defaultTime || "10:00";
   const [newSessionDate, setNewSessionDate] = useState(today);
   const [newSessionTime, setNewSessionTime] = useState(defaultTime);
+  const [seriesCount, setSeriesCount] = useState(8);
 
   const addSessionMutation = useMutation({
     mutationFn: () =>
@@ -3244,6 +3258,21 @@ function GroupCard({
       toast.success("מפגש נוצר בהצלחה");
     },
     onError: () => toast.error("שגיאה ביצירת מפגש"),
+  });
+
+  const generateSeriesMutation = useMutation({
+    mutationFn: () =>
+      fetchJSON(`/api/training-groups/${group.id}/sessions/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: seriesCount, startDate: newSessionDate, time: newSessionTime }),
+      }) as Promise<{ created?: number }>,
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+      setShowAddSession(false);
+      toast.success(`נוצרו ${res?.created ?? seriesCount} מפגשים שבועיים`);
+    },
+    onError: () => toast.error("שגיאה ביצירת סדרת מפגשים"),
   });
   const typeColor = GROUP_TYPE_COLORS[group.groupType] || GROUP_TYPE_COLORS.CUSTOM;
 
@@ -3403,6 +3432,27 @@ function GroupCard({
                   onClick={(e) => { e.stopPropagation(); setShowAddSession(false); }}
                 >
                   ביטול
+                </button>
+              </div>
+              {/* Recurring weekly series */}
+              <div className="pt-2 mt-1 border-t border-brand-100 flex items-end gap-2">
+                <div className="flex-1">
+                  <label className="label text-[10px]">סדרה שבועית (מספר מפגשים)</label>
+                  <input
+                    type="number" min={1} max={52}
+                    className="input text-xs py-1.5"
+                    value={seriesCount}
+                    onChange={(e) => setSeriesCount(parseInt(e.target.value, 10) || 1)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+                <button
+                  className="btn-secondary text-xs whitespace-nowrap"
+                  disabled={generateSeriesMutation.isPending || !newSessionDate || seriesCount < 1}
+                  onClick={(e) => { e.stopPropagation(); generateSeriesMutation.mutate(); }}
+                  title="יוצר מפגשים שבועיים החל מהתאריך/שעה שנבחרו"
+                >
+                  {generateSeriesMutation.isPending ? "יוצר..." : `צור סדרה (${seriesCount})`}
                 </button>
               </div>
             </div>

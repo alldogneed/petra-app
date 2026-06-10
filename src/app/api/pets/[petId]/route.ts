@@ -200,6 +200,10 @@ export async function DELETE(
     await prisma.dogHealth.deleteMany({ where: { petId: params.petId } });
     await prisma.dogBehavior.deleteMany({ where: { petId: params.petId } });
     await prisma.petWeightEntry.deleteMany({ where: { petId: params.petId } });
+    // TrainingGroupParticipant.dog has no onDelete cascade — remove enrollments
+    // explicitly or pet.delete throws an FK violation. Attendance rows cascade
+    // from the participant.
+    await prisma.trainingGroupParticipant.deleteMany({ where: { dogId: params.petId } });
     await prisma.pet.delete({ where: { id: params.petId } });
 
     return NextResponse.json({ success: true });

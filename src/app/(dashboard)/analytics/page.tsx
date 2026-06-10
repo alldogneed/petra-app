@@ -55,6 +55,10 @@ interface AnalyticsData {
   };
   training: {
     activePrograms: number;
+    completedSessionsThisPeriod: number;
+    activeGroups: number;
+    groupSessionsThisPeriod: number;
+    revenue: number | null;
   };
   boarding: {
     staysThisPeriod: number;
@@ -458,6 +462,54 @@ function AnalyticsContent() {
                 <div className="text-xs text-petra-muted">לידים שנסגרו</div>
               </div>
             </div>
+          </div>
+
+          {/* Training metrics */}
+          <h2 className="text-sm font-semibold text-petra-muted mb-3 flex items-center gap-1.5">
+            <GraduationCap className="w-4 h-4" /> אילוף
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="card p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-teal-50 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-teal-500" />
+              </div>
+              <div>
+                <div className="text-lg font-bold text-petra-text">{data.training.completedSessionsThisPeriod}</div>
+                <div className="text-xs text-petra-muted">מפגשים שהושלמו בתקופה</div>
+              </div>
+            </div>
+
+            <div className="card p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center">
+                <Users className="w-4 h-4 text-violet-500" />
+              </div>
+              <div>
+                <div className="text-lg font-bold text-petra-text">{data.training.activeGroups}</div>
+                <div className="text-xs text-petra-muted">קבוצות אילוף פעילות</div>
+              </div>
+            </div>
+
+            <div className="card p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-fuchsia-50 flex items-center justify-center">
+                <Calendar className="w-4 h-4 text-fuchsia-500" />
+              </div>
+              <div>
+                <div className="text-lg font-bold text-petra-text">{data.training.groupSessionsThisPeriod}</div>
+                <div className="text-xs text-petra-muted">מפגשי קבוצה בתקופה</div>
+              </div>
+            </div>
+
+            {data.training.revenue !== null && (
+              <div className="card p-4 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
+                  <CreditCard className="w-4 h-4 text-emerald-500" />
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-petra-text">{formatCurrency(data.training.revenue)}</div>
+                  <div className="text-xs text-petra-muted">הכנסות אילוף בתקופה</div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Top Customers + Revenue by Service */}

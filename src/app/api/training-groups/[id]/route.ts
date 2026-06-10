@@ -2,6 +2,11 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { GROUP_TYPE_LABELS } from "@/lib/training-groups";
+import {
+  cancelGroupSessionReminders,
+  rescheduleGroupSessionReminders,
+} from "@/lib/reminder-service";
 
 export async function GET(
   request: NextRequest,
@@ -67,6 +72,10 @@ export async function PATCH(
 
     const body = await request.json();
 
+    if (body.groupType !== undefined && !GROUP_TYPE_LABELS[body.groupType]) {
+      return NextResponse.json({ error: "סוג קבוצה לא תקין" }, { status: 400 });
+    }
+
     const group = await prisma.trainingGroup.update({
       where: { id: params.id, businessId: authResult.businessId },
       data: {
@@ -78,8 +87,39 @@ export async function PATCH(
         ...(body.maxParticipants !== undefined && { maxParticipants: body.maxParticipants }),
         ...(body.notes !== undefined && { notes: body.notes }),
         ...(body.isActive !== undefined && { isActive: body.isActive }),
+        ...(body.reminderEnabled !== undefined && { reminderEnabled: !!body.reminderEnabled }),
+        ...(body.reminderLeadHours != null && { reminderLeadHours: body.reminderLeadHours }),
+        ...(body.reminderSameDay !== undefined && { reminderSameDay: !!body.reminderSameDay }),
       },
     });
+
+    // If reminder settings changed, resync pending reminders for upcoming sessions.
+    const reminderSettingsChanged =
+      (body.reminderEnabled !== undefined && !!body.reminderEnabled !== existing.reminderEnabled) ||
+      (body.reminderLeadHours != null && body.reminderLeadHours !== existing.reminderLeadHours) ||
+      (body.reminderSameDay !== undefined && !!body.reminderSameDay !== existing.reminderSameDay);
+
+    if (reminderSettingsChanged) {
+      try {
+        const upcoming = await prisma.trainingGroupSession.findMany({
+          where: {
+            trainingGroupId: params.id,
+            status: "SCHEDULED",
+            sessionDatetime: { gt: new Date() },
+          },
+          select: { id: true },
+        });
+        for (const s of upcoming) {
+          if (group.reminderEnabled) {
+            await rescheduleGroupSessionReminders(s.id);
+          } else {
+            await cancelGroupSessionReminders(s.id);
+          }
+        }
+      } catch (err) {
+        console.error("group reminder resync failed (non-critical):", err);
+      }
+    }
 
     return NextResponse.json(group);
   } catch (error) {
@@ -98,9 +138,20 @@ export async function DELETE(
 
     const existing = await prisma.trainingGroup.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
+      include: { sessions: { select: { id: true } } },
     });
     if (!existing) {
       return NextResponse.json({ error: "קבוצה לא נמצאה" }, { status: 404 });
+    }
+
+    // Cancel pending reminders for every session (loose relatedEntityId — no FK
+    // cascade) so they don't fire after the group is deleted.
+    try {
+      for (const s of existing.sessions) {
+        await cancelGroupSessionReminders(s.id);
+      }
+    } catch (err) {
+      console.error("cancelGroupSessionReminders (group delete) failed (non-critical):", err);
     }
 
     await prisma.trainingGroup.delete({ where: { id: params.id, businessId: authResult.businessId } });

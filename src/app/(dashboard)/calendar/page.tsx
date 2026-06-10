@@ -1053,6 +1053,28 @@ function CalendarContent() {
     staleTime: 2 * 60_000,
   });
 
+  // ── Individual training-program sessions overlay ──
+  interface TrainingProgramCalEvent {
+    id: string;
+    sessionDate: string;
+    sessionNumber: number | null;
+    durationMinutes: number;
+    status: string;
+    program: {
+      id: string;
+      name: string;
+      trainingType: string;
+      location: string | null;
+      dog: { id: string; name: string } | null;
+      customer: { id: string; name: string } | null;
+    };
+  }
+  const { data: trainingProgramSessions = [] } = useQuery<TrainingProgramCalEvent[]>({
+    queryKey: ["training-program-sessions-cal", from, to],
+    queryFn: () => fetchJSON(`/api/training-programs/calendar?from=${from}&to=${to}`),
+    staleTime: 2 * 60_000,
+  });
+
   const statusMutation = useMutation({
     mutationFn: ({ id, status, cancellationNote }: { id: string; status: string; cancellationNote?: string }) =>
       fetch(`/api/appointments/${id}`, {
@@ -2176,6 +2198,47 @@ function CalendarContent() {
                   );
                 })}
 
+                {/* Training group sessions - week */}
+                {trainingGroupSessions.filter((s) => s.status !== "CANCELED").map((s) => {
+                  const dateStr = dateTimeToDateStr(s.sessionDatetime);
+                  const dayIdx = weekDates.findIndex((d) => toLocalDateString(d) === dateStr);
+                  if (dayIdx === -1) return null;
+                  const startTime = dateTimeToTime(s.sessionDatetime);
+                  const startMins = timeToMinutes(startTime);
+                  if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
+                  const { top, height } = appointmentStyle(startTime, addMinutes(startTime, 60));
+                  const isWorkshop = s.trainingGroup.groupType === "WORKSHOP";
+                  const bg = isWorkshop ? "#EC4899" : "#8B5CF6";
+                  return (
+                    <a key={`tg-${s.id}`} href="/training"
+                      title={`${s.trainingGroup.name} (${startTime})`}
+                      className="absolute rounded-lg px-1.5 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity"
+                      style={{ top, height: Math.max(height, 20), right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`, width: `calc((100% - 60px) / 7 - 4px)`, marginRight: 2, background: bg, borderColor: bg, zIndex: 6 }}>
+                      <div className="text-[10px] font-semibold truncate text-white drop-shadow-sm">{isWorkshop ? "🎓" : "👥"} {s.trainingGroup.name}</div>
+                    </a>
+                  );
+                })}
+
+                {/* Training program sessions - week */}
+                {trainingProgramSessions.filter((s) => s.status !== "CANCELED").map((s) => {
+                  const dateStr = dateTimeToDateStr(s.sessionDate);
+                  const dayIdx = weekDates.findIndex((d) => toLocalDateString(d) === dateStr);
+                  if (dayIdx === -1) return null;
+                  const startTime = dateTimeToTime(s.sessionDate);
+                  const startMins = timeToMinutes(startTime);
+                  if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
+                  const { top, height } = appointmentStyle(startTime, addMinutes(startTime, s.durationMinutes || 60));
+                  const label = s.program.dog?.name ?? s.program.name;
+                  return (
+                    <a key={`tp-${s.id}`} href="/training"
+                      title={`אילוף: ${label}${s.program.customer ? " · " + s.program.customer.name : ""} (${startTime})`}
+                      className="absolute rounded-lg px-1.5 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity"
+                      style={{ top, height: Math.max(height, 20), right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`, width: `calc((100% - 60px) / 7 - 4px)`, marginRight: 2, background: "#3B82F6", borderColor: "#3B82F6", zIndex: 6 }}>
+                      <div className="text-[10px] font-semibold truncate text-white drop-shadow-sm">🐕 {label}</div>
+                    </a>
+                  );
+                })}
+
                 {/* Drop preview ghost */}
                 {dragging && dropPreview && (() => {
                   const dayIdx = weekDates.findIndex((d) => toLocalDateString(d) === dropPreview.date);
@@ -2432,6 +2495,43 @@ function CalendarContent() {
               );
             })}
 
+            {/* Training group sessions - day */}
+            {trainingGroupSessions.filter((s) => s.status !== "CANCELED" && dateTimeToDateStr(s.sessionDatetime) === toLocalDateString(selectedDay)).map((s) => {
+              const startTime = dateTimeToTime(s.sessionDatetime);
+              const startMins = timeToMinutes(startTime);
+              if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
+              const { top, height } = appointmentStyle(startTime, addMinutes(startTime, 60));
+              const isWorkshop = s.trainingGroup.groupType === "WORKSHOP";
+              const bg = isWorkshop ? "#EC4899" : "#8B5CF6";
+              return (
+                <a key={`tg-day-${s.id}`} href="/training"
+                  title={`${s.trainingGroup.name} (${startTime})`}
+                  className="absolute rounded-lg px-2 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity"
+                  style={{ top, height: Math.max(height, 22), right: 60, width: "calc(100% - 64px)", background: bg, borderColor: bg, zIndex: 6 }}>
+                  <div className="text-xs font-semibold truncate text-white drop-shadow-sm">{isWorkshop ? "🎓" : "👥"} {s.trainingGroup.name}</div>
+                  {s.trainingGroup.location && <div className="text-[10px] truncate text-white/80">{s.trainingGroup.location}</div>}
+                </a>
+              );
+            })}
+
+            {/* Training program sessions - day */}
+            {trainingProgramSessions.filter((s) => s.status !== "CANCELED" && dateTimeToDateStr(s.sessionDate) === toLocalDateString(selectedDay)).map((s) => {
+              const startTime = dateTimeToTime(s.sessionDate);
+              const startMins = timeToMinutes(startTime);
+              if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
+              const { top, height } = appointmentStyle(startTime, addMinutes(startTime, s.durationMinutes || 60));
+              const label = s.program.dog?.name ?? s.program.name;
+              return (
+                <a key={`tp-day-${s.id}`} href="/training"
+                  title={`אילוף: ${label}${s.program.customer ? " · " + s.program.customer.name : ""}`}
+                  className="absolute rounded-lg px-2 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity"
+                  style={{ top, height: Math.max(height, 22), right: 60, width: "calc(100% - 64px)", background: "#3B82F6", borderColor: "#3B82F6", zIndex: 6 }}>
+                  <div className="text-xs font-semibold truncate text-white drop-shadow-sm">🐕 {label}</div>
+                  {s.program.customer && <div className="text-[10px] truncate text-white/80">{s.program.customer.name}</div>}
+                </a>
+              );
+            })}
+
             {/* Drop preview ghost - day view */}
             {dragging && dropPreview?.date === toLocalDateString(selectedDay) && (() => {
               const previewTop = ((dropPreview.startMins - DAY_START) / 60) * SLOT_HEIGHT;
@@ -2531,6 +2631,29 @@ function CalendarContent() {
                   label: `${time} ${ev.title}`,
                 });
               });
+
+              // Training group sessions - month
+              trainingGroupSessions
+                .filter((s) => s.status !== "CANCELED" && dateTimeToDateStr(s.sessionDatetime) === dateStr)
+                .forEach((s) => {
+                  const isWorkshop = s.trainingGroup.groupType === "WORKSHOP";
+                  entries.push({
+                    key: `tg-${s.id}`,
+                    color: isWorkshop ? "#EC4899" : "#8B5CF6",
+                    label: `${dateTimeToTime(s.sessionDatetime)} ${s.trainingGroup.name}`,
+                  });
+                });
+
+              // Training program sessions - month
+              trainingProgramSessions
+                .filter((s) => s.status !== "CANCELED" && dateTimeToDateStr(s.sessionDate) === dateStr)
+                .forEach((s) => {
+                  entries.push({
+                    key: `tp-${s.id}`,
+                    color: "#3B82F6",
+                    label: `${dateTimeToTime(s.sessionDate)} ${s.program.dog?.name ?? s.program.name}`,
+                  });
+                });
 
               const shown = entries.slice(0, 3);
               const overflow = entries.length - 3;
@@ -2695,6 +2818,23 @@ function CalendarContent() {
                 color: isWorkshop ? "#EC4899" : "#8B5CF6",
                 href: "/training",
                 icon: isWorkshop ? "🎓" : "👥",
+              });
+            });
+
+          trainingProgramSessions
+            .filter((s) => s.status !== "CANCELED" && s.sessionDate.slice(0, 10) === dateStr)
+            .forEach((s) => {
+              const time = dateTimeToTime(s.sessionDate);
+              const label = s.program.dog?.name ?? s.program.name;
+              items.push({
+                key: `tp-${s.id}`,
+                time,
+                sortKey: time,
+                title: label,
+                subtitle: s.program.customer ? `אילוף · ${s.program.customer.name}` : "אילוף",
+                color: "#3B82F6",
+                href: "/training",
+                icon: "🐕",
               });
             });
 

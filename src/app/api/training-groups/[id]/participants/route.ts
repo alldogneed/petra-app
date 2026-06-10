@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { scheduleRemindersForNewParticipant } from "@/lib/reminder-service";
 
 // POST /api/training-groups/[id]/participants – add a participant to the group
 export async function POST(
@@ -19,21 +20,8 @@ export async function POST(
       return NextResponse.json({ error: "customerId and dogId are required" }, { status: 400 });
     }
 
-    // Check if already enrolled
-    const existing = await prisma.trainingGroupParticipant.findUnique({
-      where: {
-        trainingGroupId_dogId: {
-          trainingGroupId: params.id,
-          dogId,
-        },
-      },
-    });
-
-    if (existing) {
-      return NextResponse.json({ error: "Dog is already enrolled in this group" }, { status: 409 });
-    }
-
-    // Check group belongs to business and check max participants
+    // Verify group belongs to this business FIRST (avoid leaking enrollment
+    // state of other businesses' groups via the duplicate check), then capacity.
     const group = await prisma.trainingGroup.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
       select: { maxParticipants: true, _count: { select: { participants: true } } },
@@ -46,7 +34,7 @@ export async function POST(
       return NextResponse.json({ error: "Group is full" }, { status: 400 });
     }
 
-    // Verify customer and dog belong to this business
+    // Verify customer belongs to this business
     const customer = await prisma.customer.findFirst({
       where: { id: customerId, businessId: authResult.businessId },
       select: { id: true },
@@ -54,12 +42,27 @@ export async function POST(
     if (!customer) {
       return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
     }
+    // Verify dog belongs to this business AND to the given customer
+    // (prevents enrolling Customer A with Customer B's pet)
     const dog = await prisma.pet.findFirst({
-      where: { id: dogId, customer: { businessId: authResult.businessId } },
+      where: { id: dogId, customerId },
       select: { id: true },
     });
     if (!dog) {
-      return NextResponse.json({ error: "כלב לא נמצא" }, { status: 404 });
+      return NextResponse.json({ error: "הכלב אינו שייך ללקוח שנבחר" }, { status: 404 });
+    }
+
+    // Check if already enrolled (after ownership is established)
+    const existing = await prisma.trainingGroupParticipant.findUnique({
+      where: {
+        trainingGroupId_dogId: {
+          trainingGroupId: params.id,
+          dogId,
+        },
+      },
+    });
+    if (existing) {
+      return NextResponse.json({ error: "הכלב כבר רשום לקבוצה זו" }, { status: 409 });
     }
 
     const participant = await prisma.trainingGroupParticipant.create({
@@ -73,6 +76,14 @@ export async function POST(
         customer: { select: { id: true, name: true, phone: true } },
       },
     });
+
+    // Schedule reminders for this participant's upcoming sessions (awaited —
+    // Vercel kills unawaited promises).
+    try {
+      await scheduleRemindersForNewParticipant(params.id, participant.id);
+    } catch (err) {
+      console.error("scheduleRemindersForNewParticipant failed (non-critical):", err);
+    }
 
     return NextResponse.json(participant, { status: 201 });
   } catch (error) {

@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { scheduleGroupSessionReminders } from "@/lib/reminder-service";
+import { SESSION_STATUS_MAP } from "@/lib/training-groups";
 
 export async function POST(
   request: NextRequest,
@@ -12,6 +14,18 @@ export async function POST(
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
+
+    // Validate session datetime
+    const sessionDatetime = new Date(body.sessionDatetime);
+    if (isNaN(sessionDatetime.getTime())) {
+      return NextResponse.json({ error: "תאריך מפגש לא תקין" }, { status: 400 });
+    }
+
+    // Validate status
+    const status = body.status || "SCHEDULED";
+    if (!SESSION_STATUS_MAP[status]) {
+      return NextResponse.json({ error: "סטטוס מפגש לא תקין" }, { status: 400 });
+    }
 
     // Verify group belongs to this business
     const group = await prisma.trainingGroup.findFirst({
@@ -29,9 +43,9 @@ export async function POST(
     const session = await prisma.trainingGroupSession.create({
       data: {
         trainingGroupId: params.id,
-        sessionDatetime: new Date(body.sessionDatetime),
+        sessionDatetime,
         sessionNumber: count + 1,
-        status: body.status || "SCHEDULED",
+        status,
         notes: body.notes || null,
       },
       include: {
@@ -39,7 +53,10 @@ export async function POST(
       },
     });
 
-    // Auto-create attendance records for all active participants
+    // Auto-create attendance records for all active participants.
+    // Default to NO_SHOW (unmarked) — the trainer marks attendees PRESENT.
+    // Defaulting to PRESENT would falsely report 100% attendance for sessions
+    // that have not occurred yet.
     const participants = await prisma.trainingGroupParticipant.findMany({
       where: { trainingGroupId: params.id, status: "ACTIVE" },
     });
@@ -51,9 +68,19 @@ export async function POST(
           participantId: p.id,
           dogId: p.dogId,
           customerId: p.customerId,
-          attendanceStatus: "PRESENT",
+          attendanceStatus: "NO_SHOW",
         })),
+        skipDuplicates: true,
       });
+    }
+
+    // Schedule WhatsApp reminders for active participants (respects the group's
+    // reminderEnabled / lead-hours / same-day settings). Must be awaited —
+    // Vercel kills unawaited promises before they complete.
+    try {
+      await scheduleGroupSessionReminders(session.id);
+    } catch (err) {
+      console.error("scheduleGroupSessionReminders failed (non-critical):", err);
     }
 
     return NextResponse.json(session, { status: 201 });

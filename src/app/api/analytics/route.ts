@@ -75,6 +75,10 @@ export async function GET(request: NextRequest) {
       wonLeads,
       lostLeads,
       activePrograms,
+      completedTrainingSessions,
+      activeTrainingGroups,
+      completedGroupSessions,
+      trainingRevenueAgg,
       boardingStays,
       appointmentsByDate,
     ] = await Promise.all([
@@ -138,6 +142,23 @@ export async function GET(request: NextRequest) {
       // Active training programs
       prisma.trainingProgram.count({
         where: { businessId: authResult.businessId, status: "ACTIVE" },
+      }),
+      // Completed training sessions this period
+      prisma.trainingProgramSession.count({
+        where: { program: { businessId: authResult.businessId }, status: "COMPLETED", sessionDate: { gte: fromDate } },
+      }),
+      // Active training groups
+      prisma.trainingGroup.count({
+        where: { businessId: authResult.businessId, isActive: true },
+      }),
+      // Completed group sessions this period
+      prisma.trainingGroupSession.count({
+        where: { trainingGroup: { businessId: authResult.businessId }, status: "COMPLETED", sessionDatetime: { gte: fromDate } },
+      }),
+      // Training revenue this period (program price, ACTIVE/COMPLETED started in period)
+      prisma.trainingProgram.aggregate({
+        where: { businessId: authResult.businessId, status: { in: ["ACTIVE", "COMPLETED"] }, startDate: { gte: fromDate } },
+        _sum: { price: true },
       }),
       // Boarding stays this period
       prisma.boardingStay.count({
@@ -289,6 +310,10 @@ export async function GET(request: NextRequest) {
       },
       training: {
         activePrograms,
+        completedSessionsThisPeriod: completedTrainingSessions,
+        activeGroups: activeTrainingGroups,
+        groupSessionsThisPeriod: completedGroupSessions,
+        revenue: canSeeRevenue ? (trainingRevenueAgg._sum.price || 0) : null,
       },
       boarding: {
         staysThisPeriod: boardingStays,

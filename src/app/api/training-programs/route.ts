@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxTrainingPrograms, normalizeTier } from "@/lib/feature-flags";
+import { PROGRAM_TYPE_LABELS, TRAINING_TYPE_LABELS } from "@/lib/training-programs";
 
 export async function GET(request: NextRequest) {
   try {
@@ -81,11 +82,27 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    // ── Required fields (schema: name + dogId are non-nullable) ──
+    if (!body.name || typeof body.name !== "string" || !body.name.trim()) {
+      return NextResponse.json({ error: "שם תוכנית הוא שדה חובה" }, { status: 400 });
+    }
+    if (!body.dogId || typeof body.dogId !== "string") {
+      return NextResponse.json({ error: "יש לבחור כלב" }, { status: 400 });
+    }
+
+    // ── Enum validation ──
+    if (body.programType && !PROGRAM_TYPE_LABELS[body.programType]) {
+      return NextResponse.json({ error: "סוג תוכנית לא תקין" }, { status: 400 });
+    }
+    if (body.trainingType && !TRAINING_TYPE_LABELS[body.trainingType]) {
+      return NextResponse.json({ error: "סוג אילוף לא תקין" }, { status: 400 });
+    }
+
     // ── IDOR Prevention: validate dogId and customerId belong to this business ──
     // Length validation for text fields
     const MAX_NAME = 200;
     const MAX_TEXT = 5000;
-    if (body.name && body.name.length > MAX_NAME) {
+    if (body.name.length > MAX_NAME) {
       return NextResponse.json({ error: "שם תוכנית ארוך מדי (מקסימום 200 תווים)" }, { status: 400 });
     }
     for (const field of ["workPlan", "behaviorBaseline", "customerExpectations", "notes"] as const) {
@@ -94,7 +111,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (body.dogId) {
+    {
       const dogCheck = await prisma.pet.findFirst({
         where: { id: body.dogId, OR: [{ customer: { businessId: authResult.businessId } }, { businessId: authResult.businessId }] },
         select: { id: true },
@@ -113,16 +130,42 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If packageId provided, auto-fill sessions and price from package
+    // Numeric validation
     let totalSessions = body.totalSessions ?? null;
     let price = body.price ?? null;
+    if (totalSessions != null) {
+      totalSessions = parseInt(totalSessions, 10);
+      if (!Number.isFinite(totalSessions) || totalSessions < 1 || totalSessions > 1000) {
+        return NextResponse.json({ error: "מספר מפגשים לא תקין" }, { status: 400 });
+      }
+    }
+    if (price != null) {
+      price = parseFloat(price);
+      if (!Number.isFinite(price) || price < 0) {
+        return NextResponse.json({ error: "מחיר לא תקין" }, { status: 400 });
+      }
+    }
+
+    // If packageId provided, validate ownership and auto-fill sessions and price
     if (body.packageId) {
       const pkg = await prisma.trainingPackage.findFirst({
         where: { id: body.packageId, businessId: authResult.businessId },
       });
-      if (pkg) {
-        if (totalSessions == null) totalSessions = pkg.sessions;
-        if (price == null) price = pkg.price;
+      if (!pkg) {
+        return NextResponse.json({ error: "חבילה לא נמצאה" }, { status: 404 });
+      }
+      if (totalSessions == null) totalSessions = pkg.sessions;
+      if (price == null) price = pkg.price;
+    }
+
+    // Validate boardingStayId ownership if provided (prevents dangling FK)
+    if (body.boardingStayId) {
+      const stay = await prisma.boardingStay.findFirst({
+        where: { id: body.boardingStayId, businessId: authResult.businessId },
+        select: { id: true },
+      });
+      if (!stay) {
+        return NextResponse.json({ error: "שהיית פנסיון לא נמצאה" }, { status: 404 });
       }
     }
 

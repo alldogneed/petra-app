@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxTrainingGroups, normalizeTier } from "@/lib/feature-flags";
+import { GROUP_TYPE_LABELS } from "@/lib/training-groups";
 
 export async function GET(request: NextRequest) {
   try {
@@ -70,16 +71,34 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    // Validate required + enum/numeric fields
+    if (!body.name || typeof body.name !== "string" || !body.name.trim()) {
+      return NextResponse.json({ error: "שם הקבוצה הוא שדה חובה" }, { status: 400 });
+    }
+    const groupType = body.groupType || "CUSTOM";
+    if (!GROUP_TYPE_LABELS[groupType]) {
+      return NextResponse.json({ error: "סוג קבוצה לא תקין" }, { status: 400 });
+    }
+    if (body.maxParticipants != null && (!Number.isInteger(body.maxParticipants) || body.maxParticipants < 1)) {
+      return NextResponse.json({ error: "מספר משתתפים מקסימלי לא תקין" }, { status: 400 });
+    }
+    if (body.defaultDayOfWeek != null && (!Number.isInteger(body.defaultDayOfWeek) || body.defaultDayOfWeek < 0 || body.defaultDayOfWeek > 6)) {
+      return NextResponse.json({ error: "יום בשבוע לא תקין" }, { status: 400 });
+    }
+
     const group = await prisma.trainingGroup.create({
       data: {
         businessId: authResult.businessId,
-        name: body.name,
-        groupType: body.groupType || "CUSTOM",
+        name: body.name.trim(),
+        groupType,
         location: body.location || null,
         defaultDayOfWeek: body.defaultDayOfWeek ?? null,
         defaultTime: body.defaultTime || null,
         maxParticipants: body.maxParticipants ?? null,
         notes: body.notes || null,
+        ...(body.reminderEnabled !== undefined && { reminderEnabled: !!body.reminderEnabled }),
+        ...(body.reminderLeadHours != null && { reminderLeadHours: body.reminderLeadHours }),
+        ...(body.reminderSameDay !== undefined && { reminderSameDay: !!body.reminderSameDay }),
       },
       include: {
         participants: true,
