@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit } from "@/lib/rate-limit";
+import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import * as XLSX from "xlsx";
 
 const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 };
@@ -112,7 +113,15 @@ export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
-    const { businessId } = authResult;
+    const { businessId, session } = authResult;
+
+    // The export contains full revenue data (payments, order totals) — gate it
+    // behind the same permission the analytics API uses to hide revenue.
+    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const role = (membership?.role ?? "user") as TenantRole;
+    if (!hasTenantPermission(role, TENANT_PERMS.FINANCE_SUMMARY)) {
+      return NextResponse.json({ error: "אין לך הרשאה לייצא דוחות כספיים" }, { status: 403 });
+    }
 
     const rl = rateLimit("export:analytics", businessId, EXPORT_RATE_LIMIT);
     if (!rl.allowed) {

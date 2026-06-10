@@ -45,10 +45,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Previous period for comparison
-    const periodLength = now.getTime() - fromDate.getTime();
+    // Previous period for comparison — based on the selected range's end,
+    // not "now", so custom ranges compare against an equal-length window.
+    const periodLength = toDate.getTime() - fromDate.getTime();
     const prevFrom = new Date(fromDate.getTime() - periodLength);
     const prevTo = fromDate;
+
+    // All period-scoped queries must be bounded on both ends; otherwise a
+    // custom range leaks later data and future-dated appointments inflate counts.
+    const inPeriod = { gte: fromDate, lte: toDate };
+    const inPrevPeriod = { gte: prevFrom, lt: prevTo };
 
     // Query lead stages to get their IDs (for analytics queries)
     const leadStages = await prisma.leadStage.findMany({
@@ -86,37 +92,38 @@ export async function GET(request: NextRequest) {
       prisma.customer.count({ where: { businessId: authResult.businessId } }),
       // New customers this period
       prisma.customer.count({
-        where: { businessId: authResult.businessId, createdAt: { gte: fromDate } },
+        where: { businessId: authResult.businessId, createdAt: inPeriod },
       }),
       // New customers previous period
       prisma.customer.count({
-        where: { businessId: authResult.businessId, createdAt: { gte: prevFrom, lt: prevTo } },
+        where: { businessId: authResult.businessId, createdAt: inPrevPeriod },
       }),
       // Appointments this period
       prisma.appointment.count({
-        where: { businessId: authResult.businessId, date: { gte: fromDate } },
+        where: { businessId: authResult.businessId, date: inPeriod },
       }),
       // Appointments previous period
       prisma.appointment.count({
-        where: { businessId: authResult.businessId, date: { gte: prevFrom, lt: prevTo } },
+        where: { businessId: authResult.businessId, date: inPrevPeriod },
       }),
       // Completed appointments
       prisma.appointment.count({
-        where: { businessId: authResult.businessId, date: { gte: fromDate }, status: { in: ["completed", "COMPLETED"] } },
+        where: { businessId: authResult.businessId, date: inPeriod, status: { in: ["completed", "COMPLETED"] } },
       }),
       // Canceled appointments
       prisma.appointment.count({
-        where: { businessId: authResult.businessId, date: { gte: fromDate }, status: "canceled" },
+        where: { businessId: authResult.businessId, date: inPeriod, status: "canceled" },
       }),
-      // Payments this period
+      // Payments this period — paid only, by paidAt (same definition as the
+      // dashboard's monthRevenue, so the two screens always agree)
       prisma.payment.aggregate({
-        where: { businessId: authResult.businessId, createdAt: { gte: fromDate } },
+        where: { businessId: authResult.businessId, status: "paid", paidAt: inPeriod },
         _sum: { amount: true },
         _count: true,
       }),
       // Payments previous period
       prisma.payment.aggregate({
-        where: { businessId: authResult.businessId, createdAt: { gte: prevFrom, lt: prevTo } },
+        where: { businessId: authResult.businessId, status: "paid", paidAt: inPrevPeriod },
         _sum: { amount: true },
       }),
       // Open tasks
@@ -125,19 +132,19 @@ export async function GET(request: NextRequest) {
       }),
       // Completed tasks this period
       prisma.task.count({
-        where: { businessId: authResult.businessId, status: "COMPLETED", completedAt: { gte: fromDate } },
+        where: { businessId: authResult.businessId, status: "COMPLETED", completedAt: inPeriod },
       }),
       // Active leads (non-won, non-lost stages)
       prisma.lead.count({
         where: { businessId: authResult.businessId, stage: { in: activeStageIds } },
       }),
-      // Won leads this period
+      // Won leads this period — wonAt, not updatedAt (any edit bumps updatedAt)
       prisma.lead.count({
-        where: { businessId: authResult.businessId, stage: { in: wonStageIds }, updatedAt: { gte: fromDate } },
+        where: { businessId: authResult.businessId, stage: { in: wonStageIds }, wonAt: inPeriod },
       }),
       // Lost leads this period
       prisma.lead.count({
-        where: { businessId: authResult.businessId, stage: { in: lostStageIds }, lostAt: { gte: fromDate } },
+        where: { businessId: authResult.businessId, stage: { in: lostStageIds }, lostAt: inPeriod },
       }),
       // Active training programs
       prisma.trainingProgram.count({
@@ -145,7 +152,7 @@ export async function GET(request: NextRequest) {
       }),
       // Completed training sessions this period
       prisma.trainingProgramSession.count({
-        where: { program: { businessId: authResult.businessId }, status: "COMPLETED", sessionDate: { gte: fromDate } },
+        where: { program: { businessId: authResult.businessId }, status: "COMPLETED", sessionDate: inPeriod },
       }),
       // Active training groups
       prisma.trainingGroup.count({
@@ -153,21 +160,21 @@ export async function GET(request: NextRequest) {
       }),
       // Completed group sessions this period
       prisma.trainingGroupSession.count({
-        where: { trainingGroup: { businessId: authResult.businessId }, status: "COMPLETED", sessionDatetime: { gte: fromDate } },
+        where: { trainingGroup: { businessId: authResult.businessId }, status: "COMPLETED", sessionDatetime: inPeriod },
       }),
       // Training revenue this period (program price, ACTIVE/COMPLETED started in period)
       prisma.trainingProgram.aggregate({
-        where: { businessId: authResult.businessId, status: { in: ["ACTIVE", "COMPLETED"] }, startDate: { gte: fromDate } },
+        where: { businessId: authResult.businessId, status: { in: ["ACTIVE", "COMPLETED"] }, startDate: inPeriod },
         _sum: { price: true },
       }),
       // Boarding stays this period
       prisma.boardingStay.count({
-        where: { businessId: authResult.businessId, checkIn: { gte: fromDate } },
+        where: { businessId: authResult.businessId, checkIn: inPeriod },
       }),
-      // Appointments by date (for chart) - last 30 days
+      // Appointments by date (for chart)
       prisma.appointment.groupBy({
         by: ["date"],
-        where: { businessId: authResult.businessId, date: { gte: fromDate } },
+        where: { businessId: authResult.businessId, date: inPeriod },
         _count: true,
         orderBy: { date: "asc" },
       }),
@@ -178,7 +185,7 @@ export async function GET(request: NextRequest) {
 
     // Appointments by day of week and hour (for scheduling heatmap)
     const allAppointments = await prisma.appointment.findMany({
-      where: { businessId: authResult.businessId, date: { gte: fromDate } },
+      where: { businessId: authResult.businessId, date: inPeriod },
       select: { date: true, startTime: true },
     });
 
@@ -199,7 +206,7 @@ export async function GET(request: NextRequest) {
 
     // Top customers by revenue this period
     const topCustomerPayments = await prisma.payment.findMany({
-      where: { businessId: authResult.businessId, status: "paid", paidAt: { gte: fromDate } },
+      where: { businessId: authResult.businessId, status: "paid", paidAt: inPeriod },
       select: {
         amount: true,
         customer: { select: { id: true, name: true } },
@@ -224,7 +231,7 @@ export async function GET(request: NextRequest) {
       where: {
         businessId: authResult.businessId,
         status: "paid",
-        paidAt: { gte: fromDate },
+        paidAt: inPeriod,
         appointmentId: { not: null },
       },
       select: {
@@ -258,9 +265,16 @@ export async function GET(request: NextRequest) {
       ? Math.round((currentRevenue / totalCustomers) * 100) / 100
       : 0;
 
-    // Pet demographics (species + top breeds) — static, not period-dependent
+    // Pet demographics (species + top breeds) — static, not period-dependent.
+    // Pet.customerId is nullable: standalone pets (e.g. service dogs) carry
+    // businessId directly, so match either path — same as the XLSX export.
     const allPets = await prisma.pet.findMany({
-      where: { customer: { businessId: authResult.businessId } },
+      where: {
+        OR: [
+          { customer: { businessId: authResult.businessId } },
+          { businessId: authResult.businessId },
+        ],
+      },
       select: { species: true, breed: true },
     });
     const speciesCount: Record<string, number> = {};

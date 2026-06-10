@@ -55,13 +55,31 @@ export async function PATCH(
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // Validate stage belongs to this business
+    // Validate stage belongs to this business + auto-stamp won/lost dates.
+    // Clients move leads from several places (kanban drag, detail modal,
+    // treatment modal) and not all of them send wonAt/lostAt — analytics
+    // counts by these timestamps, so the server stamps them on transition.
+    let autoWonAt: Date | null | undefined;
+    let autoLostAt: Date | null | undefined;
     if (stage !== undefined) {
       const validStage = await prisma.leadStage.findFirst({
         where: { id: stage, businessId: authResult.businessId },
       });
       if (!validStage) {
         return NextResponse.json({ error: "Invalid stage" }, { status: 400 });
+      }
+      if (stage !== existing.stage) {
+        if (validStage.isWon) {
+          autoWonAt = new Date();
+          autoLostAt = null;
+        } else if (validStage.isLost) {
+          autoLostAt = new Date();
+          autoWonAt = null;
+        } else {
+          // Back to an active stage — clear archive timestamps
+          autoWonAt = null;
+          autoLostAt = null;
+        }
       }
     }
 
@@ -82,10 +100,17 @@ export async function PATCH(
         ...(lastContactedAt !== undefined && {
           lastContactedAt: new Date(lastContactedAt),
         }),
-        ...(wonAt !== undefined && { wonAt: wonAt ? new Date(wonAt) : null }),
-        ...(lostAt !== undefined && {
-          lostAt: lostAt ? new Date(lostAt) : null,
-        }),
+        // Explicit client value wins; otherwise apply the stage-transition stamp
+        ...(wonAt !== undefined
+          ? { wonAt: wonAt ? new Date(wonAt) : null }
+          : autoWonAt !== undefined
+            ? { wonAt: autoWonAt }
+            : {}),
+        ...(lostAt !== undefined
+          ? { lostAt: lostAt ? new Date(lostAt) : null }
+          : autoLostAt !== undefined
+            ? { lostAt: autoLostAt }
+            : {}),
         ...(nextFollowUpAt !== undefined && {
           nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : null,
         }),
