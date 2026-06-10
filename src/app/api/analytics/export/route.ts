@@ -67,10 +67,11 @@ const TRAINING_STATUS: Record<string, string> = {
   PAUSED: "מושהה",
 };
 
+// Actual BoardingStay statuses in the system: reserved / checked_in / checked_out
 const BOARDING_STATUS: Record<string, string> = {
   reserved: "הזמנה",
-  active: "פעיל",
-  completed: "הושלם",
+  checked_in: "בשהייה",
+  checked_out: "הסתיימה",
   canceled: "בוטל",
 };
 

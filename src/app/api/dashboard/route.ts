@@ -74,9 +74,10 @@ export async function GET(request: NextRequest) {
       sixMonthPayments,
     ] = await Promise.all([
       prisma.customer.count({ where: { businessId } }),
-      prisma.pet.count({ where: { customer: { businessId } } }),
+      // OR: standalone pets (service dogs) carry businessId directly with no customer
+      prisma.pet.count({ where: { OR: [{ customer: { businessId } }, { businessId }] } }),
       prisma.appointment.count({
-        where: { businessId, date: { gte: todayStart, lte: todayEnd } },
+        where: { businessId, date: { gte: todayStart, lte: todayEnd }, status: { not: "canceled" } },
       }),
       prisma.appointment.findMany({
         where: {
@@ -145,6 +146,8 @@ export async function GET(request: NextRequest) {
         where: {
           businessId,
           date: { gte: monthStart },
+          status: { not: "canceled" },
+          serviceId: { not: null },
         },
         _count: { id: true },
         orderBy: { _count: { id: "desc" } },
@@ -264,7 +267,10 @@ export async function GET(request: NextRequest) {
         take: 30,
       }),
       prisma.pet.findMany({
-        where: { customer: { businessId }, birthDate: { not: null } },
+        where: {
+          OR: [{ customer: { businessId } }, { businessId }],
+          birthDate: { not: null },
+        },
         select: {
           id: true,
           name: true,
