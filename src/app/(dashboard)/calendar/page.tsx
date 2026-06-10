@@ -799,9 +799,12 @@ function CalendarContent() {
 
   // ── State ──
   const [anchor, setAnchor] = useState(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>(() =>
-    typeof window !== "undefined" && window.innerWidth < 768 ? "day" : "week"
-  );
+  // Initial value must match SSR output (no window on server) — switch to
+  // mobile day-view only after hydration to avoid a hydration mismatch.
+  const [viewMode, setViewMode] = useState<ViewMode>("week");
+  useEffect(() => {
+    if (window.innerWidth < 768) setViewMode("day");
+  }, []);
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [showNewModal, setShowNewModal] = useState(false);
   const [modalDefaults, setModalDefaults] = useState({
