@@ -39,6 +39,7 @@ import {
   Sparkles,
   LayoutGrid,
   LayoutList,
+  Pencil,
 } from "lucide-react";
 import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import { triggerLimitModal } from "@/lib/limit-reached";
@@ -491,6 +492,7 @@ function TrainingPageContent() {
   const [showManualAdd, setShowManualAdd] = useState(false);
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [showNewWorkshop, setShowNewWorkshop] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<TrainingGroup | null>(null);
   const [showAssignDog, setShowAssignDog] = useState<{ groupId: string; groupName: string } | null>(null);
   const [editingProgram, setEditingProgram] = useState<TrainingProgram | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
@@ -739,6 +741,21 @@ function TrainingPageContent() {
         toast.error(err.message || "שגיאה ביצירת הקבוצה. נסה שוב.");
       }
     },
+  });
+
+  const updateGroupMutation = useMutation({
+    mutationFn: ({ id, ...data }: { id: string } & Record<string, unknown>) =>
+      fetchJSON(`/api/training-groups/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+      setEditingGroup(null);
+      toast.success("השינויים נשמרו בהצלחה");
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה בעדכון הקבוצה. נסה שוב."),
   });
 
   const addParticipantMutation = useMutation({
@@ -1252,6 +1269,7 @@ function TrainingPageContent() {
                   expandedCards={expandedCards}
                   toggleExpand={toggleExpand}
                   onNewGroup={() => setShowNewGroup(true)}
+                  onEditGroup={(group) => setEditingGroup(group)}
                   onAssignDog={(groupId, groupName) => setShowAssignDog({ groupId, groupName })}
                   onRemoveParticipant={(groupId, participantId) =>
                     removeParticipantMutation.mutate({ groupId, participantId })
@@ -1266,6 +1284,7 @@ function TrainingPageContent() {
                   expandedCards={expandedCards}
                   toggleExpand={toggleExpand}
                   onNewWorkshop={() => setShowNewWorkshop(true)}
+                  onEditGroup={(group) => setEditingGroup(group)}
                   onAssignDog={(groupId, groupName) => setShowAssignDog({ groupId, groupName })}
                   onRemoveParticipant={(groupId, participantId) =>
                     removeParticipantMutation.mutate({ groupId, participantId })
@@ -1330,6 +1349,16 @@ function TrainingPageContent() {
           onSubmit={(data) => createGroupMutation.mutate({ ...data, groupType: "WORKSHOP" })}
           isPending={createGroupMutation.isPending}
           isWorkshop={true}
+        />
+      )}
+
+      {editingGroup && (
+        <CreateGroupModal
+          onClose={() => setEditingGroup(null)}
+          onSubmit={(data) => updateGroupMutation.mutate({ id: editingGroup.id, ...data })}
+          isPending={updateGroupMutation.isPending}
+          isWorkshop={editingGroup.groupType === "WORKSHOP"}
+          initial={editingGroup}
         />
       )}
 
@@ -3091,6 +3120,7 @@ function GroupsTab({
   expandedCards,
   toggleExpand,
   onNewGroup,
+  onEditGroup,
   onAssignDog,
   onRemoveParticipant,
 }: {
@@ -3099,6 +3129,7 @@ function GroupsTab({
   expandedCards: Set<string>;
   toggleExpand: (id: string) => void;
   onNewGroup: () => void;
+  onEditGroup: (group: TrainingGroup) => void;
   onAssignDog: (groupId: string, groupName: string) => void;
   onRemoveParticipant: (groupId: string, participantId: string) => void;
 }) {
@@ -3138,6 +3169,7 @@ function GroupsTab({
               group={group}
               expanded={expandedCards.has(group.id)}
               onToggle={() => toggleExpand(group.id)}
+              onEditGroup={() => onEditGroup(group)}
               onAssignDog={() => onAssignDog(group.id, group.name)}
               onRemoveParticipant={(participantId) => onRemoveParticipant(group.id, participantId)}
             />
@@ -3158,6 +3190,7 @@ function WorkshopsTab({
   expandedCards,
   toggleExpand,
   onNewWorkshop,
+  onEditGroup,
   onAssignDog,
   onRemoveParticipant,
 }: {
@@ -3166,6 +3199,7 @@ function WorkshopsTab({
   expandedCards: Set<string>;
   toggleExpand: (id: string) => void;
   onNewWorkshop: () => void;
+  onEditGroup: (group: TrainingGroup) => void;
   onAssignDog: (groupId: string, groupName: string) => void;
   onRemoveParticipant: (groupId: string, participantId: string) => void;
 }) {
@@ -3205,6 +3239,7 @@ function WorkshopsTab({
               group={workshop}
               expanded={expandedCards.has(workshop.id)}
               onToggle={() => toggleExpand(workshop.id)}
+              onEditGroup={() => onEditGroup(workshop)}
               onAssignDog={() => onAssignDog(workshop.id, workshop.name)}
               onRemoveParticipant={(participantId) => onRemoveParticipant(workshop.id, participantId)}
               isWorkshop
@@ -3224,6 +3259,7 @@ function GroupCard({
   group,
   expanded,
   onToggle,
+  onEditGroup,
   onAssignDog,
   onRemoveParticipant,
   isWorkshop = false,
@@ -3231,6 +3267,7 @@ function GroupCard({
   group: TrainingGroup;
   expanded: boolean;
   onToggle: () => void;
+  onEditGroup: () => void;
   onAssignDog: () => void;
   onRemoveParticipant: (participantId: string) => void;
   isWorkshop?: boolean;
@@ -3239,6 +3276,7 @@ function GroupCard({
   const [expandedAttendanceSession, setExpandedAttendanceSession] = useState<string | null>(null);
   const [sessionNotesInput, setSessionNotesInput] = useState<Record<string, string>>({});
   const [showAddSession, setShowAddSession] = useState(false);
+  const [editingSession, setEditingSession] = useState<{ id: string; date: string; time: string } | null>(null);
   const today = new Date().toISOString().slice(0, 10);
   const defaultTime = group.defaultTime || "10:00";
   const [newSessionDate, setNewSessionDate] = useState(today);
@@ -3257,7 +3295,7 @@ function GroupCard({
       setShowAddSession(false);
       toast.success("מפגש נוצר בהצלחה");
     },
-    onError: () => toast.error("שגיאה ביצירת מפגש"),
+    onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת מפגש"),
   });
 
   const generateSeriesMutation = useMutation({
@@ -3299,6 +3337,31 @@ function GroupCard({
       toast.success("סיכום המפגש נשמר");
     },
     onError: () => toast.error("שגיאה בשמירת הסיכום"),
+  });
+
+  const updateSessionDatetimeMutation = useMutation({
+    mutationFn: ({ sessionId, date, time }: { sessionId: string; date: string; time: string }) =>
+      fetchJSON(`/api/training-groups/${group.id}/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionDatetime: new Date(`${date}T${time}:00`).toISOString() }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+      setEditingSession(null);
+      toast.success("מועד המפגש עודכן");
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה בעדכון מועד המפגש"),
+  });
+
+  const deleteSessionMutation = useMutation({
+    mutationFn: (sessionId: string) =>
+      fetchJSON(`/api/training-groups/${group.id}/sessions/${sessionId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+      toast.success("המפגש נמחק");
+    },
+    onError: () => toast.error("שגיאה במחיקת המפגש"),
   });
 
   return (
@@ -3369,6 +3432,10 @@ function GroupCard({
             <button className="btn-secondary text-xs" onClick={(e) => { e.stopPropagation(); onAssignDog(); }}>
               <Plus className="w-3.5 h-3.5" />
               שייך לקוח
+            </button>
+            <button className="btn-secondary text-xs" onClick={(e) => { e.stopPropagation(); onEditGroup(); }}>
+              <Pencil className="w-3.5 h-3.5" />
+              {isWorkshop ? "ערוך סדנה" : "ערוך קבוצה"}
             </button>
             {isWorkshop && group.participants.length > 0 && (
               <button
@@ -3517,15 +3584,78 @@ function GroupCard({
                         <span className="text-xs text-petra-text">מפגש {session.sessionNumber || ""}</span>
                         <span className="text-[10px] text-petra-muted">{formatDate(session.sessionDatetime)}</span>
                         <span className="text-[10px] badge-neutral">{presentCount}/{session.attendance.length || group.participants.length} נוכחים</span>
-                        {session.attendance.length > 0 && (
+                        <div className="ms-auto flex items-center gap-1.5">
+                          {session.attendance.length > 0 && (
+                            <button
+                              className="text-[10px] text-brand-600 hover:text-brand-700 font-medium"
+                              onClick={(e) => { e.stopPropagation(); setExpandedAttendanceSession(isAttendanceOpen ? null : session.id); }}
+                            >
+                              {isAttendanceOpen ? "סגור" : "סמן נוכחות"}
+                            </button>
+                          )}
                           <button
-                            className="ms-auto text-[10px] text-brand-600 hover:text-brand-700 font-medium"
-                            onClick={(e) => { e.stopPropagation(); setExpandedAttendanceSession(isAttendanceOpen ? null : session.id); }}
+                            className="w-6 h-6 flex items-center justify-center rounded hover:bg-brand-50 text-slate-400 hover:text-brand-600"
+                            title="שנה מועד מפגש"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const d = new Date(session.sessionDatetime);
+                              const pad = (n: number) => String(n).padStart(2, "0");
+                              setEditingSession(editingSession?.id === session.id ? null : {
+                                id: session.id,
+                                date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+                                time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+                              });
+                            }}
                           >
-                            {isAttendanceOpen ? "סגור" : "סמן נוכחות"}
+                            <Pencil className="w-3 h-3" />
                           </button>
-                        )}
+                          <button
+                            className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-400 hover:text-red-500"
+                            title="מחק מפגש"
+                            disabled={deleteSessionMutation.isPending}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm(`למחוק את מפגש ${session.sessionNumber || ""} בתאריך ${formatDate(session.sessionDatetime)}? הפעולה תסיר אותו גם מהיומן.`)) {
+                                deleteSessionMutation.mutate(session.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
+                      {editingSession?.id === session.id && (
+                        <div className="px-3 pb-2 pt-1 border-t border-slate-200 flex items-end gap-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex-1">
+                            <label className="label text-[10px]">תאריך</label>
+                            <input
+                              type="date" lang="he"
+                              className="input text-xs py-1.5"
+                              value={editingSession.date}
+                              onChange={(e) => setEditingSession({ ...editingSession, date: e.target.value })}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="label text-[10px]">שעה</label>
+                            <input
+                              type="time"
+                              className="input text-xs py-1.5"
+                              value={editingSession.time}
+                              onChange={(e) => setEditingSession({ ...editingSession, time: e.target.value })}
+                            />
+                          </div>
+                          <button
+                            className="btn-primary text-xs py-1.5"
+                            disabled={updateSessionDatetimeMutation.isPending || !editingSession.date || !editingSession.time}
+                            onClick={() => updateSessionDatetimeMutation.mutate({ sessionId: session.id, date: editingSession.date, time: editingSession.time })}
+                          >
+                            {updateSessionDatetimeMutation.isPending ? "שומר..." : "שמור"}
+                          </button>
+                          <button className="btn-secondary text-xs py-1.5" onClick={() => setEditingSession(null)}>
+                            ביטול
+                          </button>
+                        </div>
+                      )}
                       {isAttendanceOpen && (
                         <div className="px-3 pb-3 border-t border-slate-200 pt-2 space-y-1.5">
                           {session.attendance.map((att) => {
@@ -4021,20 +4151,22 @@ function CreateGroupModal({
   onSubmit,
   isPending,
   isWorkshop,
+  initial,
 }: {
   onClose: () => void;
   onSubmit: (data: Record<string, unknown>) => void;
   isPending: boolean;
   isWorkshop: boolean;
+  initial?: TrainingGroup | null;
 }) {
   const [form, setForm] = useState({
-    name: "",
-    groupType: isWorkshop ? "WORKSHOP" : "CUSTOM",
-    location: "",
-    defaultDayOfWeek: "",
-    defaultTime: "",
-    maxParticipants: "",
-    notes: "",
+    name: initial?.name ?? "",
+    groupType: initial?.groupType ?? (isWorkshop ? "WORKSHOP" : "CUSTOM"),
+    location: initial?.location ?? "",
+    defaultDayOfWeek: initial?.defaultDayOfWeek != null ? String(initial.defaultDayOfWeek) : "",
+    defaultTime: initial?.defaultTime ?? "",
+    maxParticipants: initial?.maxParticipants != null ? String(initial.maxParticipants) : "",
+    notes: initial?.notes ?? "",
   });
 
   const handleSubmit = () => {
@@ -4056,7 +4188,9 @@ function CreateGroupModal({
       <div className="modal-content max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-petra-text">
-            {isWorkshop ? "סדנה חדשה" : "קבוצת אימון חדשה"}
+            {initial
+              ? (isWorkshop ? "עריכת סדנה" : "עריכת קבוצה")
+              : (isWorkshop ? "סדנה חדשה" : "קבוצת אימון חדשה")}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -4155,8 +4289,8 @@ function CreateGroupModal({
             disabled={!form.name || isPending}
             onClick={handleSubmit}
           >
-            <Plus className="w-4 h-4" />
-            {isPending ? "שומר..." : isWorkshop ? "צור סדנה" : "צור קבוצה"}
+            {initial ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            {isPending ? "שומר..." : initial ? "שמור שינויים" : isWorkshop ? "צור סדנה" : "צור קבוצה"}
           </button>
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>

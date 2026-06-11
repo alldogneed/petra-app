@@ -35,6 +35,14 @@ export async function POST(
       return NextResponse.json({ error: "Training group not found" }, { status: 404 });
     }
 
+    // Prevent duplicate sessions at the same datetime (matches DB unique constraint)
+    const duplicate = await prisma.trainingGroupSession.findFirst({
+      where: { trainingGroupId: params.id, sessionDatetime },
+    });
+    if (duplicate) {
+      return NextResponse.json({ error: "כבר קיים מפגש בקבוצה במועד הזה" }, { status: 409 });
+    }
+
     // Get session count for numbering
     const count = await prisma.trainingGroupSession.count({
       where: { trainingGroupId: params.id },

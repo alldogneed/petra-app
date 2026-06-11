@@ -1380,7 +1380,7 @@ model TrainingGroupSession {
   attendance    TrainingGroupAttendance[]
 
   @@index([trainingGroupId])
-  @@index([trainingGroupId, sessionDatetime])
+  @@unique([trainingGroupId, sessionDatetime])
 }
 
 /// A participant (dog+customer) enrolled in a training group
