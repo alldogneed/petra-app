@@ -94,10 +94,10 @@ function AppointmentItem({ a }: { a: SearchResults["appointments"][0] }) {
   return (
     <div className="flex items-center gap-3 min-w-0">
       <div className="w-2 h-8 rounded-full flex-shrink-0"
-        style={{ backgroundColor: a.service.color || "#3B82F6" }} />
+        style={{ backgroundColor: a.service?.color || "#3B82F6" }} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-petra-text truncate">
-          {a.service.name}
+          {a.service?.name ?? "שירות לא ידוע"}
           {a.pet && <span className="text-petra-muted font-normal"> · {a.pet.name}</span>}
         </p>
         <p className="text-xs text-petra-muted truncate">

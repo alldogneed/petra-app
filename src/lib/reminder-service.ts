@@ -11,7 +11,7 @@ interface AppointmentForReminder {
   customerId: string;
   date: Date;
   startTime: string; // "HH:mm"
-  service: { name: string };
+  service: { name: string } | null;
   customer: { name: string };
   pet?: { name: string } | null;
 }
@@ -73,14 +73,14 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
       petName: appt.pet?.name ?? "",
       date: formattedDate,
       time: appt.startTime,
-      serviceName: appt.service.name,
+      serviceName: appt.service?.name ?? "",
       businessPhone: rule.business?.phone ?? "",
     });
   } else {
     const petPart = appt.pet ? ` עם ${appt.pet.name}` : "";
     const bizPhone = rule?.business?.phone ?? bizSettings.phone ?? "";
     const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${bizPhone}_`;
-    body = `שלום ${appt.customer.name}! 🐾\n\nתזכורת לתור שלך ב-${formattedDate} בשעה ${appt.startTime}.\nשירות: ${appt.service.name}${petPart}.\n\nנתראה! 😊${footer}`;
+    body = `שלום ${appt.customer.name}! 🐾\n\nתזכורת לתור שלך ב-${formattedDate} בשעה ${appt.startTime}.\nשירות: ${appt.service?.name ?? ""}${petPart}.\n\nנתראה! 😊${footer}`;
   }
 
   return prisma.scheduledMessage.create({
@@ -92,7 +92,7 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
       payloadJson: JSON.stringify({
         body,
         metaTemplateName: "petra_appointment_reminder",
-        metaTemplateParams: [appt.customer.name, formattedDate, appt.startTime, appt.service.name],
+        metaTemplateParams: [appt.customer.name, formattedDate, appt.startTime, appt.service?.name ?? ""],
       }),
       sendAt,
       status: "PENDING",
