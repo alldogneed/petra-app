@@ -786,11 +786,13 @@ function AddPetModal({
 function PetDocumentsModal({
   petId,
   petName,
+  customerId,
   isOpen,
   onClose,
 }: {
   petId: string;
   petName: string;
+  customerId: string;
   isOpen: boolean;
   onClose: () => void;
 }) {
@@ -836,6 +838,7 @@ function PetDocumentsModal({
     }
     setIsUploading(false);
     queryClient.invalidateQueries({ queryKey: ["petDocs", petId] });
+    queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
     e.target.value = "";
   };
 
@@ -2041,21 +2044,29 @@ function CustomerDocumentsSection({
   const handleUpload = async () => {
     if (pendingFiles.length === 0) return;
     setIsUploading(true);
+    let anyFailed = false;
     for (const file of pendingFiles) {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("category", uploadCategory);
       if (uploadLabel.trim()) fd.append("label", uploadLabel.trim());
-      await fetch(`/api/customers/${customerId}/documents`, {
+      const res = await fetch(`/api/customers/${customerId}/documents`, {
         method: "POST",
         body: fd,
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "שגיאה בהעלאת קובץ" }));
+        toast.error(err.error || "שגיאה בהעלאת קובץ");
+        anyFailed = true;
+      }
     }
     setIsUploading(false);
-    setPendingFiles([]);
-    setUploadLabel("");
-    setUploadCategory("other");
-    setShowUploadForm(false);
+    if (!anyFailed) {
+      setPendingFiles([]);
+      setUploadLabel("");
+      setUploadCategory("other");
+      setShowUploadForm(false);
+    }
     queryClient.invalidateQueries({ queryKey: ["customerDocs", customerId] });
     queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
   };
@@ -5238,6 +5249,7 @@ export default function CustomerProfilePage() {
         <PetDocumentsModal
           petId={selectedPetDocs.id}
           petName={selectedPetDocs.name}
+          customerId={customerId}
           isOpen={!!selectedPetDocs}
           onClose={() => setSelectedPetDocs(null)}
         />
