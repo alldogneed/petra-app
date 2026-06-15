@@ -83,7 +83,7 @@ interface Appointment {
   startTime: string;
   endTime: string;
   status: string;
-  service: { name: string };
+  service: { name: string } | null;
 }
 
 interface BoardingStay {
@@ -868,7 +868,7 @@ export default function PetProfilePage() {
                     <div key={a.id} className="py-3 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-petra-text truncate">{a.service.name}</p>
+                          <p className="text-sm font-medium text-petra-text truncate">{a.service?.name ?? "שירות לא ידוע"}</p>
                           <p className="text-xs text-petra-muted flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             {formatDate(new Date(a.date))} · {a.startTime}–{a.endTime}

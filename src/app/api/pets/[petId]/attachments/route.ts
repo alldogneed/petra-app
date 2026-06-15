@@ -33,7 +33,7 @@ export async function POST(
 
     const formData = await request.formData();
     const file = formData.get("file") as File;
-    const VALID_TYPES = ["document", "photo", "medical", "certificate", "vaccination", "other"];
+    const VALID_TYPES = ["document", "photo", "medical", "certificate", "vaccination", "other", "profile_photo"];
     const rawType = (formData.get("type") as string) || "document";
     const type = VALID_TYPES.includes(rawType) ? rawType : "document";
     const rawLabel = (formData.get("label") as string) || null;

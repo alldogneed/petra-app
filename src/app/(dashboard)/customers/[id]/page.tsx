@@ -4007,10 +4007,10 @@ export default function CustomerProfilePage() {
                     }
                   })();
                   const age = calcAge(pet.birthDate);
-                  const attachmentsList: { type: string; url: string }[] = (() => {
+                  const attachmentsList: { type: string; url: string; mimeType?: string }[] = (() => {
                     try { return JSON.parse(pet.attachments || "[]"); } catch { return []; }
                   })();
-                  const profilePhotoUrl = attachmentsList.find((a) => a.type === "profile_photo")?.url ?? null;
+                  const profilePhotoUrl = attachmentsList.find((a) => a.type === "profile_photo" || a.mimeType?.startsWith("image/"))?.url ?? null;
                   const docCount = attachmentsList.length;
                   const hasWarning =
                     pet.behavior?.dogAggression ||
