@@ -1461,7 +1461,7 @@ function CalendarContent() {
           <AlertCircle className="w-3 h-3 flex-shrink-0 text-amber-500" />
           {booking.customer.name}
         </div>
-        <div className="text-amber-600 truncate">{booking.service.name}</div>
+        <div className="text-amber-600 truncate">{booking.service?.name ?? "שירות לא ידוע"}</div>
         {!compact && dogNames && (
           <div className="text-amber-500 truncate">{dogNames}</div>
         )}
