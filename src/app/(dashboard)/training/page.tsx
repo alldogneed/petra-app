@@ -2381,6 +2381,20 @@ function SessionChecklist({
     },
     onError: () => toast.error("שגיאה בעדכון מועד המפגש"),
   });
+
+  const deleteSessionMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      const res = await fetch(`/api/training-programs/${program.id}/sessions/${sessionId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-programs"] });
+      queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
+      toast.success("המפגש נמחק");
+    },
+    onError: () => toast.error("שגיאה במחיקת המפגש"),
+  });
   const total = program.totalSessions;
   const sessionsByNumber = new Map(program.sessions.map((s) => [s.sessionNumber ?? 0, s]));
 
@@ -2484,6 +2498,15 @@ function SessionChecklist({
                     {session.rating && (
                       <span className="text-[10px] text-amber-500">{"★".repeat(session.rating)}</span>
                     )}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); if (confirm("למחוק את רישום המפגש?")) deleteSessionMutation.mutate(session.id); }}
+                      disabled={deleteSessionMutation.isPending}
+                      className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 text-slate-300 hover:text-red-500 transition-colors"
+                      title="מחק מפגש"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
                     <ChevronDown className={cn("w-3 h-3 text-slate-400 transition-transform", expanded && "rotate-180")} />
                   </>
                 )}
@@ -2631,6 +2654,15 @@ function SessionChecklist({
                         <>
                           <span className="text-[10px] text-petra-muted">{formatDate(session.sessionDate)}</span>
                           {session.rating && <span className="text-[10px] text-amber-500">{"★".repeat(session.rating)}</span>}
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); if (confirm("למחוק את רישום המפגש?")) deleteSessionMutation.mutate(session.id); }}
+                            disabled={deleteSessionMutation.isPending}
+                            className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 text-slate-300 hover:text-red-500 transition-colors"
+                            title="מחק מפגש"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
                           <ChevronDown className={cn("w-3 h-3 text-slate-400 transition-transform", expanded && "rotate-180")} />
                         </>
                       )}
