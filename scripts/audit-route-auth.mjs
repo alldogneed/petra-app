@@ -99,6 +99,7 @@ const AUTH_PATTERNS = [
   /verifyCronAuth\s*\(/,
   /resolveSession\s*\(/,
   /getCurrentUser\s*\(/,
+  /validateMcpToken\s*\(/,   // MCP bearer-token auth (SHA-256, businessId derived from token)
 ];
 
 const TOKEN_AUTH_PATTERNS = [
@@ -107,6 +108,7 @@ const TOKEN_AUTH_PATTERNS = [
   /WEBHOOK_SECRET/,
   /CRON_SECRET/,
   /verify\w*Signature\s*\(/,        // verifyMorningWebhookSignature, verifyStripeSignature, etc.
+  /validateMcpToken\s*\(/,          // MCP bearer-token auth (SHA-256, businessId from token)
   /constructEvent\s*\(/,             // stripe.webhooks.constructEvent
   /signatureValid/,                   // common variable name
   /webhookSecret/i,
