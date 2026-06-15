@@ -253,6 +253,7 @@ function SessionLogModal({
   onSubmit,
   programId,
   goals,
+  initialData,
 }: {
   dogName: string;
   sessionNumber: number;
@@ -263,18 +264,20 @@ function SessionLogModal({
   onSubmit: (summary: string, sessionDate: string, rating: number | null, practiceItems: string, nextSessionGoals: string, homeworkForCustomer: string, trainerName?: string, durationMinutes?: number) => void;
   programId?: string;
   goals?: { id: string; title: string; status: string; progressPercent: number }[];
+  initialData?: { summary: string; sessionDate: string; sessionTime: string; rating: number | null; practiceItems: string; nextSessionGoals: string; homeworkForCustomer: string; trainerName: string; durationMinutes: number };
 }) {
+  const isEdit = !!initialData;
   const today = new Date().toISOString().slice(0, 10);
-  const [summary, setSummary] = useState("");
-  const [sessionDate, setSessionDate] = useState(today);
-  const [sessionTime, setSessionTime] = useState("10:00");
-  const [rating, setRating] = useState<number | null>(null);
+  const [summary, setSummary] = useState(initialData?.summary ?? "");
+  const [sessionDate, setSessionDate] = useState(initialData?.sessionDate ?? today);
+  const [sessionTime, setSessionTime] = useState(initialData?.sessionTime ?? "10:00");
+  const [rating, setRating] = useState<number | null>(initialData?.rating ?? null);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
-  const [practiceItems, setPracticeItems] = useState("");
-  const [nextSessionGoals, setNextSessionGoals] = useState("");
-  const [homeworkForCustomer, setHomeworkForCustomer] = useState("");
-  const [trainerName, setTrainerName] = useState("");
-  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [practiceItems, setPracticeItems] = useState(initialData?.practiceItems ?? "");
+  const [nextSessionGoals, setNextSessionGoals] = useState(initialData?.nextSessionGoals ?? "");
+  const [homeworkForCustomer, setHomeworkForCustomer] = useState(initialData?.homeworkForCustomer ?? "");
+  const [trainerName, setTrainerName] = useState(initialData?.trainerName ?? "");
+  const [durationMinutes, setDurationMinutes] = useState(initialData?.durationMinutes ?? 60);
   const [homeSession, setHomeSession] = useState(false);
 
   const isSameWeek = (dateStr: string) => {
@@ -291,7 +294,7 @@ function SessionLogModal({
   const STAR_LABELS = ["חלש", "סביר", "טוב", "מצוין", "מושלם"];
 
   const L = isWeekly ? {
-    title: "עדכון שבועי",
+    title: isEdit ? "עריכת עדכון שבועי" : "עדכון שבועי",
     badge: `שבוע ${sessionNumber}`,
     dateLabel: "תאריך עדכון שבועי",
     ratingLabel: "דירוג התקדמות השבוע (אופציונלי)",
@@ -303,9 +306,9 @@ function SessionLogModal({
     homeworkPlaceholder: "תרגול לבית לשבוע הבא...",
     summaryLabel: "סיכום שבועי (אופציונלי)",
     summaryPlaceholder: "תאר את ההתקדמות השבועית, נקודות לשיפור, הצלחות...",
-    saveBtn: "שמור עדכון שבועי",
+    saveBtn: isEdit ? "שמור שינויים" : "שמור עדכון שבועי",
   } : isServiceDog ? {
-    title: "רישום אימון",
+    title: isEdit ? "עריכת אימון" : "רישום אימון",
     badge: `אימון מספר ${sessionNumber}`,
     dateLabel: "תאריך האימון",
     ratingLabel: "דירוג הכלב באימון (אופציונלי)",
@@ -317,9 +320,9 @@ function SessionLogModal({
     homeworkPlaceholder: "הערות רלוונטיות לשאר הצוות...",
     summaryLabel: "סיכום האימון (אופציונלי)",
     summaryPlaceholder: "תאר מה עבדתם היום, התקדמות, הצלחות, נקודות לשיפור...",
-    saveBtn: "שמור אימון",
+    saveBtn: isEdit ? "שמור שינויים" : "שמור אימון",
   } : {
-    title: "רישום מפגש",
+    title: isEdit ? "עריכת מפגש" : "רישום מפגש",
     badge: `מפגש מספר ${sessionNumber}`,
     dateLabel: "תאריך המפגש",
     ratingLabel: "דירוג הכלב במפגש (אופציונלי)",
@@ -331,7 +334,7 @@ function SessionLogModal({
     homeworkPlaceholder: "תרגול לבית...",
     summaryLabel: "סיכום המפגש (אופציונלי)",
     summaryPlaceholder: "תאר מה עבדתם היום, התקדמות, הוראות לתרגול בבית...",
-    saveBtn: "שמור מפגש",
+    saveBtn: isEdit ? "שמור שינויים" : "שמור מפגש",
   };
 
   return (
@@ -612,6 +615,7 @@ function TrainingPageContent() {
   const [editingProgram, setEditingProgram] = useState<TrainingProgram | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [sessionLogTarget, setSessionLogTarget] = useState<{ programId: string; sessionNumber: number; dogName: string; customerPhone?: string; customerName?: string; isWeekly?: boolean; isServiceDog?: boolean; goals?: { id: string; title: string; status: string; progressPercent: number }[] } | null>(null);
+  const [editSessionTarget, setEditSessionTarget] = useState<{ programId: string; sessionId: string; sessionNumber: number; dogName: string; isWeekly?: boolean; isServiceDog?: boolean; initialData: { summary: string; sessionDate: string; sessionTime: string; rating: number | null; practiceItems: string; nextSessionGoals: string; homeworkForCustomer: string; trainerName: string; durationMinutes: number } } | null>(null);
   const [sessionSummarySend, setSessionSummarySend] = useState<{ customerPhone: string; customerName: string; dogName: string; sessionNumber: number; practiceItems?: string; homeworkForCustomer?: string; nextSessionGoals?: string; rating?: number | null } | null>(null);
   const [showCreatePackage, setShowCreatePackage] = useState(false);
   const [editingPackage, setEditingPackage] = useState<TrainingPackage | null>(null);
@@ -830,6 +834,27 @@ function TrainingPageContent() {
       setSessionLogTarget(null);
     },
     onError: () => { setSessionLogTarget(null); toast.error("שגיאה בשמירת המפגש. נסה שוב."); },
+  });
+
+  const editSessionMutation = useMutation({
+    mutationFn: async ({ programId, sessionId, summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer, trainerName, durationMinutes }: { programId: string; sessionId: string; summary: string; sessionDate: string; rating: number | null; practiceItems: string; nextSessionGoals: string; homeworkForCustomer: string; trainerName?: string; durationMinutes?: number }) => {
+      const res = await fetch(`/api/training-programs/${programId}/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionDate: new Date(sessionDate).toISOString(), durationMinutes: durationMinutes ?? 60, summary: summary || null, rating, practiceItems: practiceItems || null, nextSessionGoals: nextSessionGoals || null, homeworkForCustomer: homeworkForCustomer || null, trainerName: trainerName || null }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-programs"] });
+      queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
+      queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
+      queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
+      setEditSessionTarget(null);
+      toast.success("המפגש עודכן");
+    },
+    onError: () => toast.error("שגיאה בעדכון המפגש"),
   });
 
   const createGroupMutation = useMutation({
@@ -1345,6 +1370,11 @@ function TrainingPageContent() {
                   onCancelSession={(programId, sessionId) =>
                     cancelScheduledSessionMutation.mutate({ programId, sessionId })
                   }
+                  onEditSession={(programId, session, dogName) => {
+                    const d = new Date(session.sessionDate);
+                    const pad = (n: number) => String(n).padStart(2, "0");
+                    setEditSessionTarget({ programId, sessionId: session.id, sessionNumber: session.sessionNumber ?? 1, dogName, initialData: { summary: session.summary ?? "", sessionDate: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`, sessionTime: `${pad(d.getHours())}:${pad(d.getMinutes())}`, rating: session.rating, practiceItems: session.practiceItems ?? "", nextSessionGoals: session.nextSessionGoals ?? "", homeworkForCustomer: session.homeworkForCustomer ?? "", trainerName: session.trainerName ?? "", durationMinutes: session.durationMinutes } });
+                  }}
                   onEditSettings={(program) => setEditingProgram(program)}
                   isMarkingAttendance={markAttendanceMutation.isPending}
                   onFinishProgram={(id, dogName) => setFinishTarget({ programId: id, dogName })}
@@ -1369,6 +1399,11 @@ function TrainingPageContent() {
                   onCancelSession={(programId, sessionId) =>
                     cancelScheduledSessionMutation.mutate({ programId, sessionId })
                   }
+                  onEditSession={(programId, session, dogName) => {
+                    const d = new Date(session.sessionDate);
+                    const pad = (n: number) => String(n).padStart(2, "0");
+                    setEditSessionTarget({ programId, sessionId: session.id, sessionNumber: session.sessionNumber ?? 1, dogName, initialData: { summary: session.summary ?? "", sessionDate: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`, sessionTime: `${pad(d.getHours())}:${pad(d.getMinutes())}`, rating: session.rating, practiceItems: session.practiceItems ?? "", nextSessionGoals: session.nextSessionGoals ?? "", homeworkForCustomer: session.homeworkForCustomer ?? "", trainerName: session.trainerName ?? "", durationMinutes: session.durationMinutes } });
+                  }}
                   onEditSettings={(program) => setEditingProgram(program)}
                   isMarkingAttendance={markAttendanceMutation.isPending}
                   onFinishProgram={(id, dogName) => setFinishTarget({ programId: id, dogName })}
@@ -1393,6 +1428,11 @@ function TrainingPageContent() {
                   onCancelSession={(programId, sessionId) =>
                     cancelScheduledSessionMutation.mutate({ programId, sessionId })
                   }
+                  onEditSession={(programId, session, dogName) => {
+                    const d = new Date(session.sessionDate);
+                    const pad = (n: number) => String(n).padStart(2, "0");
+                    setEditSessionTarget({ programId, sessionId: session.id, sessionNumber: session.sessionNumber ?? 1, dogName, initialData: { summary: session.summary ?? "", sessionDate: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`, sessionTime: `${pad(d.getHours())}:${pad(d.getMinutes())}`, rating: session.rating, practiceItems: session.practiceItems ?? "", nextSessionGoals: session.nextSessionGoals ?? "", homeworkForCustomer: session.homeworkForCustomer ?? "", trainerName: session.trainerName ?? "", durationMinutes: session.durationMinutes } });
+                  }}
                   onEditSettings={(program) => setEditingProgram(program)}
                   isMarkingAttendance={markAttendanceMutation.isPending}
                 />
@@ -1638,6 +1678,32 @@ function TrainingPageContent() {
               customerPhone: sessionLogTarget.customerPhone,
               customerName: sessionLogTarget.customerName,
               dogName: sessionLogTarget.dogName,
+            })
+          }
+        />
+      )}
+
+      {editSessionTarget && (
+        <SessionLogModal
+          dogName={editSessionTarget.dogName}
+          sessionNumber={editSessionTarget.sessionNumber}
+          isWeekly={editSessionTarget.isWeekly}
+          isServiceDog={editSessionTarget.isServiceDog}
+          isPending={editSessionMutation.isPending}
+          initialData={editSessionTarget.initialData}
+          onClose={() => setEditSessionTarget(null)}
+          onSubmit={(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer, trainerName, durationMinutes) =>
+            editSessionMutation.mutate({
+              programId: editSessionTarget.programId,
+              sessionId: editSessionTarget.sessionId,
+              summary,
+              sessionDate,
+              rating,
+              practiceItems,
+              nextSessionGoals,
+              homeworkForCustomer,
+              trainerName,
+              durationMinutes,
             })
           }
         />
@@ -2348,6 +2414,7 @@ function SessionChecklist({
   isAdding,
   onScheduleSession,
   onCancelSession,
+  onEditSession,
 }: {
   program: TrainingProgram;
   usedSessions: number;
@@ -2355,6 +2422,7 @@ function SessionChecklist({
   isAdding: boolean;
   onScheduleSession?: (sessionNumber: number) => void;
   onCancelSession?: (sessionId: string) => void;
+  onEditSession?: (session: ProgramSession) => void;
 }) {
   const queryClient = useQueryClient();
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
@@ -2497,6 +2565,16 @@ function SessionChecklist({
                     <span className="text-[10px] text-petra-muted">{formatDate(session.sessionDate)}</span>
                     {session.rating && (
                       <span className="text-[10px] text-amber-500">{"★".repeat(session.rating)}</span>
+                    )}
+                    {onEditSession && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onEditSession(session); }}
+                        className="w-5 h-5 flex items-center justify-center rounded hover:bg-emerald-100 text-slate-300 hover:text-emerald-600 transition-colors"
+                        title="ערוך מפגש"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
                     )}
                     <button
                       type="button"
@@ -2654,6 +2732,16 @@ function SessionChecklist({
                         <>
                           <span className="text-[10px] text-petra-muted">{formatDate(session.sessionDate)}</span>
                           {session.rating && <span className="text-[10px] text-amber-500">{"★".repeat(session.rating)}</span>}
+                          {onEditSession && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); onEditSession(session); }}
+                              className="w-5 h-5 flex items-center justify-center rounded hover:bg-emerald-100 text-slate-300 hover:text-emerald-600 transition-colors"
+                              title="ערוך מפגש"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); if (confirm("למחוק את רישום המפגש?")) deleteSessionMutation.mutate(session.id); }}
@@ -3033,6 +3121,7 @@ function IndividualTab({
   isUpdatingStatus,
   onScheduleSession,
   onCancelSession,
+  onEditSession,
 }: {
   programs: TrainingProgram[];
   groups?: TrainingGroup[];
@@ -3047,6 +3136,7 @@ function IndividualTab({
   isUpdatingStatus?: boolean;
   onScheduleSession?: (programId: string, sessionNumber: number, dogName: string, customerId?: string, customerName?: string, customerPhone?: string) => void;
   onCancelSession?: (programId: string, sessionId: string) => void;
+  onEditSession?: (programId: string, session: ProgramSession, dogName: string) => void;
 }) {
   // Map dog IDs to their group names for cross-reference
   const dogGroupMap = useMemo(() => {
@@ -3325,6 +3415,7 @@ function IndividualTab({
                       isAdding={isMarkingAttendance}
                       onScheduleSession={onScheduleSession ? (num) => onScheduleSession(program.id, num, program.dog.name, program.customer?.id ?? undefined, program.customer?.name ?? undefined, program.customer?.phone ?? undefined) : undefined}
                       onCancelSession={onCancelSession ? (sessionId) => onCancelSession(program.id, sessionId) : undefined}
+                      onEditSession={onEditSession ? (session) => onEditSession(program.id, session, program.dog.name) : undefined}
                     />
 
                     {/* Notes */}
