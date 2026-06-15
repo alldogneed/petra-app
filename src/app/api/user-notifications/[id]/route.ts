@@ -2,8 +2,8 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { markUserNotificationRead, deleteUserNotification, ServiceError } from "@/services/notifications";
 
-/** DELETE /api/user-notifications/:id — dismiss (delete) notification */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -12,14 +12,10 @@ export async function DELETE(
   if (isGuardError(authResult)) return authResult;
   const userId = authResult.session.user.id;
 
-  await prisma.notification.deleteMany({
-    where: { id: params.id, userId },
-  });
-
+  await deleteUserNotification(userId, prisma, params.id);
   return NextResponse.json({ ok: true });
 }
 
-/** PATCH /api/user-notifications/:id — mark notification as read */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -28,13 +24,13 @@ export async function PATCH(
   if (isGuardError(authResult)) return authResult;
   const userId = authResult.session.user.id;
 
-  const updated = await prisma.notification.updateMany({
-    where: { id: params.id, userId },
-    data: { isRead: true },
-  });
-
-  if (updated.count === 0) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  try {
+    await markUserNotificationRead(userId, prisma, params.id);
+  } catch (e) {
+    if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    throw e;
   }
 
   return NextResponse.json({ ok: true });

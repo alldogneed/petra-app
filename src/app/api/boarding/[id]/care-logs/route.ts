@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { listStayCareLogs, createStayCareLog, deleteStayCareLog, ServiceError } from "@/services/boarding";
 
 export async function GET(
   request: NextRequest,
@@ -10,20 +11,14 @@ export async function GET(
   try {
     const auth = await requireBusinessAuth(request);
     if (isGuardError(auth)) return auth;
-    const { businessId } = auth;
 
-    // Verify stay belongs to business
-    const stay = await prisma.boardingStay.findFirst({
-      where: { id: params.id, businessId },
-    });
-    if (!stay) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-    const logs = await prisma.boardingCareLog.findMany({
-      where: { boardingStayId: params.id, businessId },
-      orderBy: { doneAt: "desc" },
-    });
-
-    return NextResponse.json({ logs });
+    try {
+      const result = await listStayCareLogs(auth.businessId, prisma, params.id);
+      return NextResponse.json(result);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") return NextResponse.json({ error: "Not found" }, { status: 404 });
+      throw e;
+    }
   } catch (error) {
     console.error("GET care-logs error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -37,46 +32,17 @@ export async function POST(
   try {
     const auth = await requireBusinessAuth(request);
     if (isGuardError(auth)) return auth;
-    const { businessId, session } = auth;
-
-    // Verify stay belongs to business
-    const stay = await prisma.boardingStay.findFirst({
-      where: { id: params.id, businessId },
-    });
-    if (!stay) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const body = await request.json();
-    const { type, title, notes } = body;
-
-    if (!type || !title?.trim()) {
-      return NextResponse.json({ error: "type ו-title חובה" }, { status: 400 });
+    let log;
+    try {
+      log = await createStayCareLog(auth.businessId, prisma, params.id, body, auth.session.user.id || null);
+    } catch (e) {
+      if (e instanceof ServiceError) {
+        return NextResponse.json({ error: e.message }, { status: e.code === "NOT_FOUND" ? 404 : 400 });
+      }
+      throw e;
     }
-
-    // Input length validation
-    if (typeof title !== "string" || title.trim().length > 200) {
-      return NextResponse.json({ error: "כותרת ארוכה מדי (מקסימום 200 תווים)" }, { status: 400 });
-    }
-    if (notes !== undefined && notes !== null && (typeof notes !== "string" || notes.length > 2000)) {
-      return NextResponse.json({ error: "הערות ארוכות מדי (מקסימום 2000 תווים)" }, { status: 400 });
-    }
-
-    const VALID_TYPES = ["FEEDING", "MEDICATION", "WALK", "NOTE"];
-    if (!VALID_TYPES.includes(type)) {
-      return NextResponse.json({ error: "סוג לא תקין" }, { status: 400 });
-    }
-
-    const log = await prisma.boardingCareLog.create({
-      data: {
-        boardingStayId: params.id,
-        petId: stay.petId,
-        businessId,
-        type,
-        title: title.trim(),
-        notes: notes?.trim() ?? null,
-        doneByUserId: session.user.id || null,
-      },
-    });
-
     return NextResponse.json(log);
   } catch (error) {
     console.error("POST care-logs error:", error);
@@ -91,16 +57,12 @@ export async function DELETE(
   try {
     const auth = await requireBusinessAuth(request);
     if (isGuardError(auth)) return auth;
-    const { businessId } = auth;
 
     const { searchParams } = new URL(request.url);
     const logId = searchParams.get("logId");
     if (!logId) return NextResponse.json({ error: "logId required" }, { status: 400 });
 
-    await prisma.boardingCareLog.deleteMany({
-      where: { id: logId, boardingStayId: params.id, businessId },
-    });
-
+    await deleteStayCareLog(auth.businessId, prisma, params.id, logId);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE care-logs error:", error);

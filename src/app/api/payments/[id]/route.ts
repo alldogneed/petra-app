@@ -84,7 +84,12 @@ export async function PATCH(
       }
       data.amount = body.amount;
     }
-    if (body.notes !== undefined) data.notes = body.notes;
+    if (body.notes !== undefined) {
+      if (typeof body.notes === "string" && body.notes.length > 2000) {
+        return NextResponse.json({ error: "הערות ארוכות מדי (מקסימום 2000 תווים)" }, { status: 400 });
+      }
+      data.notes = body.notes;
+    }
 
     const payment = await prisma.payment.update({
       where: { id: params.id, businessId: authResult.businessId },

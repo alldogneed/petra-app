@@ -41,6 +41,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (name.trim().length > 200) {
+      return NextResponse.json(
+        { error: "שם השלב ארוך מדי (מקסימום 200 תווים)" },
+        { status: 400 }
+      );
+    }
+
+    if (color && (typeof color !== "string" || !/^#[0-9A-Fa-f]{6}$/.test(color))) {
+      return NextResponse.json(
+        { error: "צבע לא חוקי (נדרש פורמט hex כמו #FFFFFF)" },
+        { status: 400 }
+      );
+    }
+
     // Find max sortOrder among non-won/non-lost stages
     const allStages = await prisma.leadStage.findMany({
       where: { businessId: authResult.businessId },

@@ -9,7 +9,7 @@ import { resolveSession } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
 import { logAudit, getRequestContext } from "@/lib/audit";
 import { createHash } from "crypto";
-import { SESSION_COOKIE } from "@/lib/session";
+import { SESSION_COOKIE, invalidateSessionCache } from "@/lib/session";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -53,6 +53,10 @@ export async function POST(request: NextRequest) {
         impersonatedByAdminId: null,
       } as Record<string, unknown>,
     });
+
+    // Evict stale session from in-memory cache so the next request
+    // re-fetches from DB with impersonation fields cleared.
+    invalidateSessionCache(token);
 
     if (impersonatedBusinessId) {
       const { ip, userAgent } = getRequestContext(request);

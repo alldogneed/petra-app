@@ -18,6 +18,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (stageIds.length > 100) {
+      return NextResponse.json(
+        { error: "Too many stages (max 100)" },
+        { status: 400 }
+      );
+    }
+
     // Verify all stage IDs belong to this business
     const dbStages = await prisma.leadStage.findMany({
       where: { businessId: authResult.businessId },

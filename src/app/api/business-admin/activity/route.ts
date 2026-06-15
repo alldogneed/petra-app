@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 import { getCurrentUser } from "@/lib/auth";
+import { getBusinessActivity } from "@/services/business";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,33 +15,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const bizId = user.businessId;
-
     const { searchParams } = new URL(request.url);
     const filterUserId = searchParams.get("userId");
     const filterAction = searchParams.get("action");
     const take = Math.min(parseInt(searchParams.get("take") || "50"), 100);
 
-    // Get all user IDs that belong to THIS business
-    const businessUsers = await prisma.businessUser.findMany({
-      where: { businessId: bizId },
-      select: { userId: true },
-    });
-    const bizUserIds = businessUsers.map((bu) => bu.userId);
-
-    // If caller requests a specific userId, verify it belongs to this business
-    const resolvedUserId =
-      filterUserId && bizUserIds.includes(filterUserId) ? filterUserId : undefined;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {
-      userId: resolvedUserId ? resolvedUserId : { in: bizUserIds },
-    };
-    if (filterAction) where.action = filterAction;
-
-    const activities = await prisma.activityLog.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
+    const activities = await getBusinessActivity(user.businessId, prisma, {
+      userId: filterUserId,
+      action: filterAction,
       take,
     });
 

@@ -4,20 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
-import { sanitizeName } from "@/lib/validation";
-
-type Recipient = Record<string, unknown>;
-
-function maskRecipientSensitive(r: Recipient): Recipient {
-  return {
-    ...r,
-    idNumber:         null,
-    address:          null,
-    disabilityType:   null,
-    disabilityNotes:  null,
-    fundingSource:    null,
-  };
-}
+import { listRecipients, createRecipient, ServiceError } from "@/services/service-dogs";
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,7 +12,6 @@ export async function GET(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
     const { businessId, session } = authResult;
 
-    // Staff cannot access recipients at all
     const callerMembership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
     if (callerMembership && !hasTenantPermission(callerMembership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE)) {
       return NextResponse.json({ error: "אין הרשאה לצפות בזכאים" }, { status: 403 });
@@ -34,31 +20,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
 
-    const recipients = await prisma.serviceDogRecipient.findMany({
-      where: {
-        businessId,
-        ...(status && { status }),
-      },
-      include: {
-        customer: true,
-        placements: {
-          where: { status: "ACTIVE" },
-          include: { serviceDog: { include: { pet: true } } },
-          take: 1,
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    // Mask sensitive fields for staff (user/volunteer)
     const membership = session.memberships.find((m) => m.businessId === businessId);
     const callerRole = (membership?.role ?? "user") as TenantRole;
     const canSeeSensitive = hasTenantPermission(callerRole, TENANT_PERMS.RECIPIENTS_SENSITIVE);
 
-    const data = canSeeSensitive
-      ? recipients
-      : recipients.map((r) => maskRecipientSensitive(r as Recipient));
-
+    const data = await listRecipients(businessId, prisma, { status, canSeeSensitive });
     return NextResponse.json(data);
   } catch (error) {
     console.error("GET /api/service-recipients error:", error);
@@ -71,7 +37,6 @@ export async function POST(request: NextRequest) {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    // Staff cannot manage recipients
     const postMembership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);
     if (postMembership && !hasTenantPermission(postMembership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE)) {
       return NextResponse.json({ error: "אין הרשאה לנהל זכאים" }, { status: 403 });
@@ -82,46 +47,19 @@ export async function POST(request: NextRequest) {
     if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
 
     const body = await request.json();
-    const { name: rawName, phone, mobile, email, idNumber, address, disabilityType, disabilityNotes, customerId, notes, fundingSource, intakeDate } = body;
 
-    if (!rawName) {
-      return NextResponse.json({ error: "נדרש שם" }, { status: 400 });
-    }
-
-    const name = sanitizeName(rawName);
-    if (!name) {
-      return NextResponse.json({ error: "שם לא תקין" }, { status: 400 });
-    }
-
-    // Verify customerId belongs to this business
-    if (customerId) {
-      const customerCheck = await prisma.customer.findFirst({
-        where: { id: customerId, businessId: authResult.businessId },
-        select: { id: true },
-      });
-      if (!customerCheck) {
-        return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
+    let recipient;
+    try {
+      recipient = await createRecipient(authResult.businessId, prisma, body);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "VALIDATION") {
+        return NextResponse.json({ error: e.message }, { status: 400 });
       }
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: e.message }, { status: 404 });
+      }
+      throw e;
     }
-
-    const recipient = await prisma.serviceDogRecipient.create({
-      data: {
-        businessId: authResult.businessId,
-        name,
-        phone: phone || null,
-        mobile: mobile || null,
-        email: email || null,
-        idNumber: idNumber || null,
-        address: address || null,
-        disabilityType: disabilityType || null,
-        disabilityNotes: disabilityNotes || null,
-        customerId: customerId || null,
-        notes: notes || null,
-        fundingSource: fundingSource || null,
-        intakeDate: intakeDate ? new Date(intakeDate) : null,
-        status: "LEAD",
-      },
-    });
 
     return NextResponse.json(recipient, { status: 201 });
   } catch (error) {

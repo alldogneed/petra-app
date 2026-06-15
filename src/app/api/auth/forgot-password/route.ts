@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.platformUser.findUnique({
       where: { email: email.toLowerCase().trim() },
+      select: { id: true, email: true, name: true, isActive: true, passwordHash: true, authProvider: true },
     });
 
     // Non-existent or inactive users — silent success (prevents user enumeration)

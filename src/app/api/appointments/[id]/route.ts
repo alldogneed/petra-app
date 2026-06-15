@@ -8,6 +8,7 @@ import { type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
 import { cancelAppointmentReminders, rescheduleAppointmentReminder } from "@/lib/reminder-service";
 import { syncAppointmentToGcal, deleteAppointmentFromGcal } from "@/lib/google-calendar";
+import { updateAppointment, deleteAppointment, ServiceError, type UpdateAppointmentInput } from "@/services/appointments";
 
 const PatchAppointmentSchema = z.object({
   status: z.enum(["scheduled", "completed", "canceled"]).optional(),
@@ -28,73 +29,34 @@ export async function PATCH(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const { id } = params;
     const raw = await request.json();
     const parsed = PatchAppointmentSchema.safeParse(raw);
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
     }
-    const { status, notes, cancellationNote, date, startTime, endTime, serviceId, priceListItemId } = parsed.data;
 
-    const existing = await prisma.appointment.findFirst({
-      where: { id, businessId: authResult.businessId },
-    });
-
-    if (!existing) {
-      return NextResponse.json(
-        { error: "Appointment not found" },
-        { status: 404 }
-      );
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data: any = {};
-    if (status !== undefined) data.status = status;
-    if (notes !== undefined) data.notes = notes;
-    if (cancellationNote !== undefined) data.cancellationNote = cancellationNote;
-    if (date !== undefined) data.date = new Date(date);
-    if (startTime !== undefined) data.startTime = startTime;
-    if (endTime !== undefined) data.endTime = endTime;
-    // Validate serviceId belongs to this business (IDOR prevention)
-    if (serviceId !== undefined) {
-      const svc = await prisma.service.findFirst({ where: { id: serviceId, businessId: authResult.businessId } });
-      if (!svc) {
-        return NextResponse.json({ error: "שירות לא נמצא" }, { status: 400 });
+    let appointment;
+    try {
+      appointment = await updateAppointment(authResult.businessId, prisma, params.id, parsed.data as UpdateAppointmentInput);
+    } catch (e) {
+      if (e instanceof ServiceError) {
+        return NextResponse.json({ error: e.message }, { status: e.code === "NOT_FOUND" ? 404 : 400 });
       }
-      data.serviceId = serviceId;
+      throw e;
     }
-    // Validate priceListItemId belongs to this business (IDOR prevention)
-    if (priceListItemId !== undefined) {
-      const pli = await prisma.priceListItem.findFirst({
-        where: { id: priceListItemId, priceList: { businessId: authResult.businessId } },
-      });
-      if (!pli) {
-        return NextResponse.json({ error: "פריט מחירון לא נמצא" }, { status: 400 });
-      }
-      data.priceListItemId = priceListItemId;
-    }
-
-    const appointment = await prisma.appointment.update({
-      where: { id, businessId: authResult.businessId },
-      data,
-      include: {
-        service: { select: { id: true, name: true, color: true, type: true, duration: true, price: true } },
-        priceListItem: { select: { id: true, name: true, category: true, durationMinutes: true, basePrice: true } },
-        customer: { select: { id: true, name: true, phone: true } },
-        pet: { select: { id: true, name: true, species: true, breed: true } },
-      },
-    });
 
     const { session } = authResult;
+    const { status, date, startTime } = parsed.data;
     const action =
       status === "completed" ? ACTIVITY_ACTIONS.COMPLETE_APPOINTMENT :
       status === "canceled" ? ACTIVITY_ACTIONS.CANCEL_APPOINTMENT :
       ACTIVITY_ACTIONS.UPDATE_APPOINTMENT;
     logActivity(session.user.id, session.user.name, action);
 
-    // Manage scheduled reminders
+    // ── Side effects ────────────────────────────────────────────────────────
+
     if (status === "canceled" || status === "completed") {
-      await cancelAppointmentReminders(id).catch((err) =>
+      await cancelAppointmentReminders(params.id).catch((err) =>
         console.error("Failed to cancel appointment reminders:", err)
       );
     } else if (date !== undefined || startTime !== undefined) {
@@ -107,23 +69,19 @@ export async function PATCH(
         service: { name: appointment.service?.name ?? appointment.priceListItem?.name ?? "תור" },
         customer: { name: appointment.customer.name },
         pet: appointment.pet ? { name: appointment.pet.name } : null,
-      }).catch((err) =>
-        console.error("Failed to reschedule appointment reminder:", err)
-      );
+      }).catch((err) => console.error("Failed to reschedule appointment reminder:", err));
     }
 
-    // Sync to Google Calendar (awaited — fire-and-forget kills on Vercel)
     if (status === "canceled") {
-      await deleteAppointmentFromGcal(id, authResult.businessId).catch((err) =>
+      await deleteAppointmentFromGcal(params.id, authResult.businessId).catch((err) =>
         console.error("Failed to delete appointment from GCal:", err)
       );
     } else {
-      await syncAppointmentToGcal(id, authResult.businessId).catch((err) =>
+      await syncAppointmentToGcal(params.id, authResult.businessId).catch((err) =>
         console.error("Failed to sync appointment to GCal:", err)
       );
     }
 
-    // Timeline event for status changes
     if (status === "canceled" || status === "completed") {
       const serviceName = appointment.service?.name ?? appointment.priceListItem?.name ?? "תור";
       const petName = appointment.pet?.name ? ` (${appointment.pet.name})` : "";
@@ -143,10 +101,7 @@ export async function PATCH(
     return NextResponse.json(appointment);
   } catch (error) {
     console.error("Failed to update appointment:", error);
-    return NextResponse.json(
-      { error: "Failed to update appointment" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update appointment" }, { status: 500 });
   }
 }
 
@@ -162,27 +117,16 @@ export async function DELETE(
     const membership = session.memberships.find((m) => m.businessId === businessId);
     const callerRole = (membership?.role ?? "user") as TenantRole;
 
-    // Staff cannot delete at all
     if (callerRole === "user" || callerRole === "volunteer") {
       return NextResponse.json({ error: "אין הרשאה למחיקת פגישה" }, { status: 403 });
     }
 
-    const { id } = params;
-
-    const existing = await prisma.appointment.findFirst({
-      where: { id, businessId },
-      include: {
-        customer: { select: { name: true } },
-        service: { select: { name: true } },
-      },
-    });
-
-    if (!existing) {
-      return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
-    }
-
-    // Manager → route to pending approval
     if (callerRole === "manager") {
+      const existing = await prisma.appointment.findFirst({
+        where: { id: params.id, businessId },
+        include: { customer: { select: { name: true } }, service: { select: { name: true } } },
+      });
+      if (!existing) return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
       const dateStr = existing.date instanceof Date
         ? existing.date.toLocaleDateString("he-IL")
         : String(existing.date).split("T")[0];
@@ -191,7 +135,7 @@ export async function DELETE(
         requestedByUserId: session.user.id,
         action: "DELETE_APPOINTMENT",
         description: `מחיקת פגישה: ${existing.customer.name} — ${dateStr} ${existing.startTime}`,
-        payload: { appointmentId: id, customerId: existing.customerId ?? "" },
+        payload: { appointmentId: params.id, customerId: existing.customerId ?? "" },
       });
       return NextResponse.json(
         { pendingApproval: true, approvalId: approval.id, message: "הבקשה נשלחה לאישור הבעלים" },
@@ -199,23 +143,26 @@ export async function DELETE(
       );
     }
 
-    // Owner → require typed confirmation header
     const confirmHeader = request.headers.get("x-confirm-action");
-    if (confirmHeader !== `DELETE_APPOINTMENT_${id}`) {
-      return NextResponse.json(
-        { error: "נדרש אישור מפורש למחיקה", requireConfirmation: true },
-        { status: 428 }
-      );
+    if (confirmHeader !== `DELETE_APPOINTMENT_${params.id}`) {
+      return NextResponse.json({ error: "נדרש אישור מפורש למחיקה", requireConfirmation: true }, { status: 428 });
     }
 
-    await cancelAppointmentReminders(id);
-    await deleteAppointmentFromGcal(id, businessId).catch((err) =>
+    await cancelAppointmentReminders(params.id);
+    await deleteAppointmentFromGcal(params.id, businessId).catch((err) =>
       console.error("Failed to delete appointment from GCal:", err)
     );
-    await prisma.appointment.delete({ where: { id, businessId } });
+
+    try {
+      await deleteAppointment(businessId, prisma, params.id);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
+      }
+      throw e;
+    }
 
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_APPOINTMENT);
-
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to delete appointment:", error);

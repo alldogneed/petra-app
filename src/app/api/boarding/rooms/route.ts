@@ -3,41 +3,17 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { listRooms, createRoom, ServiceError } from "@/services/boarding";
 
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
-
-    const rooms = await prisma.room.findMany({
-      where: { businessId: authResult.businessId },
-      include: {
-        _count: {
-          select: {
-            boardingStays: {
-              where: { status: { in: ["reserved", "checked_in"] } },
-            },
-          },
-        },
-        boardingStays: {
-          where: { status: { in: ["reserved", "checked_in"] } },
-          include: {
-            pet: { select: { id: true, name: true, breed: true, species: true } },
-            customer: { select: { id: true, name: true } },
-          },
-          orderBy: { checkIn: "asc" },
-        },
-      },
-      orderBy: { name: "asc" },
-    });
-
+    const rooms = await listRooms(authResult.businessId, prisma);
     return NextResponse.json(rooms);
   } catch (error) {
     console.error("Error fetching boarding rooms:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch boarding rooms" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch boarding rooms" }, { status: 500 });
   }
 }
 
@@ -52,49 +28,18 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { name, capacity, type, pricePerNight } = body;
-
-    if (!name?.trim()) {
-      return NextResponse.json({ error: "שם החדר הוא שדה חובה" }, { status: 400 });
-    }
-
     const parsedPrice = pricePerNight != null ? Number(pricePerNight) : null;
-    if (parsedPrice !== null && (isNaN(parsedPrice) || parsedPrice < 0)) {
-      return NextResponse.json({ error: "מחיר ללילה לא תקין" }, { status: 400 });
+
+    let room;
+    try {
+      room = await createRoom(authResult.businessId, prisma, { name, capacity, type, pricePerNight: parsedPrice });
+    } catch (e) {
+      if (e instanceof ServiceError) return NextResponse.json({ error: e.message }, { status: 400 });
+      throw e;
     }
-
-    const room = await prisma.room.create({
-      data: {
-        businessId: authResult.businessId,
-        name: name.trim(),
-        capacity: capacity || 1,
-        type: type || "standard",
-        pricePerNight: parsedPrice,
-      },
-      include: {
-        _count: {
-          select: {
-            boardingStays: {
-              where: { status: { in: ["reserved", "checked_in"] } },
-            },
-          },
-        },
-        boardingStays: {
-          where: { status: { in: ["reserved", "checked_in"] } },
-          include: {
-            pet: { select: { id: true, name: true, breed: true, species: true } },
-            customer: { select: { id: true, name: true } },
-          },
-          orderBy: { checkIn: "asc" },
-        },
-      },
-    });
-
     return NextResponse.json(room, { status: 201 });
   } catch (error) {
     console.error("Error creating boarding room:", error);
-    return NextResponse.json(
-      { error: "Failed to create boarding room" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create boarding room" }, { status: 500 });
   }
 }

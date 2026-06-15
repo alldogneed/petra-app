@@ -2,8 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { createProgramHomework, updateProgramHomework, deleteProgramHomework, ServiceError } from "@/services/training";
 
-// POST /api/training-programs/[id]/homework – add a homework item
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -21,26 +21,24 @@ export async function POST(
     if (typeof title !== "string" || title.length > 300) {
       return NextResponse.json({ error: "title too long (max 300)" }, { status: 400 });
     }
-    if (description !== undefined && description !== null && (typeof description !== "string" || description.length > 2000)) {
+    if (description !== undefined && description !== null &&
+        (typeof description !== "string" || description.length > 2000)) {
       return NextResponse.json({ error: "description too long (max 2000)" }, { status: 400 });
     }
 
-    // Verify program belongs to this business
-    const program = await prisma.trainingProgram.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
-    });
-    if (!program) {
-      return NextResponse.json({ error: "Training program not found" }, { status: 404 });
-    }
-
-    const item = await prisma.trainingHomework.create({
-      data: {
-        trainingProgramId: params.id,
+    let item;
+    try {
+      item = await createProgramHomework(authResult.businessId, prisma, params.id, {
         title,
         description: description || null,
         dueDate: dueDate ? new Date(dueDate) : null,
-      },
-    });
+      });
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: e.message }, { status: 404 });
+      }
+      throw e;
+    }
 
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
@@ -49,7 +47,6 @@ export async function POST(
   }
 }
 
-// PATCH /api/training-programs/[id]/homework – toggle isCompleted (pass homeworkId in body)
 export async function PATCH(
   req: NextRequest,
   { params: _params }: { params: { id: string } }
@@ -64,26 +61,22 @@ export async function PATCH(
     if (!homeworkId) {
       return NextResponse.json({ error: "homeworkId is required" }, { status: 400 });
     }
-
-    // Verify homework belongs to this business
-    const existing = await prisma.trainingHomework.findFirst({
-      where: { id: homeworkId, program: { businessId: authResult.businessId } },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "Homework not found" }, { status: 404 });
+    if (customerNotes !== undefined && customerNotes !== null && (typeof customerNotes !== "string" || customerNotes.length > 5000)) {
+      return NextResponse.json({ error: "הערות ארוכות מדי (מקסימום 5000 תווים)" }, { status: 400 });
     }
 
-    const data: Record<string, unknown> = {};
-    if (isCompleted !== undefined) {
-      data.isCompleted = isCompleted;
-      data.completedAt = isCompleted ? new Date() : null;
+    let item;
+    try {
+      item = await updateProgramHomework(authResult.businessId, prisma, homeworkId, {
+        isCompleted,
+        customerNotes,
+      });
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "Homework not found" }, { status: 404 });
+      }
+      throw e;
     }
-    if (customerNotes !== undefined) data.customerNotes = customerNotes;
-
-    const item = await prisma.trainingHomework.update({
-      where: { id: homeworkId, trainingProgramId: existing.trainingProgramId },
-      data,
-    });
 
     return NextResponse.json(item);
   } catch (error) {
@@ -92,7 +85,6 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/training-programs/[id]/homework – delete (pass homeworkId in query)
 export async function DELETE(
   req: NextRequest,
   { params: _params }: { params: { id: string } }
@@ -107,15 +99,15 @@ export async function DELETE(
       return NextResponse.json({ error: "homeworkId is required" }, { status: 400 });
     }
 
-    // Verify homework belongs to this business
-    const existing = await prisma.trainingHomework.findFirst({
-      where: { id: homeworkId, program: { businessId: authResult.businessId } },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "Homework not found" }, { status: 404 });
+    try {
+      await deleteProgramHomework(authResult.businessId, prisma, homeworkId);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "Homework not found" }, { status: 404 });
+      }
+      throw e;
     }
 
-    await prisma.trainingHomework.delete({ where: { id: homeworkId, trainingProgramId: existing.trainingProgramId } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE /api/training-programs/[id]/homework error:", error);

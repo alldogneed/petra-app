@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { listSystemMessages, createSystemMessage, ServiceError } from "@/services/notifications";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,27 +12,11 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const unreadOnly = searchParams.get("unreadOnly") === "true";
+    const all = searchParams.get("all") === "true";
 
-    const showAll = searchParams.get("all") === "true";
-    const where = {
-      businessId: authResult.businessId,
-      ...(unreadOnly ? { isRead: false } : {}),
-      ...(showAll ? {} : { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }),
-    };
-
-    const [messages, unreadCount] = await Promise.all([
-      prisma.systemMessage.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        take: 30,
-      }),
-      prisma.systemMessage.count({
-        where: { businessId: authResult.businessId, isRead: false, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
-      }),
-    ]);
-
+    const result = await listSystemMessages(authResult.businessId, prisma, { unreadOnly, all });
     return NextResponse.json(
-      { messages, unreadCount },
+      result,
       { headers: { "Cache-Control": "private, max-age=300, stale-while-revalidate=60" } }
     );
   } catch (error) {
@@ -51,45 +36,19 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    // Input length validation
-    if (!body.title || typeof body.title !== "string" || body.title.length > 500) {
-      return NextResponse.json({ error: "כותרת חובה (מקסימום 500 תווים)" }, { status: 400 });
-    }
-    if (!body.content || typeof body.content !== "string" || body.content.length > 5000) {
-      return NextResponse.json({ error: "תוכן חובה (מקסימום 5000 תווים)" }, { status: 400 });
-    }
-    if (body.actionLabel && (typeof body.actionLabel !== "string" || body.actionLabel.length > 200)) {
-      return NextResponse.json({ error: "תווית כפתור ארוכה מדי (מקסימום 200 תווים)" }, { status: 400 });
-    }
-
-    // Validate actionUrl format if provided
-    if (body.actionUrl?.trim()) {
-      const trimmedUrl = body.actionUrl.trim();
-      if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://")) {
-        return NextResponse.json({ error: "actionUrl must start with http:// or https://" }, { status: 400 });
+    let message;
+    try {
+      message = await createSystemMessage(authResult.businessId, prisma, body);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "VALIDATION") {
+        return NextResponse.json({ error: e.message }, { status: 400 });
       }
+      throw e;
     }
-
-    // Whitelist allowed fields to prevent mass assignment
-    const message = await prisma.systemMessage.create({
-      data: {
-        businessId: authResult.businessId,
-        title: body.title,
-        content: body.content,
-        type: body.type || "info",
-        icon: body.icon || null,
-        actionUrl: body.actionUrl || null,
-        actionLabel: body.actionLabel || null,
-        expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
-      },
-    });
 
     return NextResponse.json(message);
   } catch (error) {
     console.error("Create message error:", error);
-    return NextResponse.json(
-      { error: "Failed to create message" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create message" }, { status: 500 });
   }
 }

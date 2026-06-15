@@ -52,6 +52,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (typeof name === "string" && name.length > 200) {
+      return NextResponse.json({ error: "שם התבנית ארוך מדי (מקסימום 200 תווים)" }, { status: 400 });
+    }
+    if (typeof templateBody === "string" && templateBody.length > 10000) {
+      return NextResponse.json({ error: "תוכן התבנית ארוך מדי (מקסימום 10,000 תווים)" }, { status: 400 });
+    }
+    if (subject && typeof subject === "string" && subject.length > 500) {
+      return NextResponse.json({ error: "נושא התבנית ארוך מדי (מקסימום 500 תווים)" }, { status: 400 });
+    }
+
     const template = await prisma.messageTemplate.create({
       data: {
         businessId: authResult.businessId,

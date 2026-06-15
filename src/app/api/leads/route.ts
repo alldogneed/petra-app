@@ -1,96 +1,25 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
-import { getMaxLeads, normalizeTier, hasFeatureWithOverrides } from "@/lib/feature-flags";
-import { getFirstLeadStageId } from "@/lib/lead-stages";
+import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { sendWhatsAppMessage, sendWhatsAppTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { shouldSyncContacts, upsertLeadContact } from "@/lib/google-contacts";
-import { validateIsraeliPhone, validateEmail, sanitizeName, normalizeIsraeliPhone } from "@/lib/validation";
-
-/** Normalize a phone to the canonical 972XXXXXXXXX format used in Customer.phoneNorm */
-function phoneToNorm(raw: string): string | null {
-  try {
-    const normalized = normalizeIsraeliPhone(raw);
-    const digits = normalized.replace(/\D/g, "");
-    if (digits.startsWith("972") && digits.length >= 11) return digits;
-    if (digits.startsWith("0") && digits.length >= 9) return "972" + digits.slice(1);
-    return null;
-  } catch {
-    return null;
-  }
-}
+import { prisma } from "@/lib/prisma";
+import { listLeads, createLead, ServiceError } from "@/services/clients";
 
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    // The kanban + its funnel stats are computed client-side over this full
-    // list — a low cap silently drops the oldest leads from both the board
-    // and every stat (a real business already passed 200).
-    const leads = await prisma.lead.findMany({
-      where: { businessId: authResult.businessId },
-      include: {
-        customer: true,
-        callLogs: true,
-      },
-      orderBy: { createdAt: "desc" },
-      take: 1000,
-    });
-
-    // ── Duplicate detection ────────────────────────────────────────────────
-    // Build leadId → phoneNorm map
-    const normByLeadId = new Map<string, string>();
-    for (const lead of leads) {
-      if (lead.phone) {
-        const norm = phoneToNorm(lead.phone);
-        if (norm) normByLeadId.set(lead.id, norm);
-      }
-    }
-    const allNorms = [...new Set(normByLeadId.values())];
-
-    // Batch-check customers
-    const matchingCustomers = allNorms.length > 0
-      ? await prisma.customer.findMany({
-          where: { businessId: authResult.businessId, phoneNorm: { in: allNorms } },
-          select: { id: true, name: true, phoneNorm: true },
-        })
-      : [];
-    const normToCustomer = new Map(
-      matchingCustomers.filter(c => c.phoneNorm).map(c => [c.phoneNorm!, { id: c.id, name: c.name }])
-    );
-
-    // Detect lead-to-lead duplicates (same norm → multiple leads)
-    const normToLeads = new Map<string, { id: string; name: string }[]>();
-    for (const lead of leads) {
-      const norm = normByLeadId.get(lead.id);
-      if (norm) {
-        if (!normToLeads.has(norm)) normToLeads.set(norm, []);
-        normToLeads.get(norm)!.push({ id: lead.id, name: lead.name });
-      }
-    }
-
-    // Enrich each lead
-    const enrichedLeads = leads.map((lead) => {
-      const norm = normByLeadId.get(lead.id) ?? null;
-      const existingCustomer = norm ? (normToCustomer.get(norm) ?? null) : null;
-      const duplicateLead = norm
-        ? (normToLeads.get(norm)?.find(l => l.id !== lead.id) ?? null)
-        : null;
-      return { ...lead, existingCustomer, duplicateLead };
-    });
-
-    return NextResponse.json(enrichedLeads);
+    const leads = await listLeads(authResult.businessId, prisma);
+    return NextResponse.json(leads);
   } catch (error) {
     console.error("Error fetching leads:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch leads" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch leads" }, { status: 500 });
   }
 }
 
@@ -105,132 +34,42 @@ export async function POST(request: NextRequest) {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    // Enforce lead limit for free tier
-    const business = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true, phone: true, name: true, featureOverrides: true } });
-    const maxLeads = getMaxLeads(normalizeTier(business?.tier));
-    if (maxLeads !== null) {
-      const currentCount = await prisma.lead.count({ where: { businessId: authResult.businessId } });
-      if (currentCount >= maxLeads) {
-        return NextResponse.json(
-          { error: `הגעת לתקרת ${maxLeads} הלידים במסלול החינמי. שדרג לבייסיק כדי להוסיף ללא הגבלה.`, code: "LIMIT_REACHED" },
-          { status: 403 }
-        );
-      }
-    }
-
     const body = await request.json();
     const { name, phone, email, city, address, requestedService, source, stage, notes, customerId } = body;
 
     if (!name || typeof name !== "string" || !name.trim()) {
-      return NextResponse.json(
-        { error: "Missing required field: name" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing required field: name" }, { status: 400 });
     }
 
-    // Validate and sanitize inputs
-    const sanitizedName = sanitizeName(name);
-    if (!sanitizedName || sanitizedName.length < 2) {
-      return NextResponse.json({ error: "שם לא תקין — נא להזין לפחות 2 תווים" }, { status: 400 });
-    }
-
-    if (email) {
-      const emailErr = validateEmail(email);
-      if (emailErr) {
-        return NextResponse.json({ error: emailErr }, { status: 400 });
-      }
-    }
-
-    if (phone) {
-      const phoneErr = validateIsraeliPhone(phone);
-      if (phoneErr) {
-        return NextResponse.json({ error: phoneErr }, { status: 400 });
-      }
-    }
-
-    // Enforce string length limits to prevent abuse
-    if (notes && typeof notes === "string" && notes.length > 5000) {
-      return NextResponse.json({ error: "הערות ארוכות מדי (מקסימום 5000 תווים)" }, { status: 400 });
-    }
-
-    // ── Duplicate detection ──────────────────────────────────────────────────
-    let existingCustomer: { id: string; name: string } | null = null;
-    let duplicateLead: { id: string; name: string } | null = null;
-    if (phone) {
-      const norm = phoneToNorm(phone);
-      if (norm) {
-        const dupCust = await prisma.customer.findFirst({
-          where: { businessId: authResult.businessId, phoneNorm: norm },
-          select: { id: true, name: true },
-        });
-        if (dupCust) existingCustomer = dupCust;
-
-        const existingLeads = await prisma.lead.findMany({
-          where: { businessId: authResult.businessId, phone: { not: null } },
-          select: { id: true, name: true, phone: true },
-        });
-        for (const l of existingLeads) {
-          if (l.phone && phoneToNorm(l.phone) === norm) {
-            duplicateLead = { id: l.id, name: l.name };
-            break;
-          }
-        }
-      }
-    }
-
-    let resolvedStage = stage;
-    if (stage) {
-      const validStage = await prisma.leadStage.findFirst({
-        where: { id: stage, businessId: authResult.businessId },
+    let result;
+    try {
+      result = await createLead(authResult.businessId, prisma, {
+        name, phone, email, city, address, requestedService, source, stage, notes, customerId,
       });
-      if (!validStage) {
-        return NextResponse.json({ error: "Invalid stage value" }, { status: 400 });
+    } catch (e) {
+      if (e instanceof ServiceError) {
+        const status = e.code === "CONFLICT" ? 409 : e.code === "NOT_FOUND" ? 404 : 400;
+        return NextResponse.json({ error: e.message, ...(e.details as object | null ?? {}) }, { status });
       }
-    } else {
-      // Default to "ליד חדש" (first stage), auto-creating stages if needed
-      resolvedStage = await getFirstLeadStageId(authResult.businessId);
+      throw e;
     }
 
-    // ── IDOR Prevention: validate customerId belongs to this business ──
-    if (customerId) {
-      const customerCheck = await prisma.customer.findFirst({
-        where: { id: customerId, businessId: authResult.businessId },
-        select: { id: true },
-      });
-      if (!customerCheck) {
-        return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
-      }
-    }
-
-    const lead = await prisma.lead.create({
-      data: {
-        businessId: authResult.businessId,
-        name: sanitizedName,
-        phone,
-        email,
-        city: city || null,
-        address: address || null,
-        requestedService: requestedService || null,
-        source,
-        stage: resolvedStage,
-        notes,
-        customerId: customerId || undefined,
-      },
-      include: {
-        customer: true,
-        callLogs: true,
-      },
-    });
-
+    const { lead, existingCustomer, duplicateLead, business } = result;
     logCurrentUserActivity("CREATE_LEAD");
 
-    // Fire-and-forget: WhatsApp notification to business owner on new lead (PRO+ only)
+    // ── Side effect: WhatsApp notification to business owner (PRO+ only) ──
     const bizOverrides = (business?.featureOverrides as Record<string, unknown> | null) ?? null;
-    const canNotify = hasFeatureWithOverrides(business?.tier ?? "free", "lead_notifications", bizOverrides as Record<string, boolean> | null);
-    if (canNotify) {
+    const canNotify = hasFeatureWithOverrides(
+      // need tier — re-fetch minimally for the notification check
+      undefined as unknown as string,
+      "lead_notifications",
+      bizOverrides as Record<string, boolean> | null
+    );
+    // Re-use the business data the service already fetched
+    if (business && canNotify) {
       const serviceParam = lead.requestedService || "לא צוין";
       const phoneParam = lead.phone || "לא צוין";
-      const cityParam = lead.city || "לא צוין";
+      const cityParam = (lead as { city?: string | null }).city || "לא צוין";
       const SOURCE_LABELS: Record<string, string> = {
         manual: "הוספה ידנית", facebook: "פייסבוק", instagram: "אינסטגרם",
         website: "אתר אינטרנט", google: "גוגל", tiktok: "טיקטוק",
@@ -239,32 +78,25 @@ export async function POST(request: NextRequest) {
       const sourceParam = SOURCE_LABELS[lead.source] ?? lead.source ?? "לא צוין";
       const msg = `ליד חדש נכנס לפטרה!\n\nשם: ${lead.name}\nטלפון: ${phoneParam}\nשירות: ${serviceParam}\nאזור: ${cityParam}\nמקור: ${sourceParam}\n\nכנס לניהול הלידים בפטרה לפרטים.`;
 
-      // Build list of phones to notify: business.phone + any extra phones from featureOverrides
       const extraPhones = Array.isArray(bizOverrides?.lead_notification_phones)
         ? (bizOverrides!.lead_notification_phones as string[])
         : [];
-      const allPhones = [
-        ...(business?.phone ? [business.phone] : []),
-        ...extraPhones,
-      ]
-        .map(toWhatsAppPhone)
-        .filter((p): p is string => !!p);
-      // Deduplicate
-      const uniquePhones = [...new Set(allPhones)];
+      const uniquePhones = [...new Set(
+        [...(business.phone ? [business.phone] : []), ...extraPhones]
+          .map(toWhatsAppPhone)
+          .filter((p): p is string => !!p)
+      )];
 
       await Promise.allSettled(
-        uniquePhones.map(async (phone) => {
+        uniquePhones.map(async (p) => {
           try {
-            const result = await sendWhatsAppTemplate({
-              to: phone,
-              templateName: "petra_biz_lead_alert",
+            const res = await sendWhatsAppTemplate({
+              to: p, templateName: "petra_biz_lead_alert",
               bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
             });
-            if (!result.success) {
-              await sendWhatsAppMessage({ to: phone, body: msg });
-            }
+            if (!res.success) await sendWhatsAppMessage({ to: p, body: msg });
           } catch {
-            await sendWhatsAppMessage({ to: phone, body: msg }).catch((err) =>
+            await sendWhatsAppMessage({ to: p, body: msg }).catch((err) =>
               console.error("Lead notification WA (fallback) failed:", err)
             );
           }
@@ -272,20 +104,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fire-and-forget: sync to Google Contacts if enabled
+    // ── Side effect: Google Contacts sync ──
     if (lead.phone || lead.email) {
       shouldSyncContacts(authResult.businessId).then(async (enabled) => {
         if (!enabled) return;
         const resourceName = await upsertLeadContact({
-          id: lead.id,
-          name: lead.name,
-          phone: lead.phone ?? null,
-          email: lead.email ?? null,
-          notes: lead.notes ?? null,
+          id: lead.id, name: lead.name, phone: lead.phone ?? null,
+          email: lead.email ?? null, notes: lead.notes ?? null,
           requestedService: lead.requestedService ?? null,
-          city: lead.city ?? null,
-          googleContactId: null,
-          businessId: lead.businessId,
+          city: (lead as { city?: string | null }).city ?? null,
+          googleContactId: null, businessId: lead.businessId,
         });
         if (resourceName) {
           await prisma.lead.update({ where: { id: lead.id }, data: { googleContactId: resourceName } });
@@ -299,9 +127,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
     }
     console.error("Error creating lead:", error);
-    return NextResponse.json(
-      { error: "Failed to create lead" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create lead" }, { status: 500 });
   }
 }

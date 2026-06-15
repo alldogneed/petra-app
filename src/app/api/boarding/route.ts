@@ -9,6 +9,7 @@ import { syncBoardingToGcal } from "@/lib/google-calendar";
 import { sendWhatsAppTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
+import { listBoardingStays, createBoardingStay, ServiceError } from "@/services/boarding";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,50 +17,15 @@ export async function GET(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = { businessId: authResult.businessId };
-
-    // Optional date range filter for calendar/timeline
-    if (from && to) {
-      where.checkIn = { lte: new Date(to + "T23:59:59") };
-      where.OR = [
-        { checkOut: { gte: new Date(from) } },
-        { checkOut: null },
-      ];
-      where.status = { in: ["reserved", "checked_in"] };
-    }
-
-    const stays = await prisma.boardingStay.findMany({
-      where,
-      include: {
-        room: true,
-        yard: { select: { id: true, name: true } },
-        pet: {
-          select: {
-            id: true, name: true, species: true, breed: true, foodNotes: true, foodBrand: true, foodGramsPerDay: true, foodFrequency: true, medicalNotes: true,
-            health: { select: { allergies: true, medicalConditions: true, activityLimitations: true } },
-            behavior: { select: { dogAggression: true, humanAggression: true, biteHistory: true, biteDetails: true, separationAnxiety: true, leashReactivity: true, resourceGuarding: true } },
-            medications: { select: { medName: true, dosage: true, frequency: true, times: true } },
-            serviceDogProfile: { select: { id: true } },
-          },
-        },
-        customer: { select: { id: true, name: true, phone: true } },
-        assignedTo: { select: { id: true, name: true } },
-      },
-      orderBy: { checkIn: "desc" },
-      take: 200,
+    const stays = await listBoardingStays(authResult.businessId, prisma, {
+      from: searchParams.get("from") || undefined,
+      to: searchParams.get("to") || undefined,
     });
 
     return NextResponse.json(stays);
   } catch (error) {
     console.error("Error fetching boarding stays:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch boarding stays" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch boarding stays" }, { status: 500 });
   }
 }
 
@@ -70,168 +36,36 @@ export async function POST(request: NextRequest) {
 
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     const rl = rateLimit("api:boarding:write", ip, RATE_LIMITS.API_WRITE);
-    if (!rl.allowed) {
-      return NextResponse.json({ error: "יותר מדי בקשות" }, { status: 429 });
-    }
+    if (!rl.allowed) return NextResponse.json({ error: "יותר מדי בקשות" }, { status: 429 });
 
-    // Tier check: boarding is BASIC+ only
     const bizForTier = await prisma.business.findUnique({
       where: { id: authResult.businessId },
       select: { tier: true, featureOverrides: true },
     });
     const tierOverrides = (bizForTier?.featureOverrides as Record<string, boolean> | null) ?? null;
-    if (!hasFeatureWithOverrides(bizForTier?.tier ?? "free", "boarding", tierOverrides)) {
-      return NextResponse.json({ error: "פנסיון זמין רק בתוכנית בסיסית ומעלה" }, { status: 403 });
-    }
+    const boardingEnabled = hasFeatureWithOverrides(bizForTier?.tier ?? "free", "boarding", tierOverrides);
 
     const body = await request.json();
-    const { checkIn, checkOut, petId, customerId, roomId, yardId, status, notes, assignedToUserId } = body;
-
-    if (!checkIn || !petId) {
-      return NextResponse.json(
-        { error: "Missing required fields: checkIn, petId" },
-        { status: 400 }
-      );
-    }
-    if (notes && (typeof notes !== "string" || notes.length > 2000)) {
-      return NextResponse.json({ error: "הערות ארוכות מדי (מקסימום 2000 תווים)" }, { status: 400 });
-    }
-
-    // Validate assignedToUserId belongs to this business
-    if (assignedToUserId) {
-      const membership = await prisma.businessUser.findUnique({
-        where: { businessId_userId: { businessId: authResult.businessId, userId: assignedToUserId } },
-        select: { id: true, isActive: true },
-      });
-      if (!membership || !membership.isActive) {
-        return NextResponse.json({ error: "איש הצוות לא נמצא בעסק זה" }, { status: 400 });
+    let stay;
+    try {
+      stay = await createBoardingStay(authResult.businessId, prisma, body, { boardingEnabled });
+    } catch (e) {
+      if (e instanceof ServiceError) {
+        const status = e.code === "NOT_FOUND" ? 404 : e.code === "CONFLICT" ? 409 : e.code === "UNAUTHORIZED" ? 403 : 400;
+        return NextResponse.json({ error: e.message }, { status });
       }
-    }
-
-    // Service dogs have no customer — accept null/empty customerId
-    const resolvedCustomerId = customerId || null;
-
-    // ── IDOR Prevention: validate petId and customerId belong to this business ──
-    const petCheck = await prisma.pet.findFirst({
-      where: { id: petId, OR: [{ customer: { businessId: authResult.businessId } }, { businessId: authResult.businessId }] },
-      select: { id: true },
-    });
-    if (!petCheck) {
-      return NextResponse.json({ error: "חיית מחמד לא נמצאה" }, { status: 404 });
-    }
-
-    if (resolvedCustomerId) {
-      const customerCheck = await prisma.customer.findFirst({
-        where: { id: resolvedCustomerId, businessId: authResult.businessId },
-        select: { id: true },
-      });
-      if (!customerCheck) {
-        return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
-      }
-    }
-
-    if (roomId) {
-      const roomCheck = await prisma.room.findFirst({
-        where: { id: roomId, businessId: authResult.businessId },
-        select: { id: true },
-      });
-      if (!roomCheck) {
-        return NextResponse.json({ error: "חדר לא נמצא" }, { status: 404 });
-      }
-    }
-
-    if (yardId) {
-      const yardCheck = await prisma.yard.findFirst({
-        where: { id: yardId, businessId: authResult.businessId },
-        select: { id: true },
-      });
-      if (!yardCheck) {
-        return NextResponse.json({ error: "חצר לא נמצאה" }, { status: 404 });
-      }
-    }
-
-    // Sequential room availability check + create (no interactive $transaction — Supabase PgBouncer incompatible)
-    if (roomId) {
-      const room = await prisma.room.findFirst({ where: { id: roomId, businessId: authResult.businessId } });
-      if (!room) {
-        return NextResponse.json({ error: "חדר לא נמצא" }, { status: 404 });
-      }
-      const activeCount = await prisma.boardingStay.count({
-        where: {
-          roomId,
-          status: { in: ["reserved", "checked_in"] },
-          checkIn: { lt: checkOut ? new Date(checkOut) : new Date("2099-12-31") },
-          OR: [
-            { checkOut: { gt: new Date(checkIn) } },
-            { checkOut: null },
-          ],
-        },
-      });
-      if (activeCount >= room.capacity) {
-        return NextResponse.json({ error: "החדר מלא בתאריכים אלו" }, { status: 409 });
-      }
-    }
-
-    const stay = await prisma.boardingStay.create({
-      data: {
-        businessId: authResult.businessId,
-        checkIn: new Date(checkIn),
-        checkOut: checkOut ? new Date(checkOut) : undefined,
-        petId,
-        customerId: resolvedCustomerId,
-        roomId: roomId || null,
-        yardId: yardId || null,
-        status: status || "reserved",
-        notes,
-        assignedToUserId: assignedToUserId || null,
-      },
-      include: {
-        room: true,
-        yard: { select: { id: true, name: true } },
-        pet: {
-          select: {
-            id: true, name: true, species: true, breed: true, foodNotes: true, foodBrand: true, foodGramsPerDay: true, foodFrequency: true, medicalNotes: true,
-            health: { select: { allergies: true, medicalConditions: true, activityLimitations: true } },
-            behavior: { select: { dogAggression: true, humanAggression: true, biteHistory: true, biteDetails: true, separationAnxiety: true, leashReactivity: true, resourceGuarding: true } },
-            medications: { select: { medName: true, dosage: true, frequency: true, times: true } },
-            serviceDogProfile: { select: { id: true } },
-          },
-        },
-        customer: { select: { id: true, name: true, phone: true } },
-        assignedTo: { select: { id: true, name: true } },
-      },
-    });
-
-    // Post-creation race-condition guard: re-check room capacity after create.
-    // If a concurrent request slipped through, delete the one we just created.
-    if (roomId && stay.room) {
-      const postCreateCount = await prisma.boardingStay.count({
-        where: {
-          roomId,
-          status: { in: ["reserved", "checked_in"] },
-          checkIn: { lt: checkOut ? new Date(checkOut) : new Date("2099-12-31") },
-          OR: [
-            { checkOut: { gt: new Date(checkIn) } },
-            { checkOut: null },
-          ],
-        },
-      });
-      if (postCreateCount > stay.room.capacity) {
-        await prisma.boardingStay.delete({ where: { id: stay.id } });
-        return NextResponse.json({ error: "החדר מלא בתאריכים אלו" }, { status: 409 });
-      }
+      throw e;
     }
 
     logCurrentUserActivity("CREATE_BOARDING_STAY");
 
-    // Send immediate WhatsApp booking confirmation (PRO+ only, fire-and-forget)
+    // WhatsApp booking confirmation (PRO+ only, fire-and-forget)
     const bizForWa = await prisma.business.findUnique({
       where: { id: authResult.businessId },
       select: { tier: true, featureOverrides: true },
     });
     const waOverrides = (bizForWa?.featureOverrides as Record<string, boolean> | null) ?? null;
-    const canSendBoardingWa = hasFeatureWithOverrides(bizForWa?.tier ?? "free", "whatsapp_reminders", waOverrides);
-    if (canSendBoardingWa && stay.customer?.phone) {
+    if (hasFeatureWithOverrides(bizForWa?.tier ?? "free", "whatsapp_reminders", waOverrides) && stay.customer?.phone) {
       const phone = toWhatsAppPhone(stay.customer.phone);
       if (phone) {
         const checkInStr = stay.checkIn.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
@@ -246,8 +80,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Schedule WhatsApp reminder 24h before checkout
-    // Skip for service dogs (no customer to message)
     if (stay.checkOut && stay.customerId) {
       await scheduleBoardingCheckoutReminder({
         id: stay.id,
@@ -259,23 +91,14 @@ export async function POST(request: NextRequest) {
       }).catch(console.error);
     }
 
-    // Sync to Google Calendar
     await syncBoardingToGcal(stay.id, authResult.businessId).catch((err) =>
       console.error("Failed to sync boarding to GCal:", err)
     );
 
     return NextResponse.json(stay, { status: 201 });
   } catch (error) {
-    if (error instanceof SyntaxError) {
-      return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
-    }
-    if (error instanceof Error && error.message === "ROOM_FULL") {
-      return NextResponse.json({ error: "החדר תפוס בתאריכים הנבחרים" }, { status: 409 });
-    }
+    if (error instanceof SyntaxError) return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
     console.error("Error creating boarding stay:", error);
-    return NextResponse.json(
-      { error: "Failed to create boarding stay" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create boarding stay" }, { status: 500 });
   }
 }

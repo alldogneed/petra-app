@@ -58,6 +58,27 @@ export async function POST(
       return NextResponse.json({ error: "משך אימון לא חוקי (1–1440 דקות)" }, { status: 400 });
     }
 
+    // Validate string fields
+    const VALID_STATUSES = ["COMPLETED", "CANCELLED", "PARTIAL", "SCHEDULED"];
+    if (status && !VALID_STATUSES.includes(status)) {
+      return NextResponse.json({ error: "סטטוס לא חוקי" }, { status: 400 });
+    }
+    if (trainerName && (typeof trainerName !== "string" || trainerName.length > 200)) {
+      return NextResponse.json({ error: "שם מאמן ארוך מדי" }, { status: 400 });
+    }
+    if (location && (typeof location !== "string" || location.length > 200)) {
+      return NextResponse.json({ error: "מיקום ארוך מדי" }, { status: 400 });
+    }
+    if (notes && (typeof notes !== "string" || notes.length > 5000)) {
+      return NextResponse.json({ error: "הערות ארוכות מדי" }, { status: 400 });
+    }
+    if (rating !== undefined && rating !== null && (typeof rating !== "number" || rating < 1 || rating > 5)) {
+      return NextResponse.json({ error: "דירוג חייב להיות 1-5" }, { status: 400 });
+    }
+    if (skillCategories && (!Array.isArray(skillCategories) || skillCategories.length > 50)) {
+      return NextResponse.json({ error: "קטגוריות לא תקינות" }, { status: 400 });
+    }
+
     const dog = await prisma.serviceDogProfile.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
     });

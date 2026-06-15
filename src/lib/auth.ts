@@ -10,6 +10,7 @@
  * Cookie helpers use the Next.js 14 synchronous cookies() API.
  */
 
+import crypto from "crypto";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import {
@@ -55,7 +56,7 @@ export function generateBusinessSlug(name: string): string {
     .replace(/[^a-z0-9֐-׿]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 30) || "business";
-  const suffix = Math.random().toString(36).slice(2, 7);
+  const suffix = crypto.randomBytes(4).toString("hex");
   return `${base}-${suffix}`;
 }
 

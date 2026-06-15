@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
-import { getMaxTasks, normalizeTier } from "@/lib/feature-flags";
+import { listTasks, createTask, ServiceError } from "@/services/clients";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,139 +12,30 @@ export async function GET(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
-    const category = searchParams.get("category");
-    const status = searchParams.get("status");
-    const excludeCompleted = searchParams.get("excludeCompleted") === "true";
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
-    const relatedEntityType = searchParams.get("relatedEntityType");
-    const relatedEntityId = searchParams.get("relatedEntityId");
-
-    const where: any = {
-      businessId: authResult.businessId,
+    const opts = {
+      category: searchParams.get("category") || undefined,
+      status: searchParams.get("status") || undefined,
+      excludeCompleted: searchParams.get("excludeCompleted") === "true",
+      from: searchParams.get("from") || undefined,
+      to: searchParams.get("to") || undefined,
+      relatedEntityType: searchParams.get("relatedEntityType") || undefined,
+      relatedEntityId: searchParams.get("relatedEntityId") || undefined,
     };
 
-    // Validate enum query params to prevent unexpected query behavior
-    const validCategories = ["BOARDING", "TRAINING", "LEADS", "GENERAL", "HEALTH", "MEDICATION", "FEEDING"];
-    const validStatuses = ["OPEN", "IN_PROGRESS", "COMPLETED", "CANCELED"];
-    const validEntityTypes = ["CUSTOMER", "DOG", "LEAD"];
-
-    if (category) {
-      if (!validCategories.includes(category)) {
-        return NextResponse.json({ error: "Invalid category filter" }, { status: 400 });
+    let tasks;
+    try {
+      tasks = await listTasks(authResult.businessId, prisma, opts);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "VALIDATION") {
+        return NextResponse.json({ error: e.message }, { status: 400 });
       }
-      where.category = category;
+      throw e;
     }
 
-    if (status) {
-      if (!validStatuses.includes(status)) {
-        return NextResponse.json({ error: "Invalid status filter" }, { status: 400 });
-      }
-      where.status = status;
-    } else if (excludeCompleted) {
-      where.status = { not: "COMPLETED" };
-    }
-
-    if (relatedEntityType) {
-      if (!validEntityTypes.includes(relatedEntityType)) {
-        return NextResponse.json({ error: "Invalid relatedEntityType filter" }, { status: 400 });
-      }
-      where.relatedEntityType = relatedEntityType;
-    }
-
-    if (relatedEntityId) {
-      where.relatedEntityId = relatedEntityId;
-    }
-
-    if (from || to) {
-      const dateFilter: any = {};
-      const atFilter: any = {};
-      if (from) {
-        const d = new Date(from + "T00:00:00");
-        if (isNaN(d.getTime())) return NextResponse.json({ error: "Invalid from date" }, { status: 400 });
-        dateFilter.gte = d;
-        atFilter.gte = d;
-      }
-      if (to) {
-        const d = new Date(to + "T23:59:59");
-        if (isNaN(d.getTime())) return NextResponse.json({ error: "Invalid to date" }, { status: 400 });
-        dateFilter.lte = d;
-        atFilter.lte = d;
-      }
-      where.OR = [
-        { dueDate: dateFilter },
-        { dueAt: atFilter },
-      ];
-    }
-
-    const tasks = await prisma.task.findMany({
-      where,
-      orderBy: [{ dueDate: "asc" }, { priority: "desc" }, { createdAt: "desc" }],
-      take: 200,
-    });
-
-    // Resolve related entity names in a single batch round-trip
-    const customerIds = [...new Set(
-      tasks.filter(t => t.relatedEntityType === "CUSTOMER" && t.relatedEntityId).map(t => t.relatedEntityId!)
-    )];
-    const petIds = [...new Set(
-      tasks.filter(t => t.relatedEntityType === "DOG" && t.relatedEntityId).map(t => t.relatedEntityId!)
-    )];
-    const leadIds = [...new Set(
-      tasks.filter(t => t.relatedEntityType === "LEAD" && t.relatedEntityId).map(t => t.relatedEntityId!)
-    )];
-
-    const [relCustomers, relPets, relLeads] = await Promise.all([
-      customerIds.length > 0
-        ? prisma.customer.findMany({ where: { id: { in: customerIds }, businessId: authResult.businessId }, select: { id: true, name: true } })
-        : [],
-      petIds.length > 0
-        ? prisma.pet.findMany({ where: { id: { in: petIds }, customer: { businessId: authResult.businessId } }, select: { id: true, name: true, customerId: true } })
-        : [],
-      leadIds.length > 0
-        ? prisma.lead.findMany({ where: { id: { in: leadIds }, businessId: authResult.businessId }, select: { id: true, name: true, lostAt: true, wonAt: true } })
-        : [],
-    ]);
-
-    const customerNameMap = new Map(relCustomers.map(c => [c.id, c.name]));
-    const petMap = new Map(relPets.map(p => [p.id, { name: p.name, customerId: p.customerId }]));
-    const leadNameMap = new Map(relLeads.map(l => [l.id, l.name]));
-
-    // Leads that are closed (lost or won) — hide their tasks from the general list
-    const closedLeadIds = new Set(
-      relLeads.filter(l => l.lostAt || l.wonAt).map(l => l.id)
-    );
-
-    const filteredTasks = relatedEntityId
-      ? tasks  // when viewing a specific entity's tasks, show all
-      : tasks.filter(t =>
-          t.relatedEntityType !== "LEAD" ||
-          !t.relatedEntityId ||
-          !closedLeadIds.has(t.relatedEntityId)
-        );
-
-    const enrichedTasks = filteredTasks.map(t => ({
-      ...t,
-      relatedEntityName:
-        t.relatedEntityType === "CUSTOMER" ? (customerNameMap.get(t.relatedEntityId!) ?? null)
-        : t.relatedEntityType === "DOG"      ? (petMap.get(t.relatedEntityId!)?.name ?? null)
-        : t.relatedEntityType === "LEAD"     ? (leadNameMap.get(t.relatedEntityId!) ?? null)
-        : null,
-      relatedEntityCustomerId:
-        t.relatedEntityType === "CUSTOMER" ? t.relatedEntityId
-        : t.relatedEntityType === "DOG"    ? (petMap.get(t.relatedEntityId!)?.customerId ?? null)
-        : null,
-      relatedEntityLeadId:
-        t.relatedEntityType === "LEAD" ? t.relatedEntityId ?? null : null,
-    }));
-
-    return NextResponse.json(enrichedTasks);
+    return NextResponse.json(tasks);
   } catch (error) {
     console.error("Error fetching tasks:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch tasks" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch tasks" }, { status: 500 });
   }
 }
 
@@ -159,79 +50,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "יותר מדי בקשות" }, { status: 429 });
     }
 
-    // Enforce task limit for free tier
-    const business = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { tier: true } });
-    const maxTasks = getMaxTasks(normalizeTier(business?.tier));
-    if (maxTasks !== null) {
-      const openCount = await prisma.task.count({
-        where: { businessId: authResult.businessId, status: { notIn: ["COMPLETED", "CANCELED"] } },
-      });
-      if (openCount >= maxTasks) {
-        return NextResponse.json(
-          { error: `מנוי חינמי מוגבל ל-${maxTasks} משימות פתוחות. שדרג לבייסיק כדי להוסיף עוד.` },
-          { status: 403 }
-        );
-      }
-    }
-
     const body = await request.json();
-    const {
-      title,
-      description,
-      category,
-      priority,
-      status,
-      dueAt,
-      dueDate,
-      relatedEntityType,
-      relatedEntityId,
-    } = body;
 
-    if (!title || typeof title !== "string" || !title.trim()) {
-      return NextResponse.json(
-        { error: "Missing required field: title" },
-        { status: 400 }
-      );
+    let task;
+    try {
+      task = await createTask(authResult.businessId, prisma, body);
+    } catch (e) {
+      if (e instanceof ServiceError) {
+        const status = e.code === "VALIDATION" ? (
+          (e.details as { code?: string } | null)?.code === "LIMIT_REACHED" ? 403 : 400
+        ) : 400;
+        return NextResponse.json({ error: e.message }, { status });
+      }
+      throw e;
     }
-
-    const validCategories = ["BOARDING", "TRAINING", "LEADS", "GENERAL", "HEALTH", "MEDICATION", "FEEDING"];
-    if (category && !validCategories.includes(category)) {
-      return NextResponse.json(
-        { error: "Invalid category value" },
-        { status: 400 }
-      );
-    }
-
-    const validPriorities = ["LOW", "MEDIUM", "HIGH", "URGENT"];
-    if (priority && !validPriorities.includes(priority)) {
-      return NextResponse.json(
-        { error: "Invalid priority value" },
-        { status: 400 }
-      );
-    }
-
-    const validStatuses = ["OPEN", "IN_PROGRESS", "COMPLETED", "CANCELED"];
-    if (status && !validStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: "Invalid status value" },
-        { status: 400 }
-      );
-    }
-
-    const task = await prisma.task.create({
-      data: {
-        businessId: authResult.businessId,
-        title,
-        description,
-        category: category || "GENERAL",
-        priority: priority || "MEDIUM",
-        status: status || "OPEN",
-        dueAt: dueAt ? new Date(dueAt) : undefined,
-        dueDate: dueDate ? new Date(dueDate) : undefined,
-        relatedEntityType: relatedEntityType || undefined,
-        relatedEntityId: relatedEntityId || undefined,
-      },
-    });
 
     logCurrentUserActivity("CREATE_TASK");
 
@@ -250,9 +82,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
     }
     console.error("Error creating task:", error);
-    return NextResponse.json(
-      { error: "Failed to create task" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create task" }, { status: 500 });
   }
 }

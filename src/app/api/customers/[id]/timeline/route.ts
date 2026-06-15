@@ -3,6 +3,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
+const VALID_TIMELINE_EVENT_TYPES = new Set([
+  "note",
+  "MANUAL_NOTE",
+  "customer_created",
+  "CUSTOMER_CREATED",
+  "lead_converted",
+  "APPOINTMENT_CREATED",
+  "APPOINTMENT_COMPLETED",
+  "APPOINTMENT_CANCELLED",
+  "appointment_scheduled",
+  "appointment_completed",
+  "appointment_canceled",
+  "whatsapp_sent",
+  "pet_added",
+  "payment_received",
+]);
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -19,6 +36,9 @@ export async function POST(
     }
     if (description.trim().length > 2000) {
       return NextResponse.json({ error: "תיאור ארוך מדי (עד 2000 תווים)" }, { status: 400 });
+    }
+    if (!VALID_TIMELINE_EVENT_TYPES.has(type)) {
+      return NextResponse.json({ error: "סוג אירוע לא תקין" }, { status: 400 });
     }
 
     // Verify customer belongs to this business

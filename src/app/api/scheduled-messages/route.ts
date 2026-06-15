@@ -2,8 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { listScheduledMessages } from "@/services/notifications";
 
-// GET /api/scheduled-messages?status=PENDING&page=1
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
@@ -12,28 +12,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || undefined;
     const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
-    const take = 50;
-    const skip = (page - 1) * take;
 
-    const where = {
-      businessId: authResult.businessId,
-      ...(status && status !== "ALL" ? { status } : {}),
-    };
-
-    const [messages, total] = await Promise.all([
-      prisma.scheduledMessage.findMany({
-        where,
-        include: {
-          customer: { select: { id: true, name: true, phone: true } },
-        },
-        orderBy: { sendAt: "desc" },
-        take,
-        skip,
-      }),
-      prisma.scheduledMessage.count({ where }),
-    ]);
-
-    return NextResponse.json({ messages, total, page, pages: Math.ceil(total / take) });
+    const result = await listScheduledMessages(authResult.businessId, prisma, { status, page });
+    return NextResponse.json(result);
   } catch (error) {
     console.error("GET scheduled-messages error:", error);
     return NextResponse.json({ error: "שגיאה בטעינת הודעות" }, { status: 500 });

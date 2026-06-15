@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { markSystemMessageRead, ServiceError } from "@/services/notifications";
 
 export async function PATCH(
   request: NextRequest,
@@ -11,25 +12,19 @@ export async function PATCH(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    // Verify message belongs to this business
-    const existing = await prisma.systemMessage.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "Message not found" }, { status: 404 });
+    let message;
+    try {
+      message = await markSystemMessageRead(authResult.businessId, prisma, params.id);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "Message not found" }, { status: 404 });
+      }
+      throw e;
     }
-
-    const message = await prisma.systemMessage.update({
-      where: { id: params.id },
-      data: { isRead: true },
-    });
 
     return NextResponse.json(message);
   } catch (error) {
     console.error("Mark as read error:", error);
-    return NextResponse.json(
-      { error: "Failed to mark as read" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to mark as read" }, { status: 500 });
   }
 }

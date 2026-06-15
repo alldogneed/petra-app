@@ -2,11 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { checkRoomAvailability, ServiceError } from "@/services/boarding";
 
-/**
- * GET /api/boarding/availability?roomId=xxx&from=2026-02-20&to=2026-02-25
- * Checks if a room is available for the given date range.
- */
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
@@ -18,50 +15,18 @@ export async function GET(request: NextRequest) {
     const to = searchParams.get("to");
 
     if (!roomId || !from || !to) {
-      return NextResponse.json(
-        { error: "Missing required params: roomId, from, to" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing required params: roomId, from, to" }, { status: 400 });
     }
 
-    const room = await prisma.room.findFirst({
-      where: { id: roomId, businessId: authResult.businessId },
-    });
-
-    if (!room) {
-      return NextResponse.json({ error: "Room not found" }, { status: 404 });
+    try {
+      const result = await checkRoomAvailability(authResult.businessId, prisma, roomId, from, to);
+      return NextResponse.json(result);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") return NextResponse.json({ error: "Room not found" }, { status: 404 });
+      throw e;
     }
-
-    // Find overlapping active stays
-    const conflicts = await prisma.boardingStay.findMany({
-      where: {
-        roomId,
-        status: { in: ["reserved", "checked_in"] },
-        checkIn: { lt: new Date(to + "T23:59:59") },
-        OR: [
-          { checkOut: { gt: new Date(from) } },
-          { checkOut: null },
-        ],
-      },
-      include: {
-        pet: { select: { id: true, name: true } },
-        customer: { select: { id: true, name: true } },
-      },
-    });
-
-    const available = conflicts.length < room.capacity;
-
-    return NextResponse.json({
-      available,
-      capacity: room.capacity,
-      occupiedSlots: conflicts.length,
-      conflicts,
-    });
   } catch (error) {
     console.error("Error checking availability:", error);
-    return NextResponse.json(
-      { error: "Failed to check availability" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to check availability" }, { status: 500 });
   }
 }

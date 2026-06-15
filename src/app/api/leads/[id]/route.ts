@@ -7,6 +7,7 @@ import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
 import { shouldSyncContacts, upsertLeadContact } from "@/lib/google-contacts";
+import { updateLead, deleteLead, ServiceError, type UpdateLeadInput } from "@/services/clients";
 
 const PatchLeadSchema = z.object({
   stage: z.string().optional(),
@@ -36,150 +37,35 @@ export async function PATCH(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const { id } = params;
     const raw = await request.json();
     const parsed = PatchLeadSchema.safeParse(raw);
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
     }
-    // Use raw (any) for Prisma after Zod validation — avoids nullable/optional type conflicts
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const body: any = raw;
-    const { stage, name, phone, email, city, address, requestedService, source, notes, lostReasonCode, lostReasonText, lastContactedAt, wonAt, lostAt, nextFollowUpAt, followUpStatus, previousStageId } = body;
 
-    const existing = await prisma.lead.findFirst({
-      where: { id, businessId: authResult.businessId },
-    });
-
-    if (!existing) {
-      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    let lead;
+    try {
+      lead = await updateLead(authResult.businessId, prisma, params.id, parsed.data as UpdateLeadInput);
+    } catch (e) {
+      if (e instanceof ServiceError) {
+        const status = e.code === "NOT_FOUND" ? 404 : e.code === "VALIDATION" ? 400 : 400;
+        return NextResponse.json({ error: e.message }, { status });
+      }
+      throw e;
     }
-
-    // Validate stage belongs to this business + auto-stamp won/lost dates.
-    // Clients move leads from several places (kanban drag, detail modal,
-    // treatment modal) and not all of them send wonAt/lostAt — analytics
-    // counts by these timestamps, so the server stamps them on transition.
-    let autoWonAt: Date | null | undefined;
-    let autoLostAt: Date | null | undefined;
-    if (stage !== undefined) {
-      const validStage = await prisma.leadStage.findFirst({
-        where: { id: stage, businessId: authResult.businessId },
-      });
-      if (!validStage) {
-        return NextResponse.json({ error: "Invalid stage" }, { status: 400 });
-      }
-      if (stage !== existing.stage) {
-        if (validStage.isWon) {
-          autoWonAt = new Date();
-          autoLostAt = null;
-        } else if (validStage.isLost) {
-          autoLostAt = new Date();
-          autoWonAt = null;
-        } else {
-          // Back to an active stage — clear archive timestamps
-          autoWonAt = null;
-          autoLostAt = null;
-        }
-      }
-    }
-
-    const lead = await prisma.lead.update({
-      where: { id, businessId: authResult.businessId },
-      data: {
-        ...(stage !== undefined && { stage }),
-        ...(name !== undefined && { name }),
-        ...(phone !== undefined && { phone }),
-        ...(email !== undefined && { email }),
-        ...(city !== undefined && { city }),
-        ...(address !== undefined && { address }),
-        ...(requestedService !== undefined && { requestedService }),
-        ...(source !== undefined && { source }),
-        ...(notes !== undefined && { notes }),
-        ...(lostReasonCode !== undefined && { lostReasonCode }),
-        ...(lostReasonText !== undefined && { lostReasonText }),
-        ...(lastContactedAt !== undefined && {
-          lastContactedAt: new Date(lastContactedAt),
-        }),
-        // Explicit client value wins; otherwise apply the stage-transition stamp
-        ...(wonAt !== undefined
-          ? { wonAt: wonAt ? new Date(wonAt) : null }
-          : autoWonAt !== undefined
-            ? { wonAt: autoWonAt }
-            : {}),
-        ...(lostAt !== undefined
-          ? { lostAt: lostAt ? new Date(lostAt) : null }
-          : autoLostAt !== undefined
-            ? { lostAt: autoLostAt }
-            : {}),
-        ...(nextFollowUpAt !== undefined && {
-          nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : null,
-        }),
-        ...(followUpStatus !== undefined && { followUpStatus }),
-        ...(previousStageId !== undefined && { previousStageId }),
-      },
-      include: {
-        customer: true,
-        callLogs: true,
-      },
-    });
-
-    // ── Auto-task sync for follow-up date ──────────────────────────────────────
-    if (nextFollowUpAt !== undefined) {
-      // Delete previous follow-up task if it exists and not yet completed
-      if (existing.followUpTaskId) {
-        await prisma.task.deleteMany({
-          where: {
-            id: existing.followUpTaskId,
-            businessId: authResult.businessId,
-            status: { not: "COMPLETED" },
-          },
-        });
-      }
-
-      if (nextFollowUpAt) {
-        // Create a new linked follow-up task
-        const newTask = await prisma.task.create({
-          data: {
-            businessId: authResult.businessId,
-            title: `מעקב עם ${existing.name}`,
-            description: `מעקב עם ${existing.name}${existing.phone ? ` — ${existing.phone}` : ""}`,
-            category: "LEADS",
-            priority: "MEDIUM",
-            status: "OPEN",
-            dueDate: new Date(nextFollowUpAt),
-            relatedEntityType: "LEAD",
-            relatedEntityId: existing.id,
-          },
-        });
-        await prisma.lead.update({
-          where: { id, businessId: authResult.businessId },
-          data: { followUpTaskId: newTask.id },
-        });
-      } else {
-        // Follow-up cleared — remove reference
-        await prisma.lead.update({
-          where: { id, businessId: authResult.businessId },
-          data: { followUpTaskId: null },
-        });
-      }
-    }
-    // ──────────────────────────────────────────────────────────────────────────
 
     const { session } = authResult;
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.UPDATE_LEAD);
 
-    // Fire-and-forget: sync to Google Contacts if enabled
+    // Fire-and-forget: Google Contacts sync
     if (lead.phone || lead.email) {
       shouldSyncContacts(authResult.businessId).then(async (enabled) => {
         if (!enabled) return;
         const resourceName = await upsertLeadContact({
-          id: lead.id,
-          name: lead.name,
-          phone: lead.phone ?? null,
-          email: lead.email ?? null,
-          notes: lead.notes ?? null,
+          id: lead.id, name: lead.name, phone: lead.phone ?? null,
+          email: lead.email ?? null, notes: lead.notes ?? null,
           requestedService: lead.requestedService ?? null,
-          city: lead.city ?? null,
+          city: (lead as { city?: string | null }).city ?? null,
           googleContactId: (lead as { googleContactId?: string | null }).googleContactId ?? null,
           businessId: lead.businessId,
         });
@@ -192,10 +78,7 @@ export async function PATCH(
     return NextResponse.json(lead);
   } catch (error) {
     console.error("Error updating lead:", error);
-    return NextResponse.json(
-      { error: "Failed to update lead" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update lead" }, { status: 500 });
   }
 }
 
@@ -211,30 +94,21 @@ export async function DELETE(
     const membership = session.memberships.find((m) => m.businessId === businessId);
     const callerRole = (membership?.role ?? "user") as TenantRole;
 
-    // Staff/volunteer cannot delete leads
-    if (!hasTenantPermission(callerRole, TENANT_PERMS.CONTENT_WRITE) ||
-        callerRole === "user" || callerRole === "volunteer") {
+    if (
+      !hasTenantPermission(callerRole, TENANT_PERMS.CONTENT_WRITE) ||
+      callerRole === "user" ||
+      callerRole === "volunteer"
+    ) {
       return NextResponse.json({ error: "אין הרשאה למחיקת ליד" }, { status: 403 });
     }
 
-    const { id } = params;
-
-    const existing = await prisma.lead.findFirst({
-      where: { id, businessId },
-    });
-
-    if (!existing) {
-      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-    }
-
-    // Manager → route to pending approval
     if (callerRole === "manager") {
+      const existing = await prisma.lead.findFirst({ where: { id: params.id, businessId } });
+      if (!existing) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
       const approval = await createPendingApproval({
-        businessId,
-        requestedByUserId: session.user.id,
-        action: "DELETE_LEAD",
+        businessId, requestedByUserId: session.user.id, action: "DELETE_LEAD",
         description: `מחיקת ליד: ${existing.name}${existing.phone ? ` — ${existing.phone}` : ""}`,
-        payload: { leadId: id, leadName: existing.name },
+        payload: { leadId: params.id, leadName: existing.name },
       });
       return NextResponse.json(
         { pendingApproval: true, approvalId: approval.id, message: "הבקשה נשלחה לאישור הבעלים" },
@@ -242,40 +116,25 @@ export async function DELETE(
       );
     }
 
-    // Owner → require typed confirmation header
     const confirmHeader = request.headers.get("x-confirm-action");
-    if (confirmHeader !== `DELETE_LEAD_${id}`) {
-      return NextResponse.json(
-        { error: "נדרש אישור מפורש למחיקה", requireConfirmation: true },
-        { status: 428 }
-      );
+    if (confirmHeader !== `DELETE_LEAD_${params.id}`) {
+      return NextResponse.json({ error: "נדרש אישור מפורש למחיקה", requireConfirmation: true }, { status: 428 });
     }
 
-    // Clean up follow-up tasks linked to this lead (created by PATCH) so they
-    // don't linger as orphans pointing to a deleted lead. CallLogs cascade via FK.
-    await prisma.task.deleteMany({
-      where: { businessId, relatedEntityType: "LEAD", relatedEntityId: id },
-    });
-
+    let deleteResult;
     try {
-      await prisma.lead.delete({ where: { id, businessId } });
-    } catch (err) {
-      // P2025 = record already deleted (e.g. a concurrent delete from another
-      // team member). The lead is gone, which is the desired end state — treat
-      // as success instead of surfacing a confusing 500.
-      if (err && typeof err === "object" && (err as { code?: string }).code === "P2025") {
-        return NextResponse.json({ success: true, alreadyDeleted: true });
+      deleteResult = await deleteLead(businessId, prisma, params.id);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "Lead not found" }, { status: 404 });
       }
-      throw err;
+      throw e;
     }
-    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_LEAD);
 
-    return NextResponse.json({ success: true });
+    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_LEAD);
+    return NextResponse.json({ success: true, ...(deleteResult.alreadyDeleted ? { alreadyDeleted: true } : {}) });
   } catch (error) {
     console.error("Error deleting lead:", error);
-    return NextResponse.json(
-      { error: "Failed to delete lead" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to delete lead" }, { status: 500 });
   }
 }

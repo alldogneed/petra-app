@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { listTeamMembers } from "@/services/business";
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,8 +10,6 @@ export async function GET(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
 
     const { session } = authResult;
-
-    // Verify user is an active owner or admin of this business
     const membership = session.memberships.find(
       (m) => m.businessId === authResult.businessId && m.isActive
     );
@@ -18,35 +17,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const bizId = authResult.businessId;
-
-    const members = await prisma.businessUser.findMany({
-      where: { businessId: bizId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatarUrl: true,
-            createdAt: true,
-            isActive: true,
-            sessions: {
-              where: { expiresAt: { gt: new Date() } },
-              orderBy: { lastSeenAt: "desc" },
-              take: 1,
-              select: {
-                lastSeenAt: true,
-                userAgent: true,
-                createdAt: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: "asc" },
-    });
-
+    const members = await listTeamMembers(authResult.businessId, prisma);
     return NextResponse.json(members);
   } catch (error) {
     console.error("business-admin/team GET error:", error);

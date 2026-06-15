@@ -55,6 +55,20 @@ export async function POST(
       );
     }
 
+    if (typeof summary === "string" && summary.length > 5000) {
+      return NextResponse.json(
+        { error: "סיכום ארוך מדי (מקסימום 5000 תווים)" },
+        { status: 400 }
+      );
+    }
+
+    if (typeof treatment === "string" && treatment.length > 5000) {
+      return NextResponse.json(
+        { error: "טיפול ארוך מדי (מקסימום 5000 תווים)" },
+        { status: 400 }
+      );
+    }
+
     const existing = await prisma.lead.findFirst({
       where: { id, businessId: authResult.businessId },
     });

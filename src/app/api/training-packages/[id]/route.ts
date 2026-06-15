@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { updateTrainingPackage, deleteTrainingPackage, ServiceError } from "@/services/training";
 
 export async function PATCH(
   request: NextRequest,
@@ -11,16 +12,8 @@ export async function PATCH(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const existing = await prisma.trainingPackage.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "חבילה לא נמצאה" }, { status: 404 });
-    }
-
     const body = await request.json();
 
-    // Validate numeric fields
     if (body.sessions !== undefined) {
       const n = parseInt(body.sessions);
       if (!Number.isFinite(n) || n < 1) {
@@ -39,7 +32,6 @@ export async function PATCH(
         return NextResponse.json({ error: "משך ימים לא תקין" }, { status: 400 });
       }
     }
-    // Validate string lengths
     if (body.name !== undefined && (typeof body.name !== "string" || body.name.length > 200)) {
       return NextResponse.json({ error: "שם חבילה ארוך מדי (מקסימום 200 תווים)" }, { status: 400 });
     }
@@ -47,21 +39,23 @@ export async function PATCH(
       return NextResponse.json({ error: "תיאור ארוך מדי (מקסימום 2000 תווים)" }, { status: 400 });
     }
 
-    const pkg = await prisma.trainingPackage.update({
-      where: { id: params.id, businessId: authResult.businessId },
-      data: {
-        ...(body.name !== undefined && { name: body.name }),
-        ...(body.type !== undefined && { type: body.type }),
-        ...(body.sessions !== undefined && { sessions: parseInt(body.sessions) }),
-        ...(body.durationDays !== undefined && { durationDays: body.durationDays ? parseInt(body.durationDays) : null }),
-        ...(body.price !== undefined && { price: parseFloat(body.price) }),
-        ...(body.description !== undefined && { description: body.description || null }),
-        ...(body.isActive !== undefined && { isActive: body.isActive }),
-      },
-      include: {
-        _count: { select: { programs: true } },
-      },
-    });
+    let pkg;
+    try {
+      pkg = await updateTrainingPackage(authResult.businessId, prisma, params.id, {
+        name: body.name,
+        type: body.type,
+        sessions: body.sessions !== undefined ? parseInt(body.sessions) : undefined,
+        durationDays: body.durationDays !== undefined ? (body.durationDays ? parseInt(body.durationDays) : null) : undefined,
+        price: body.price !== undefined ? parseFloat(body.price) : undefined,
+        description: body.description,
+        isActive: body.isActive,
+      });
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "חבילה לא נמצאה" }, { status: 404 });
+      }
+      throw e;
+    }
 
     return NextResponse.json(pkg);
   } catch (error) {
@@ -78,22 +72,17 @@ export async function DELETE(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const existing = await prisma.trainingPackage.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
-      include: { _count: { select: { programs: true } } },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "חבילה לא נמצאה" }, { status: 404 });
+    try {
+      await deleteTrainingPackage(authResult.businessId, prisma, params.id);
+    } catch (e) {
+      if (e instanceof ServiceError) {
+        return NextResponse.json(
+          { error: e.message },
+          { status: e.code === "NOT_FOUND" ? 404 : e.code === "CONFLICT" ? 409 : 400 }
+        );
+      }
+      throw e;
     }
-
-    if (existing._count.programs > 0) {
-      return NextResponse.json(
-        { error: `לא ניתן למחוק — יש ${existing._count.programs} תוכניות המשויכות לחבילה זו` },
-        { status: 409 }
-      );
-    }
-
-    await prisma.trainingPackage.delete({ where: { id: params.id, businessId: authResult.businessId } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -8,6 +8,7 @@ Full reference docs in `docs/`:
 - `docs/features.md` — feature map, tier enforcement, cron jobs
 - `docs/conventions.md` — code patterns, how to run, known issues
 - `docs/deployment.md` — branches, Vercel, Supabase, WhatsApp status
+- `docs/service-layer.md` — `src/services/` architecture, ServiceError codes, what stays in routes
 
 ---
 

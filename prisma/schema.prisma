@@ -309,6 +309,7 @@ model Business {
   contractRequests       ContractRequest[]
   pendingApprovals       PendingApproval[]
   subscriptionEvents     SubscriptionEvent[]
+  mcpConnections         McpConnection[]
 
   @@index([slug])
 }
@@ -1353,6 +1354,8 @@ model TrainingGroup {
   reminderSameDay    Boolean  @default(false)
   maxParticipants    Int?
   notes              String?
+  startDate          DateTime?
+  endDate            DateTime?
   isActive           Boolean  @default(true)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -2268,3 +2271,40 @@ model SubscriptionEvent {
   @@index([lowprofileCode])
 }
 
+/// MCP connection — a named API token issued to a specific AI agent / tool
+model McpConnection {
+  id           String    @id @default(uuid())
+  businessId   String
+  name         String    // e.g. "Claude Desktop של אור"
+  // SHA-256 is the correct choice for token storage here: tokens are generated with
+  // crypto.randomBytes(32) (256 bits of entropy), so bcrypt/argon2 would only add
+  // latency without adding security on a high-entropy random token.
+  tokenHash    String    // SHA-256 hash of the raw bearer token
+  scopes       String[]  // e.g. ['read:clients', 'read:appointments', 'read:stats', 'write:appointments']
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+  revokedAt    DateTime? // null = active
+
+  business     Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  auditLogs    McpAuditLog[]
+
+  @@index([businessId])
+  @@index([tokenHash])
+}
+
+/// Audit trail of every MCP tool invocation
+model McpAuditLog {
+  id            String   @id @default(uuid())
+  connectionId  String
+  toolName      String
+  params        Json     @default("{}")
+  resultSummary String?  // "returned 12 clients"
+  status        String   // 'success' | 'error' | 'denied'
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+
+  connection    McpConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId])
+  @@index([createdAt])
+}

@@ -2,8 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { cancelScheduledMessage, ServiceError } from "@/services/notifications";
 
-// PATCH /api/scheduled-messages/[id] — cancel a pending message
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -12,20 +12,18 @@ export async function PATCH(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const existing = await prisma.scheduledMessage.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
+    let updated;
+    try {
+      updated = await cancelScheduledMessage(authResult.businessId, prisma, params.id);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
+      }
+      if (e instanceof ServiceError && e.code === "VALIDATION") {
+        return NextResponse.json({ error: e.message }, { status: 400 });
+      }
+      throw e;
     }
-    if (existing.status !== "PENDING") {
-      return NextResponse.json({ error: "ניתן לבטל רק הודעות ממתינות" }, { status: 400 });
-    }
-
-    const updated = await prisma.scheduledMessage.update({
-      where: { id: params.id, businessId: authResult.businessId },
-      data: { status: "CANCELED" },
-    });
 
     return NextResponse.json(updated);
   } catch (error) {

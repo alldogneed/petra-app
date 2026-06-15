@@ -654,9 +654,15 @@ export async function scheduleTrainingSessionReminder(data: TrainingSessionForRe
     month: "long",
   }).format(data.sessionDate);
 
+  const hasExplicitTime = !(data.sessionDate.getUTCHours() === 0 && data.sessionDate.getUTCMinutes() === 0);
+  const formattedTime = hasExplicitTime
+    ? new Intl.DateTimeFormat("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false }).format(data.sessionDate)
+    : null;
+
   const bizPhone = bizSettings.phone ?? "";
   const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${bizPhone}_`;
-  const body = `שלום ${data.customerName}! 🐾\n\nתזכורת למפגש אילוף עם ${data.dogName} ב-${formattedDate}.\n\nנתראה! 😊${footer}`;
+  const timeStr = formattedTime ? ` בשעה ${formattedTime}` : "";
+  const body = `שלום ${data.customerName}! 🐾\n\nתזכורת למפגש אילוף עם ${data.dogName} ב-${formattedDate}${timeStr}.\n\nנתראה! 😊${footer}`;
 
   return prisma.scheduledMessage.create({
     data: {

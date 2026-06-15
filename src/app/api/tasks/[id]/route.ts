@@ -4,6 +4,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { getTask, updateTask, deleteTask, ServiceError, type UpdateTaskInput } from "@/services/clients";
 
 const PatchTaskSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -26,23 +27,13 @@ export async function GET(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const { id } = params;
-
-    const task = await prisma.task.findFirst({
-      where: { id, businessId: authResult.businessId },
-    });
-
-    if (!task) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
-    }
+    const task = await getTask(authResult.businessId, prisma, params.id);
+    if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
 
     return NextResponse.json(task);
   } catch (error) {
     console.error("Error fetching task:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch task" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch task" }, { status: 500 });
   }
 }
 
@@ -54,89 +45,37 @@ export async function PATCH(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const { id } = params;
     const raw = await request.json();
     const parsed = PatchTaskSchema.safeParse(raw);
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
     }
-    const body = parsed.data;
 
-    // Minimal ownership check — only fetch fields needed below
-    const existing = await prisma.task.findFirst({
-      where: { id, businessId: authResult.businessId },
-      select: { id: true, status: true, relatedEntityType: true, relatedEntityId: true },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
-    }
-
-    const { title, description, category, priority, status, dueAt, dueDate, relatedEntityType, relatedEntityId, reminderEnabled } = body;
-
-    const isCompleting = status === "COMPLETED" && existing.status !== "COMPLETED";
-    const isReopening = status !== undefined && status !== "COMPLETED" && existing.status === "COMPLETED";
-
-    const task = await prisma.task.update({
-      where: { id, businessId: authResult.businessId },
-      data: {
-        ...(title !== undefined && { title }),
-        ...(description !== undefined && { description }),
-        ...(category !== undefined && { category }),
-        ...(priority !== undefined && { priority }),
-        ...(status !== undefined && { status }),
-        ...(dueAt !== undefined && { dueAt: dueAt ? new Date(dueAt) : null }),
-        ...(dueDate !== undefined && {
-          dueDate: dueDate ? new Date(dueDate) : null,
-        }),
-        ...(relatedEntityType !== undefined && { relatedEntityType }),
-        ...(relatedEntityId !== undefined && { relatedEntityId }),
-        ...(reminderEnabled !== undefined && { reminderEnabled }),
-        ...(isCompleting && { completedAt: new Date() }),
-        ...(isReopening && { completedAt: null }),
-      },
-    });
-
-    // Sync back to lead if this is a follow-up task
-    if (existing.relatedEntityType === "LEAD" && existing.relatedEntityId) {
-      if (isCompleting) {
-        await prisma.lead.updateMany({
-          where: { id: existing.relatedEntityId, followUpTaskId: id, businessId: authResult.businessId },
-          data: { followUpStatus: "completed" },
-        });
-      } else if (isReopening) {
-        await prisma.lead.updateMany({
-          where: { id: existing.relatedEntityId, followUpTaskId: id, businessId: authResult.businessId },
-          data: { followUpStatus: "pending" },
-        });
+    let task;
+    try {
+      task = await updateTask(
+        authResult.businessId, prisma, params.id,
+        parsed.data as UpdateTaskInput,
+        authResult.session.user.id
+      );
+    } catch (e) {
+      if (e instanceof ServiceError) {
+        return NextResponse.json({ error: e.message }, { status: e.code === "NOT_FOUND" ? 404 : 400 });
       }
+      throw e;
     }
 
     const { session } = authResult;
+    const status = parsed.data.status;
     const action =
       status === "COMPLETED" ? ACTIVITY_ACTIONS.COMPLETE_TASK :
-      status === "CANCELED" ? ACTIVITY_ACTIONS.CANCEL_TASK :
-      undefined;
+      status === "CANCELED"  ? ACTIVITY_ACTIONS.CANCEL_TASK : undefined;
     if (action) logActivity(session.user.id, session.user.name, action);
-
-    // Fire-and-forget audit log — don't block the response
-    const auditAction = isCompleting ? "COMPLETED" : isReopening ? "REOPENED" :
-      status === "CANCELED" ? "CANCELED" : "UPDATED";
-    prisma.taskAuditLog.create({
-      data: {
-        taskId: id,
-        action: auditAction,
-        userId: session.user.id,
-        payload: JSON.stringify({ status, title, priority }),
-      },
-    }).catch((err) => console.error("Audit log error:", err));
 
     return NextResponse.json(task);
   } catch (error) {
     console.error("Error updating task:", error);
-    return NextResponse.json(
-      { error: "Failed to update task" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
   }
 }
 
@@ -148,43 +87,18 @@ export async function DELETE(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const { id } = params;
-
-    const existing = await prisma.task.findFirst({
-      where: { id, businessId: authResult.businessId },
-      select: { id: true, title: true, relatedEntityType: true, relatedEntityId: true },
-    });
-
-    if (!existing) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    try {
+      await deleteTask(authResult.businessId, prisma, params.id, authResult.session.user.id);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "Task not found" }, { status: 404 });
+      }
+      throw e;
     }
-
-    // If this is a lead follow-up task, clear the lead's follow-up date
-    if (existing.relatedEntityType === "LEAD" && existing.relatedEntityId) {
-      await prisma.lead.updateMany({
-        where: { id: existing.relatedEntityId, followUpTaskId: id, businessId: authResult.businessId },
-        data: { nextFollowUpAt: null, followUpTaskId: null, followUpStatus: "pending" },
-      });
-    }
-
-    // Audit before delete (so taskId still valid)
-    await prisma.taskAuditLog.create({
-      data: {
-        taskId: id,
-        action: "DELETED",
-        userId: authResult.session.user.id,
-        payload: JSON.stringify({ title: existing.title }),
-      },
-    });
-
-    await prisma.task.delete({ where: { id, businessId: authResult.businessId } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting task:", error);
-    return NextResponse.json(
-      { error: "Failed to delete task" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to delete task" }, { status: 500 });
   }
 }

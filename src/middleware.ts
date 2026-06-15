@@ -40,6 +40,7 @@ const PUBLIC_EXACT_PATHS = new Set([
   "/api/booking/availability",
   "/api/booking/slots",
   "/api/booking/book",
+  "/api/mcp", // MCP endpoint — self-contained Bearer-token auth + rate limit + audit (NOT a prefix: /api/mcp/connections stays session-protected)
   "/api/cardcom/indicator",
   "/api/cardcom/success-redirect",
   "/api/cardcom/create-trial",
@@ -82,10 +83,19 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow specific /api/auth/* sub-paths that need public access (2FA, Google OAuth, me, session)
-  // These have their own internal auth checks, but must pass through middleware
-  // because they're called from both authenticated and unauthenticated contexts
-  if (pathname.startsWith("/api/auth/")) {
+  // Allow specific /api/auth/* sub-paths that need public access.
+  // Explicit allowlist (not catch-all) so new auth routes aren't accidentally public.
+  const AUTH_PUBLIC_SUBPATHS = [
+    "/api/auth/2fa/confirm",
+    "/api/auth/2fa/enroll",
+    "/api/auth/2fa/verify",
+    "/api/auth/exit-impersonation",
+    "/api/auth/google",
+    "/api/auth/google/callback",
+    "/api/auth/me",
+    "/api/auth/session",
+  ];
+  if (AUTH_PUBLIC_SUBPATHS.some((p) => pathname === p || pathname === p + "/")) {
     return NextResponse.next();
   }
 

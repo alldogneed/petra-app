@@ -3,7 +3,18 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards";
-import { PLATFORM_PERMS } from "@/lib/permissions";
+import { PLATFORM_PERMS, PLATFORM_ROLES, type PlatformRole } from "@/lib/permissions";
+
+const VALID_PLATFORM_ROLES = Object.values(PLATFORM_ROLES) as string[];
+
+function isStrongPassword(pw: string): boolean {
+  return (
+    pw.length >= 12 &&
+    /[A-Z]/.test(pw) &&
+    /[a-z]/.test(pw) &&
+    /[0-9]/.test(pw)
+  );
+}
 
 export async function GET(request: NextRequest) {
   const guard = await requirePlatformPermission(request, PLATFORM_PERMS.USERS_READ);
@@ -113,11 +124,29 @@ export async function POST(request: NextRequest) {
   if (!name?.trim()) {
     return NextResponse.json({ error: "שם חובה" }, { status: 400 });
   }
+  if (name.trim().length > 200) {
+    return NextResponse.json({ error: "שם ארוך מדי" }, { status: 400 });
+  }
   if (!email?.trim() || !email.includes("@")) {
     return NextResponse.json({ error: "אימייל לא תקין" }, { status: 400 });
   }
-  if (!password || password.length < 8) {
-    return NextResponse.json({ error: "סיסמה חייבת להכיל לפחות 8 תווים" }, { status: 400 });
+  if (email.trim().length > 254) {
+    return NextResponse.json({ error: "כתובת אימייל ארוכה מדי" }, { status: 400 });
+  }
+
+  // Cap password length to prevent bcrypt CPU exhaustion DoS
+  if (typeof password !== "string" || password.length > 1000) {
+    return NextResponse.json({ error: "הסיסמה ארוכה מדי" }, { status: 400 });
+  }
+  if (!isStrongPassword(password)) {
+    return NextResponse.json(
+      { error: "הסיסמה חייבת להכיל לפחות 12 תווים, אות גדולה, אות קטנה וספרה" },
+      { status: 400 }
+    );
+  }
+
+  if (platformRole && !VALID_PLATFORM_ROLES.includes(platformRole)) {
+    return NextResponse.json({ error: "תפקיד פלטפורמה לא תקין" }, { status: 400 });
   }
 
   const existing = await prisma.platformUser.findUnique({

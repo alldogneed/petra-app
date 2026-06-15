@@ -2,17 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { listPetMedications, createMedication, ServiceError } from "@/services/pets";
 
-async function verifyPet(petId: string, businessId: string) {
-  return prisma.pet.findFirst({
-    where: {
-      id: petId,
-      OR: [{ customer: { businessId } }, { businessId }],
-    },
-  });
-}
-
-// GET /api/pets/[petId]/medications
 export async function GET(
   request: NextRequest,
   { params }: { params: { petId: string } }
@@ -20,15 +11,16 @@ export async function GET(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
-    const { businessId } = authResult;
 
-    const pet = await verifyPet(params.petId, businessId);
-    if (!pet) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
-
-    const medications = await prisma.dogMedication.findMany({
-      where: { petId: params.petId },
-      orderBy: { createdAt: "desc" },
-    });
+    let medications;
+    try {
+      medications = await listPetMedications(authResult.businessId, prisma, params.petId);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
+      }
+      throw e;
+    }
 
     return NextResponse.json(medications);
   } catch (error) {
@@ -37,7 +29,6 @@ export async function GET(
   }
 }
 
-// POST /api/pets/[petId]/medications
 export async function POST(
   request: NextRequest,
   { params }: { params: { petId: string } }
@@ -45,30 +36,17 @@ export async function POST(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
-    const { businessId } = authResult;
-
-    const pet = await verifyPet(params.petId, businessId);
-    if (!pet) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
 
     const body = await request.json();
-    const { medName, dosage, frequency, times, instructions, startDate, endDate } = body;
-
-    if (!medName?.trim()) {
-      return NextResponse.json({ error: "שם תרופה הוא שדה חובה" }, { status: 400 });
+    let medication;
+    try {
+      medication = await createMedication(authResult.businessId, prisma, params.petId, body);
+    } catch (e) {
+      if (e instanceof ServiceError) {
+        return NextResponse.json({ error: e.message }, { status: e.code === "NOT_FOUND" ? 404 : 400 });
+      }
+      throw e;
     }
-
-    const medication = await prisma.dogMedication.create({
-      data: {
-        petId: params.petId,
-        medName: medName.trim(),
-        dosage: dosage?.trim() || null,
-        frequency: frequency?.trim() || null,
-        times: times?.trim() || null,
-        instructions: instructions?.trim() || null,
-        startDate: startDate ? new Date(startDate) : null,
-        endDate: endDate ? new Date(endDate) : null,
-      },
-    });
 
     return NextResponse.json(medication, { status: 201 });
   } catch (error) {

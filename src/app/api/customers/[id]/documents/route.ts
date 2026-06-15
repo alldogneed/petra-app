@@ -61,7 +61,8 @@ export async function POST(
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const category = (formData.get("category") as string) || "other";
-    const label = (formData.get("label") as string) || null;
+    const rawLabel = (formData.get("label") as string) || null;
+    const label = rawLabel ? rawLabel.replace(/[<>"'&]/g, "").slice(0, 255) : null;
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -106,8 +107,8 @@ export async function POST(
 
     const newDoc = {
       id: fileId,
-      name: label || file.name,
-      originalName: file.name,
+      name: label || file.name.replace(/[<>"'&]/g, "").slice(0, 255),
+      originalName: file.name.replace(/[<>"'&]/g, "").slice(0, 255),
       mimeType: file.type || "application/octet-stream",
       size: file.size,
       url: blob.url,

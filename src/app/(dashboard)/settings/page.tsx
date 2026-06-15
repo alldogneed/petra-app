@@ -50,6 +50,7 @@ import {
   CalendarRange,
   AlertTriangle,
   ImagePlus,
+  Bot,
 } from "lucide-react";
 
 const RepeatIcon = Repeat;
@@ -64,6 +65,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { usePlan } from "@/hooks/usePlan";
 import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { PaywallCard } from "@/components/paywall/PaywallCard";
+import { McpConnectionsTab } from "@/components/settings/McpConnectionsTab";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -4404,7 +4406,7 @@ export default function SettingsPage() {
   const { isOwner, isManager } = useAuth();
   const { isFree, isBasic, isGroomer, can } = usePlan();
   const invoicingParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<"business" | "booking" | "boarding" | "team" | "payments" | "integrations" | "data" | "messages" | "service-dogs" | "security">(
+  const [activeTab, setActiveTab] = useState<"business" | "booking" | "boarding" | "team" | "payments" | "integrations" | "data" | "messages" | "service-dogs" | "security" | "ai-agents">(
     gcalParam ? "integrations" : invoicingParam === "booking" ? "booking" : invoicingParam === "boarding" ? "boarding" : invoicingParam === "payments" ? "payments" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : invoicingParam === "security" ? "security" : "business"
   );
 
@@ -4424,6 +4426,7 @@ export default function SettingsPage() {
     ...(!isGroomer ? [{ id: "service-dogs" as const, label: "כלבי שירות", icon: PawPrint }] : []),
     { id: "data" as const, label: "נתונים", icon: Database },
     { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
+    { id: "ai-agents" as const, label: "עוזרי AI", icon: Bot },
     { id: "security" as const, label: "אבטחה", icon: Shield },
   ];
 
@@ -4502,6 +4505,11 @@ export default function SettingsPage() {
         isFree
           ? <PaywallCard title="אינטגרציות" description="חבר יומן Google, WhatsApp ועוד — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
           : <IntegrationsTab />
+      )}
+      {activeTab === "ai-agents" && (
+        isFree
+          ? <PaywallCard title="עוזרי AI" description="חבר את העסק שלך ל-Claude, ChatGPT ועוד — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
+          : <McpConnectionsTab />
       )}
       {activeTab === "security" && <SecurityTab />}
     </div>

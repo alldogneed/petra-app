@@ -65,6 +65,10 @@ export async function GET(request: NextRequest) {
             authProvider: user.passwordHash ? "both" : "google",
             avatarUrl: user.avatarUrl || profile.picture || null,
           },
+          select: {
+            id: true, email: true, name: true, googleId: true, avatarUrl: true,
+            passwordHash: true, authProvider: true, isActive: true,
+          },
         });
       }
     } else {
@@ -77,6 +81,10 @@ export async function GET(request: NextRequest) {
           authProvider: "google",
           avatarUrl: profile.picture || null,
           passwordHash: null,
+        },
+        select: {
+          id: true, email: true, name: true, googleId: true, avatarUrl: true,
+          passwordHash: true, authProvider: true, isActive: true,
         },
       });
       isNewUser = true;

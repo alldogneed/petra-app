@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { scheduleRemindersForNewParticipant } from "@/lib/reminder-service";
+import { addGroupParticipant, removeGroupParticipant, ServiceError } from "@/services/training";
 
-// POST /api/training-groups/[id]/participants – add a participant to the group
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -20,65 +20,19 @@ export async function POST(
       return NextResponse.json({ error: "customerId and dogId are required" }, { status: 400 });
     }
 
-    // Verify group belongs to this business FIRST (avoid leaking enrollment
-    // state of other businesses' groups via the duplicate check), then capacity.
-    const group = await prisma.trainingGroup.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
-      select: { maxParticipants: true, _count: { select: { participants: true } } },
-    });
-
-    if (!group) {
-      return NextResponse.json({ error: "Training group not found" }, { status: 404 });
-    }
-    if (group.maxParticipants && group._count.participants >= group.maxParticipants) {
-      return NextResponse.json({ error: "Group is full" }, { status: 400 });
-    }
-
-    // Verify customer belongs to this business
-    const customer = await prisma.customer.findFirst({
-      where: { id: customerId, businessId: authResult.businessId },
-      select: { id: true },
-    });
-    if (!customer) {
-      return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
-    }
-    // Verify dog belongs to this business AND to the given customer
-    // (prevents enrolling Customer A with Customer B's pet)
-    const dog = await prisma.pet.findFirst({
-      where: { id: dogId, customerId },
-      select: { id: true },
-    });
-    if (!dog) {
-      return NextResponse.json({ error: "הכלב אינו שייך ללקוח שנבחר" }, { status: 404 });
+    let participant;
+    try {
+      participant = await addGroupParticipant(authResult.businessId, prisma, params.id, { customerId, dogId });
+    } catch (e) {
+      if (e instanceof ServiceError) {
+        return NextResponse.json(
+          { error: e.message },
+          { status: e.code === "NOT_FOUND" ? 404 : e.code === "CONFLICT" ? 409 : 400 }
+        );
+      }
+      throw e;
     }
 
-    // Check if already enrolled (after ownership is established)
-    const existing = await prisma.trainingGroupParticipant.findUnique({
-      where: {
-        trainingGroupId_dogId: {
-          trainingGroupId: params.id,
-          dogId,
-        },
-      },
-    });
-    if (existing) {
-      return NextResponse.json({ error: "הכלב כבר רשום לקבוצה זו" }, { status: 409 });
-    }
-
-    const participant = await prisma.trainingGroupParticipant.create({
-      data: {
-        trainingGroupId: params.id,
-        customerId,
-        dogId,
-      },
-      include: {
-        dog: { select: { id: true, name: true, species: true, breed: true } },
-        customer: { select: { id: true, name: true, phone: true } },
-      },
-    });
-
-    // Schedule reminders for this participant's upcoming sessions (awaited —
-    // Vercel kills unawaited promises).
     try {
       await scheduleRemindersForNewParticipant(params.id, participant.id);
     } catch (err) {
@@ -92,7 +46,6 @@ export async function POST(
   }
 }
 
-// DELETE /api/training-groups/[id]/participants – remove participant (pass participantId in body)
 export async function DELETE(req: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(req);
@@ -105,18 +58,14 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "participantId is required" }, { status: 400 });
     }
 
-    // Verify participant belongs to a group owned by this business
-    const participant = await prisma.trainingGroupParticipant.findUnique({
-      where: { id: participantId },
-      select: { trainingGroup: { select: { businessId: true } } },
-    });
-    if (!participant || participant.trainingGroup.businessId !== authResult.businessId) {
-      return NextResponse.json({ error: "Participant not found" }, { status: 404 });
+    try {
+      await removeGroupParticipant(authResult.businessId, prisma, participantId);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "Participant not found" }, { status: 404 });
+      }
+      throw e;
     }
-
-    await prisma.trainingGroupParticipant.delete({
-      where: { id: participantId },
-    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

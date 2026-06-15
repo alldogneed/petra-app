@@ -2,8 +2,9 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { updateRoom, deleteRoom, ServiceError } from "@/services/boarding";
+import type { UpdateRoomData } from "@/services/boarding";
 
-// PATCH /api/boarding/rooms/[id] – update room name / capacity / type / status
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -15,44 +16,20 @@ export async function PATCH(
     const body = await request.json();
     const { name, capacity, type, status, pricePerNight } = body;
 
-    const VALID_ROOM_STATUSES = ["available", "needs_cleaning"];
-    if (status !== undefined && !VALID_ROOM_STATUSES.includes(status)) {
-      return NextResponse.json({ error: "סטטוס חדר לא תקין" }, { status: 400 });
+    const data: UpdateRoomData = {};
+    if (name !== undefined) data.name = name;
+    if (capacity !== undefined) data.capacity = Number(capacity);
+    if (type !== undefined) data.type = type;
+    if (status !== undefined) data.status = status;
+    if ("pricePerNight" in body) data.pricePerNight = pricePerNight != null ? Number(pricePerNight) : null;
+
+    let room;
+    try {
+      room = await updateRoom(authResult.businessId, prisma, params.id, data);
+    } catch (e) {
+      if (e instanceof ServiceError) return NextResponse.json({ error: e.message }, { status: 400 });
+      throw e;
     }
-
-    const parsedPrice = "pricePerNight" in body && pricePerNight != null ? Number(pricePerNight) : undefined;
-    if (parsedPrice !== undefined && parsedPrice !== null && (isNaN(parsedPrice) || parsedPrice < 0)) {
-      return NextResponse.json({ error: "מחיר ללילה לא תקין" }, { status: 400 });
-    }
-
-    const room = await prisma.room.update({
-      where: { id: params.id, businessId: authResult.businessId },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(capacity !== undefined && { capacity: Number(capacity) }),
-        ...(type !== undefined && { type }),
-        ...(status !== undefined && { status }),
-        ...("pricePerNight" in body && { pricePerNight: pricePerNight != null ? parsedPrice : null }),
-      },
-      include: {
-        _count: {
-          select: {
-            boardingStays: {
-              where: { status: { in: ["reserved", "checked_in"] } },
-            },
-          },
-        },
-        boardingStays: {
-          where: { status: { in: ["reserved", "checked_in"] } },
-          include: {
-            pet: { select: { id: true, name: true, breed: true, species: true } },
-            customer: { select: { id: true, name: true } },
-          },
-          orderBy: { checkIn: "asc" },
-        },
-      },
-    });
-
     return NextResponse.json(room);
   } catch (error) {
     console.error("PATCH room error:", error);
@@ -60,7 +37,6 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/boarding/rooms/[id] – delete room if no active stays
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -69,24 +45,14 @@ export async function DELETE(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const activeStays = await prisma.boardingStay.count({
-      where: {
-        roomId: params.id,
-        businessId: authResult.businessId,
-        status: { in: ["reserved", "checked_in"] },
-      },
-    });
-
-    if (activeStays > 0) {
-      return NextResponse.json(
-        { error: "לא ניתן למחוק חדר עם שהיות פעילות" },
-        { status: 409 }
-      );
+    try {
+      await deleteRoom(authResult.businessId, prisma, params.id);
+    } catch (e) {
+      if (e instanceof ServiceError) {
+        return NextResponse.json({ error: e.message }, { status: e.code === "CONFLICT" ? 409 : 400 });
+      }
+      throw e;
     }
-
-    await prisma.room.delete({
-      where: { id: params.id, businessId: authResult.businessId },
-    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE room error:", error);

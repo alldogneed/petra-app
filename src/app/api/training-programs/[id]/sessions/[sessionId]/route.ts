@@ -6,8 +6,8 @@ import {
   scheduleTrainingSessionReminder,
   cancelTrainingSessionReminder,
 } from "@/lib/reminder-service";
+import { updateProgramSession, deleteProgramSession, ServiceError } from "@/services/training";
 
-// PATCH /api/training-programs/[id]/sessions/[sessionId] — edit a session
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string; sessionId: string } }
@@ -16,69 +16,61 @@ export async function PATCH(
     const authResult = await requireBusinessAuth(req);
     if (isGuardError(authResult)) return authResult;
 
-    // Verify program belongs to this business
-    const program = await prisma.trainingProgram.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
-      include: {
-        customer: { select: { id: true, name: true, phone: true } },
-        dog: { select: { name: true } },
-      },
-    });
-    if (!program) {
-      return NextResponse.json({ error: "Training program not found" }, { status: 404 });
-    }
-
-    const session = await prisma.trainingProgramSession.findFirst({
-      where: { id: params.sessionId, trainingProgramId: params.id },
-    });
-    if (!session) {
-      return NextResponse.json({ error: "Session not found" }, { status: 404 });
-    }
-
     const body = await req.json();
     const { sessionDate, durationMinutes, summary, rating,
             practiceItems, nextSessionGoals, homeworkForCustomer, trainerName } = body;
 
-    const data: Record<string, unknown> = {};
-    let dateChanged = false;
+    let parsedDate: Date | undefined;
     if (sessionDate !== undefined) {
-      const d = new Date(sessionDate);
-      if (isNaN(d.getTime())) return NextResponse.json({ error: "תאריך לא חוקי" }, { status: 400 });
-      data.sessionDate = d;
-      dateChanged = d.getTime() !== session.sessionDate.getTime();
-    }
-    if (durationMinutes !== undefined) {
-      const parsed = parseInt(durationMinutes, 10);
-      data.durationMinutes = Number.isFinite(parsed) && parsed > 0 ? parsed : 60;
-    }
-    if (summary !== undefined) data.summary = summary || null;
-    if (rating !== undefined) {
-      if (rating == null) {
-        data.rating = null;
-      } else {
-        const parsedRating = parseInt(rating, 10);
-        if (!Number.isFinite(parsedRating) || parsedRating < 1 || parsedRating > 5) {
-          return NextResponse.json({ error: "דירוג חייב להיות בין 1 ל-5" }, { status: 400 });
-        }
-        data.rating = parsedRating;
+      parsedDate = new Date(sessionDate);
+      if (isNaN(parsedDate.getTime())) {
+        return NextResponse.json({ error: "תאריך לא חוקי" }, { status: 400 });
       }
     }
-    if (practiceItems !== undefined) data.practiceItems = practiceItems || null;
-    if (nextSessionGoals !== undefined) data.nextSessionGoals = nextSessionGoals || null;
-    if (homeworkForCustomer !== undefined) data.homeworkForCustomer = homeworkForCustomer || null;
-    if (trainerName !== undefined) data.trainerName = trainerName || null;
 
-    // Defence-in-depth: use the verified session's id
-    const updated = await prisma.trainingProgramSession.update({
-      where: { id: session.id },
-      data,
-    });
+    let parsedDuration: number | undefined;
+    if (durationMinutes !== undefined) {
+      const n = parseInt(durationMinutes, 10);
+      parsedDuration = Number.isFinite(n) && n > 0 ? n : 60;
+    }
 
-    // If the date moved, cancel the old reminder and reschedule (awaited —
-    // Vercel kills unawaited promises).
+    let parsedRating: number | null | undefined;
+    if (rating !== undefined) {
+      if (rating == null) {
+        parsedRating = null;
+      } else {
+        const r = parseInt(rating, 10);
+        if (!Number.isFinite(r) || r < 1 || r > 5) {
+          return NextResponse.json({ error: "דירוג חייב להיות בין 1 ל-5" }, { status: 400 });
+        }
+        parsedRating = r;
+      }
+    }
+
+    let result;
+    try {
+      result = await updateProgramSession(authResult.businessId, prisma, params.id, params.sessionId, {
+        sessionDate: parsedDate,
+        durationMinutes: parsedDuration,
+        summary: summary !== undefined ? (summary || null) : undefined,
+        rating: parsedRating,
+        practiceItems: practiceItems !== undefined ? (practiceItems || null) : undefined,
+        nextSessionGoals: nextSessionGoals !== undefined ? (nextSessionGoals || null) : undefined,
+        homeworkForCustomer: homeworkForCustomer !== undefined ? (homeworkForCustomer || null) : undefined,
+        trainerName: trainerName !== undefined ? (trainerName || null) : undefined,
+      });
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: e.message }, { status: 404 });
+      }
+      throw e;
+    }
+
+    const { updated, dateChanged, program } = result;
+
     if (dateChanged && program.customer) {
       try {
-        await cancelTrainingSessionReminder(session.id);
+        await cancelTrainingSessionReminder(params.sessionId);
         await scheduleTrainingSessionReminder({
           sessionId: updated.id,
           sessionDate: updated.sessionDate,
@@ -101,7 +93,6 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/training-programs/[id]/sessions/[sessionId] — delete a session
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string; sessionId: string } }
@@ -110,46 +101,21 @@ export async function DELETE(
     const authResult = await requireBusinessAuth(req);
     if (isGuardError(authResult)) return authResult;
 
-    // Verify program belongs to this business
-    const program = await prisma.trainingProgram.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
-    });
-    if (!program) {
-      return NextResponse.json({ error: "Training program not found" }, { status: 404 });
-    }
-
-    const session = await prisma.trainingProgramSession.findFirst({
-      where: { id: params.sessionId, trainingProgramId: params.id },
-    });
-    if (!session) {
-      return NextResponse.json({ error: "Session not found" }, { status: 404 });
-    }
-
-    // If service dog, revert accumulated training hours
-    if (session.status === "COMPLETED" && program.trainingType === "SERVICE_DOG" && session.durationMinutes) {
-      const sdProfile = await prisma.serviceDogProfile.findFirst({
-        where: { petId: program.dogId, businessId: authResult.businessId },
-      });
-      if (sdProfile) {
-        await prisma.serviceDogProfile.update({
-          where: { id: sdProfile.id },
-          data: { trainingTotalHours: { decrement: session.durationMinutes / 60 } },
-        });
-      }
-    }
-
-    // Cancel any pending reminder so it doesn't fire for a deleted session
-    // (awaited — Vercel kills unawaited promises).
+    let result;
     try {
-      await cancelTrainingSessionReminder(session.id);
+      result = await deleteProgramSession(authResult.businessId, prisma, params.id, params.sessionId);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: e.message }, { status: 404 });
+      }
+      throw e;
+    }
+
+    try {
+      await cancelTrainingSessionReminder(result.session.id);
     } catch (err) {
       console.error("cancelTrainingSessionReminder failed (non-critical):", err);
     }
-
-    // Defence-in-depth: use the verified session's id
-    await prisma.trainingProgramSession.delete({
-      where: { id: session.id },
-    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

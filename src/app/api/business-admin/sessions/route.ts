@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isGuardError } from "@/lib/auth-guards";
 import { getCurrentUser } from "@/lib/auth";
+import { getActiveBusinessSessions } from "@/services/business";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,44 +15,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const bizId = user.businessId;
-
-    // Get ONLY users who are members of THIS business
-    const businessUsers = await prisma.businessUser.findMany({
-      where: { businessId: bizId },
-      select: { userId: true, role: true },
-    });
-    const bizUserIds = businessUsers.map((bu) => bu.userId);
-    const roleMap = Object.fromEntries(businessUsers.map((bu) => [bu.userId, bu.role]));
-
-    // Sessions filtered strictly to this business's members
-    // SECURITY: select only safe fields — never expose token, impersonation metadata
-    const sessions = await prisma.adminSession.findMany({
-      where: {
-        userId: { in: bizUserIds },
-        expiresAt: { gt: new Date() },
-      },
-      select: {
-        id: true,
-        userId: true,
-        userAgent: true,
-        ipAddress: true,
-        lastSeenAt: true,
-        createdAt: true,
-        expiresAt: true,
-        user: {
-          select: { id: true, name: true, email: true, avatarUrl: true },
-        },
-      },
-      orderBy: { lastSeenAt: "desc" },
-    });
-
-    const enriched = sessions.map((s) => ({
-      ...s,
-      businessRole: roleMap[s.userId] ?? "user",
-    }));
-
-    return NextResponse.json(enriched);
+    const sessions = await getActiveBusinessSessions(user.businessId, prisma);
+    return NextResponse.json(sessions);
   } catch (error) {
     console.error("business-admin/sessions GET error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

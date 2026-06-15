@@ -16,6 +16,7 @@ import {
   Megaphone,
   LifeBuoy,
   ShieldCheck,
+  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FullSession } from "@/lib/session";
@@ -30,6 +31,7 @@ const nav = [
   { name: "משתמשים", href: "/owner/users", icon: Users },
   { name: "הסכמות תנאים", href: "/owner/consents", icon: ShieldCheck },
   { name: "יומן פעולות", href: "/owner/audit-logs", icon: FileText },
+  { name: "עוזרי AI (MCP)", href: "/owner/mcp", icon: Bot },
   { name: "הגדרות", href: "/owner/settings", icon: Settings },
 ];
 

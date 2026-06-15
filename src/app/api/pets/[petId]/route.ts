@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
+import { getPet, updatePet, deletePet, ServiceError, type UpdatePetInput } from "@/services/pets";
 
 export async function GET(
   request: NextRequest,
@@ -13,39 +14,8 @@ export async function GET(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const pet = await prisma.pet.findFirst({
-      where: {
-        id: params.petId,
-        OR: [
-          { customer: { businessId: authResult.businessId } },
-          { businessId: authResult.businessId },
-        ],
-      },
-      include: {
-        customer: { select: { id: true, name: true, phone: true, email: true } },
-        health: true,
-        behavior: true,
-        medications: { orderBy: { createdAt: "desc" } },
-        appointments: {
-          include: { service: { select: { name: true } } },
-          orderBy: { date: "desc" },
-          take: 20,
-        },
-        boardingStays: {
-          include: { room: { select: { name: true } } },
-          orderBy: { checkIn: "desc" },
-          take: 10,
-        },
-        trainingPrograms: {
-          orderBy: { createdAt: "desc" },
-          take: 5,
-        },
-      },
-    });
-
-    if (!pet) {
-      return NextResponse.json({ error: "Pet not found" }, { status: 404 });
-    }
+    const pet = await getPet(authResult.businessId, prisma, params.petId);
+    if (!pet) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
 
     return NextResponse.json(pet);
   } catch (error) {
@@ -62,75 +32,15 @@ export async function PATCH(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    // Verify the pet belongs to this business before updating
-    const existing = await prisma.pet.findFirst({
-      where: {
-        id: params.petId,
-        OR: [
-          { customer: { businessId: authResult.businessId } },
-          { businessId: authResult.businessId },
-        ],
-      },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "Pet not found" }, { status: 404 });
-    }
-
     const body = await request.json();
-    const { neuteredSpayed, neuteredSpayedDate, ...petData } = body;
-
-    // Input length validation
-    if (petData.name !== undefined && (typeof petData.name !== "string" || petData.name.length > 100)) {
-      return NextResponse.json({ error: "שם חיית מחמד ארוך מדי (מקסימום 100 תווים)" }, { status: 400 });
-    }
-    if (petData.breed !== undefined && typeof petData.breed === "string" && petData.breed.length > 100) {
-      return NextResponse.json({ error: "גזע ארוך מדי (מקסימום 100 תווים)" }, { status: 400 });
-    }
-    if (petData.medicalNotes !== undefined && typeof petData.medicalNotes === "string" && petData.medicalNotes.length > 5000) {
-      return NextResponse.json({ error: "הערות רפואיות ארוכות מדי (מקסימום 5000 תווים)" }, { status: 400 });
-    }
-    if (petData.foodNotes !== undefined && typeof petData.foodNotes === "string" && petData.foodNotes.length > 2000) {
-      return NextResponse.json({ error: "הערות מזון ארוכות מדי (מקסימום 2000 תווים)" }, { status: 400 });
-    }
-    if (petData.behaviorNotes !== undefined && typeof petData.behaviorNotes === "string" && petData.behaviorNotes.length > 2000) {
-      return NextResponse.json({ error: "הערות התנהגות ארוכות מדי (מקסימום 2000 תווים)" }, { status: 400 });
-    }
-
-    const pet = await prisma.pet.update({
-      where: { id: params.petId },
-      data: {
-        ...(petData.name !== undefined && { name: petData.name }),
-        ...(petData.breed !== undefined && { breed: petData.breed || null }),
-        ...(petData.gender !== undefined && { gender: petData.gender || null }),
-        ...(petData.weight !== undefined && { weight: petData.weight ? parseFloat(petData.weight) : null }),
-        ...(petData.birthDate !== undefined && { birthDate: petData.birthDate ? new Date(petData.birthDate) : null }),
-        ...(petData.microchip !== undefined && { microchip: petData.microchip || null }),
-        ...(petData.color !== undefined && { color: petData.color || null }),
-        ...(petData.tags !== undefined && { tags: petData.tags }),
-        ...(petData.attachments !== undefined && { attachments: petData.attachments }),
-        ...(petData.medicalNotes !== undefined && { medicalNotes: petData.medicalNotes || null }),
-        ...(petData.foodNotes !== undefined && { foodNotes: petData.foodNotes || null }),
-        ...(petData.foodBrand !== undefined && { foodBrand: petData.foodBrand || null }),
-        ...(petData.foodGramsPerDay !== undefined && { foodGramsPerDay: petData.foodGramsPerDay != null ? parseFloat(petData.foodGramsPerDay) : null }),
-        ...(petData.foodFrequency !== undefined && { foodFrequency: petData.foodFrequency || null }),
-        ...(petData.behaviorNotes !== undefined && { behaviorNotes: petData.behaviorNotes || null }),
-      },
-      include: {
-        health: true,
-        behavior: true,
-      },
-    });
-
-    // Handle neuteredSpayed / neuteredSpayedDate via DogHealth
-    if (neuteredSpayed !== undefined || neuteredSpayedDate !== undefined) {
-      const healthData: Record<string, unknown> = {};
-      if (neuteredSpayed !== undefined) healthData.neuteredSpayed = Boolean(neuteredSpayed);
-      if (neuteredSpayedDate !== undefined) healthData.neuteredSpayedDate = neuteredSpayedDate ? new Date(neuteredSpayedDate) : null;
-      await prisma.dogHealth.upsert({
-        where: { petId: params.petId },
-        create: { petId: params.petId, ...healthData },
-        update: healthData,
-      });
+    let pet;
+    try {
+      pet = await updatePet(authResult.businessId, prisma, params.petId, body as UpdatePetInput);
+    } catch (e) {
+      if (e instanceof ServiceError) {
+        return NextResponse.json({ error: e.message }, { status: e.code === "NOT_FOUND" ? 404 : 400 });
+      }
+      throw e;
     }
 
     return NextResponse.json(pet);
@@ -152,27 +62,16 @@ export async function DELETE(
     const membership = session.memberships.find((m) => m.businessId === businessId);
     const callerRole = (membership?.role ?? "user") as TenantRole;
 
-    // Staff cannot delete at all
     if (callerRole === "user" || callerRole === "volunteer") {
       return NextResponse.json({ error: "אין הרשאה למחיקת חיית מחמד" }, { status: 403 });
     }
 
-    const existing = await prisma.pet.findFirst({
-      where: {
-        id: params.petId,
-        OR: [
-          { customer: { businessId } },
-          { businessId },
-        ],
-      },
-      select: { id: true, name: true },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "Pet not found" }, { status: 404 });
-    }
-
-    // Manager → route to pending approval
     if (callerRole === "manager") {
+      const existing = await prisma.pet.findFirst({
+        where: { id: params.petId, OR: [{ customer: { businessId } }, { businessId }] },
+        select: { id: true, name: true },
+      });
+      if (!existing) return NextResponse.json({ error: "Pet not found" }, { status: 404 });
       const approval = await createPendingApproval({
         businessId,
         requestedByUserId: session.user.id,
@@ -186,25 +85,19 @@ export async function DELETE(
       );
     }
 
-    // Owner → require typed confirmation header
     const confirmHeader = request.headers.get("x-confirm-action");
     if (confirmHeader !== `DELETE_PET_${params.petId}`) {
-      return NextResponse.json(
-        { error: "נדרש אישור מפורש למחיקה", requireConfirmation: true },
-        { status: 428 }
-      );
+      return NextResponse.json({ error: "נדרש אישור מפורש למחיקה", requireConfirmation: true }, { status: 428 });
     }
 
-    // Delete related records first (sequential — no $transaction due to Supabase PgBouncer)
-    await prisma.dogMedication.deleteMany({ where: { petId: params.petId } });
-    await prisma.dogHealth.deleteMany({ where: { petId: params.petId } });
-    await prisma.dogBehavior.deleteMany({ where: { petId: params.petId } });
-    await prisma.petWeightEntry.deleteMany({ where: { petId: params.petId } });
-    // TrainingGroupParticipant.dog has no onDelete cascade — remove enrollments
-    // explicitly or pet.delete throws an FK violation. Attendance rows cascade
-    // from the participant.
-    await prisma.trainingGroupParticipant.deleteMany({ where: { dogId: params.petId } });
-    await prisma.pet.delete({ where: { id: params.petId } });
+    try {
+      await deletePet(businessId, prisma, params.petId);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "Pet not found" }, { status: 404 });
+      }
+      throw e;
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

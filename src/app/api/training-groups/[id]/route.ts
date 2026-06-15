@@ -7,6 +7,12 @@ import {
   cancelGroupSessionReminders,
   rescheduleGroupSessionReminders,
 } from "@/lib/reminder-service";
+import {
+  getTrainingGroup,
+  updateTrainingGroup,
+  deleteTrainingGroup,
+  ServiceError,
+} from "@/services/training";
 
 export async function GET(
   request: NextRequest,
@@ -16,38 +22,15 @@ export async function GET(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const group = await prisma.trainingGroup.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
-      include: {
-        participants: {
-          include: {
-            dog: true,
-            customer: true,
-          },
-        },
-        sessions: {
-          orderBy: { sessionDatetime: "desc" },
-          include: {
-            attendance: {
-              include: {
-                participant: {
-                  include: { dog: true, customer: true },
-                },
-              },
-            },
-          },
-        },
-        _count: {
-          select: { participants: true, sessions: true },
-        },
-      },
-    });
-
-    if (!group) {
-      return NextResponse.json({ error: "קבוצה לא נמצאה" }, { status: 404 });
+    try {
+      const group = await getTrainingGroup(authResult.businessId, prisma, params.id);
+      return NextResponse.json(group);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "קבוצה לא נמצאה" }, { status: 404 });
+      }
+      throw e;
     }
-
-    return NextResponse.json(group);
   } catch (error) {
     console.error("GET training group error:", error);
     return NextResponse.json({ error: "שגיאה בטעינת קבוצה" }, { status: 500 });
@@ -62,43 +45,25 @@ export async function PATCH(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    // Verify group belongs to this business
-    const existing = await prisma.trainingGroup.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "קבוצה לא נמצאה" }, { status: 404 });
-    }
-
     const body = await request.json();
 
     if (body.groupType !== undefined && !GROUP_TYPE_LABELS[body.groupType]) {
       return NextResponse.json({ error: "סוג קבוצה לא תקין" }, { status: 400 });
     }
 
-    const group = await prisma.trainingGroup.update({
-      where: { id: params.id, businessId: authResult.businessId },
-      data: {
-        ...(body.name !== undefined && { name: body.name }),
-        ...(body.groupType !== undefined && { groupType: body.groupType }),
-        ...(body.location !== undefined && { location: body.location }),
-        ...(body.defaultDayOfWeek !== undefined && { defaultDayOfWeek: body.defaultDayOfWeek }),
-        ...(body.defaultTime !== undefined && { defaultTime: body.defaultTime }),
-        ...(body.maxParticipants !== undefined && { maxParticipants: body.maxParticipants }),
-        ...(body.notes !== undefined && { notes: body.notes }),
-        ...(body.isActive !== undefined && { isActive: body.isActive }),
-        ...(body.reminderEnabled !== undefined && { reminderEnabled: !!body.reminderEnabled }),
-        ...(body.reminderLeadHours != null && { reminderLeadHours: body.reminderLeadHours }),
-        ...(body.reminderSameDay !== undefined && { reminderSameDay: !!body.reminderSameDay }),
-      },
-    });
+    let result;
+    try {
+      result = await updateTrainingGroup(authResult.businessId, prisma, params.id, body);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "קבוצה לא נמצאה" }, { status: 404 });
+      }
+      throw e;
+    }
 
-    // If reminder settings changed, resync pending reminders for upcoming sessions.
-    const reminderSettingsChanged =
-      (body.reminderEnabled !== undefined && !!body.reminderEnabled !== existing.reminderEnabled) ||
-      (body.reminderLeadHours != null && body.reminderLeadHours !== existing.reminderLeadHours) ||
-      (body.reminderSameDay !== undefined && !!body.reminderSameDay !== existing.reminderSameDay);
+    const { group, reminderSettingsChanged, hadReminderEnabled } = result;
 
+    // Resync reminders for upcoming sessions when reminder settings changed
     if (reminderSettingsChanged) {
       try {
         const upcoming = await prisma.trainingGroupSession.findMany({
@@ -121,6 +86,9 @@ export async function PATCH(
       }
     }
 
+    // Suppress unused variable warning
+    void hadReminderEnabled;
+
     return NextResponse.json(group);
   } catch (error) {
     console.error("PATCH training group error:", error);
@@ -136,25 +104,25 @@ export async function DELETE(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const existing = await prisma.trainingGroup.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
-      include: { sessions: { select: { id: true } } },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "קבוצה לא נמצאה" }, { status: 404 });
+    let sessionIds: string[];
+    try {
+      ({ sessionIds } = await deleteTrainingGroup(authResult.businessId, prisma, params.id));
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "קבוצה לא נמצאה" }, { status: 404 });
+      }
+      throw e;
     }
 
-    // Cancel pending reminders for every session (loose relatedEntityId — no FK
-    // cascade) so they don't fire after the group is deleted.
+    // Cancel pending reminders (loose relatedEntityId — no FK cascade)
     try {
-      for (const s of existing.sessions) {
-        await cancelGroupSessionReminders(s.id);
+      for (const id of sessionIds) {
+        await cancelGroupSessionReminders(id);
       }
     } catch (err) {
       console.error("cancelGroupSessionReminders (group delete) failed (non-critical):", err);
     }
 
-    await prisma.trainingGroup.delete({ where: { id: params.id, businessId: authResult.businessId } });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE training group error:", error);

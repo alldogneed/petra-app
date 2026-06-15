@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { listTrainingPackages, createTrainingPackage } from "@/services/training";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,18 +13,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const includeInactive = searchParams.get("includeInactive") === "true";
 
-    const packages = await prisma.trainingPackage.findMany({
-      where: {
-        businessId: authResult.businessId,
-        ...(includeInactive ? {} : { isActive: true }),
-      },
-      include: {
-        _count: { select: { programs: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    });
-
+    const packages = await listTrainingPackages(authResult.businessId, prisma, { includeInactive });
     return NextResponse.json({ packages });
   } catch (error) {
     console.error("GET training-packages error:", error);
@@ -56,8 +46,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "מחיר לא תקין" }, { status: 400 });
     }
     if (durationDays) {
-      const parsedDays = parseInt(durationDays);
-      if (!Number.isFinite(parsedDays) || parsedDays < 1) {
+      const n = parseInt(durationDays);
+      if (!Number.isFinite(n) || n < 1) {
         return NextResponse.json({ error: "משך ימים לא תקין" }, { status: 400 });
       }
     }
@@ -68,19 +58,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "תיאור ארוך מדי (מקסימום 2000 תווים)" }, { status: 400 });
     }
 
-    const pkg = await prisma.trainingPackage.create({
-      data: {
-        businessId: authResult.businessId,
-        name,
-        type: type || "HOME",
-        sessions: parsedSessions,
-        durationDays: durationDays ? parseInt(durationDays) : null,
-        price: parsedPrice,
-        description: description || null,
-      },
-      include: {
-        _count: { select: { programs: true } },
-      },
+    const pkg = await createTrainingPackage(authResult.businessId, prisma, {
+      name,
+      type,
+      sessions: parsedSessions,
+      durationDays: durationDays ? parseInt(durationDays) : null,
+      price: parsedPrice,
+      description: description || null,
     });
 
     return NextResponse.json(pkg, { status: 201 });

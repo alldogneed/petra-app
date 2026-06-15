@@ -33,8 +33,10 @@ export async function POST(
 
     const formData = await request.formData();
     const file = formData.get("file") as File;
-    const name = (formData.get("name") as string | null)?.trim() || "";
-    const docType = (formData.get("docType") as string | null) || "OTHER";
+    const name = ((formData.get("name") as string | null)?.trim() || "").replace(/[<>"'&]/g, "").slice(0, 255);
+    const VALID_DOC_TYPES = ["ID", "MEDICAL", "CERTIFICATE", "CONTRACT", "EVALUATION", "TRAINING", "INSURANCE", "LEGAL", "CORRESPONDENCE", "OTHER"];
+    const rawDocType = (formData.get("docType") as string | null) || "OTHER";
+    const docType = VALID_DOC_TYPES.includes(rawDocType) ? rawDocType : "OTHER";
 
     if (!file) return NextResponse.json({ error: "לא נבחר קובץ" }, { status: 400 });
     if (!name) return NextResponse.json({ error: "שם המסמך חסר" }, { status: 400 });
@@ -69,7 +71,7 @@ export async function POST(
       docType,
       uploadedAt: new Date().toISOString(),
       isFile: true,
-      fileName: file.name,
+      fileName: file.name.replace(/[<>"'&]/g, "").slice(0, 255),
       fileSize: file.size,
       ...(contactPersonId && { contactPersonId }),
     };

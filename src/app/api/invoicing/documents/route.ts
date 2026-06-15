@@ -65,6 +65,9 @@ export async function POST(request: NextRequest) {
     if (!customerId) {
       return NextResponse.json({ error: "חובה לבחור לקוח" }, { status: 400 });
     }
+    if (notes && typeof notes === "string" && notes.length > 2000) {
+      return NextResponse.json({ error: "הערות ארוכות מדי (עד 2000 תווים)" }, { status: 400 });
+    }
 
     // Verify customer exists
     const customer = await prisma.customer.findFirst({
@@ -103,6 +106,9 @@ export async function POST(request: NextRequest) {
         );
       }
     } else if (lines && Array.isArray(lines)) {
+      if (lines.length > 200) {
+        return NextResponse.json({ error: "מקסימום 200 שורות במסמך" }, { status: 400 });
+      }
       linesJson = JSON.stringify(lines);
       subtotal = lines.reduce(
         (sum: number, l: { quantity: number; unitPrice: number }) =>

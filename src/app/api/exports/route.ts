@@ -33,8 +33,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { exportType, format, outputMode, filterFromDate, filterToDate } = body;
 
-    if (!exportType) {
-      return NextResponse.json({ error: "exportType is required" }, { status: 400 });
+    const VALID_EXPORT_TYPES = ["customers", "appointments", "orders", "payments", "leads", "boarding", "invoices", "pets", "service-dogs", "training-programs"];
+    const VALID_FORMATS = ["xlsx", "csv", "pdf"];
+    const VALID_OUTPUT_MODES = ["separate", "combined"];
+
+    if (!exportType || !VALID_EXPORT_TYPES.includes(exportType)) {
+      return NextResponse.json({ error: "exportType is required and must be valid" }, { status: 400 });
     }
 
     const exportJob = await prisma.exportJob.create({
@@ -42,8 +46,8 @@ export async function POST(request: NextRequest) {
         businessId,
         userId: session.user.id,
         exportType,
-        format: format || "xlsx",
-        outputMode: outputMode || "separate",
+        format: VALID_FORMATS.includes(format) ? format : "xlsx",
+        outputMode: VALID_OUTPUT_MODES.includes(outputMode) ? outputMode : "separate",
         status: "pending",
         filterFromDate: filterFromDate ? new Date(filterFromDate) : null,
         filterToDate: filterToDate ? new Date(filterToDate) : null,

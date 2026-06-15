@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic';
-
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { listWeightEntries, addWeightEntry, deleteWeightEntry, ServiceError } from "@/services/pets";
 
 export async function GET(
   request: NextRequest,
@@ -11,24 +11,16 @@ export async function GET(
   try {
     const auth = await requireBusinessAuth(request);
     if (isGuardError(auth)) return auth;
-    const { businessId } = auth;
 
-    // Verify pet belongs to this business
-    const pet = await prisma.pet.findFirst({
-      where: {
-        id: params.petId,
-        OR: [
-          { customer: { businessId } },
-          { businessId },
-        ],
-      },
-    });
-    if (!pet) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-    const entries = await prisma.petWeightEntry.findMany({
-      where: { petId: params.petId, businessId },
-      orderBy: { recordedAt: "desc" },
-    });
+    let entries;
+    try {
+      entries = await listWeightEntries(auth.businessId, prisma, params.petId);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      throw e;
+    }
 
     return NextResponse.json({ entries });
   } catch (error) {
@@ -44,35 +36,17 @@ export async function POST(
   try {
     const auth = await requireBusinessAuth(request);
     if (isGuardError(auth)) return auth;
-    const { businessId } = auth;
-
-    // Verify pet belongs to this business
-    const pet = await prisma.pet.findFirst({
-      where: {
-        id: params.petId,
-        OR: [
-          { customer: { businessId } },
-          { businessId },
-        ],
-      },
-    });
-    if (!pet) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const body = await request.json();
-    const weight = parseFloat(body.weight);
-    if (!Number.isFinite(weight) || weight <= 0) {
-      return NextResponse.json({ error: "משקל לא תקין" }, { status: 400 });
+    let entry;
+    try {
+      entry = await addWeightEntry(auth.businessId, prisma, params.petId, body);
+    } catch (e) {
+      if (e instanceof ServiceError) {
+        return NextResponse.json({ error: e.message }, { status: e.code === "NOT_FOUND" ? 404 : 400 });
+      }
+      throw e;
     }
-
-    const entry = await prisma.petWeightEntry.create({
-      data: {
-        petId: params.petId,
-        businessId,
-        weight,
-        recordedAt: body.recordedAt ? new Date(body.recordedAt) : new Date(),
-        notes: body.notes ?? null,
-      },
-    });
 
     return NextResponse.json(entry);
   } catch (error) {
@@ -88,15 +62,12 @@ export async function DELETE(
   try {
     const auth = await requireBusinessAuth(request);
     if (isGuardError(auth)) return auth;
-    const { businessId } = auth;
 
     const { searchParams } = new URL(request.url);
     const entryId = searchParams.get("entryId");
     if (!entryId) return NextResponse.json({ error: "entryId required" }, { status: 400 });
 
-    await prisma.petWeightEntry.deleteMany({
-      where: { id: entryId, petId: params.petId, businessId },
-    });
+    await deleteWeightEntry(auth.businessId, prisma, params.petId, entryId);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

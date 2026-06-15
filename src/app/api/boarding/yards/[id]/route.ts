@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { updateYard, deleteYard, ServiceError } from "@/services/boarding";
+import type { UpdateYardData } from "@/services/boarding";
 
 export async function PATCH(
   request: NextRequest,
@@ -14,44 +16,20 @@ export async function PATCH(
     const body = await request.json();
     const { name, capacity, type, status, pricePerSession } = body;
 
-    const VALID_YARD_STATUSES = ["available", "needs_cleaning"];
-    if (status !== undefined && !VALID_YARD_STATUSES.includes(status)) {
-      return NextResponse.json({ error: "סטטוס חצר לא תקין" }, { status: 400 });
+    const data: UpdateYardData = {};
+    if (name !== undefined) data.name = name;
+    if (capacity !== undefined) data.capacity = Number(capacity);
+    if (type !== undefined) data.type = type;
+    if (status !== undefined) data.status = status;
+    if ("pricePerSession" in body) data.pricePerSession = pricePerSession != null ? Number(pricePerSession) : null;
+
+    let yard;
+    try {
+      yard = await updateYard(authResult.businessId, prisma, params.id, data);
+    } catch (e) {
+      if (e instanceof ServiceError) return NextResponse.json({ error: e.message }, { status: 400 });
+      throw e;
     }
-
-    const parsedPrice = "pricePerSession" in body && pricePerSession != null ? Number(pricePerSession) : undefined;
-    if (parsedPrice !== undefined && parsedPrice !== null && (isNaN(parsedPrice) || parsedPrice < 0)) {
-      return NextResponse.json({ error: "מחיר לשהייה לא תקין" }, { status: 400 });
-    }
-
-    const yard = await prisma.yard.update({
-      where: { id: params.id, businessId: authResult.businessId },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(capacity !== undefined && { capacity: Number(capacity) }),
-        ...(type !== undefined && { type }),
-        ...(status !== undefined && { status }),
-        ...("pricePerSession" in body && { pricePerSession: pricePerSession != null ? parsedPrice : null }),
-      },
-      include: {
-        _count: {
-          select: {
-            boardingStays: {
-              where: { status: { in: ["reserved", "checked_in"] } },
-            },
-          },
-        },
-        boardingStays: {
-          where: { status: { in: ["reserved", "checked_in"] } },
-          include: {
-            pet: { select: { id: true, name: true, breed: true, species: true } },
-            customer: { select: { id: true, name: true } },
-          },
-          orderBy: { checkIn: "asc" },
-        },
-      },
-    });
-
     return NextResponse.json(yard);
   } catch (error) {
     console.error("PATCH yard error:", error);
@@ -67,24 +45,14 @@ export async function DELETE(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const activeStays = await prisma.boardingStay.count({
-      where: {
-        yardId: params.id,
-        businessId: authResult.businessId,
-        status: { in: ["reserved", "checked_in"] },
-      },
-    });
-
-    if (activeStays > 0) {
-      return NextResponse.json(
-        { error: "לא ניתן למחוק חצר עם שהיות פעילות" },
-        { status: 409 }
-      );
+    try {
+      await deleteYard(authResult.businessId, prisma, params.id);
+    } catch (e) {
+      if (e instanceof ServiceError) {
+        return NextResponse.json({ error: e.message }, { status: e.code === "CONFLICT" ? 409 : 400 });
+      }
+      throw e;
     }
-
-    await prisma.yard.delete({
-      where: { id: params.id, businessId: authResult.businessId },
-    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE yard error:", error);

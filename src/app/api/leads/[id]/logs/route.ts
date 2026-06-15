@@ -48,9 +48,31 @@ export async function POST(
         const body = await request.json();
         const { summary, treatment, type = "call" } = body;
 
+        const VALID_LOG_TYPES = ["call", "stage_change"];
+        if (!VALID_LOG_TYPES.includes(type)) {
+            return NextResponse.json(
+                { error: `סוג לא חוקי. ערכים מותרים: ${VALID_LOG_TYPES.join(", ")}` },
+                { status: 400 }
+            );
+        }
+
         if (!summary) {
             return NextResponse.json(
                 { error: "Summary is required" },
+                { status: 400 }
+            );
+        }
+
+        if (typeof summary === "string" && summary.length > 5000) {
+            return NextResponse.json(
+                { error: "סיכום ארוך מדי (מקסימום 5000 תווים)" },
+                { status: 400 }
+            );
+        }
+
+        if (treatment && typeof treatment === "string" && treatment.length > 5000) {
+            return NextResponse.json(
+                { error: "טיפול ארוך מדי (מקסימום 5000 תווים)" },
                 { status: 400 }
             );
         }

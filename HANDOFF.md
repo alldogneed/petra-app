@@ -1,14 +1,32 @@
-# Petra App — Session Handoff (2026-06-10, Session 30)
+# Petra App — Session Handoff (2026-06-13, MCP Pre-Prod Audit + Fix Sprint A)
+
+---
+
+## 0. עדכון אחרון — Audit + Fix Sprint A (2026-06-13)
+
+**Pre-production security audit הופק** → `docs/mcp-audit-report.md` (Go-with-conditions לביטא סגור).
+ואז **Fix Sprint A** טיפל ב-3 פריטי HIGH + ממצא שהתגלה תוך כדי (F-1). הכול על `feature/mcp-service-layer`, **לא merged ל-main**.
+
+| תיקון | Commit | מצב |
+|------|--------|-----|
+| F-1 — `/api/mcp` נחסם ע"י edge middleware (הפיצ'ר לא היה נגיש מבחוץ!) | `ae8f530` | ✅ נוסף ל-`PUBLIC_EXACT_PATHS` (exact, לא prefix) |
+| #1 — Rate limiting (per-token 100/min + per-IP 10/min fail) | `d2e2e53` | ✅ |
+| #2 — Global kill switch `MCP_ENABLED` (fail-open) + `docs/operations.md` runbook | `c758ccb` | 🟡 kill switch ✅; live 503 test דחוי (FS) |
+| #3 — תיקון הערת `bcrypt`→SHA-256 ב-schema (×2 קבצים) | `58338f5` | ✅ הערה בלבד |
+
+**נדחה במכוון (החלטת בעלים):** H-2 (`send_reminder` tier/opt-out bypass), H-4 (audit-log PII redaction) — יש defense-in-depth, לא קריטי לביטא של 3-5 לקוחות.
+**Follow-ups פתוחים** (`docs/mcp-audit-followup.md`): F-2 (לאמת `MCP_ENABLED=false`→503 חי אחרי reboot — תקלת FS חסמה), F-3 (אין test coverage — לפני post-beta).
+**⚠️ ידוע:** במהלך הסשן ה-FS של המכונה נכשל לסירוגין (dev server + git commit נתקעו; התאושש). שווה reboot/בדיקת דיסק.
 
 ---
 
 ## 1. מצב נוכחי
 
-### Production
-- **Latest commit**: `9aa2704` — `fix(calendar): deduplicate training sessions + fix 3am timezone bug`
-- **Deployed**: ✅ Vercel production
-- **TypeScript**: ✅ clean
+### Branch: `feature/mcp-service-layer`
+- **Latest commit**: `58338f5` (Fix Sprint A #3) — audit fixes complete (3/4 HIGH addressed)
+- **TypeScript**: ✅ clean (`tsc --noEmit`)
 - **DB schema**: ✅ synced (schema.production.prisma = schema.prisma)
+- **Production**: ⛔ NOT pushed — all MCP work stays on feature branch until complete
 
 ### Pre-Launch Checklist
 | פריט | סטטוס |
@@ -23,107 +41,90 @@
 
 ---
 
-## 2. Uncommitted Changes (16 files)
+## 2. MCP Project — מה הושלם
 
-שינויי אבטחה מהביקורת שלא נכנסו לcommit הרשמי. צריך review ו-commit:
+### Phase 0 ✅ — Service Layer Foundation
+All 11 domains extracted to src/services/:
+- clients.ts, appointments.ts, boarding.ts, orders.ts, pets.ts
+- training.ts, service-dogs.ts, notifications.ts, business.ts
+- ~50 routes thinned, 0 regressions
 
-| קובץ | שינוי |
-|------|-------|
-| `next.config.mjs` | Image proxy מוגבל ל-hosts מוכרים (SSRF guard) |
-| `prisma/schema.prisma` | `ServiceDogPlacement.status` default: PENDING→ACTIVE |
-| `prisma/schema.production.prisma` | אותו שינוי |
-| `src/app/api/account/change-password/route.ts` | שיפורי אבטחה |
-| `src/app/api/account/set-password/route.ts` | שיפורי אבטחה |
-| `src/app/api/admin/broadcast-messages/route.ts` | פישוט + hardening |
-| `src/app/api/admin/migration/businesses/route.ts` | פישוט |
-| `src/app/api/admin/migration/template/route.ts` | פישוט |
-| `src/app/api/boarding/route.ts` | הגנות נוספות |
-| `src/app/api/booking/book/route.ts` | הגנות נוספות |
-| `src/app/api/cron/vaccination-reminders/route.ts` | שיפורים |
-| `src/app/api/customers/route.ts` | תיקון קטן |
-| `src/app/api/pets/[petId]/documents/route.ts` | שיפורי אבטחה |
-| `src/app/api/service-dogs/[id]/documents/route.ts` | שיפורי אבטחה |
-| `src/app/api/service-dogs/[id]/upload/route.ts` | תיקון |
-| `src/components/layout/topbar.tsx` | תיקון קטן |
+### Phase 1+2 ✅ — MCP Server + Tools + UI
 
-**פקודת commit:**
+**MCP Server** (src/app/api/mcp/route.ts)
+- Streamable HTTP transport (stateless, Vercel serverless compatible)
+- Bearer token auth → McpConnection.tokenHash (SHA-256)
+- Per-request audit log to McpAuditLog table
+- 6 tools: list_clients, list_upcoming_appointments, get_business_stats, create_appointment, add_client_note, send_reminder
+
+**Token Management**
+- POST /api/mcp/connections — create token (shown once)
+- GET /api/mcp/connections — list active connections
+- DELETE /api/mcp/connections/[id] — revoke
+
+**Settings UI** — הגדרות → עוזרי AI
+- McpConnectionsTab: create/revoke with token reveal + Claude Desktop config snippet
+- Paywall: basic+ only
+
+**Owner Dashboard** — /owner/mcp
+- Metrics: active connections, calls/24h, errors, popular tools
+- Audit log tail
+
+**Help Page** — /help/connect-ai
+- Step-by-step guide for connecting Claude Desktop (RTL)
+
+**DB Schema** — 2 new models:
+- McpConnection (businessId, name, tokenHash, scopes, lastUsedAt, revokedAt)
+- McpAuditLog (connectionId, toolName, params, status, resultSummary)
+
+---
+
+## 3. מה נשאר (Phase 3)
+
+### Phase 3.1 — ביטא סגור
+- **בידי בעל העסק**: בחר 3-5 לקוחות לביטא
+- **בידי בעל העסק**: עשה להם onboarding ידני
+- צור docs/mcp-beta-feedback.md לפידבק
+
+### Phase 3.2 — מטריקות ✅
+- Owner dashboard נבנה כבר ב-Phase 2 (/owner/mcp)
+
+### Phase 3.3 — תמחור
+- **דרוש אישור בעל העסק** אחרי 2-3 שבועות ביטא
+
+---
+
+## 4. כדי להתחיל לעבוד עם Claude Desktop
+
+הוסף ל-claude_desktop_config.json:
+```json
+"petra": {
+  "url": "https://petra-app.com/api/mcp",
+  "headers": {
+    "Authorization": "Bearer YOUR_TOKEN"
+  }
+}
+```
+קבל טוקן מ: הגדרות → עוזרי AI → חבר עוזר חדש
+
+---
+
+## 5. Deploy לפרודקשיין
+
+כשמוכן לעלות (אחרי אישור):
 ```bash
-git add next.config.mjs prisma/schema.prisma prisma/schema.production.prisma \
-  src/app/api/account/change-password/route.ts \
-  src/app/api/account/set-password/route.ts \
-  src/app/api/admin/broadcast-messages/route.ts \
-  src/app/api/admin/migration/businesses/route.ts \
-  src/app/api/admin/migration/template/route.ts \
-  src/app/api/boarding/route.ts \
-  src/app/api/booking/book/route.ts \
-  src/app/api/cron/vaccination-reminders/route.ts \
-  src/app/api/customers/route.ts \
-  "src/app/api/pets/[petId]/documents/route.ts" \
-  "src/app/api/service-dogs/[id]/documents/route.ts" \
-  "src/app/api/service-dogs/[id]/upload/route.ts" \
-  src/components/layout/topbar.tsx
-git commit -m "security: image proxy SSRF guard + placement status default + API hardening"
+git checkout main
+git merge feature/mcp-service-layer
 git push origin main
 ```
+Then in Vercel: redeploy (DB tables already created via prisma db push).
 
 ---
 
-## 3. MCP Integration — הפרויקט הבא
-
-**GOAL**: `~/Desktop/PETRA-MCP-GOAL.md` — MCP integration עם Service Layer.
-ה-GOAL file מכיל גם את התוכנית המלאה (אין קובץ Petra-MCP-Plan.md נפרד).
-
-### שלבים לפי GOAL
-| שלב | תיאור | סטטוס |
-|-----|-------|-------|
-| משימה מקדימה | סנכרון HANDOFF.md | ✅ הושלם |
-| שלב 0 | Service Layer Foundation | ⏳ הבא |
-| שלב 1 | MCP Server Read-Only | ⏳ |
-| שלב 2 | כתיבה + UI Onboarding | ⏳ |
-| שלב 3 | ביטא + השקה | ⏳ |
-
-**עקרון יסוד**: שכבת שירותים משותפת — גם UI וגם MCP קוראים לאותן פונקציות.
-זרימה: `Supabase ← Service Layer ← (UI Routes | MCP Tools)`
-
----
-
-## 4. סיכום Sessions אחרונים
-
-| Session | תאריך | עבודה עיקרית |
-|---------|-------|--------------|
-| 28 | יוני 2026 | Training audit: group reminders, FK fixes, recurring sessions |
-| 29 | יוני 2026 | Analytics sync, Sentry fixes, mobile QA, Shachar UX |
-| 30 | יוני 2026 | Security audit (17 files committed), booking E2E QA, calendar tz fix |
-
-היסטוריה מלאה: `memory/MEMORY.md`
-
----
-
-## 5. ארכיטקטורה — נקודות חשובות
-
-- **Stack**: Next.js 14, TypeScript, Prisma/PostgreSQL (Supabase), React Query, Tailwind
-- **Auth**: `requireBusinessAuth()` + `isGuardError()` בכל route מוגן
-- **Rate limiting**: `rateLimitAsync()` (Upstash Redis) לroutes קריטיים, fallback זיכרון
-- **Service layer**: **לא קיים עדיין** — כל הלוגיקה העסקית ב-API routes (שלב 0 של MCP יחלץ אותה)
-- **Node PATH**: `/Users/or-rabinovich/local/node/bin/` — חובה prefix לכל פקודה
-- **Dev server**: `node node_modules/.bin/next dev` (Hebrew path — npm run dev לא עובד)
-- **PostCSS**: `8.4.47` — לא לשדרג (8.5.x שובר Next.js 14.2.x)
-
----
-
-## 6. Branches
-
-| Branch | מטרה |
-|--------|------|
-| `main` | Production (Vercel auto-deploy) |
-| `staging` | Staging (Neon DB) |
-| `dev` | לא בשימוש |
-
----
-
-## 7. Production Accounts
-
-| חשבון | businessId | שם |
-|-------|-----------|-----|
-| `alldogneed@gmail.com` | `6c51668f-00e9-46b1-9ba2-ff113831a172` | all-dog (ראשי) |
-| `or.rabinovich@gmail.com` | `4c0cd6b3-c7a5-4c29-b8f4-1213ede4b893` | אור רבינוביץ׳ |
+## 6. Quick Dev Setup
+```bash
+PATH="/Users/or-rabinovich/local/node/bin:$PATH" npm install
+PATH="/Users/or-rabinovich/local/node/bin:$PATH" npx prisma generate
+# Start dev server (Hebrew path workaround):
+(export PATH="/Users/or-rabinovich/local/node/bin:$PATH"; cd HEBREW_PATH/petra-app; node node_modules/.bin/next dev)
+```
