@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
-    const activeOnly = searchParams.get("activeOnly") === "true";
+    const activeOnly =
+      searchParams.get("activeOnly") === "true" || searchParams.get("active") === "true";
 
     const groups = await listTrainingGroups(authResult.businessId, prisma, { activeOnly });
     return NextResponse.json(groups);
