@@ -27,7 +27,7 @@ export async function listTrainingGroups(
   return db.trainingGroup.findMany({
     where: {
       businessId,
-      ...(opts.activeOnly ? { status: "ACTIVE" } : {}),
+      ...(opts.activeOnly ? { isActive: true } : {}),
     },
     include: {
       participants: {
@@ -92,7 +92,7 @@ export interface CreateTrainingGroupInput {
   reminderEnabled?: boolean;
   reminderLeadHours?: number | null;
   reminderSameDay?: boolean;
-  status?: string;
+  isActive?: boolean;
 }
 
 export async function createTrainingGroup(
@@ -127,7 +127,7 @@ export async function createTrainingGroup(
       reminderEnabled: input.reminderEnabled ?? false,
       ...(input.reminderLeadHours !== undefined && { reminderLeadHours: input.reminderLeadHours }),
       reminderSameDay: input.reminderSameDay ?? false,
-      ...(input.status !== undefined && { status: input.status }),
+      ...(input.isActive !== undefined && { isActive: input.isActive }),
     } as any,
     include: { _count: { select: { participants: true, sessions: true } } },
   });
@@ -143,7 +143,7 @@ export interface UpdateTrainingGroupData {
   notes?: string | null;
   startDate?: string | null;
   endDate?: string | null;
-  status?: string;
+  isActive?: boolean;
   reminderEnabled?: boolean;
   reminderLeadHours?: number | null;
   reminderSameDay?: boolean;
@@ -175,7 +175,7 @@ export async function updateTrainingGroup(
       ...(data.notes !== undefined && { notes: data.notes }),
       ...(data.startDate !== undefined && { startDate: data.startDate ? new Date(data.startDate) : null }),
       ...(data.endDate !== undefined && { endDate: data.endDate ? new Date(data.endDate) : null }),
-      ...(data.status !== undefined && { status: data.status }),
+      ...(data.isActive !== undefined && { isActive: data.isActive }),
       ...(data.reminderEnabled !== undefined && { reminderEnabled: data.reminderEnabled }),
       ...(data.reminderLeadHours !== undefined && { reminderLeadHours: data.reminderLeadHours }),
       ...(data.reminderSameDay !== undefined && { reminderSameDay: data.reminderSameDay }),
