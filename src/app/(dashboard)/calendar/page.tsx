@@ -827,10 +827,11 @@ function CalendarContent() {
     x: number;
     y: number;
   } | null>(null);
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
   // ── Current time tick ──
   useEffect(() => {
+    setNow(new Date());
     const interval = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(interval);
   }, []);
@@ -1214,6 +1215,7 @@ function CalendarContent() {
 
   // ── Current time indicator ──
   const currentTimeTop = useMemo(() => {
+    if (!now) return null;
     const todayStr = toLocalDateString(now);
     if (viewMode === "month") return null;
     if (viewMode === "day" && toLocalDateString(selectedDay) !== todayStr)
@@ -1230,6 +1232,7 @@ function CalendarContent() {
 
   const todayColumnIndex = useMemo(() => {
     if (viewMode !== "week") return -1;
+    if (!now) return -1;
     const todayStr = toLocalDateString(now);
     return weekDates.findIndex((d) => toLocalDateString(d) === todayStr);
   }, [now, viewMode, weekDates]);
