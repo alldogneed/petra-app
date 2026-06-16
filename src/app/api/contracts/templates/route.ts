@@ -49,10 +49,22 @@ export async function POST(request: NextRequest) {
     const signatureY = parseFloat((formData.get("signatureY") as string) || "0.8");
     const signatureWidth = parseFloat((formData.get("signatureWidth") as string) || "0.35");
     const signatureHeight = parseFloat((formData.get("signatureHeight") as string) || "0.07");
-    const fields = (formData.get("fields") as string) || "[]";
+    const fieldsRaw = (formData.get("fields") as string) || "[]";
 
     if (!file) return NextResponse.json({ error: "לא צורף קובץ" }, { status: 400 });
     if (!name) return NextResponse.json({ error: "שם התבנית חסר" }, { status: 400 });
+    if (name.length > 200) return NextResponse.json({ error: "שם תבנית ארוך מדי (מקסימום 200 תווים)" }, { status: 400 });
+
+    // Validate fields JSON
+    let fields: string;
+    try {
+      const parsed = JSON.parse(fieldsRaw);
+      if (!Array.isArray(parsed)) return NextResponse.json({ error: "fields must be a JSON array" }, { status: 400 });
+      if (fieldsRaw.length > 100_000) return NextResponse.json({ error: "fields payload too large" }, { status: 400 });
+      fields = fieldsRaw;
+    } catch {
+      return NextResponse.json({ error: "fields is not valid JSON" }, { status: 400 });
+    }
     if (file.type !== "application/pdf") return NextResponse.json({ error: "יש להעלות קובץ PDF בלבד" }, { status: 400 });
     if (file.size > MAX_FILE_SIZE) return NextResponse.json({ error: "קובץ גדול מדי — מקסימום 20MB" }, { status: 400 });
 

@@ -96,6 +96,17 @@ export async function updateMessageTemplate(
 
   const { name, channel, subject, body: templateBody, variables } = data;
 
+  // Length validation (match createMessageTemplate)
+  if (name !== undefined) {
+    if (!name || typeof name !== "string" || !name.trim()) throw new ServiceError("שדה שם חובה", "VALIDATION");
+    if (name.length > 200) throw new ServiceError("שם תבנית ארוך מדי (מקסימום 200 תווים)", "VALIDATION");
+  }
+  if (templateBody !== undefined) {
+    if (!templateBody || typeof templateBody !== "string" || !templateBody.trim()) throw new ServiceError("שדה תוכן הודעה חובה", "VALIDATION");
+    if (templateBody.length > 10000) throw new ServiceError("תוכן הודעה ארוך מדי (מקסימום 10000 תווים)", "VALIDATION");
+  }
+  if (subject && typeof subject === "string" && subject.length > 500) throw new ServiceError("נושא ארוך מדי (מקסימום 500 תווים)", "VALIDATION");
+
   return db.messageTemplate.update({
     where: { id, businessId },
     data: {

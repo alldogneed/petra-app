@@ -489,6 +489,14 @@ export async function updateCustomer(
     if (emailErr) throw new ServiceError(emailErr, "VALIDATION");
   }
 
+  // Length limits (match createCustomer)
+  if (input.notes !== undefined && input.notes && (input.notes as string).length > 5000) {
+    throw new ServiceError("הערות ארוכות מדי (מקסימום 5000 תווים)", "VALIDATION");
+  }
+  if (input.address !== undefined && input.address && (input.address as string).length > 500) {
+    throw new ServiceError("כתובת ארוכה מדי (מקסימום 500 תווים)", "VALIDATION");
+  }
+
   return db.customer.update({ where: { id: customerId, businessId }, data });
 }
 
@@ -738,6 +746,26 @@ export async function updateLead(
     }
   }
 
+  // ── Input validation (mirror createLead) ──
+  if (input.name !== undefined) {
+    const safeName = sanitizeName(input.name);
+    if (!safeName || safeName.length < 2) throw new ServiceError("שם לא תקין — נא להזין לפחות 2 תווים", "VALIDATION");
+    input.name = safeName;
+  }
+  if (input.email) {
+    const emailErr = validateEmail(input.email);
+    if (emailErr) throw new ServiceError(emailErr, "VALIDATION");
+  }
+  if (input.phone) {
+    const phoneErr = validateIsraeliPhone(input.phone);
+    if (phoneErr) throw new ServiceError(phoneErr, "VALIDATION");
+  }
+  if (input.notes !== undefined && input.notes && input.notes.length > 5000) throw new ServiceError("הערות ארוכות מדי (מקסימום 5000 תווים)", "VALIDATION");
+  if (input.city !== undefined && input.city && input.city.length > 200) throw new ServiceError("שם עיר ארוך מדי (מקסימום 200 תווים)", "VALIDATION");
+  if (input.address !== undefined && input.address && input.address.length > 500) throw new ServiceError("כתובת ארוכה מדי (מקסימום 500 תווים)", "VALIDATION");
+  if (input.requestedService !== undefined && input.requestedService && input.requestedService.length > 500) throw new ServiceError("שם שירות ארוך מדי (מקסימום 500 תווים)", "VALIDATION");
+  if (input.lostReasonText !== undefined && input.lostReasonText && input.lostReasonText.length > 1000) throw new ServiceError("סיבת אובדן ארוכה מדי (מקסימום 1000 תווים)", "VALIDATION");
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data: any = {
     ...(input.stage !== undefined && { stage: input.stage }),
@@ -928,13 +956,17 @@ export async function createTask(businessId: string, db: DbClient, input: Create
   }
 
   if (!input.title?.trim()) throw new ServiceError("Missing required field: title", "VALIDATION");
+  if (input.title.length > 500) throw new ServiceError("כותרת משימה ארוכה מדי (מקסימום 500 תווים)", "VALIDATION");
+  if (input.description && input.description.length > 5000) throw new ServiceError("תיאור משימה ארוך מדי (מקסימום 5000 תווים)", "VALIDATION");
   if (input.category && !VALID_CATEGORIES.includes(input.category)) throw new ServiceError("Invalid category value", "VALIDATION");
   if (input.priority && !["LOW", "MEDIUM", "HIGH", "URGENT"].includes(input.priority)) throw new ServiceError("Invalid priority value", "VALIDATION");
   if (input.status && !VALID_STATUSES.includes(input.status)) throw new ServiceError("Invalid status value", "VALIDATION");
 
+  const safeTitle = sanitizeName(input.title) || input.title.trim();
+
   return db.task.create({
     data: {
-      businessId, title: input.title,
+      businessId, title: safeTitle,
       description: input.description,
       category: (input.category || "GENERAL") as "GENERAL",
       priority: (input.priority || "MEDIUM") as "MEDIUM",
@@ -973,15 +1005,27 @@ export async function updateTask(
   });
   if (!existing) throw new ServiceError("Task not found", "NOT_FOUND");
 
+  // Input validation (match createTask)
+  if (input.title !== undefined) {
+    if (!input.title.trim()) throw new ServiceError("Missing required field: title", "VALIDATION");
+    if (input.title.length > 500) throw new ServiceError("כותרת משימה ארוכה מדי (מקסימום 500 תווים)", "VALIDATION");
+  }
+  if (input.description && input.description.length > 5000) throw new ServiceError("תיאור משימה ארוך מדי (מקסימום 5000 תווים)", "VALIDATION");
+  if (input.category !== undefined && input.category && !VALID_CATEGORIES.includes(input.category)) throw new ServiceError("Invalid category value", "VALIDATION");
+  if (input.priority !== undefined && input.priority && !["LOW", "MEDIUM", "HIGH", "URGENT"].includes(input.priority)) throw new ServiceError("Invalid priority value", "VALIDATION");
+  if (input.status !== undefined && input.status && !VALID_STATUSES.includes(input.status)) throw new ServiceError("Invalid status value", "VALIDATION");
+
   const { title, description, category, priority, status, dueAt, dueDate, relatedEntityType, relatedEntityId, reminderEnabled } = input;
 
   const isCompleting = status === "COMPLETED" && existing.status !== "COMPLETED";
   const isReopening = status !== undefined && status !== "COMPLETED" && existing.status === "COMPLETED";
 
+  const safeTitle = title !== undefined ? (sanitizeName(title) || title.trim()) : undefined;
+
   const task = await db.task.update({
     where: { id: taskId, businessId },
     data: {
-      ...(title !== undefined && { title }),
+      ...(safeTitle !== undefined && { title: safeTitle }),
       ...(description !== undefined && { description }),
       ...(category !== undefined && { category: category as "GENERAL" }),
       ...(priority !== undefined && { priority: priority as "MEDIUM" }),

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { validateIsraeliPhone, sanitizeName } from "@/lib/validation";
 
 export async function POST(request: NextRequest) {
     try {
@@ -14,11 +15,16 @@ export async function POST(request: NextRequest) {
         if (!name || typeof name !== "string") {
             return NextResponse.json({ error: "Business name is required" }, { status: 400 });
         }
-        if (name.length > 200) {
+        const safeName = sanitizeName(name);
+        if (!safeName || safeName.length < 2) {
+            return NextResponse.json({ error: "שם עסק לא תקין — נא להזין לפחות 2 תווים" }, { status: 400 });
+        }
+        if (safeName.length > 200) {
             return NextResponse.json({ error: "שם עסק ארוך מדי (עד 200 תווים)" }, { status: 400 });
         }
-        if (phone && (typeof phone !== "string" || phone.length > 50)) {
-            return NextResponse.json({ error: "מספר טלפון לא תקין" }, { status: 400 });
+        if (phone && typeof phone === "string") {
+            const phoneErr = validateIsraeliPhone(phone);
+            if (phoneErr) return NextResponse.json({ error: phoneErr }, { status: 400 });
         }
         if (address && (typeof address !== "string" || address.length > 500)) {
             return NextResponse.json({ error: "כתובת ארוכה מדי (עד 500 תווים)" }, { status: 400 });
@@ -40,7 +46,7 @@ export async function POST(request: NextRequest) {
             await prisma.business.update({
                 where: { id: businessId },
                 data: {
-                    name,
+                    name: safeName,
                     phone,
                     address,
                     vatNumber,
@@ -51,7 +57,7 @@ export async function POST(request: NextRequest) {
             // Create new business and membership
             const newBusiness = await prisma.business.create({
                 data: {
-                    name,
+                    name: safeName,
                     phone,
                     address,
                     vatNumber,
