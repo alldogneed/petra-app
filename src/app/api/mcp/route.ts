@@ -330,12 +330,32 @@ async function handleMcpRequest(request: NextRequest): Promise<Response> {
 
   await server.connect(transport);
 
-  try {
-    return await transport.handleRequest(request);
-  } finally {
-    // Clean up — close server after each stateless request
-    setTimeout(() => server.close().catch(() => {}), 0);
+  const response = await transport.handleRequest(request);
+
+  // Wrap the response body so we close the server only after the stream ends.
+  // Closing immediately (setTimeout 0) races with async tool handlers (DB queries)
+  // and truncates the SSE response before the result is written.
+  if (response.body) {
+    const reader = response.body.getReader();
+    const wrappedBody = new ReadableStream({
+      async pull(controller) {
+        const { done, value } = await reader.read();
+        if (done) {
+          controller.close();
+          server.close().catch(() => {});
+        } else {
+          controller.enqueue(value);
+        }
+      },
+      cancel() {
+        server.close().catch(() => {});
+      },
+    });
+    return new Response(wrappedBody, { status: response.status, headers: response.headers });
   }
+
+  server.close().catch(() => {});
+  return response;
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
