@@ -17,9 +17,9 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { validateMcpToken, extractBearerToken, auditLog } from "@/lib/mcp-auth";
 import { rateLimitAsync } from "@/lib/rate-limit";
-import { listCustomers } from "@/services/clients";
-import { addCustomerNote } from "@/services/clients";
-import { listAppointments, createAppointment } from "@/services/appointments";
+import { listCustomers, addCustomerNote, createCustomer, listLeads, createLead } from "@/services/clients";
+import { listAppointments, createAppointment, updateAppointment, deleteAppointment } from "@/services/appointments";
+import { listOrders, createOrder } from "@/services/orders";
 import { getBusinessOverview } from "@/services/business";
 import { ServiceError } from "@/services/types";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
@@ -237,6 +237,224 @@ function buildServer(businessId: string, connectionId: string): McpServer {
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה בשליחת תזכורת";
         await auditLog(connectionId, "send_reminder", params, "error", undefined, msg);
+        return errorResult(msg);
+      }
+    }
+  );
+
+  // ── create_client ─────────────────────────────────────────────────────────
+  server.tool(
+    "create_client",
+    "Create a new client in the business. Returns the new client ID.",
+    {
+      name: z.string().min(2).describe("Full name of the client"),
+      phone: z.string().describe("Israeli phone number (e.g. 050-1234567)"),
+      email: z.string().email().optional().describe("Email address"),
+      address: z.string().max(500).optional().describe("Home address"),
+      notes: z.string().max(5000).optional().describe("Internal notes"),
+      tags: z.string().optional().describe("Comma-separated tags (e.g. VIP,dog-owner)"),
+      source: z.string().optional().describe("Lead source (e.g. google, referral, instagram)"),
+    },
+    async ({ name, phone, email, address, notes, tags, source }) => {
+      const params = { name, phone, email, address, notes, tags, source };
+      try {
+        const customer = await createCustomer(businessId, prisma, {
+          name, phone, email: email ?? null, address: address ?? null,
+          notes: notes ?? null,
+          tags: tags ? JSON.stringify(tags.split(",").map((t) => t.trim()).filter(Boolean)) : undefined,
+          source: source ?? "mcp",
+        });
+        await auditLog(connectionId, "create_client", params, "success", `created customer ${customer.id}`);
+        return textResult(`✅ לקוח חדש נוצר בהצלחה!\nשם: ${customer.name}\nטלפון: ${customer.phone}\nמזהה: ${customer.id}`);
+      } catch (e) {
+        const msg = e instanceof ServiceError ? e.message : "שגיאה ביצירת לקוח";
+        await auditLog(connectionId, "create_client", params, "error", undefined, msg);
+        return errorResult(msg);
+      }
+    }
+  );
+
+  // ── list_leads ────────────────────────────────────────────────────────────
+  server.tool(
+    "list_leads",
+    "List all leads (potential clients) for the business. Returns name, phone, stage, requested service and creation date.",
+    {},
+    async () => {
+      try {
+        const leads = await listLeads(businessId, prisma);
+        await auditLog(connectionId, "list_leads", {}, "success", `returned ${leads.length} leads`);
+        if (leads.length === 0) return textResult("אין לידים במערכת.");
+        const lines = leads.slice(0, 50).map((l) => {
+          const date = new Date(l.createdAt).toLocaleDateString("he-IL");
+          return `• ${l.name}${l.phone ? ` | ${l.phone}` : ""}${l.requestedService ? ` | ${l.requestedService}` : ""} [${l.stage ?? "חדש"}, ${date}]`;
+        });
+        const suffix = leads.length > 50 ? `\n...ועוד ${leads.length - 50} לידים` : "";
+        return textResult(`נמצאו ${leads.length} לידים:\n${lines.join("\n")}${suffix}`);
+      } catch (e) {
+        const msg = e instanceof ServiceError ? e.message : "שגיאה בטעינת לידים";
+        await auditLog(connectionId, "list_leads", {}, "error", undefined, msg);
+        return errorResult(msg);
+      }
+    }
+  );
+
+  // ── create_lead ───────────────────────────────────────────────────────────
+  server.tool(
+    "create_lead",
+    "Create a new lead (potential client) in the CRM pipeline.",
+    {
+      name: z.string().min(2).describe("Full name of the lead"),
+      phone: z.string().optional().describe("Israeli phone number"),
+      email: z.string().email().optional().describe("Email address"),
+      requested_service: z.string().optional().describe("What service they are interested in"),
+      source: z.string().optional().describe("Lead source (e.g. google, facebook, referral)"),
+      city: z.string().optional().describe("City of the lead"),
+      notes: z.string().max(5000).optional().describe("Internal notes"),
+    },
+    async ({ name, phone, email, requested_service, source, city, notes }) => {
+      const params = { name, phone, email, requested_service, source, city, notes };
+      try {
+        const result = await createLead(businessId, prisma, {
+          name, phone: phone ?? null, email: email ?? null,
+          requestedService: requested_service ?? null,
+          source: source ?? "mcp",
+          city: city ?? null,
+          notes: notes ?? null,
+        });
+        const lead = result.lead;
+        await auditLog(connectionId, "create_lead", params, "success", `created lead ${lead.id}`);
+        return textResult(`✅ ליד חדש נוצר בהצלחה!\nשם: ${lead.name}${lead.phone ? `\nטלפון: ${lead.phone}` : ""}\nמזהה: ${lead.id}`);
+      } catch (e) {
+        const msg = e instanceof ServiceError ? e.message : "שגיאה ביצירת ליד";
+        await auditLog(connectionId, "create_lead", params, "error", undefined, msg);
+        return errorResult(msg);
+      }
+    }
+  );
+
+  // ── list_orders ───────────────────────────────────────────────────────────
+  server.tool(
+    "list_orders",
+    "List orders for the business. Returns order ID, client name, status, total amount and date.",
+    {
+      status: z.enum(["draft", "pending", "paid", "cancelled"]).optional().describe("Filter by order status"),
+      customer_id: z.string().optional().describe("Filter by customer ID"),
+      limit: z.number().int().min(1).max(50).optional().describe("Max results (default 20)"),
+    },
+    async ({ status, customer_id, limit }) => {
+      const params = { status, customer_id, limit };
+      try {
+        const orders = await listOrders(businessId, prisma, {
+          status: status ?? undefined,
+          customerId: customer_id ?? undefined,
+        });
+        const slice = orders.slice(0, limit ?? 20);
+        await auditLog(connectionId, "list_orders", params, "success", `returned ${slice.length} orders`);
+        if (slice.length === 0) return textResult("לא נמצאו הזמנות.");
+        const lines = slice.map((o: any) => {
+          const date = new Date(o.createdAt).toLocaleDateString("he-IL");
+          const total = (o.totalAmount ?? 0).toLocaleString("he-IL");
+          return `• ${o.id.slice(0, 8)} | ${o.customer?.name ?? "לא ידוע"} | ₪${total} | ${o.status} | ${date}`;
+        });
+        return textResult(`נמצאו ${orders.length} הזמנות:\n${lines.join("\n")}`);
+      } catch (e) {
+        const msg = e instanceof ServiceError ? e.message : "שגיאה בטעינת הזמנות";
+        await auditLog(connectionId, "list_orders", params, "error", undefined, msg);
+        return errorResult(msg);
+      }
+    }
+  );
+
+  // ── create_order ──────────────────────────────────────────────────────────
+  server.tool(
+    "create_order",
+    "Create a new order (invoice/sale) for a client. Use list_clients to find the customer ID.",
+    {
+      customer_id: z.string().describe("Customer ID (from list_clients)"),
+      item_name: z.string().describe("Name of the service or product"),
+      quantity: z.number().int().min(1).optional().describe("Quantity (default 1)"),
+      unit_price: z.number().min(0).describe("Price per unit in ILS"),
+      notes: z.string().max(2000).optional().describe("Optional notes on the order"),
+      status: z.enum(["draft", "pending"]).optional().describe("Initial status (default: draft)"),
+    },
+    async ({ customer_id, item_name, quantity, unit_price, notes, status }) => {
+      const params = { customer_id, item_name, quantity, unit_price, notes, status };
+      try {
+        const result = await createOrder(businessId, prisma, {
+          customerId: customer_id,
+          status: status ?? "draft",
+          notes: notes ?? null,
+          lines: [{
+            name: item_name,
+            unit: "יחידה",
+            quantity: quantity ?? 1,
+            unitPrice: unit_price,
+          }],
+        });
+        const order = result.order;
+        const total = ((quantity ?? 1) * unit_price).toLocaleString("he-IL");
+        await auditLog(connectionId, "create_order", params, "success", `created order ${order.id}`);
+        return textResult(`✅ הזמנה נוצרה בהצלחה!\nמזהה: ${order.id}\nסכום: ₪${total}\nסטטוס: ${order.status}`);
+      } catch (e) {
+        const msg = e instanceof ServiceError ? e.message : "שגיאה ביצירת הזמנה";
+        await auditLog(connectionId, "create_order", params, "error", undefined, msg);
+        return errorResult(msg);
+      }
+    }
+  );
+
+  // ── update_appointment ────────────────────────────────────────────────────
+  server.tool(
+    "update_appointment",
+    "Update an existing appointment — change date, time, status or notes. Use list_upcoming_appointments to find appointment IDs.",
+    {
+      appointment_id: z.string().describe("Appointment ID"),
+      date: z.string().optional().describe("New date in YYYY-MM-DD format"),
+      start_time: z.string().optional().describe("New start time in HH:MM format"),
+      end_time: z.string().optional().describe("New end time in HH:MM format"),
+      status: z.enum(["scheduled", "completed", "canceled"]).optional().describe("New status"),
+      notes: z.string().max(2000).optional().describe("Updated notes"),
+    },
+    async ({ appointment_id, date, start_time, end_time, status, notes }) => {
+      const params = { appointment_id, date, start_time, end_time, status, notes };
+      try {
+        const appt = await updateAppointment(businessId, prisma, appointment_id, {
+          date: date ?? undefined,
+          startTime: start_time ?? undefined,
+          endTime: end_time ?? undefined,
+          status: status ?? undefined,
+          notes: notes !== undefined ? notes : undefined,
+        });
+        await auditLog(connectionId, "update_appointment", params, "success", `updated appointment ${appointment_id}`);
+        return textResult(`✅ תור עודכן בהצלחה!\nמזהה: ${appt.id}\nתאריך: ${appt.date}${appt.startTime ? ` בשעה ${appt.startTime}` : ""}\nסטטוס: ${appt.status}`);
+      } catch (e) {
+        const msg = e instanceof ServiceError ? e.message : "שגיאה בעדכון תור";
+        await auditLog(connectionId, "update_appointment", params, "error", undefined, msg);
+        return errorResult(msg);
+      }
+    }
+  );
+
+  // ── cancel_appointment ────────────────────────────────────────────────────
+  server.tool(
+    "cancel_appointment",
+    "Cancel an existing appointment. Use list_upcoming_appointments to find appointment IDs.",
+    {
+      appointment_id: z.string().describe("Appointment ID to cancel"),
+      reason: z.string().max(500).optional().describe("Reason for cancellation"),
+    },
+    async ({ appointment_id, reason }) => {
+      const params = { appointment_id, reason };
+      try {
+        await updateAppointment(businessId, prisma, appointment_id, {
+          status: "canceled",
+          cancellationNote: reason ?? null,
+        });
+        await auditLog(connectionId, "cancel_appointment", params, "success", `cancelled appointment ${appointment_id}`);
+        return textResult(`✅ תור בוטל בהצלחה.${reason ? `\nסיבה: ${reason}` : ""}`);
+      } catch (e) {
+        const msg = e instanceof ServiceError ? e.message : "שגיאה בביטול תור";
+        await auditLog(connectionId, "cancel_appointment", params, "error", undefined, msg);
         return errorResult(msg);
       }
     }
