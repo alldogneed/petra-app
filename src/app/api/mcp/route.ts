@@ -59,9 +59,14 @@ function buildServer(businessId: string, connectionId: string): McpServer {
         const customers = result.customers ?? [];
         await auditLog(connectionId, "list_clients", { search, limit }, "success", `returned ${customers.length} clients`);
         if (customers.length === 0) return textResult("לא נמצאו לקוחות.");
-        const lines = customers.map((c) =>
-          `• ${c.name}${c.phone ? ` | ${c.phone}` : ""}${c.email ? ` | ${c.email}` : ""}${c.tags?.length ? ` [${c.tags.join(", ")}]` : ""}`
-        );
+        const lines = customers.map((c) => {
+          let tagsStr = "";
+          try {
+            const parsed = JSON.parse(c.tags ?? "[]");
+            if (Array.isArray(parsed) && parsed.length) tagsStr = ` [${parsed.join(", ")}]`;
+          } catch { /* ignore malformed tags */ }
+          return `• ${c.name}${c.phone ? ` | ${c.phone}` : ""}${c.email ? ` | ${c.email}` : ""}${tagsStr}`;
+        });
         return textResult(`נמצאו ${customers.length} לקוחות:\n${lines.join("\n")}`);
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה בטעינת לקוחות";
