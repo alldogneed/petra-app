@@ -303,7 +303,7 @@ export async function getDashboardMetrics(
     db.appointment.findMany({
       where: { businessId, date: { gte: todayStart }, status: "scheduled" },
       include: {
-        customer: { select: { name: true, phone: true } },
+        customer: { select: { id: true, name: true, phone: true } },
         pet: { select: { name: true, species: true } },
         service: { select: { id: true, name: true, color: true, type: true } },
         priceListItem: { select: { id: true, name: true, category: true } },

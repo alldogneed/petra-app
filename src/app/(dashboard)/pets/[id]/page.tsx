@@ -857,15 +857,20 @@ export default function PetProfilePage() {
           {/* Appointments */}
           {pet.appointments.length > 0 && (
             <div className="card p-5">
-              <h2 className="text-sm font-bold text-petra-text flex items-center gap-2 mb-4">
-                <Calendar className="w-4 h-4 text-brand-500" />
-                היסטוריית תורים ({pet.appointments.length})
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-bold text-petra-text flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-brand-500" />
+                  היסטוריית תורים ({pet.appointments.length})
+                </h2>
+                <Link href="/calendar" className="text-xs text-brand-500 hover:text-brand-600 hover:underline">
+                  יומן ←
+                </Link>
+              </div>
               <div className="divide-y">
                 {pet.appointments.map((a) => {
                   const cfg = STATUS_CONFIG[a.status] ?? { label: a.status, className: "badge-neutral" };
                   return (
-                    <div key={a.id} className="py-3 flex items-center justify-between gap-3">
+                    <div key={a.id} className="py-3 flex items-center justify-between gap-3 hover:bg-slate-50 rounded-lg px-2 -mx-2 transition-colors">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-petra-text truncate">{a.service?.name ?? "שירות לא ידוע"}</p>
@@ -886,15 +891,20 @@ export default function PetProfilePage() {
           {/* Boarding stays */}
           {pet.boardingStays.length > 0 && (
             <div className="card p-5">
-              <h2 className="text-sm font-bold text-petra-text flex items-center gap-2 mb-4">
-                <Hotel className="w-4 h-4 text-brand-500" />
-                היסטוריית פנסיון ({pet.boardingStays.length})
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-bold text-petra-text flex items-center gap-2">
+                  <Hotel className="w-4 h-4 text-brand-500" />
+                  היסטוריית פנסיון ({pet.boardingStays.length})
+                </h2>
+                <Link href="/boarding" className="text-xs text-brand-500 hover:text-brand-600 hover:underline">
+                  פנסיון ←
+                </Link>
+              </div>
               <div className="divide-y">
                 {pet.boardingStays.map((s) => {
                   const cfg = STATUS_CONFIG[s.status] ?? { label: s.status, className: "badge-neutral" };
                   return (
-                    <div key={s.id} className="py-3 flex items-center justify-between gap-3">
+                    <div key={s.id} className="py-3 flex items-center justify-between gap-3 hover:bg-slate-50 rounded-lg px-2 -mx-2 transition-colors">
                       <div>
                         <p className="text-sm text-petra-text">
                           {formatDate(new Date(s.checkIn))}
@@ -915,15 +925,24 @@ export default function PetProfilePage() {
           {/* Training programs */}
           {pet.trainingPrograms.length > 0 && (
             <div className="card p-5">
-              <h2 className="text-sm font-bold text-petra-text flex items-center gap-2 mb-4">
-                <GraduationCap className="w-4 h-4 text-brand-500" />
-                תוכניות אימון ({pet.trainingPrograms.length})
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-bold text-petra-text flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4 text-brand-500" />
+                  תוכניות אימון ({pet.trainingPrograms.length})
+                </h2>
+                <Link href="/training" className="text-xs text-brand-500 hover:text-brand-600 hover:underline">
+                  אילוף ←
+                </Link>
+              </div>
               <div className="divide-y">
                 {pet.trainingPrograms.map((p) => {
                   const cfg = STATUS_CONFIG[p.status] ?? STATUS_CONFIG[p.status + "_prog"] ?? { label: p.status, className: "badge-neutral" };
                   return (
-                    <div key={p.id} className="py-3 flex items-center justify-between gap-3">
+                    <Link
+                      key={p.id}
+                      href="/training"
+                      className="py-3 flex items-center justify-between gap-3 hover:bg-slate-50 rounded-lg px-2 -mx-2 transition-colors cursor-pointer block"
+                    >
                       <div>
                         <p className="text-sm font-medium text-petra-text">{p.name}</p>
                         {p.startDate && (
@@ -931,7 +950,7 @@ export default function PetProfilePage() {
                         )}
                       </div>
                       <span className={cn("badge text-xs", cfg.className)}>{cfg.label}</span>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>

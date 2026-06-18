@@ -128,7 +128,7 @@ interface DashboardStats {
     status: string;
     service: { id: string; name: string; color: string | null; type?: string } | null;
     priceListItem: { id: string; name: string; category: string | null } | null;
-    customer: { name: string; phone: string };
+    customer: { id: string; name: string; phone: string };
     pet: { name: string; species: string } | null;
     notes: string | null;
   }[];
@@ -398,7 +398,10 @@ function AppointmentRow({
   const tod = hour < 12 ? "בוקר" : hour < 14 ? "צהריים" : hour < 17 ? "אחה\"צ" : "ערב";
 
   return (
-    <div className="grid grid-cols-[52px_1fr_auto] sm:grid-cols-[60px_1fr_auto] items-center gap-3 sm:gap-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50/40 px-1 rounded-lg transition-colors">
+    <Link
+      href={`/customers/${appointment.customer.id}`}
+      className="grid grid-cols-[52px_1fr_auto] sm:grid-cols-[60px_1fr_auto] items-center gap-3 sm:gap-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50/40 px-1 rounded-lg transition-colors cursor-pointer"
+    >
       {/* Time column */}
       <div className="text-petra-text">
         <div className="text-[13px] sm:text-sm font-bold leading-none">{appointment.startTime}</div>
@@ -441,7 +444,7 @@ function AppointmentRow({
         <StatusIcon className="w-3 h-3 hidden" />
         {status.label}
       </span>
-    </div>
+    </Link>
   );
 }
 
@@ -1045,12 +1048,12 @@ function TomorrowReminders({
                 <span className="text-[10px] text-petra-muted leading-none">מחר</span>
                 <span className="text-sm font-bold text-petra-text leading-tight">{a.startTime}</span>
               </div>
-              <div className="flex-1 min-w-0">
+              <Link href={`/customers/${a.customerId}`} className="flex-1 min-w-0 hover:text-brand-600">
                 <p className="text-sm font-semibold text-petra-text truncate">{a.customerName}</p>
                 <p className="text-xs text-petra-muted truncate">
                   {a.petName ? `${a.petName} • ` : ""}{a.serviceName}
                 </p>
-              </div>
+              </Link>
               {canWhatsApp ? (
                 a.customerPhone ? (
                   <button
@@ -1551,7 +1554,7 @@ function PetBirthdaysWidget({ birthdays }: { birthdays: DashboardStats["upcoming
               <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm ${isToday ? "bg-pink-100" : "bg-slate-100"}`}>
                 {isToday ? "🎂" : "🐾"}
               </div>
-              <div className="flex-1 min-w-0">
+              <Link href={pet.customer?.id ? `/customers/${pet.customer.id}` : "/customers"} className="flex-1 min-w-0 hover:text-brand-600">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-petra-text">{pet.name}</span>
                   {pet.breed && <span className="text-xs text-petra-muted">({pet.breed})</span>}
@@ -1567,7 +1570,7 @@ function PetBirthdaysWidget({ birthdays }: { birthdays: DashboardStats["upcoming
                   {pet.age + 1} שנ׳
                   {pet.daysUntil > 0 && ` · בעוד ${pet.daysUntil} ימים`}
                 </p>
-              </div>
+              </Link>
               {pet.customer?.phone && (
                 <a
                   href={`https://wa.me/${toWhatsAppPhone(pet.customer?.phone ?? "")}?text=${encodeURIComponent(greetingLines)}`}
@@ -2479,10 +2482,13 @@ export default function DashboardPage() {
                     <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700">
                       {s.pet?.name?.charAt(0) ?? "🐾"}
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <Link
+                      href={s.customer?.id ? `/customers/${s.customer.id}` : "/boarding"}
+                      className="min-w-0 flex-1 hover:text-brand-600"
+                    >
                       <p className="text-xs font-medium text-petra-text truncate">{s.pet?.name ?? ""}</p>
                       <p className="text-[10px] text-petra-muted truncate">{s.customer?.name}{s.room ? ` · ${s.room.name}` : ""}</p>
-                    </div>
+                    </Link>
                     <a
                       href={`https://wa.me/${toWhatsAppPhone(s.customer?.phone ?? "")}?text=${encodeURIComponent(`שלום ${s.customer?.name}! מזכירים לך שהיום הגעה של ${s.pet?.name} לפנסיון 🐾`)}`}
                       target="_blank"
@@ -2511,10 +2517,13 @@ export default function DashboardPage() {
                     <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-700">
                       {s.pet?.name?.charAt(0) ?? "🐾"}
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <Link
+                      href={s.customer?.id ? `/customers/${s.customer.id}` : "/boarding"}
+                      className="min-w-0 flex-1 hover:text-brand-600"
+                    >
                       <p className="text-xs font-medium text-petra-text truncate">{s.pet?.name ?? ""}</p>
                       <p className="text-[10px] text-petra-muted truncate">{s.customer?.name}{s.room ? ` · ${s.room.name}` : ""}</p>
-                    </div>
+                    </Link>
                     <a
                       href={`https://wa.me/${toWhatsAppPhone(s.customer?.phone ?? "")}?text=${encodeURIComponent(`שלום ${s.customer?.name}! כלב שלך ${s.pet?.name} מחכה לפיקאפ היום מהפנסיון 🐾`)}`}
                       target="_blank"

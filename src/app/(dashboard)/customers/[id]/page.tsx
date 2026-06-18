@@ -4067,9 +4067,13 @@ export default function CustomerProfilePage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-sm font-bold text-petra-text">
+                              <Link
+                                href={`/pets/${pet.id}`}
+                                className="text-sm font-bold text-petra-text hover:text-brand-600 hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 {pet.name}
-                              </span>
+                              </Link>
                               {hasWarning && (
                                 <AlertTriangle className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
                               )}
@@ -4588,7 +4592,12 @@ export default function CustomerProfilePage() {
                                     };
                                     const achievedGoals = prog.goals.filter(g => g.status === "ACHIEVED").length;
                                     return (
-                                      <div key={prog.id} className="bg-white/60 rounded-lg p-2.5 space-y-2">
+                                      <Link
+                                        key={prog.id}
+                                        href="/training"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="bg-white/60 rounded-lg p-2.5 space-y-2 block hover:bg-white transition-colors"
+                                      >
                                         <div className="flex items-center justify-between">
                                           <span className="text-xs font-medium text-petra-text">{prog.name}</span>
                                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${statusColors[prog.status] ?? "bg-slate-100 text-slate-600"}`}>
@@ -4640,7 +4649,7 @@ export default function CustomerProfilePage() {
                                         {prog.notes && (
                                           <p className="text-[10px] text-stone-500 leading-snug">{prog.notes}</p>
                                         )}
-                                      </div>
+                                      </Link>
                                     );
                                   })}
                                 </div>
@@ -4730,20 +4739,26 @@ export default function CustomerProfilePage() {
                       key={apt.id}
                       className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors"
                     >
-                      <div
-                        className="w-1.5 h-8 rounded-full flex-shrink-0"
-                        style={{ background: apt.service?.color || "#F97316" }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-petra-text">
-                          {apt.service?.name || (apt as { priceListItem?: { name: string } | null }).priceListItem?.name || "שירות"}
+                      <Link
+                        href={`/scheduler?date=${apt.date}`}
+                        className="contents"
+                        title="פתח ביומן"
+                      >
+                        <div
+                          className="w-1.5 h-8 rounded-full flex-shrink-0"
+                          style={{ background: apt.service?.color || "#F97316" }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-petra-text">
+                            {apt.service?.name || (apt as { priceListItem?: { name: string } | null }).priceListItem?.name || "שירות"}
+                          </div>
+                          <div className="text-xs text-petra-muted">
+                            {new Date(apt.date).toLocaleDateString("he-IL")} ·{" "}
+                            {apt.startTime}
+                            {apt.pet ? ` · ${apt.pet.name}` : ""}
+                          </div>
                         </div>
-                        <div className="text-xs text-petra-muted">
-                          {new Date(apt.date).toLocaleDateString("he-IL")} ·{" "}
-                          {apt.startTime}
-                          {apt.pet ? ` · ${apt.pet.name}` : ""}
-                        </div>
-                      </div>
+                      </Link>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <span
                           className={cn(
@@ -4953,6 +4968,14 @@ export default function CustomerProfilePage() {
                       {/* Expanded details */}
                       {isExpanded && (
                         <div className="border-t border-slate-100 bg-slate-50/50 p-4 space-y-3">
+                          {/* Link to order detail page */}
+                          <Link
+                            href={`/orders/${order.id}`}
+                            className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 hover:underline w-fit"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            פתח הזמנה ←
+                          </Link>
                           {/* Boarding: check-in / check-out dates */}
                           {order.orderType === "boarding" && order.startAt && (
                             <div className="flex items-center gap-4 text-xs bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
@@ -5063,9 +5086,10 @@ export default function CustomerProfilePage() {
               </div>
               <div className="space-y-3">
                 {customer.trainingPrograms.map((program) => (
-                  <div
+                  <Link
                     key={program.id}
-                    className="p-3 rounded-xl bg-slate-50/80 border border-slate-100"
+                    href="/training"
+                    className="block p-3 rounded-xl bg-slate-50/80 border border-slate-100 hover:bg-slate-100 hover:border-slate-200 transition-colors"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div>
@@ -5127,7 +5151,7 @@ export default function CustomerProfilePage() {
                         ))}
                       </div>
                     )}
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>
