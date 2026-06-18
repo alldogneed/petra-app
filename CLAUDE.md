@@ -140,6 +140,58 @@ Dashboard renewal banner uses `!isFree && subscriptionActive && subscriptionDays
 
 ---
 
+## MCP Server
+
+### Architecture
+```
+Supabase ← src/services/ ← { API routes | MCP tools }
+```
+Both UI routes and MCP tools call the same service functions. No duplicated business logic.
+
+### Auth Pattern
+```typescript
+// Every MCP request: Bearer token → SHA-256 hash → McpConnection lookup → businessId
+// src/lib/mcp-auth.ts — validateMcpToken(token) returns { businessId, connectionId } or null
+```
+
+### 6 Tools (all call service layer)
+| Tool | Service called |
+|------|----------------|
+| `list_clients` | `services/clients.ts` → `listCustomers` |
+| `list_upcoming_appointments` | `services/appointments.ts` → `listUpcoming` |
+| `get_business_stats` | `services/business.ts` → `getDashboardMetrics` |
+| `create_appointment` | `services/appointments.ts` → `createAppointment` |
+| `add_client_note` | `services/clients.ts` → `addCustomerNote` |
+| `send_reminder` | `services/notifications.ts` → `sendWhatsAppReminder` |
+
+### Critical: Middleware bypass
+`/api/mcp` is in `PUBLIC_EXACT_PATHS` in `src/middleware.ts` — **exact match only**, not a prefix.
+This is intentional: MCP does its own token auth internally; the edge middleware must not block it.
+
+### Kill switch
+`MCP_ENABLED` env var — if set to `"false"`, all MCP requests return 503 immediately.
+Runbook: `docs/operations.md`
+
+### Rate limiting
+- Per-token: 100 req/min
+- Per-IP fail: 10 req/min (login protection)
+Both use `rateLimitAsync()` from `src/lib/rate-limit.ts` (Upstash Redis-backed).
+
+### Paywall
+Settings tab "עוזרי AI" gated to `basic+`. The MCP endpoint itself doesn't enforce tier — token possession implies the user already passed the paywall when creating the connection.
+
+### Claude Desktop config snippet
+```json
+{
+  "petra": {
+    "url": "https://petra-app.com/api/mcp",
+    "headers": { "Authorization": "Bearer <token from הגדרות → עוזרי AI>" }
+  }
+}
+```
+
+---
+
 ## Key Patterns
 
 ### Toasts
@@ -224,3 +276,12 @@ import { prisma } from "@/lib/prisma"
 | Onboarding DB models | `OnboardingProfile` (businessType, activeClientsRange, primaryGoal) + `OnboardingProgress` (currentStep, stepCompleted1-4, skipped, completedAt, lastCustomerId) — both keyed on `userId`. |
 | Onboarding guard | `src/components/onboarding/OnboardingGuard.tsx` — wraps dashboard layout; redirects brand-new users (no progress record) to `/dashboard`; allows through once `skipped` or `completedAt` set. |
 | Settings tabs | "פרטי העסק" (business info only) · "הזמנות" (AvailabilityTab + online booking, PRO+) · "פנסיון" (boarding settings, BASIC+) · "תשלומים" (InvoicingTab + ContractsTab, BASIC+) · "צוות" · "הודעות" · "אינטגרציות" · "כלבי שירות" · "נתונים" |
+| MCP endpoint | `POST /api/mcp` — Streamable HTTP, stateless, SHA-256 bearer auth |
+| MCP token management | `POST/GET/DELETE /api/mcp/connections` — create (shown once), list, revoke |
+| MCP auth lib | `src/lib/mcp-auth.ts` — `generateMcpToken()`, `validateMcpToken()`, `logMcpCall()` |
+| MCP settings UI | `src/components/settings/McpConnectionsTab.tsx` — Settings → "עוזרי AI" (paywall: basic+) |
+| MCP help page | `src/app/(dashboard)/help/connect-ai/page.tsx` — step-by-step guide for Claude Desktop |
+| MCP owner dashboard | `src/app/owner/mcp/page.tsx` + `GET /api/owner/mcp-stats` — active connections, calls/24h, errors, popular tools |
+| MCP DB models | `McpConnection` (businessId, name, tokenHash, scopes, lastUsedAt, revokedAt) + `McpAuditLog` (connectionId, toolName, params, status, resultSummary) |
+| Service layer | `src/services/` — 11 domains; all business logic; API routes only do auth + call service. See `docs/service-layer.md` |
+| ServiceError | `throw new ServiceError(message, code)` — codes: NOT_FOUND / UNAUTHORIZED / VALIDATION / CONFLICT / EXTERNAL |

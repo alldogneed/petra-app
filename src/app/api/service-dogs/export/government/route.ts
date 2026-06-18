@@ -24,8 +24,9 @@ function fmtDate(d: Date | string | null | undefined): string {
 
 // Map system phases to ministry status values
 const PHASE_TO_STATUS: Record<string, string> = {
-  PUPPY: "פעיל",
   SELECTION: "פעיל",
+  RAISING: "פעיל",
+  PUPPY: "פעיל",
   IN_TRAINING: "פעיל",
   ADVANCED_TRAINING: "פעיל",
   CERTIFIED: "פעיל",

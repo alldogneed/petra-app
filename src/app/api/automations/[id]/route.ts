@@ -22,6 +22,36 @@ export async function PATCH(
     const body = await request.json();
     const { name, trigger, triggerOffset, templateId, isActive } = body;
 
+    // ── Validate fields ──
+    const VALID_TRIGGERS = [
+      "AFTER_APPOINTMENT", "BEFORE_APPOINTMENT", "AFTER_BOOKING",
+      "AFTER_ORDER", "BIRTHDAY", "FOLLOW_UP", "BOARDING_CHECKOUT",
+      "VACCINATION_REMINDER", "PAYMENT_REMINDER",
+    ];
+
+    if (name !== undefined && (typeof name !== "string" || name.length === 0 || name.length > 200)) {
+      return NextResponse.json({ error: "שם אוטומציה לא תקין (מקסימום 200 תווים)" }, { status: 400 });
+    }
+    if (trigger !== undefined && !VALID_TRIGGERS.includes(trigger)) {
+      return NextResponse.json({ error: "סוג טריגר לא חוקי" }, { status: 400 });
+    }
+    if (triggerOffset !== undefined && (typeof triggerOffset !== "number" || triggerOffset < 0 || triggerOffset > 8760)) {
+      return NextResponse.json({ error: "ערך triggerOffset לא תקין" }, { status: 400 });
+    }
+    if (isActive !== undefined && typeof isActive !== "boolean") {
+      return NextResponse.json({ error: "ערך isActive לא תקין" }, { status: 400 });
+    }
+
+    // Verify templateId belongs to this business (prevent IDOR)
+    if (templateId !== undefined) {
+      const template = await prisma.messageTemplate.findFirst({
+        where: { id: templateId, businessId: authResult.businessId },
+      });
+      if (!template) {
+        return NextResponse.json({ error: "תבנית לא נמצאה" }, { status: 404 });
+      }
+    }
+
     const updated = await prisma.automationRule.update({
       where: { id: params.id, businessId: authResult.businessId },
       data: {

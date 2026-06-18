@@ -108,7 +108,10 @@ export async function DELETE(
       // Delete pets first (FK constraint), then customers
       if (createdPetIds.length > 0) {
         await prisma.pet.deleteMany({
-          where: { id: { in: createdPetIds } },
+          where: {
+            id: { in: createdPetIds },
+            customer: { businessId },
+          },
         });
       }
 

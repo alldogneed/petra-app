@@ -10,6 +10,7 @@ import { CURRENT_TOS_VERSION } from "@/lib/tos";
 import { randomInt } from "crypto";
 import bcrypt from "bcryptjs";
 import { logAudit, AUDIT_ACTIONS } from "@/lib/audit";
+import { rateLimitAsync, RATE_LIMITS } from "@/lib/rate-limit";
 
 const TIER_DAYS: Record<string, number> = {
   basic: 30, pro: 30, groomer: 30, service_dog: 30,
@@ -131,6 +132,14 @@ function createRecurringForBusiness(
  * This replaces the unreliable server-to-server IndicatorURL callback.
  */
 export async function GET(request: NextRequest) {
+  // Rate limit to prevent abuse (public endpoint with external API calls)
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const rl = await rateLimitAsync("cardcom:success-redirect", ip, { max: 10, windowMs: 60_000 });
+  if (!rl.allowed) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://petra-app.com";
+    return NextResponse.redirect(`${appUrl}/payment/error`);
+  }
+
   const { searchParams } = new URL(request.url);
   const checkoutId = searchParams.get("checkoutId") ?? "";
   const lowProfileCode = searchParams.get("lowprofilecode") ?? searchParams.get("LowProfileCode") ?? "";

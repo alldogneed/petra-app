@@ -275,5 +275,6 @@ export function buildSessionCookie(
 
 /** Clear session cookie */
 export function clearSessionCookie(): string {
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+  const isProd = process.env.NODE_ENV === "production";
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${isProd ? "; Secure" : ""}`;
 }

@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
  */
 const PUBLIC_PREFIX_PATHS = [
   "/book",          // /book/[slug], /book/[slug]/success, etc.
-  "/api/book",      // /api/book/[slug]
+  "/api/book/",     // /api/book/[slug] — trailing slash prevents matching /api/booking/* admin routes
   "/my-booking",    // /my-booking/[token]
   "/api/my-booking", // /api/my-booking/[token]
   "/api/cron/",     // /api/cron/* — trailing slash ensures /api/cronXXX won't match
@@ -48,6 +48,8 @@ const PUBLIC_EXACT_PATHS = new Set([
   "/api/cardcom/checkout-indicator",
   "/api/cardcom/trial-indicator",
   "/api/integrations/google/callback",
+  "/api/invoicing/process-jobs",           // Vercel Cron — in-route timing-safe CRON_SECRET auth
+  "/api/integrations/google/process-jobs", // Vercel Cron — in-route verifyCronAuth
 ]);
 
 /** Validate token format: must be exactly 64 hex characters */
@@ -58,10 +60,11 @@ function isValidTokenFormat(token: string): boolean {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public intake pages: /intake/[token] only — NOT /intake or /intake/ (admin pages)
-  if (/^\/intake\/[^/]+/.test(pathname)) return NextResponse.next();
+  // Allow public intake pages: /intake/[token] only — NOT /intake, /intake/create, /intake/list, /intake/send
+  // Tokens are UUIDs (36 chars) or cuid-style IDs (25+ chars) — require at least 20 chars to exclude short admin paths
+  if (/^\/intake\/[0-9a-zA-Z_-]{20,}$/.test(pathname)) return NextResponse.next();
   // Allow public intake API: /api/intake/[token] and /api/intake/[token]/submit
-  if (/^\/api\/intake\/[^/]+/.test(pathname)) return NextResponse.next();
+  if (/^\/api\/intake\/[0-9a-zA-Z_-]{20,}(\/submit)?$/.test(pathname)) return NextResponse.next();
 
   // Allow public contract sign pages: /sign/[token]
   if (/^\/sign\/[^/]+/.test(pathname)) return NextResponse.next();

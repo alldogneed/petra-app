@@ -119,6 +119,9 @@ export async function POST(req: NextRequest) {
     if (!Array.isArray(rows) || rows.length === 0) {
       return NextResponse.json({ error: "נדרש מערך rows שאינו ריק" }, { status: 400 });
     }
+    if (rows.length > 5000) {
+      return NextResponse.json({ error: "ניתן לייבא עד 5,000 שורות בכל פעם" }, { status: 400 });
+    }
 
     // ── Validate all rows ────────────────────────────────────────────────────
     const allErrors: RowError[] = [];
