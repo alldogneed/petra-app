@@ -154,15 +154,17 @@ function VideoModal({
           </div>
         </div>
 
-        {/* Video player */}
-        <div className="flex-1 sm:flex-none sm:rounded-2xl overflow-hidden shadow-2xl bg-black min-h-0">
+        {/* Video player — aspect-ratio box guarantees the element always has a
+            visible size (preload="none" + h-auto collapsed it to 0 → black screen). */}
+        <div className="flex-1 sm:flex-none sm:rounded-2xl overflow-hidden shadow-2xl bg-black min-h-0 sm:aspect-video">
           <video
             key={video.id}
             src={video.url}
             controls
+            autoPlay
             playsInline
-            preload="none"
-            className="w-full h-full sm:h-auto object-contain block sm:max-h-[70vh]"
+            preload="metadata"
+            className="w-full h-full object-contain block bg-black"
           />
         </div>
       </div>
