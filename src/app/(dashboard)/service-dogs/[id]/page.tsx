@@ -33,6 +33,7 @@ import {
   Pill,
   Trash2,
   Pencil,
+  Copy,
   Stethoscope,
   Flag,
   Trophy,
@@ -419,12 +420,12 @@ function ServiceDogProfilePageContent() {
     { id: "dogfile" as const, label: "תיק כלב", icon: Stethoscope },
     { id: "vaccinations" as const, label: "חיסונים וטיפולים", icon: Pill },
     { id: "placements" as const, label: "שיבוצים", icon: Activity },
+    { id: "training" as const, label: "יומן אימונים", icon: Clock },
     { id: "tests" as const, label: "מבחני הסמכה", icon: GraduationCap, badge: Array.isArray(dog.trainingTests) ? (dog.trainingTests as unknown[]).length : 0 },
     { id: "documents" as const, label: "מסמכים", icon: FileText, badge: Array.isArray(dog.documents) ? (dog.documents as unknown[]).length : 0 },
     { id: "insurance" as const, label: "ביטוח", icon: ShieldCheck },
     { id: "equipment" as const, label: "ציוד", icon: Package },
     { id: "medical" as const, label: "פרוטוקולים רפואיים", icon: Heart },
-    { id: "training" as const, label: "יומן אימונים", icon: Clock },
     { id: "idcard" as const, label: "תעודת הסמכה", icon: CreditCard },
   ];
 
@@ -1017,6 +1018,7 @@ function TrainingLogRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [copying, setCopying] = useState(false);
 
   if (editing) {
     return (
@@ -1093,6 +1095,13 @@ function TrainingLogRow({
             </div>
           )}
           <button
+            onClick={() => setCopying(true)}
+            className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded hover:bg-indigo-50 transition-all"
+            title="העתק מפגש לכלב אחר"
+          >
+            <Copy className="w-3.5 h-3.5 text-indigo-500" />
+          </button>
+          <button
             onClick={() => setEditing(true)}
             className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded hover:bg-brand-50 transition-all"
             title="ערוך מפגש"
@@ -1107,6 +1116,100 @@ function TrainingLogRow({
           >
             <Trash2 className="w-3.5 h-3.5 text-red-400" />
           </button>
+        </div>
+      </div>
+
+      {copying && (
+        <CopyLogToDogModal
+          log={log}
+          skills={skills}
+          currentDogId={dogId}
+          onClose={() => setCopying(false)}
+          onDone={() => { setCopying(false); onMutated(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Copy a training log to another service dog ───
+
+function CopyLogToDogModal({
+  log, skills, currentDogId, onClose, onDone,
+}: {
+  log: TrainingLog;
+  skills: string[];
+  currentDogId: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [targetDogId, setTargetDogId] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const { data: allDogs = [] } = useQuery<{ id: string; pet: { name: string } | null }[]>({
+    queryKey: ["service-dogs"],
+    queryFn: () => fetch("/api/service-dogs").then((r) => r.json()),
+    staleTime: 60_000,
+  });
+  const otherDogs = allDogs.filter((d) => d.id !== currentDogId);
+
+  const handleCopy = async () => {
+    if (!targetDogId) return;
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/service-dogs/${targetDogId}/training`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionDate: log.sessionDate,
+          durationMinutes: log.durationMinutes,
+          trainerName: log.trainerName,
+          location: log.location,
+          skillCategories: skills,
+          status: log.status,
+          notes: log.notes,
+          rating: log.rating,
+        }),
+      });
+      if (r.ok) {
+        toast.success("המפגש הועתק לכלב הנבחר");
+        onDone();
+      } else {
+        toast.error("שגיאה בהעתקת המפגש");
+      }
+    } catch {
+      toast.error("שגיאה בהעתקת המפגש");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-petra-text">העתק מפגש לכלב אחר</h3>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-xs text-petra-muted mb-3">
+          מפגש מ-{formatDate(log.sessionDate)} · {log.durationMinutes} דקות יועתק לכלב שתבחר/י.
+        </p>
+        <label className="label">בחר/י כלב יעד</label>
+        <select className="input mb-4" value={targetDogId} onChange={(e) => setTargetDogId(e.target.value)}>
+          <option value="">— בחר/י כלב —</option>
+          {otherDogs.map((d) => (
+            <option key={d.id} value={d.id}>{d.pet?.name ?? "ללא שם"}</option>
+          ))}
+        </select>
+        <div className="flex gap-2">
+          <button className="btn-primary flex-1" disabled={!targetDogId || saving} onClick={handleCopy}>
+            <Copy className="w-4 h-4" />
+            {saving ? "מעתיק..." : "העתק מפגש"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>
       </div>
     </div>
@@ -4431,11 +4534,15 @@ function ClaimCard({
   const followUpOverdue = claim.followUpAt && claim.followUpAt.split("T")[0] < today;
 
   const patchClaim = async (patch: Record<string, unknown>) => {
-    await fetch(`/api/service-dogs/${dogId}/insurance/${insuranceId}/claims/${claim.id}`, {
+    const r = await fetch(`/api/service-dogs/${dogId}/insurance/${insuranceId}/claims/${claim.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      throw new Error(e.error || "שגיאה בעדכון התביעה");
+    }
     onUpdated();
   };
 
@@ -4445,7 +4552,7 @@ function ClaimCard({
       status,
       resolvedAt: isClosed ? new Date().toISOString() : null,
       submittedAt: status === "SUBMITTED" && !claim.submittedAt ? new Date().toISOString() : undefined,
-    }).then(() => toast.success("סטטוס עודכן"));
+    }).then(() => toast.success("סטטוס עודכן")).catch(() => toast.error("שגיאה בעדכון סטטוס"));
   };
 
   const handleSaveEdit = () => {
@@ -4459,7 +4566,7 @@ function ClaimCard({
       submittedAt: editForm.submittedAt || null,
       followUpAt: editForm.followUpAt || null,
       description: editForm.description || null,
-    }).then(() => { toast.success("תביעה עודכנה"); setEditMode(false); });
+    }).then(() => { toast.success("תביעה עודכנה"); setEditMode(false); }).catch(() => toast.error("שגיאה בעדכון תביעה"));
   };
 
   const handleAddNote = () => {
@@ -4469,12 +4576,12 @@ function ClaimCard({
       toast.success("עדכון נוסף");
       setNewNoteText("");
       setShowAddNote(false);
-    });
+    }).catch(() => toast.error("שגיאה בהוספת עדכון"));
   };
 
   const handleDeleteNote = (idx: number) => {
     const updated = noteLog.filter((_, i) => i !== idx);
-    patchClaim({ notes: stringifyNoteLog(updated) }).then(() => toast.success("עדכון נמחק"));
+    patchClaim({ notes: stringifyNoteLog(updated) }).then(() => toast.success("עדכון נמחק")).catch(() => toast.error("שגיאה במחיקת עדכון"));
   };
 
   const handleUploadDoc = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -4493,7 +4600,7 @@ function ClaimCard({
         documents: [...existingDocs, { name: file.name, type: docType, data: reader.result as string, uploadedAt: new Date().toISOString() }],
         invoiceAttached: docType === "invoice" ? true : claim.invoiceAttached,
         visitSummaryAttached: docType === "visit_summary" ? true : claim.visitSummaryAttached,
-      }).then(() => toast.success("מסמך הועלה"));
+      }).then(() => toast.success("מסמך הועלה")).catch(() => toast.error("שגיאה בהעלאת מסמך"));
     };
     reader.readAsDataURL(file);
     e.target.value = "";
@@ -4506,7 +4613,7 @@ function ClaimCard({
       documents: updated,
       invoiceAttached: updated.some((d) => d.type === "invoice"),
       visitSummaryAttached: updated.some((d) => d.type === "visit_summary"),
-    }).then(() => toast.success("מסמך נמחק"));
+    }).then(() => toast.success("מסמך נמחק")).catch(() => toast.error("שגיאה במחיקת מסמך"));
   };
 
   // Status pipeline: which next statuses are valid from current

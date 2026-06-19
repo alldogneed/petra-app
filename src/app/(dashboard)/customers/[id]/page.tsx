@@ -4594,7 +4594,7 @@ export default function CustomerProfilePage() {
                                     return (
                                       <Link
                                         key={prog.id}
-                                        href="/training"
+                                        href={`/training?program=${prog.id}`}
                                         onClick={(e) => e.stopPropagation()}
                                         className="bg-white/60 rounded-lg p-2.5 space-y-2 block hover:bg-white transition-colors"
                                       >
@@ -4740,9 +4740,9 @@ export default function CustomerProfilePage() {
                       className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors"
                     >
                       <Link
-                        href={`/scheduler?date=${apt.date}`}
+                        href={`/calendar?date=${String(apt.date).slice(0, 10)}&apt=${apt.id}`}
                         className="contents"
-                        title="פתח ביומן"
+                        title="פתח ועריכת תור ביומן"
                       >
                         <div
                           className="w-1.5 h-8 rounded-full flex-shrink-0"
@@ -5088,7 +5088,7 @@ export default function CustomerProfilePage() {
                 {customer.trainingPrograms.map((program) => (
                   <Link
                     key={program.id}
-                    href="/training"
+                    href={`/training?program=${program.id}`}
                     className="block p-3 rounded-xl bg-slate-50/80 border border-slate-100 hover:bg-slate-100 hover:border-slate-200 transition-colors"
                   >
                     <div className="flex items-center justify-between mb-2">

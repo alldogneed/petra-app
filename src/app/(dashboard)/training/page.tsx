@@ -3,7 +3,7 @@ import { PageTitle } from "@/components/ui/PageTitle";
 
 import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { usePlan } from "@/hooks/usePlan";
 import { getMaxTrainingPrograms } from "@/lib/feature-flags";
 import {
@@ -194,6 +194,10 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "archive", label: "ארכיון", icon: <Archive className="w-4 h-4" /> },
 ];
 
+// Preset session durations (minutes) — used for all duration selects so the
+// user can pick 30 etc. without fighting a number input's min-clamp on keystroke.
+const DURATION_OPTIONS = [15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 240, 300, 360, 420, 480];
+
 const TYPE_BADGE: Record<TrainingType, { label: string; bg: string; text: string }> = {
   individual: { label: "אילוף בבית הלקוח", bg: "bg-blue-100", text: "text-blue-700" },
   boarding: { label: "פנסיון", bg: "bg-green-100", text: "text-green-700" },
@@ -375,15 +379,15 @@ function SessionLogModal({
           </div>
           <div>
             <label className="label">משך (דקות)</label>
-            <input
-              type="number"
+            <select
               className="input"
-              min={5}
-              max={480}
-              step={5}
               value={durationMinutes}
-              onChange={(e) => setDurationMinutes(Math.max(5, parseInt(e.target.value) || 60))}
-            />
+              onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
+            >
+              {(DURATION_OPTIONS.includes(durationMinutes) ? DURATION_OPTIONS : [durationMinutes, ...DURATION_OPTIONS].sort((a, b) => a - b)).map((d) => (
+                <option key={d} value={d}>{d} דקות</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="label">{L.ratingLabel}</label>
@@ -509,7 +513,7 @@ function ScheduleSessionModal({
   sessionNumber: number;
   isPending: boolean;
   onClose: () => void;
-  onSubmit: (data: { sessionDate: string; durationMinutes: number; sessionNumber: number }) => void;
+  onSubmit: (data: { sessionDate: string; durationMinutes: number; sessionNumber: number; repeat: boolean; occurrences: number; intervalDays: number }) => void;
 }) {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -518,8 +522,12 @@ function ScheduleSessionModal({
   const [sessionDate, setSessionDate] = useState(defaultDate);
   const [sessionTime, setSessionTime] = useState("10:00");
   const [durationMinutes, setDurationMinutes] = useState(60);
+  const [repeat, setRepeat] = useState(false);
+  const [intervalDays, setIntervalDays] = useState(7); // 7 = weekly, 14 = biweekly
+  const [occurrences, setOccurrences] = useState(4);
 
   const isValidDate = sessionDate && new Date(`${sessionDate}T${sessionTime}:00`) > new Date();
+  const dayOfWeek = sessionDate ? new Date(`${sessionDate}T00:00:00`).getDay() : 0;
 
   return (
     <div className="modal-overlay">
@@ -562,15 +570,64 @@ function ScheduleSessionModal({
 
           <div>
             <label className="label">משך (דקות)</label>
-            <input
-              type="number"
+            <select
               className="input"
-              min={15}
-              max={480}
-              step={15}
               value={durationMinutes}
-              onChange={(e) => setDurationMinutes(Math.max(15, parseInt(e.target.value) || 60))}
-            />
+              onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
+            >
+              {DURATION_OPTIONS.map((d) => (
+                <option key={d} value={d}>{d} דקות</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Recurring sessions */}
+          <div className="rounded-xl border border-slate-200 p-3 space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="w-4 h-4 accent-brand-500"
+                checked={repeat}
+                onChange={(e) => setRepeat(e.target.checked)}
+              />
+              <span className="text-sm font-medium text-petra-text">מפגש חוזר (קביעה מראש לכמה שבועות)</span>
+            </label>
+
+            {repeat && (
+              <div className="space-y-3 pt-1">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">תדירות</label>
+                    <select
+                      className="input"
+                      value={intervalDays}
+                      onChange={(e) => setIntervalDays(parseInt(e.target.value))}
+                    >
+                      <option value={7}>כל שבוע</option>
+                      <option value={14}>כל שבועיים</option>
+                      <option value={21}>כל 3 שבועות</option>
+                      <option value={28}>כל 4 שבועות</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">מספר מפגשים</label>
+                    <select
+                      className="input"
+                      value={occurrences}
+                      onChange={(e) => setOccurrences(parseInt(e.target.value))}
+                    >
+                      {[2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24].map((n) => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <p className="text-xs text-brand-600 bg-brand-50 rounded-lg p-2">
+                  ייקבעו {occurrences} מפגשים — כל יום {DAY_NAMES[dayOfWeek]} בשעה {sessionTime}
+                  {intervalDays > 7 ? ` (אחת ל-${intervalDays / 7} שבועות)` : ""}.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-start gap-2">
@@ -583,10 +640,10 @@ function ScheduleSessionModal({
           <button
             className="btn-primary flex-1"
             disabled={isPending || !isValidDate}
-            onClick={() => onSubmit({ sessionDate: `${sessionDate}T${sessionTime}:00`, durationMinutes, sessionNumber })}
+            onClick={() => onSubmit({ sessionDate: `${sessionDate}T${sessionTime}:00`, durationMinutes, sessionNumber, repeat, occurrences, intervalDays })}
           >
             <Calendar className="w-4 h-4" />
-            {isPending ? "קובע..." : "קבע מפגש"}
+            {isPending ? "קובע..." : repeat ? `קבע ${occurrences} מפגשים` : "קבע מפגש"}
           </button>
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>
@@ -817,6 +874,7 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
       queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
       queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
+      queryClient.invalidateQueries({ queryKey: ["training-program-sessions-cal"] });
       if (variables.customerPhone) {
         setSessionSummarySend({
           customerPhone: variables.customerPhone,
@@ -851,6 +909,7 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
       queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
       queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
+      queryClient.invalidateQueries({ queryKey: ["training-program-sessions-cal"] });
       setEditSessionTarget(null);
       toast.success("המפגש עודכן");
     },
@@ -1119,9 +1178,26 @@ function TrainingPageContent() {
   });
 
   const scheduleSessionMutation = useMutation({
-    mutationFn: async ({ programId, sessionNumber, sessionDate, durationMinutes }: {
+    mutationFn: async ({ programId, sessionNumber, sessionDate, durationMinutes, repeat, occurrences, intervalDays }: {
       programId: string; sessionNumber: number; sessionDate: string; durationMinutes: number;
+      repeat?: boolean; occurrences?: number; intervalDays?: number;
     }) => {
+      // Recurring series → use the generate endpoint
+      if (repeat && (occurrences ?? 1) > 1) {
+        const res = await fetch(`/api/training-programs/${programId}/sessions/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            startDate: new Date(sessionDate).toISOString(),
+            count: occurrences,
+            durationMinutes,
+            intervalDays: intervalDays ?? 7,
+          }),
+        });
+        if (!res.ok) throw new Error("Failed");
+        return res.json() as Promise<{ created: number }>;
+      }
+      // Single session
       const res = await fetch(`/api/training-programs/${programId}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1135,11 +1211,17 @@ function TrainingPageContent() {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: { created?: number } | unknown) => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
+      // Force the calendar overlays to refetch so the new session shows up there
+      queryClient.invalidateQueries({ queryKey: ["training-program-sessions-cal"] });
+      queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
       setScheduleSessionTarget(null);
-      toast.success("מפגש נוסף ליומן ✓ — תזכורת ווצאפ תישלח ללקוח אוטומטית");
+      const created = (data as { created?: number })?.created;
+      toast.success(created && created > 1
+        ? `${created} מפגשים נקבעו ליומן ✓ — תזכורות ווצאפ יישלחו אוטומטית`
+        : "מפגש נוסף ליומן ✓ — תזכורת ווצאפ תישלח ללקוח אוטומטית");
     },
     onError: () => toast.error("שגיאה בקביעת מפגש"),
   });
@@ -1155,6 +1237,8 @@ function TrainingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
+      queryClient.invalidateQueries({ queryKey: ["training-program-sessions-cal"] });
+      queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
       toast.success("מפגש מתוזמן בוטל");
     },
     onError: () => toast.error("שגיאה בביטול מפגש"),
@@ -1170,6 +1254,61 @@ function TrainingPageContent() {
       return next;
     });
   };
+
+  // Switch to the right tab, expand a specific card and scroll to it.
+  const focusCard = useCallback((opts: {
+    tab: TabId;
+    subTab?: "private" | "package" | "boarding-alt";
+    groupSubTab?: "groups" | "workshops";
+    expandId?: string;
+  }) => {
+    setActiveTab(opts.tab);
+    if (opts.subTab) setIndividualSubTab(opts.subTab);
+    if (opts.groupSubTab) setGroupSubTab(opts.groupSubTab);
+    if (opts.expandId) {
+      const id = opts.expandId;
+      setExpandedCards((prev) => new Set(prev).add(id));
+      setTimeout(() => {
+        document.getElementById(`tcard-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 250);
+    }
+  }, []);
+
+  // Jump directly to a dog's process from the overview table/cards.
+  const focusDog = useCallback((dog: UnifiedDog) => {
+    if (dog.type === "individual") {
+      const prog = programs.find((p) => p.id === dog.entityId);
+      focusCard({ tab: "individual", subTab: prog?.isPackage ? "package" : "private", expandId: dog.entityId });
+    } else if (dog.type === "boarding") {
+      // overview boarding rows are boarding stays — just open the boarding tab
+      focusCard({ tab: "boarding" });
+    } else if (dog.type === "workshop") {
+      focusCard({ tab: "groups", groupSubTab: "workshops", expandId: dog.entityId });
+    } else {
+      focusCard({ tab: "groups", groupSubTab: "groups", expandId: dog.entityId });
+    }
+  }, [programs, focusCard]);
+
+  // Deep-link from a customer/pet card: /training?program=<id> or ?group=<id>
+  const deepLinkConsumed = useRef(false);
+  useEffect(() => {
+    if (deepLinkConsumed.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const programId = params.get("program");
+    const groupId = params.get("group");
+    if (programId) {
+      if (programs.some((p) => p.id === programId)) {
+        focusCard({ tab: "individual", subTab: programs.find((p) => p.id === programId)?.isPackage ? "package" : "private", expandId: programId });
+        deepLinkConsumed.current = true;
+      } else if (boardingPrograms.some((p) => p.id === programId)) {
+        focusCard({ tab: "boarding", expandId: programId });
+        deepLinkConsumed.current = true;
+      }
+    } else if (groupId && groups.length) {
+      focusCard({ tab: "groups", groupSubTab: workshops.some((g) => g.id === groupId) ? "workshops" : "groups", expandId: groupId });
+      deepLinkConsumed.current = true;
+    }
+  }, [programs, boardingPrograms, groups, workshops, focusCard]);
 
   const activePrograms = programs.filter((p) => p.status === "ACTIVE");
 
@@ -1321,10 +1460,7 @@ function TrainingPageContent() {
           {activeTab === "overview" && (
             <OverviewTab
               dogs={filteredDogs}
-              onNavigate={(type) => {
-                const tab = type === "individual" ? "individual" : type === "boarding" ? "boarding" : "groups";
-                setActiveTab(tab);
-              }}
+              onFocus={focusDog}
             />
           )}
 
@@ -1817,7 +1953,7 @@ function DogStatusDot({ dog }: { dog: UnifiedDog }) {
   return <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />;
 }
 
-function OverviewDogCard({ dog }: { dog: UnifiedDog }) {
+function OverviewDogCard({ dog, onFocus }: { dog: UnifiedDog; onFocus?: (dog: UnifiedDog) => void }) {
   const badge = TYPE_BADGE[dog.type];
   const isLowSessions = dog.sessionsRemaining !== undefined && dog.sessionsRemaining <= 2 && dog.status === "ACTIVE";
   const isOverdue = dog.daysSinceLastSession !== undefined && dog.daysSinceLastSession >= 14 && dog.status === "ACTIVE";
@@ -1828,8 +1964,11 @@ function OverviewDogCard({ dog }: { dog: UnifiedDog }) {
     : null;
 
   return (
-    <div className={cn(
+    <div
+      onClick={() => onFocus?.(dog)}
+      className={cn(
       "card p-4 transition-all",
+      onFocus && "cursor-pointer hover:shadow-md",
       isLowSessions || isOverdue ? "border-red-200 bg-red-50/30" : isCompleted ? "opacity-70" : ""
     )}>
       {/* Top row */}
@@ -1913,7 +2052,7 @@ function OverviewDogCard({ dog }: { dog: UnifiedDog }) {
   );
 }
 
-function OverviewDogRow({ dog, onNavigate }: { dog: UnifiedDog; onNavigate: (type: TrainingType) => void }) {
+function OverviewDogRow({ dog, onFocus }: { dog: UnifiedDog; onFocus: (dog: UnifiedDog) => void }) {
   const badge = TYPE_BADGE[dog.type];
   const isLowSessions = dog.sessionsRemaining !== undefined && dog.sessionsRemaining <= 2 && dog.status === "ACTIVE";
   const isOverdue = dog.daysSinceLastSession !== undefined && dog.daysSinceLastSession >= 14 && dog.status === "ACTIVE";
@@ -1926,7 +2065,7 @@ function OverviewDogRow({ dog, onNavigate }: { dog: UnifiedDog; onNavigate: (typ
   return (
     <tr
       className={cn("border-b last:border-0 hover:bg-brand-50/60 transition-colors cursor-pointer", isCompleted && "opacity-60")}
-      onClick={() => onNavigate(dog.type)}
+      onClick={() => onFocus(dog)}
     >
       <td className="p-3">
         <div className="flex items-center gap-2">
@@ -1981,7 +2120,7 @@ function OverviewDogRow({ dog, onNavigate }: { dog: UnifiedDog; onNavigate: (typ
   );
 }
 
-function OverviewTab({ dogs, onNavigate }: { dogs: UnifiedDog[]; onNavigate: (type: TrainingType) => void }) {
+function OverviewTab({ dogs, onFocus }: { dogs: UnifiedDog[]; onFocus: (dog: UnifiedDog) => void }) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   if (dogs.length === 0) {
@@ -2036,7 +2175,7 @@ function OverviewTab({ dogs, onNavigate }: { dogs: UnifiedDog[]; onNavigate: (ty
               {section.label}
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {section.dogs.map((dog) => <OverviewDogCard key={dog.key} dog={dog} />)}
+              {section.dogs.map((dog) => <OverviewDogCard key={dog.key} dog={dog} onFocus={onFocus} />)}
             </div>
           </section>
         ))
@@ -2062,7 +2201,7 @@ function OverviewTab({ dogs, onNavigate }: { dogs: UnifiedDog[]; onNavigate: (ty
                       {section.label}
                     </td>
                   </tr>
-                  {section.dogs.map((dog) => <OverviewDogRow key={dog.key} dog={dog} onNavigate={onNavigate} />)}
+                  {section.dogs.map((dog) => <OverviewDogRow key={dog.key} dog={dog} onFocus={onFocus} />)}
                 </>
               ))}
             </tbody>
@@ -2444,6 +2583,8 @@ function SessionChecklist({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
+      queryClient.invalidateQueries({ queryKey: ["training-program-sessions-cal"] });
+      queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
       setEditingSession(null);
       toast.success("מועד המפגש עודכן");
     },
@@ -2664,7 +2805,11 @@ function SessionChecklist({
                       </div>
                       <div className="w-20">
                         <label className="label text-[10px]">משך (דקות)</label>
-                        <input type="number" min={15} max={480} step={15} className="input text-xs py-1.5" value={es.duration} onChange={(e) => setEditingSession({ id: es.id, date: es.date, time: es.time, duration: parseInt(e.target.value) || 60 })} />
+                        <select className="input text-xs py-1.5" value={es.duration} onChange={(e) => setEditingSession({ id: es.id, date: es.date, time: es.time, duration: parseInt(e.target.value) })}>
+                          {(DURATION_OPTIONS.includes(es.duration) ? DURATION_OPTIONS : [es.duration, ...DURATION_OPTIONS].sort((a, b) => a - b)).map((d) => (
+                            <option key={d} value={d}>{d} דק׳</option>
+                          ))}
+                        </select>
                       </div>
                       <button className="btn-primary text-xs py-1.5" disabled={rescheduleSessionMutation.isPending || !es.date || !es.time} onClick={() => rescheduleSessionMutation.mutate({ sessionId: es.id, date: es.date, time: es.time, duration: es.duration })}>
                         {rescheduleSessionMutation.isPending ? "שומר..." : "שמור"}
@@ -2803,7 +2948,11 @@ function SessionChecklist({
                             </div>
                             <div className="w-20">
                               <label className="label text-[10px]">משך (דקות)</label>
-                              <input type="number" min={15} max={480} step={15} className="input text-xs py-1.5" value={es.duration} onChange={(e) => setEditingSession({ id: es.id, date: es.date, time: es.time, duration: parseInt(e.target.value) || 60 })} />
+                              <select className="input text-xs py-1.5" value={es.duration} onChange={(e) => setEditingSession({ id: es.id, date: es.date, time: es.time, duration: parseInt(e.target.value) })}>
+                          {(DURATION_OPTIONS.includes(es.duration) ? DURATION_OPTIONS : [es.duration, ...DURATION_OPTIONS].sort((a, b) => a - b)).map((d) => (
+                            <option key={d} value={d}>{d} דק׳</option>
+                          ))}
+                        </select>
                             </div>
                             <button className="btn-primary text-xs py-1.5" disabled={rescheduleSessionMutation.isPending || !es.date || !es.time} onClick={() => rescheduleSessionMutation.mutate({ sessionId: es.id, date: es.date, time: es.time, duration: es.duration })}>
                               {rescheduleSessionMutation.isPending ? "שומר..." : "שמור"}
@@ -2969,7 +3118,7 @@ function ServiceDogSessionLog({
         const statusInfo = PROGRAM_STATUS_MAP[program.status] || PROGRAM_STATUS_MAP.ACTIVE;
 
         return (
-          <div key={program.id} className="card overflow-hidden">
+          <div key={program.id} id={`tcard-${program.id}`} className="card overflow-hidden">
             {/* Program header */}
             <div className="p-4 border-b border-petra-border bg-brand-50/40">
               <div className="flex items-center gap-3">
@@ -3183,7 +3332,7 @@ function IndividualTab({
             const typeColors = PROGRAM_TYPE_COLORS[program.programType];
 
             return (
-              <div key={program.id} className="card overflow-hidden">
+              <div key={program.id} id={`tcard-${program.id}`} className="card overflow-hidden">
                 <div
                   className="p-4 flex items-center gap-3 cursor-pointer hover:bg-slate-50 transition-colors"
                   onClick={() => toggleExpand(program.id)}
@@ -3820,6 +3969,7 @@ function GroupCard({
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
       setShowAddSession(false);
       toast.success("מפגש נוצר בהצלחה");
     },
@@ -3835,6 +3985,7 @@ function GroupCard({
       }) as Promise<{ created?: number }>,
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
       setShowAddSession(false);
       toast.success(`נוצרו ${res?.created ?? seriesCount} מפגשים שבועיים`);
     },
@@ -3862,6 +4013,7 @@ function GroupCard({
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
       toast.success("סיכום המפגש נשמר");
     },
     onError: () => toast.error("שגיאה בשמירת הסיכום"),
@@ -3876,6 +4028,7 @@ function GroupCard({
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
       setEditingSession(null);
       toast.success("מועד המפגש עודכן");
     },
@@ -3887,13 +4040,14 @@ function GroupCard({
       fetchJSON(`/api/training-groups/${group.id}/sessions/${sessionId}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
       toast.success("המפגש נמחק");
     },
     onError: () => toast.error("שגיאה במחיקת המפגש"),
   });
 
   return (
-    <div className="card overflow-hidden">
+    <div id={`tcard-${group.id}`} className="card overflow-hidden">
       <div
         className="p-4 flex items-center gap-3 cursor-pointer hover:bg-slate-50 transition-colors"
         onClick={onToggle}

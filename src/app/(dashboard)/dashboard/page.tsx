@@ -399,7 +399,7 @@ function AppointmentRow({
 
   return (
     <Link
-      href={`/customers/${appointment.customer.id}`}
+      href={`/calendar?date=${String(appointment.date).slice(0, 10)}&apt=${appointment.id}`}
       className="grid grid-cols-[52px_1fr_auto] sm:grid-cols-[60px_1fr_auto] items-center gap-3 sm:gap-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50/40 px-1 rounded-lg transition-colors cursor-pointer"
     >
       {/* Time column */}

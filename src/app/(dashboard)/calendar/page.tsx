@@ -24,6 +24,7 @@ import {
   Share2,
   Sparkles,
   ExternalLink,
+  Copy,
 } from "lucide-react";
 import {
   cn,
@@ -208,6 +209,59 @@ function appointmentStyle(startTime: string, endTime: string) {
   const top = (start / 60) * SLOT_HEIGHT;
   const height = Math.max(((end - start) / 60) * SLOT_HEIGHT, 40);
   return { top, height };
+}
+
+/**
+ * Assign side-by-side lanes to appointments that overlap in time so two
+ * clients booked at the same slot render next to each other instead of
+ * stacking on top of one another (which hid the second one entirely).
+ * Returns a map of appointment id → { lane, lanes }.
+ */
+function computeOverlapLanes(
+  appts: { id: string; startTime: string; endTime: string; status: string }[]
+): Map<string, { lane: number; lanes: number }> {
+  const result = new Map<string, { lane: number; lanes: number }>();
+  const active = appts.filter((a) => a.status !== "canceled");
+  const canceled = appts.filter((a) => a.status === "canceled");
+  // Canceled appointments are faded and shouldn't steal a lane
+  canceled.forEach((a) => result.set(a.id, { lane: 0, lanes: 1 }));
+
+  const sorted = [...active].sort(
+    (a, b) =>
+      timeToMinutes(a.startTime) - timeToMinutes(b.startTime) ||
+      timeToMinutes(a.endTime) - timeToMinutes(b.endTime)
+  );
+
+  let cluster: typeof sorted = [];
+  let clusterEnd = -1;
+  const flush = () => {
+    if (cluster.length === 0) return;
+    const laneEnds: number[] = []; // end-minute per lane
+    const laneOf = new Map<string, number>();
+    for (const a of cluster) {
+      const s = timeToMinutes(a.startTime);
+      let placed = laneEnds.findIndex((end) => end <= s);
+      if (placed === -1) {
+        placed = laneEnds.length;
+        laneEnds.push(0);
+      }
+      laneEnds[placed] = timeToMinutes(a.endTime);
+      laneOf.set(a.id, placed);
+    }
+    const lanes = laneEnds.length;
+    for (const a of cluster) result.set(a.id, { lane: laneOf.get(a.id) ?? 0, lanes });
+    cluster = [];
+    clusterEnd = -1;
+  };
+
+  for (const a of sorted) {
+    const s = timeToMinutes(a.startTime);
+    if (cluster.length > 0 && s >= clusterEnd) flush();
+    cluster.push(a);
+    clusterEnd = Math.max(clusterEnd, timeToMinutes(a.endTime));
+  }
+  flush();
+  return result;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -828,6 +882,24 @@ function CalendarContent() {
     y: number;
   } | null>(null);
   const [now, setNow] = useState<Date | null>(null);
+  // Appointment id from a ?apt= deep-link, consumed once appointments load
+  const [pendingAptId, setPendingAptId] = useState<string | null>(null);
+
+  // ── Deep-link from dashboard / customer card: ?date=YYYY-MM-DD&apt=<id> ──
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const dateParam = params.get("date");
+    if (dateParam) {
+      const d = new Date(`${dateParam.slice(0, 10)}T12:00:00`);
+      if (!isNaN(d.getTime())) {
+        setAnchor(d);
+        setSelectedDay(d);
+        setViewMode("day");
+      }
+    }
+    const aptParam = params.get("apt");
+    if (aptParam) setPendingAptId(aptParam);
+  }, []);
 
   // ── Current time tick ──
   useEffect(() => {
@@ -904,6 +976,16 @@ function CalendarContent() {
     queryFn: () =>
       fetchJSON(`/api/appointments?from=${from}&to=${to}`),
   });
+
+  // Open the appointment edit modal when arriving via a ?apt= deep-link
+  useEffect(() => {
+    if (!pendingAptId) return;
+    const found = appointments.find((a) => a.id === pendingAptId);
+    if (found) {
+      setSelectedAppointment(found);
+      setPendingAptId(null);
+    }
+  }, [pendingAptId, appointments]);
 
   // Total appointment count — only fetched for free tier to show limit banner
   const { data: totalApptCount = 0 } = useQuery<number>({
@@ -1128,6 +1210,32 @@ function CalendarContent() {
       toast.success("התור הועבר בהצלחה");
     },
     onError: () => toast.error("שגיאה בעדכון התור. נסה שוב."),
+  });
+
+  // Duplicate an appointment to the same date/time (same customer, pet & service)
+  const duplicateMutation = useMutation({
+    mutationFn: (apt: AppointmentEvent) =>
+      fetchJSON(`/api/appointments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: apt.customer.id,
+          petId: apt.pet?.id ?? null,
+          serviceId: apt.service?.id ?? null,
+          priceListItemId: apt.priceListItem?.id ?? null,
+          date: toLocalDateString(new Date(apt.date)),
+          startTime: apt.startTime,
+          endTime: apt.endTime,
+          notes: apt.notes ?? null,
+        }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      setSelectedAppointment(null);
+      toast.success("התור שוכפל באותו מועד ✓");
+    },
+    onError: () => toast.error("שגיאה בשכפול התור. נסה שוב."),
   });
 
   const notesMutation = useMutation({
@@ -2021,18 +2129,20 @@ function CalendarContent() {
                   const dayAppts = filteredAppointments.filter(
                     (a) => a.date.slice(0, 10) === dateStr
                   );
+                  const lanes = computeOverlapLanes(dayAppts);
                   return dayAppts.map((apt) => {
                     const { top, height } = appointmentStyle(
                       apt.startTime,
                       apt.endTime
                     );
+                    const ln = lanes.get(apt.id) ?? { lane: 0, lanes: 1 };
                     return renderAppointmentBlock(
                       apt,
                       {
                         top,
                         height,
-                        right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
-                        width: `calc((100% - 60px) / 7 - 4px)`,
+                        right: `calc(60px + ${dayIdx} * (100% - 60px) / 7 + ${ln.lane} * (100% - 60px) / 7 / ${ln.lanes})`,
+                        width: `calc((100% - 60px) / 7 / ${ln.lanes} - 4px)`,
                         marginRight: 2,
                       },
                       true
@@ -2416,22 +2526,26 @@ function CalendarContent() {
             ))}
 
             {/* Appointment blocks */}
-            {dayAppointments.map((apt) => {
-              const { top, height } = appointmentStyle(
-                apt.startTime,
-                apt.endTime
-              );
-              return renderAppointmentBlock(
-                apt,
-                {
-                  top,
-                  height,
-                  right: 60,
-                  width: "calc(100% - 64px)",
-                },
-                false
-              );
-            })}
+            {(() => {
+              const lanes = computeOverlapLanes(dayAppointments);
+              return dayAppointments.map((apt) => {
+                const { top, height } = appointmentStyle(
+                  apt.startTime,
+                  apt.endTime
+                );
+                const ln = lanes.get(apt.id) ?? { lane: 0, lanes: 1 };
+                return renderAppointmentBlock(
+                  apt,
+                  {
+                    top,
+                    height,
+                    right: `calc(60px + ${ln.lane} * (100% - 64px) / ${ln.lanes})`,
+                    width: `calc((100% - 64px) / ${ln.lanes} - 2px)`,
+                  },
+                  false
+                );
+              });
+            })()}
 
             {/* Timed task blocks */}
             {dayTimedTasks.map((task) => {
@@ -3114,24 +3228,53 @@ function CalendarContent() {
                     />
                   </div>
                 </div>
+                {(() => {
+                  const origDur = Math.max(
+                    timeToMinutes(selectedAppointment.endTime) - timeToMinutes(selectedAppointment.startTime),
+                    15
+                  );
+                  const newEnd = rescheduleForm.startTime ? addMinutes(rescheduleForm.startTime, origDur) : "";
+                  return (
+                    <p className="text-[10px] text-brand-600">
+                      משך התור נשמר ({origDur} דק׳){newEnd ? ` · סיום ${newEnd}` : ""}
+                    </p>
+                  );
+                })()}
                 <div className="flex gap-2">
                   <button
                     className="btn-primary flex-1 text-xs"
                     disabled={rescheduleMutation.isPending || !rescheduleForm.date || !rescheduleForm.startTime}
-                    onClick={() =>
+                    onClick={() => {
+                      // Preserve the original DURATION, not the original end time:
+                      // recompute endTime = newStart + (original endTime - original startTime)
+                      const origDur = Math.max(
+                        timeToMinutes(selectedAppointment.endTime) - timeToMinutes(selectedAppointment.startTime),
+                        15
+                      );
                       rescheduleMutation.mutate({
                         id: selectedAppointment.id,
                         date: rescheduleForm.date,
                         startTime: rescheduleForm.startTime,
-                        endTime: rescheduleForm.endTime || rescheduleForm.startTime,
-                      })
-                    }
+                        endTime: addMinutes(rescheduleForm.startTime, origDur),
+                      });
+                    }}
                   >
                     {rescheduleMutation.isPending ? "שומר..." : "אשר העברה"}
                   </button>
                   <button className="btn-secondary text-xs" onClick={() => setRescheduling(false)}>ביטול</button>
                 </div>
               </div>
+            )}
+
+            {selectedAppointment.status === "scheduled" && (
+              <button
+                onClick={() => duplicateMutation.mutate(selectedAppointment)}
+                disabled={duplicateMutation.isPending}
+                className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors disabled:opacity-50"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                {duplicateMutation.isPending ? "משכפל..." : "שכפל תור (אותו מועד)"}
+              </button>
             )}
 
             <a

@@ -774,6 +774,61 @@ export async function createProgramSession(
   return { session, program };
 }
 
+/**
+ * Generate a recurring series of SCHEDULED program sessions (e.g. every Friday
+ * at 09:00). Spaces sessions by `intervalDays` (default 7 = weekly) starting
+ * from `startDate`. Skips slots that already have a session at the same time.
+ */
+export async function generateProgramSessions(
+  businessId: string,
+  db: DbClient,
+  programId: string,
+  input: { count: number; startDate: Date; durationMinutes?: number; intervalDays?: number }
+) {
+  const program = await db.trainingProgram.findFirst({
+    where: { id: programId, businessId },
+    include: {
+      customer: { select: { id: true, name: true, phone: true } },
+      dog: { select: { name: true } },
+    },
+  });
+  if (!program) throw new ServiceError("Training program not found", "NOT_FOUND");
+
+  const interval = input.intervalDays && input.intervalDays > 0 ? input.intervalDays : 7;
+  const mins = input.durationMinutes ?? 60;
+
+  const existing = await db.trainingProgramSession.findMany({
+    where: { trainingProgramId: programId },
+    select: { sessionDate: true },
+  });
+  const existingTimes = new Set(existing.map((s) => s.sessionDate.getTime()));
+
+  let sessionNumber = await db.trainingProgramSession.count({
+    where: { trainingProgramId: programId },
+  });
+
+  const created: { id: string; sessionDate: Date }[] = [];
+  for (let i = 0; i < input.count; i++) {
+    const dt = new Date(input.startDate);
+    dt.setDate(dt.getDate() + i * interval);
+    if (existingTimes.has(dt.getTime())) continue;
+
+    sessionNumber += 1;
+    const session = await db.trainingProgramSession.create({
+      data: {
+        trainingProgramId: programId,
+        sessionDate: dt,
+        durationMinutes: mins,
+        sessionNumber,
+        status: "SCHEDULED",
+      },
+    });
+    created.push({ id: session.id, sessionDate: dt });
+  }
+
+  return { created, program };
+}
+
 export async function updateProgramSession(
   businessId: string,
   db: DbClient,

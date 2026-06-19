@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   UserCheck, ChevronLeft, Phone, Mail, MapPin, CreditCard,
-  Dog, Calendar, Plus, X, Pencil, Trash2, FileText, Clock,
+  Dog, Calendar, Plus, X, Pencil, Trash2, Copy, FileText, Clock,
   CheckCircle2, AlertCircle, ExternalLink, ArrowRight,
   Link2, Printer, Search, Upload, Users, Smartphone, Package,
 } from "lucide-react";
@@ -156,6 +156,7 @@ function RecipientDetailPageContent() {
   const [showAddContact, setShowAddContact] = useState(false);
   const [editingContact, setEditingContact] = useState<ContactPerson | null>(null);
   const [uploadingForContact, setUploadingForContact] = useState<string | null>(null);
+  const [copyingMeeting, setCopyingMeeting] = useState<Meeting | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -795,6 +796,13 @@ function RecipientDetailPageContent() {
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <button
+                        onClick={() => setCopyingMeeting(meeting)}
+                        className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded flex items-center justify-center hover:bg-indigo-50 transition-all"
+                        title="העתק מפגש לזכאי אחר"
+                      >
+                        <Copy className="w-3.5 h-3.5 text-indigo-500" />
+                      </button>
+                      <button
                         onClick={() => setEditingMeeting(meeting)}
                         className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded flex items-center justify-center hover:bg-brand-50 transition-all"
                         title="ערוך"
@@ -840,6 +848,15 @@ function RecipientDetailPageContent() {
           meeting={editingMeeting}
           onSave={saveMeeting}
           onClose={() => { setShowAddMeeting(false); setEditingMeeting(null); }}
+        />
+      )}
+
+      {copyingMeeting && (
+        <CopyMeetingToRecipientModal
+          meeting={copyingMeeting}
+          currentRecipientId={id}
+          onClose={() => setCopyingMeeting(null)}
+          onDone={() => setCopyingMeeting(null)}
         />
       )}
 
@@ -1232,6 +1249,90 @@ function ContactPersonModal({
             </button>
             <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Copy Meeting To Another Recipient ───
+
+function CopyMeetingToRecipientModal({
+  meeting, currentRecipientId, onClose, onDone,
+}: {
+  meeting: Meeting;
+  currentRecipientId: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [targetId, setTargetId] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const { data: recipients = [] } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ["service-recipients"],
+    queryFn: () => fetch("/api/service-recipients").then((r) => r.json()),
+    staleTime: 30_000,
+  });
+  const others = recipients.filter((r) => r.id !== currentRecipientId);
+
+  const handleCopy = async () => {
+    if (!targetId) return;
+    setSaving(true);
+    try {
+      // Read the target recipient's current meetings, then append a copy
+      const detail = await fetch(`/api/service-recipients/${targetId}`).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      });
+      const existing: Meeting[] = Array.isArray(detail.meetings)
+        ? detail.meetings
+        : (() => { try { return JSON.parse(detail.meetings ?? "[]"); } catch { return []; } })();
+      const copy: Meeting = { ...meeting, id: crypto.randomUUID() };
+      const res = await fetch(`/api/service-recipients/${targetId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ meetings: [copy, ...existing] }),
+      });
+      if (res.ok) {
+        toast.success("המפגש הועתק לזכאי הנבחר");
+        onDone();
+      } else {
+        toast.error("שגיאה בהעתקת המפגש");
+      }
+    } catch {
+      toast.error("שגיאה בהעתקת המפגש");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-petra-text">העתק מפגש לזכאי אחר</h3>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-xs text-petra-muted mb-3">
+          {MEETING_TYPE_MAP[meeting.type] || meeting.type}
+          {meeting.date ? ` · ${formatDate(meeting.date)}` : ""} יועתק לזכאי שתבחר/י.
+        </p>
+        <label className="label">בחר/י זכאי יעד</label>
+        <select className="input mb-4" value={targetId} onChange={(e) => setTargetId(e.target.value)}>
+          <option value="">— בחר/י זכאי —</option>
+          {others.map((r) => (
+            <option key={r.id} value={r.id}>{r.name}</option>
+          ))}
+        </select>
+        <div className="flex gap-2">
+          <button className="btn-primary flex-1" disabled={!targetId || saving} onClick={handleCopy}>
+            <Copy className="w-4 h-4" />
+            {saving ? "מעתיק..." : "העתק מפגש"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>
       </div>
     </div>

@@ -940,7 +940,7 @@ export default function PetProfilePage() {
                   return (
                     <Link
                       key={p.id}
-                      href="/training"
+                      href={`/training?program=${p.id}`}
                       className="py-3 flex items-center justify-between gap-3 hover:bg-slate-50 rounded-lg px-2 -mx-2 transition-colors cursor-pointer block"
                     >
                       <div>
