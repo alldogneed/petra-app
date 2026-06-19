@@ -133,7 +133,7 @@ const VIEW_MODES: { id: ViewMode; label: string }[] = [
   { id: "day", label: "יום" },
   { id: "week", label: "שבוע" },
   { id: "month", label: "חודש" },
-  { id: "agenda", label: "אג׳נדה" },
+  { id: "agenda", label: "פריסה" },
 ];
 
 const SERVICE_TYPE_COLORS: Record<string, string> = {
@@ -856,8 +856,22 @@ function CalendarContent() {
   // Initial value must match SSR output (no window on server) — switch to
   // mobile day-view only after hydration to avoid a hydration mismatch.
   const [viewMode, setViewMode] = useState<ViewMode>("week");
+  // On phones: portrait → day view, landscape → week view (rotate to see the week).
+  // Desktop is left untouched. A phone is detected by its smaller dimension < 768.
   useEffect(() => {
-    if (window.innerWidth < 768) setViewMode("day");
+    const applyResponsiveView = () => {
+      const isPhone = Math.min(window.innerWidth, window.innerHeight) < 768;
+      if (!isPhone) return;
+      const landscape = window.innerWidth > window.innerHeight;
+      setViewMode(landscape ? "week" : "day");
+    };
+    applyResponsiveView();
+    window.addEventListener("orientationchange", applyResponsiveView);
+    window.addEventListener("resize", applyResponsiveView);
+    return () => {
+      window.removeEventListener("orientationchange", applyResponsiveView);
+      window.removeEventListener("resize", applyResponsiveView);
+    };
   }, []);
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [showNewModal, setShowNewModal] = useState(false);
@@ -906,15 +920,6 @@ function CalendarContent() {
     setNow(new Date());
     const interval = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(interval);
-  }, []);
-
-  // ── Switch to Day view on small screens ──
-  useEffect(() => {
-    const onResize = () => {
-      if (window.innerWidth < 768) setViewMode("day");
-    };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   useEffect(() => {
