@@ -100,6 +100,7 @@ const AUTH_PATTERNS = [
   /resolveSession\s*\(/,
   /getCurrentUser\s*\(/,
   /validateMcpToken\s*\(/,   // MCP bearer-token auth (SHA-256, businessId derived from token)
+  /handleMcpRequest\s*\(/,   // delegates to the MCP handler, which always runs validateMcpToken
 ];
 
 const TOKEN_AUTH_PATTERNS = [
