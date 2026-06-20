@@ -37,6 +37,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { cn, toWhatsAppPhone, fetchJSON, formatCurrency } from "@/lib/utils";
+import { mapWithConcurrency } from "@/lib/concurrency";
 import { triggerLimitModal } from "@/lib/limit-reached";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone, isValidEmail } from "@/lib/validation";
 import { SERVICE_TYPES } from "@/lib/constants";
@@ -1318,7 +1319,9 @@ function NewCustomerModal({
       if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
         triggerLimitModal(err.message);
       } else {
-        toast.error("שגיאה ביצירת הלקוח. נסה שוב.");
+        // Surface the real server message (e.g. "לקוח עם מספר טלפון זה כבר קיים")
+        // instead of a generic error, so a 409 duplicate is actually explained.
+        toast.error(err.message || "שגיאה ביצירת הלקוח. נסה שוב.");
       }
     },
   });
@@ -1724,7 +1727,8 @@ export default function CustomersPage() {
   const bulkVipMutation = useMutation({
     mutationFn: async ({ ids, addVip }: { ids: string[]; addVip: boolean }) => {
       const selectedCustomers = rawCustomers.filter((c) => ids.includes(c.id));
-      const promises = selectedCustomers.map((c) => {
+      // Bounded concurrency — avoids exhausting the DB pool on large selections.
+      return mapWithConcurrency(selectedCustomers, 3, (c) => {
         const tags = parseTags(c.tags);
         let newTags: string[];
         if (addVip) {
@@ -1741,7 +1745,6 @@ export default function CustomersPage() {
           return r.json();
         });
       });
-      return Promise.all(promises);
     },
     onSuccess: (_, { addVip }) => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
@@ -1754,20 +1757,24 @@ export default function CustomersPage() {
   // ── Bulk Delete mutation ──
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const results = await Promise.allSettled(
-        ids.map((id) =>
-          fetch(`/api/customers/${id}`, {
-            method: "DELETE",
-            headers: { "x-confirm-action": `DELETE_CUSTOMER_${id}` },
-          }).then(async (r) => {
+      // Each delete runs a long sequential cleanup server-side (see rule #17),
+      // so cap concurrency low (2) to avoid exhausting the DB pool. fn catches
+      // per-item so one failure doesn't abort the rest (allSettled semantics).
+      const results = await mapWithConcurrency(ids, 2, (id) =>
+        fetch(`/api/customers/${id}`, {
+          method: "DELETE",
+          headers: { "x-confirm-action": `DELETE_CUSTOMER_${id}` },
+        })
+          .then(async (r) => {
             if (!r.ok) {
               const d = await r.json().catch(() => ({}));
               throw new Error(d.error || `שגיאה ${r.status}`);
             }
+            return true as const;
           })
-        )
+          .catch(() => false as const)
       );
-      const failed = results.filter((r) => r.status === "rejected").length;
+      const failed = results.filter((ok) => !ok).length;
       return { total: ids.length, failed };
     },
     onSuccess: ({ total, failed }) => {

@@ -47,6 +47,7 @@ import {
   CheckSquare,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
+import { mapWithConcurrency } from "@/lib/concurrency";
 import { toast } from "sonner";
 import { usePlan } from "@/hooks/usePlan";
 import { getMaxTasks } from "@/lib/feature-flags";
@@ -378,11 +379,13 @@ export default function TasksPage() {
 
   const bulkCompleteMutation = useMutation({
     mutationFn: (ids: string[]) =>
-      Promise.all(ids.map((id) => fetchJSON(`/api/tasks/${id}`, {
+      // Bounded concurrency — firing all PATCHes at once exhausts the DB pool
+      // and cascades into app-wide 500s (incl. the dashboard). See concurrency.ts.
+      mapWithConcurrency(ids, 3, (id) => fetchJSON(`/api/tasks/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "COMPLETED" }),
-      }))),
+      })),
     onSuccess: (_, ids) => {
       type Counters = { openTasks: number; overdueFollowUps: number; pendingBookings: number; activeBoarding: number };
       queryClient.setQueryData<Counters>(["sidebar-counters"], (old) =>
