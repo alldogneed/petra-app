@@ -66,10 +66,15 @@ export function middleware(request: NextRequest) {
   // Allow public intake API: /api/intake/[token] and /api/intake/[token]/submit
   if (/^\/api\/intake\/[0-9a-zA-Z_-]{20,}(\/submit)?$/.test(pathname)) return NextResponse.next();
 
-  // Allow public contract sign pages: /sign/[token]
-  if (/^\/sign\/[^/]+/.test(pathname)) return NextResponse.next();
-  // Allow public sign API: /api/sign/[token]
-  if (/^\/api\/sign\/[^/]+/.test(pathname)) return NextResponse.next();
+  // Allow public contract sign pages: /sign/[token] (end-anchored to prevent /sign/token/extra bypass)
+  if (/^\/sign\/[^/]+$/.test(pathname)) return NextResponse.next();
+  // Allow public sign API: /api/sign/[token] and /api/sign/[token]/pdf
+  if (/^\/api\/sign\/[^/]+(\/pdf)?$/.test(pathname)) return NextResponse.next();
+
+  // Allow MCP path-based token endpoint: /api/mcp/u/petra_mcp_<64 hex>
+  // Strict format match so this never opens /api/mcp/connections or any other sub-path.
+  // The route itself does the real Bearer-token auth + rate limit + audit.
+  if (/^\/api\/mcp\/u\/petra_mcp_[0-9a-f]{64}$/.test(pathname)) return NextResponse.next();
 
   // Allow exact public paths
   if (PUBLIC_EXACT_PATHS.has(pathname)) {
@@ -102,8 +107,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow static files — only match file extensions at the end of the path
-  if (/\.\w{2,5}$/.test(pathname)) {
+  // Allow known static file extensions — explicit allowlist to prevent auth bypass via crafted extensions
+  if (/\.(ico|png|jpg|jpeg|gif|svg|webp|avif|css|js|map|woff2?|ttf|eot|txt|xml|webmanifest)$/.test(pathname)) {
     return NextResponse.next();
   }
 

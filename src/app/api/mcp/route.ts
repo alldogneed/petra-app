@@ -497,7 +497,16 @@ function rateLimitResponse(retryAfterMs: number): Response {
 
 // ─── Next.js route handlers ───────────────────────────────────────────────────
 
-async function handleMcpRequest(request: NextRequest): Promise<Response> {
+/**
+ * Core MCP request handler. Exported so the path-based token route
+ * (`/api/mcp/u/[token]`) can reuse the exact same auth + rate-limit + dispatch
+ * logic, passing the token from the URL path instead of the Authorization header.
+ *
+ * @param tokenFromPath - when set, used as the bearer token instead of the header.
+ *   Lets non-technical users paste a single URL into Claude Desktop's connector UI,
+ *   which has no header field. Header auth remains the recommended path.
+ */
+export async function handleMcpRequest(request: NextRequest, tokenFromPath?: string): Promise<Response> {
   // Emergency kill switch. Set MCP_ENABLED=false in env to disable MCP globally.
   // Default behavior (unset, or any value other than 'false'): MCP is active.
   // This is a fail-open emergency override - the primary gate is Bearer token auth.
@@ -513,8 +522,9 @@ async function handleMcpRequest(request: NextRequest): Promise<Response> {
 
   const ip = getClientIp(request);
 
-  // Validate bearer token
-  const token = extractBearerToken(request.headers.get("authorization"));
+  // Validate bearer token. Path-based token (URL connector flow) takes precedence,
+  // otherwise fall back to the Authorization header (recommended flow).
+  const token = tokenFromPath ?? extractBearerToken(request.headers.get("authorization"));
   const auth = token ? await validateMcpToken(token) : null;
 
   if (!auth) {

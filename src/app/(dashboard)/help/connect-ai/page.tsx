@@ -31,16 +31,26 @@ const steps = [
     title: "הגדר את Claude Desktop",
     description: (
       <>
-        פתח את Claude Desktop, לך להגדרות → Developer → Edit Config. הוסף את הקוד הבא תחת mcpServers:
-        <pre className="mt-3 bg-slate-900 text-slate-100 rounded-xl p-4 text-xs overflow-x-auto whitespace-pre-wrap font-mono text-right" dir="ltr">
+        ב-Claude Desktop פתח <strong>Settings → Connectors → Add custom connector</strong>, ומלא:
+        <ul className="list-disc list-inside text-sm text-slate-600 mt-2 space-y-0.5">
+          <li><strong>Name:</strong> <code>Petra</code></li>
+          <li><strong>Remote MCP server URL:</strong> הדבק את הכתובת הבאה, והחלף את <code>YOUR_TOKEN_HERE</code> בטוקן שקיבלת:</li>
+        </ul>
+        <pre className="mt-2 bg-slate-900 text-slate-100 rounded-xl p-4 text-xs overflow-x-auto whitespace-pre-wrap font-mono text-right" dir="ltr">
+{`https://petra-app.com/api/mcp/u/YOUR_TOKEN_HERE`}
+        </pre>
+        <p className="text-sm text-slate-500 mt-2">לחץ <strong>Add</strong> — וזהו. אין צורך לערוך קבצים.</p>
+        <details className="text-sm text-slate-500 mt-3">
+          <summary className="cursor-pointer select-none font-medium text-slate-600">דרך מתקדמת — דרך קובץ הגדרות (Developer → Edit Config)</summary>
+          <pre className="mt-2 bg-slate-900 text-slate-100 rounded-xl p-4 text-xs overflow-x-auto whitespace-pre-wrap font-mono text-right" dir="ltr">
 {`"petra": {
   "url": "https://petra-app.com/api/mcp",
   "headers": {
     "Authorization": "Bearer YOUR_TOKEN_HERE"
   }
 }`}
-        </pre>
-        <p className="text-sm text-slate-500 mt-2">החלף <code>YOUR_TOKEN_HERE</code> בטוקן שקיבלת בשלב הקודם.</p>
+          </pre>
+        </details>
       </>
     ),
     icon: Terminal,

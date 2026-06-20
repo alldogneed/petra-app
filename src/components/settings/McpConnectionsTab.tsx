@@ -102,22 +102,52 @@ export function McpConnectionsTab() {
               <Copy className="w-5 h-5" />
             </button>
           </div>
-          <div className="text-amber-700 text-sm space-y-1">
-            <p className="font-medium">איך להשתמש ב-Claude Desktop:</p>
-            <ol className="list-decimal list-inside space-y-0.5 text-xs">
-              <li>פתח את ההגדרות של Claude Desktop</li>
-              <li>לך ל-&quot;Developer&quot; → &quot;Edit Config&quot;</li>
-              <li>הוסף את הבלוק הבא תחת <code>mcpServers</code>:</li>
+          {/* Easy method — paste one URL into Claude Desktop's Connectors UI */}
+          <div className="bg-white border border-emerald-200 rounded-lg p-3 space-y-2">
+            <p className="text-emerald-800 text-sm font-semibold">✅ הדרך הקלה (מומלץ) — חיבור ב-Claude Desktop בלי קוד:</p>
+            <ol className="list-decimal list-inside space-y-0.5 text-xs text-slate-600">
+              <li>ב-Claude Desktop: <strong>Settings → Connectors → Add custom connector</strong></li>
+              <li>ב-<strong>Name</strong> כתוב: <code>Petra</code></li>
+              <li>ב-<strong>Remote MCP server URL</strong> הדבק את הכתובת הבאה (כוללת את הטוקן שלך):</li>
             </ol>
-            <pre className="bg-white border border-amber-200 rounded p-2 text-xs overflow-x-auto mt-1 whitespace-pre-wrap">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 flex items-center gap-2 font-mono text-xs break-all">
+              <span className="flex-1 text-slate-700 select-all">
+                {(typeof window !== "undefined" ? window.location.origin : "https://petra-app.com")}/api/mcp/u/{newToken}
+              </span>
+              <button
+                onClick={() => {
+                  const origin = typeof window !== "undefined" ? window.location.origin : "https://petra-app.com";
+                  copyToClipboard(`${origin}/api/mcp/u/${newToken}`);
+                  toast.success("הכתובת הועתקה");
+                }}
+                className="text-emerald-600 hover:text-emerald-800 flex-shrink-0"
+                title="העתק כתובת"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">לחץ <strong>Add</strong> וזהו — Claude מחובר לעסק שלך. 🎉</p>
+          </div>
+
+          {/* Advanced method — config file with header auth */}
+          <details className="text-amber-700 text-sm">
+            <summary className="font-medium cursor-pointer select-none">דרך מתקדמת — דרך קובץ הגדרות (Developer → Edit Config)</summary>
+            <div className="space-y-1 mt-2">
+              <ol className="list-decimal list-inside space-y-0.5 text-xs">
+                <li>ב-Claude Desktop: <strong>Settings → Developer → Edit Config</strong></li>
+                <li>הוסף את הבלוק הבא תחת <code>mcpServers</code>:</li>
+              </ol>
+              <pre className="bg-white border border-amber-200 rounded p-2 text-xs overflow-x-auto mt-1 whitespace-pre-wrap">
 {`"petra": {
   "url": "${typeof window !== "undefined" ? window.location.origin : "https://petra-app.com"}/api/mcp",
   "headers": {
     "Authorization": "Bearer ${newToken}"
   }
 }`}
-            </pre>
-          </div>
+              </pre>
+              <p className="text-xs text-amber-600">סגור ופתח מחדש את Claude Desktop (Cmd+Q) כדי שהשינוי ייכנס לתוקף.</p>
+            </div>
+          </details>
           <button
             onClick={() => { setNewToken(null); setNewConnectionId(null); }}
             className="btn-secondary text-sm w-full mt-2"
