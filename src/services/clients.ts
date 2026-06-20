@@ -700,7 +700,7 @@ export async function createLead(businessId: string, db: DbClient, input: Create
     existingCustomer,
     duplicateLead,
     // caller needs these for WhatsApp notification
-    business: business ? { phone: business.phone, featureOverrides: business.featureOverrides } : null,
+    business: business ? { tier: business.tier, phone: business.phone, featureOverrides: business.featureOverrides } : null,
   };
 }
 

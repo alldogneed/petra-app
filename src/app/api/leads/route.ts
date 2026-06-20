@@ -60,8 +60,7 @@ export async function POST(request: NextRequest) {
     // ── Side effect: WhatsApp notification to business owner (PRO+ only) ──
     const bizOverrides = (business?.featureOverrides as Record<string, unknown> | null) ?? null;
     const canNotify = hasFeatureWithOverrides(
-      // need tier — re-fetch minimally for the notification check
-      undefined as unknown as string,
+      business?.tier ?? "free",
       "lead_notifications",
       bizOverrides as Record<string, boolean> | null
     );
