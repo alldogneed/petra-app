@@ -282,22 +282,38 @@ function buildServer(businessId: string, connectionId: string): McpServer {
   // ── list_leads ────────────────────────────────────────────────────────────
   server.tool(
     "list_leads",
-    "List all leads (potential clients) for the business. Returns name, phone, stage, requested service and creation date.",
-    {},
-    async () => {
+    "List leads (potential clients). Optionally filter by follow-up date to see who needs to be contacted on a given day. Returns name, phone, stage, requested service, and follow-up date.",
+    {
+      follow_up_on: z.string().optional().describe("Filter to leads whose follow-up date is exactly this day, format YYYY-MM-DD (e.g. tomorrow's date)"),
+      follow_up_until: z.string().optional().describe("Filter to leads whose follow-up date is on or before this day, format YYYY-MM-DD (e.g. overdue + due-today)"),
+    },
+    async (args: { follow_up_on?: string; follow_up_until?: string }) => {
       try {
         const leads = await listLeads(businessId, prisma);
-        await auditLog(connectionId, "list_leads", {}, "success", `returned ${leads.length} leads`);
-        if (leads.length === 0) return textResult("אין לידים במערכת.");
-        const lines = leads.slice(0, 50).map((l) => {
-          const date = new Date(l.createdAt).toLocaleDateString("he-IL");
-          return `• ${l.name}${l.phone ? ` | ${l.phone}` : ""}${l.requestedService ? ` | ${l.requestedService}` : ""} [${l.stage ?? "חדש"}, ${date}]`;
+        const isoDay = (d: Date | string) => new Date(d).toISOString().slice(0, 10);
+
+        let filtered = leads;
+        let header = `נמצאו ${leads.length} לידים`;
+        if (args.follow_up_on) {
+          filtered = leads.filter((l) => l.followUpDate && isoDay(l.followUpDate) === args.follow_up_on);
+          header = `נמצאו ${filtered.length} לידים לחזרה בתאריך ${args.follow_up_on}`;
+        } else if (args.follow_up_until) {
+          filtered = leads.filter((l) => l.followUpDate && isoDay(l.followUpDate) <= args.follow_up_until!);
+          header = `נמצאו ${filtered.length} לידים לחזרה עד ${args.follow_up_until} (כולל באיחור)`;
+        }
+
+        await auditLog(connectionId, "list_leads", args, "success", `returned ${filtered.length}/${leads.length} leads`);
+        if (filtered.length === 0) return textResult(args.follow_up_on || args.follow_up_until ? `${header}.` : "אין לידים במערכת.");
+
+        const lines = filtered.slice(0, 50).map((l) => {
+          const fu = l.followUpDate ? `חזרה: ${new Date(l.followUpDate).toLocaleDateString("he-IL")}` : `נוצר: ${new Date(l.createdAt).toLocaleDateString("he-IL")}`;
+          return `• ${l.name}${l.phone ? ` | ${l.phone}` : ""}${l.requestedService ? ` | ${l.requestedService}` : ""} [${l.stage ?? "חדש"}, ${fu}]`;
         });
-        const suffix = leads.length > 50 ? `\n...ועוד ${leads.length - 50} לידים` : "";
-        return textResult(`נמצאו ${leads.length} לידים:\n${lines.join("\n")}${suffix}`);
+        const suffix = filtered.length > 50 ? `\n...ועוד ${filtered.length - 50} לידים` : "";
+        return textResult(`${header}:\n${lines.join("\n")}${suffix}`);
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה בטעינת לידים";
-        await auditLog(connectionId, "list_leads", {}, "error", undefined, msg);
+        await auditLog(connectionId, "list_leads", args, "error", undefined, msg);
         return errorResult(msg);
       }
     }
