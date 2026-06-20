@@ -295,10 +295,10 @@ function buildServer(businessId: string, connectionId: string): McpServer {
         let filtered = leads;
         let header = `נמצאו ${leads.length} לידים`;
         if (args.follow_up_on) {
-          filtered = leads.filter((l) => l.followUpDate && isoDay(l.followUpDate) === args.follow_up_on);
+          filtered = leads.filter((l) => l.nextFollowUpAt && isoDay(l.nextFollowUpAt) === args.follow_up_on);
           header = `נמצאו ${filtered.length} לידים לחזרה בתאריך ${args.follow_up_on}`;
         } else if (args.follow_up_until) {
-          filtered = leads.filter((l) => l.followUpDate && isoDay(l.followUpDate) <= args.follow_up_until!);
+          filtered = leads.filter((l) => l.nextFollowUpAt && isoDay(l.nextFollowUpAt) <= args.follow_up_until!);
           header = `נמצאו ${filtered.length} לידים לחזרה עד ${args.follow_up_until} (כולל באיחור)`;
         }
 
@@ -306,7 +306,7 @@ function buildServer(businessId: string, connectionId: string): McpServer {
         if (filtered.length === 0) return textResult(args.follow_up_on || args.follow_up_until ? `${header}.` : "אין לידים במערכת.");
 
         const lines = filtered.slice(0, 50).map((l) => {
-          const fu = l.followUpDate ? `חזרה: ${new Date(l.followUpDate).toLocaleDateString("he-IL")}` : `נוצר: ${new Date(l.createdAt).toLocaleDateString("he-IL")}`;
+          const fu = l.nextFollowUpAt ? `חזרה: ${new Date(l.nextFollowUpAt).toLocaleDateString("he-IL")}` : `נוצר: ${new Date(l.createdAt).toLocaleDateString("he-IL")}`;
           return `• ${l.name}${l.phone ? ` | ${l.phone}` : ""}${l.requestedService ? ` | ${l.requestedService}` : ""} [${l.stage ?? "חדש"}, ${fu}]`;
         });
         const suffix = filtered.length > 50 ? `\n...ועוד ${filtered.length - 50} לידים` : "";
