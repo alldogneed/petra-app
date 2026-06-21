@@ -850,6 +850,9 @@ function CalendarContent() {
   const maxAppts = getMaxAppointments(tier);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timeGridRef = useRef<HTMLDivElement>(null);
+  // Agenda view: distinguish a real tap from a scroll/drag so swiping to scroll
+  // doesn't fire the day-header (→ day view) or item link (→ customer) by accident.
+  const agendaPointerDown = useRef<{ x: number; y: number } | null>(null);
 
   // ── State ──
   const [anchor, setAnchor] = useState(new Date());
@@ -3016,7 +3019,20 @@ function CalendarContent() {
         });
 
         return (
-          <div className="card divide-y divide-petra-border">
+          <div
+            className="card divide-y divide-petra-border"
+            onPointerDownCapture={(e) => { agendaPointerDown.current = { x: e.clientX, y: e.clientY }; }}
+            onClickCapture={(e) => {
+              // If the pointer moved more than a small threshold between press and
+              // release, treat it as a scroll/drag — not a tap — and swallow the
+              // click so we don't navigate to day view / a customer by accident.
+              const start = agendaPointerDown.current;
+              if (start && (Math.abs(e.clientX - start.x) > 10 || Math.abs(e.clientY - start.y) > 10)) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
+          >
             {agendaDays.map(({ date, dateStr, items }) => {
               const isToday = dateStr === today;
               return (
