@@ -27,6 +27,32 @@ export interface MetaTemplateMessage {
 }
 
 // ---------------------------------------------------------------------------
+// Auth-failure detection → owner alert (so a dead token doesn't go unnoticed)
+// ---------------------------------------------------------------------------
+
+type MetaError = { message?: string; code?: number; type?: string };
+
+/** True only for token/auth failures — NOT per-recipient errors (24h window, opt-out, etc.) */
+function isAuthError(status: number, error?: MetaError): boolean {
+  if (status === 401) return true;
+  if (error?.code === 190) return true;            // OAuthException: expired/invalid token
+  if (error?.type === "OAuthException") return true;
+  const m = (error?.message ?? "").toLowerCase();
+  return m.includes("access token") || m.includes("malformed") || m.includes("expired token") || m.includes("oauthexception");
+}
+
+/** If the failure is an auth/token problem, email the owner (throttled). Awaited so it isn't killed on Vercel. */
+async function maybeAlertAuthFailure(context: string, status: number, error?: MetaError): Promise<void> {
+  if (!isAuthError(status, error)) return;
+  try {
+    const { notifyOwnerWhatsAppDown } = await import("./notify-owner");
+    await notifyOwnerWhatsAppDown(context, error?.message ?? `HTTP ${status}`);
+  } catch (e) {
+    console.error("[WhatsApp] failed to send auth-failure alert:", e);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Meta Cloud API
 // ---------------------------------------------------------------------------
 
@@ -57,12 +83,13 @@ async function sendViaMetaCloudApi(params: SendParams): Promise<SendResult | nul
 
     const data = await res.json() as {
       messages?: Array<{ id: string }>;
-      error?: { message: string };
+      error?: MetaError;
     };
 
     if (!res.ok || data.error) {
       const errMsg = data.error?.message ?? `HTTP ${res.status}`;
       console.error("[WhatsApp Meta] Send failed:", errMsg);
+      await maybeAlertAuthFailure("WhatsApp text message", res.status, data.error);
       return { success: false, error: errMsg };
     }
 
@@ -113,12 +140,13 @@ async function sendViaMetaCloudApiTemplate(params: MetaTemplateMessage): Promise
 
     const data = await res.json() as {
       messages?: Array<{ id: string }>;
-      error?: { message: string };
+      error?: MetaError;
     };
 
     if (!res.ok || data.error) {
       const errMsg = data.error?.message ?? `HTTP ${res.status}`;
       console.error("[WhatsApp Meta Template] Send failed:", errMsg);
+      await maybeAlertAuthFailure("WhatsApp template message", res.status, data.error);
       return { success: false, error: errMsg };
     }
 

@@ -156,6 +156,33 @@ export async function rateLimitAsync(
   return rateLimit(namespace, key, options);
 }
 
+// ─── One-shot claim (throttle / dedupe) ──────────────────────────────────────
+const _claimMemory = new Map<string, number>(); // key → expiry epoch ms
+
+/**
+ * Atomically "claim" a key for `ttlSeconds`. Returns true for the FIRST caller
+ * within the window, false for subsequent ones — use it to throttle repeated
+ * side effects (e.g. send an alert at most once per N hours) across serverless
+ * instances. Uses Upstash Redis (SET NX EX); falls back to per-instance memory.
+ */
+export async function claimOnce(key: string, ttlSeconds: number): Promise<boolean> {
+  try {
+    const r = _getRedis();
+    if (r) {
+      const res = await r.set(`claim:${key}`, "1", { nx: true, ex: ttlSeconds });
+      return res === "OK";
+    }
+  } catch (err) {
+    console.error("claimOnce Redis error, falling back to memory:", err);
+  }
+  // Fallback: per-instance memory
+  const now = Date.now();
+  const exp = _claimMemory.get(key);
+  if (exp && exp > now) return false;
+  _claimMemory.set(key, now + ttlSeconds * 1000);
+  return true;
+}
+
 /** Periodic cleanup of expired entries (call from a cron or app init) */
 export function cleanupRateLimitStore(): number {
   const store = getStore();

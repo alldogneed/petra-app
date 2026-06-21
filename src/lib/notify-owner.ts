@@ -120,6 +120,45 @@ async function sendOwnerEmail(subject: string, html: string): Promise<void> {
   }
 }
 
+// ── WhatsApp-health alert ───────────────────────────────────────────────────
+
+/**
+ * Alert the owner that WhatsApp sending is failing (e.g. expired/invalid Meta
+ * token) — sent via EMAIL only, because if the token is dead a WhatsApp alert
+ * would fail too. Throttled to at most once every 6h so a burst of failed sends
+ * doesn't flood the inbox. Fire-and-forget — never throws.
+ */
+export async function notifyOwnerWhatsAppDown(context: string, errorMsg: string): Promise<void> {
+  try {
+    const { claimOnce } = await import("./rate-limit");
+    const fresh = await claimOnce("whatsapp-send-failure", 6 * 60 * 60); // 6h
+    if (!fresh) return; // already alerted recently
+
+    const when = formatDate();
+    const subject = "🔴 Petra: שליחת וואטסאפ נכשלת — בדוק את הטוקן";
+    const html = `
+      <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; max-width: 560px; margin: 0 auto;">
+        <h2 style="color: #dc2626;">⚠️ שליחת וואטסאפ נכשלת</h2>
+        <p>היי ${OWNER_NAME}, מערכת פטרה ניסתה לשלוח הודעת וואטסאפ ונכשלה. כל עוד זה קורה, <b>אף לקוח לא מקבל תזכורות/אישורים ואתה לא מקבל התראות לידים</b>.</p>
+        <p style="background:#fef2f2; border:1px solid #fecaca; padding:12px; border-radius:8px;">
+          <b>מקור:</b> ${escapeHtml(context)}<br/>
+          <b>שגיאה:</b> ${escapeHtml(errorMsg).slice(0, 500)}<br/>
+          <b>זמן:</b> ${when}
+        </p>
+        <p><b>סביר שהטוקן של Meta פג.</b> תיקון:</p>
+        <ol>
+          <li>Meta Business → System Users → <b>petra API</b> → Generate Token (ללא תפוגה, הרשאות whatsapp_business_messaging + whatsapp_business_management)</li>
+          <li>עדכן את <code>META_WHATSAPP_TOKEN</code> ב-Vercel (Production) → Redeploy</li>
+        </ol>
+        <p style="color:#64748b; font-size:13px;">התראה זו נשלחת לכל היותר פעם ב-6 שעות.</p>
+      </div>`;
+    await sendOwnerEmail(subject, html);
+    console.error(`[notify-owner] WhatsApp-down alert emailed (context: ${context})`);
+  } catch (err) {
+    console.error("[notify-owner] Failed to send WhatsApp-down alert:", err);
+  }
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export interface NewUserParams {
