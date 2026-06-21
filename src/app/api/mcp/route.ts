@@ -65,7 +65,7 @@ function buildServer(businessId: string, connectionId: string): McpServer {
             const parsed = JSON.parse(c.tags ?? "[]");
             if (Array.isArray(parsed) && parsed.length) tagsStr = ` [${parsed.join(", ")}]`;
           } catch { /* ignore malformed tags */ }
-          return `• ${c.name}${c.phone ? ` | ${c.phone}` : ""}${c.email ? ` | ${c.email}` : ""}${tagsStr}`;
+          return `• ${c.name}${c.phone ? ` | ${c.phone}` : ""}${c.email ? ` | ${c.email}` : ""}${tagsStr} (id: ${c.id})`;
         });
         return textResult(`נמצאו ${customers.length} לקוחות:\n${lines.join("\n")}`);
       } catch (e) {
@@ -96,7 +96,7 @@ function buildServer(businessId: string, connectionId: string): McpServer {
         const lines = appts.map((a) => {
           const dateStr = new Date(a.date).toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "numeric" });
           const timeStr = a.startTime ?? "";
-          return `• ${dateStr} ${timeStr} — ${(a as any).customer?.name ?? "לא ידוע"} | ${(a as any).service?.name ?? ""} [${a.status}]`;
+          return `• ${dateStr} ${timeStr} — ${(a as any).customer?.name ?? "לא ידוע"} | ${(a as any).service?.name ?? ""} [${a.status}] (id: ${a.id})`;
         });
         return textResult(`${appts.length} תורים קרובים:\n${lines.join("\n")}`);
       } catch (e) {
@@ -132,10 +132,34 @@ function buildServer(businessId: string, connectionId: string): McpServer {
     }
   );
 
+  // ── list_services ─────────────────────────────────────────────────────────
+  server.tool(
+    "list_services",
+    "List the business's active services. Returns each service's name, duration, price and ID. Use the ID as service_id when creating an appointment.",
+    {},
+    async () => {
+      try {
+        const services = await prisma.service.findMany({
+          where: { businessId, isActive: true },
+          select: { id: true, name: true, duration: true, price: true },
+          orderBy: { name: "asc" },
+        });
+        await auditLog(connectionId, "list_services", {}, "success", `returned ${services.length} services`);
+        if (services.length === 0) return textResult("לא הוגדרו שירותים פעילים.");
+        const lines = services.map((s) => `• ${s.name} — ${s.duration} דק' — ₪${s.price.toLocaleString("he-IL")} (id: ${s.id})`);
+        return textResult(`נמצאו ${services.length} שירותים:\n${lines.join("\n")}`);
+      } catch (e) {
+        const msg = e instanceof ServiceError ? e.message : "שגיאה בטעינת שירותים";
+        await auditLog(connectionId, "list_services", {}, "error", undefined, msg);
+        return errorResult(msg);
+      }
+    }
+  );
+
   // ── create_appointment ────────────────────────────────────────────────────
   server.tool(
     "create_appointment",
-    "Create a new appointment. Requires customer ID and service ID. Use list_clients to find customer IDs.",
+    "Create a new appointment. Requires customer ID and service ID. Use list_clients to find customer IDs and list_services to find service IDs.",
     {
       customer_id: z.string().describe("Customer ID (from list_clients)"),
       service_id: z.string().describe("Service ID"),
