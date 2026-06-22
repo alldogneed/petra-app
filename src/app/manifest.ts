@@ -9,7 +9,9 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     background_color: "#ffffff",
     theme_color: "#1e293b",
-    orientation: "portrait-primary",
+    // "any" (not portrait-lock) so the installed PWA can rotate to landscape —
+    // the calendar switches to week view in landscape (see calendar/page.tsx).
+    orientation: "any",
     icons: [
       {
         src: "/icon.png",

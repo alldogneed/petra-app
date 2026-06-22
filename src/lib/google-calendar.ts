@@ -730,6 +730,32 @@ async function fetchAppointmentForGcal(appointmentId: string): Promise<Appointme
 }
 
 /**
+ * POST a new event to a Google calendar. Throws (with the Google error body) on a
+ * non-OK response or missing id, so failures surface in logs instead of silently
+ * producing an undefined event id — which previously left appointments un-synced
+ * with no trace (e.g. a single Friday appointment that never reached GCal).
+ */
+async function createGcalEventOrThrow(
+  calendarId: string,
+  accessToken: string,
+  payload: unknown
+): Promise<string> {
+  const res = await fetch(
+    `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+  const data = await res.json().catch(() => ({} as { id?: string }));
+  if (!res.ok || !data?.id) {
+    throw new Error(`GCal event create failed (${res.status}): ${JSON.stringify(data).slice(0, 400)}`);
+  }
+  return data.id;
+}
+
+/**
  * Sync a staff-created appointment to Google Calendar for all connected business users.
  * Fire-and-forget safe — catches per-user errors internally.
  */
@@ -771,30 +797,12 @@ export async function syncAppointmentToGcal(
         if (updateRes.ok) {
           eventId = storedEventId;
         } else {
-          // Event was deleted from GCal — recreate
-          const createRes = await fetch(
-            `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`,
-            {
-              method: "POST",
-              headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            }
-          );
-          const data = await createRes.json();
-          eventId = data.id;
+          // Event was deleted from GCal (or update rejected) — recreate
+          eventId = await createGcalEventOrThrow(calendarId, accessToken, payload);
         }
       } else {
         // Create new event
-        const createRes = await fetch(
-          `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`,
-          {
-            method: "POST",
-            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          }
-        );
-        const data = await createRes.json();
-        eventId = data.id;
+        eventId = await createGcalEventOrThrow(calendarId, accessToken, payload);
       }
 
       // Persist gcalEventId after first successful sync
