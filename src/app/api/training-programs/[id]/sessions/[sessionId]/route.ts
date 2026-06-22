@@ -6,6 +6,7 @@ import {
   scheduleTrainingSessionReminder,
   cancelTrainingSessionReminder,
 } from "@/lib/reminder-service";
+import { syncTrainingProgramSessionToGcal, deleteTrainingProgramSessionFromGcal } from "@/lib/google-calendar";
 import { updateProgramSession, deleteProgramSession, ServiceError } from "@/services/training";
 
 export async function PATCH(
@@ -86,6 +87,11 @@ export async function PATCH(
       }
     }
 
+    // Re-sync to Google Calendar (date/time/duration may have changed).
+    await syncTrainingProgramSessionToGcal(updated.id, authResult.businessId).catch((err) =>
+      console.error("syncTrainingProgramSessionToGcal failed (non-critical):", err)
+    );
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("PATCH /api/training-programs/[id]/sessions/[sessionId] error:", error);
@@ -100,6 +106,11 @@ export async function DELETE(
   try {
     const authResult = await requireBusinessAuth(req);
     if (isGuardError(authResult)) return authResult;
+
+    // Remove from Google Calendar before deleting the row (needs gcalEventId).
+    await deleteTrainingProgramSessionFromGcal(params.sessionId, authResult.businessId).catch((err) =>
+      console.error("deleteTrainingProgramSessionFromGcal failed (non-critical):", err)
+    );
 
     let result;
     try {

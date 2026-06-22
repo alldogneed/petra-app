@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { scheduleTrainingSessionReminder } from "@/lib/reminder-service";
+import { syncTrainingProgramSessionToGcal } from "@/lib/google-calendar";
 import { createProgramSession, ServiceError } from "@/services/training";
 
 export async function POST(
@@ -84,6 +85,11 @@ export async function POST(
         console.error("scheduleTrainingSessionReminder failed (non-critical):", err);
       }
     }
+
+    // Sync to Google Calendar (training sessions previously never reached gcal).
+    await syncTrainingProgramSessionToGcal(session.id, authResult.businessId).catch((err) =>
+      console.error("syncTrainingProgramSessionToGcal failed (non-critical):", err)
+    );
 
     return NextResponse.json(session, { status: 201 });
   } catch (error) {

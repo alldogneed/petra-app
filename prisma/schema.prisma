@@ -1307,6 +1307,7 @@ model TrainingProgramSession {
   nextSessionGoals    String?  // focus for next session
   homeworkForCustomer String?  // homework assigned to customer / team notes for service dogs
   trainerName         String?  // who conducted the session
+  gcalEventId         String?  // Google Calendar event id (set after first sync)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -1376,6 +1377,7 @@ model TrainingGroupSession {
   sessionNumber   Int?
   status          String   @default("SCHEDULED") // SCHEDULED | COMPLETED | CANCELED
   notes           String?
+  gcalEventId     String?  // Google Calendar event id (set after first sync)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

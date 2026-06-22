@@ -857,6 +857,185 @@ export async function deleteAppointmentFromGcal(
   });
 }
 
+// ─── Training session sync (program + group) ─────────────────────────────────
+// Training sessions are a separate entity from Appointment and previously had NO
+// Google Calendar integration at all — so "ליווי" sessions never reached gcal and
+// failed silently (no code path ran, no error logged). These helpers fix that.
+
+/** A full timestamp → Israel-local ISO 8601 string with the correct DST offset. */
+function toIsraelIso(date: Date): string {
+  const dateStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(date);
+  const timeStr = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  }).format(date);
+  return `${dateStr}T${timeStr}${getJerusalemOffset(date)}`;
+}
+
+/**
+ * Create-or-update an event on every connected user's calendar. Mirrors the
+ * appointment sync loop: PUT existing event, recreate if it 404s, persist the id
+ * after first create. Per-user errors are logged, not thrown.
+ */
+async function pushEventToConnectedCalendars(
+  businessId: string,
+  storedEventId: string | null,
+  payload: object,
+  persist: (eventId: string) => Promise<void>,
+  logLabel: string
+): Promise<void> {
+  const syncableUsers = (await findConnectedUsersForBusiness(businessId)).filter((u) => u.gcalSyncEnabled);
+  if (syncableUsers.length === 0) return;
+
+  let eventId = storedEventId;
+  for (const user of syncableUsers) {
+    try {
+      const [accessToken, calendarId] = await Promise.all([
+        getValidAccessToken(user.id),
+        ensureUserCalendar(user.id),
+      ]);
+      if (eventId) {
+        const updateRes = await fetch(
+          `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
+          { method: "PUT", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) }
+        );
+        if (!updateRes.ok) eventId = await createGcalEventOrThrow(calendarId, accessToken, payload);
+      } else {
+        eventId = await createGcalEventOrThrow(calendarId, accessToken, payload);
+      }
+      if (!storedEventId && eventId) {
+        await persist(eventId);
+        storedEventId = eventId;
+      }
+    } catch (err) {
+      console.error(`${logLabel} (user ${user.id}):`, err);
+    }
+  }
+}
+
+/** Delete an event from every connected user's calendar. */
+async function deleteEventFromConnectedCalendars(businessId: string, eventId: string, logLabel: string): Promise<void> {
+  const syncableUsers = (await findConnectedUsersForBusiness(businessId)).filter((u) => u.gcalSyncEnabled);
+  for (const user of syncableUsers) {
+    try {
+      const [accessToken, calendarId] = await Promise.all([
+        getValidAccessToken(user.id),
+        ensureUserCalendar(user.id),
+      ]);
+      await fetch(
+        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+    } catch (err) {
+      console.error(`${logLabel} (user ${user.id}):`, err);
+    }
+  }
+}
+
+/** Sync a 1-on-1 training program session ("ליווי") to Google Calendar. */
+export async function syncTrainingProgramSessionToGcal(sessionId: string, businessId: string): Promise<void> {
+  const s = await prisma.trainingProgramSession.findUnique({
+    where: { id: sessionId },
+    select: {
+      id: true, sessionDate: true, durationMinutes: true, status: true, gcalEventId: true, summary: true, trainerName: true,
+      program: {
+        select: {
+          businessId: true, name: true,
+          dog: { select: { name: true } },
+          customer: { select: { name: true, phone: true, address: true } },
+        },
+      },
+    },
+  });
+  if (!s || s.program.businessId !== businessId || s.status === "CANCELED") return;
+
+  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://petra-app.com";
+  const dogName = s.program.dog?.name ?? "כלב";
+  const cust = s.program.customer;
+  const summaryParts = [cust?.name ?? dogName, dogName];
+  if (cust?.phone) summaryParts.push(cust.phone);
+  const payload = {
+    summary: `${summaryParts.join(" – ")} – אילוף`,
+    description: [
+      `🐕 אילוף${s.program.name ? ` – ${s.program.name}` : ""}`,
+      cust?.name ? `👤 לקוח: ${cust.name}` : null,
+      cust?.phone ? `📞 טלפון: ${cust.phone}` : null,
+      s.trainerName ? `🧑‍🏫 מאלף: ${s.trainerName}` : null,
+      ``,
+      `🔗 ${appBaseUrl}/training`,
+      `⚙️ מנוהל על ידי Petra`,
+    ].filter(Boolean).join("\n"),
+    start: { dateTime: toIsraelIso(s.sessionDate), timeZone: BOOKING_TIMEZONE },
+    end: { dateTime: toIsraelIso(new Date(s.sessionDate.getTime() + s.durationMinutes * 60000)), timeZone: BOOKING_TIMEZONE },
+    ...(cust?.address ? { location: cust.address } : {}),
+    extendedProperties: { private: { petraTrainingProgramSessionId: s.id, businessId, source: "petra" } },
+  };
+
+  await pushEventToConnectedCalendars(
+    businessId, s.gcalEventId, payload,
+    (eventId) => prisma.trainingProgramSession.update({ where: { id: sessionId }, data: { gcalEventId: eventId } }).then(() => undefined),
+    "GCal training-program session sync error"
+  );
+}
+
+/** Remove a training program session from Google Calendar (on cancel/delete). */
+export async function deleteTrainingProgramSessionFromGcal(sessionId: string, businessId: string): Promise<void> {
+  const s = await prisma.trainingProgramSession.findUnique({
+    where: { id: sessionId },
+    select: { gcalEventId: true, program: { select: { businessId: true } } },
+  });
+  if (!s?.gcalEventId || s.program.businessId !== businessId) return;
+  await deleteEventFromConnectedCalendars(businessId, s.gcalEventId, "GCal training-program session delete error");
+  await prisma.trainingProgramSession.update({ where: { id: sessionId }, data: { gcalEventId: null } });
+}
+
+/** Sync a group/workshop training session to Google Calendar. */
+export async function syncTrainingGroupSessionToGcal(sessionId: string, businessId: string): Promise<void> {
+  const s = await prisma.trainingGroupSession.findUnique({
+    where: { id: sessionId },
+    select: {
+      id: true, sessionDatetime: true, status: true, notes: true, gcalEventId: true,
+      trainingGroup: { select: { businessId: true, name: true, groupType: true } },
+    },
+  });
+  if (!s || s.trainingGroup.businessId !== businessId || s.status === "CANCELED") return;
+
+  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://petra-app.com";
+  const isWorkshop = s.trainingGroup.groupType === "WORKSHOP";
+  const DEFAULT_GROUP_DURATION_MIN = 60; // TrainingGroupSession has no duration field
+  const payload = {
+    summary: `${s.trainingGroup.name} – ${isWorkshop ? "סדנה" : "אימון קבוצתי"}`,
+    description: [
+      isWorkshop ? `🎓 סדנה: ${s.trainingGroup.name}` : `👥 אימון קבוצתי: ${s.trainingGroup.name}`,
+      s.notes ? `📝 ${s.notes}` : null,
+      ``,
+      `🔗 ${appBaseUrl}/training`,
+      `⚙️ מנוהל על ידי Petra`,
+    ].filter(Boolean).join("\n"),
+    start: { dateTime: toIsraelIso(s.sessionDatetime), timeZone: BOOKING_TIMEZONE },
+    end: { dateTime: toIsraelIso(new Date(s.sessionDatetime.getTime() + DEFAULT_GROUP_DURATION_MIN * 60000)), timeZone: BOOKING_TIMEZONE },
+    extendedProperties: { private: { petraTrainingGroupSessionId: s.id, businessId, source: "petra" } },
+  };
+
+  await pushEventToConnectedCalendars(
+    businessId, s.gcalEventId, payload,
+    (eventId) => prisma.trainingGroupSession.update({ where: { id: sessionId }, data: { gcalEventId: eventId } }).then(() => undefined),
+    "GCal training-group session sync error"
+  );
+}
+
+/** Remove a training group session from Google Calendar (on cancel/delete). */
+export async function deleteTrainingGroupSessionFromGcal(sessionId: string, businessId: string): Promise<void> {
+  const s = await prisma.trainingGroupSession.findUnique({
+    where: { id: sessionId },
+    select: { gcalEventId: true, trainingGroup: { select: { businessId: true } } },
+  });
+  if (!s?.gcalEventId || s.trainingGroup.businessId !== businessId) return;
+  await deleteEventFromConnectedCalendars(businessId, s.gcalEventId, "GCal training-group session delete error");
+  await prisma.trainingGroupSession.update({ where: { id: sessionId }, data: { gcalEventId: null } });
+}
+
 // ─── Boarding Stay sync ──────────────────────────────────────────────────────
 
 /**

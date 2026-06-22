@@ -7,6 +7,7 @@ import {
   rescheduleGroupSessionReminders,
 } from "@/lib/reminder-service";
 import { SESSION_STATUS_MAP } from "@/lib/training-groups";
+import { syncTrainingGroupSessionToGcal, deleteTrainingGroupSessionFromGcal } from "@/lib/google-calendar";
 import { updateGroupSession, deleteGroupSession, ServiceError } from "@/services/training";
 
 export async function PATCH(
@@ -55,6 +56,17 @@ export async function PATCH(
       console.error("group reminder sync failed (non-critical):", err);
     }
 
+    // Mirror to Google Calendar: remove if canceled/inactive, otherwise re-sync.
+    if (result.movedToInactive) {
+      await deleteTrainingGroupSessionFromGcal(params.sessionId, authResult.businessId).catch((err) =>
+        console.error("deleteTrainingGroupSessionFromGcal failed (non-critical):", err)
+      );
+    } else {
+      await syncTrainingGroupSessionToGcal(params.sessionId, authResult.businessId).catch((err) =>
+        console.error("syncTrainingGroupSessionToGcal failed (non-critical):", err)
+      );
+    }
+
     return NextResponse.json(result.session);
   } catch (error) {
     console.error("PATCH training session error:", error);
@@ -69,6 +81,11 @@ export async function DELETE(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    // Remove from Google Calendar before deleting the row (needs gcalEventId).
+    await deleteTrainingGroupSessionFromGcal(params.sessionId, authResult.businessId).catch((err) =>
+      console.error("deleteTrainingGroupSessionFromGcal failed (non-critical):", err)
+    );
 
     try {
       await deleteGroupSession(authResult.businessId, prisma, params.id, params.sessionId);
