@@ -103,12 +103,89 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
 }
 
 /**
- * Cancel all pending reminders for an appointment.
+ * Schedule a follow-up WhatsApp message AFTER an appointment (opt-in).
+ * Only fires if the business has an active `appointment_followup` AutomationRule —
+ * there is no fallback (unlike the pre-appointment reminder). Sends `triggerOffset`
+ * hours after the appointment start (default 24h). Uses relatedEntityType
+ * "APPOINTMENT_FOLLOWUP" so it never collides with the pre-appointment reminder.
+ */
+export async function scheduleAppointmentFollowup(appt: AppointmentForReminder) {
+  const bizSettings = await prisma.business.findUnique({
+    where: { id: appt.businessId },
+    select: { whatsappRemindersEnabled: true, phone: true, tier: true, featureOverrides: true },
+  });
+  if (!bizSettings?.whatsappRemindersEnabled) return null;
+  const overrides = (bizSettings.featureOverrides as Record<string, boolean> | null) ?? null;
+  if (!hasFeatureWithOverrides(bizSettings.tier, "whatsapp_reminders", overrides)) return null;
+
+  // Follow-up is opt-in: requires an active appointment_followup rule.
+  const rule = await prisma.automationRule.findFirst({
+    where: { businessId: appt.businessId, trigger: "appointment_followup", isActive: true },
+    include: {
+      template: { select: { body: true } },
+      business: { select: { phone: true } },
+    },
+  });
+  if (!rule) return null;
+
+  const [h, m] = appt.startTime.split(":").map(Number);
+  const apptDatetime = new Date(appt.date);
+  apptDatetime.setHours(h, m, 0, 0);
+
+  const offsetHours = rule.triggerOffset ?? 24;
+  const sendAt = new Date(apptDatetime.getTime() + offsetHours * 60 * 60 * 1000);
+  if (sendAt <= new Date()) return null;
+
+  // Dedup on the follow-up entity type (distinct from the pre-appointment reminder).
+  const existing = await prisma.scheduledMessage.findFirst({
+    where: { relatedEntityType: "APPOINTMENT_FOLLOWUP", relatedEntityId: appt.id, status: "PENDING" },
+  });
+  if (existing) return null;
+
+  const formattedDate = new Intl.DateTimeFormat("he-IL", {
+    weekday: "long", day: "numeric", month: "long",
+  }).format(apptDatetime);
+  const bizPhone = rule.business?.phone ?? bizSettings.phone ?? "";
+
+  let body: string;
+  if (rule.template?.body) {
+    body = interpolateTemplate(rule.template.body, {
+      customerName: appt.customer.name,
+      petName: appt.pet?.name ?? "",
+      date: formattedDate,
+      time: appt.startTime,
+      serviceName: appt.service?.name ?? "",
+      businessPhone: bizPhone,
+    });
+  } else {
+    const petPart = appt.pet ? ` של ${appt.pet.name}` : "";
+    const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${bizPhone}_`;
+    body = `שלום ${appt.customer.name}! 🐾\n\nתודה שהגעתם${petPart}. מקווים שהיה מעולה!\nנשמח לשמוע איך הולך, ואם יש שאלות אנחנו כאן.${footer}`;
+  }
+
+  return prisma.scheduledMessage.create({
+    data: {
+      businessId: appt.businessId,
+      customerId: appt.customerId,
+      channel: "whatsapp",
+      templateKey: `automation-rule-${rule.id}`,
+      payloadJson: JSON.stringify({ body }),
+      sendAt,
+      status: "PENDING",
+      relatedEntityType: "APPOINTMENT_FOLLOWUP",
+      relatedEntityId: appt.id,
+    },
+  });
+}
+
+/**
+ * Cancel all pending reminders for an appointment (pre-appointment reminder AND
+ * post-appointment follow-up).
  */
 export async function cancelAppointmentReminders(appointmentId: string) {
   return prisma.scheduledMessage.updateMany({
     where: {
-      relatedEntityType: "APPOINTMENT",
+      relatedEntityType: { in: ["APPOINTMENT", "APPOINTMENT_FOLLOWUP"] },
       relatedEntityId: appointmentId,
       status: "PENDING",
     },
@@ -117,11 +194,16 @@ export async function cancelAppointmentReminders(appointmentId: string) {
 }
 
 /**
- * Cancel existing reminders and reschedule (call when date/time changes).
+ * Cancel existing reminders and reschedule both the pre-appointment reminder and
+ * the post-appointment follow-up (call when date/time changes).
  */
 export async function rescheduleAppointmentReminder(appt: AppointmentForReminder) {
   await cancelAppointmentReminders(appt.id);
-  return scheduleAppointmentReminder(appt);
+  const reminder = await scheduleAppointmentReminder(appt);
+  await scheduleAppointmentFollowup(appt).catch((err) =>
+    console.error("scheduleAppointmentFollowup (reschedule) failed (non-critical):", err)
+  );
+  return reminder;
 }
 
 // ─── Boarding checkout reminder scheduling ────────────────────────────────────

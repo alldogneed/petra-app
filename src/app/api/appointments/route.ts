@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { scheduleAppointmentReminder } from "@/lib/reminder-service";
+import { scheduleAppointmentReminder, scheduleAppointmentFollowup } from "@/lib/reminder-service";
 import { syncAppointmentToGcal } from "@/lib/google-calendar";
 import { sendWhatsAppTemplate, sendWhatsAppMessage, interpolateTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
@@ -119,9 +119,21 @@ export async function POST(request: NextRequest) {
       date: appointment.date,
       startTime: appointment.startTime,
       service: { name: appointment.service?.name ?? "תור" },
-      customer: { name: appointment.customer.name },
+      customer: { name: appointment.customer?.name ?? "לקוח" },
       pet: appointment.pet ? { name: appointment.pet.name } : null,
     }).catch((err) => console.error("Failed to schedule appointment reminder:", err));
+
+    // Schedule post-appointment follow-up (opt-in via appointment_followup rule)
+    await scheduleAppointmentFollowup({
+      id: appointment.id,
+      businessId: authResult.businessId,
+      customerId: appointment.customerId,
+      date: appointment.date,
+      startTime: appointment.startTime,
+      service: { name: appointment.service?.name ?? "תור" },
+      customer: { name: appointment.customer?.name ?? "לקוח" },
+      pet: appointment.pet ? { name: appointment.pet.name } : null,
+    }).catch((err) => console.error("Failed to schedule appointment follow-up:", err));
 
     // GCal sync
     await syncAppointmentToGcal(appointment.id, authResult.businessId).catch((err) =>

@@ -857,6 +857,27 @@ export async function deleteAppointmentFromGcal(
   });
 }
 
+/**
+ * Re-sync a customer's upcoming appointments to Google Calendar. Called when the
+ * customer's address (or other synced detail) changes — the gcal event embeds the
+ * address, and editing the customer otherwise leaves already-synced events stale
+ * (e.g. gcal showing an old city while Petra has the full updated address).
+ */
+export async function resyncCustomerAppointmentsToGcal(customerId: string, businessId: string): Promise<void> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const appts = await prisma.appointment.findMany({
+    where: { customerId, businessId, date: { gte: today }, status: { not: "canceled" } },
+    select: { id: true },
+    take: 100,
+  });
+  for (const a of appts) {
+    await syncAppointmentToGcal(a.id, businessId).catch((err) =>
+      console.error(`resyncCustomerAppointmentsToGcal: appt ${a.id}:`, err)
+    );
+  }
+}
+
 // ─── Training session sync (program + group) ─────────────────────────────────
 // Training sessions are a separate entity from Appointment and previously had NO
 // Google Calendar integration at all — so "ליווי" sessions never reached gcal and

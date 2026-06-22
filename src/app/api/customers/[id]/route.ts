@@ -10,11 +10,12 @@ import {
   getCustomer, updateCustomer, deleteCustomer, ServiceError,
   type UpdateCustomerInput,
 } from "@/services/clients";
+import { resyncCustomerAppointmentsToGcal } from "@/lib/google-calendar";
 
 const PatchCustomerSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   phone: z.string().max(20).optional(),
-  phoneNorm: z.string().max(20).nullable().optional(),
+  // phoneNorm removed — always derived server-side from phone to prevent duplicate-detection bypass
   email: z.string().email().max(100).nullable().optional(),
   address: z.string().max(500).nullable().optional(),
   idNumber: z.string().max(20).nullable().optional(),
@@ -69,6 +70,14 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
     }
 
+    // Capture the old address so we can re-sync gcal events only on a real change.
+    const before = parsed.data.address !== undefined
+      ? await prisma.customer.findFirst({
+          where: { id: params.id, businessId: authResult.businessId },
+          select: { address: true },
+        })
+      : null;
+
     let customer;
     try {
       customer = await updateCustomer(
@@ -85,6 +94,13 @@ export async function PATCH(
 
     const { session } = authResult;
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.UPDATE_CUSTOMER);
+
+    // Address changed → re-sync upcoming appointments so gcal reflects the new address.
+    if (before && before.address !== customer.address) {
+      await resyncCustomerAppointmentsToGcal(params.id, authResult.businessId).catch((err) =>
+        console.error("resyncCustomerAppointmentsToGcal failed (non-critical):", err)
+      );
+    }
 
     return NextResponse.json(customer);
   } catch (error) {
