@@ -720,7 +720,8 @@ export function CreateOrderModal({
                 <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
                 <input
                   type="time"
-                  className="input text-sm pr-9"
+                  dir="ltr"
+                  className="input text-sm pr-9 text-left"
                   value={apptStartTime}
                   onChange={(e) => {
                     const v = e.target.value;
@@ -740,7 +741,8 @@ export function CreateOrderModal({
                 <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
                 <input
                   type="time"
-                  className="input text-sm pr-9"
+                  dir="ltr"
+                  className="input text-sm pr-9 text-left"
                   value={apptEndTime}
                   onChange={(e) => setApptEndTime(e.target.value)}
                 />
@@ -780,7 +782,8 @@ export function CreateOrderModal({
                 <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
                 <input
                   type="time"
-                  className="input text-sm pr-9"
+                  dir="ltr"
+                  className="input text-sm pr-9 text-left"
                   value={boardingCheckInTime}
                   onChange={(e) => setBoardingCheckInTime(e.target.value)}
                 />
@@ -804,7 +807,8 @@ export function CreateOrderModal({
                 <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
                 <input
                   type="time"
-                  className="input text-sm pr-9"
+                  dir="ltr"
+                  className="input text-sm pr-9 text-left"
                   value={boardingCheckOutTime}
                   onChange={(e) => setBoardingCheckOutTime(e.target.value)}
                 />

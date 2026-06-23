@@ -120,12 +120,16 @@ export async function createAppointment(
   if (notes && notes.length > 2000) {
     throw new ServiceError("הערות ארוכות מדי (מקסימום 2000 תווים)", "VALIDATION");
   }
-  if (!serviceId && !priceListItemId) {
+  // An appointment must describe itself: a service, a price-list item, or at least
+  // notes (e.g. a "[טיפוח]" category tag). This allows duplicating legacy/tag-only
+  // appointments whose service was deleted — the hard service requirement made
+  // "שכפל תור" fail on them.
+  if (!serviceId && !priceListItemId && !notes) {
     throw new ServiceError("Either serviceId or priceListItemId is required", "VALIDATION");
   }
 
   // Time format validation
-  const timeRegex = /^\d{2}:\d{2}$/;
+  const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
   if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
     throw new ServiceError("startTime and endTime must be in HH:mm format", "VALIDATION");
   }
@@ -259,6 +263,47 @@ export async function createRecurringAppointments(businessId: string, db: DbClie
 
   if (!date || !startTime || !endTime || !customerId) {
     throw new ServiceError("Missing required fields", "VALIDATION");
+  }
+  // Allow serviceless appointments that carry descriptive notes (tag-only), matching createAppointment.
+  if (!serviceId && !priceListItemId && !notes) {
+    throw new ServiceError("Either serviceId or priceListItemId is required", "VALIDATION");
+  }
+
+  // Time format validation
+  const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+  if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
+    throw new ServiceError("startTime and endTime must be in HH:mm format", "VALIDATION");
+  }
+  if (startTime >= endTime) {
+    throw new ServiceError("startTime must be before endTime", "VALIDATION");
+  }
+  if (notes && notes.length > 2000) {
+    throw new ServiceError("הערות ארוכות מדי (מקסימום 2000 תווים)", "VALIDATION");
+  }
+
+  // IDOR: validate all referenced IDs belong to this business
+  const customer = await db.customer.findFirst({ where: { id: customerId, businessId }, select: { id: true } });
+  if (!customer) throw new ServiceError("לקוח לא נמצא", "NOT_FOUND");
+
+  if (petId) {
+    const pet = await db.pet.findFirst({
+      where: { id: petId, OR: [{ customer: { businessId } }, { businessId }] },
+      select: { id: true },
+    });
+    if (!pet) throw new ServiceError("חיית מחמד לא נמצאה", "NOT_FOUND");
+  }
+
+  if (serviceId) {
+    const svc = await db.service.findFirst({ where: { id: serviceId, businessId }, select: { id: true } });
+    if (!svc) throw new ServiceError("שירות לא נמצא", "NOT_FOUND");
+  }
+
+  if (priceListItemId) {
+    const pli = await db.priceListItem.findFirst({
+      where: { id: priceListItemId, priceList: { businessId } },
+      select: { id: true },
+    });
+    if (!pli) throw new ServiceError("פריט מחירון לא נמצא", "NOT_FOUND");
   }
 
   const count = Math.min(Math.max(Number(occurrences) || 1, 1), 52);

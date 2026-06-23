@@ -87,6 +87,14 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
+
+  /* Native time inputs lay their value out LTR. Inside our RTL app the value
+     (HH:MM) was getting clipped/hidden. Force LTR + left align so the entered
+     time is always visible. Icons in these inputs sit on the right. */
+  input[type="time"] {
+    direction: ltr;
+    text-align: left;
+  }
 }
 
 @layer components {
