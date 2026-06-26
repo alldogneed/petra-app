@@ -55,6 +55,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "הודעה מותאמת ארוכה מדי (מקסימום 2000 תווים)" }, { status: 400 });
     }
 
+    // Validate dogId belongs to this business (IDOR protection)
+    if (dogId) {
+      const pet = await prisma.pet.findFirst({
+        where: { id: dogId, businessId },
+        select: { id: true },
+      });
+      if (!pet) {
+        return NextResponse.json(
+          { error: "חיית המחמד לא נמצאה או אינה שייכת לעסק" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Get customer and business info
     const [customer, business] = await Promise.all([
       customerId

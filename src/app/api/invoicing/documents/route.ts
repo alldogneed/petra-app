@@ -58,6 +58,12 @@ export async function POST(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
 
+  // Staff cannot create invoicing documents
+  const membership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);
+  if (membership && !hasTenantPermission(membership.role as TenantRole, TENANT_PERMS.FINANCE_READ)) {
+    return NextResponse.json({ error: "אין הרשאה ליצירת מסמכים" }, { status: 403 });
+  }
+
   try {
     const body = await request.json();
     const { customerId, docType, orderId, paymentId, lines, notes } = body;
@@ -76,6 +82,17 @@ export async function POST(request: NextRequest) {
     });
     if (!customer) {
       return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
+    }
+
+    // Verify paymentId belongs to this business (IDOR protection)
+    if (paymentId) {
+      const payment = await prisma.payment.findFirst({
+        where: { id: paymentId, businessId: authResult.businessId },
+        select: { id: true },
+      });
+      if (!payment) {
+        return NextResponse.json({ error: "תשלום לא נמצא" }, { status: 404 });
+      }
     }
 
     // Get business VAT info

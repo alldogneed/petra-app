@@ -291,8 +291,8 @@ export const InvoicingService = {
 
     const token = await provider.authenticate(credentials);
 
-    const draft = await prisma.invoiceDocument.findUnique({
-      where: { id: invoiceId },
+    const draft = await prisma.invoiceDocument.findFirst({
+      where: { id: invoiceId, businessId },
       include: {
         customer: { select: { name: true, phone: true, email: true } },
       },

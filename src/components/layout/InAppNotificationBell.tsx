@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { BellRing, Check, ExternalLink } from "lucide-react";
+import { BellRing, Check, ExternalLink, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SystemMessage {
@@ -37,6 +37,7 @@ const TYPE_COLORS: Record<string, string> = {
 
 export function InAppNotificationBell() {
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<SystemMessage | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -165,13 +166,13 @@ export function InAppNotificationBell() {
                     className="flex-1 min-w-0 cursor-pointer"
                     onClick={() => {
                       if (!m.isRead) markRead.mutate(m.id);
-                      if (m.actionUrl) { router.push(m.actionUrl); setOpen(false); }
+                      setSelected(m);
                     }}
                   >
                     <p className={cn("text-[13px] leading-snug", m.isRead ? "text-slate-600" : "text-petra-text font-semibold")}>
                       {m.title}
                     </p>
-                    <p className="text-[12px] text-petra-muted mt-0.5 leading-snug">{m.content}</p>
+                    <p className="text-[12px] text-petra-muted mt-0.5 leading-snug line-clamp-2">{m.content}</p>
                     {m.actionUrl && m.actionLabel && (
                       <span className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-brand-600 font-medium">
                         <ExternalLink className="w-3 h-3" />
@@ -189,6 +190,66 @@ export function InAppNotificationBell() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Detail modal — full message + explanation of the change */}
+      {selected && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          dir="rtl"
+          onClick={() => setSelected(null)}
+        >
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" />
+          <div
+            className="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[85vh] overflow-hidden flex flex-col animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-100">
+              <div className="flex-1 min-w-0">
+                <span
+                  className={cn(
+                    "inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mb-2",
+                    TYPE_COLORS[selected.type] ?? TYPE_COLORS.info
+                  )}
+                >
+                  הודעת מערכת
+                </span>
+                <h3 className="text-base font-bold text-petra-text leading-snug">{selected.title}</h3>
+                <span className="text-[11px] text-slate-400 mt-1 block">{timeAgo(selected.createdAt)}</span>
+              </div>
+              <button
+                onClick={() => setSelected(null)}
+                className="flex-shrink-0 text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                aria-label="סגור"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 overflow-y-auto">
+              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{selected.content}</p>
+            </div>
+
+            <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end gap-2">
+              {selected.actionUrl && (
+                <button
+                  onClick={() => {
+                    router.push(selected.actionUrl!);
+                    setSelected(null);
+                    setOpen(false);
+                  }}
+                  className="btn-primary flex items-center gap-1.5 text-sm"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  {selected.actionLabel || "פרטים נוספים"}
+                </button>
+              )}
+              <button onClick={() => setSelected(null)} className="btn-secondary text-sm">
+                סגור
+              </button>
+            </div>
           </div>
         </div>
       )}

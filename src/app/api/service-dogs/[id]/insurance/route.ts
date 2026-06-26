@@ -1,7 +1,21 @@
 export const dynamic = "force-dynamic";
+import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+
+const InsuranceSchema = z.object({
+  provider: z.string().max(200).nullable().optional(),
+  policyNumber: z.string().max(100).nullable().optional(),
+  premium: z.union([z.number(), z.string()]).nullable().optional(),
+  deductible: z.union([z.number(), z.string()]).nullable().optional(),
+  coverageType: z.string().max(100).nullable().optional(),
+  startDate: z.string().max(30).nullable().optional(),
+  renewalDate: z.string().max(30).nullable().optional(),
+  notes: z.string().max(5000).nullable().optional(),
+  policyDocument: z.string().max(500).nullable().optional(),
+  isActive: z.boolean().optional(),
+});
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -38,7 +52,19 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     });
     if (!dog) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    const body = await request.json();
+    const raw = await request.json();
+    const parsed = InsuranceSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "נתונים לא תקינים", details: parsed.error.flatten() }, { status: 400 });
+    }
+    const body = parsed.data;
+
+    const premium = body.premium != null ? parseFloat(String(body.premium)) : null;
+    const deductible = body.deductible != null ? parseFloat(String(body.deductible)) : null;
+    if ((premium != null && (!isFinite(premium) || premium < 0)) ||
+        (deductible != null && (!isFinite(deductible) || deductible < 0))) {
+      return NextResponse.json({ error: "סכומים לא תקינים" }, { status: 400 });
+    }
 
     const insurance = await prisma.serviceDogInsurance.create({
       data: {
@@ -46,8 +72,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         businessId: auth.businessId,
         provider: body.provider || null,
         policyNumber: body.policyNumber || null,
-        premium: body.premium ? parseFloat(body.premium) : null,
-        deductible: body.deductible ? parseFloat(body.deductible) : null,
+        premium,
+        deductible,
         coverageType: body.coverageType || null,
         startDate: body.startDate ? new Date(body.startDate) : null,
         renewalDate: body.renewalDate ? new Date(body.renewalDate) : null,

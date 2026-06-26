@@ -15,8 +15,8 @@ const PatchAppointmentSchema = z.object({
   notes: z.string().max(2000).nullable().optional(),
   cancellationNote: z.string().max(500).nullable().optional(),
   date: z.string().optional(),
-  startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-  endTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
+  endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
   serviceId: z.string().uuid().optional(),
   priceListItemId: z.string().uuid().optional(),
 });
@@ -67,7 +67,7 @@ export async function PATCH(
         date: appointment.date,
         startTime: appointment.startTime,
         service: { name: appointment.service?.name ?? appointment.priceListItem?.name ?? "תור" },
-        customer: { name: appointment.customer.name },
+        customer: { name: appointment.customer?.name ?? "לקוח" },
         pet: appointment.pet ? { name: appointment.pet.name } : null,
       }).catch((err) => console.error("Failed to reschedule appointment reminder:", err));
     }
@@ -134,7 +134,7 @@ export async function DELETE(
         businessId,
         requestedByUserId: session.user.id,
         action: "DELETE_APPOINTMENT",
-        description: `מחיקת פגישה: ${existing.customer.name} — ${dateStr} ${existing.startTime}`,
+        description: `מחיקת פגישה: ${existing.customer?.name ?? "לקוח"} — ${dateStr} ${existing.startTime}`,
         payload: { appointmentId: params.id, customerId: existing.customerId ?? "" },
       });
       return NextResponse.json(

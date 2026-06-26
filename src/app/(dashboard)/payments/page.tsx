@@ -213,7 +213,7 @@ function PaymentsPageContent() {
 
   // Filter payments by customer name search and date period
   const filteredPayments = payments.filter((p) => {
-    if (searchQuery.trim() && !p.customer.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (searchQuery.trim() && !p.customer?.name?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (activePeriod !== "ALL" && !isInPeriod(p.createdAt, activePeriod)) return false;
     return true;
   });
@@ -253,12 +253,12 @@ function PaymentsPageContent() {
   function buildReminderText(payment: Payment) {
     const association = payment.appointment?.service?.name
       || (payment.boardingStay ? `פנסיון — ${payment.boardingStay.pet.name}` : "");
-    return `שלום ${payment.customer.name}! 😊\nתזכורת לגבי תשלום ממתין בסך ${formatCurrency(payment.amount)}${association ? ` עבור ${association}` : ""}.\nנשמח לקבל את התשלום בהקדם 🙏`;
+    return `שלום ${payment.customer?.name ?? "לקוח"}! 😊\nתזכורת לגבי תשלום ממתין בסך ${formatCurrency(payment.amount)}${association ? ` עבור ${association}` : ""}.\nנשמח לקבל את התשלום בהקדם 🙏`;
   }
 
   async function sendAllReminders() {
     const pending = allPayments.filter(
-      (p) => p.status === "pending" && p.customer.phone
+      (p) => p.status === "pending" && p.customer?.phone
     );
     if (!pending.length) {
       toast.error("אין תשלומים ממתינים לשליחה");
@@ -267,7 +267,7 @@ function PaymentsPageContent() {
     setIsSendingAll(true);
     for (let i = 0; i < pending.length; i++) {
       const p = pending[i];
-      const url = `https://wa.me/${toWhatsAppPhone(p.customer.phone)}?text=${encodeURIComponent(buildReminderText(p))}`;
+      const url = `https://wa.me/${toWhatsAppPhone(p.customer?.phone)}?text=${encodeURIComponent(buildReminderText(p))}`;
       window.open(url, "_blank");
       setSentReminders((prev) => new Set([...prev, p.id]));
       if (i < pending.length - 1) {
@@ -283,7 +283,7 @@ function PaymentsPageContent() {
       ["תאריך", "לקוח", "סכום", "אמצעי תשלום", "סטטוס", "שירות", "הזמנה", "מספר חשבונית"],
       ...filteredPayments.map((p) => [
         formatDate(p.createdAt),
-        p.customer.name,
+        p.customer?.name ?? "",
         p.amount.toString(),
         METHOD_LABELS[p.method] || p.method,
         STATUS_INFO[p.status]?.label || p.status,
@@ -531,9 +531,9 @@ function PaymentsPageContent() {
                         href={`/customers/${payment.customer.id}`}
                         className="text-sm font-medium text-petra-text hover:text-brand-600 transition-colors"
                       >
-                        {payment.customer.name}
+                        {payment.customer?.name ?? ""}
                       </Link>
-                      <p className="text-xs text-petra-muted">{payment.customer.phone}</p>
+                      <p className="text-xs text-petra-muted">{payment.customer?.phone}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <span className="text-sm font-semibold text-petra-text">
@@ -598,9 +598,9 @@ function PaymentsPageContent() {
                         הפק מסמך
                       </button>
                     ) : null}
-                    {payment.status === "paid" && payment.customer.phone && (
+                    {payment.status === "paid" && payment.customer?.phone && (
                       <a
-                        href={`https://wa.me/${toWhatsAppPhone(payment.customer.phone)}?text=${encodeURIComponent(`שלום ${payment.customer.name}!\nקיבלנו את תשלומך בסך ${formatCurrency(payment.amount)} - תודה רבה! 🙏`)}`}
+                        href={`https://wa.me/${toWhatsAppPhone(payment.customer?.phone)}?text=${encodeURIComponent(`שלום ${payment.customer?.name ?? ""}!\nקיבלנו את תשלומך בסך ${formatCurrency(payment.amount)} - תודה רבה! 🙏`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700"
@@ -610,7 +610,7 @@ function PaymentsPageContent() {
                         קבלה
                       </a>
                     )}
-                    {payment.status === "pending" && payment.customer.phone && (
+                    {payment.status === "pending" && payment.customer?.phone && (
                       sentReminders.has(payment.id) ? (
                         <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
                           <CheckCircle2 className="w-3.5 h-3.5" />
@@ -618,7 +618,7 @@ function PaymentsPageContent() {
                         </span>
                       ) : (
                         <a
-                          href={`https://wa.me/${toWhatsAppPhone(payment.customer.phone)}?text=${encodeURIComponent(buildReminderText(payment))}`}
+                          href={`https://wa.me/${toWhatsAppPhone(payment.customer?.phone)}?text=${encodeURIComponent(buildReminderText(payment))}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700"
@@ -707,10 +707,10 @@ function PaymentsPageContent() {
                             className="text-sm font-medium text-petra-text hover:text-brand-600 transition-colors"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {payment.customer.name}
+                            {payment.customer?.name ?? ""}
                           </Link>
                           <p className="text-[10px] text-petra-muted">
-                            {payment.customer.phone}
+                            {payment.customer?.phone}
                           </p>
                         </div>
                       </td>
@@ -801,9 +801,9 @@ function PaymentsPageContent() {
                           ) : payment.status !== "pending" ? (
                             <span className="text-xs text-petra-muted">—</span>
                           ) : null}
-                          {payment.status === "paid" && payment.customer.phone && (
+                          {payment.status === "paid" && payment.customer?.phone && (
                             <a
-                              href={`https://wa.me/${toWhatsAppPhone(payment.customer.phone)}?text=${encodeURIComponent(`שלום ${payment.customer.name}!\nקיבלנו את תשלומך בסך ${formatCurrency(payment.amount)} - תודה רבה! 🙏`)}`}
+                              href={`https://wa.me/${toWhatsAppPhone(payment.customer?.phone)}?text=${encodeURIComponent(`שלום ${payment.customer?.name ?? ""}!\nקיבלנו את תשלומך בסך ${formatCurrency(payment.amount)} - תודה רבה! 🙏`)}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 hover:bg-green-50 transition-colors"
@@ -812,14 +812,14 @@ function PaymentsPageContent() {
                               <MessageCircle className="w-3.5 h-3.5" />
                             </a>
                           )}
-                          {payment.status === "pending" && payment.customer.phone && (
+                          {payment.status === "pending" && payment.customer?.phone && (
                             sentReminders.has(payment.id) ? (
                               <span className="w-7 h-7 flex items-center justify-center text-emerald-600" title="נשלחה תזכורת">
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                               </span>
                             ) : (
                               <a
-                                href={`https://wa.me/${toWhatsAppPhone(payment.customer.phone)}?text=${encodeURIComponent(buildReminderText(payment))}`}
+                                href={`https://wa.me/${toWhatsAppPhone(payment.customer?.phone)}?text=${encodeURIComponent(buildReminderText(payment))}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 hover:bg-green-50 transition-colors"

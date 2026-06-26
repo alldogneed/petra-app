@@ -913,6 +913,7 @@ model Order {
   payments         Payment[]
   invoiceDocuments InvoiceDocument[]
   trainingPrograms TrainingProgram[] @relation("OrderTrainingPrograms")
+  groupParticipants TrainingGroupParticipant[] @relation("OrderGroupParticipants")
 
   @@index([businessId, status])
   @@index([businessId, customerId])
@@ -1396,16 +1397,19 @@ model TrainingGroupParticipant {
   customerId      String
   status          String   @default("ACTIVE") // ACTIVE | PAUSED | DROPPED | COMPLETED
   joinedAt        DateTime @default(now())
+  orderId         String?  // FK → Order that created this group participation
 
   trainingGroup TrainingGroup             @relation(fields: [trainingGroupId], references: [id], onDelete: Cascade)
   dog           Pet                       @relation(fields: [dogId], references: [id])
   customer      Customer                  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  order         Order?                    @relation("OrderGroupParticipants", fields: [orderId], references: [id], onDelete: SetNull)
   attendance    TrainingGroupAttendance[]
 
   @@unique([trainingGroupId, dogId])
   @@index([trainingGroupId])
   @@index([dogId])
   @@index([customerId])
+  @@index([orderId])
 }
 
 /// Attendance record for a participant in a specific session

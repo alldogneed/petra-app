@@ -30,7 +30,7 @@ import {
   Sheet,
   Printer,
 } from "lucide-react";
-import { cn, formatCurrency, formatDate, toWhatsAppPhone } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, toWhatsAppPhone, escapeHtml } from "@/lib/utils";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
 const CreateOrderModal = dynamic(
@@ -47,6 +47,7 @@ interface OrderLine {
   lineSubtotal: number;
   lineTax: number;
   lineTotal: number;
+  priceListItemId?: string | null;
 }
 
 interface Order {
@@ -221,6 +222,70 @@ function OrdersPageContent() {
     staleTime: 30_000,
   });
 
+  // Price-list items carry the configured payment landing-page URLs,
+  // mapped onto order lines so each payment request includes the link.
+  const { data: priceListItems = [] } = useQuery<Array<{ id: string; paymentUrl: string | null }>>({
+    queryKey: ["price-list-items"],
+    queryFn: () => fetch("/api/price-list-items").then((r) => r.json()),
+    staleTime: 60_000,
+  });
+
+  // Which order's payment request is currently being prepared (null = none).
+  const [sendingPaymentRequestId, setSendingPaymentRequestId] = useState<string | null>(null);
+
+  // Build + send a WhatsApp payment request for an order, including a payment link.
+  // Prefers the product's configured landing-page URL, falls back to a one-off Stripe link.
+  const sendOrderPaymentRequest = async (order: Order) => {
+    if (sendingPaymentRequestId) return;
+    // Open the window inside the click gesture so it isn't blocked after the async Stripe call.
+    const win = window.open("", "_blank");
+    setSendingPaymentRequestId(order.id);
+    try {
+      const productUrls = Array.from(
+        new Set(
+          order.lines
+            .map((l) => (l.priceListItemId ? priceListItems.find((i) => i.id === l.priceListItemId)?.paymentUrl : null))
+            .filter(Boolean) as string[]
+        )
+      );
+      let links = [...productUrls];
+      if (links.length === 0) {
+        try {
+          const description = Array.from(new Set(order.lines.map((l) => l.name))).join(", ") || "תשלום";
+          const res = await fetch("/api/payments/stripe/payment-link", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ amount: order.total, description, customerId: order.customer.id, orderId: order.id }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.url) links = [data.url];
+          }
+        } catch {
+          // Stripe not configured — fall through to link-less message.
+        }
+      }
+
+      const lineItems = order.lines
+        .map((l) => `• ${l.name} x${l.quantity} - ${fmt(l.lineTotal)}`)
+        .join("\n");
+      const discountLine = order.discountAmount > 0 ? `\nהנחה: -${fmt(order.discountAmount)}` : "";
+      const taxLine = order.taxTotal > 0 ? `\nמע"מ: ${fmt(order.taxTotal)}` : "";
+      const linkBlock = links.length > 0 ? `\n\n💳 לתשלום מאובטח לחצו כאן:\n${links.join("\n")}` : "";
+      if (links.length === 0) {
+        toast.warning("לא הוגדר קישור תשלום למוצרים בהזמנה — ההודעה נשלחת ללא לינק");
+      }
+      const msg = encodeURIComponent(
+        `שלום ${order.customer.name},\nהנה פירוט ההזמנה שלך:\n${lineItems}${discountLine}${taxLine}\n\nסה"כ לתשלום: ${fmt(order.total)}${linkBlock}`
+      );
+      const waUrl = `https://wa.me/${toWhatsAppPhone(order.customer.phone)}?text=${msg}`;
+      if (win) win.location.href = waUrl;
+      else window.open(waUrl, "_blank");
+    } finally {
+      setSendingPaymentRequestId(null);
+    }
+  };
+
   // Client-side filters: customer name + payment status
   const filteredOrders = useMemo(() => {
     let result = orders;
@@ -312,7 +377,7 @@ function OrdersPageContent() {
       return `
         <tr>
           <td>#${o.id.slice(-8).toUpperCase()}</td>
-          <td>${o.customer.name}<br/><small>${o.customer.phone}</small></td>
+          <td>${escapeHtml(o.customer.name)}<br/><small>${escapeHtml(o.customer.phone)}</small></td>
           <td>${TYPE_LABEL[o.orderType] ?? o.orderType}</td>
           <td>${STATUS_LABEL[o.status] ?? o.status}</td>
           <td style="text-align:left">₪${o.total.toFixed(2)}</td>
@@ -797,28 +862,16 @@ function OrdersPageContent() {
                               סמן כהושלמה
                             </button>
                             <button
-                              className="text-xs py-1.5 px-3 rounded-xl font-medium text-white flex items-center gap-1.5 transition-all hover:opacity-90"
+                              className="text-xs py-1.5 px-3 rounded-xl font-medium text-white flex items-center gap-1.5 transition-all hover:opacity-90 disabled:opacity-60"
                               style={{ background: "#25D366" }}
+                              disabled={sendingPaymentRequestId === order.id}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const lineItems = order.lines
-                                  .map((l) => `• ${l.name} x${l.quantity} - ${fmt(l.lineTotal)}`)
-                                  .join("\n");
-                                const discountLine = order.discountAmount > 0
-                                  ? `\nהנחה: -${fmt(order.discountAmount)}`
-                                  : "";
-                                const taxLine = order.taxTotal > 0
-                                  ? `\nמע"מ: ${fmt(order.taxTotal)}`
-                                  : "";
-                                const msg = encodeURIComponent(
-                                  `שלום ${order.customer.name},\nהנה פירוט ההזמנה שלך:\n${lineItems}${discountLine}${taxLine}\n\nסה"כ לתשלום: ${fmt(order.total)}`
-                                );
-                                const waPhone = toWhatsAppPhone(order.customer.phone);
-                                window.open(`https://wa.me/${waPhone}?text=${msg}`, "_blank");
+                                sendOrderPaymentRequest(order);
                               }}
                             >
                               <MessageCircle className="w-3 h-3" />
-                              שלח בקשת תשלום
+                              {sendingPaymentRequestId === order.id ? "מכין קישור..." : "שלח בקשת תשלום"}
                             </button>
                           </>
                         )}

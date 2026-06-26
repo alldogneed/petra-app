@@ -71,7 +71,7 @@ export async function POST(
         species: petFields.species || "dog",
         breed: petFields.breed || null,
         birthDate: petFields.birthDate ? new Date(petFields.birthDate) : null,
-        weight: petFields.weight ? parseFloat(petFields.weight) : null,
+        weight: petFields.weight ? (isFinite(parseFloat(petFields.weight)) && parseFloat(petFields.weight) >= 0 && parseFloat(petFields.weight) <= 500 ? parseFloat(petFields.weight) : null) : null,
         gender: petFields.gender || null,
         microchip: petFields.microchip || null,
         tags: behavioralTags ? JSON.stringify(behavioralTags) : "[]",

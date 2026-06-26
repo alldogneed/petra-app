@@ -113,8 +113,14 @@ export async function DELETE(
       );
     }
 
+    const orderActionParam = new URL(request.url).searchParams.get("orderAction");
+    const orderAction = (["keep", "cancel", "delete"] as const).includes(orderActionParam as never)
+      ? (orderActionParam as "keep" | "cancel" | "delete")
+      : "keep";
+
+    let result;
     try {
-      await deleteTrainingProgram(authResult.businessId, prisma, params.id);
+      result = await deleteTrainingProgram(authResult.businessId, prisma, params.id, { orderAction });
     } catch (e) {
       if (e instanceof ServiceError && e.code === "NOT_FOUND") {
         return NextResponse.json({ error: "תוכנית לא נמצאה" }, { status: 404 });
@@ -122,7 +128,7 @@ export async function DELETE(
       throw e;
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, orderDowngraded: result.orderDowngraded });
   } catch (error) {
     console.error("DELETE training program error:", error);
     return NextResponse.json({ error: "שגיאה במחיקת תוכנית" }, { status: 500 });

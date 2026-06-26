@@ -132,7 +132,7 @@ export async function PATCH(
               date: newAppt.date,
               startTime: newAppt.startTime,
               service: { name: newAppt.service.name },
-              customer: { name: newAppt.customer.name },
+              customer: { name: newAppt.customer?.name ?? "לקוח" },
               pet: newAppt.pet ? { name: newAppt.pet.name } : null,
             }).catch(console.error);
           }

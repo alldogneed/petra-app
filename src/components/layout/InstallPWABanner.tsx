@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { X, Download, Share } from "lucide-react";
+import { usePWAInstall } from "./PWAInstallProvider";
 
 // All state is per-device (localStorage) — PWA install is a per-device/per-browser
 // thing, so a DB flag would wrongly suppress the nudge on a second device.
@@ -25,9 +26,6 @@ function lsNum(k: string): number {
   return parseInt(lsGet(k) || "0", 10) || 0;
 }
 
-function isIOS(): boolean {
-  return /iphone|ipad|ipod/i.test(navigator.userAgent);
-}
 function isSafari(): boolean {
   return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 }
@@ -46,82 +44,52 @@ function isMobile(): boolean {
   }
 }
 
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
-
 export default function InstallPWABanner() {
+  const { canInstall, isIOS, isInstalled, promptInstall } = usePWAInstall();
   const [show, setShow] = useState(false);
-  const [isIOSDevice, setIsIOSDevice] = useState(false);
+  const [eligible, setEligible] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // iOS install instructions only really work in Safari (share-sheet → add to home).
+  const iosSafari = isIOS && isSafari();
+
+  // ── Eligibility (runs once): mobile, not installed, not opted-out, under snooze cap ──
   useEffect(() => {
-    // ── Record "installed" via every reliable signal, so we never nag installed users ──
-    const markInstalled = () => { lsSet(INSTALLED_KEY, "1"); setShow(false); };
-    if (isStandalone()) markInstalled(); // running inside the installed app
+    if (isStandalone()) { lsSet(INSTALLED_KEY, "1"); return; }
     // Best-effort: Chrome/Android can report the installed PWA from a browser tab.
     const nav = navigator as Navigator & { getInstalledRelatedApps?: () => Promise<unknown[]> };
     nav.getInstalledRelatedApps?.().then((apps) => {
-      if (Array.isArray(apps) && apps.length > 0) markInstalled();
+      if (Array.isArray(apps) && apps.length > 0) { lsSet(INSTALLED_KEY, "1"); setShow(false); }
     }).catch(() => { /* unsupported */ });
-    // Fires the moment they install (our prompt or the browser's own menu).
-    const onInstalled = () => markInstalled();
-    window.addEventListener("appinstalled", onInstalled);
 
     // Migrate the old permanent-dismiss into the new opt-out so we don't re-nag.
     if (lsGet(LEGACY_DISMISS_KEY) === "1" && lsGet(OPTOUT_KEY) !== "1") lsSet(OPTOUT_KEY, "1");
 
-    // ── Eligibility: mobile, not installed, not opted-out, under snooze cap, past snooze ──
-    const eligible =
+    setEligible(
       isMobile() &&
       lsGet(INSTALLED_KEY) !== "1" &&
       lsGet(OPTOUT_KEY) !== "1" &&
       lsNum(SNOOZE_COUNT_KEY) < MAX_SNOOZES &&
-      Date.now() >= lsNum(SNOOZE_UNTIL_KEY);
-
-    if (!eligible) {
-      return () => window.removeEventListener("appinstalled", onInstalled);
-    }
-
-    const reveal = () => {
-      if (revealTimer.current) clearTimeout(revealTimer.current);
-      revealTimer.current = setTimeout(() => {
-        if (lsGet(INSTALLED_KEY) === "1") return; // changed during the delay
-        setShow(true);
-      }, REVEAL_DELAY_MS);
-    };
-
-    let promptHandler: ((e: Event) => void) | null = null;
-    if (isIOS() && isSafari()) {
-      // iOS Safari exposes no install prompt and no install-state API — show manual
-      // instructions; snooze cap + opt-out keep it from being annoying.
-      setIsIOSDevice(true);
-      reveal();
-    } else {
-      promptHandler = (e: Event) => {
-        e.preventDefault();
-        setInstallPrompt(e as BeforeInstallPromptEvent);
-        reveal();
-      };
-      window.addEventListener("beforeinstallprompt", promptHandler);
-    }
-
-    return () => {
-      window.removeEventListener("appinstalled", onInstalled);
-      if (promptHandler) window.removeEventListener("beforeinstallprompt", promptHandler);
-      if (revealTimer.current) clearTimeout(revealTimer.current);
-    };
+      Date.now() >= lsNum(SNOOZE_UNTIL_KEY)
+    );
   }, []);
 
-  function handleInstall() {
-    if (!installPrompt) return;
-    installPrompt.prompt();
-    installPrompt.userChoice.then((choice) => {
-      if (choice.outcome === "accepted") { lsSet(INSTALLED_KEY, "1"); setShow(false); }
-    });
+  // ── Reveal once we can actually offer an install (native prompt ready, or iOS Safari) ──
+  useEffect(() => {
+    if (!eligible || isInstalled) return;
+    if (!iosSafari && !canInstall) return; // wait for the native prompt to arrive
+    if (revealTimer.current) clearTimeout(revealTimer.current);
+    revealTimer.current = setTimeout(() => {
+      if (lsGet(INSTALLED_KEY) === "1") return; // changed during the delay
+      setShow(true);
+    }, REVEAL_DELAY_MS);
+    return () => { if (revealTimer.current) clearTimeout(revealTimer.current); };
+  }, [eligible, isInstalled, iosSafari, canInstall]);
+
+  async function handleInstall() {
+    const outcome = await promptInstall();
+    if (outcome === "accepted") { lsSet(INSTALLED_KEY, "1"); setShow(false); }
   }
 
   function handleClose() {
@@ -151,7 +119,7 @@ export default function InstallPWABanner() {
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm leading-tight">הוסף את Petra למסך הבית</p>
 
-          {isIOSDevice ? (
+          {iosSafari ? (
             <p className="text-xs text-slate-300 mt-0.5 leading-snug">
               לחץ על{" "}
               <Share className="inline w-3.5 h-3.5 mx-0.5 text-blue-400" />
@@ -164,7 +132,7 @@ export default function InstallPWABanner() {
           )}
         </div>
 
-        {!isIOSDevice && installPrompt && (
+        {!iosSafari && canInstall && (
           <button
             onClick={handleInstall}
             className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 transition-colors"

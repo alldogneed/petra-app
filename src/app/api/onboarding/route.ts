@@ -1,7 +1,17 @@
 export const dynamic = 'force-dynamic';
+import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+
+const OnboardingPostSchema = z.object({
+  businessType: z.string().max(100).optional(),
+  activeClientsRange: z.string().max(50).optional(),
+  primaryGoal: z.string().max(200).optional(),
+  currentStep: z.number().int().min(0).max(4).optional(),
+  skipped: z.boolean().optional(),
+  lastCustomerId: z.string().max(50).nullable().optional(),
+});
 
 // GET /api/onboarding – get current user's onboarding progress
 export async function GET() {
@@ -35,8 +45,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { businessType, activeClientsRange, primaryGoal, currentStep, skipped, lastCustomerId } = body;
+    const raw = await request.json();
+    const parsed = OnboardingPostSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "נתונים לא תקינים" }, { status: 400 });
+    }
+    const { businessType, activeClientsRange, primaryGoal, currentStep, skipped, lastCustomerId } = parsed.data;
 
     // Upsert profile if provided
     let profile = null;

@@ -45,7 +45,7 @@ export async function GET(
     }
 
     const pdfBytes = await pdfResponse.arrayBuffer();
-    const filename = `חוזה-חתום-${contractRequest.customer.name}-${contractRequest.template.name}.pdf`
+    const filename = `חוזה-חתום-${contractRequest.customer?.name ?? "לקוח"}-${contractRequest.template?.name ?? "חוזה"}.pdf`
       .replace(/[<>:"/\\|?*]/g, "-")
       .replace(/\s+/g, "-");
 

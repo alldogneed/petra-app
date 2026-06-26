@@ -33,18 +33,57 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "משך שירות לא תקין" }, { status: 400 });
         }
 
-        const service = await prisma.service.create({
+        const category = type ? String(type).trim().slice(0, 100) : "אילוף";
+
+        // Persist into the PriceListItem table — this is what the orders /
+        // appointments / calendar / pricing screens actually read from. Writing
+        // only to the legacy Service table left onboarding products invisible
+        // everywhere the user later tries to use them.
+        let priceList = await prisma.priceList.findFirst({
+            where: { businessId: currentUser.businessId },
+            orderBy: [{ isActive: "desc" }, { createdAt: "asc" }],
+        });
+        if (!priceList) {
+            priceList = await prisma.priceList.create({
+                data: {
+                    businessId: currentUser.businessId,
+                    name: "מחירון ברירת מחדל",
+                    currency: "ILS",
+                    isActive: true,
+                },
+            });
+        }
+
+        const item = await prisma.priceListItem.create({
+            data: {
+                businessId: currentUser.businessId,
+                priceListId: priceList.id,
+                type: "service",
+                name: name.trim(),
+                category,
+                unit: "per_session",
+                basePrice: parsedPrice,
+                taxMode: "inherit",
+                durationMinutes: parsedDuration,
+                defaultQuantity: 1,
+                isActive: true,
+            },
+        });
+
+        // Keep the legacy Service row too so the public-booking slot engine
+        // (which still reads the Service table) sees onboarding services.
+        await prisma.service.create({
             data: {
                 businessId: currentUser.businessId,
                 name: name.trim(),
-                type: type ? String(type).trim().slice(0, 100) : "אילוף",
+                type: category,
                 duration: parsedDuration,
                 price: parsedPrice,
                 isActive: true,
             },
         });
 
-        return NextResponse.json({ success: true, service });
+        return NextResponse.json({ success: true, item });
     } catch (error) {
         console.error("Failed to create first service:", error);
         return NextResponse.json({ error: "שגיאה ביצירת שירות" }, { status: 500 });

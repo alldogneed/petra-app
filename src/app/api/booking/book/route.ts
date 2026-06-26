@@ -238,7 +238,7 @@ export async function POST(request: NextRequest) {
       endAt: booking.endAt,
       customerToken: booking.customerToken,
       serviceName: booking.priceListItem?.name ?? null,
-      customerName: booking.customer.name,
+      customerName: booking.customer?.name ?? "",
     }, { status: 201 });
   } catch (error) {
     console.error("POST booking error:", error);

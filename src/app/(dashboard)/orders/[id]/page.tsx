@@ -224,11 +224,20 @@ export default function OrderDetailPage() {
   const orderId = params.id as string;
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [showAddPayment, setShowAddPayment] = useState(false);
+  const [sendingPaymentRequest, setSendingPaymentRequest] = useState(false);
 
   const { data: order, isLoading } = useQuery<Order>({
     queryKey: ["order", orderId],
     queryFn: () => fetch(`/api/orders/${orderId}`).then((r) => r.json()),
     staleTime: 30_000,
+  });
+
+  // Price-list items carry the configured payment landing-page URLs.
+  // Mapped onto order lines so the payment request can include the link(s).
+  const { data: priceListItems = [] } = useQuery<Array<{ id: string; paymentUrl: string | null }>>({
+    queryKey: ["price-list-items"],
+    queryFn: () => fetch("/api/price-list-items").then((r) => r.json()),
+    staleTime: 60_000,
   });
 
   useEffect(() => {
@@ -318,15 +327,68 @@ export default function OrderDetailPage() {
   const s = STATUS_MAP[order.status] ?? STATUS_MAP.draft;
   const StatusIcon = s.icon;
 
-  const sendWhatsAppPaymentRequest = () => {
-    const name = order.customer.name;
-    const itemLines = order.lines
-      .map((l) => `• ${l.name}${l.quantity > 1 ? ` ×${l.quantity}` : ""} — ${fmt(l.lineTotal)}`)
-      .join("\n");
-    const discountLine = order.discountAmount > 0 ? `\nהנחה: −${fmt(order.discountAmount)}` : "";
-    const taxLine = order.taxTotal > 0 ? `\nמע"מ: ${fmt(order.taxTotal)}` : "";
-    const msg = `שלום ${name}! 🐾\n\n*דרישת תשלום*\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(order.total)}*\n\nתודה שבחרתם בנו! 😊\n_לפניות ושאלות: ${order.customer.phone}_`;
-    window.open(`https://wa.me/${toWhatsAppPhone(order.customer.phone)}?text=${encodeURIComponent(msg)}`, "_blank");
+  // Resolve the payment landing-page URLs configured on the order's products.
+  const productPaymentUrls = Array.from(
+    new Set(
+      order.lines
+        .map((l) => (l.priceListItemId ? priceListItems.find((i) => i.id === l.priceListItemId)?.paymentUrl : null))
+        .filter(Boolean) as string[]
+    )
+  );
+
+  // Fallback: generate a one-off Stripe checkout link when no product URL is configured.
+  // Returns null silently if Stripe isn't set up for the business.
+  const generateStripePaymentLink = async (): Promise<string | null> => {
+    try {
+      const description = Array.from(new Set(order.lines.map((l) => l.name))).join(", ") || "תשלום";
+      const res = await fetch("/api/payments/stripe/payment-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: order.total,
+          description,
+          customerId: order.customer.id,
+          orderId: order.id,
+        }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.url ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const sendWhatsAppPaymentRequest = async () => {
+    if (sendingPaymentRequest) return;
+    // Open the window inside the click gesture so it isn't blocked after the
+    // async Stripe call; we set its URL once the link is resolved.
+    const win = window.open("", "_blank");
+    setSendingPaymentRequest(true);
+    try {
+      let links = [...productPaymentUrls];
+      if (links.length === 0) {
+        const stripeUrl = await generateStripePaymentLink();
+        if (stripeUrl) links = [stripeUrl];
+      }
+
+      const name = order.customer.name;
+      const itemLines = order.lines
+        .map((l) => `• ${l.name}${l.quantity > 1 ? ` ×${l.quantity}` : ""} — ${fmt(l.lineTotal)}`)
+        .join("\n");
+      const discountLine = order.discountAmount > 0 ? `\nהנחה: −${fmt(order.discountAmount)}` : "";
+      const taxLine = order.taxTotal > 0 ? `\nמע"מ: ${fmt(order.taxTotal)}` : "";
+      const linkBlock = links.length > 0 ? `\n\n💳 לתשלום מאובטח לחצו כאן:\n${links.join("\n")}` : "";
+      if (links.length === 0) {
+        toast.warning("לא הוגדר קישור תשלום למוצרים בהזמנה — ההודעה נשלחת ללא לינק");
+      }
+      const msg = `שלום ${name}! 🐾\n\n*דרישת תשלום*\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(order.total)}*${linkBlock}\n\nתודה שבחרתם בנו! 😊\n_לפניות ושאלות: ${order.customer.phone}_`;
+      const waUrl = `https://wa.me/${toWhatsAppPhone(order.customer.phone)}?text=${encodeURIComponent(msg)}`;
+      if (win) win.location.href = waUrl;
+      else window.open(waUrl, "_blank");
+    } finally {
+      setSendingPaymentRequest(false);
+    }
   };
 
   return (
@@ -582,13 +644,14 @@ export default function OrderDetailPage() {
               <div className="flex items-center gap-2">
                 {order.status !== "cancelled" && (
                   <button
-                    className="text-xs py-1.5 px-3 rounded-xl font-semibold flex items-center gap-1.5 border-2 transition-all"
+                    className="text-xs py-1.5 px-3 rounded-xl font-semibold flex items-center gap-1.5 border-2 transition-all disabled:opacity-60"
                     style={{ borderColor: "#25D366", color: "#16a34a", background: "#f0fdf4" }}
                     onClick={sendWhatsAppPaymentRequest}
+                    disabled={sendingPaymentRequest}
                     title="שלח דרישת תשלום בוואטסאפ"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    דרישת תשלום
+                    {sendingPaymentRequest ? "מכין קישור..." : "דרישת תשלום"}
                   </button>
                 )}
                 {!fullyPaid && order.status !== "cancelled" && (

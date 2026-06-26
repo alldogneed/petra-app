@@ -16,35 +16,27 @@ export async function POST(request: NextRequest) {
 
   const rawBody = await request.text();
 
-  // Extract businessId from the event metadata before we can load the right webhook secret
-  let prelimEvent: Stripe.Event;
-  try {
-    // Parse without verification first to get the businessId
-    prelimEvent = JSON.parse(rawBody) as Stripe.Event;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  // ─── Step 1: Signature verification ─────────────────────────────────────────
+  // Each business has its own Stripe webhook secret, so we need to parse the
+  // payload to extract the businessId for secret lookup. This is a minimal,
+  // read-only extraction from untrusted data — the ONLY thing we do with it is
+  // look up the webhook secret. All business logic uses the verified event below.
+  const untrustedBusinessId = extractUntrustedBusinessId(rawBody);
+
+  if (!untrustedBusinessId) {
+    // Cannot determine which webhook secret to use — return uniform error
+    return NextResponse.json({ error: "Webhook verification failed" }, { status: 400 });
   }
 
-  const metadata =
-    (prelimEvent.data?.object as { metadata?: Record<string, string> })?.metadata ?? {};
-  const businessId = metadata.businessId;
-
-  if (!businessId) {
-    // No businessId in metadata — cannot route this webhook
-    console.warn("[Stripe webhook] Missing businessId in metadata, ignoring event");
-    return NextResponse.json({ received: true });
-  }
-
-  // Load this business's webhook secret (if configured)
+  // Fetch only the webhook secret — nothing else. Use select to minimize exposure.
   const stripeSettings = await prisma.stripeSettings.findUnique({
-    where: { businessId },
-    select: { webhookSecretEncrypted: true, status: true },
+    where: { businessId: untrustedBusinessId },
+    select: { webhookSecretEncrypted: true },
   });
 
-  // Verify the Stripe signature — MANDATORY, never skip
-  // Use identical error responses to prevent business ID enumeration
+  // Use identical error responses for missing settings vs bad signature
+  // to prevent business ID enumeration.
   if (!stripeSettings?.webhookSecretEncrypted) {
-    console.error(`[Stripe webhook] No webhook secret configured for business — rejecting`);
     return NextResponse.json({ error: "Webhook verification failed" }, { status: 400 });
   }
 
@@ -57,11 +49,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Webhook verification failed" }, { status: 400 });
   }
 
-  // Handle the verified event — use verifiedEvent (not prelimEvent) for all processing
+  // ─── Step 2: Process verified event only ────────────────────────────────────
+  // From here on, ALL data comes from verifiedEvent — never from the untrusted parse.
   try {
-    const eventType = verifiedEvent.type;
+    const verifiedMetadata =
+      (verifiedEvent.data?.object as { metadata?: Record<string, string> })?.metadata ?? {};
+    const businessId = verifiedMetadata.businessId;
 
-    if (eventType === "checkout.session.completed") {
+    if (!businessId) {
+      console.warn("[Stripe webhook] Missing businessId in verified event metadata, ignoring");
+      return NextResponse.json({ received: true });
+    }
+
+    if (verifiedEvent.type === "checkout.session.completed") {
       const session = verifiedEvent.data.object as Stripe.Checkout.Session;
       await handleCheckoutCompleted(session, businessId);
     }
@@ -71,6 +71,22 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("[Stripe webhook] Handler error:", error);
     return NextResponse.json({ error: "Webhook handler error" }, { status: 500 });
+  }
+}
+
+/**
+ * Extract businessId from untrusted raw JSON for webhook secret lookup ONLY.
+ * Returns null if the payload is not valid JSON or lacks a businessId.
+ * This value must NOT be used for any business logic — only for routing
+ * to the correct webhook secret for signature verification.
+ */
+function extractUntrustedBusinessId(rawBody: string): string | null {
+  try {
+    const parsed = JSON.parse(rawBody);
+    const metadata = parsed?.data?.object?.metadata;
+    return typeof metadata?.businessId === "string" ? metadata.businessId : null;
+  } catch {
+    return null;
   }
 }
 

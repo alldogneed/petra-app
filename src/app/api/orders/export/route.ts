@@ -90,9 +90,9 @@ export async function GET(request: NextRequest) {
 
     rows.push([
       `#${o.id.slice(-8).toUpperCase()}`,
-      o.customer.name,
-      o.customer.phone,
-      o.customer.email ?? "",
+      o.customer?.name ?? "",
+      o.customer?.phone ?? "",
+      o.customer?.email ?? "",
       ORDER_TYPE_LABELS[o.orderType] ?? o.orderType,
       STATUS_LABEL[o.status] ?? o.status,
       itemsSummary,

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 
 // GET /api/invoicing/documents/[id] — single document details
 export async function GET(
@@ -10,6 +11,12 @@ export async function GET(
 ) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+
+  // Staff cannot access invoicing documents
+  const membership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);
+  if (membership && !hasTenantPermission(membership.role as TenantRole, TENANT_PERMS.FINANCE_READ)) {
+    return NextResponse.json({ error: "אין הרשאה לצפות במסמכים" }, { status: 403 });
+  }
 
   try {
     const document = await prisma.invoiceDocument.findFirst({
@@ -44,6 +51,12 @@ export async function PATCH(
 ) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+
+  // Staff cannot modify invoicing documents
+  const patchMembership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);
+  if (patchMembership && !hasTenantPermission(patchMembership.role as TenantRole, TENANT_PERMS.FINANCE_READ)) {
+    return NextResponse.json({ error: "אין הרשאה לעדכון מסמכים" }, { status: 403 });
+  }
 
   try {
     const existing = await prisma.invoiceDocument.findFirst({
@@ -102,6 +115,12 @@ export async function DELETE(
 ) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+
+  // Staff cannot delete invoicing documents
+  const delMembership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);
+  if (delMembership && !hasTenantPermission(delMembership.role as TenantRole, TENANT_PERMS.FINANCE_READ)) {
+    return NextResponse.json({ error: "אין הרשאה למחיקת מסמכים" }, { status: 403 });
+  }
 
   try {
     const existing = await prisma.invoiceDocument.findFirst({

@@ -196,6 +196,7 @@ export function CreateOrderModal({
   // Step state: "category" → "customer" → "items" → "review" → "payment"
   const [step, setStep] = useState<"category" | "customer" | "items" | "review" | "payment">("category");
   const [createdOrder, setCreatedOrder] = useState<{ id: string; status: string; paid?: boolean } | null>(null);
+  const [sendingPaymentRequest, setSendingPaymentRequest] = useState(false);
 
   // Customer
   const [customerId, setCustomerId] = useState(prefillCustomerId ?? "");
@@ -1512,7 +1513,7 @@ export function CreateOrderModal({
     )
   );
 
-  const buildPaymentRequestMessage = () => {
+  const buildPaymentRequestMessage = (links: string[] = paymentRequestUrls) => {
     const name = selectedCustomer?.name ?? "לקוח";
     const serviceNames = Array.from(new Set(calc.lines.map((l) => l.name))).join(", ");
     // Build items summary
@@ -1521,17 +1522,59 @@ export function CreateOrderModal({
       .join("\n");
     const discountLine = calc.discountAmount > 0 ? `\nהנחה: −${fmt(calc.discountAmount)}` : "";
     const taxLine = calc.taxTotal > 0 ? `\nמע"מ: ${fmt(calc.taxTotal)}` : "";
-    const linkBlock = paymentRequestUrls.length > 0
-      ? `\n\n💳 לתשלום מאובטח לחצו כאן:\n${paymentRequestUrls.join("\n")}`
+    const linkBlock = links.length > 0
+      ? `\n\n💳 לתשלום מאובטח לחצו כאן:\n${links.join("\n")}`
       : "";
     const footer = `\n\n_לפניות ושאלות: ${selectedCustomer?.phone ?? ""}_`;
 
     return `שלום ${name}! 🐾\n\n*דרישת תשלום*\nעבור: ${serviceNames}\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(calc.total)}*${linkBlock}\n\nתודה שבחרתם בנו! 😊${footer}`;
   };
 
-  const openWhatsAppPaymentRequest = (phone: string) => {
-    const msg = encodeURIComponent(buildPaymentRequestMessage());
-    window.open(`https://wa.me/${toWhatsAppPhone(phone)}?text=${msg}`, "_blank");
+  // Fallback: generate a one-off Stripe checkout link when no product URL is configured.
+  // Returns null silently if Stripe isn't set up for the business.
+  const generateStripePaymentLink = async (): Promise<string | null> => {
+    try {
+      const description = Array.from(new Set(calc.lines.map((l) => l.name))).join(", ") || "תשלום";
+      const res = await fetch("/api/payments/stripe/payment-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: calc.total,
+          description,
+          customerId: selectedCustomer?.id,
+          orderId: createdOrder?.id,
+        }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.url ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const openWhatsAppPaymentRequest = async (phone: string) => {
+    if (sendingPaymentRequest) return;
+    // Open the window inside the click gesture so it isn't blocked after the
+    // async Stripe call; we set its URL once the link is resolved.
+    const win = window.open("", "_blank");
+    setSendingPaymentRequest(true);
+    try {
+      let links = [...paymentRequestUrls];
+      if (links.length === 0) {
+        const stripeUrl = await generateStripePaymentLink();
+        if (stripeUrl) links = [stripeUrl];
+      }
+      if (links.length === 0) {
+        toast.warning("לא הוגדר קישור תשלום למוצרים בהזמנה — ההודעה נשלחת ללא לינק");
+      }
+      const msg = encodeURIComponent(buildPaymentRequestMessage(links));
+      const waUrl = `https://wa.me/${toWhatsAppPhone(phone)}?text=${msg}`;
+      if (win) win.location.href = waUrl;
+      else window.open(waUrl, "_blank");
+    } finally {
+      setSendingPaymentRequest(false);
+    }
   };
 
   // ── Step 4: Payment ────────────────────────────────────────────────────────
@@ -1648,12 +1691,17 @@ export function CreateOrderModal({
       {/* Payment request button — shown for all service types */}
       {selectedCustomer?.phone && (
         <button
-          className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 border-2"
+          className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 border-2 disabled:opacity-60"
           style={{ borderColor: "#25D366", color: "#16a34a", background: "#f0fdf4" }}
           onClick={() => openWhatsAppPaymentRequest(selectedCustomer.phone!)}
+          disabled={sendingPaymentRequest}
         >
           <Send className="w-4 h-4" />
-          {paymentRequestUrls.length > 0 ? "שלח דרישת תשלום עם קישור לדף הנחיתה" : "שלח דרישת תשלום בוואטסאפ"}
+          {sendingPaymentRequest
+            ? "מכין קישור..."
+            : paymentRequestUrls.length > 0
+              ? "שלח דרישת תשלום עם קישור לדף הנחיתה"
+              : "שלח דרישת תשלום בוואטסאפ"}
         </button>
       )}
     </div>

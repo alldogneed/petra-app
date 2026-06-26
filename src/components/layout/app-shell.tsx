@@ -8,6 +8,7 @@ import { HelpCircle } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/providers/auth-provider";
 import { LimitReachedModal } from "@/components/paywall/LimitReachedModal";
+import { PWAInstallProvider } from "./PWAInstallProvider";
 
 const HelpCenter = dynamic(
   () => import("@/components/help/HelpCenter").then((m) => ({ default: m.HelpCenter })),
@@ -30,6 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [helpOpen, setHelpOpen] = useState(false);
   const { user, exitImpersonation } = useAuth();
   return (
+    <PWAInstallProvider>
     <div className="min-h-screen">
       {/* Impersonation banner */}
       {user?.isImpersonating && (
@@ -77,5 +79,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       <HelpCenter open={helpOpen} onOpenChange={setHelpOpen} />
       <LimitReachedModal />
     </div>
+    </PWAInstallProvider>
   );
 }

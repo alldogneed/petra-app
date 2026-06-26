@@ -21,7 +21,7 @@ import {
   MapPin,
   Plus,
 } from "lucide-react";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, escapeHtml } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import {
   SERVICE_DOG_PHASE_MAP, SERVICE_DOG_PHASE_COLORS,
@@ -209,7 +209,7 @@ function ServiceDogsReportsPageContent() {
           </a>
           <button
             onClick={() => {
-              const certRows = certified.map((dog) => `<tr><td>${dog.pet.name}</td><td>${dog.pet.breed || "—"}</td><td>${dog.certificationDate ? formatDate(dog.certificationDate) : "—"}</td><td>${dog.activePlacement ? `משובץ — ${dog.activePlacement.recipientName}` : "ללא שיבוץ"}</td></tr>`).join("");
+              const certRows = certified.map((dog) => `<tr><td>${escapeHtml(dog.pet.name)}</td><td>${escapeHtml(dog.pet.breed) || "—"}</td><td>${dog.certificationDate ? formatDate(dog.certificationDate) : "—"}</td><td>${dog.activePlacement ? `משובץ — ${escapeHtml(dog.activePlacement.recipientName)}` : "ללא שיבוץ"}</td></tr>`).join("");
               const phaseRows = Object.entries(byPhase).map(([phase, count]) => `<tr><td>${phase}</td><td>${count}</td></tr>`).join("");
               const win = window.open("", "_blank");
               if (!win) return;
@@ -463,10 +463,10 @@ function ServiceDogsReportsPageContent() {
                   onClick={() => {
                     const rows = certified.map((dog) => `
                       <tr>
-                        <td>${dog.pet.name}</td>
-                        <td>${dog.pet.breed || "—"}</td>
+                        <td>${escapeHtml(dog.pet.name)}</td>
+                        <td>${escapeHtml(dog.pet.breed) || "—"}</td>
                         <td>${dog.certificationDate ? formatDate(dog.certificationDate) : "—"}</td>
-                        <td>${dog.activePlacement ? `משובץ — ${dog.activePlacement.recipientName}` : "ללא שיבוץ"}</td>
+                        <td>${dog.activePlacement ? `משובץ — ${escapeHtml(dog.activePlacement.recipientName)}` : "ללא שיבוץ"}</td>
                       </tr>`).join("");
                     const win = window.open("", "_blank");
                     if (!win) return;
@@ -533,7 +533,7 @@ function ServiceDogsReportsPageContent() {
                 <button
                   onClick={() => {
                     const rows = upcomingRenewals.map(r =>
-                      `<tr><td>${r.dogName}</td><td>${r.label}</td><td>${r.urgency === "overdue" ? "פג תוקף" : formatDate(r.expiry)}</td></tr>`
+                      `<tr><td>${escapeHtml(r.dogName)}</td><td>${escapeHtml(r.label)}</td><td>${r.urgency === "overdue" ? "פג תוקף" : formatDate(r.expiry)}</td></tr>`
                     ).join("");
                     const win = window.open("", "_blank");
                     if (!win) return;

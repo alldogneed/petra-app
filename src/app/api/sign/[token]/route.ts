@@ -83,10 +83,10 @@ export async function GET(
     // Build data map — includes customer + pet fields
     const pet = contractRequest.pet;
     const customerData: Record<string, string> = {
-      customer_name: contractRequest.customer.name,
-      phone: contractRequest.customer.phone ?? "",
-      id_number: contractRequest.customer.idNumber ?? "",
-      address: contractRequest.customer.address ?? "",
+      customer_name: contractRequest.customer?.name ?? "",
+      phone: contractRequest.customer?.phone ?? "",
+      id_number: contractRequest.customer?.idNumber ?? "",
+      address: contractRequest.customer?.address ?? "",
       pet_name: pet?.name ?? "",
       pet_breed: pet?.breed ?? "",
       pet_microchip: pet?.microchip ?? "",
@@ -96,7 +96,7 @@ export async function GET(
     };
 
     return NextResponse.json({
-      customerName: contractRequest.customer.name,
+      customerName: contractRequest.customer?.name ?? "",
       businessName: contractRequest.business.name,
       templateName: contractRequest.template.name,
       pdfUrl: contractRequest.template.fileUrl,
@@ -191,10 +191,10 @@ export async function POST(
     // Build customer + pet data map
     const pet = contractRequest.pet;
     const customerDataMap: Record<string, string> = {
-      customer_name: contractRequest.customer.name,
-      phone: contractRequest.customer.phone ?? "",
-      id_number: contractRequest.customer.idNumber ?? "",
-      address: contractRequest.customer.address ?? "",
+      customer_name: contractRequest.customer?.name ?? "",
+      phone: contractRequest.customer?.phone ?? "",
+      id_number: contractRequest.customer?.idNumber ?? "",
+      address: contractRequest.customer?.address ?? "",
       pet_name: pet?.name ?? "",
       pet_breed: pet?.breed ?? "",
       pet_microchip: pet?.microchip ?? "",
@@ -302,7 +302,7 @@ export async function POST(
 
     let docs: unknown[] = [];
     try {
-      docs = JSON.parse(contractRequest.customer.documents || "[]");
+      docs = JSON.parse(contractRequest.customer?.documents || "[]");
     } catch {
       docs = [];
     }

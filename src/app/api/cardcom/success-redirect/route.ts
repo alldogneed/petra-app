@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const checkoutId = searchParams.get("checkoutId") ?? "";
   const lowProfileCode = searchParams.get("lowprofilecode") ?? searchParams.get("LowProfileCode") ?? "";
-  const tierParam = searchParams.get("tier") ?? "";
+  const tierParam = encodeURIComponent(searchParams.get("tier") ?? "");
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://petra-app.com";
 
   // ════════════════════════════════════════════════════════════════════

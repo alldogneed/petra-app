@@ -13,9 +13,57 @@
 
 import type { DbClient } from "./supabase";
 import { ServiceError } from "./types";
+import { deleteOrder, updateOrder } from "./orders";
 
 export { ServiceError };
 export type { DbClient };
+
+// ─── Order side-effects for training process delete / convert ───────────────
+
+export type OrderAction = "keep" | "cancel" | "delete";
+
+/**
+ * Apply the chosen side-effect to a training process's linked order.
+ * Returns `{ orderDowngraded: true }` when a requested delete fell back to
+ * cancel because the order was already confirmed/paid (deleteOrder rejects
+ * non-draft/cancelled orders).
+ */
+export async function applyOrderAction(
+  businessId: string,
+  db: DbClient,
+  orderId: string | null | undefined,
+  action: OrderAction | undefined
+): Promise<{ orderDowngraded: boolean }> {
+  if (!orderId || !action || action === "keep") return { orderDowngraded: false };
+
+  if (action === "cancel") {
+    try {
+      await updateOrder(businessId, db, orderId, { status: "cancelled" });
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") return { orderDowngraded: false };
+      throw e;
+    }
+    return { orderDowngraded: false };
+  }
+
+  // action === "delete"
+  try {
+    await deleteOrder(businessId, db, orderId);
+    return { orderDowngraded: false };
+  } catch (e) {
+    if (e instanceof ServiceError && e.code === "NOT_FOUND") return { orderDowngraded: false };
+    // Confirmed/paid order can't be deleted → cancel instead and signal the UI.
+    if (e instanceof ServiceError && e.code === "VALIDATION") {
+      try {
+        await updateOrder(businessId, db, orderId, { status: "cancelled" });
+      } catch (e2) {
+        if (!(e2 instanceof ServiceError && e2.code === "NOT_FOUND")) throw e2;
+      }
+      return { orderDowngraded: true };
+    }
+    throw e;
+  }
+}
 
 // ─── Training Groups ───────────────────────────────────────────────────────
 
@@ -693,10 +741,15 @@ export async function updateTrainingProgram(
   });
 }
 
-export async function deleteTrainingProgram(businessId: string, db: DbClient, id: string) {
+export async function deleteTrainingProgram(
+  businessId: string,
+  db: DbClient,
+  id: string,
+  opts: { orderAction?: OrderAction } = {}
+) {
   const existing = await db.trainingProgram.findFirst({
     where: { id, businessId },
-    select: { id: true, name: true, dogId: true, dog: { select: { name: true } } },
+    select: { id: true, name: true, dogId: true, orderId: true, dog: { select: { name: true } } },
   });
   if (!existing) throw new ServiceError("תוכנית לא נמצאה", "NOT_FOUND");
 
@@ -706,7 +759,108 @@ export async function deleteTrainingProgram(businessId: string, db: DbClient, id
   await db.trainingHomework.deleteMany({ where: { trainingProgramId: id } });
   await db.trainingProgram.delete({ where: { id, businessId } });
 
-  return existing;
+  // Apply the chosen effect to the linked order (keep / cancel / delete).
+  const { orderDowngraded } = await applyOrderAction(businessId, db, existing.orderId, opts.orderAction);
+
+  return { ...existing, orderDowngraded };
+}
+
+/**
+ * Convert an individual training program into group participation.
+ * Adds the program's dog as a participant of the target group (preserving the
+ * order link), then deletes the source program. Price is NOT recalculated.
+ */
+export async function convertProgramToGroup(
+  businessId: string,
+  db: DbClient,
+  programId: string,
+  input: { trainingGroupId: string; orderAction?: OrderAction }
+) {
+  const program = await db.trainingProgram.findFirst({
+    where: { id: programId, businessId },
+    select: { id: true, dogId: true, customerId: true, orderId: true, name: true },
+  });
+  if (!program) throw new ServiceError("תוכנית לא נמצאה", "NOT_FOUND");
+  if (!program.customerId) {
+    throw new ServiceError("לתוכנית אין לקוח משויך — לא ניתן להמיר לקבוצה", "VALIDATION");
+  }
+
+  const group = await db.trainingGroup.findFirst({
+    where: { id: input.trainingGroupId, businessId },
+    select: { id: true },
+  });
+  if (!group) throw new ServiceError("קבוצת אימון לא נמצאה", "NOT_FOUND");
+
+  const participant = await db.trainingGroupParticipant.upsert({
+    where: { trainingGroupId_dogId: { trainingGroupId: group.id, dogId: program.dogId } },
+    create: {
+      trainingGroupId: group.id,
+      dogId: program.dogId,
+      customerId: program.customerId,
+      status: "ACTIVE",
+      orderId: program.orderId,
+    },
+    update: { status: "ACTIVE", customerId: program.customerId, orderId: program.orderId },
+  });
+
+  // Delete the source program (sequential — Supabase PgBouncer)
+  await db.trainingGoal.deleteMany({ where: { trainingProgramId: programId } });
+  await db.trainingProgramSession.deleteMany({ where: { trainingProgramId: programId } });
+  await db.trainingHomework.deleteMany({ where: { trainingProgramId: programId } });
+  await db.trainingProgram.delete({ where: { id: programId, businessId } });
+
+  // Optional order side-effect (default keep — price stays as-is)
+  const { orderDowngraded } = await applyOrderAction(businessId, db, program.orderId, input.orderAction);
+
+  return { participant, groupId: group.id, orderDowngraded };
+}
+
+/**
+ * Convert a group participant into an individual training program.
+ * Creates a HOME program for the dog (preserving the order link), then removes
+ * the participant (attendance cascades). Price is NOT recalculated.
+ */
+export async function convertParticipantToProgram(
+  businessId: string,
+  db: DbClient,
+  participantId: string,
+  input: { programType?: string; orderAction?: OrderAction } = {}
+) {
+  const participant = await db.trainingGroupParticipant.findFirst({
+    where: { id: participantId, trainingGroup: { businessId } },
+    select: {
+      id: true,
+      dogId: true,
+      customerId: true,
+      orderId: true,
+      dog: { select: { name: true } },
+      trainingGroup: { select: { id: true, name: true } },
+    },
+  });
+  if (!participant) throw new ServiceError("משתתף לא נמצא", "NOT_FOUND");
+
+  const program = await db.trainingProgram.create({
+    data: {
+      businessId,
+      dogId: participant.dogId,
+      customerId: participant.customerId,
+      name: `אילוף פרטני - ${participant.dog?.name ?? "כלב"}`,
+      programType: input.programType || "BASIC_OBEDIENCE",
+      trainingType: "HOME",
+      status: "ACTIVE",
+      startDate: new Date(),
+      orderId: participant.orderId,
+      isPackage: false,
+    },
+    include: { dog: true, customer: true },
+  });
+
+  // Remove the participant (attendance cascades via FK)
+  await db.trainingGroupParticipant.delete({ where: { id: participantId } });
+
+  const { orderDowngraded } = await applyOrderAction(businessId, db, participant.orderId, input.orderAction);
+
+  return { program, orderDowngraded };
 }
 
 // ─── Training Program Sessions ─────────────────────────────────────────────

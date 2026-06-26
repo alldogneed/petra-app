@@ -32,7 +32,13 @@ export async function PATCH(
     if (body.name !== undefined) data.name = String(body.name).trim();
     if (body.description !== undefined) data.description = body.description?.trim() || null;
     if (body.unit !== undefined) data.unit = body.unit;
-    if (body.unitPrice !== undefined) data.basePrice = Number(body.unitPrice);
+    if (body.unitPrice !== undefined) {
+      const price = Number(body.unitPrice);
+      if (!isFinite(price) || price < 0) {
+        return NextResponse.json({ error: "מחיר לא תקין" }, { status: 400 });
+      }
+      data.basePrice = price;
+    }
     if (body.taxMode !== undefined) data.taxMode = body.taxMode;
     if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
     if (body.sortOrder !== undefined) data.sortOrder = Number(body.sortOrder);

@@ -40,35 +40,47 @@ export async function POST(request: NextRequest) {
 
   logInvoicing("info", "Webhook received", { provider, ip });
 
-  // Find provider settings to get webhook secret
-  const settings = await prisma.invoicingSettings.findFirst({
+  // Find ALL businesses with this provider configured (multi-tenant HMAC matching).
+  // Each business has its own webhook secret, so we try signature verification against
+  // each one — the matching secret identifies the correct tenant.
+  const allSettings = await prisma.invoicingSettings.findMany({
     where: { providerName: provider, webhookSecretEncrypted: { not: null } },
     select: { businessId: true, webhookSecretEncrypted: true },
   });
 
   // Reject if no webhook secret is configured — prevents processing unauthenticated webhooks
-  if (!settings?.webhookSecretEncrypted) {
+  if (allSettings.length === 0) {
     logInvoicing("warn", "Webhook rejected: no secret configured for provider", { provider, ip });
     return NextResponse.json({ error: "Webhook not configured" }, { status: 400 });
   }
 
-  let signatureValid = false;
+  // Try to verify the signature against each business's secret to find the correct tenant
+  let matchedSettings: { businessId: string; webhookSecretEncrypted: string } | null = null;
 
-  if (settings.webhookSecretEncrypted && signature) {
-    try {
-      const secret = decryptInvoicingSecret(settings.webhookSecretEncrypted);
+  if (signature) {
+    for (const settings of allSettings) {
+      try {
+        const secret = decryptInvoicingSecret(settings.webhookSecretEncrypted!);
+        let valid = false;
 
-      switch (provider) {
-        case "morning":
-          signatureValid = verifyMorningWebhookSignature(rawBody, signature, secret);
+        switch (provider) {
+          case "morning":
+            valid = verifyMorningWebhookSignature(rawBody, signature, secret);
+            break;
+          default:
+            logInvoicing("warn", "Unknown provider for webhook verification", { provider });
+        }
+
+        if (valid) {
+          matchedSettings = settings as { businessId: string; webhookSecretEncrypted: string };
           break;
-        default:
-          logInvoicing("warn", "Unknown provider for webhook verification", { provider });
+        }
+      } catch (err) {
+        logInvoicing("error", "Webhook signature verification error", {
+          businessId: settings.businessId,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
-    } catch (err) {
-      logInvoicing("error", "Webhook signature verification error", {
-        error: err instanceof Error ? err.message : String(err),
-      });
     }
   }
 
@@ -77,14 +89,18 @@ export async function POST(request: NextRequest) {
   try {
     payload = JSON.parse(rawBody);
   } catch {
-    await logWebhook(provider, "parse_error", "{}", signatureValid, "Invalid JSON payload", ip);
+    await logWebhook(provider, "parse_error", "{}", false, "Invalid JSON payload", ip);
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   const eventType = (payload.event as string) ?? (payload.type as string) ?? "unknown";
 
-  if (!signatureValid) {
-    logInvoicing("warn", "Invalid webhook signature", { provider, ip });
+  if (!matchedSettings) {
+    logInvoicing("warn", "Invalid webhook signature — no matching business found", {
+      provider,
+      ip,
+      businessCount: allSettings.length,
+    });
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
@@ -92,11 +108,12 @@ export async function POST(request: NextRequest) {
   const maskedPayload = JSON.stringify(maskSensitive(payload));
   await logWebhook(provider, eventType, maskedPayload, true, null, ip);
 
-  // Process the webhook event
+  // Process the webhook event scoped to the matched business
   try {
-    await processWebhookEvent(provider, eventType, payload);
+    await processWebhookEvent(provider, eventType, payload, matchedSettings.businessId);
   } catch (err) {
     logInvoicing("error", "Webhook processing error", {
+      businessId: matchedSettings.businessId,
       error: err instanceof Error ? err.message : String(err),
     });
     // Still return 200 to prevent retries for processing errors
@@ -108,9 +125,10 @@ export async function POST(request: NextRequest) {
 async function processWebhookEvent(
   provider: string,
   eventType: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  businessId: string
 ): Promise<void> {
-  // Handle document status updates
+  // Handle document status updates — scoped to the verified business
   const providerDocId = (payload.document_id ?? payload.documentId ?? payload.id) as string | undefined;
 
   if (!providerDocId) return;
@@ -119,7 +137,7 @@ async function processWebhookEvent(
     case "document.created":
     case "document.finalized": {
       await prisma.invoiceDocument.updateMany({
-        where: { providerDocId, providerName: provider },
+        where: { providerDocId, providerName: provider, businessId },
         data: {
           status: "issued",
           documentNumber: (payload.document_number ?? payload.number) as string | undefined,
@@ -131,14 +149,14 @@ async function processWebhookEvent(
     case "document.cancelled":
     case "document.canceled": {
       await prisma.invoiceDocument.updateMany({
-        where: { providerDocId, providerName: provider },
+        where: { providerDocId, providerName: provider, businessId },
         data: { status: "cancelled" },
       });
       break;
     }
     case "document.failed": {
       await prisma.invoiceDocument.updateMany({
-        where: { providerDocId, providerName: provider },
+        where: { providerDocId, providerName: provider, businessId },
         data: {
           status: "failed",
           failureReason: (payload.error ?? payload.reason) as string | undefined,

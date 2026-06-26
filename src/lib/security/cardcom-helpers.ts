@@ -55,13 +55,14 @@ export function sanitizeUrlForLog(url: string): string {
  * Validate Origin header for CSRF protection on mutating endpoints.
  * Returns true if the origin matches the app domain.
  */
-export function validateOrigin(request: Request): boolean {
+export function validateOrigin(request: Request, { allowMissing = false }: { allowMissing?: boolean } = {}): boolean {
   const origin = request.headers.get("origin");
   const referer = request.headers.get("referer");
   const appHost = new URL(APP_URL).host;
 
-  // Server-to-server calls (no Origin/Referer) — allow (e.g., Cardcom webhooks)
-  if (!origin && !referer) return true;
+  // Missing Origin/Referer: only allow when explicitly opted in (e.g., webhook callbacks).
+  // Browser-initiated requests always send Origin on POST.
+  if (!origin && !referer) return allowMissing;
 
   if (origin) {
     try {

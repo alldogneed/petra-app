@@ -1331,10 +1331,53 @@ function CheckoutDialog({
   isPending: boolean;
 }) {
   const [notes, setNotes] = useState("");
+  const [sendingPaymentRequest, setSendingPaymentRequest] = useState(false);
 
   const nights = stay.checkOut ? calcNights(stay.checkIn, stay.checkOut) : calcNights(stay.checkIn, new Date().toISOString());
   const calcMode = settings.boardingCalcMode || "nights";
   const configuredCheckoutTime = settings.boardingCheckOutTime || "11:00";
+
+  // Build + send the boarding payment request, including a payment link when possible.
+  // Boarding has no per-product URL, so we generate a one-off Stripe checkout link.
+  const sendBoardingPaymentRequest = async () => {
+    if (sendingPaymentRequest || !stay.customer?.phone) return;
+    const total = nights * (settings.boardingPricePerNight || 0);
+    // Open the window inside the click gesture so it isn't blocked after the async Stripe call.
+    const win = window.open("", "_blank");
+    setSendingPaymentRequest(true);
+    try {
+      let link: string | null = null;
+      if (total > 0) {
+        try {
+          const res = await fetch("/api/payments/stripe/payment-link", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              amount: total,
+              description: `פנסיון — ${stay.pet.name} (${nights} ${calcMode === "nights" ? "לילות" : "ימים"})`,
+              customerId: stay.customer.id,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            link = data.url ?? null;
+          }
+        } catch {
+          // Stripe not configured — fall through to link-less message.
+        }
+      }
+      const linkBlock = link ? `\n\n💳 לתשלום מאובטח לחצו כאן:\n${link}` : "";
+      if (!link) {
+        toast.warning("לא הוגדר קישור תשלום — ההודעה נשלחת ללא לינק (להגדרת Stripe: הגדרות ← אינטגרציות)");
+      }
+      const msg = `שלום ${stay.customer.name}! 😊\nתודה שהיה לנו את ${stay.pet.name} בפנסיון.\nסיכום השהייה: ${nights} ${calcMode === "nights" ? "לילות" : "ימים"} × ₪${settings.boardingPricePerNight} = ₪${total.toFixed(0)}.\n\nנשמח לקבל תשלום 🙏${linkBlock}`;
+      const waUrl = `https://wa.me/${toWhatsAppPhone(stay.customer.phone)}?text=${encodeURIComponent(msg)}`;
+      if (win) win.location.href = waUrl;
+      else window.open(waUrl, "_blank");
+    } finally {
+      setSendingPaymentRequest(false);
+    }
+  };
 
   const isLate = (() => {
     if (!stay.checkOut) return false;
@@ -1411,19 +1454,15 @@ function CheckoutDialog({
 
         {/* WhatsApp payment request — only when customer exists */}
         {settings.boardingPricePerNight && stay.customer?.phone && (
-          <a
-            href={(() => {
-              const total = nights * (settings.boardingPricePerNight || 0);
-              const msg = `שלום ${stay.customer!.name}! 😊\nתודה שהיה לנו את ${stay.pet.name} בפנסיון.\nסיכום השהייה: ${nights} ${calcMode === "nights" ? "לילות" : "ימים"} × ₪${settings.boardingPricePerNight} = ₪${total.toFixed(0)}.\n\nנשמח לקבל תשלום 🙏`;
-              return `https://wa.me/${toWhatsAppPhone(stay.customer!.phone)}?text=${encodeURIComponent(msg)}`;
-            })()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 transition-colors"
+          <button
+            type="button"
+            onClick={sendBoardingPaymentRequest}
+            disabled={sendingPaymentRequest}
+            className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 transition-colors disabled:opacity-60"
           >
             <MessageCircle className="w-4 h-4" />
-            שלח בקשת תשלום בוואטסאפ
-          </a>
+            {sendingPaymentRequest ? "מכין קישור..." : "שלח בקשת תשלום בוואטסאפ"}
+          </button>
         )}
 
         <div className="flex gap-3 mt-2">

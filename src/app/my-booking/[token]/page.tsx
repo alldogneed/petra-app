@@ -109,7 +109,7 @@ export default function MyBookingPage({ params }: { params: { token: string } })
   const StatusIcon = statusCfg.Icon
   const canCancel = ["pending", "confirmed"].includes(booking.status)
   const waLink = booking.business.phone
-    ? `https://wa.me/972${booking.business.phone.replace(/^0/, "")}?text=${encodeURIComponent(`שלום, אני ${booking.customer.name}. רציתי לדבר על ההזמנה שלי (#${booking.id.slice(0, 8).toUpperCase()}).`)}`
+    ? `https://wa.me/972${booking.business.phone.replace(/^0/, "")}?text=${encodeURIComponent(`שלום, אני ${booking.customer?.name ?? "לקוח"}. רציתי לדבר על ההזמנה שלי (#${booking.id.slice(0, 8).toUpperCase()}).`)}`
     : null
 
   return (
@@ -175,9 +175,9 @@ export default function MyBookingPage({ params }: { params: { token: string } })
             </div>
             <div>
               <p className="text-xs text-slate-500">שם</p>
-              <p className="font-semibold text-slate-800">{booking.customer.name}</p>
+              <p className="font-semibold text-slate-800">{booking.customer?.name ?? ""}</p>
               <p className="text-sm text-slate-500 flex items-center gap-1">
-                <Phone className="w-3 h-3" />{booking.customer.phone}
+                <Phone className="w-3 h-3" />{booking.customer?.phone ?? ""}
               </p>
             </div>
           </div>

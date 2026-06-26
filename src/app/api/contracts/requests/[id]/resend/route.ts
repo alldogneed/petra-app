@@ -41,7 +41,7 @@ export async function POST(
       return NextResponse.json({ error: "החוזה כבר נחתם" }, { status: 400 });
     }
 
-    if (!contractReq.customer.phone) {
+    if (!contractReq.customer?.phone) {
       return NextResponse.json(
         { error: "ללקוח אין מספר טלפון" },
         { status: 400 }

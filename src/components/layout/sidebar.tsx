@@ -35,12 +35,15 @@ import {
   ShieldCheck,
   Lock,
   PlayCircle,
+  Smartphone,
+  Share,
 } from "lucide-react";
 import { hasFeatureWithOverrides, type FeatureKey, type TierKey } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
+import { usePWAInstall } from "./PWAInstallProvider";
 
 interface NavItem {
   name: string;
@@ -130,6 +133,11 @@ export function Sidebar({
   const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
   const isMaster = user?.isAdmin === true;
+
+  // PWA install — permanent entry so users can add Petra to their home screen
+  // any time (the bottom nudge banner is mobile-only and dismissable).
+  const { canInstall, isIOS, isInstalled, promptInstall } = usePWAInstall();
+  const [iosHintOpen, setIosHintOpen] = useState(false);
 
   // Ref to the desktop nav element for scroll management
   const navRef = useRef<HTMLElement>(null);
@@ -565,6 +573,35 @@ export function Sidebar({
               </div>
               {isExpanded && <span>עזרה</span>}
             </button>
+
+            {/* Install app — permanent home-screen install entry (hidden once installed) */}
+            {!isInstalled && (canInstall || isIOS) && (
+              <div>
+                <button
+                  onClick={() => {
+                    if (canInstall) {
+                      promptInstall();
+                    } else {
+                      setIosHintOpen((v) => !v);
+                    }
+                  }}
+                  title={!isMobile && collapsed ? "התקן אפליקציה" : undefined}
+                  className="w-full flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group text-brand-300 hover:text-white hover:bg-brand-500/10"
+                >
+                  <div className="flex-shrink-0 text-brand-400 group-hover:text-brand-300">
+                    <Smartphone className="w-[18px] h-[18px]" />
+                  </div>
+                  {isExpanded && <span className="flex-1 text-right">התקן אפליקציה</span>}
+                </button>
+                {isExpanded && iosHintOpen && isIOS && (
+                  <p className="px-3 pb-2 pt-1 text-[11px] text-slate-400 leading-snug">
+                    לחץ על{" "}
+                    <Share className="inline w-3 h-3 mx-0.5 text-blue-400" />
+                    {" "}בדפדפן ואז &ldquo;הוסף למסך הבית&rdquo;
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Upgrade banner — shown when there are locked features or user is on free/basic */}
             {(lockedNavEntries.length > 0 || userTier === "free" || userTier === "basic") && (

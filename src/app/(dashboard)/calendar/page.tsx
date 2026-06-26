@@ -576,7 +576,7 @@ function NewAppointmentModal({
             </select>
           </div>
           <div>
-            <label className="label">שירות / מוצר *</label>
+            <label className="label">שירות / מוצר</label>
             <select
               className="input"
               value={form.priceListItemId}
@@ -584,7 +584,7 @@ function NewAppointmentModal({
                 setForm({ ...form, priceListItemId: e.target.value })
               }
             >
-              <option value="">בחר מהמחירון...</option>
+              <option value="">ללא שירות (תור כללי)</option>
               {["אילוף", "טיפוח", "פנסיון", "מוצרים"].map((cat) => {
                 const catItems = priceListItems.filter((i) => i.category === cat);
                 if (catItems.length === 0) return null;
@@ -608,6 +608,11 @@ function NewAppointmentModal({
                 </optgroup>
               )}
             </select>
+            {priceListItems.length === 0 && (
+              <p className="text-xs text-petra-muted mt-1">
+                אין שירותים במחירון עדיין — אפשר לקבוע תור כללי, או להוסיף שירותים בעמוד המחירון.
+              </p>
+            )}
           </div>
           {selectedCustomer && selectedCustomer.pets?.length > 0 && (
             <div>
@@ -722,10 +727,17 @@ function NewAppointmentModal({
         <div className="flex gap-3 mt-6">
           <button
             className="btn-primary flex-1"
-            disabled={
-              !form.customerId || !form.priceListItemId || mutation.isPending
+            disabled={!form.customerId || mutation.isPending}
+            onClick={() =>
+              mutation.mutate({
+                ...form,
+                // Server requires a service, price-list item, OR notes to describe
+                // the appointment. For a service-less general appointment, fall
+                // back to a default note so booking still succeeds.
+                notes: form.notes || (form.priceListItemId ? "" : "תור כללי"),
+                endTime,
+              })
             }
-            onClick={() => mutation.mutate({ ...form, endTime })}
           >
             <Plus className="w-4 h-4" />
             {mutation.isPending ? "שומר..." : recurring ? `צור ${occurrences} פגישות` : "צור פגישה"}
@@ -861,11 +873,18 @@ function CalendarContent() {
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   // On phones: portrait → day view, landscape → week view (rotate to see the week).
   // Desktop is left untouched. A phone is detected by its smaller dimension < 768.
+  // IMPORTANT: only react when the orientation actually flips. On mobile the
+  // browser fires `resize` every time the address bar shows/hides during scroll
+  // (innerHeight changes by ~56px) — reacting to that flipped the view back and
+  // forth as the user scrolled, and also clobbered any manual view choice.
+  const lastLandscapeRef = useRef<boolean | null>(null);
   useEffect(() => {
     const applyResponsiveView = () => {
       const isPhone = Math.min(window.innerWidth, window.innerHeight) < 768;
       if (!isPhone) return;
       const landscape = window.innerWidth > window.innerHeight;
+      if (lastLandscapeRef.current === landscape) return; // orientation unchanged → ignore (scroll/url-bar)
+      lastLandscapeRef.current = landscape;
       setViewMode(landscape ? "week" : "day");
     };
     applyResponsiveView();

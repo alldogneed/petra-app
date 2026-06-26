@@ -40,8 +40,9 @@ import {
   LayoutGrid,
   LayoutList,
   Pencil,
+  Repeat,
 } from "lucide-react";
-import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
+import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON, escapeHtml } from "@/lib/utils";
 import { triggerLimitModal } from "@/lib/limit-reached";
 import { toast } from "sonner";
 import {
@@ -683,6 +684,10 @@ function TrainingPageContent() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [dropoutTarget, setDropoutTarget] = useState<{ programId: string; dogName: string } | null>(null);
   const [finishTarget, setFinishTarget] = useState<{ programId: string; dogName: string } | null>(null);
+  const [convertToGroupTarget, setConvertToGroupTarget] = useState<TrainingProgram | null>(null);
+  const [deleteProgramTarget, setDeleteProgramTarget] = useState<TrainingProgram | null>(null);
+  const [convertParticipantTarget, setConvertParticipantTarget] = useState<{ groupId: string; participantId: string; dogName: string } | null>(null);
+  const [deleteGroupTarget, setDeleteGroupTarget] = useState<{ groupId: string; groupName: string; isWorkshop: boolean } | null>(null);
   const [scheduleSessionTarget, setScheduleSessionTarget] = useState<{
     programId: string; sessionNumber: number; dogName: string;
     customerId?: string; customerName?: string; customerPhone?: string;
@@ -997,6 +1002,90 @@ function TrainingPageContent() {
       toast.success("הכלב הוסר מהקבוצה");
     },
     onError: () => toast.error("שגיאה בהסרת הכלב מהקבוצה"),
+  });
+
+  // Invalidate every training-related query (programs across sub-tabs + groups + calendars)
+  const invalidateAllTraining = () => {
+    [
+      "training-programs", "training-programs-boarding", "training-programs-service",
+      "training-programs-archive", "training-groups",
+      "training-program-sessions-cal", "training-group-sessions-cal",
+    ].forEach((k) => queryClient.invalidateQueries({ queryKey: [k] }));
+  };
+
+  // Convert individual program → group participation
+  const convertToGroupMutation = useMutation({
+    mutationFn: async ({ programId, trainingGroupId, orderAction }: { programId: string; trainingGroupId: string; orderAction: string }) => {
+      const res = await fetch(`/api/training-programs/${programId}/convert-to-group`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trainingGroupId, orderAction }),
+      });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || "Failed"); }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      invalidateAllTraining();
+      setConvertToGroupTarget(null);
+      toast.success("התהליך הומר לאילוף קבוצתי");
+      if (data?.orderDowngraded) toast.warning("ההזמנה בוטלה במקום להימחק (הזמנה ששולמה/הופקה לא ניתנת למחיקה)");
+    },
+    onError: (e: Error) => toast.error(e.message || "שגיאה בהמרה לקבוצה"),
+  });
+
+  // Delete individual program (+ chosen order action). Handles owner-confirm + manager approval.
+  const deleteProgramMutation = useMutation({
+    mutationFn: async ({ programId, orderAction }: { programId: string; orderAction: string }) => {
+      const res = await fetch(`/api/training-programs/${programId}?orderAction=${orderAction}`, {
+        method: "DELETE",
+        headers: { "x-confirm-action": `DELETE_TRAINING_${programId}` },
+      });
+      if (res.status === 202) return { pendingApproval: true };
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || "Failed"); }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      invalidateAllTraining();
+      setDeleteProgramTarget(null);
+      if (data?.pendingApproval) { toast.success("בקשת המחיקה נשלחה לאישור הבעלים"); return; }
+      toast.success("תהליך האילוף נמחק");
+      if (data?.orderDowngraded) toast.warning("ההזמנה בוטלה במקום להימחק (הזמנה ששולמה/הופקה לא ניתנת למחיקה)");
+    },
+    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת התהליך"),
+  });
+
+  // Convert group participant → individual program
+  const convertParticipantMutation = useMutation({
+    mutationFn: async ({ groupId, participantId }: { groupId: string; participantId: string }) => {
+      const res = await fetch(`/api/training-groups/${groupId}/participants/${participantId}/convert-to-individual`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || "Failed"); }
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateAllTraining();
+      setConvertParticipantTarget(null);
+      toast.success("הכלב הומר לאילוף פרטני");
+    },
+    onError: (e: Error) => toast.error(e.message || "שגיאה בהמרה לפרטני"),
+  });
+
+  // Delete a whole group / workshop
+  const deleteGroupMutation = useMutation({
+    mutationFn: async ({ groupId }: { groupId: string }) => {
+      const res = await fetch(`/api/training-groups/${groupId}`, { method: "DELETE" });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || "Failed"); }
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateAllTraining();
+      setDeleteGroupTarget(null);
+      toast.success("הקבוצה נמחקה");
+    },
+    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת הקבוצה"),
   });
 
   const createProgramMutation = useMutation({
@@ -1512,6 +1601,8 @@ function TrainingPageContent() {
                     setEditSessionTarget({ programId, sessionId: session.id, sessionNumber: session.sessionNumber ?? 1, dogName, initialData: { summary: session.summary ?? "", sessionDate: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`, sessionTime: `${pad(d.getHours())}:${pad(d.getMinutes())}`, rating: session.rating, practiceItems: session.practiceItems ?? "", nextSessionGoals: session.nextSessionGoals ?? "", homeworkForCustomer: session.homeworkForCustomer ?? "", trainerName: session.trainerName ?? "", durationMinutes: session.durationMinutes } });
                   }}
                   onEditSettings={(program) => setEditingProgram(program)}
+                  onConvertToGroup={(program) => setConvertToGroupTarget(program)}
+                  onDeleteProgram={(program) => setDeleteProgramTarget(program)}
                   isMarkingAttendance={markAttendanceMutation.isPending}
                   onFinishProgram={(id, dogName) => setFinishTarget({ programId: id, dogName })}
                   onDropoutProgram={(id, dogName) => setDropoutTarget({ programId: id, dogName })}
@@ -1541,6 +1632,8 @@ function TrainingPageContent() {
                     setEditSessionTarget({ programId, sessionId: session.id, sessionNumber: session.sessionNumber ?? 1, dogName, initialData: { summary: session.summary ?? "", sessionDate: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`, sessionTime: `${pad(d.getHours())}:${pad(d.getMinutes())}`, rating: session.rating, practiceItems: session.practiceItems ?? "", nextSessionGoals: session.nextSessionGoals ?? "", homeworkForCustomer: session.homeworkForCustomer ?? "", trainerName: session.trainerName ?? "", durationMinutes: session.durationMinutes } });
                   }}
                   onEditSettings={(program) => setEditingProgram(program)}
+                  onConvertToGroup={(program) => setConvertToGroupTarget(program)}
+                  onDeleteProgram={(program) => setDeleteProgramTarget(program)}
                   isMarkingAttendance={markAttendanceMutation.isPending}
                   onFinishProgram={(id, dogName) => setFinishTarget({ programId: id, dogName })}
                   onDropoutProgram={(id, dogName) => setDropoutTarget({ programId: id, dogName })}
@@ -1570,6 +1663,8 @@ function TrainingPageContent() {
                     setEditSessionTarget({ programId, sessionId: session.id, sessionNumber: session.sessionNumber ?? 1, dogName, initialData: { summary: session.summary ?? "", sessionDate: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`, sessionTime: `${pad(d.getHours())}:${pad(d.getMinutes())}`, rating: session.rating, practiceItems: session.practiceItems ?? "", nextSessionGoals: session.nextSessionGoals ?? "", homeworkForCustomer: session.homeworkForCustomer ?? "", trainerName: session.trainerName ?? "", durationMinutes: session.durationMinutes } });
                   }}
                   onEditSettings={(program) => setEditingProgram(program)}
+                  onConvertToGroup={(program) => setConvertToGroupTarget(program)}
+                  onDeleteProgram={(program) => setDeleteProgramTarget(program)}
                   isMarkingAttendance={markAttendanceMutation.isPending}
                 />
               )}
@@ -1629,6 +1724,12 @@ function TrainingPageContent() {
                   onRemoveParticipant={(groupId, participantId) =>
                     removeParticipantMutation.mutate({ groupId, participantId })
                   }
+                  onConvertParticipant={(groupId, participantId, dogName) =>
+                    setConvertParticipantTarget({ groupId, participantId, dogName })
+                  }
+                  onDeleteGroup={(groupId, groupName) =>
+                    setDeleteGroupTarget({ groupId, groupName, isWorkshop: false })
+                  }
                 />
               )}
 
@@ -1643,6 +1744,12 @@ function TrainingPageContent() {
                   onAssignDog={(groupId, groupName) => setShowAssignDog({ groupId, groupName })}
                   onRemoveParticipant={(groupId, participantId) =>
                     removeParticipantMutation.mutate({ groupId, participantId })
+                  }
+                  onConvertParticipant={(groupId, participantId, dogName) =>
+                    setConvertParticipantTarget({ groupId, participantId, dogName })
+                  }
+                  onDeleteGroup={(groupId, groupName) =>
+                    setDeleteGroupTarget({ groupId, groupName, isWorkshop: true })
                   }
                 />
               )}
@@ -1935,6 +2042,57 @@ function TrainingPageContent() {
 
       {showAddRecipient && (
         <AddRecipientInlineModal onClose={() => setShowAddRecipient(false)} />
+      )}
+
+      {convertToGroupTarget && (
+        <ConvertToGroupModal
+          program={convertToGroupTarget}
+          groups={groups}
+          isPending={convertToGroupMutation.isPending}
+          onClose={() => setConvertToGroupTarget(null)}
+          onSubmit={(trainingGroupId) =>
+            convertToGroupMutation.mutate({ programId: convertToGroupTarget.id, trainingGroupId, orderAction: "keep" })
+          }
+        />
+      )}
+
+      {deleteProgramTarget && (
+        <DeleteProgramModal
+          program={deleteProgramTarget}
+          isPending={deleteProgramMutation.isPending}
+          onClose={() => setDeleteProgramTarget(null)}
+          onSubmit={(orderAction) =>
+            deleteProgramMutation.mutate({ programId: deleteProgramTarget.id, orderAction })
+          }
+        />
+      )}
+
+      {convertParticipantTarget && (
+        <ConfirmActionModal
+          title="המרה לאילוף פרטני"
+          message={`להמיר את ${convertParticipantTarget.dogName} מהקבוצה לאילוף פרטני? תיווצר תוכנית אילוף פרטנית והכלב יוסר מהקבוצה.`}
+          confirmLabel="המר לפרטני"
+          isPending={convertParticipantMutation.isPending}
+          onClose={() => setConvertParticipantTarget(null)}
+          onConfirm={() =>
+            convertParticipantMutation.mutate({
+              groupId: convertParticipantTarget.groupId,
+              participantId: convertParticipantTarget.participantId,
+            })
+          }
+        />
+      )}
+
+      {deleteGroupTarget && (
+        <ConfirmActionModal
+          title={deleteGroupTarget.isWorkshop ? "מחיקת סדנה" : "מחיקת קבוצה"}
+          message={`למחוק את "${deleteGroupTarget.groupName}"? פעולה זו תמחק את כל המפגשים והמשתתפים בקבוצה. ההזמנות של הלקוחות לא יימחקו.`}
+          confirmLabel="מחק לצמיתות"
+          danger
+          isPending={deleteGroupMutation.isPending}
+          onClose={() => setDeleteGroupTarget(null)}
+          onConfirm={() => deleteGroupMutation.mutate({ groupId: deleteGroupTarget.groupId })}
+        />
       )}
     </div>
   );
@@ -3217,12 +3375,12 @@ function ServiceDogSessionLog({
                   onClick={() => {
                     const win = window.open("", "_blank");
                     if (!win) return;
-                    win.document.write(`<html dir="rtl"><head><title>יומן אימונים — ${program.dog.name}</title><style>body{font-family:sans-serif;padding:24px;direction:rtl}h1{font-size:20px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:20px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ddd;padding:8px;text-align:right}th{background:#f3f4f6}@media print{button{display:none}}</style></head><body>`);
-                    win.document.write(`<h1>יומן אימונים — ${program.dog.name}</h1><h2>סה"כ ${completedSessions.length} אימונים · הודפס ${new Date().toLocaleDateString("he-IL")}</h2>`);
+                    win.document.write(`<html dir="rtl"><head><title>יומן אימונים — ${escapeHtml(program.dog.name)}</title><style>body{font-family:sans-serif;padding:24px;direction:rtl}h1{font-size:20px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:20px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ddd;padding:8px;text-align:right}th{background:#f3f4f6}@media print{button{display:none}}</style></head><body>`);
+                    win.document.write(`<h1>יומן אימונים — ${escapeHtml(program.dog.name)}</h1><h2>סה"כ ${completedSessions.length} אימונים · הודפס ${new Date().toLocaleDateString("he-IL")}</h2>`);
                     win.document.write(`<table><thead><tr><th>#</th><th>תאריך</th><th>מאמן</th><th>דירוג</th><th>תרגילים</th><th>יעדים הבאים</th><th>הערות לצוות</th><th>סיכום</th></tr></thead><tbody>`);
                     completedSessions.forEach((s) => {
                       const sTyped = s as { sessionNumber?: number | null; sessionDate: string; trainerName?: string | null; rating?: number | null; practiceItems?: string | null; nextSessionGoals?: string | null; homeworkForCustomer?: string | null; summary?: string | null };
-                      win.document.write(`<tr><td>${sTyped.sessionNumber ?? ""}</td><td>${new Date(sTyped.sessionDate).toLocaleDateString("he-IL")}</td><td>${sTyped.trainerName ?? ""}</td><td>${sTyped.rating ? "★".repeat(sTyped.rating) : ""}</td><td>${(sTyped.practiceItems ?? "").replace(/\n/g, "<br>")}</td><td>${(sTyped.nextSessionGoals ?? "").replace(/\n/g, "<br>")}</td><td>${(sTyped.homeworkForCustomer ?? "").replace(/\n/g, "<br>")}</td><td>${(sTyped.summary ?? "").replace(/\n/g, "<br>")}</td></tr>`);
+                      win.document.write(`<tr><td>${sTyped.sessionNumber ?? ""}</td><td>${new Date(sTyped.sessionDate).toLocaleDateString("he-IL")}</td><td>${escapeHtml(sTyped.trainerName)}</td><td>${sTyped.rating ? "★".repeat(sTyped.rating) : ""}</td><td>${escapeHtml(sTyped.practiceItems)?.replace(/\n/g, "<br>")}</td><td>${escapeHtml(sTyped.nextSessionGoals)?.replace(/\n/g, "<br>")}</td><td>${escapeHtml(sTyped.homeworkForCustomer)?.replace(/\n/g, "<br>")}</td><td>${escapeHtml(sTyped.summary)?.replace(/\n/g, "<br>")}</td></tr>`);
                     });
                     win.document.write("</tbody></table></body></html>");
                     win.document.close();
@@ -3267,6 +3425,8 @@ function IndividualTab({
   onEditSettings,
   onFinishProgram,
   onDropoutProgram,
+  onConvertToGroup,
+  onDeleteProgram,
   isUpdatingStatus,
   onScheduleSession,
   onCancelSession,
@@ -3282,6 +3442,8 @@ function IndividualTab({
   isMarkingAttendance: boolean;
   onFinishProgram?: (programId: string, dogName: string) => void;
   onDropoutProgram?: (programId: string, dogName: string) => void;
+  onConvertToGroup?: (program: TrainingProgram) => void;
+  onDeleteProgram?: (program: TrainingProgram) => void;
   isUpdatingStatus?: boolean;
   onScheduleSession?: (programId: string, sessionNumber: number, dogName: string, customerId?: string, customerName?: string, customerPhone?: string) => void;
   onCancelSession?: (programId: string, sessionId: string) => void;
@@ -3438,6 +3600,25 @@ function IndividualTab({
                         >
                           <XCircle className="w-3.5 h-3.5" />
                           נשר מתהליך
+                        </button>
+                      )}
+                      {onConvertToGroup && (
+                        <button
+                          className="btn-secondary text-xs"
+                          onClick={(e) => { e.stopPropagation(); onConvertToGroup(program); }}
+                          title="העבר את הכלב מאילוף פרטני לקבוצה"
+                        >
+                          <Repeat className="w-3.5 h-3.5" />
+                          המר לקבוצתי
+                        </button>
+                      )}
+                      {onDeleteProgram && (
+                        <button
+                          className="btn-secondary text-xs text-red-500 hover:text-red-600 border-red-200 hover:border-red-300"
+                          onClick={(e) => { e.stopPropagation(); onDeleteProgram(program); }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          מחק תהליך
                         </button>
                       )}
                       {program.customer?.phone && (
@@ -3800,6 +3981,8 @@ function GroupsTab({
   onEditGroup,
   onAssignDog,
   onRemoveParticipant,
+  onConvertParticipant,
+  onDeleteGroup,
 }: {
   groups: TrainingGroup[];
   searchQuery: string;
@@ -3809,6 +3992,8 @@ function GroupsTab({
   onEditGroup: (group: TrainingGroup) => void;
   onAssignDog: (groupId: string, groupName: string) => void;
   onRemoveParticipant: (groupId: string, participantId: string) => void;
+  onConvertParticipant: (groupId: string, participantId: string, dogName: string) => void;
+  onDeleteGroup: (groupId: string, groupName: string) => void;
 }) {
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return groups;
@@ -3849,6 +4034,8 @@ function GroupsTab({
               onEditGroup={() => onEditGroup(group)}
               onAssignDog={() => onAssignDog(group.id, group.name)}
               onRemoveParticipant={(participantId) => onRemoveParticipant(group.id, participantId)}
+              onConvertParticipant={(participantId, dogName) => onConvertParticipant(group.id, participantId, dogName)}
+              onDeleteGroup={() => onDeleteGroup(group.id, group.name)}
             />
           ))}
         </div>
@@ -3870,6 +4057,8 @@ function WorkshopsTab({
   onEditGroup,
   onAssignDog,
   onRemoveParticipant,
+  onConvertParticipant,
+  onDeleteGroup,
 }: {
   workshops: TrainingGroup[];
   searchQuery: string;
@@ -3879,6 +4068,8 @@ function WorkshopsTab({
   onEditGroup: (group: TrainingGroup) => void;
   onAssignDog: (groupId: string, groupName: string) => void;
   onRemoveParticipant: (groupId: string, participantId: string) => void;
+  onConvertParticipant: (groupId: string, participantId: string, dogName: string) => void;
+  onDeleteGroup: (groupId: string, groupName: string) => void;
 }) {
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return workshops;
@@ -3919,6 +4110,8 @@ function WorkshopsTab({
               onEditGroup={() => onEditGroup(workshop)}
               onAssignDog={() => onAssignDog(workshop.id, workshop.name)}
               onRemoveParticipant={(participantId) => onRemoveParticipant(workshop.id, participantId)}
+              onConvertParticipant={(participantId, dogName) => onConvertParticipant(workshop.id, participantId, dogName)}
+              onDeleteGroup={() => onDeleteGroup(workshop.id, workshop.name)}
               isWorkshop
             />
           ))}
@@ -3939,6 +4132,8 @@ function GroupCard({
   onEditGroup,
   onAssignDog,
   onRemoveParticipant,
+  onConvertParticipant,
+  onDeleteGroup,
   isWorkshop = false,
 }: {
   group: TrainingGroup;
@@ -3947,6 +4142,8 @@ function GroupCard({
   onEditGroup: () => void;
   onAssignDog: () => void;
   onRemoveParticipant: (participantId: string) => void;
+  onConvertParticipant?: (participantId: string, dogName: string) => void;
+  onDeleteGroup?: () => void;
   isWorkshop?: boolean;
 }) {
   const queryClient = useQueryClient();
@@ -4125,6 +4322,15 @@ function GroupCard({
               <Pencil className="w-3.5 h-3.5" />
               {isWorkshop ? "ערוך סדנה" : "ערוך קבוצה"}
             </button>
+            {onDeleteGroup && (
+              <button
+                className="btn-secondary text-xs text-red-500 hover:text-red-600 border-red-200 hover:border-red-300"
+                onClick={(e) => { e.stopPropagation(); onDeleteGroup(); }}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {isWorkshop ? "מחק סדנה" : "מחק קבוצה"}
+              </button>
+            )}
             {isWorkshop && group.participants.length > 0 && (
               <button
                 className="btn-secondary text-xs"
@@ -4235,6 +4441,15 @@ function GroupCard({
                       </p>
                       <p className="text-[10px] text-petra-muted truncate">{p.customer?.name ?? ""}</p>
                     </div>
+                    {onConvertParticipant && (
+                      <button
+                        className="w-6 h-6 flex items-center justify-center rounded hover:bg-brand-50 text-slate-300 hover:text-brand-600 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                        onClick={(e) => { e.stopPropagation(); onConvertParticipant(p.id, p.dog.name); }}
+                        title="המר לאילוף פרטני"
+                      >
+                        <Repeat className="w-3 h-3" />
+                      </button>
+                    )}
                     <button
                       className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity"
                       onClick={(e) => { e.stopPropagation(); onRemoveParticipant(p.id); }}

@@ -49,7 +49,7 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (!appt.customer.phone) {
+  if (!appt.customer?.phone) {
     return NextResponse.json({ error: "אין מספר טלפון ללקוח" }, { status: 400 });
   }
 

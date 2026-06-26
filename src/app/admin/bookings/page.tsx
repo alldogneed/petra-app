@@ -194,11 +194,11 @@ export default function AdminBookingsPage() {
                     </span>
                     <span className="flex items-center gap-1">
                       <User className="w-3 h-3" />
-                      {booking.customer.name}
+                      {booking.customer?.name ?? ""}
                     </span>
                     <span className="flex items-center gap-1">
                       <Phone className="w-3 h-3" />
-                      <span dir="ltr">{booking.customer.phone}</span>
+                      <span dir="ltr">{booking.customer?.phone ?? ""}</span>
                     </span>
                   </div>
 

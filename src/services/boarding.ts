@@ -223,7 +223,7 @@ export async function createBoardingStay(
       customerId: resolvedCustomerId,
       roomId: roomId || null,
       yardId: yardId || null,
-      status: status || "reserved",
+      status: (status && ["reserved", "checked_in", "checked_out", "canceled"].includes(status) ? status : "reserved") as string,
       notes: notes || null,
       assignedToUserId: assignedToUserId || null,
     },

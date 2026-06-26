@@ -16,7 +16,7 @@ import {
   CheckCircle2,
   Clock,
 } from "lucide-react";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, escapeHtml } from "@/lib/utils";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import { SERVICE_DOG_PHASE_COLORS, SERVICE_DOG_PHASE_MAP } from "@/lib/service-dogs";
 import { toast } from "sonner";
@@ -84,7 +84,7 @@ function IDCardsPageContent() {
 <html dir="rtl" lang="he">
 <head>
   <meta charset="UTF-8">
-  <title>תעודת הסמכה — ${dogName}</title>
+  <title>תעודת הסמכה — ${escapeHtml(dogName)}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, Helvetica, sans-serif; background: white; padding: 20mm; }
@@ -115,16 +115,16 @@ function IDCardsPageContent() {
         <div class="header-sub">Certified Service Dog · Official Certification</div>
       </div>
     </div>
-    <div class="dog-name"><h2>${dogName}</h2></div>
+    <div class="dog-name"><h2>${escapeHtml(dogName)}</h2></div>
     <div class="details">
-      ${data.breed ? `<div class="field"><span class="field-label">גזע</span><span class="field-value">${data.breed}</span></div>` : ""}
-      ${data.registrationNumber ? `<div class="field"><span class="field-label">מספר רישום</span><span class="field-value">${data.registrationNumber}</span></div>` : ""}
-      ${data.recipientName ? `<div class="field"><span class="field-label">משתמש / זכאי</span><span class="field-value">${data.recipientName}</span></div>` : ""}
-      ${data.certifyingBody ? `<div class="field"><span class="field-label">גוף מסמיך</span><span class="field-value">${data.certifyingBody}</span></div>` : ""}
+      ${data.breed ? `<div class="field"><span class="field-label">גזע</span><span class="field-value">${escapeHtml(data.breed)}</span></div>` : ""}
+      ${data.registrationNumber ? `<div class="field"><span class="field-label">מספר רישום</span><span class="field-value">${escapeHtml(data.registrationNumber)}</span></div>` : ""}
+      ${data.recipientName ? `<div class="field"><span class="field-label">משתמש / זכאי</span><span class="field-value">${escapeHtml(data.recipientName)}</span></div>` : ""}
+      ${data.certifyingBody ? `<div class="field"><span class="field-label">גוף מסמיך</span><span class="field-value">${escapeHtml(data.certifyingBody)}</span></div>` : ""}
       ${certDate ? `<div class="field"><span class="field-label">תאריך הסמכה</span><span class="field-value">${certDate}</span></div>` : ""}
       ${expiryDate ? `<div class="field"><span class="field-label">תוקף</span><span class="field-value">${expiryDate}</span></div>` : ""}
     </div>
-    ${card.qrPayload ? `<div class="qr-section"><img src="${card.qrPayload}" alt="QR Code" onerror="this.style.display='none'" /><p class="qr-note">סרוק לאימות תעודה</p></div>` : ""}
+    ${card.qrPayload ? `<div class="qr-section"><img src="${escapeHtml(card.qrPayload)}" alt="QR Code" onerror="this.style.display='none'" /><p class="qr-note">סרוק לאימות תעודה</p></div>` : ""}
     <div class="footer">הונפק באמצעות <strong>Petra</strong> — מערכת ניהול עסקי חיות מחמד · מסמך רשמי</div>
   </div>
   <script>

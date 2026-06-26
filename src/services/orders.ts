@@ -192,6 +192,30 @@ export async function createOrder(
     if (!membership || !membership.isActive) throw new ServiceError("איש הצוות לא נמצא בעסק זה", "VALIDATION");
   }
 
+  // IDOR checks for appointment-linked serviceId and petId
+  if (appointmentData?.serviceId) {
+    const serviceCheck = await db.service.findFirst({
+      where: { id: appointmentData.serviceId, businessId },
+      select: { id: true },
+    });
+    if (!serviceCheck) throw new ServiceError("שירות לא נמצא בעסק זה", "VALIDATION");
+  }
+
+  const resolvedPetId = appointmentData?.petId || petId;
+  if (resolvedPetId) {
+    const petCheck = await db.pet.findFirst({
+      where: {
+        id: resolvedPetId,
+        OR: [
+          { businessId },
+          { customer: { businessId } },
+        ],
+      },
+      select: { id: true },
+    });
+    if (!petCheck) throw new ServiceError("חיית מחמד לא נמצאה בעסק זה", "VALIDATION");
+  }
+
   // Tier limit check
   if (opts.maxOrders !== null && opts.maxOrders !== undefined) {
     const orderCount = await db.order.count({ where: { businessId } });
@@ -305,8 +329,8 @@ export async function createOrder(
     if (trainingSubType === "group" && trainingGroupId) {
       await db.trainingGroupParticipant.upsert({
         where: { trainingGroupId_dogId: { trainingGroupId, dogId: trainingPetId } },
-        create: { trainingGroupId, dogId: trainingPetId, customerId, status: "ACTIVE" },
-        update: { status: "ACTIVE", customerId },
+        create: { trainingGroupId, dogId: trainingPetId, customerId, status: "ACTIVE", orderId: created.id },
+        update: { status: "ACTIVE", customerId, orderId: created.id },
       });
     } else {
       let isPkg = trainingSubType === "package";
