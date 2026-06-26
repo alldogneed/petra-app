@@ -1154,6 +1154,7 @@ function TrainingPageContent() {
     onSuccess: (_data, vars) => {
       invalidateAllTraining();
       setEditSessionTarget(null);
+      setEditingProgram(null);
       toast.success(vars.isPackage ? "התהליך הומר לחבילת אילוף" : "התהליך הומר לאילוף פרטני");
     },
     onError: (e: Error) => toast.error(e.message || "שגיאה בשינוי סוג התהליך"),
@@ -1889,14 +1890,26 @@ function TrainingPageContent() {
         />
       )}
 
-      {editingProgram && (
+      {editingProgram && (() => {
+        const canChangeType = editingProgram.trainingType === "HOME" && !editingProgram.boardingStayId;
+        return (
         <ProgramSettingsModal
           program={editingProgram}
           onClose={() => setEditingProgram(null)}
           onSubmit={(data) => updateProgramSettingsMutation.mutate({ id: editingProgram!.id, ...data })}
           isPending={updateProgramSettingsMutation.isPending}
+          processKind={canChangeType ? (editingProgram.isPackage ? "PACKAGE" : "INDIVIDUAL") : undefined}
+          onSelectProcessType={
+            canChangeType
+              ? (target) => {
+                  if (target === "GROUP") { setEditingProgram(null); setConvertToGroupTarget(editingProgram!); return; }
+                  setProgramPackageMutation.mutate({ programId: editingProgram!.id, isPackage: target === "PACKAGE" });
+                }
+              : undefined
+          }
         />
-      )}
+        );
+      })()}
 
       {showNewGroup && (
         <CreateGroupModal
@@ -4784,6 +4797,8 @@ function ManualAddProgramModal({
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
 
   const { data: customers = [], isLoading: customersLoading } = useQuery<Customer[]>({
     queryKey: ["customers-full"],
@@ -4792,6 +4807,10 @@ function ManualAddProgramModal({
 
   const selectedCustomer = customers.find((c) => c.id === customerId);
   const selectedDog = selectedCustomer?.pets.find((p) => p.id === dogId);
+
+  const filteredCustomers = customerSearch.trim()
+    ? customers.filter((c) => c.name.toLowerCase().includes(customerSearch.toLowerCase()) || c.phone?.includes(customerSearch))
+    : customers;
   const effectiveProgramType = programType === "CUSTOM" ? (customTypeName.trim() || "מותאם אישית") : (PROGRAM_TYPES_MAP[programType] || programType);
   const autoName = selectedDog
     ? `אילוף ${effectiveProgramType} - ${selectedDog.name}`
@@ -4832,19 +4851,45 @@ function ManualAddProgramModal({
         </p>
 
         <div className="space-y-4">
-          <div>
+          <div className="relative">
             <label className="label">לקוח *</label>
-            <select
-              className="input"
-              value={customerId}
-              onChange={(e) => { setCustomerId(e.target.value); setDogId(""); }}
-              disabled={customersLoading}
-            >
-              <option value="">{customersLoading ? "טוען..." : "בחר לקוח..."}</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            {selectedCustomer ? (
+              <div className="input flex items-center justify-between">
+                <span className="text-sm text-petra-text">{selectedCustomer.name}</span>
+                <button
+                  type="button"
+                  onClick={() => { setCustomerId(""); setDogId(""); setCustomerSearch(""); }}
+                  className="text-petra-muted hover:text-red-500 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <input
+                className="input"
+                placeholder={customersLoading ? "טוען..." : "חפש לקוח לפי שם או טלפון..."}
+                value={customerSearch}
+                disabled={customersLoading}
+                onChange={(e) => { setCustomerSearch(e.target.value); setShowCustomerDropdown(true); }}
+                onFocus={() => setShowCustomerDropdown(true)}
+                onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 150)}
+              />
+            )}
+            {showCustomerDropdown && !selectedCustomer && filteredCustomers.length > 0 && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                {filteredCustomers.slice(0, 30).map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className="w-full text-right px-3 py-2 text-sm hover:bg-slate-50 transition-colors flex items-center gap-2"
+                    onMouseDown={() => { setCustomerId(c.id); setDogId(""); setCustomerSearch(""); setShowCustomerDropdown(false); }}
+                  >
+                    <span className="font-medium text-petra-text">{c.name}</span>
+                    {c.phone && <span className="text-petra-muted text-xs">{c.phone}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {customerId && selectedCustomer && (
@@ -6000,6 +6045,8 @@ function ProgramSettingsModal({
   onClose,
   onSubmit,
   isPending,
+  processKind,
+  onSelectProcessType,
 }: {
   program: TrainingProgram;
   onClose: () => void;
@@ -6012,6 +6059,8 @@ function ProgramSettingsModal({
     totalSessions: number | null;
   }) => void;
   isPending: boolean;
+  processKind?: "INDIVIDUAL" | "PACKAGE";
+  onSelectProcessType?: (target: "INDIVIDUAL" | "PACKAGE" | "GROUP") => void;
 }) {
   const isKnownType = (t: string) => t in PROGRAM_TYPES_MAP;
   const initialType = program.programType && isKnownType(program.programType) ? program.programType : "CUSTOM";
@@ -6054,6 +6103,24 @@ function ProgramSettingsModal({
         </div>
 
         <div className="space-y-4">
+          {processKind && onSelectProcessType && (
+            <div className="p-3 rounded-xl border border-brand-100 bg-brand-50/50">
+              <label className="label">סוג תהליך</label>
+              <select
+                className="input"
+                value={processKind}
+                onChange={(e) => {
+                  const target = e.target.value as "INDIVIDUAL" | "PACKAGE" | "GROUP";
+                  if (target !== processKind) onSelectProcessType(target);
+                }}
+              >
+                <option value="INDIVIDUAL">אילוף פרטני</option>
+                <option value="PACKAGE">חבילת אילוף</option>
+                <option value="GROUP">אילוף קבוצתי (העברה לקבוצה)</option>
+              </select>
+              <p className="text-[11px] text-petra-muted mt-1">מעבר בין פרטני לחבילה הוא מיידי. בחירת &ldquo;קבוצתי&rdquo; תעביר את הכלב לקבוצה — התוכנית הנוכחית תוחלף.</p>
+            </div>
+          )}
           <div>
             <label className="label">סוג אילוף</label>
             <select
