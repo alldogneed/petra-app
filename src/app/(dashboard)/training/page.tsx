@@ -259,6 +259,8 @@ function SessionLogModal({
   programId,
   goals,
   initialData,
+  processKind,
+  onSelectProcessType,
 }: {
   dogName: string;
   sessionNumber: number;
@@ -270,6 +272,8 @@ function SessionLogModal({
   programId?: string;
   goals?: { id: string; title: string; status: string; progressPercent: number }[];
   initialData?: { summary: string; sessionDate: string; sessionTime: string; rating: number | null; practiceItems: string; nextSessionGoals: string; homeworkForCustomer: string; trainerName: string; durationMinutes: number };
+  processKind?: "INDIVIDUAL" | "PACKAGE";
+  onSelectProcessType?: (target: "INDIVIDUAL" | "PACKAGE" | "GROUP") => void;
 }) {
   const isEdit = !!initialData;
   const today = new Date().toISOString().slice(0, 10);
@@ -358,6 +362,24 @@ function SessionLogModal({
           <div className="p-3 rounded-xl bg-brand-50 border border-brand-100 text-sm text-brand-700 font-medium">
             {L.badge}
           </div>
+          {processKind && onSelectProcessType && (
+            <div>
+              <label className="label">סוג תהליך</label>
+              <select
+                className="input"
+                value={processKind}
+                onChange={(e) => {
+                  const target = e.target.value as "INDIVIDUAL" | "PACKAGE" | "GROUP";
+                  if (target !== processKind) onSelectProcessType(target);
+                }}
+              >
+                <option value="INDIVIDUAL">אילוף פרטני</option>
+                <option value="PACKAGE">חבילת אילוף</option>
+                <option value="GROUP">אילוף קבוצתי (העברה לקבוצה)</option>
+              </select>
+              <p className="text-[11px] text-petra-muted mt-1">מעבר בין פרטני לחבילה הוא מיידי. בחירת &ldquo;קבוצתי&rdquo; תעביר את הכלב לקבוצה — התוכנית הנוכחית תוחלף.</p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">{L.dateLabel}</label>
@@ -1118,6 +1140,25 @@ function TrainingPageContent() {
     onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת התהליך"),
   });
 
+  // Toggle individual ↔ package (same TrainingProgram, just the isPackage flag)
+  const setProgramPackageMutation = useMutation({
+    mutationFn: async ({ programId, isPackage }: { programId: string; isPackage: boolean }) => {
+      const res = await fetch(`/api/training-programs/${programId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPackage }),
+      });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || "Failed"); }
+      return res.json();
+    },
+    onSuccess: (_data, vars) => {
+      invalidateAllTraining();
+      setEditSessionTarget(null);
+      toast.success(vars.isPackage ? "התהליך הומר לחבילת אילוף" : "התהליך הומר לאילוף פרטני");
+    },
+    onError: (e: Error) => toast.error(e.message || "שגיאה בשינוי סוג התהליך"),
+  });
+
   // Convert group participant → individual program
   const convertParticipantMutation = useMutation({
     mutationFn: async ({ groupId, participantId }: { groupId: string; participantId: string }) => {
@@ -1665,7 +1706,6 @@ function TrainingPageContent() {
                     setEditSessionTarget({ programId, sessionId: session.id, sessionNumber: session.sessionNumber ?? 1, dogName, initialData: { summary: session.summary ?? "", sessionDate: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`, sessionTime: `${pad(d.getHours())}:${pad(d.getMinutes())}`, rating: session.rating, practiceItems: session.practiceItems ?? "", nextSessionGoals: session.nextSessionGoals ?? "", homeworkForCustomer: session.homeworkForCustomer ?? "", trainerName: session.trainerName ?? "", durationMinutes: session.durationMinutes } });
                   }}
                   onEditSettings={(program) => setEditingProgram(program)}
-                  onConvertToGroup={(program) => setConvertToGroupTarget(program)}
                   onDeleteProgram={(program) => setDeleteProgramTarget(program)}
                   isMarkingAttendance={markAttendanceMutation.isPending}
                   onFinishProgram={(id, dogName) => setFinishTarget({ programId: id, dogName })}
@@ -1696,7 +1736,6 @@ function TrainingPageContent() {
                     setEditSessionTarget({ programId, sessionId: session.id, sessionNumber: session.sessionNumber ?? 1, dogName, initialData: { summary: session.summary ?? "", sessionDate: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`, sessionTime: `${pad(d.getHours())}:${pad(d.getMinutes())}`, rating: session.rating, practiceItems: session.practiceItems ?? "", nextSessionGoals: session.nextSessionGoals ?? "", homeworkForCustomer: session.homeworkForCustomer ?? "", trainerName: session.trainerName ?? "", durationMinutes: session.durationMinutes } });
                   }}
                   onEditSettings={(program) => setEditingProgram(program)}
-                  onConvertToGroup={(program) => setConvertToGroupTarget(program)}
                   onDeleteProgram={(program) => setDeleteProgramTarget(program)}
                   isMarkingAttendance={markAttendanceMutation.isPending}
                   onFinishProgram={(id, dogName) => setFinishTarget({ programId: id, dogName })}
@@ -1727,7 +1766,6 @@ function TrainingPageContent() {
                     setEditSessionTarget({ programId, sessionId: session.id, sessionNumber: session.sessionNumber ?? 1, dogName, initialData: { summary: session.summary ?? "", sessionDate: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`, sessionTime: `${pad(d.getHours())}:${pad(d.getMinutes())}`, rating: session.rating, practiceItems: session.practiceItems ?? "", nextSessionGoals: session.nextSessionGoals ?? "", homeworkForCustomer: session.homeworkForCustomer ?? "", trainerName: session.trainerName ?? "", durationMinutes: session.durationMinutes } });
                   }}
                   onEditSettings={(program) => setEditingProgram(program)}
-                  onConvertToGroup={(program) => setConvertToGroupTarget(program)}
                   onDeleteProgram={(program) => setDeleteProgramTarget(program)}
                   isMarkingAttendance={markAttendanceMutation.isPending}
                 />
@@ -1990,7 +2028,17 @@ function TrainingPageContent() {
         />
       )}
 
-      {editSessionTarget && (
+      {editSessionTarget && (() => {
+        const editingProgram = programs.find((p) => p.id === editSessionTarget.programId);
+        // Type change (פרטני / חבילה / קבוצתי) only applies to a HOME individual program —
+        // not boarding-weekly, not service dogs, not boarding-linked programs.
+        const canChangeType =
+          !!editingProgram &&
+          !editSessionTarget.isWeekly &&
+          !editSessionTarget.isServiceDog &&
+          editingProgram.trainingType === "HOME" &&
+          !editingProgram.boardingStayId;
+        return (
         <SessionLogModal
           dogName={editSessionTarget.dogName}
           sessionNumber={editSessionTarget.sessionNumber}
@@ -1999,6 +2047,15 @@ function TrainingPageContent() {
           isPending={editSessionMutation.isPending}
           initialData={editSessionTarget.initialData}
           onClose={() => setEditSessionTarget(null)}
+          processKind={canChangeType ? (editingProgram!.isPackage ? "PACKAGE" : "INDIVIDUAL") : undefined}
+          onSelectProcessType={
+            canChangeType
+              ? (target) => {
+                  if (target === "GROUP") { setEditSessionTarget(null); setConvertToGroupTarget(editingProgram!); return; }
+                  setProgramPackageMutation.mutate({ programId: editingProgram!.id, isPackage: target === "PACKAGE" });
+                }
+              : undefined
+          }
           onSubmit={(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer, trainerName, durationMinutes) =>
             editSessionMutation.mutate({
               programId: editSessionTarget.programId,
@@ -2014,7 +2071,8 @@ function TrainingPageContent() {
             })
           }
         />
-      )}
+        );
+      })()}
 
       {showCreateServiceDogProgram && (
         <CreateServiceDogProgramModal
@@ -3489,7 +3547,6 @@ function IndividualTab({
   onEditSettings,
   onFinishProgram,
   onDropoutProgram,
-  onConvertToGroup,
   onDeleteProgram,
   isUpdatingStatus,
   onScheduleSession,
@@ -3506,7 +3563,6 @@ function IndividualTab({
   isMarkingAttendance: boolean;
   onFinishProgram?: (programId: string, dogName: string) => void;
   onDropoutProgram?: (programId: string, dogName: string) => void;
-  onConvertToGroup?: (program: TrainingProgram) => void;
   onDeleteProgram?: (program: TrainingProgram) => void;
   isUpdatingStatus?: boolean;
   onScheduleSession?: (programId: string, sessionNumber: number, dogName: string, customerId?: string, customerName?: string, customerPhone?: string) => void;
@@ -3664,16 +3720,6 @@ function IndividualTab({
                         >
                           <XCircle className="w-3.5 h-3.5" />
                           נשר מתהליך
-                        </button>
-                      )}
-                      {onConvertToGroup && (
-                        <button
-                          className="btn-secondary text-xs"
-                          onClick={(e) => { e.stopPropagation(); onConvertToGroup(program); }}
-                          title="העבר את הכלב מאילוף פרטני לקבוצה"
-                        >
-                          <Repeat className="w-3.5 h-3.5" />
-                          המר לקבוצתי
                         </button>
                       )}
                       {onDeleteProgram && (
@@ -4215,6 +4261,7 @@ function GroupCard({
   const [sessionNotesInput, setSessionNotesInput] = useState<Record<string, string>>({});
   const [showAddSession, setShowAddSession] = useState(false);
   const [editingSession, setEditingSession] = useState<{ id: string; date: string; time: string } | null>(null);
+  const [convertParticipantId, setConvertParticipantId] = useState("");
   const today = new Date().toISOString().slice(0, 10);
   const defaultTime = group.defaultTime || "10:00";
   const [newSessionDate, setNewSessionDate] = useState(today);
@@ -4505,15 +4552,6 @@ function GroupCard({
                       </p>
                       <p className="text-[10px] text-petra-muted truncate">{p.customer?.name ?? ""}</p>
                     </div>
-                    {onConvertParticipant && (
-                      <button
-                        className="w-6 h-6 flex items-center justify-center rounded hover:bg-brand-50 text-slate-300 hover:text-brand-600 opacity-0 group-hover/item:opacity-100 transition-opacity"
-                        onClick={(e) => { e.stopPropagation(); onConvertParticipant(p.id, p.dog.name); }}
-                        title="המר לאילוף פרטני"
-                      >
-                        <Repeat className="w-3 h-3" />
-                      </button>
-                    )}
                     <button
                       className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity"
                       onClick={(e) => { e.stopPropagation(); onRemoveParticipant(p.id); }}
@@ -4592,35 +4630,65 @@ function GroupCard({
                         </div>
                       </div>
                       {editingSession?.id === session.id && (
-                        <div className="px-3 pb-2 pt-1 border-t border-slate-200 flex items-end gap-2" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex-1">
-                            <label className="label text-[10px]">תאריך</label>
-                            <input
-                              type="date" lang="he"
-                              className="input text-xs py-1.5"
-                              value={editingSession.date}
-                              onChange={(e) => setEditingSession({ ...editingSession, date: e.target.value })}
-                            />
+                        <div className="px-3 pb-2 pt-1 border-t border-slate-200 space-y-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-end gap-2">
+                            <div className="flex-1">
+                              <label className="label text-[10px]">תאריך</label>
+                              <input
+                                type="date" lang="he"
+                                className="input text-xs py-1.5"
+                                value={editingSession.date}
+                                onChange={(e) => setEditingSession({ ...editingSession, date: e.target.value })}
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <label className="label text-[10px]">שעה</label>
+                              <input
+                                type="time"
+                                className="input text-xs py-1.5"
+                                value={editingSession.time}
+                                onChange={(e) => setEditingSession({ ...editingSession, time: e.target.value })}
+                              />
+                            </div>
+                            <button
+                              className="btn-primary text-xs py-1.5"
+                              disabled={updateSessionDatetimeMutation.isPending || !editingSession.date || !editingSession.time}
+                              onClick={() => updateSessionDatetimeMutation.mutate({ sessionId: session.id, date: editingSession.date, time: editingSession.time })}
+                            >
+                              {updateSessionDatetimeMutation.isPending ? "שומר..." : "שמור"}
+                            </button>
+                            <button className="btn-secondary text-xs py-1.5" onClick={() => setEditingSession(null)}>
+                              ביטול
+                            </button>
                           </div>
-                          <div className="flex-1">
-                            <label className="label text-[10px]">שעה</label>
-                            <input
-                              type="time"
-                              className="input text-xs py-1.5"
-                              value={editingSession.time}
-                              onChange={(e) => setEditingSession({ ...editingSession, time: e.target.value })}
-                            />
-                          </div>
-                          <button
-                            className="btn-primary text-xs py-1.5"
-                            disabled={updateSessionDatetimeMutation.isPending || !editingSession.date || !editingSession.time}
-                            onClick={() => updateSessionDatetimeMutation.mutate({ sessionId: session.id, date: editingSession.date, time: editingSession.time })}
-                          >
-                            {updateSessionDatetimeMutation.isPending ? "שומר..." : "שמור"}
-                          </button>
-                          <button className="btn-secondary text-xs py-1.5" onClick={() => setEditingSession(null)}>
-                            ביטול
-                          </button>
+                          {onConvertParticipant && group.participants.length > 0 && (
+                            <div className="flex items-end gap-2 border-t border-dashed border-slate-200 pt-2">
+                              <div className="flex-1">
+                                <label className="label text-[10px]">המר כלב לאילוף פרטני</label>
+                                <select
+                                  className="input text-xs py-1.5"
+                                  value={convertParticipantId}
+                                  onChange={(e) => setConvertParticipantId(e.target.value)}
+                                >
+                                  <option value="">— בחר כלב —</option>
+                                  {group.participants.map((p) => (
+                                    <option key={p.id} value={p.id}>{p.dog.name}{p.customer?.name ? ` (${p.customer.name})` : ""}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <button
+                                className="btn-secondary text-xs py-1.5"
+                                disabled={!convertParticipantId}
+                                onClick={() => {
+                                  const p = group.participants.find((x) => x.id === convertParticipantId);
+                                  if (p) { onConvertParticipant(p.id, p.dog.name); setConvertParticipantId(""); }
+                                }}
+                              >
+                                <Repeat className="w-3 h-3" />
+                                המר לפרטני
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                       {isAttendanceOpen && (

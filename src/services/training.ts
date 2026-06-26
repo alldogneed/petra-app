@@ -702,6 +702,7 @@ export async function updateTrainingProgram(
     behaviorBaseline?: string | null;
     customerExpectations?: string | null;
     boardingStayId?: string | null;
+    isPackage?: boolean;
   }
 ) {
   const existing = await db.trainingProgram.findFirst({ where: { id, businessId } });
@@ -730,6 +731,7 @@ export async function updateTrainingProgram(
       ...(data.customerExpectations !== undefined && { customerExpectations: data.customerExpectations || null }),
       ...(data.boardingStayId !== undefined && { boardingStayId: data.boardingStayId || null }),
       ...(data.trainingType !== undefined && { trainingType: data.trainingType }),
+      ...(data.isPackage !== undefined && { isPackage: data.isPackage }),
     } as any,
     include: {
       dog: true,
