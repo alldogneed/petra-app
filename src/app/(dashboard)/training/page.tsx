@@ -6091,6 +6091,199 @@ function DropoutModal({
 }
 
 // ═══════════════════════════════════════════════════════
+// CONVERT TO GROUP MODAL (individual → group)
+// ═══════════════════════════════════════════════════════
+
+function ConvertToGroupModal({
+  program,
+  groups,
+  isPending,
+  onClose,
+  onSubmit,
+}: {
+  program: TrainingProgram;
+  groups: TrainingGroup[];
+  isPending: boolean;
+  onClose: () => void;
+  onSubmit: (trainingGroupId: string) => void;
+}) {
+  const [groupId, setGroupId] = useState("");
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
+            <Repeat className="w-5 h-5 text-brand-500" />
+            המרה לאילוף קבוצתי — {program.dog.name}
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-sm text-petra-muted mb-4">
+          הכלב יתווסף כמשתתף בקבוצה הנבחרת, ותוכנית האילוף הפרטנית הקיימת (כולל המפגשים והיעדים שלה) תימחק.
+          ההזמנה תישאר מקושרת — המחיר לא ישתנה אוטומטית וניתן לעדכן אותו ידנית.
+        </p>
+        <div>
+          <label className="label">בחר קבוצת יעד</label>
+          <select className="input" value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+            <option value="">— בחר קבוצה —</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>{g.name}</option>
+            ))}
+          </select>
+          {groups.length === 0 && (
+            <p className="text-xs text-amber-600 mt-2">אין קבוצות פעילות. צור קבוצה תחילה בלשונית &ldquo;אילוף קבוצתי&rdquo;.</p>
+          )}
+        </div>
+        <div className="flex gap-3 mt-5">
+          <button
+            className="flex-1 btn-primary disabled:opacity-50"
+            disabled={isPending || !groupId}
+            onClick={() => groupId && onSubmit(groupId)}
+          >
+            <Repeat className="w-4 h-4" />
+            {isPending ? "ממיר..." : "המר לקבוצתי"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// DELETE PROGRAM MODAL (double-check + order action)
+// ═══════════════════════════════════════════════════════
+
+function DeleteProgramModal({
+  program,
+  isPending,
+  onClose,
+  onSubmit,
+}: {
+  program: TrainingProgram;
+  isPending: boolean;
+  onClose: () => void;
+  onSubmit: (orderAction: string) => void;
+}) {
+  const [orderAction, setOrderAction] = useState<"keep" | "cancel" | "delete">("keep");
+  const hasOrder = !!program.orderId;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
+            <Trash2 className="w-5 h-5 text-red-500" />
+            מחיקת תהליך אילוף — {program.dog.name}
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-sm text-petra-muted mb-4">
+          פעולה זו תמחק לצמיתות את תוכנית האילוף כולל כל המפגשים, היעדים ושיעורי הבית. לא ניתן לשחזר.
+        </p>
+        {hasOrder && (
+          <div className="mb-4">
+            <label className="label">מה לעשות עם ההזמנה המקושרת?</label>
+            <div className="space-y-2 mt-1">
+              {([
+                { v: "keep", label: "להשאיר את ההזמנה כפי שהיא" },
+                { v: "cancel", label: "לבטל את ההזמנה (סטטוס: מבוטל)" },
+                { v: "delete", label: "למחוק גם את ההזמנה" },
+              ] as const).map((opt) => (
+                <label key={opt.v} className="flex items-center gap-2 text-sm text-petra-text cursor-pointer">
+                  <input
+                    type="radio"
+                    name="orderAction"
+                    value={opt.v}
+                    checked={orderAction === opt.v}
+                    onChange={() => setOrderAction(opt.v)}
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+            {orderAction === "delete" && (
+              <p className="text-xs text-amber-600 mt-2">הזמנה ששולמה או שהופקה ממנה חשבונית תבוטל במקום להימחק.</p>
+            )}
+          </div>
+        )}
+        <div className="flex gap-3 mt-5">
+          <button
+            className="flex-1 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            disabled={isPending}
+            onClick={() => onSubmit(orderAction)}
+          >
+            <Trash2 className="w-4 h-4" />
+            {isPending ? "מוחק..." : "מחק לצמיתות"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// GENERIC CONFIRM ACTION MODAL
+// ═══════════════════════════════════════════════════════
+
+function ConfirmActionModal({
+  title,
+  message,
+  confirmLabel,
+  danger = false,
+  isPending,
+  onClose,
+  onConfirm,
+}: {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  danger?: boolean;
+  isPending: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
+            {danger ? <Trash2 className="w-5 h-5 text-red-500" /> : <Repeat className="w-5 h-5 text-brand-500" />}
+            {title}
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-sm text-petra-muted mb-5">{message}</p>
+        <div className="flex gap-3">
+          <button
+            className={cn(
+              "flex-1 py-2 rounded-xl text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2",
+              danger ? "bg-red-500 hover:bg-red-600" : "bg-brand-500 hover:bg-brand-600"
+            )}
+            disabled={isPending}
+            onClick={onConfirm}
+          >
+            {isPending ? "מעבד..." : confirmLabel}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
 // FINISH TRAINING MODAL
 // ═══════════════════════════════════════════════════════
 
