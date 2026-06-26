@@ -121,6 +121,18 @@ async function handleCheckoutCompleted(
     return;
   }
 
+  // Idempotency: Stripe delivers events at-least-once (retries on non-2xx, and a
+  // captured signed body can be replayed). Skip if we already recorded a Payment
+  // for this checkout session, so it can't double-credit the order.
+  const existingPayment = await prisma.payment.findFirst({
+    where: { businessId, notes: { contains: `session: ${session.id}` } },
+    select: { id: true },
+  });
+  if (existingPayment) {
+    console.log(`[Stripe webhook] Duplicate checkout.session ${session.id} — Payment already recorded, skipping`);
+    return;
+  }
+
   // Create a Payment record
   await prisma.payment.create({
     data: {

@@ -327,6 +327,13 @@ export async function createOrder(
   const trainingPetId = appointmentData?.petId || petId;
   if (orderType === "training" && trainingPetId) {
     if (trainingSubType === "group" && trainingGroupId) {
+      // IDOR: the training group must belong to this business — otherwise a user
+      // could inject a participant into another tenant's group via a forged id.
+      const groupCheck = await db.trainingGroup.findFirst({
+        where: { id: trainingGroupId, businessId },
+        select: { id: true },
+      });
+      if (!groupCheck) throw new ServiceError("קבוצת אימון לא נמצאה בעסק זה", "VALIDATION");
       await db.trainingGroupParticipant.upsert({
         where: { trainingGroupId_dogId: { trainingGroupId, dogId: trainingPetId } },
         create: { trainingGroupId, dogId: trainingPetId, customerId, status: "ACTIVE", orderId: created.id },
