@@ -995,17 +995,27 @@ function IntegrationsTab() {
   });
 
   const updateReminderMutation = useMutation({
-    mutationFn: (data: { whatsappRemindersEnabled?: boolean; whatsappReminderLeadHours?: number }) =>
-      fetch("/api/settings", {
+    mutationFn: async (data: { whatsappRemindersEnabled?: boolean; whatsappReminderLeadHours?: number }) => {
+      const r = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => r.json()),
-    onSuccess: () => {
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.error || "שמירה נכשלה");
+      }
+      return r.json();
+    },
+    onSuccess: (_res, vars) => {
+      // Write the new value straight into the cache so the toggle reflects it
+      // immediately and doesn't depend on a refetch (which previously returned
+      // a stale HTTP-cached value and made the toggle snap back).
+      queryClient.setQueryData<Business>(["settings"], (old) => old ? { ...old, ...vars } : old);
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       toast.success("הגדרות תזכורת עודכנו");
     },
-    onError: () => toast.error("שגיאה בשמירה"),
+    onError: (e: Error) => toast.error(e.message || "שגיאה בשמירה"),
   });
 
   const updateContactsSyncMutation = useMutation({

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { isValidAutomationTrigger } from "@/lib/automation-triggers";
 
 // GET /api/automations – list automation rules
 export async function GET(request: NextRequest) {
@@ -38,12 +39,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, trigger, triggerOffset, templateId, isActive } = body;
 
-    const VALID_TRIGGERS = [
-      "AFTER_APPOINTMENT", "BEFORE_APPOINTMENT", "AFTER_BOOKING",
-      "AFTER_ORDER", "BIRTHDAY", "FOLLOW_UP", "BOARDING_CHECKOUT",
-      "VACCINATION_REMINDER", "PAYMENT_REMINDER",
-    ];
-
     if (!name || !trigger || !templateId) {
       return NextResponse.json(
         { error: "name, trigger, templateId are required" },
@@ -53,7 +48,7 @@ export async function POST(request: NextRequest) {
     if (typeof name !== "string" || name.length > 200) {
       return NextResponse.json({ error: "שם אוטומציה לא תקין (מקסימום 200 תווים)" }, { status: 400 });
     }
-    if (!VALID_TRIGGERS.includes(trigger)) {
+    if (!isValidAutomationTrigger(trigger)) {
       return NextResponse.json({ error: "סוג טריגר לא חוקי" }, { status: 400 });
     }
 

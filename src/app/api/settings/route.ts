@@ -14,9 +14,11 @@ export async function GET(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
 
     const settings = await getBusinessSettings(authResult.businessId, prisma);
+    // No HTTP caching: settings are mutable (toggles, reminder hours, etc.) and a
+    // stale max-age cache caused toggles to "snap back" after a PATCH+refetch.
     return NextResponse.json(
       settings,
-      { headers: { "Cache-Control": "private, max-age=600, stale-while-revalidate=60" } }
+      { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
     if (error instanceof ServiceError && error.code === "NOT_FOUND") {

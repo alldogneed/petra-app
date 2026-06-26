@@ -457,13 +457,16 @@ function TemplatesTab() {
       // 2. Handle linked automation rule
       const rulePayload = { name: data.name, trigger: data.autoTrigger, triggerOffset: data.autoOffset, templateId: savedTemplate.id, isActive: true };
       if (data.autoEnabled) {
-        if (data.autoRuleId) {
-          await fetch(`/api/automations/${data.autoRuleId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rulePayload) });
-        } else {
-          await fetch("/api/automations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rulePayload) });
+        const ruleRes = data.autoRuleId
+          ? await fetch(`/api/automations/${data.autoRuleId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rulePayload) })
+          : await fetch("/api/automations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rulePayload) });
+        if (!ruleRes.ok) {
+          const err = await ruleRes.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to save automation rule");
         }
       } else if (data.autoRuleId) {
-        await fetch(`/api/automations/${data.autoRuleId}`, { method: "DELETE" });
+        const delRes = await fetch(`/api/automations/${data.autoRuleId}`, { method: "DELETE" });
+        if (!delRes.ok) throw new Error("Failed to remove automation rule");
       }
       return savedTemplate;
     },
@@ -508,17 +511,22 @@ function TemplatesTab() {
       });
       if (!templateRes.ok) throw new Error("Failed to create template");
       const saved = await templateRes.json();
-      await fetch("/api/automations", {
+      const ruleRes = await fetch("/api/automations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: starter.label, trigger: triggerId, triggerOffset: starter.offset ?? 24, templateId: saved.id, isActive: true }),
       });
+      if (!ruleRes.ok) {
+        const err = await ruleRes.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to create automation rule");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["messages"] });
+      queryClient.refetchQueries({ queryKey: ["messages"] });
       toast.success("האוטומציה הופעלה בהצלחה");
     },
-    onError: () => toast.error("שגיאה בהפעלת האוטומציה"),
+    onError: (e: Error) => toast.error(e.message || "שגיאה בהפעלת האוטומציה"),
   });
 
   function insertVariable(v: string) {
