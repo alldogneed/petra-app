@@ -60,16 +60,12 @@ export async function POST(
     month: "long",
   }).format(apptDate);
 
-  // Look up active appointment_reminder template for this business
-  const template = await prisma.messageTemplate.findFirst({
-    where: {
-      businessId: authResult.businessId,
-      name: "appointment_reminder",
-      channel: "whatsapp",
-      isActive: true,
-    },
-    select: { body: true },
+  // Look up active appointment_reminder rule → template for this business
+  const automationRule = await prisma.automationRule.findFirst({
+    where: { businessId: authResult.businessId, trigger: "appointment_reminder", isActive: true },
+    include: { template: { select: { body: true } } },
   });
+  const template = automationRule?.template ?? null;
 
   const serviceName = appt.service?.name ?? "התור";
   const bizPhone = biz?.phone ?? "";

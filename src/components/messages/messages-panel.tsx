@@ -173,6 +173,12 @@ function SendModal({ template, onClose }: { template: MessageTemplate; onClose: 
     queryFn: () => fetchJSON("/api/customers"),
   });
 
+  const { data: settings } = useQuery<{ phone?: string }>({
+    queryKey: ["settings"],
+    queryFn: () => fetchJSON("/api/settings"),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const filtered = customers.filter((c) =>
     !customerSearch.trim() ||
     c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
@@ -182,11 +188,9 @@ function SendModal({ template, onClose }: { template: MessageTemplate; onClose: 
   function renderBody(body: string, customer: SendCustomer) {
     return body
       .replace(/\{customerName\}/g, customer.name)
-      .replace(/\{businessPhone\}/g, "")
-      .replace(/\{petName\}/g, "")
-      .replace(/\{date\}/g, "")
-      .replace(/\{time\}/g, "")
-      .replace(/\{serviceName\}/g, "");
+      .replace(/\{businessPhone\}/g, settings?.phone ?? "");
+    // Context-dependent vars ({date}, {time}, {petName}, {serviceName}) are left as-is
+    // so the user can see and fill them in WhatsApp before sending.
   }
 
   const preview = selected ? renderBody(template.body, selected) : template.body;
@@ -279,6 +283,12 @@ function BulkSendModal({ template, onClose }: { template: MessageTemplate; onClo
     queryFn: () => fetchJSON("/api/customers"),
   });
 
+  const { data: settings } = useQuery<{ phone?: string }>({
+    queryKey: ["settings"],
+    queryFn: () => fetchJSON("/api/settings"),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const filtered = customers.filter((c) =>
     !customerSearch.trim() ||
     c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
@@ -288,11 +298,9 @@ function BulkSendModal({ template, onClose }: { template: MessageTemplate; onClo
   function renderBody(body: string, customer: SendCustomer) {
     return body
       .replace(/\{customerName\}/g, customer.name)
-      .replace(/\{businessPhone\}/g, "")
-      .replace(/\{petName\}/g, "")
-      .replace(/\{date\}/g, "")
-      .replace(/\{time\}/g, "")
-      .replace(/\{serviceName\}/g, "");
+      .replace(/\{businessPhone\}/g, settings?.phone ?? "");
+    // Context-dependent vars ({date}, {time}, {petName}, {serviceName}) are left as-is
+    // so the user can see and fill them in WhatsApp before sending.
   }
 
   function toggleSelect(id: string) {
@@ -994,15 +1002,13 @@ const AUDIENCE_OPTIONS = [
   { id: "active_training", label: "תוכניות אילוף פעילות" },
 ];
 
-function interpolateForCustomer(body: string, customer: CustomerBasic): string {
+function interpolateForCustomer(body: string, customer: CustomerBasic, businessPhone = ""): string {
   const pet = customer.pets?.[0];
   return body
     .replace(/\{customerName\}/g, customer.name)
     .replace(/\{petName\}/g, pet?.name ?? "")
-    .replace(/\{date\}/g, "")
-    .replace(/\{time\}/g, "")
-    .replace(/\{serviceName\}/g, "")
-    .replace(/\{businessPhone\}/g, "");
+    .replace(/\{businessPhone\}/g, businessPhone);
+  // {date}, {time}, {serviceName} left as-is — context-dependent, user fills in WhatsApp
 }
 
 function BulkSendTab() {
@@ -1025,6 +1031,13 @@ function BulkSendTab() {
     queryFn: () => fetchJSON<CustomerBasic[]>("/api/customers?fields=id,name,phone,pets"),
   });
 
+  const { data: settings } = useQuery<{ phone?: string }>({
+    queryKey: ["settings"],
+    queryFn: () => fetchJSON("/api/settings"),
+    staleTime: 5 * 60 * 1000,
+  });
+  const bizPhone = settings?.phone ?? "";
+
   const selectedTemplate = whatsappTemplates.find((t) => t.id === selectedTemplateId);
 
   const filteredCustomers = allCustomers.filter((c) => {
@@ -1040,7 +1053,7 @@ function BulkSendTab() {
 
   function copyMessage(customer: CustomerBasic) {
     if (!selectedTemplate) return;
-    const msg = interpolateForCustomer(selectedTemplate.body, customer);
+    const msg = interpolateForCustomer(selectedTemplate.body, customer, bizPhone);
     navigator.clipboard.writeText(msg).then(() => {
       setCopiedId(customer.id);
       setTimeout(() => setCopiedId(null), 2000);
@@ -1049,7 +1062,7 @@ function BulkSendTab() {
 
   function openWhatsApp(customer: CustomerBasic) {
     if (!selectedTemplate) return;
-    const msg = encodeURIComponent(interpolateForCustomer(selectedTemplate.body, customer));
+    const msg = encodeURIComponent(interpolateForCustomer(selectedTemplate.body, customer, bizPhone));
     const phone = toWhatsAppPhone(customer.phone);
     window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
   }
@@ -1112,7 +1125,7 @@ function BulkSendTab() {
           </div>
           <p className="text-sm text-green-900 whitespace-pre-wrap font-mono bg-white rounded-lg p-3 border border-green-100">
             {allCustomers[0]
-              ? interpolateForCustomer(selectedTemplate.body, allCustomers[0])
+              ? interpolateForCustomer(selectedTemplate.body, allCustomers[0], bizPhone)
               : selectedTemplate.body}
           </p>
           {allCustomers[0] && (
@@ -1147,7 +1160,7 @@ function BulkSendTab() {
           <div className="space-y-2">
             {filteredCustomers.map((customer) => {
               const msg = selectedTemplate
-                ? interpolateForCustomer(selectedTemplate.body, customer)
+                ? interpolateForCustomer(selectedTemplate.body, customer, bizPhone)
                 : "";
               const waPhone = toWhatsAppPhone(customer.phone);
               const isCopied = copiedId === customer.id;

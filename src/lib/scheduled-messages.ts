@@ -51,12 +51,13 @@ export async function processPendingReminders(): Promise<{
 }> {
   const now = new Date();
 
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const pending = await prisma.scheduledMessage.findMany({
     where: {
-      status: "PENDING",
-      sendAt: { lte: now },
+      status: { in: ["PENDING", "FAILED"] },
+      sendAt: { lte: now, gte: sevenDaysAgo },
     },
-    take: 50,
+    take: 200,
     include: {
       customer: { select: { name: true, phone: true } },
     },

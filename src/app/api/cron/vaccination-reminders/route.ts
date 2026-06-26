@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 function addDays(d: Date, n: number) { return new Date(d.getTime() + n * DAY_MS); }
@@ -134,6 +135,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Pre-fetch business settings for all relevant businesses (toggle + tier gate for WhatsApp)
+    const uniqueBizIds = [...new Set(healths.filter(h => h.pet.customer).map(h => h.pet.customer!.businessId))];
+    const bizSettingsList = await prisma.business.findMany({
+      where: { id: { in: uniqueBizIds } },
+      select: { id: true, whatsappRemindersEnabled: true, tier: true, featureOverrides: true },
+    });
+    const bizSettingsMap = new Map(bizSettingsList.map(b => [b.id, b]));
+
     for (const h of healths) {
       // Skip if customer relation is missing (shouldn't happen given the where clause, but defensive)
       if (!h.pet.customer) continue;
@@ -155,10 +164,17 @@ export async function GET(request: NextRequest) {
         const formattedExpiry = expiry.toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" });
 
         // ── WhatsApp reminder (30d + 7d windows) ─────────────────────────────
+        const bizSettings = bizSettingsMap.get(businessId);
+        const bizOverrides = (bizSettings?.featureOverrides as Record<string, boolean> | null) ?? null;
+        const canSendWhatsApp = !!bizSettings?.whatsappRemindersEnabled &&
+          hasFeatureWithOverrides(bizSettings?.tier ?? "free", "whatsapp_reminders", bizOverrides);
+
         for (const { daysAhead, suffix } of WINDOWS) {
           const windowStart = addDays(today, daysAhead - 1);
           const windowEnd = addDays(today, daysAhead + 1);
           if (expiry < windowStart || expiry > windowEnd) continue;
+
+          if (!canSendWhatsApp) { skipped++; continue; }
 
           const relatedEntityId = `vacc-${def.type}-${petId}-${expiryKey}-${suffix}`;
           const existing = await prisma.scheduledMessage.findFirst({

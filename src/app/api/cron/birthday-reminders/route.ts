@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { interpolateTemplate } from "@/lib/whatsapp";
+import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 
 /**
  * GET /api/cron/birthday-reminders
@@ -50,6 +51,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Pre-fetch business settings for all relevant businesses (toggle + tier gate)
+    const uniqueBusinessIds = [...new Set(pets.filter(p => p.customer).map(p => p.customer!.businessId))];
+    const businessSettingsList = await prisma.business.findMany({
+      where: { id: { in: uniqueBusinessIds } },
+      select: { id: true, phone: true, whatsappRemindersEnabled: true, tier: true, featureOverrides: true },
+    });
+    const bizSettingsMap = new Map(businessSettingsList.map(b => [b.id, b]));
+
     let scheduled = 0;
     let skipped = 0;
 
@@ -60,6 +69,13 @@ export async function GET(request: NextRequest) {
       // which violates the FK constraint on ScheduledMessage and causes a P2003 → 500 error.
       if (!pet.customer) continue;
 
+      // Respect the business's WhatsApp reminders toggle + tier gate
+      const bizId = pet.customer.businessId;
+      const bizSettings = bizSettingsMap.get(bizId);
+      if (!bizSettings?.whatsappRemindersEnabled) { skipped++; continue; }
+      const bizOverrides = (bizSettings.featureOverrides as Record<string, boolean> | null) ?? null;
+      if (!hasFeatureWithOverrides(bizSettings.tier, "whatsapp_reminders", bizOverrides)) { skipped++; continue; }
+
       const bday = new Date(pet.birthDate);
       // Set birthday to this year
       const thisYearBday = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
@@ -69,7 +85,7 @@ export async function GET(request: NextRequest) {
         thisYearBday.setFullYear(today.getFullYear() + 1);
       }
 
-      const rule = ruleByBusiness.get(pet.customer?.businessId ?? "");
+      const rule = ruleByBusiness.get(bizId);
       // triggerOffset for birthday rules = days before the birthday to send (0 = on the birthday)
       const triggerOffset = rule?.triggerOffset ?? 0;
 
@@ -109,7 +125,7 @@ export async function GET(request: NextRequest) {
           customerName: pet.customer?.name ?? "",
           petName: pet.name,
           petAge: ageText,
-          businessPhone: rule.business?.phone ?? "",
+          businessPhone: bizSettings?.phone ?? "",
         });
       } else {
         body = `יום הולדת שמח ל-${pet.name}! 🎂🐾 ${pet.name} מלא/ה ${ageText} היום. מאחלים בריאות, שמחה והרבה עצמות! – הצוות שלנו 💛`;

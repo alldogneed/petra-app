@@ -319,8 +319,9 @@ export async function scheduleBoardingThankYou(stay: BoardingStayForReminder) {
   // Enforce tier gate: thank-you messages require BASIC+ (same as reminders)
   const bizSettings = await prisma.business.findUnique({
     where: { id: stay.businessId },
-    select: { tier: true, featureOverrides: true },
+    select: { tier: true, featureOverrides: true, whatsappRemindersEnabled: true },
   });
+  if (!bizSettings?.whatsappRemindersEnabled) return null;
   const overrides = (bizSettings?.featureOverrides as Record<string, boolean> | null) ?? null;
   if (!hasFeatureWithOverrides(bizSettings?.tier ?? "free", "whatsapp_reminders", overrides)) return null;
 
@@ -401,6 +402,16 @@ export async function scheduleGroupSessionReminders(sessionId: string) {
     for (const msg of messages) {
       // Only schedule if sendAt is in the future
       if (msg.sendAt > new Date()) {
+        const existing = await prisma.scheduledMessage.findFirst({
+          where: {
+            relatedEntityType: msg.relatedEntityType,
+            relatedEntityId: msg.relatedEntityId,
+            templateKey: msg.templateKey,
+            customerId: msg.customerId,
+            status: { in: ["PENDING", "SENT"] },
+          },
+        });
+        if (existing) continue;
         const created = await prisma.scheduledMessage.create({ data: msg });
         createdMessages.push(created.id);
       }
@@ -585,7 +596,7 @@ function buildReminderMessages(
   // Same-day morning reminder (08:00 on session day, in UTC — adjust to local tz as needed)
   if (group.reminderSameDay) {
     const sameDaySendAt = new Date(sessionDate);
-    sameDaySendAt.setUTCHours(8, 0, 0, 0);
+    sameDaySendAt.setUTCHours(6, 0, 0, 0); // 06:00 UTC = 08:00 Israel standard time
 
     // Only if the same-day reminder is different from the lead-hours one
     if (sameDaySendAt.getTime() !== leadSendAt.getTime()) {
@@ -755,7 +766,7 @@ export async function scheduleTrainingSessionReminder(data: TrainingSessionForRe
       payloadJson: JSON.stringify({
         body,
         metaTemplateName: "petra_appointment_reminder",
-        metaTemplateParams: [data.customerName, formattedDate, "", data.dogName],
+        metaTemplateParams: [data.customerName, formattedDate, formattedTime ?? "", data.dogName],
       }),
       sendAt,
       status: "PENDING",
