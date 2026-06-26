@@ -1579,7 +1579,7 @@ export default function CustomersPage() {
   const [serviceTypeFilter, setServiceTypeFilter] = useState("");
   const [financialFilter, setFinancialFilter] = useState<"all" | "debt" | "balanced">("all");
   const [lastVisitFilter, setLastVisitFilter] = useState<"" | "30" | "60" | "90" | "never">("");
-  const [sortBy, setSortBy] = useState<"name_asc" | "newest" | "oldest">("name_asc");
+  const [sortBy, setSortBy] = useState<"name_asc" | "newest" | "oldest">("newest");
   const [filtersCollapsed, setFiltersCollapsed] = useState(true);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -2285,13 +2285,25 @@ export default function CustomersPage() {
                           {customer.name.charAt(0)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <Link
-                            href={`/customers/${customer.id}`}
-                            prefetch={false}
-                            className="text-sm font-semibold text-petra-text hover:text-brand-600 transition-colors block leading-snug"
-                          >
-                            {customer.name}
-                          </Link>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Link
+                              href={`/customers/${customer.id}`}
+                              prefetch={false}
+                              className="text-sm font-semibold text-petra-text hover:text-brand-600 transition-colors leading-snug"
+                            >
+                              {customer.name}
+                            </Link>
+                            {(() => {
+                              const daysAgo = Math.floor((Date.now() - new Date(customer.createdAt).getTime()) / 86400000);
+                              if (daysAgo > 7) return null;
+                              const label = daysAgo === 0 ? "היום" : daysAgo === 1 ? "אתמול" : `לפני ${daysAgo} ימים`;
+                              return (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 border border-green-200 flex-shrink-0">
+                                  חדש · {label}
+                                </span>
+                              );
+                            })()}
+                          </div>
                           <div className="text-[11px] text-petra-muted flex items-center gap-1 mt-0.5 whitespace-nowrap">
                             <Phone className="w-3 h-3 flex-shrink-0" />
                             {customer.phone}

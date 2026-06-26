@@ -4414,7 +4414,7 @@ export default function SettingsPage() {
   // booking = PRO+ only; boarding/payments = BASIC+ only
   const FREE_LOCKED_TABS = new Set(["booking", "boarding", "team", "messages", "service-dogs", "data", "integrations", "payments"]);
   // Basic: unlock boarding, payments, data, integrations — keep booking, team, messages, service-dogs locked
-  const BASIC_LOCKED_TABS = new Set(["booking", "team", "messages", "service-dogs"]);
+  const BASIC_LOCKED_TABS = new Set(["booking", "team", "service-dogs"]);
 
   const tabs = [
     { id: "business" as const, label: "פרטי העסק", icon: Building2 },
@@ -4482,8 +4482,8 @@ export default function SettingsPage() {
           : <TeamTab />
       )}
       {activeTab === "messages" && (
-        (isFree || isBasic)
-          ? <PaywallCard title="הודעות ואוטומציות" description="תבניות WhatsApp, תזכורות אוטומטיות ואוטומציות — זמין במנוי פרו ומעלה." requiredTier="pro" variant="page" />
+        isFree
+          ? <PaywallCard title="הודעות ואוטומציות" description="תבניות WhatsApp, תזכורות אוטומטיות ואוטומציות — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
           : <MessagesPanel />
       )}
       {activeTab === "payments" && (isOwner || isManager) && (

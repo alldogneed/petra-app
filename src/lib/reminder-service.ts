@@ -28,7 +28,7 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
     select: { whatsappRemindersEnabled: true, whatsappReminderLeadHours: true, phone: true, tier: true, featureOverrides: true },
   });
   if (!bizSettings?.whatsappRemindersEnabled) return null;
-  // Enforce tier gate: WhatsApp reminders require PRO+ (groomer/service_dog)
+  // Enforce tier gate: WhatsApp reminders require BASIC+ (basic, groomer, pro, service_dog)
   const overrides = (bizSettings.featureOverrides as Record<string, boolean> | null) ?? null;
   if (!hasFeatureWithOverrides(bizSettings.tier, "whatsapp_reminders", overrides)) return null;
 
@@ -316,7 +316,7 @@ export async function rescheduleBoardingCheckoutReminder(stay: BoardingStayForRe
 export async function scheduleBoardingThankYou(stay: BoardingStayForReminder) {
   if (!stay.customerId) return null;
 
-  // Enforce tier gate: thank-you messages require PRO+ (same as reminders)
+  // Enforce tier gate: thank-you messages require BASIC+ (same as reminders)
   const bizSettings = await prisma.business.findUnique({
     where: { id: stay.businessId },
     select: { tier: true, featureOverrides: true },
