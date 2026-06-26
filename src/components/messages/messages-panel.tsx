@@ -607,7 +607,10 @@ function TemplatesTab() {
               const rule = linked?.automationRules?.[0];
               const TriggerIcon = TRIGGER_ICONS[trigger.id] ?? Zap;
 
-              const isActive = !!(linked && rule?.isActive);
+              const isOptimisticallyToggling = toggleRuleMutation.isPending && toggleRuleMutation.variables?.ruleId === rule?.id;
+              const isActive = isOptimisticallyToggling
+                ? (toggleRuleMutation.variables?.isActive ?? !!(linked && rule?.isActive))
+                : !!(linked && rule?.isActive);
               const previewBody = linked?.body ?? STARTER_TEMPLATES.find((s) => s.trigger === trigger.id)?.body ?? "";
               // First non-empty line of body as preview
               const previewLine = previewBody.split("\n").find((l) => l.trim()) ?? "";
@@ -661,7 +664,7 @@ function TemplatesTab() {
                           autoActivateMutation.mutate(trigger.id);
                         }
                       }}
-                      disabled={autoActivateMutation.isPending}
+                      disabled={autoActivateMutation.isPending || toggleRuleMutation.isPending}
                       className="p-0.5 hover:opacity-75 transition-opacity disabled:opacity-40"
                     >
                       {isActive

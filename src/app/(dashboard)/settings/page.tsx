@@ -1258,17 +1258,24 @@ function IntegrationsTab() {
                 <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm text-petra-text">תזכורות אוטומטיות לתורים</span>
-                    <button
-                      onClick={() => updateReminderMutation.mutate({ whatsappRemindersEnabled: !biz.whatsappRemindersEnabled })}
-                      disabled={updateReminderMutation.isPending}
-                      className={cn(
-                        "relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0",
-                        biz.whatsappRemindersEnabled ? "bg-emerald-500" : "bg-slate-300"
-                      )}
-                      title={biz.whatsappRemindersEnabled ? "כבה תזכורות" : "הפעל תזכורות"}
-                    >
-                      <span className={cn("inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform", biz.whatsappRemindersEnabled ? "translate-x-4" : "translate-x-0.5")} />
-                    </button>
+                    {(() => {
+                      const optimisticEnabled = updateReminderMutation.isPending
+                        ? (updateReminderMutation.variables?.whatsappRemindersEnabled ?? biz.whatsappRemindersEnabled)
+                        : biz.whatsappRemindersEnabled;
+                      return (
+                        <button
+                          onClick={() => updateReminderMutation.mutate({ whatsappRemindersEnabled: !biz.whatsappRemindersEnabled })}
+                          disabled={updateReminderMutation.isPending}
+                          className={cn(
+                            "relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0",
+                            optimisticEnabled ? "bg-emerald-500" : "bg-slate-300"
+                          )}
+                          title={optimisticEnabled ? "כבה תזכורות" : "הפעל תזכורות"}
+                        >
+                          <span className={cn("inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform", optimisticEnabled ? "translate-x-4" : "translate-x-0.5")} />
+                        </button>
+                      );
+                    })()}
                   </div>
                   {biz.whatsappRemindersEnabled && (
                     <div className="flex items-center justify-between gap-3">
