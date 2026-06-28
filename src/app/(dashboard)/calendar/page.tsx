@@ -1796,7 +1796,9 @@ function CalendarContent() {
             <ChevronLeft className="w-4 h-4" />
           </button>
 
-          {/* View toggle — hide Week/Month on mobile */}
+          {/* View toggle — Week is tappable on mobile too (don't force a rotate to
+              landscape, which is unreliable on Android PWAs). Only Month is hidden
+              on mobile (too cramped on a phone). */}
           <div className="flex items-center bg-white border border-petra-border rounded-xl overflow-hidden ms-auto">
             {VIEW_MODES.map((mode) => (
               <button
@@ -1809,7 +1811,7 @@ function CalendarContent() {
                 }}
                 className={cn(
                   "px-3 py-2 text-sm font-medium transition-colors",
-                  (mode.id === "week" || mode.id === "month") && "hidden md:block",
+                  mode.id === "month" && "hidden md:block",
                   viewMode === mode.id
                     ? "bg-brand-50 text-brand-600"
                     : "text-petra-muted hover:text-petra-text hover:bg-slate-50"
