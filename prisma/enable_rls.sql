@@ -54,6 +54,7 @@ ALTER TABLE "public"."TrainingGroup"                 ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."TrainingGroupSession"          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."TrainingGroupParticipant"      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."SyncJob"                       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."GcalEventLink"                 ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."OnboardingProfile"             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."IntakeForm"                    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."AnalyticsEvent"                ENABLE ROW LEVEL SECURITY;
