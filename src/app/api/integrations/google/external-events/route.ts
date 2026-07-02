@@ -11,6 +11,7 @@ interface GcalEvent {
   end: { dateTime?: string; date?: string };
   colorId?: string;
   htmlLink?: string;
+  extendedProperties?: { private?: Record<string, string> };
 }
 
 /**
@@ -37,7 +38,12 @@ export async function GET(request: Request) {
 
   const user = await prisma.platformUser.findUnique({
     where: { id: session.user.id },
-    select: { gcalConnected: true, gcalRefreshToken: true, gcalSelectedCalendars: true },
+    select: {
+      gcalConnected: true,
+      gcalRefreshToken: true,
+      gcalSelectedCalendars: true,
+      gcalCalendarId: true,
+    },
   });
 
   if (!user?.gcalConnected || !user.gcalRefreshToken || !user.gcalSelectedCalendars) {
@@ -49,6 +55,12 @@ export async function GET(request: Request) {
     selectedCalendars = JSON.parse(user.gcalSelectedCalendars);
   } catch {
     return NextResponse.json({ events: [] });
+  }
+
+  // Never fetch from the "Petra Bookings" calendar — Petra's own events already
+  // render in the app calendar; pulling them back from Google would duplicate them.
+  if (user.gcalCalendarId) {
+    selectedCalendars = selectedCalendars.filter((cal) => cal.id !== user.gcalCalendarId);
   }
 
   if (selectedCalendars.length === 0) return NextResponse.json({ events: [] });
@@ -82,6 +94,9 @@ export async function GET(request: Request) {
         const items: GcalEvent[] = data.items ?? [];
 
         for (const ev of items) {
+          // Skip events Petra itself pushed to Google (marked with source=petra) —
+          // they already appear in the app calendar as appointments/bookings.
+          if (ev.extendedProperties?.private?.source === "petra") continue;
           allEvents.push({
             id: `gcal-${cal.id}-${ev.id}`,
             title: ev.summary ?? "(ללא כותרת)",

@@ -306,10 +306,15 @@ export async function POST(
     isNewCustomer: boolean,
   }
 
-  // Enqueue Google Calendar sync (fire-and-forget)
-  enqueueSyncJob(booking.id, business.id, "create").catch((err) =>
-    console.error("Failed to enqueue GCal sync job:", err)
-  )
+  // Enqueue Google Calendar sync (fire-and-forget).
+  // Skipped for auto-confirmed non-boarding bookings: those create an Appointment
+  // below which is synced to GCal directly — enqueueing the booking too would push
+  // two Google events for one slot. Pending (and boarding) bookings still sync here.
+  if (!(status === "confirmed" && !isBoarding)) {
+    enqueueSyncJob(booking.id, business.id, "create").catch((err) =>
+      console.error("Failed to enqueue GCal sync job:", err)
+    )
+  }
 
   // Auto-create lead for new customers (fire-and-forget)
   if (isNewCustomer) {

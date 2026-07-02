@@ -25,6 +25,7 @@ export async function GET() {
       gcalAccessToken: true,
       gcalTokenExpiresAt: true,
       gcalSelectedCalendars: true,
+      gcalCalendarId: true,
     },
   });
 
@@ -49,19 +50,25 @@ export async function GET() {
 
   const data = await res.json();
 
-  const calendars = (data.items ?? []).map((cal: {
-    id: string;
-    summary: string;
-    backgroundColor?: string;
-    primary?: boolean;
-    accessRole?: string;
-  }) => ({
-    id: cal.id,
-    summary: cal.summary,
-    backgroundColor: cal.backgroundColor ?? "#4285F4",
-    primary: cal.primary ?? false,
-    accessRole: cal.accessRole,
-  }));
+  const calendars = (data.items ?? [])
+    // Hide Petra's own "Petra Bookings" calendar — selecting it as an overlay
+    // would duplicate every Petra event in the app calendar.
+    .filter((cal: { id: string; summary?: string }) =>
+      cal.id !== user.gcalCalendarId && cal.summary !== "Petra Bookings"
+    )
+    .map((cal: {
+      id: string;
+      summary: string;
+      backgroundColor?: string;
+      primary?: boolean;
+      accessRole?: string;
+    }) => ({
+      id: cal.id,
+      summary: cal.summary,
+      backgroundColor: cal.backgroundColor ?? "#4285F4",
+      primary: cal.primary ?? false,
+      accessRole: cal.accessRole,
+    }));
 
   // Parse currently selected calendars
   let selected: { id: string }[] = [];

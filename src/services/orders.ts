@@ -295,8 +295,11 @@ export async function createOrder(
     });
   }
 
-  // Create linked Appointment for service-based order types
-  if (appointmentData && orderType && APPT_ORDER_TYPES.includes(orderType)) {
+  // Create linked Appointment for service-based order types.
+  // Group training orders are excluded: the TrainingGroupSession is the calendar
+  // entity — a linked Appointment would render as a duplicate block.
+  const isGroupTraining = orderType === "training" && trainingSubType === "group";
+  if (appointmentData && orderType && APPT_ORDER_TYPES.includes(orderType) && !isGroupTraining) {
     const typeLabel = APPT_TYPE_LABELS[orderType] || orderType;
     const subtypeLabel = orderType === "training" && trainingSubType
       ? TRAINING_SUBTYPE_LABELS[trainingSubType] ?? trainingSubType

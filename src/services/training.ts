@@ -895,6 +895,13 @@ export async function createProgramSession(
   });
   if (!program) throw new ServiceError("Training program not found", "NOT_FOUND");
 
+  const duplicate = await db.trainingProgramSession.findFirst({
+    where: { trainingProgramId: programId, sessionDate: input.sessionDate },
+  });
+  if (duplicate) {
+    throw new ServiceError("כבר קיים מפגש בתוכנית במועד הזה", "CONFLICT");
+  }
+
   const sessionStatus = input.status ?? "COMPLETED";
   const mins = input.durationMinutes ?? 60;
 

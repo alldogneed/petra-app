@@ -961,6 +961,39 @@ function CalendarContent() {
   const [resizing, setResizing] = useState<{ apt: AppointmentEvent; startY: number; origEndMins: number; currentEndMins: number } | null>(null);
   const resizingRef = useRef<typeof resizing>(null);
 
+  // ── Persist filter toggles to localStorage ──
+  // Restored inside useEffect (not at useState init) to avoid SSR/hydration
+  // mismatches — same pattern as the viewMode/innerWidth fix.
+  const [filtersRestored, setFiltersRestored] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("petra-calendar-filters");
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (typeof saved.showGcal === "boolean") setShowGcal(saved.showGcal);
+        if (typeof saved.showLeads === "boolean") setShowLeads(saved.showLeads);
+        if (typeof saved.showGroupSessions === "boolean") setShowGroupSessions(saved.showGroupSessions);
+        if (typeof saved.showProgramSessions === "boolean") setShowProgramSessions(saved.showProgramSessions);
+        if (Array.isArray(saved.serviceTypeFilters)) setServiceTypeFilters(saved.serviceTypeFilters.filter((t: unknown) => typeof t === "string"));
+        if (Array.isArray(saved.staffFilter)) setStaffFilter(saved.staffFilter.filter((t: unknown) => typeof t === "string"));
+      }
+    } catch {
+      // ignore corrupt localStorage
+    }
+    setFiltersRestored(true);
+  }, []);
+  useEffect(() => {
+    if (!filtersRestored) return;
+    try {
+      localStorage.setItem(
+        "petra-calendar-filters",
+        JSON.stringify({ showGcal, showLeads, showGroupSessions, showProgramSessions, serviceTypeFilters, staffFilter })
+      );
+    } catch {
+      // ignore quota/private-mode errors
+    }
+  }, [filtersRestored, showGcal, showLeads, showGroupSessions, showProgramSessions, serviceTypeFilters, staffFilter]);
+
   // Auto-scroll to current time when switching to day/week view
   useEffect(() => {
     if (viewMode !== "day" && viewMode !== "week") return;
@@ -1825,7 +1858,7 @@ function CalendarContent() {
       </div>
 
       {/* ── Color Legend / Service Type Filter ── */}
-      <div className="hidden md:flex items-center gap-2 flex-wrap mb-4 px-1">
+      <div className="flex items-center gap-2 flex-nowrap overflow-x-auto pb-1.5 md:flex-wrap md:overflow-visible md:pb-0 mb-4 px-1 [&>*]:flex-shrink-0 [&>*]:whitespace-nowrap">
         {/* הכל button */}
         <button
           onClick={() => { setServiceTypeFilters([]); setShowGcal(true); setShowLeads(true); setShowGroupSessions(true); setShowProgramSessions(true); setStaffFilter([]); }}
@@ -2811,15 +2844,17 @@ function CalendarContent() {
                 });
               });
               // Add GCal events to month view
-              const dayGcal = gcalEvents.filter((e) => !e.isAllDay && e.start.slice(0, 10) === dateStr);
-              dayGcal.forEach((ev) => {
-                const time = dateTimeToTime(ev.start);
-                entries.push({
-                  key: `gcal-${ev.id}`,
-                  color: ev.backgroundColor,
-                  label: `${time} ${ev.title}`,
+              if (showGcal) {
+                const dayGcal = gcalEvents.filter((e) => !e.isAllDay && e.start.slice(0, 10) === dateStr);
+                dayGcal.forEach((ev) => {
+                  const time = dateTimeToTime(ev.start);
+                  entries.push({
+                    key: `gcal-${ev.id}`,
+                    color: ev.backgroundColor,
+                    label: `${time} ${ev.title}`,
+                  });
                 });
-              });
+              }
 
               // Training group sessions - month
               if (showGroupSessions) {
@@ -2855,7 +2890,7 @@ function CalendarContent() {
                 <div
                   key={idx}
                   className={cn(
-                    "min-h-[72px] md:min-h-[96px] p-2 border-b border-r border-slate-100 cursor-pointer hover:bg-slate-50/50 transition-colors",
+                    "group min-h-[72px] md:min-h-[96px] p-2 border-b border-r border-slate-100 cursor-pointer hover:bg-slate-50/50 transition-colors",
                     !isCurrentMonth && "bg-slate-50/30"
                   )}
                   onClick={() => {
@@ -2864,7 +2899,18 @@ function CalendarContent() {
                     setAnchor(date);
                   }}
                 >
-                  <div className="flex items-center justify-end mb-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setModalDefaults({ date: dateStr, time: "09:00" });
+                        setShowNewModal(true);
+                      }}
+                      className="p-0.5 rounded-full text-petra-muted/60 md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100 hover:text-brand-600 hover:bg-brand-50 transition-opacity"
+                      title="הוסף תור ביום זה"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
                     <div
                       className={cn(
                         "text-sm font-bold",
@@ -3060,13 +3106,26 @@ function CalendarContent() {
                 <div key={dateStr} className={cn("", isToday && "bg-brand-50/20")}>
                   <div
                     className={cn(
-                      "px-4 py-2 text-sm font-semibold sticky top-0 bg-white border-b border-petra-border cursor-pointer hover:bg-slate-50 transition-colors",
+                      "flex items-center justify-between px-4 py-2 text-sm font-semibold sticky top-0 bg-white border-b border-petra-border cursor-pointer hover:bg-slate-50 transition-colors",
                       isToday && "text-brand-600"
                     )}
                     onClick={() => { setSelectedDay(date); setViewMode("day"); }}
                   >
-                    {date.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
-                    {items.length > 0 && <span className="mr-2 text-xs font-normal text-petra-muted">{items.length} אירועים</span>}
+                    <span className="min-w-0 truncate">
+                      {date.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
+                      {items.length > 0 && <span className="mr-2 text-xs font-normal text-petra-muted">{items.length} אירועים</span>}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setModalDefaults({ date: dateStr, time: "09:00" });
+                        setShowNewModal(true);
+                      }}
+                      className="p-1 rounded-full text-petra-muted hover:text-brand-600 hover:bg-brand-50 transition-colors flex-shrink-0"
+                      title="הוסף תור ביום זה"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
                   </div>
                   {items.length === 0 ? (
                     <div className="px-4 py-3 text-xs text-petra-muted">אין אירועים</div>
