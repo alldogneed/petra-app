@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
+import { normalizeLegalEntityLabel, isVatExempt } from "@/lib/legal-entity";
 import { isValidTier } from "@/lib/feature-flags";
 import { checkRateLimit } from "@/lib/security/rateLimiter";
 import { ensureUserHasBusiness } from "@/lib/auth";
@@ -229,6 +230,9 @@ export async function GET(request: NextRequest) {
     // ── Start 14-day trial ────────────────────────────────────────────────
     const trialEndsAt = new Date(now.getTime() + 14 * 86_400_000);
 
+    // Map checkout UI label (e.g. "עוסק מורשה (ע.מ)") → canonical legalEntityType key
+    const legalEntityKey = normalizeLegalEntityLabel(checkout.businessType);
+
     await prisma.business.update({
       where: { id: businessId },
       data: {
@@ -240,7 +244,7 @@ export async function GET(request: NextRequest) {
         ...(checkout.phone        ? { phone:             checkout.phone }        : {}),
         ...(checkout.address      ? { address:           checkout.address }      : {}),
         ...(checkout.vatNumber    ? { vatNumber:         checkout.vatNumber }    : {}),
-        ...(checkout.businessType ? { businessRegNumber: checkout.businessType } : {}),
+        ...(legalEntityKey ? { legalEntityType: legalEntityKey, ...(isVatExempt(legalEntityKey) ? { vatEnabled: false } : {}) } : {}),
       },
     });
 

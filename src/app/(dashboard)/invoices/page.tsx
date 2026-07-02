@@ -21,7 +21,8 @@ import {
   Search,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, fetchJSON } from "@/lib/utils";
-import { INVOICE_DOCUMENT_TYPES, INVOICE_STATUSES } from "@/lib/constants";
+import { INVOICE_DOCUMENT_TYPES, INVOICE_STATUSES, VAT_RATE } from "@/lib/constants";
+import { isVatExempt } from "@/lib/legal-entity";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -121,9 +122,23 @@ function SummaryCards({ documents }: { documents: InvoiceDocument[] }) {
 
 // ─── Create Invoice Modal ───────────────────────────────────────────────────
 
-function CreateInvoiceModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function CreateInvoiceModal({
+  onClose,
+  onSuccess,
+  vatExempt,
+  vatRate,
+}: {
+  onClose: () => void;
+  onSuccess: () => void;
+  vatExempt: boolean;
+  vatRate: number;
+}) {
   const [customerId, setCustomerId] = useState("");
-  const [docType, setDocType] = useState(320);
+  // עוסק פטור may not issue tax invoices — receipts only
+  const availableDocTypes = vatExempt
+    ? INVOICE_DOCUMENT_TYPES.filter((dt) => dt.id === 400 || dt.id === 330)
+    : INVOICE_DOCUMENT_TYPES;
+  const [docType, setDocType] = useState(vatExempt ? 400 : 320);
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState([{ description: "", quantity: 1, unitPrice: 0 }]);
   const [search, setSearch] = useState("");
@@ -159,7 +174,7 @@ function CreateInvoiceModal({ onClose, onSuccess }: { onClose: () => void; onSuc
   };
 
   const subtotal = lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
-  const vat = Math.round(subtotal * 0.17 * 100) / 100;
+  const vat = Math.round(subtotal * vatRate * 100) / 100;
   const total = subtotal + vat;
 
   return (
@@ -208,10 +223,13 @@ function CreateInvoiceModal({ onClose, onSuccess }: { onClose: () => void; onSuc
           <div>
             <label className="label">סוג מסמך</label>
             <select className="input" value={docType} onChange={(e) => setDocType(Number(e.target.value))}>
-              {INVOICE_DOCUMENT_TYPES.map((dt) => (
+              {availableDocTypes.map((dt) => (
                 <option key={dt.id} value={dt.id}>{dt.label}</option>
               ))}
             </select>
+            {vatExempt && (
+              <p className="text-xs text-petra-muted mt-1">עוסק פטור מפיק קבלות בלבד (ללא חשבונית מס)</p>
+            )}
           </div>
 
           {/* Line Items */}
@@ -266,7 +284,7 @@ function CreateInvoiceModal({ onClose, onSuccess }: { onClose: () => void; onSuc
               <span>{formatCurrency(subtotal)}</span>
             </div>
             <div className="flex justify-between text-petra-muted">
-              <span>מע״מ (17%)</span>
+              <span>{vatExempt ? "ללא מע״מ — עוסק פטור" : `מע״מ (${Math.round(vatRate * 100)}%)`}</span>
               <span>{formatCurrency(vat)}</span>
             </div>
             <div className="flex justify-between font-bold text-petra-text">
@@ -305,6 +323,15 @@ function InvoicesPageContent() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [docTypeFilter, setDocTypeFilter] = useState<string>("all");
   const [showCreate, setShowCreate] = useState(false);
+
+  // Business settings — legal entity type drives VAT display + allowed doc types
+  const { data: settings } = useQuery<{ legalEntityType: string | null; vatEnabled?: boolean; vatRate?: number }>({
+    queryKey: ["settings"],
+    queryFn: () => fetch("/api/settings").then((r) => r.json()),
+  });
+  const vatExempt = isVatExempt(settings?.legalEntityType);
+  const vatFree = vatExempt || settings?.vatEnabled === false;
+  const effectiveVatRate = vatFree ? 0 : settings?.vatRate ?? VAT_RATE;
 
   const { data: documents = [], isLoading } = useQuery<InvoiceDocument[]>({
     queryKey: ["invoicing-documents", statusFilter, docTypeFilter],
@@ -559,6 +586,8 @@ function InvoicesPageContent() {
       {/* Create Modal */}
       {showCreate && (
         <CreateInvoiceModal
+          vatExempt={vatExempt}
+          vatRate={effectiveVatRate}
           onClose={() => setShowCreate(false)}
           onSuccess={() => {
             setShowCreate(false);

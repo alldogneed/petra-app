@@ -39,7 +39,8 @@ export const TIERS = {
   },
 } as const;
 
-export const VAT_RATE = 0.17;
+// Israeli VAT — 18% since 1.1.2025
+export const VAT_RATE = 0.18;
 
 // Lead stages are UUIDs from DB (LeadStage table) — see src/lib/lead-stages.ts
 // Do NOT add hardcoded stage strings here.

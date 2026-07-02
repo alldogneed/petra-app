@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { validateIsraeliPhone, sanitizeName } from "@/lib/validation";
+import { VALID_LEGAL_ENTITY_TYPES, isVatExempt } from "@/lib/legal-entity";
 
 export async function POST(request: NextRequest) {
     try {
@@ -10,7 +11,7 @@ export async function POST(request: NextRequest) {
         if (!currentUser) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const body = await request.json();
-        const { name, phone, address, vatNumber, timezone } = body;
+        const { name, phone, address, vatNumber, timezone, legalEntityType } = body;
 
         if (!name || typeof name !== "string") {
             return NextResponse.json({ error: "Business name is required" }, { status: 400 });
@@ -32,6 +33,15 @@ export async function POST(request: NextRequest) {
         if (vatNumber && (typeof vatNumber !== "string" || vatNumber.length > 50)) {
             return NextResponse.json({ error: "מספר עוסק לא תקין" }, { status: 400 });
         }
+        if (legalEntityType && (typeof legalEntityType !== "string" || !VALID_LEGAL_ENTITY_TYPES.includes(legalEntityType))) {
+            return NextResponse.json({ error: "סוג עוסק לא תקין" }, { status: 400 });
+        }
+
+        // Same coupling as updateBusinessSettings (src/services/business.ts):
+        // עוסק פטור → vatEnabled=false; other entity types → vatEnabled=true.
+        const legalEntityData = legalEntityType
+            ? { legalEntityType, vatEnabled: !isVatExempt(legalEntityType) }
+            : {};
 
         // SECURITY: Only allow updating businesses the user OWNS (not just any membership)
         const userDb = await prisma.platformUser.findUnique({
@@ -51,6 +61,7 @@ export async function POST(request: NextRequest) {
                     address,
                     vatNumber,
                     timezone: timezone || "Asia/Jerusalem",
+                    ...legalEntityData,
                 },
             });
         } else {
@@ -64,6 +75,7 @@ export async function POST(request: NextRequest) {
                     timezone: timezone || "Asia/Jerusalem",
                     status: "active",
                     tier: "basic",
+                    ...legalEntityData,
                 },
             });
             businessId = newBusiness.id;

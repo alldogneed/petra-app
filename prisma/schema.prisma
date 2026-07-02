@@ -228,7 +228,7 @@ model Business {
   businessRegNumber  String?   // ח.פ / עוסק מורשה / בע"מ
   legalEntityType    String?   // "עוסק פטור" | "עוסק מורשה" | "חברה"
   vatEnabled         Boolean  @default(true)
-  vatRate            Float    @default(0.17)
+  vatRate            Float    @default(0.18)
   boardingCalcMode   String   @default("nights")
   boardingMinNights  Int      @default(1)
   boardingCheckInTime  String @default("12:00")

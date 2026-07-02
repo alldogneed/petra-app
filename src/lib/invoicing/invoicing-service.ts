@@ -17,8 +17,10 @@ import type {
   IssuedDocument,
   DocumentType,
 } from "./types";
-import { DOCUMENT_TYPE_LABELS } from "./types";
+import { DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS } from "./types";
 import { DEFAULT_DOCUMENT_MAPPING } from "./constants";
+import { isVatExempt } from "../legal-entity";
+import { VAT_RATE } from "../constants";
 import { morningProvider } from "./providers/morning";
 import { maskSensitive, logInvoicing } from "./logger";
 
@@ -60,8 +62,13 @@ function decryptCredentials(settings: {
 
 function resolveDocType(
   paymentMethod: string,
-  mappingJson: string
+  mappingJson: string,
+  legalEntityType?: string | null
 ): DocumentType {
+  // עוסק פטור may not issue tax invoices — always force a receipt (400),
+  // regardless of documentMapping / payment method.
+  if (isVatExempt(legalEntityType)) return DOCUMENT_TYPES.RECEIPT;
+
   let mapping: Record<string, number>;
   try {
     mapping = JSON.parse(mappingJson);
@@ -208,8 +215,22 @@ export const InvoicingService = {
     });
     if (!payment) throw new Error("תשלום לא נמצא");
 
-    const docType =
-      options?.docType ?? resolveDocType(payment.method, settings.documentMapping);
+    // Load business for legal-entity + VAT info (drives doc type + VAT math)
+    const business = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { vatNumber: true, vatRate: true, vatEnabled: true, legalEntityType: true },
+    });
+
+    const exemptBusiness = isVatExempt(business?.legalEntityType);
+
+    let docType =
+      options?.docType ??
+      resolveDocType(payment.method, settings.documentMapping, business?.legalEntityType);
+    // עוסק פטור may not issue tax invoices — force receipt even for explicit
+    // 305/320 requests (credit notes 330 and receipts 400 pass through).
+    if (exemptBusiness && (docType === DOCUMENT_TYPES.TAX_INVOICE || docType === DOCUMENT_TYPES.TAX_INVOICE_RECEIPT)) {
+      docType = DOCUMENT_TYPES.RECEIPT;
+    }
 
     const description = payment.appointment?.service?.name ?? "תשלום";
 
@@ -228,15 +249,11 @@ export const InvoicingService = {
       paymentMethod: payment.method,
     });
 
-    // Load business for VAT info
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: { vatNumber: true, vatRate: true },
-    });
-
-    const vatRate = business?.vatRate ?? 0.17;
-    const subtotal = payment.amount / (1 + vatRate);
-    const taxTotal = payment.amount - subtotal;
+    // VAT extraction — exempt businesses (עוסק פטור or VAT disabled) have no VAT component
+    const vatFree = exemptBusiness || business?.vatEnabled === false;
+    const vatRate = vatFree ? 0 : business?.vatRate ?? VAT_RATE;
+    const subtotal = vatFree ? payment.amount : payment.amount / (1 + vatRate);
+    const taxTotal = vatFree ? 0 : payment.amount - subtotal;
 
     // Save document record with masked raw response
     await prisma.invoiceDocument.create({

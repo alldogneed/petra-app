@@ -24,11 +24,17 @@ export function validateApiKey(key: string): { valid: boolean; error?: string } 
 
 /**
  * Validate document creation input.
+ *
+ * `vatExempt` is optional business context (Business.legalEntityType === "עוסק פטור").
+ * The validator has no DB access, so callers that loaded the business should pass it;
+ * the authoritative guard also lives in /api/invoicing/documents (POST) and
+ * InvoicingService.issue.
  */
 export function validateDocumentInput(input: {
   customerId?: string;
   docType?: number;
   amount?: number;
+  vatExempt?: boolean;
 }): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
@@ -39,6 +45,11 @@ export function validateDocumentInput(input: {
   const validDocTypes = [305, 320, 400, 330];
   if (input.docType && !validDocTypes.includes(input.docType)) {
     errors.push("סוג מסמך לא חוקי");
+  }
+
+  // עוסק פטור may not issue tax invoices (305/320)
+  if (input.vatExempt && (input.docType === 305 || input.docType === 320)) {
+    errors.push("עוסק פטור אינו רשאי להפיק חשבונית מס — יש להפיק קבלה");
   }
 
   if (input.amount !== undefined && input.amount <= 0) {

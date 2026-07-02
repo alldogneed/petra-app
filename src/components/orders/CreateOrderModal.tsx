@@ -12,6 +12,7 @@ import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { triggerLimitModal } from "@/lib/limit-reached";
 import { toast } from "sonner";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
+import { VAT_RATE } from "@/lib/constants";
 import { usePlan } from "@/hooks/usePlan";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -459,7 +460,7 @@ export function CreateOrderModal({
     discountType,
     discountValue: parseFloat(discountValue) || 0,
     vatEnabled: business?.vatEnabled ?? true,
-    vatRate: business?.vatRate ?? 0.17,
+    vatRate: business?.vatRate ?? VAT_RATE,
   });
 
   // Add price list item to lines
@@ -1758,7 +1759,7 @@ export function CreateOrderModal({
           </div>
         ) : calc.taxTotal > 0 ? (
           <div className="flex justify-between text-sm text-petra-muted">
-            <span>כולל מע&quot;מ ({((business?.vatRate ?? 0.17) * 100).toFixed(0)}%)</span>
+            <span>כולל מע&quot;מ ({((business?.vatRate ?? VAT_RATE) * 100).toFixed(0)}%)</span>
             <span dir="ltr">{fmt(calc.taxTotal)}</span>
           </div>
         ) : null}

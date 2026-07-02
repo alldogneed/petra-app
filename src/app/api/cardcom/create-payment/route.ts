@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { normalizeLegalEntityLabel, isVatExempt } from "@/lib/legal-entity";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { isValidTier, type TierKey } from "@/lib/feature-flags";
 import { createOwnerLead } from "@/lib/owner-lead";
@@ -69,13 +70,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Save invoice fields if provided
-    if (address || vatNumber || businessType) {
+    // Map checkout UI label (e.g. "עוסק מורשה (ע.מ)") → canonical legalEntityType key
+    const legalEntityKey = normalizeLegalEntityLabel(businessType);
+    if (address || vatNumber || legalEntityKey) {
       await prisma.business.update({
         where: { id: businessId },
         data: {
-          ...(address      ? { address }      : {}),
-          ...(vatNumber    ? { vatNumber }    : {}),
-          ...(businessType ? { businessRegNumber: businessType } : {}),
+          ...(address        ? { address }      : {}),
+          ...(vatNumber      ? { vatNumber }    : {}),
+          ...(legalEntityKey ? { legalEntityType: legalEntityKey, ...(isVatExempt(legalEntityKey) ? { vatEnabled: false } : {}) } : {}),
         },
       });
     }

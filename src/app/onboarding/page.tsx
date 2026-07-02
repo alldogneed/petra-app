@@ -26,6 +26,7 @@ import { Toaster } from "sonner";
 import { cn } from "@/lib/utils";
 import { hasFeature } from "@/lib/feature-flags";
 import type { TierKey } from "@/lib/feature-flags";
+import { LEGAL_ENTITY_TYPES } from "@/lib/legal-entity";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -301,8 +302,12 @@ function StepBusiness({
 }) {
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
+  const [legalEntityType, setLegalEntityType] = useState("");
+  const [vatNumber, setVatNumber] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const selectedEntity = LEGAL_ENTITY_TYPES.find((t) => t.key === legalEntityType);
 
   async function handleSubmit() {
     if (!name.trim()) { setError("שם העסק הוא שדה חובה"); return; }
@@ -313,7 +318,12 @@ function StepBusiness({
       const res = await fetch("/api/onboarding/business", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim() }),
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: phone.trim(),
+          ...(legalEntityType ? { legalEntityType } : {}),
+          ...(legalEntityType && vatNumber.trim() ? { vatNumber: vatNumber.trim() } : {}),
+        }),
       });
       if (!res.ok) { const d = await res.json(); setError(d.error || "שגיאה בשמירה"); return; }
       await fetch("/api/onboarding/progress", {
@@ -358,6 +368,42 @@ function StepBusiness({
         />
         <p className="text-xs text-petra-muted mt-1">ישמש לשליחת תזכורות WhatsApp אוטומטיות ולדף ההזמנות שלך</p>
       </div>
+
+      <div>
+        <label className="label">סוג עוסק</label>
+        <div className="grid grid-cols-3 gap-2 mt-1">
+          {LEGAL_ENTITY_TYPES.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setLegalEntityType(legalEntityType === t.key ? "" : t.key)}
+              className={`px-2 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                legalEntityType === t.key
+                  ? "border-brand-500 bg-brand-50 text-brand-700"
+                  : "border-slate-200 bg-white text-petra-muted hover:border-slate-300"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-petra-muted mt-1">לא בטוח? אפשר לעדכן בהגדרות מאוחר יותר</p>
+      </div>
+
+      {selectedEntity && !selectedEntity.vatExempt && (
+        <div>
+          <label className="label">{selectedEntity.regNumberLabel}</label>
+          <input
+            className="input w-full mt-1"
+            placeholder={selectedEntity.regNumberLabel}
+            value={vatNumber}
+            onChange={(e) => setVatNumber(e.target.value)}
+            dir="ltr"
+            inputMode="numeric"
+          />
+          <p className="text-xs text-petra-muted mt-1">יופיע בחשבוניות ובמסמכים ללקוחות</p>
+        </div>
+      )}
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 

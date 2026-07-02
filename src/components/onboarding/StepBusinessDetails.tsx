@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { LEGAL_ENTITY_TYPES } from "@/lib/legal-entity";
 
 interface StepBusinessDetailsProps {
   onNext: () => void;
@@ -15,8 +16,11 @@ export default function StepBusinessDetails({
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [vatNumber, setVatNumber] = useState("");
+  const [legalEntityType, setLegalEntityType] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const selectedEntity = LEGAL_ENTITY_TYPES.find((t) => t.key === legalEntityType);
 
   const handleContinue = async () => {
     setIsSaving(true);
@@ -25,7 +29,13 @@ export default function StepBusinessDetails({
       const res = await fetch("/api/onboarding/business", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, address, vatNumber }),
+        body: JSON.stringify({
+          name,
+          phone,
+          address,
+          vatNumber,
+          ...(legalEntityType ? { legalEntityType } : {}),
+        }),
       });
       if (!res.ok) throw new Error("Failed to save business details");
       onNext();
@@ -65,27 +75,53 @@ export default function StepBusinessDetails({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="label">טלפון העסק</label>
-            <input
-              className="input"
-              placeholder="050-1234567"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              dir="rtl"
-            />
+        <div>
+          <label className="label">טלפון העסק</label>
+          <input
+            className="input"
+            placeholder="050-1234567"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            dir="rtl"
+          />
+        </div>
+
+        <div>
+          <label className="label">סוג עוסק</label>
+          <div className="grid grid-cols-3 gap-2">
+            {LEGAL_ENTITY_TYPES.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() =>
+                  setLegalEntityType(legalEntityType === t.key ? "" : t.key)
+                }
+                className={`px-2 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                  legalEntityType === t.key
+                    ? "border-brand-500 bg-brand-50 text-brand-700"
+                    : "border-slate-200 bg-white text-petra-muted hover:border-slate-300"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
-          <div>
-            <label className="label">ח.פ / עוסק מורשה</label>
-            <input
-              className="input"
-              placeholder="מספר תאגיד / ת.ז (אופציונלי)"
-              value={vatNumber}
-              onChange={(e) => setVatNumber(e.target.value)}
-              dir="rtl"
-            />
-          </div>
+          <p className="text-xs text-petra-muted mt-1">
+            לא בטוח? אפשר לעדכן בהגדרות מאוחר יותר
+          </p>
+        </div>
+
+        <div>
+          <label className="label">
+            {selectedEntity?.regNumberLabel ?? "מספר עוסק / ח.פ"}
+          </label>
+          <input
+            className="input"
+            placeholder={selectedEntity?.regNumberLabel ?? "מספר תאגיד / ת.ז (אופציונלי)"}
+            value={vatNumber}
+            onChange={(e) => setVatNumber(e.target.value)}
+            dir="rtl"
+          />
         </div>
 
         <div>

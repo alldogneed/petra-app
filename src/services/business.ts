@@ -13,6 +13,7 @@
 import type { DbClient } from "./supabase";
 import { ServiceError } from "./types";
 import { validateIsraeliPhone, validateEmail } from "@/lib/validation";
+import { VALID_LEGAL_ENTITY_TYPES } from "@/lib/legal-entity";
 
 export { ServiceError };
 export type { DbClient };
@@ -169,7 +170,6 @@ export async function updateBusinessSettings(
     }
   }
 
-  const VALID_LEGAL_ENTITY_TYPES = ["עוסק פטור", "עוסק מורשה", "חברה"];
   const VALID_BOARDING_CALC_MODES = ["nights", "days", "calendar_days"];
   const TIME_RE = /^\d{2}:\d{2}$/;
 

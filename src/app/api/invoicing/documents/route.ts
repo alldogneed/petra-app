@@ -2,8 +2,9 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { DOCUMENT_TYPE_LABELS } from "@/lib/invoicing/types";
+import { DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS } from "@/lib/invoicing/types";
 import { VAT_RATE } from "@/lib/constants";
+import { isVatExempt } from "@/lib/legal-entity";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 
 // GET /api/invoicing/documents — list documents with filters
@@ -95,13 +96,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get business VAT info
+    // Get business VAT + legal-entity info
     const business = await prisma.business.findUnique({
       where: { id: authResult.businessId },
-      select: { vatNumber: true, vatRate: true },
+      select: { vatNumber: true, vatRate: true, vatEnabled: true, legalEntityType: true },
     });
 
-    const vatRate = business?.vatRate ?? VAT_RATE;
+    const exemptBusiness = isVatExempt(business?.legalEntityType);
+    const vatFree = exemptBusiness || business?.vatEnabled === false;
+
+    // עוסק פטור may not issue tax invoices (305/320) — receipts only
+    if (
+      exemptBusiness &&
+      (docType === DOCUMENT_TYPES.TAX_INVOICE || docType === DOCUMENT_TYPES.TAX_INVOICE_RECEIPT)
+    ) {
+      return NextResponse.json(
+        { error: "עוסק פטור אינו רשאי להפיק חשבונית מס — יש להפיק קבלה" },
+        { status: 400 }
+      );
+    }
+
+    // Exempt businesses default to receipt (400); others to tax invoice/receipt (320)
+    const effectiveDocType = docType ?? (exemptBusiness ? DOCUMENT_TYPES.RECEIPT : DOCUMENT_TYPES.TAX_INVOICE_RECEIPT);
+
+    const vatRate = vatFree ? 0 : business?.vatRate ?? VAT_RATE;
     let subtotal = 0;
     let linesJson: string | null = null;
 
@@ -134,7 +152,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const taxTotal = Math.round(subtotal * vatRate * 100) / 100;
+    const taxTotal = vatFree ? 0 : Math.round(subtotal * vatRate * 100) / 100;
     const total = Math.round((subtotal + taxTotal) * 100) / 100;
 
     // Get provider settings
@@ -150,8 +168,8 @@ export async function POST(request: NextRequest) {
         paymentId: paymentId || null,
         orderId: orderId || null,
         providerName: settings?.providerName ?? "morning",
-        docType: docType ?? 320,
-        docTypeName: DOCUMENT_TYPE_LABELS[docType ?? 320] ?? "חשבונית מס / קבלה",
+        docType: effectiveDocType,
+        docTypeName: DOCUMENT_TYPE_LABELS[effectiveDocType] ?? "חשבונית מס / קבלה",
         subtotal,
         taxTotal,
         amount: total,

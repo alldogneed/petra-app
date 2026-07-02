@@ -37,7 +37,7 @@ export interface CalcOrderInput {
   discountType: "none" | "percent" | "fixed";
   discountValue: number;  // percent 0-100 or fixed amount in ILS
   vatEnabled: boolean;
-  vatRate: number;         // e.g. 0.17
+  vatRate: number;         // e.g. 0.18
 }
 
 export interface CalcOrderResult {
