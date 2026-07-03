@@ -347,7 +347,7 @@ function BusinessTab() {
       setTimeout(() => setSaved(false), 2500);
       toast.success("ההגדרות נשמרו בהצלחה");
     },
-    onError: () => toast.error("שגיאה בשמירת ההגדרות. נסה שוב."),
+    onError: (err: Error) => toast.error(err.message || "שגיאה בשמירת ההגדרות. נסה שוב."),
   });
 
   function handleSave() {
