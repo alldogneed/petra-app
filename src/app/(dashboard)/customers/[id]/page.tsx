@@ -5045,7 +5045,8 @@ export default function CustomerProfilePage() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                router.push(`/payment-request?customerId=${customer.id}`);
+                                // Send from the order page so the request stays linked to THIS order
+                                router.push(`/orders/${order.id}`);
                               }}
                               className="flex items-center gap-2 p-2.5 bg-brand-50 border border-brand-100 rounded-xl w-full text-start hover:bg-brand-100 transition-colors"
                             >
