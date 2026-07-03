@@ -123,13 +123,15 @@ export async function updateBusinessSettings(
       throw new ServiceError("שעות תזכורת לא תקינות (0-168)", "VALIDATION");
     }
   }
-  if (phone !== undefined && phone !== null) {
-    if (typeof phone !== "string" || !validateIsraeliPhone(String(phone))) {
+  // validateIsraeliPhone/validateEmail return an error MESSAGE when invalid
+  // and null when valid — a truthy result means invalid.
+  if (phone !== undefined && phone !== null && phone !== "") {
+    if (typeof phone !== "string" || validateIsraeliPhone(String(phone)) !== null) {
       throw new ServiceError("מספר טלפון לא תקין", "VALIDATION");
     }
   }
   if (email !== undefined && email !== null) {
-    if (typeof email !== "string" || email.length > 254 || !validateEmail(email)) {
+    if (typeof email !== "string" || email.length > 254 || validateEmail(email) !== null) {
       throw new ServiceError("כתובת אימייל לא תקינה", "VALIDATION");
     }
   }
