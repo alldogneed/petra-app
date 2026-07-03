@@ -342,7 +342,10 @@ export function buildEventPayload(
 // ─── Event CRUD ──────────────────────────────────────────────────────────────
 
 /**
- * Create a Google Calendar event for a booking.
+ * Create a Google Calendar event for a booking in ONE user's calendar.
+ * Persists the per-user id in GcalEventLink; the legacy Booking.gcalEventId
+ * column is only filled if still empty (it used to be overwritten per user,
+ * which made every subsequent per-user update 404 and create duplicates).
  * Returns the Google event ID.
  */
 export async function createCalendarEvent(
@@ -358,32 +361,14 @@ export async function createCalendarEvent(
   const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.petra.co.il";
   const payload = buildEventPayload(booking, appBaseUrl);
 
-  const res = await fetch(
-    `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    }
-  );
+  const eventId = await createGcalEventOrThrow(calendarId, accessToken, payload);
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Failed to create Google Calendar event: ${err}`);
-  }
+  await saveEventLink("BOOKING", bookingId, userId, calendarId, eventId);
 
-  const data = await res.json();
-  const eventId: string = data.id;
-
-  // Update booking with event ID and sync status
   await prisma.booking.update({
     where: { id: bookingId },
     data: {
-      gcalEventId: eventId,
-      gcalCalendarId: calendarId,
+      ...(booking.gcalEventId ? {} : { gcalEventId: eventId, gcalCalendarId: calendarId }),
       gcalSyncStatus: "synced",
       gcalLastSyncedAt: new Date(),
       gcalSyncError: null,
@@ -394,16 +379,20 @@ export async function createCalendarEvent(
 }
 
 /**
- * Update an existing Google Calendar event for a booking.
+ * Update this user's copy of the booking event (per-user id via GcalEventLink,
+ * legacy shared id as fallback for pre-link events).
  */
 export async function updateCalendarEvent(
   userId: string,
   bookingId: string
 ): Promise<void> {
   const booking = await fetchBookingWithRelations(bookingId);
+  const link = await getEventLink("BOOKING", bookingId, userId);
+  const eventId = link?.eventId ?? booking.gcalEventId;
+  const calendarId = link?.calendarId ?? booking.gcalCalendarId;
 
-  // If no event ID, create instead of update
-  if (!booking.gcalEventId || !booking.gcalCalendarId) {
+  // If no event ID for this user, create instead of update
+  if (!eventId || !calendarId) {
     await createCalendarEvent(userId, bookingId);
     return;
   }
@@ -413,7 +402,7 @@ export async function updateCalendarEvent(
   const payload = buildEventPayload(booking, appBaseUrl);
 
   const res = await fetch(
-    `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(booking.gcalCalendarId)}/events/${encodeURIComponent(booking.gcalEventId)}`,
+    `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
     {
       method: "PUT",
       headers: {
@@ -425,14 +414,16 @@ export async function updateCalendarEvent(
   );
 
   if (!res.ok) {
-    // If 404 (event deleted manually), create fresh
-    if (res.status === 404) {
+    // 404/410 = event gone from this user's calendar — create fresh
+    if (res.status === 404 || res.status === 410) {
       await createCalendarEvent(userId, bookingId);
       return;
     }
     const err = await res.text();
     throw new Error(`Failed to update Google Calendar event: ${err}`);
   }
+
+  await saveEventLink("BOOKING", bookingId, userId, calendarId, eventId);
 
   await prisma.booking.update({
     where: { id: bookingId },
@@ -445,7 +436,7 @@ export async function updateCalendarEvent(
 }
 
 /**
- * Delete a Google Calendar event for a cancelled/declined booking.
+ * Delete this user's copy of the event for a cancelled/declined booking.
  */
 export async function deleteCalendarEvent(
   userId: string,
@@ -455,20 +446,25 @@ export async function deleteCalendarEvent(
     where: { id: bookingId },
     select: { gcalEventId: true, gcalCalendarId: true },
   });
+  const link = await getEventLink("BOOKING", bookingId, userId);
+  const eventId = link?.eventId ?? booking?.gcalEventId;
+  const calendarId = link?.calendarId ?? booking?.gcalCalendarId;
 
-  if (!booking?.gcalEventId || !booking.gcalCalendarId) {
+  if (!eventId || !calendarId) {
     // Nothing to delete — mark as disabled
-    await prisma.booking.update({
-      where: { id: bookingId },
-      data: { gcalSyncStatus: "disabled" },
-    });
+    if (booking) {
+      await prisma.booking.update({
+        where: { id: bookingId },
+        data: { gcalSyncStatus: "disabled" },
+      });
+    }
     return;
   }
 
   const accessToken = await getValidAccessToken(userId);
 
   const res = await fetch(
-    `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(booking.gcalCalendarId)}/events/${encodeURIComponent(booking.gcalEventId)}`,
+    `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
     {
       method: "DELETE",
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -481,15 +477,21 @@ export async function deleteCalendarEvent(
     throw new Error(`Failed to delete Google Calendar event: ${err}`);
   }
 
-  await prisma.booking.update({
-    where: { id: bookingId },
-    data: {
-      gcalEventId: null,
-      gcalSyncStatus: "disabled",
-      gcalLastSyncedAt: new Date(),
-      gcalSyncError: null,
-    },
-  });
+  if (link) {
+    await prisma.gcalEventLink.delete({ where: { id: link.id } }).catch(() => undefined);
+  }
+
+  if (booking) {
+    await prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        gcalEventId: null,
+        gcalSyncStatus: "disabled",
+        gcalLastSyncedAt: new Date(),
+        gcalSyncError: null,
+      },
+    });
+  }
 }
 
 /**
@@ -755,6 +757,93 @@ async function createGcalEventOrThrow(
   return data.id;
 }
 
+// ─── Per-user event links ────────────────────────────────────────────────────
+// One Petra entity syncs to N connected users' calendars — each user gets their
+// own Google event. Google event ids are namespaced per calendar, so the single
+// shared gcalEventId column on the entity cannot address more than one user's
+// copy: for every user past the first, the PUT 404'd and a fresh (duplicate)
+// event was created on every edit. GcalEventLink stores the id per user.
+// The legacy gcalEventId column is kept as a fallback for events synced before
+// links existed — it lives in exactly one user's calendar, so the PUT succeeds
+// only there and everyone else gets a link on first re-sync.
+
+export type GcalEntityType =
+  | "BOOKING"
+  | "APPOINTMENT"
+  | "BOARDING_STAY"
+  | "TRAINING_PROGRAM_SESSION"
+  | "TRAINING_GROUP_SESSION";
+
+async function getEventLink(entityType: GcalEntityType, entityId: string, userId: string) {
+  return prisma.gcalEventLink.findUnique({
+    where: { entityType_entityId_userId: { entityType, entityId, userId } },
+  });
+}
+
+async function saveEventLink(
+  entityType: GcalEntityType,
+  entityId: string,
+  userId: string,
+  calendarId: string,
+  eventId: string
+): Promise<void> {
+  await prisma.gcalEventLink.upsert({
+    where: { entityType_entityId_userId: { entityType, entityId, userId } },
+    create: { entityType, entityId, userId, calendarId, eventId },
+    update: { calendarId, eventId },
+  });
+}
+
+/**
+ * Create-or-update the event copy in ONE user's calendar and persist the link.
+ * Recreates only on 404/410 (event gone) — other failures throw, since blindly
+ * recreating on e.g. 403 is exactly what produced duplicates before.
+ * Returns the event id now present in this user's calendar.
+ */
+async function pushEventForUser(
+  userId: string,
+  entityType: GcalEntityType,
+  entityId: string,
+  legacyEventId: string | null,
+  payload: unknown
+): Promise<string> {
+  const [accessToken, calendarId] = await Promise.all([
+    getValidAccessToken(userId),
+    ensureUserCalendar(userId),
+  ]);
+  const link = await getEventLink(entityType, entityId, userId);
+  const knownEventId = link?.eventId ?? legacyEventId;
+  const knownCalendarId = link?.calendarId ?? calendarId;
+
+  let eventId: string | null = null;
+  let eventCalendarId = calendarId;
+
+  if (knownEventId) {
+    const updateRes = await fetch(
+      `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(knownCalendarId)}/events/${encodeURIComponent(knownEventId)}`,
+      {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
+    if (updateRes.ok) {
+      eventId = knownEventId;
+      eventCalendarId = knownCalendarId;
+    } else if (updateRes.status !== 404 && updateRes.status !== 410) {
+      const err = await updateRes.text();
+      throw new Error(`GCal event update failed (${updateRes.status}): ${err.slice(0, 400)}`);
+    }
+  }
+
+  if (!eventId) {
+    eventId = await createGcalEventOrThrow(calendarId, accessToken, payload);
+  }
+
+  await saveEventLink(entityType, entityId, userId, eventCalendarId, eventId);
+  return eventId;
+}
+
 /**
  * Sync a staff-created appointment to Google Calendar for all connected business users.
  * Fire-and-forget safe — catches per-user errors internally.
@@ -763,60 +852,17 @@ export async function syncAppointmentToGcal(
   appointmentId: string,
   businessId: string
 ): Promise<void> {
-  const connectedUsers = await findConnectedUsersForBusiness(businessId);
-  const syncableUsers = connectedUsers.filter((u) => u.gcalSyncEnabled);
-  if (syncableUsers.length === 0) return;
-
   const appt = await fetchAppointmentForGcal(appointmentId);
   if (!appt || appt.status === "canceled") return;
 
   const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://petra-app.com";
   const payload = buildAppointmentEventPayload(appt, appBaseUrl);
 
-  let storedEventId = appt.gcalEventId;
-
-  for (const user of syncableUsers) {
-    try {
-      const [accessToken, calendarId] = await Promise.all([
-        getValidAccessToken(user.id),
-        ensureUserCalendar(user.id),
-      ]);
-
-      let eventId: string;
-
-      if (storedEventId) {
-        // Update existing event
-        const updateRes = await fetch(
-          `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${storedEventId}`,
-          {
-            method: "PUT",
-            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          }
-        );
-        if (updateRes.ok) {
-          eventId = storedEventId;
-        } else {
-          // Event was deleted from GCal (or update rejected) — recreate
-          eventId = await createGcalEventOrThrow(calendarId, accessToken, payload);
-        }
-      } else {
-        // Create new event
-        eventId = await createGcalEventOrThrow(calendarId, accessToken, payload);
-      }
-
-      // Persist gcalEventId after first successful sync
-      if (!storedEventId && eventId) {
-        await prisma.appointment.update({
-          where: { id: appointmentId },
-          data: { gcalEventId: eventId },
-        });
-        storedEventId = eventId;
-      }
-    } catch (err) {
-      console.error(`GCal appointment sync error (user ${user.id}):`, err);
-    }
-  }
+  await pushEventToConnectedCalendars(
+    businessId, "APPOINTMENT", appointmentId, appt.gcalEventId, payload,
+    (eventId) => prisma.appointment.update({ where: { id: appointmentId }, data: { gcalEventId: eventId } }).then(() => undefined),
+    "GCal appointment sync error"
+  );
 }
 
 /**
@@ -831,30 +877,19 @@ export async function deleteAppointmentFromGcal(
     where: { id: appointmentId },
     select: { gcalEventId: true },
   });
-  if (!appt?.gcalEventId) return;
+  if (!appt) return;
 
-  const connectedUsers = await findConnectedUsersForBusiness(businessId);
-  const syncableUsers = connectedUsers.filter((u) => u.gcalSyncEnabled);
+  await deleteEventFromConnectedCalendars(
+    businessId, "APPOINTMENT", appointmentId, appt.gcalEventId,
+    "GCal appointment delete error"
+  );
 
-  for (const user of syncableUsers) {
-    try {
-      const [accessToken, calendarId] = await Promise.all([
-        getValidAccessToken(user.id),
-        ensureUserCalendar(user.id),
-      ]);
-      await fetch(
-        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${appt.gcalEventId}`,
-        { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-    } catch (err) {
-      console.error(`GCal appointment delete error (user ${user.id}):`, err);
-    }
+  if (appt.gcalEventId) {
+    await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { gcalEventId: null },
+    });
   }
-
-  await prisma.appointment.update({
-    where: { id: appointmentId },
-    data: { gcalEventId: null },
-  });
 }
 
 /**
@@ -895,39 +930,30 @@ function toIsraelIso(date: Date): string {
 }
 
 /**
- * Create-or-update an event on every connected user's calendar. Mirrors the
- * appointment sync loop: PUT existing event, recreate if it 404s, persist the id
- * after first create. Per-user errors are logged, not thrown.
+ * Create-or-update the event on every connected user's calendar, one event id
+ * per user (GcalEventLink). The entity's legacy single gcalEventId column is
+ * still filled after the first create so old callers/UI can tell "synced" from
+ * "never synced". Per-user errors are logged, not thrown.
  */
 async function pushEventToConnectedCalendars(
   businessId: string,
-  storedEventId: string | null,
+  entityType: GcalEntityType,
+  entityId: string,
+  legacyEventId: string | null,
   payload: object,
-  persist: (eventId: string) => Promise<void>,
+  persistLegacy: (eventId: string) => Promise<void>,
   logLabel: string
 ): Promise<void> {
   const syncableUsers = (await findConnectedUsersForBusiness(businessId)).filter((u) => u.gcalSyncEnabled);
   if (syncableUsers.length === 0) return;
 
-  let eventId = storedEventId;
+  let storedLegacyId = legacyEventId;
   for (const user of syncableUsers) {
     try {
-      const [accessToken, calendarId] = await Promise.all([
-        getValidAccessToken(user.id),
-        ensureUserCalendar(user.id),
-      ]);
-      if (eventId) {
-        const updateRes = await fetch(
-          `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
-          { method: "PUT", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) }
-        );
-        if (!updateRes.ok) eventId = await createGcalEventOrThrow(calendarId, accessToken, payload);
-      } else {
-        eventId = await createGcalEventOrThrow(calendarId, accessToken, payload);
-      }
-      if (!storedEventId && eventId) {
-        await persist(eventId);
-        storedEventId = eventId;
+      const eventId = await pushEventForUser(user.id, entityType, entityId, storedLegacyId, payload);
+      if (!storedLegacyId) {
+        await persistLegacy(eventId);
+        storedLegacyId = eventId;
       }
     } catch (err) {
       console.error(`${logLabel} (user ${user.id}):`, err);
@@ -935,23 +961,42 @@ async function pushEventToConnectedCalendars(
   }
 }
 
-/** Delete an event from every connected user's calendar. */
-async function deleteEventFromConnectedCalendars(businessId: string, eventId: string, logLabel: string): Promise<void> {
-  const syncableUsers = (await findConnectedUsersForBusiness(businessId)).filter((u) => u.gcalSyncEnabled);
-  for (const user of syncableUsers) {
+/**
+ * Delete an entity's event from every connected user's calendar (each user's
+ * own copy via GcalEventLink; legacy shared id as fallback), then drop the links.
+ * Deliberately not filtered by gcalSyncEnabled — a user who toggled sync off
+ * should still have the stale event removed.
+ */
+async function deleteEventFromConnectedCalendars(
+  businessId: string,
+  entityType: GcalEntityType,
+  entityId: string,
+  legacyEventId: string | null,
+  logLabel: string
+): Promise<void> {
+  const links = await prisma.gcalEventLink.findMany({ where: { entityType, entityId } });
+  if (links.length === 0 && !legacyEventId) return;
+
+  const linkByUser = new Map(links.map((l) => [l.userId, l] as const));
+  const connectedUsers = await findConnectedUsersForBusiness(businessId);
+
+  for (const user of connectedUsers) {
+    const link = linkByUser.get(user.id);
+    const eventId = link?.eventId ?? legacyEventId;
+    if (!eventId) continue;
     try {
-      const [accessToken, calendarId] = await Promise.all([
-        getValidAccessToken(user.id),
-        ensureUserCalendar(user.id),
-      ]);
+      const accessToken = await getValidAccessToken(user.id);
+      const calendarId = link?.calendarId ?? (await ensureUserCalendar(user.id));
       await fetch(
-        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
+        `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
         { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } }
       );
     } catch (err) {
       console.error(`${logLabel} (user ${user.id}):`, err);
     }
   }
+
+  await prisma.gcalEventLink.deleteMany({ where: { entityType, entityId } });
 }
 
 /** Sync a 1-on-1 training program session ("ליווי") to Google Calendar. */
@@ -994,7 +1039,7 @@ export async function syncTrainingProgramSessionToGcal(sessionId: string, busine
   };
 
   await pushEventToConnectedCalendars(
-    businessId, s.gcalEventId, payload,
+    businessId, "TRAINING_PROGRAM_SESSION", sessionId, s.gcalEventId, payload,
     (eventId) => prisma.trainingProgramSession.update({ where: { id: sessionId }, data: { gcalEventId: eventId } }).then(() => undefined),
     "GCal training-program session sync error"
   );
@@ -1006,9 +1051,11 @@ export async function deleteTrainingProgramSessionFromGcal(sessionId: string, bu
     where: { id: sessionId },
     select: { gcalEventId: true, program: { select: { businessId: true } } },
   });
-  if (!s?.gcalEventId || s.program.businessId !== businessId) return;
-  await deleteEventFromConnectedCalendars(businessId, s.gcalEventId, "GCal training-program session delete error");
-  await prisma.trainingProgramSession.update({ where: { id: sessionId }, data: { gcalEventId: null } });
+  if (!s || s.program.businessId !== businessId) return;
+  await deleteEventFromConnectedCalendars(businessId, "TRAINING_PROGRAM_SESSION", sessionId, s.gcalEventId, "GCal training-program session delete error");
+  if (s.gcalEventId) {
+    await prisma.trainingProgramSession.update({ where: { id: sessionId }, data: { gcalEventId: null } });
+  }
 }
 
 /** Sync a group/workshop training session to Google Calendar. */
@@ -1040,7 +1087,7 @@ export async function syncTrainingGroupSessionToGcal(sessionId: string, business
   };
 
   await pushEventToConnectedCalendars(
-    businessId, s.gcalEventId, payload,
+    businessId, "TRAINING_GROUP_SESSION", sessionId, s.gcalEventId, payload,
     (eventId) => prisma.trainingGroupSession.update({ where: { id: sessionId }, data: { gcalEventId: eventId } }).then(() => undefined),
     "GCal training-group session sync error"
   );
@@ -1052,9 +1099,11 @@ export async function deleteTrainingGroupSessionFromGcal(sessionId: string, busi
     where: { id: sessionId },
     select: { gcalEventId: true, trainingGroup: { select: { businessId: true } } },
   });
-  if (!s?.gcalEventId || s.trainingGroup.businessId !== businessId) return;
-  await deleteEventFromConnectedCalendars(businessId, s.gcalEventId, "GCal training-group session delete error");
-  await prisma.trainingGroupSession.update({ where: { id: sessionId }, data: { gcalEventId: null } });
+  if (!s || s.trainingGroup.businessId !== businessId) return;
+  await deleteEventFromConnectedCalendars(businessId, "TRAINING_GROUP_SESSION", sessionId, s.gcalEventId, "GCal training-group session delete error");
+  if (s.gcalEventId) {
+    await prisma.trainingGroupSession.update({ where: { id: sessionId }, data: { gcalEventId: null } });
+  }
 }
 
 // ─── Boarding Stay sync ──────────────────────────────────────────────────────
@@ -1068,10 +1117,6 @@ export async function syncBoardingToGcal(
   stayId: string,
   businessId: string
 ): Promise<void> {
-  const connectedUsers = await findConnectedUsersForBusiness(businessId);
-  const syncableUsers = connectedUsers.filter((u) => u.gcalSyncEnabled);
-  if (syncableUsers.length === 0) return;
-
   const stay = await prisma.boardingStay.findUnique({
     where: { id: stayId },
     select: {
@@ -1116,44 +1161,11 @@ export async function syncBoardingToGcal(
     },
   };
 
-  let storedEventId = stay.gcalEventId;
-
-  for (const user of syncableUsers) {
-    try {
-      const [accessToken, calendarId] = await Promise.all([
-        getValidAccessToken(user.id),
-        ensureUserCalendar(user.id),
-      ]);
-
-      let eventId: string;
-
-      if (storedEventId) {
-        const updateRes = await fetch(
-          `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${storedEventId}`,
-          { method: "PUT", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) }
-        );
-        eventId = updateRes.ok ? storedEventId : await (async () => {
-          const r = await fetch(`${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`,
-            { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-          return (await r.json()).id;
-        })();
-      } else {
-        const createRes = await fetch(
-          `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`,
-          { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) }
-        );
-        const data = await createRes.json();
-        eventId = data.id;
-      }
-
-      if (!storedEventId && eventId) {
-        await prisma.boardingStay.update({ where: { id: stayId }, data: { gcalEventId: eventId } });
-        storedEventId = eventId;
-      }
-    } catch (err) {
-      console.error(`GCal boarding sync error (user ${user.id}):`, err);
-    }
-  }
+  await pushEventToConnectedCalendars(
+    businessId, "BOARDING_STAY", stayId, stay.gcalEventId, payload,
+    (eventId) => prisma.boardingStay.update({ where: { id: stayId }, data: { gcalEventId: eventId } }).then(() => undefined),
+    "GCal boarding sync error"
+  );
 }
 
 /**
@@ -1161,19 +1173,13 @@ export async function syncBoardingToGcal(
  */
 export async function deleteBoardingFromGcal(stayId: string, businessId: string): Promise<void> {
   const stay = await prisma.boardingStay.findUnique({ where: { id: stayId }, select: { gcalEventId: true } });
-  if (!stay?.gcalEventId) return;
+  if (!stay) return;
 
-  const connectedUsers = await findConnectedUsersForBusiness(businessId);
-  for (const user of connectedUsers.filter((u) => u.gcalSyncEnabled)) {
-    try {
-      const [accessToken, calendarId] = await Promise.all([getValidAccessToken(user.id), ensureUserCalendar(user.id)]);
-      await fetch(`${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${stay.gcalEventId}`,
-        { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } });
-    } catch (err) {
-      console.error(`GCal boarding delete error (user ${user.id}):`, err);
-    }
+  await deleteEventFromConnectedCalendars(businessId, "BOARDING_STAY", stayId, stay.gcalEventId, "GCal boarding delete error");
+
+  if (stay.gcalEventId) {
+    await prisma.boardingStay.update({ where: { id: stayId }, data: { gcalEventId: null } });
   }
-  await prisma.boardingStay.update({ where: { id: stayId }, data: { gcalEventId: null } });
 }
 
 /**

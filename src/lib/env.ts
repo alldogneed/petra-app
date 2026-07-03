@@ -45,9 +45,20 @@ export const env = {
     | "production",
 
   // ── Database ───────────────────────────────────────────────────────────────
-  // Required — app cannot start without a database connection.
-  DATABASE_URL: required("DATABASE_URL"),
-  DIRECT_URL: required("DIRECT_URL"),
+  // Required — but validated LAZILY (getter), only when actually read, so a
+  // missing value throws at runtime with a clear message instead of at module
+  // load. Eager validation broke Vercel builds: `next build` loads every route
+  // module while "collecting page data", which imported this file and threw
+  // when DATABASE_URL wasn't present at build time (e.g. Preview env). Prisma
+  // reads process.env.DATABASE_URL directly from schema.prisma, so nothing in
+  // the app reads these two at runtime — the getters are a validation safety
+  // net, not a hot path.
+  get DATABASE_URL(): string {
+    return required("DATABASE_URL");
+  },
+  get DIRECT_URL(): string {
+    return required("DIRECT_URL");
+  },
 
   // ── App URLs ───────────────────────────────────────────────────────────────
   APP_URL: optional("APP_URL", "http://localhost:3000"),

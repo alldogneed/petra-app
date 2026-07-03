@@ -1161,6 +1161,25 @@ model SyncJob {
   @@index([businessId])
 }
 
+/// Per-user Google Calendar event id for a synced Petra entity.
+/// Each connected staff member gets their own copy of the event in their own
+/// calendar; Google event ids are namespaced per calendar, so a single shared
+/// gcalEventId column cannot address more than one user's copy.
+/// No FK on userId/entityId — entityId is polymorphic (see entityType).
+model GcalEventLink {
+  id         String   @id @default(uuid())
+  entityType String   // "BOOKING" | "APPOINTMENT" | "BOARDING_STAY" | "TRAINING_PROGRAM_SESSION" | "TRAINING_GROUP_SESSION"
+  entityId   String
+  userId     String   // PlatformUser.id owning the calendar connection
+  calendarId String
+  eventId    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([entityType, entityId, userId])
+  @@index([userId])
+}
+
 // ─────────────────────────────────────────────
 // ONBOARDING
 // ─────────────────────────────────────────────

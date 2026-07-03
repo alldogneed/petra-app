@@ -2,9 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { getValidAccessToken, ensureUserCalendar, buildEventPayload } from "@/lib/google-calendar";
-
-const GOOGLE_CALENDAR_BASE = "https://www.googleapis.com/calendar/v3";
+import { updateCalendarEvent } from "@/lib/google-calendar";
 
 /**
  * POST /api/integrations/google/sync
@@ -56,13 +54,7 @@ export async function POST() {
         startAt: { gte: new Date() },
         gcalSyncStatus: { not: "synced" },
       },
-      include: {
-        service:       { select: { name: true, price: true } },
-        priceListItem: { select: { name: true, basePrice: true } },
-        customer:      { select: { name: true, phone: true, address: true, email: true } },
-        dogs:          { include: { pet: { select: { name: true } } } },
-        business:      { select: { name: true, address: true } },
-      },
+      select: { id: true },
       take: 100,
     });
 
@@ -70,57 +62,15 @@ export async function POST() {
       return NextResponse.json({ ok: true, synced: 0, message: "אין פגישות לסנכרון" });
     }
 
-    const [accessToken, calendarId] = await Promise.all([
-      getValidAccessToken(session.user.id),
-      ensureUserCalendar(session.user.id),
-    ]);
-
-    const appBaseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ?? "https://app.petra.co.il";
-
     let synced = 0;
     let failed = 0;
 
     for (const booking of bookings) {
       try {
-        const payload = buildEventPayload(booking, appBaseUrl);
-
-        // If already has a gcalEventId, update — otherwise create
-        if (booking.gcalEventId && booking.gcalCalendarId) {
-          const res = await fetch(
-            `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(booking.gcalCalendarId)}/events/${encodeURIComponent(booking.gcalEventId)}`,
-            {
-              method: "PUT",
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(payload),
-            }
-          );
-
-          if (res.ok || res.status === 404) {
-            if (res.status === 404) {
-              // Recreate below
-              await createEvent(accessToken, calendarId, booking.id, payload);
-            } else {
-              await prisma.booking.update({
-                where: { id: booking.id },
-                data: {
-                  gcalSyncStatus: "synced",
-                  gcalLastSyncedAt: new Date(),
-                  gcalSyncError: null,
-                },
-              });
-            }
-            synced++;
-          } else {
-            failed++;
-          }
-        } else {
-          await createEvent(accessToken, calendarId, booking.id, payload);
-          synced++;
-        }
+        // Link-aware create-or-update of THIS user's copy of the event
+        // (per-user GcalEventLink — never PUTs another member's event id)
+        await updateCalendarEvent(session.user.id, booking.id);
+        synced++;
       } catch {
         failed++;
         await prisma.booking.update({
@@ -146,40 +96,4 @@ export async function POST() {
       { status: 500 }
     );
   }
-}
-
-async function createEvent(
-  accessToken: string,
-  calendarId: string,
-  bookingId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  payload: any
-) {
-  const res = await fetch(
-    `${GOOGLE_CALENDAR_BASE}/calendars/${encodeURIComponent(calendarId)}/events`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error(`Failed to create event: ${await res.text()}`);
-  }
-
-  const data = await res.json();
-  await prisma.booking.update({
-    where: { id: bookingId },
-    data: {
-      gcalEventId: data.id,
-      gcalCalendarId: calendarId,
-      gcalSyncStatus: "synced",
-      gcalLastSyncedAt: new Date(),
-      gcalSyncError: null,
-    },
-  });
 }
