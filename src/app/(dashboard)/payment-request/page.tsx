@@ -3,7 +3,7 @@
 import { FinanceTabs } from "@/components/finance/FinanceTabs";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
   Plus,
@@ -32,6 +32,7 @@ interface Product {
   price: number;
   paymentUrl: string;
   category: string;
+  unit: string;
 }
 
 interface Customer {
@@ -77,13 +78,14 @@ function PaymentRequestContent() {
   const { data: products = [], isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ["price-list-items"],
     queryFn: async () => {
-      const data = await fetchJSON("/api/price-list-items") as Array<{ id: string; name: string; basePrice: number; category: string | null; paymentUrl: string | null }>;
+      const data = await fetchJSON("/api/price-list-items") as Array<{ id: string; name: string; basePrice: number; category: string | null; paymentUrl: string | null; unit: string | null }>;
       return data.map((item) => ({
         id: item.id,
         name: item.name,
         price: item.basePrice,
         paymentUrl: item.paymentUrl || "",
         category: item.category || "כללי",
+        unit: item.unit || "unit",
       }));
     },
   });
@@ -108,6 +110,11 @@ function PaymentRequestContent() {
   // Stripe payment link — generated on demand
   const [stripeLink, setStripeLink] = useState<string | null>(null);
   const [stripeLoading, setStripeLoading] = useState(false);
+
+  // Order created for this payment request — every send must have an Order in the DB
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
+  const queryClient = useQueryClient();
 
   // Customer search query
   const { data: searchResults = [] } = useQuery<Customer[]>({
@@ -193,12 +200,101 @@ function PaymentRequestContent() {
     });
   }
 
+  // ─── Order creation ──────────────────────────────────────────
+  // A payment request must always leave a record in Petra. Sending is
+  // blocked until the Order row exists, so a paid link can never be
+  // untraceable in the system.
+
+  async function ensureOrder(): Promise<string | null> {
+    if (createdOrderId) return createdOrderId;
+    if (!selectedCustomer) return null;
+
+    // Manual override is expressed as a fixed discount (or an adjustment
+    // line when the manual price is above the items' subtotal), so the
+    // order total matches the amount the customer is asked to pay.
+    const overrideDiff = isManualOverride ? subtotal - manualPrice : 0;
+    const lines: Array<{ priceListItemId?: string; name: string; unit: string; quantity: number; unitPrice: number; taxMode: string }> =
+      selectedProductsList.map(({ product, qty }) => ({
+        priceListItemId: product.id,
+        name: product.name,
+        unit: product.unit,
+        quantity: qty,
+        unitPrice: product.price,
+        taxMode: "inherit",
+      }));
+    if (isManualOverride && overrideDiff < 0) {
+      lines.push({
+        name: "התאמת מחיר ידנית",
+        unit: "unit",
+        quantity: 1,
+        unitPrice: -overrideDiff,
+        taxMode: "inherit",
+      });
+    }
+
+    const discount = isManualOverride
+      ? overrideDiff > 0
+        ? { discountType: "fixed", discountValue: overrideDiff }
+        : { discountType: "none", discountValue: 0 }
+      : discountPercent > 0
+        ? { discountType: "percent", discountValue: discountPercent }
+        : { discountType: "none", discountValue: 0 };
+
+    const res = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customerId: selectedCustomer.id,
+        orderType: "sale",
+        lines,
+        ...discount,
+        status: "confirmed",
+        notes: "נוצר מדף בקשת תשלום",
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: "שגיאה ביצירת ההזמנה" }));
+      toast.error(body.error || "שגיאה ביצירת ההזמנה — הבקשה לא נשלחה");
+      return null;
+    }
+
+    const order = await res.json();
+    setCreatedOrderId(order.id);
+    queryClient.invalidateQueries({ queryKey: ["orders"] });
+    queryClient.invalidateQueries({ queryKey: ["customer", selectedCustomer.id] });
+    toast.success("נוצרה הזמנה במערכת — לאחר קבלת התשלום סמן אותה כשולמה");
+    return order.id;
+  }
+
+  // Any change to the request invalidates the order we already created —
+  // the next send creates a fresh one that matches what the customer sees.
+  const requestSignature = useMemo(
+    () =>
+      JSON.stringify([
+        selectedCustomer?.id,
+        [...selectedItems.entries()].sort(),
+        finalPrice,
+      ]),
+    [selectedCustomer?.id, selectedItems, finalPrice]
+  );
+  const prevSignature = useRef(requestSignature);
+  useEffect(() => {
+    if (prevSignature.current !== requestSignature) {
+      prevSignature.current = requestSignature;
+      setCreatedOrderId(null);
+    }
+  }, [requestSignature]);
+
   // ─── Stripe payment link ─────────────────────────────────────
 
   async function generateStripeLink() {
     if (!canSend) return;
     setStripeLoading(true);
     try {
+      const orderId = await ensureOrder();
+      if (!orderId) return;
+
       const itemNames = selectedProductsList
         .map(({ product, qty }) => `${product.name}${qty > 1 ? ` x${qty}` : ""}`)
         .join(", ");
@@ -210,6 +306,7 @@ function PaymentRequestContent() {
           amount: finalPrice,
           description: itemNames || "תשלום",
           customerId: selectedCustomer?.id,
+          orderId,
         }),
       });
 
@@ -227,6 +324,34 @@ function PaymentRequestContent() {
       toast.error("שגיאת רשת — נסה שוב");
     } finally {
       setStripeLoading(false);
+    }
+  }
+
+  // ─── WhatsApp send (order-first) ─────────────────────────────
+
+  async function handleSendWhatsApp() {
+    if (!canSend || sendingWhatsApp) return;
+    setSendingWhatsApp(true);
+    // Open the window synchronously (before any await) so mobile
+    // popup blockers don't eat the WhatsApp tab.
+    const waWindow = window.open("", "_blank");
+    try {
+      const orderId = await ensureOrder();
+      if (!orderId) {
+        waWindow?.close(); // order creation failed — do not send
+        return;
+      }
+      const url = buildWhatsAppUrl();
+      if (waWindow) {
+        waWindow.location.href = url;
+      } else {
+        window.location.href = url;
+      }
+    } catch {
+      waWindow?.close();
+      toast.error("שגיאת רשת — הבקשה לא נשלחה");
+    } finally {
+      setSendingWhatsApp(false);
     }
   }
 
@@ -292,20 +417,19 @@ function PaymentRequestContent() {
       <FinanceTabs />
       {/* WhatsApp Banner */}
       {canSend && (
-        <a
-          href={buildWhatsAppUrl()}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block bg-green-500 hover:bg-green-600 text-white rounded-2xl p-4 transition-colors shadow-md"
+        <button
+          onClick={handleSendWhatsApp}
+          disabled={sendingWhatsApp}
+          className="block w-full bg-green-500 hover:bg-green-600 text-white rounded-2xl p-4 transition-colors shadow-md disabled:opacity-60"
         >
           <div className="flex items-center justify-center gap-3">
-            <MessageCircle className="w-6 h-6" />
+            {sendingWhatsApp ? <Loader2 className="w-6 h-6 animate-spin" /> : <MessageCircle className="w-6 h-6" />}
             <span className="text-lg font-semibold">
-              שלח בקשת תשלום בוואטסאפ — ₪{finalPrice}
+              {sendingWhatsApp ? "יוצר הזמנה..." : `שלח בקשת תשלום בוואטסאפ — ₪${finalPrice}`}
             </span>
             <Send className="w-5 h-5" />
           </div>
-        </a>
+        </button>
       )}
 
       {/* Page Title */}
@@ -661,17 +785,16 @@ function PaymentRequestContent() {
 
                 {/* WhatsApp Send Button */}
                 {canSend ? (
-                  <a
-                    href={buildWhatsAppUrl()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white text-center text-sm font-semibold transition-colors"
+                  <button
+                    onClick={handleSendWhatsApp}
+                    disabled={sendingWhatsApp}
+                    className="block w-full py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white text-center text-sm font-semibold transition-colors disabled:opacity-60"
                   >
                     <span className="flex items-center justify-center gap-2">
-                      <MessageCircle className="w-4 h-4" />
-                      שלח בוואטסאפ
+                      {sendingWhatsApp ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
+                      {sendingWhatsApp ? "יוצר הזמנה..." : "שלח בוואטסאפ"}
                     </span>
-                  </a>
+                  </button>
                 ) : (
                   <div className="py-3 rounded-xl bg-slate-100 text-slate-400 text-center text-sm">
                     {!selectedCustomer ? "בחר לקוח כדי לשלוח" : "הוסף מוצרים כדי לשלוח"}
