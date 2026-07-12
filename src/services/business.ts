@@ -62,7 +62,7 @@ export interface UpdateBusinessSettingsInput {
   boardingCheckInTime?: string;
   boardingCheckOutTime?: string;
   boardingPricePerNight?: number;
-  customerTags?: string[];
+  customerTags?: string[] | string;
   cancellationPolicy?: string;
   bookingWelcomeText?: string;
   depositInstructions?: string;
@@ -162,11 +162,22 @@ export async function updateBusinessSettings(
   if (sdSettings !== undefined && typeof sdSettings === "object" && JSON.stringify(sdSettings).length > 10000) {
     throw new ServiceError("הגדרות כלבי שירות גדולות מדי", "VALIDATION");
   }
+  // customerTags is stored (and sent by clients) as a JSON string —
+  // Business.customerTags is a String column. Accept both the string
+  // wire format and a plain array; validate the parsed array either way.
+  let customerTagsArr: unknown = customerTags;
   if (customerTags !== undefined) {
+    if (typeof customerTagsArr === "string") {
+      try {
+        customerTagsArr = JSON.parse(customerTagsArr);
+      } catch {
+        throw new ServiceError("תגיות לקוח לא תקינות (מקסימום 100 תגיות, 50 תווים לכל אחת)", "VALIDATION");
+      }
+    }
     if (
-      !Array.isArray(customerTags) ||
-      customerTags.length > 100 ||
-      customerTags.some((t: unknown) => typeof t !== "string" || t.length > 50)
+      !Array.isArray(customerTagsArr) ||
+      customerTagsArr.length > 100 ||
+      customerTagsArr.some((t: unknown) => typeof t !== "string" || t.length > 50)
     ) {
       throw new ServiceError("תגיות לקוח לא תקינות (מקסימום 100 תגיות, 50 תווים לכל אחת)", "VALIDATION");
     }
@@ -209,7 +220,7 @@ export async function updateBusinessSettings(
   if (boardingCheckInTime !== undefined) data.boardingCheckInTime = boardingCheckInTime;
   if (boardingCheckOutTime !== undefined) data.boardingCheckOutTime = boardingCheckOutTime;
   if (boardingPricePerNight !== undefined) data.boardingPricePerNight = Number(boardingPricePerNight);
-  if (customerTags !== undefined) data.customerTags = customerTags;
+  if (customerTags !== undefined) data.customerTags = JSON.stringify(customerTagsArr);
   if (cancellationPolicy !== undefined) data.cancellationPolicy = cancellationPolicy;
   if (bookingWelcomeText !== undefined) data.bookingWelcomeText = bookingWelcomeText;
   if (depositInstructions !== undefined) data.depositInstructions = depositInstructions;
