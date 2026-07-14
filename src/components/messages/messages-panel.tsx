@@ -29,6 +29,7 @@ import {
 import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
 import { TEMPLATE_VARIABLES } from "@/lib/constants";
+import { usePlan } from "@/hooks/usePlan";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -441,6 +442,38 @@ function TemplatesTab() {
     queryFn: () => fetchJSON<MessageTemplate[]>("/api/messages?channel=whatsapp"),
   });
 
+  const { can } = usePlan();
+  const { data: bizSettings } = useQuery<{ whatsappRemindersEnabled: boolean; whatsappReminderLeadHours: number }>({
+    queryKey: ["settings"],
+    queryFn: () => fetchJSON("/api/settings"),
+  });
+
+  const reminderSettingsMutation = useMutation({
+    mutationFn: async (data: { whatsappRemindersEnabled?: boolean; whatsappReminderLeadHours?: number }) => {
+      const r = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.error || "שמירה נכשלה");
+      }
+      return r.json();
+    },
+    onSuccess: (_res, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      toast.success(
+        vars.whatsappRemindersEnabled === undefined
+          ? "זמן התזכורת עודכן"
+          : vars.whatsappRemindersEnabled
+            ? "תזכורות וואטסאפ הופעלו"
+            : "תזכורות וואטסאפ כובו"
+      );
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const saveMutation = useMutation({
     mutationFn: async (data: typeof form) => {
       // 1. Save template
@@ -604,6 +637,58 @@ function TemplatesTab() {
       {/* ── Automations tab ── */}
       {innerTab === "auto" && (
         <>
+        {bizSettings && can("whatsapp_reminders") && (
+          <div
+            className={cn(
+              "card p-4 mb-4 flex flex-wrap items-center gap-4",
+              !bizSettings.whatsappRemindersEnabled && "border-amber-300 bg-amber-50/60"
+            )}
+          >
+            <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+              <MessageSquare className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-[180px]">
+              <p className="text-sm font-semibold text-petra-text leading-snug">שליחת הודעות אוטומטיות בוואטסאפ</p>
+              <p className="text-xs text-petra-muted mt-0.5 leading-snug">
+                {bizSettings.whatsappRemindersEnabled
+                  ? "המערכת שולחת תזכורות והודעות אוטומטיות ללקוחות."
+                  : "כבוי — שום תזכורת או הודעה אוטומטית לא נשלחת ללקוחות, גם אם האוטומציות למטה פעילות."}
+              </p>
+            </div>
+            {bizSettings.whatsappRemindersEnabled && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-petra-muted whitespace-nowrap">תזכורת לפני תור:</span>
+                <select
+                  className="text-sm border border-slate-200 rounded-lg px-2 py-1 bg-white text-petra-text"
+                  value={bizSettings.whatsappReminderLeadHours}
+                  onChange={(e) => reminderSettingsMutation.mutate({ whatsappReminderLeadHours: Number(e.target.value) })}
+                  disabled={reminderSettingsMutation.isPending}
+                >
+                  <option value={24}>24 שעות</option>
+                  <option value={48}>48 שעות</option>
+                  <option value={72}>72 שעות</option>
+                  <option value={96}>96 שעות</option>
+                </select>
+              </div>
+            )}
+            <button
+              onClick={() => reminderSettingsMutation.mutate({ whatsappRemindersEnabled: !bizSettings.whatsappRemindersEnabled })}
+              disabled={reminderSettingsMutation.isPending}
+              className={cn(
+                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0",
+                bizSettings.whatsappRemindersEnabled ? "bg-emerald-500" : "bg-slate-300"
+              )}
+              title={bizSettings.whatsappRemindersEnabled ? "כבה הודעות אוטומטיות" : "הפעל הודעות אוטומטיות"}
+            >
+              <span
+                className={cn(
+                  "inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform",
+                  bizSettings.whatsappRemindersEnabled ? "translate-x-5" : "translate-x-0.5"
+                )}
+              />
+            </button>
+          </div>
+        )}
         <div className="space-y-3">
           {isLoading ? (
             [1, 2, 3, 4].map((i) => <div key={i} className="card p-4 animate-pulse h-16" />)

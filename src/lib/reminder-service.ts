@@ -5,6 +5,29 @@ import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 
 // ─── Appointment reminder scheduling ─────────────────────────────────────────
 
+/** UTC offset string for Asia/Jerusalem at the given instant, e.g. "+02:00" / "+03:00" */
+function jerusalemOffset(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: "Asia/Jerusalem",
+    timeZoneName: "shortOffset",
+  }).formatToParts(date);
+  const tzPart = parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT+2";
+  const match = tzPart.match(/GMT([+-])(\d+)(?::(\d+))?/);
+  if (!match) return "+02:00";
+  return `${match[1]}${String(match[2]).padStart(2, "0")}:${String(match[3] ?? "0").padStart(2, "0")}`;
+}
+
+/**
+ * True UTC instant of an Israel-local wall time.
+ * `date` carries the calendar day (stored as midnight UTC), `timeHHmm` is Israel local.
+ * Computing this with Date.setHours() on the server would use the server TZ (UTC on
+ * Vercel) and shift every reminder ~3 hours late.
+ */
+export function israelDateTime(date: Date, timeHHmm: string): Date {
+  const dayStr = date.toISOString().slice(0, 10);
+  return new Date(`${dayStr}T${timeHHmm}:00${jerusalemOffset(date)}`);
+}
+
 interface AppointmentForReminder {
   id: string;
   businessId: string;
@@ -32,9 +55,7 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
   const overrides = (bizSettings.featureOverrides as Record<string, boolean> | null) ?? null;
   if (!hasFeatureWithOverrides(bizSettings.tier, "whatsapp_reminders", overrides)) return null;
 
-  const [h, m] = appt.startTime.split(":").map(Number);
-  const apptDatetime = new Date(appt.date);
-  apptDatetime.setHours(h, m, 0, 0);
+  const apptDatetime = israelDateTime(appt.date, appt.startTime);
 
   // Look up active appointment_reminder rule for this business
   const rule = await prisma.automationRule.findFirst({
@@ -64,6 +85,7 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
     weekday: "long",
     day: "numeric",
     month: "long",
+    timeZone: "Asia/Jerusalem",
   }).format(apptDatetime);
 
   let body: string;
@@ -128,9 +150,7 @@ export async function scheduleAppointmentFollowup(appt: AppointmentForReminder) 
   });
   if (!rule) return null;
 
-  const [h, m] = appt.startTime.split(":").map(Number);
-  const apptDatetime = new Date(appt.date);
-  apptDatetime.setHours(h, m, 0, 0);
+  const apptDatetime = israelDateTime(appt.date, appt.startTime);
 
   const offsetHours = rule.triggerOffset ?? 24;
   const sendAt = new Date(apptDatetime.getTime() + offsetHours * 60 * 60 * 1000);
@@ -143,7 +163,7 @@ export async function scheduleAppointmentFollowup(appt: AppointmentForReminder) 
   if (existing) return null;
 
   const formattedDate = new Intl.DateTimeFormat("he-IL", {
-    weekday: "long", day: "numeric", month: "long",
+    weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Jerusalem",
   }).format(apptDatetime);
   const bizPhone = rule.business?.phone ?? bizSettings.phone ?? "";
 
@@ -251,6 +271,7 @@ export async function scheduleBoardingCheckoutReminder(stay: BoardingStayForRemi
     weekday: "long",
     day: "numeric",
     month: "long",
+    timeZone: "Asia/Jerusalem",
   }).format(stay.checkOut);
 
   let body: string;
@@ -561,11 +582,13 @@ function buildReminderMessages(
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Asia/Jerusalem",
   }).format(sessionDate);
 
   const formattedTime = new Intl.DateTimeFormat("he-IL", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Asia/Jerusalem",
   }).format(sessionDate);
 
   const payload = {
@@ -668,7 +691,7 @@ export async function scheduleServiceDogMeetingReminder(meeting: ServiceDogMeeti
   if (existing) return null;
 
   const formattedDate = new Intl.DateTimeFormat("he-IL", {
-    weekday: "long", day: "numeric", month: "long",
+    weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Jerusalem",
   }).format(meeting.meetingDate);
   const formattedTime = meeting.meetingDate.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jerusalem" });
   const typeLabel = MEETING_TYPE_LABELS[meeting.meetingType] ?? MEETING_TYPE_LABELS.OTHER;
@@ -745,11 +768,12 @@ export async function scheduleTrainingSessionReminder(data: TrainingSessionForRe
     weekday: "long",
     day: "numeric",
     month: "long",
+    timeZone: "Asia/Jerusalem",
   }).format(data.sessionDate);
 
   const hasExplicitTime = !(data.sessionDate.getUTCHours() === 0 && data.sessionDate.getUTCMinutes() === 0);
   const formattedTime = hasExplicitTime
-    ? new Intl.DateTimeFormat("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false }).format(data.sessionDate)
+    ? new Intl.DateTimeFormat("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem" }).format(data.sessionDate)
     : null;
 
   const bizPhone = bizSettings.phone ?? "";

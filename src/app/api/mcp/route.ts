@@ -23,6 +23,7 @@ import { listOrders, createOrder } from "@/services/orders";
 import { getBusinessOverview } from "@/services/business";
 import { ServiceError } from "@/services/types";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { scheduleAppointmentReminder, rescheduleAppointmentReminder, cancelAppointmentReminders } from "@/lib/reminder-service";
 
 // ─── Tool helper ─────────────────────────────────────────────────────────────
 
@@ -185,6 +186,18 @@ function buildServer(businessId: string, connectionId: string): McpServer {
           endTime,
           notes: notes ?? null,
         });
+        // Schedule the WhatsApp reminder like the UI route does (awaited — Vercel kills stray promises)
+        await scheduleAppointmentReminder({
+          id: appt.id,
+          businessId,
+          customerId: appt.customerId,
+          date: appt.date,
+          startTime: appt.startTime,
+          service: { name: appt.service?.name ?? "תור" },
+          customer: { name: appt.customer?.name ?? "לקוח" },
+          pet: appt.pet ? { name: appt.pet.name } : null,
+        }).catch((err) => console.error("MCP create_appointment reminder scheduling failed:", err));
+
         await auditLog(connectionId, "create_appointment", params, "success", `created appointment ${appt.id}`);
         return textResult(`✅ נקבע תור בהצלחה!\nמזהה: ${appt.id}\nתאריך: ${date} בשעה ${start_time}`);
       } catch (e) {
@@ -470,6 +483,24 @@ function buildServer(businessId: string, connectionId: string): McpServer {
           status: status ?? undefined,
           notes: notes !== undefined ? notes : undefined,
         });
+        // Keep the WhatsApp reminder in sync (awaited — Vercel kills stray promises)
+        if (status === "canceled") {
+          await cancelAppointmentReminders(appt.id).catch((err) =>
+            console.error("MCP update_appointment reminder cancel failed:", err)
+          );
+        } else if (date !== undefined || start_time !== undefined) {
+          await rescheduleAppointmentReminder({
+            id: appt.id,
+            businessId,
+            customerId: appt.customerId,
+            date: appt.date,
+            startTime: appt.startTime,
+            service: { name: appt.service?.name ?? "תור" },
+            customer: { name: appt.customer?.name ?? "לקוח" },
+            pet: appt.pet ? { name: appt.pet.name } : null,
+          }).catch((err) => console.error("MCP update_appointment reminder reschedule failed:", err));
+        }
+
         await auditLog(connectionId, "update_appointment", params, "success", `updated appointment ${appointment_id}`);
         return textResult(`✅ תור עודכן בהצלחה!\nמזהה: ${appt.id}\nתאריך: ${appt.date}${appt.startTime ? ` בשעה ${appt.startTime}` : ""}\nסטטוס: ${appt.status}`);
       } catch (e) {
@@ -495,6 +526,9 @@ function buildServer(businessId: string, connectionId: string): McpServer {
           status: "canceled",
           cancellationNote: reason ?? null,
         });
+        await cancelAppointmentReminders(appointment_id).catch((err) =>
+          console.error("MCP cancel_appointment reminder cancel failed:", err)
+        );
         await auditLog(connectionId, "cancel_appointment", params, "success", `cancelled appointment ${appointment_id}`);
         return textResult(`✅ תור בוטל בהצלחה.${reason ? `\nסיבה: ${reason}` : ""}`);
       } catch (e) {

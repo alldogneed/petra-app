@@ -6,6 +6,68 @@ import prisma from "@/lib/prisma";
 import { sendWhatsAppMessage, sendWhatsAppTemplate, interpolateTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone, formatDate, formatTime } from "@/lib/utils";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
+import { israelDateTime } from "@/lib/reminder-service";
+
+/**
+ * True when the event a pre-event reminder points at has already started,
+ * was canceled, or no longer exists — sending it now would confuse the customer
+ * (the daily/late cron can pick up a reminder hours after its sendAt).
+ * Post-event message types (follow-ups, thank-yous, birthdays) return false.
+ */
+async function isEventExpired(msg: {
+  relatedEntityType: string | null;
+  relatedEntityId: string | null;
+}): Promise<boolean> {
+  if (!msg.relatedEntityType || !msg.relatedEntityId) return false;
+  const now = new Date();
+  try {
+    switch (msg.relatedEntityType) {
+      case "APPOINTMENT": {
+        const appt = await prisma.appointment.findUnique({
+          where: { id: msg.relatedEntityId },
+          select: { date: true, startTime: true, status: true },
+        });
+        if (!appt || appt.status === "canceled") return true;
+        return israelDateTime(appt.date, appt.startTime) <= now;
+      }
+      case "TRAINING_SESSION": {
+        const s = await prisma.trainingProgramSession.findUnique({
+          where: { id: msg.relatedEntityId },
+          select: { sessionDate: true, status: true },
+        });
+        if (!s || s.status === "CANCELED") return true;
+        // Date-only sessions (midnight UTC) get end-of-day grace
+        const dateOnly = s.sessionDate.getUTCHours() === 0 && s.sessionDate.getUTCMinutes() === 0;
+        const cutoff = dateOnly ? new Date(s.sessionDate.getTime() + 24 * 60 * 60 * 1000) : s.sessionDate;
+        return cutoff <= now;
+      }
+      case "GROUP_SESSION": {
+        const s = await prisma.trainingGroupSession.findUnique({
+          where: { id: msg.relatedEntityId },
+          select: { sessionDatetime: true, status: true },
+        });
+        if (!s || s.status === "CANCELED") return true;
+        return s.sessionDatetime <= now;
+      }
+      case "BOARDING": {
+        const stay = await prisma.boardingStay.findUnique({
+          where: { id: msg.relatedEntityId },
+          select: { checkOut: true },
+        });
+        if (!stay?.checkOut) return true;
+        return stay.checkOut <= now;
+      }
+      case "SERVICE_DOG_MEETING": {
+        const iso = msg.relatedEntityId.split("__")[1];
+        return iso ? new Date(iso) <= now : false;
+      }
+      default:
+        return false;
+    }
+  } catch {
+    return false; // on lookup failure, fall through to normal send
+  }
+}
 
 /**
  * Create a 48-hour WhatsApp reminder for an order.
@@ -85,6 +147,12 @@ export async function processPendingReminders(): Promise<{
       }
       const overrides = (biz.featureOverrides as Record<string, boolean> | null) ?? null;
       if (!hasFeatureWithOverrides(biz.tier, "whatsapp_reminders", overrides)) {
+        await prisma.scheduledMessage.update({ where: { id: msg.id }, data: { status: "CANCELED" } });
+        continue;
+      }
+
+      // Skip reminders whose event already started / was canceled / was deleted
+      if (await isEventExpired(msg)) {
         await prisma.scheduledMessage.update({ where: { id: msg.id }, data: { status: "CANCELED" } });
         continue;
       }
