@@ -62,11 +62,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "תוכן ארוך מדי (מקסימום 5000 תווים)" }, { status: 400 });
     }
 
-    // Validate actionUrl format if provided
+    // Validate actionUrl format if provided.
+    // The notification bell routes with router.push(), so internal deep-links like
+    // "/calendar" must be allowed — but reject protocol-relative "//host" (open redirect).
     if (actionUrl?.trim()) {
       const trimmedUrl = actionUrl.trim();
-      if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://")) {
-        return NextResponse.json({ error: "actionUrl must start with http:// or https://" }, { status: 400 });
+      const isAbsolute = trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://");
+      const isInternalPath = trimmedUrl.startsWith("/") && !trimmedUrl.startsWith("//");
+      if (!isAbsolute && !isInternalPath) {
+        return NextResponse.json(
+          { error: "actionUrl חייב להיות נתיב פנימי (למשל /calendar) או כתובת http/https מלאה" },
+          { status: 400 }
+        );
       }
     }
 
