@@ -239,10 +239,10 @@ export default function AdminMessagesPage() {
                   כתובת קישור (אופציונלי)
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   value={actionUrl}
                   onChange={(e) => setActionUrl(e.target.value)}
-                  placeholder="https://..."
+                  placeholder="/calendar  או  https://..."
                   dir="ltr"
                   className="w-full px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-orange-500 placeholder:text-slate-600"
                   style={{ background: "#0A0A0F", border: "1px solid #1E1E2E", color: "#E2E8F0" }}
