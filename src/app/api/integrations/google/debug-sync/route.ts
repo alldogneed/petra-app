@@ -91,8 +91,8 @@ export async function GET() {
       select: {
         id: true, businessId: true, date: true, startTime: true, endTime: true,
         status: true, notes: true, gcalEventId: true,
-        service: { select: { name: true, price: true } },
-        priceListItem: { select: { name: true, basePrice: true } },
+        service: { select: { name: true, price: true, type: true } },
+        priceListItem: { select: { name: true, basePrice: true, category: true } },
         customer: { select: { name: true, phone: true, email: true, address: true } },
         pet: { select: { name: true } },
       },
