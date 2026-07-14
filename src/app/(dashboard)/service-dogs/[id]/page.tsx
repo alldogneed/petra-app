@@ -162,6 +162,7 @@ interface FeedingEntry {
   foodType?: string;
   foodGramsPerDay?: number;
   foodFrequency?: string;
+  dogWeightKg?: number;
   foodNotes?: string;
 }
 
@@ -2010,9 +2011,8 @@ const ADI_TEST_CATEGORIES = [
 const ADI_TEST_CATEGORY_MAP = Object.fromEntries(ADI_TEST_CATEGORIES.map((c) => [c.key, c.label]));
 
 const TEST_TYPES = [
-  { id: "SIMBA_PUBLIC_SPACE", label: "מבחן כשירות במרחב הציבורי (סימבה)" },
-  { id: "SIMBA_FUNCTIONAL_TASKS", label: "מבחן משימות תפקודיות (סימבה)" },
-  { id: "SIMBA_COMBINED", label: "מבחן כשירות במרחב הציבורי+משימות (סימבה)" },
+  { id: "SIMBA_COMBINED", label: "מבחן הסמכה" },
+  { id: "SIMBA_PUBLIC_SPACE", label: "מבחן כשירות שנתי במרחב הציבורי" },
   { id: "INITIAL_EVAL", label: "הערכה ראשונית" },
   { id: "PROGRESS_TEST", label: "בחינת התקדמות" },
   { id: "PRE_CERT", label: "טרום הסמכה" },
@@ -2020,7 +2020,14 @@ const TEST_TYPES = [
   { id: "ANNUAL_RETEST", label: "בחינה שנתית מחזורית" },
   { id: "OTHER", label: "אחר" },
 ];
-const TEST_TYPE_MAP = Object.fromEntries(TEST_TYPES.map((t) => [t.id, t.label]));
+// Labels for test types that can no longer be created but may exist on old records
+const LEGACY_TEST_TYPE_LABELS: Record<string, string> = {
+  SIMBA_FUNCTIONAL_TASKS: "מבחן משימות תפקודיות (סימבה)",
+};
+const TEST_TYPE_MAP: Record<string, string> = {
+  ...LEGACY_TEST_TYPE_LABELS,
+  ...Object.fromEntries(TEST_TYPES.map((t) => [t.id, t.label])),
+};
 
 // ─── Simba Public Space Fitness Test tasks ────────────────────────────────────
 const SIMBA_PUBLIC_SPACE_TASKS = [
@@ -2398,7 +2405,7 @@ function AddTrainingTestModal({
   allDogs: { id: string; pet: { name: string } }[];
 }) {
   const [selectedDogId, setSelectedDogId] = useState(currentDogId);
-  const [testType, setTestType] = useState("SIMBA_PUBLIC_SPACE");
+  const [testType, setTestType] = useState("SIMBA_COMBINED");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [examinerName, setExaminerName] = useState("");
   const [overallResult, setOverallResult] = useState<"PASS" | "FAIL" | "CONDITIONAL_PASS">("PASS");
@@ -2562,6 +2569,31 @@ function AddTrainingTestModal({
                 <option value="CONDITIONAL_PASS">עבר עם הערות</option>
                 <option value="FAIL">נכשל ✗</option>
               </select>
+            </div>
+          </div>
+
+          {/* File upload */}
+          <div>
+            <label className="label">העלאת קובץ המבחן (אופציונלי)</label>
+            <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 flex items-center gap-3">
+              <input
+                type="file"
+                id="test-file-upload"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                className="hidden"
+              />
+              <label htmlFor="test-file-upload" className="btn-secondary text-xs cursor-pointer px-3 py-1.5 shrink-0">
+                בחר קובץ
+              </label>
+              <span className="text-xs text-petra-muted truncate flex-1">
+                {selectedFile ? selectedFile.name : "PDF, Word, תמונה — עד 10MB"}
+              </span>
+              {selectedFile && (
+                <button type="button" onClick={() => setSelectedFile(null)} className="text-xs text-red-500 hover:text-red-600 shrink-0">
+                  הסר
+                </button>
+              )}
             </div>
           </div>
           {isSimbaTest && (
@@ -2758,31 +2790,6 @@ function AddTrainingTestModal({
               <p className="text-xs text-petra-muted mt-1">תוצג התראה כשמועד החידוש מתקרב</p>
             </div>
           )}
-
-          {/* File upload */}
-          <div>
-            <label className="label">העלאת קובץ המבחן (אופציונלי)</label>
-            <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 flex items-center gap-3">
-              <input
-                type="file"
-                id="test-file-upload"
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-                className="hidden"
-              />
-              <label htmlFor="test-file-upload" className="btn-secondary text-xs cursor-pointer px-3 py-1.5 shrink-0">
-                בחר קובץ
-              </label>
-              <span className="text-xs text-petra-muted truncate flex-1">
-                {selectedFile ? selectedFile.name : "PDF, Word, תמונה — עד 10MB"}
-              </span>
-              {selectedFile && (
-                <button type="button" onClick={() => setSelectedFile(null)} className="text-xs text-red-500 hover:text-red-600 shrink-0">
-                  הסר
-                </button>
-              )}
-            </div>
-          </div>
 
           {/* ADI categories — only for non-Simba test types */}
           {!isSimbaTest && (
@@ -3595,10 +3602,6 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
             <p className="font-medium">{dog.intakeDate ? formatDate(dog.intakeDate) : <span className="text-petra-muted text-xs">לא הוזן</span>}</p>
           </div>
           <div>
-            <p className="text-xs text-petra-muted">משקל</p>
-            <p className="font-medium">{pet.weight ? `${pet.weight} ק״ג` : <span className="text-petra-muted text-xs">לא הוזן</span>}</p>
-          </div>
-          <div>
             <p className="text-xs text-petra-muted">צבע</p>
             <p className="font-medium">{pet.color || <span className="text-petra-muted text-xs">לא הוזן</span>}</p>
           </div>
@@ -3710,18 +3713,16 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
             return (
               <div className="space-y-2">
                 {history.map((entry, idx) => (
-                  <div key={entry.id} className={`flex items-start justify-between p-3 rounded-xl border group ${idx === 0 ? "bg-amber-50/50 border-amber-200" : "bg-slate-50/50"}`}>
-                    <div className="text-sm space-y-0.5 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {idx === 0 && <span className="text-[10px] font-semibold bg-amber-500 text-white px-1.5 py-0.5 rounded">עדכני</span>}
-                        <span className="font-medium">{entry.foodBrand}{entry.foodType ? ` — ${entry.foodType}` : ""}</span>
-                      </div>
-                      <div className="flex gap-4 text-xs text-petra-muted flex-wrap">
-                        {entry.foodGramsPerDay && <span>כמות: {entry.foodGramsPerDay} גרם/יום</span>}
-                        {entry.foodFrequency && <span>תדירות: {entry.foodFrequency}</span>}
-                        {entry.date && <span className="text-slate-400">{formatDate(entry.date)}</span>}
-                      </div>
-                      {entry.foodNotes && <p className="text-xs text-petra-muted">{entry.foodNotes}</p>}
+                  <div key={entry.id} className={`flex items-center justify-between p-3 rounded-xl border group ${idx === 0 ? "bg-amber-50/50 border-amber-200" : "bg-slate-50/50"}`}>
+                    {/* Single line, ordered: date · brand+type · amount · frequency · dog weight · notes */}
+                    <div className="flex items-center gap-x-3 gap-y-0.5 text-sm flex-wrap flex-1 min-w-0">
+                      {idx === 0 && <span className="text-[10px] font-semibold bg-amber-500 text-white px-1.5 py-0.5 rounded shrink-0">עדכני</span>}
+                      {entry.date && <span className="text-xs text-slate-400 shrink-0">{formatDate(entry.date)}</span>}
+                      <span className="font-medium">{entry.foodBrand}{entry.foodType ? ` — ${entry.foodType}` : ""}</span>
+                      {entry.foodGramsPerDay && <span className="text-xs text-petra-muted">כמות: {entry.foodGramsPerDay} גרם/יום</span>}
+                      {entry.foodFrequency && <span className="text-xs text-petra-muted">תדירות: {entry.foodFrequency}</span>}
+                      {entry.dogWeightKg && <span className="text-xs text-petra-muted">משקל כלב: {entry.dogWeightKg} ק״ג</span>}
+                      {entry.foodNotes && <span className="text-xs text-petra-muted truncate">{entry.foodNotes}</span>}
                     </div>
                     <button
                       className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded hover:bg-red-100 transition-all shrink-0"
@@ -4175,7 +4176,6 @@ function EditPetModal({
   const [birthDate, setBirthDate] = useState(
     pet.birthDate ? new Date(pet.birthDate).toISOString().slice(0, 10) : ""
   );
-  const [weight, setWeight] = useState(pet.weight != null ? String(pet.weight) : "");
   const [color, setColor] = useState(pet.color ?? "");
   const [microchip, setMicrochip] = useState(pet.microchip ?? "");
   const [neuteredSpayed, setNeuteredSpayed] = useState(pet.health?.neuteredSpayed ?? false);
@@ -4200,7 +4200,6 @@ function EditPetModal({
           breed: breed.trim() || null,
           gender: gender || null,
           birthDate: birthDate || null,
-          weight: weight ? parseFloat(weight) : null,
           color: color.trim() || null,
           microchip: microchip.trim() || null,
           neuteredSpayed,
@@ -4251,10 +4250,6 @@ function EditPetModal({
           <div>
             <label className="label text-xs">תאריך לידה</label>
             <input type="date" lang="he" className="input w-full" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
-          </div>
-          <div>
-            <label className="label text-xs">משקל (ק״ג)</label>
-            <input type="number" min={0} step={0.1} className="input w-full" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0.0" />
           </div>
           <div>
             <label className="label text-xs">צבע הכלב</label>
@@ -5927,6 +5922,7 @@ function SDFeedingModal({
     foodType: latest?.foodType ?? "",
     foodGramsPerDay: (latest?.foodGramsPerDay ?? pet.foodGramsPerDay)?.toString() ?? "",
     foodFrequency: latest?.foodFrequency ?? pet.foodFrequency ?? "",
+    dogWeightKg: (latest?.dogWeightKg ?? pet.weight)?.toString() ?? "",
     foodNotes: latest?.foodNotes ?? pet.foodNotes ?? "",
     date: today,
   });
@@ -5940,6 +5936,7 @@ function SDFeedingModal({
         ...(form.foodType.trim() && { foodType: form.foodType.trim() }),
         ...(form.foodGramsPerDay && { foodGramsPerDay: parseFloat(form.foodGramsPerDay) }),
         ...(form.foodFrequency && { foodFrequency: form.foodFrequency }),
+        ...(form.dogWeightKg && { dogWeightKg: parseFloat(form.dogWeightKg) }),
         ...(form.foodNotes.trim() && { foodNotes: form.foodNotes.trim() }),
       };
       const newHistory = [newEntry, ...existingHistory];
@@ -5958,6 +5955,7 @@ function SDFeedingModal({
             foodGramsPerDay: form.foodGramsPerDay ? parseFloat(form.foodGramsPerDay) : null,
             foodFrequency: form.foodFrequency || null,
             foodNotes: form.foodNotes || null,
+            ...(form.dogWeightKg && { weight: parseFloat(form.dogWeightKg) }),
           }),
         }),
       ]);
@@ -5998,6 +5996,7 @@ function SDFeedingModal({
               <option value="4 פעמים ביום">4 פעמים ביום</option>
             </select>
           </div>
+          <div><label className="label">משקל כלב (ק״ג)</label><input className="input" type="number" min={0} step={0.1} placeholder="0.0" value={form.dogWeightKg} onChange={(e) => setForm({ ...form, dogWeightKg: e.target.value })} /></div>
           <div><label className="label">הערות</label><textarea className="input min-h-[60px]" value={form.foodNotes} onChange={(e) => setForm({ ...form, foodNotes: e.target.value })} /></div>
         </div>
         <div className="flex gap-3 mt-6">

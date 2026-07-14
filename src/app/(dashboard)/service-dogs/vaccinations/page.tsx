@@ -96,11 +96,16 @@ export default function VaccinationsPage() {
           )[0];
         }
       }
-      // Adults (and puppies with no done doses): show the most urgent upcoming/expiring entry
+      // Adults (and puppies with no done doses): show the most urgent upcoming/expiring entry.
+      // Among equally-ranked "done" entries, show the most RECENT one — otherwise a
+      // multi-dose treatment (e.g. תילוע) shows the first dose of the year forever.
       const sorted = [...entries].sort((a, b) => {
         const sa = getCellStatus(a), sb = getCellStatus(b);
         const order: Record<string, number> = { overdue: 0, soon: 1, upcoming: 2, unknown: 4, not_vaccinated: 3 };
-        return (order[sa] ?? 5) - (order[sb] ?? 5);
+        const diff = (order[sa] ?? 5) - (order[sb] ?? 5);
+        if (diff !== 0) return diff;
+        if (a.done && b.done) return new Date(b.done).getTime() - new Date(a.done).getTime();
+        return 0;
       });
       return sorted[0] ?? null;
     }

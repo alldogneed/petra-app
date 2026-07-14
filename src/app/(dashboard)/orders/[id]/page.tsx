@@ -240,6 +240,12 @@ export default function OrderDetailPage() {
     staleTime: 60_000,
   });
 
+  const { data: bizSettings } = useQuery<{ phone?: string | null }>({
+    queryKey: ["settings"],
+    queryFn: () => fetch("/api/settings").then((r) => r.json()),
+    staleTime: 300_000,
+  });
+
   useEffect(() => {
     if (order) {
       document.title = `הזמנה #${order.id.slice(-8).toUpperCase()} — ${order.customer.name} | Petra`;
@@ -382,7 +388,8 @@ export default function OrderDetailPage() {
       if (links.length === 0) {
         toast.warning("לא הוגדר קישור תשלום למוצרים בהזמנה — ההודעה נשלחת ללא לינק");
       }
-      const msg = `שלום ${name}! 🐾\n\n*דרישת תשלום*\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(order.total)}*${linkBlock}\n\nתודה שבחרתם בנו! 😊\n_לפניות ושאלות: ${order.customer.phone}_`;
+      const contactFooter = bizSettings?.phone ? `\n_לפניות ושאלות: ${bizSettings.phone}_` : "";
+      const msg = `שלום ${name}! 🐾\n\n*דרישת תשלום*\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(order.total)}*${linkBlock}\n\nתודה שבחרתם בנו! 😊${contactFooter}`;
       const waUrl = `https://wa.me/${toWhatsAppPhone(order.customer.phone)}?text=${encodeURIComponent(msg)}`;
       if (win) win.location.href = waUrl;
       else window.open(waUrl, "_blank");

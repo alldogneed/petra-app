@@ -54,6 +54,7 @@ interface OrderLineForm {
 }
 
 interface Business {
+  phone?: string | null;
   vatEnabled: boolean;
   vatRate: number;
   legalEntityType: string | null;
@@ -1526,7 +1527,7 @@ export function CreateOrderModal({
     const linkBlock = links.length > 0
       ? `\n\n💳 לתשלום מאובטח לחצו כאן:\n${links.join("\n")}`
       : "";
-    const footer = `\n\n_לפניות ושאלות: ${selectedCustomer?.phone ?? ""}_`;
+    const footer = business?.phone ? `\n\n_לפניות ושאלות: ${business.phone}_` : "";
 
     return `שלום ${name}! 🐾\n\n*דרישת תשלום*\nעבור: ${serviceNames}\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(calc.total)}*${linkBlock}\n\nתודה שבחרתם בנו! 😊${footer}`;
   };
