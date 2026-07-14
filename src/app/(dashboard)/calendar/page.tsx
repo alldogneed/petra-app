@@ -136,23 +136,83 @@ const VIEW_MODES: { id: ViewMode; label: string }[] = [
   { id: "agenda", label: "פריסה" },
 ];
 
-const SERVICE_TYPE_COLORS: Record<string, string> = {
-  training: "#3B82F6",
-  grooming: "#EC4899",
-  boarding: "#10B981",
-  daycare: "#F59E0B",
-  consultation: "#8B5CF6",
-  other: "#78716C",
-};
+// ─── Canonical calendar categories ───────────────────────────────────────────
+// Single source of truth for how every calendar event is classified, colored,
+// filtered, and mirrored to Google Calendar. Each event resolves to exactly one
+// CalCategory. Groups only control visual grouping of the filter chips.
+type CalCategory =
+  | "appointment"        // generic client appointment / הזמנה
+  | "grooming"           // תספורת
+  | "boarding"           // פנסיון (שהייה)
+  | "consultation"       // ייעוץ
+  | "training_home"      // אילוף בבית הלקוח
+  | "training_boarding"  // אילוף בתנאי פנסיון
+  | "training_group"     // אילוף קבוצתי
+  | "workshop"           // סדנאות
+  | "task"               // משימות
+  | "lead"               // מכירות / לידים
+  | "gcal";              // יומן גוגל (חיצוני)
 
-const SERVICE_TYPE_LABELS: Record<string, string> = {
-  training: "אילוף",
-  grooming: "טיפוח",
-  boarding: "פנסיון",
-  daycare: "דיי קר",
-  consultation: "ייעוץ",
-  other: "אחר",
-};
+type CalGroupKey = "customer" | "training" | "mgmt";
+
+interface CalCategoryDef {
+  key: CalCategory;
+  label: string;
+  color: string;
+  group: CalGroupKey;
+  gcalColorId?: string; // Google Calendar colorId (1–11), only for synced kinds
+  square?: boolean;     // render swatch as a square (tasks) instead of a dot
+}
+
+const CAL_CATEGORIES: CalCategoryDef[] = [
+  { key: "appointment",       label: "פגישות לקוח",        color: "#0EA5E9", group: "customer", gcalColorId: "7" },
+  { key: "grooming",          label: "תספורת",             color: "#EC4899", group: "customer", gcalColorId: "4" },
+  { key: "boarding",          label: "פנסיון (שהייה)",     color: "#10B981", group: "customer", gcalColorId: "10" },
+  { key: "consultation",      label: "ייעוץ",              color: "#8B5CF6", group: "customer", gcalColorId: "1" },
+  { key: "training_home",     label: "אילוף בבית הלקוח",   color: "#3B82F6", group: "training", gcalColorId: "9" },
+  { key: "training_boarding", label: "אילוף בתנאי פנסיון", color: "#1E40AF", group: "training", gcalColorId: "6" },
+  { key: "training_group",    label: "אילוף קבוצתי",       color: "#6366F1", group: "training", gcalColorId: "3" },
+  { key: "workshop",          label: "סדנאות",             color: "#F97316", group: "training", gcalColorId: "11" },
+  { key: "task",              label: "משימות",             color: "#F59E0B", group: "mgmt",     square: true },
+  { key: "lead",              label: "מכירות / לידים",     color: "#A855F7", group: "mgmt" },
+  { key: "gcal",              label: "יומן גוגל",          color: "#4285F4", group: "mgmt" },
+];
+
+const CAL_CATEGORY_MAP: Record<CalCategory, CalCategoryDef> = Object.fromEntries(
+  CAL_CATEGORIES.map((c) => [c.key, c])
+) as Record<CalCategory, CalCategoryDef>;
+
+const CAL_GROUPS: { key: CalGroupKey; label: string; keys: CalCategory[] }[] = [
+  { key: "customer", label: "הזמנות ושירותי לקוח", keys: ["appointment", "grooming", "boarding", "consultation"] },
+  { key: "training", label: "אילוף מקצועי", keys: ["training_home", "training_boarding", "training_group", "workshop"] },
+  { key: "mgmt", label: "ניהול ותפעול", keys: ["task", "lead", "gcal"] },
+];
+
+const ALL_CAL_CATEGORIES: CalCategory[] = CAL_CATEGORIES.map((c) => c.key);
+
+/** Resolve an appointment/booking to a canonical category from its service metadata. */
+function resolveAppointmentCategory(
+  service: { type: string } | null | undefined,
+  priceListItem?: { category: string | null } | null
+): CalCategory {
+  const type = service?.type ?? "";
+  const cat = priceListItem?.category ?? "";
+  if (type === "grooming" || cat === "טיפוח") return "grooming";
+  if (type === "boarding" || cat === "פנסיון") return "boarding";
+  if (type === "consultation" || cat === "ייעוץ") return "consultation";
+  if (type === "training" || cat === "אילוף") return "training_home";
+  return "appointment";
+}
+
+/** Map a TrainingProgram.trainingType to its calendar category. */
+function trainingProgramCategory(trainingType: string): CalCategory {
+  return trainingType === "BOARDING" ? "training_boarding" : "training_home";
+}
+
+/** Map a TrainingGroup.groupType to its calendar category. */
+function trainingGroupCategory(groupType: string): CalCategory {
+  return groupType === "WORKSHOP" ? "workshop" : "training_group";
+}
 
 const TASK_PRIORITY_COLORS: Record<string, string> = {
   URGENT: "#EF4444",
@@ -264,20 +324,12 @@ function computeOverlapLanes(
   return result;
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  אילוף: "#3B82F6",
-  טיפוח: "#EC4899",
-  פנסיון: "#10B981",
-  מוצרים: "#F97316",
-};
-
 function getAppointmentColor(
   service: { color: string | null; type: string } | null,
   priceListItem?: { category: string | null } | null
 ): string {
   if (service?.color) return service.color;
-  if (priceListItem?.category) return CATEGORY_COLORS[priceListItem.category] ?? "#78716C";
-  return SERVICE_TYPE_COLORS[service?.type ?? "other"] ?? "#78716C";
+  return CAL_CATEGORY_MAP[resolveAppointmentCategory(service, priceListItem)].color;
 }
 
 function getAppointmentLabel(apt: AppointmentEvent): string {
@@ -910,7 +962,17 @@ function CalendarContent() {
   const [rescheduleForm, setRescheduleForm] = useState({ date: "", startTime: "", endTime: "" });
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesInput, setNotesInput] = useState("");
-  const [serviceTypeFilters, setServiceTypeFilters] = useState<string[]>([]);
+  // Canonical filter state: the set of categories currently shown. Default = all.
+  const [activeCategories, setActiveCategories] = useState<Set<CalCategory>>(
+    () => new Set(ALL_CAL_CATEGORIES)
+  );
+  const toggleCategory = (key: CalCategory) =>
+    setActiveCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   const [showQuickPayment, setShowQuickPayment] = useState(false);
   const [hoveredApt, setHoveredApt] = useState<{
     apt: AppointmentEvent;
@@ -951,12 +1013,15 @@ function CalendarContent() {
   }, []);
 
   const [allDayCollapsed, setAllDayCollapsed] = useState(true);
-  const [showGcal, setShowGcal] = useState(true);
-  const [showGroupSessions, setShowGroupSessions] = useState(true);
-  const [showProgramSessions, setShowProgramSessions] = useState(true);
+  // Legacy overlay booleans, now derived from the canonical category set so the
+  // many `showX &&` render gates keep working unchanged.
+  const showGcal = activeCategories.has("gcal");
+  const showLeads = activeCategories.has("lead");
+  const showTasks = activeCategories.has("task");
+  const showGroupSessions = activeCategories.has("training_group") || activeCategories.has("workshop");
+  const showProgramSessions = activeCategories.has("training_home") || activeCategories.has("training_boarding");
   const [dragging, setDragging] = useState<{ apt: AppointmentEvent; durationMins: number; offsetMins: number } | null>(null);
   const [dropPreview, setDropPreview] = useState<{ date: string; startMins: number } | null>(null);
-  const [showLeads, setShowLeads] = useState(true);
   const [staffFilter, setStaffFilter] = useState<string[]>([]);
   const [resizing, setResizing] = useState<{ apt: AppointmentEvent; startY: number; origEndMins: number; currentEndMins: number } | null>(null);
   const resizingRef = useRef<typeof resizing>(null);
@@ -967,14 +1032,15 @@ function CalendarContent() {
   const [filtersRestored, setFiltersRestored] = useState(false);
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("petra-calendar-filters");
+      const raw = localStorage.getItem("petra-calendar-categories");
       if (raw) {
         const saved = JSON.parse(raw);
-        if (typeof saved.showGcal === "boolean") setShowGcal(saved.showGcal);
-        if (typeof saved.showLeads === "boolean") setShowLeads(saved.showLeads);
-        if (typeof saved.showGroupSessions === "boolean") setShowGroupSessions(saved.showGroupSessions);
-        if (typeof saved.showProgramSessions === "boolean") setShowProgramSessions(saved.showProgramSessions);
-        if (Array.isArray(saved.serviceTypeFilters)) setServiceTypeFilters(saved.serviceTypeFilters.filter((t: unknown) => typeof t === "string"));
+        if (Array.isArray(saved.categories)) {
+          const valid = saved.categories.filter(
+            (c: unknown): c is CalCategory => typeof c === "string" && (ALL_CAL_CATEGORIES as string[]).includes(c)
+          );
+          setActiveCategories(new Set(valid));
+        }
         if (Array.isArray(saved.staffFilter)) setStaffFilter(saved.staffFilter.filter((t: unknown) => typeof t === "string"));
       }
     } catch {
@@ -986,13 +1052,13 @@ function CalendarContent() {
     if (!filtersRestored) return;
     try {
       localStorage.setItem(
-        "petra-calendar-filters",
-        JSON.stringify({ showGcal, showLeads, showGroupSessions, showProgramSessions, serviceTypeFilters, staffFilter })
+        "petra-calendar-categories",
+        JSON.stringify({ categories: Array.from(activeCategories), staffFilter })
       );
     } catch {
       // ignore quota/private-mode errors
     }
-  }, [filtersRestored, showGcal, showLeads, showGroupSessions, showProgramSessions, serviceTypeFilters, staffFilter]);
+  }, [filtersRestored, activeCategories, staffFilter]);
 
   // Auto-scroll to current time when switching to day/week view
   useEffect(() => {
@@ -1055,23 +1121,13 @@ function CalendarContent() {
     staleTime: 60_000,
   });
 
-  const SERVICE_TYPE_TO_CATEGORY: Record<string, string> = {
-    training: "אילוף", grooming: "טיפוח", boarding: "פנסיון",
-  };
   const filteredAppointments = useMemo(
     () => appointments.filter((a) => {
-      if (serviceTypeFilters.length > 0) {
-        const matchType = serviceTypeFilters.some((filter) => {
-          if (a.service?.type === filter) return true;
-          const cat = SERVICE_TYPE_TO_CATEGORY[filter];
-          return cat ? a.priceListItem?.category === cat : false;
-        });
-        if (!matchType) return false;
-      }
+      if (!activeCategories.has(resolveAppointmentCategory(a.service, a.priceListItem))) return false;
       if (staffFilter.length > 0 && !staffFilter.includes(a.staff?.id ?? "__none__")) return false;
       return true;
     }),
-    [appointments, serviceTypeFilters, staffFilter]
+    [appointments, activeCategories, staffFilter]
   );
 
   const { data: teamMembers = [] } = useQuery<TeamMember[]>({
@@ -1092,11 +1148,13 @@ function CalendarContent() {
     enabled: viewMode !== "month",
   });
 
-  const { data: tasks = [] } = useQuery<TaskEvent[]>({
+  const { data: tasksRaw = [] } = useQuery<TaskEvent[]>({
     queryKey: ["tasks-calendar", from, to],
     queryFn: () =>
       fetchJSON(`/api/tasks?from=${from}&to=${to}&status=OPEN`),
   });
+  // Gate all task rendering through the "משימות" category toggle.
+  const tasks = useMemo(() => (showTasks ? tasksRaw : []), [showTasks, tasksRaw]);
 
   interface LeadFollowUp {
     id: string;
@@ -1119,46 +1177,22 @@ function CalendarContent() {
     enabled: viewMode !== "month",
   });
 
+  // Pending online bookings are customer-initiated → classify like appointments.
   const pendingBookings = useMemo(
-    () => serviceTypeFilters.length === 0
-      ? pendingBookingsRaw
-      : pendingBookingsRaw.filter((b) => serviceTypeFilters.includes(b.service.type)),
-    [pendingBookingsRaw, serviceTypeFilters]
+    () => pendingBookingsRaw.filter((b) =>
+      activeCategories.has(resolveAppointmentCategory(b.service, null))
+    ),
+    [pendingBookingsRaw, activeCategories]
   );
 
-  // Always show core service-type filters; rare types only when present in data
-  const CORE_SERVICE_TYPES = ["training", "grooming", "boarding"];
-  const activeServiceTypes = useMemo(() => {
-    const types = new Set<string>(CORE_SERVICE_TYPES);
-    for (const a of appointments) {
-      if (a.service?.type && SERVICE_TYPE_COLORS[a.service.type]) {
-        types.add(a.service.type);
-      } else if (a.priceListItem?.category === "אילוף") {
-        types.add("training");
-      } else if (a.priceListItem?.category === "טיפוח") {
-        types.add("grooming");
-      } else if (a.priceListItem?.category === "פנסיון") {
-        types.add("boarding");
-      } else if (!a.service?.type && !a.priceListItem) {
-        types.add("other");
-      }
-    }
-    for (const b of pendingBookingsRaw) {
-      if (SERVICE_TYPE_COLORS[b.service.type]) types.add(b.service.type);
-    }
-    return Object.keys(SERVICE_TYPE_COLORS).filter((t) => types.has(t));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appointments, pendingBookingsRaw]);
-
-  // Filter boarding stays — boarding stays are always "boarding" type.
-  // Show them when no filter or when "boarding" filter is active.
+  // Boarding stays are always the "boarding" (פנסיון) category.
   const filteredBoardingStays = useMemo(
     () => boardingStays.filter((s) => {
-      if (serviceTypeFilters.length > 0 && !serviceTypeFilters.includes("boarding")) return false;
+      if (!activeCategories.has("boarding")) return false;
       if (staffFilter.length > 0 && !staffFilter.includes(s.assignedTo?.id ?? "__none__")) return false;
       return true;
     }),
-    [boardingStays, serviceTypeFilters, staffFilter]
+    [boardingStays, activeCategories, staffFilter]
   );
 
   // ── Google Calendar external events overlay ──
@@ -1195,11 +1229,18 @@ function CalendarContent() {
     };
     attendance: { id: string }[];
   }
-  const { data: trainingGroupSessions = [] } = useQuery<TrainingGroupCalEvent[]>({
+  const { data: trainingGroupSessionsRaw = [] } = useQuery<TrainingGroupCalEvent[]>({
     queryKey: ["training-group-sessions-cal", from, to],
     queryFn: () => fetchJSON(`/api/training-groups/calendar?from=${from}&to=${to}`),
     staleTime: 2 * 60_000,
   });
+  // Split by category: workshops (סדנאות) vs. group training (אילוף קבוצתי)
+  const trainingGroupSessions = useMemo(
+    () => trainingGroupSessionsRaw.filter((s) =>
+      activeCategories.has(trainingGroupCategory(s.trainingGroup.groupType))
+    ),
+    [trainingGroupSessionsRaw, activeCategories]
+  );
 
   // ── Individual training-program sessions overlay ──
   interface TrainingProgramCalEvent {
@@ -1217,11 +1258,18 @@ function CalendarContent() {
       customer: { id: string; name: string } | null;
     };
   }
-  const { data: trainingProgramSessions = [] } = useQuery<TrainingProgramCalEvent[]>({
+  const { data: trainingProgramSessionsRaw = [] } = useQuery<TrainingProgramCalEvent[]>({
     queryKey: ["training-program-sessions-cal", from, to],
     queryFn: () => fetchJSON(`/api/training-programs/calendar?from=${from}&to=${to}`),
     staleTime: 2 * 60_000,
   });
+  // Split by category: home training (בבית) vs. boarding-condition training (בפנסיון)
+  const trainingProgramSessions = useMemo(
+    () => trainingProgramSessionsRaw.filter((s) =>
+      activeCategories.has(trainingProgramCategory(s.program.trainingType))
+    ),
+    [trainingProgramSessionsRaw, activeCategories]
+  );
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status, cancellationNote }: { id: string; status: string; cancellationNote?: string }) =>
@@ -1857,162 +1905,110 @@ function CalendarContent() {
         </div>
       </div>
 
-      {/* ── Color Legend / Service Type Filter ── */}
-      <div className="flex items-center gap-2 flex-nowrap overflow-x-auto pb-1.5 md:flex-wrap md:overflow-visible md:pb-0 mb-4 px-1 [&>*]:flex-shrink-0 [&>*]:whitespace-nowrap">
-        {/* הכל button */}
-        <button
-          onClick={() => { setServiceTypeFilters([]); setShowGcal(true); setShowLeads(true); setShowGroupSessions(true); setShowProgramSessions(true); setStaffFilter([]); }}
-          className={cn(
-            "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
-            serviceTypeFilters.length === 0 && showGcal && showLeads && showGroupSessions && showProgramSessions && staffFilter.length === 0
-              ? "border-petra-text font-medium shadow-sm bg-petra-text text-white"
-              : "border-petra-border hover:border-petra-text hover:bg-petra-bg text-petra-muted"
-          )}
-        >
-          הכל
-        </button>
-
-        {/* Service type filters - multi-select, only types present in loaded appointments */}
-        {activeServiceTypes.map((type) => {
-          const color = SERVICE_TYPE_COLORS[type];
-          const isActive = serviceTypeFilters.includes(type);
-          const isDimmed = serviceTypeFilters.length > 0 && !isActive;
-          return (
-            <button
-              key={type}
-              onClick={() =>
-                setServiceTypeFilters((prev) =>
-                  prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
-                )
-              }
-              className={cn(
-                "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
-                isActive
-                  ? "border-current font-medium shadow-sm"
-                  : isDimmed
-                  ? "border-transparent opacity-40 hover:opacity-70"
-                  : "border-transparent hover:border-petra-border hover:bg-petra-bg"
-              )}
-              style={{ color: isActive ? color : undefined }}
-              title={`סנן לפי ${SERVICE_TYPE_LABELS[type]}`}
-            >
-              <div
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ background: color }}
-              />
-              <span className={isDimmed ? "text-petra-muted" : isActive ? "" : "text-petra-muted"}>
-                {SERVICE_TYPE_LABELS[type]}
-              </span>
-            </button>
-          );
-        })}
-
-        <div className="w-px h-4 bg-petra-border mx-1" />
-
-        {/* Google Calendar toggle */}
-        <button
-          onClick={() => setShowGcal((v) => !v)}
-          className={cn(
-            "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
-            showGcal
-              ? "border-[#4285F4] font-medium shadow-sm text-[#4285F4]"
-              : "border-transparent opacity-40 hover:opacity-70 text-petra-muted"
-          )}
-          title="הצג/הסתר אירועי יומן גוגל"
-        >
-          <span className="text-[9px] font-bold bg-[#4285F4] text-white rounded px-1">G</span>
-          <span>יומן גוגל</span>
-        </button>
-
-        {/* Leads follow-up toggle */}
-        <button
-          onClick={() => setShowLeads((v) => !v)}
-          className={cn(
-            "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
-            showLeads
-              ? "border-violet-400 font-medium shadow-sm text-violet-600"
-              : "border-transparent opacity-40 hover:opacity-70 text-petra-muted"
-          )}
-          title="הצג/הסתר פולואפ מכירות"
-        >
-          <div className="w-2.5 h-2.5 rounded-full bg-violet-400 flex-shrink-0" />
-          <span>מכירות</span>
-        </button>
-
-        {/* Training group sessions toggle */}
-        {trainingGroupSessions.length > 0 && (
-          <button
-            onClick={() => setShowGroupSessions((v) => !v)}
-            className={cn(
-              "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
-              showGroupSessions
-                ? "border-purple-400 font-medium shadow-sm text-purple-600"
-                : "border-transparent opacity-40 hover:opacity-70 text-petra-muted"
-            )}
-            title="הצג/הסתר מפגשי קבוצות"
-          >
-            <div className="w-2.5 h-2.5 rounded-full bg-purple-400 flex-shrink-0" />
-            <span>קבוצות</span>
-          </button>
-        )}
-
-        {/* Training program sessions toggle */}
-        {trainingProgramSessions.length > 0 && (
-          <button
-            onClick={() => setShowProgramSessions((v) => !v)}
-            className={cn(
-              "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
-              showProgramSessions
-                ? "border-blue-400 font-medium shadow-sm text-blue-600"
-                : "border-transparent opacity-40 hover:opacity-70 text-petra-muted"
-            )}
-            title="הצג/הסתר מפגשי תוכניות אישיות"
-          >
-            <div className="w-2.5 h-2.5 rounded-full bg-blue-400 flex-shrink-0" />
-            <span>תוכניות</span>
-          </button>
-        )}
-
-        {/* Staff filter chips */}
-        {staffList.length > 0 && (
-          <>
-            <div className="w-px h-4 bg-petra-border mx-1" />
-            {staffList.map((s) => {
-              const isActive = staffFilter.includes(s.id);
+      {/* ── Filter: view lens + grouped category chips ── */}
+      <div className="mb-4 px-1 space-y-2">
+        {/* View-lens presets */}
+        <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0 [&>*]:flex-shrink-0 [&>*]:whitespace-nowrap">
+          <span className="text-[11px] text-petra-muted ml-0.5">תצוגה</span>
+          {(() => {
+            const lensEquals = (keys: CalCategory[]) =>
+              keys.length === activeCategories.size && keys.every((k) => activeCategories.has(k));
+            const lenses: { label: string; keys: CalCategory[] }[] = [
+              { label: "הכל", keys: ALL_CAL_CATEGORIES },
+              ...CAL_GROUPS.map((g) => ({
+                label: g.key === "customer" ? "הזמנות לקוח" : g.key === "training" ? "השירותים שלי" : "ניהול",
+                keys: g.keys,
+              })),
+            ];
+            return lenses.map((lens) => {
+              const active = lensEquals(lens.keys);
               return (
                 <button
-                  key={s.id}
-                  onClick={() =>
-                    setStaffFilter((prev) =>
-                      prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id]
-                    )
-                  }
+                  key={lens.label}
+                  onClick={() => setActiveCategories(new Set(lens.keys))}
                   className={cn(
-                    "flex items-center gap-1 text-xs px-2 py-1 rounded-full border transition-all",
-                    isActive
-                      ? "border-slate-600 font-medium bg-slate-700 text-white"
-                      : "border-transparent hover:border-petra-border hover:bg-petra-bg text-petra-muted"
+                    "text-xs px-3 py-1 rounded-full border transition-all",
+                    active
+                      ? "border-petra-text font-medium shadow-sm bg-petra-text text-white"
+                      : "border-petra-border hover:border-petra-text hover:bg-petra-bg text-petra-muted"
                   )}
-                  title={`סנן לפי ${s.name}`}
                 >
-                  <div className="w-4 h-4 rounded-full bg-slate-400 flex items-center justify-center text-[9px] text-white font-bold flex-shrink-0">
-                    {s.name.charAt(0)}
-                  </div>
-                  <span>{s.name.split(" ")[0]}</span>
+                  {lens.label}
                 </button>
               );
-            })}
-          </>
-        )}
-
-        <div className="w-px h-4 bg-petra-border mx-1" />
-        <div className="flex items-center gap-1.5 text-xs text-petra-muted px-1">
-          <div className="w-2.5 h-2.5 rounded border border-dashed border-orange-400 bg-white" />
-          <span>הזמנה</span>
+            });
+          })()}
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-petra-muted px-1">
-          <div className="w-2.5 h-2.5 rounded border-r-2 border-amber-400 bg-white border border-slate-200" />
-          <span>משימה</span>
+
+        {/* Grouped category chips (legend + filter in one) */}
+        <div className="flex items-center gap-x-3 gap-y-2 flex-nowrap overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0 [&>*]:flex-shrink-0">
+          {CAL_GROUPS.map((group, gi) => (
+            <div key={group.key} className="flex items-center gap-1.5 whitespace-nowrap">
+              {gi > 0 && <div className="w-px h-4 bg-petra-border ml-1 hidden md:block" />}
+              <span className="text-[10px] tracking-wide text-petra-muted/80">{group.label}</span>
+              {group.keys.map((key) => {
+                const def = CAL_CATEGORY_MAP[key];
+                const isActive = activeCategories.has(key);
+                return (
+                  <button
+                    key={key}
+                    onClick={() => toggleCategory(key)}
+                    className={cn(
+                      "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all",
+                      isActive
+                        ? "border-current font-medium shadow-sm"
+                        : "border-transparent opacity-40 hover:opacity-70"
+                    )}
+                    style={{ color: isActive ? def.color : undefined }}
+                    title={`הצג/הסתר ${def.label}`}
+                  >
+                    {key === "gcal" ? (
+                      <span className="text-[9px] font-bold text-white rounded px-1 flex-shrink-0" style={{ background: def.color }}>G</span>
+                    ) : (
+                      <div
+                        className={cn("w-2.5 h-2.5 flex-shrink-0", def.square ? "rounded-sm" : "rounded-full")}
+                        style={{ background: def.color }}
+                      />
+                    )}
+                    <span className={isActive ? "" : "text-petra-muted"}>{def.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+
+          {/* Staff filter chips */}
+          {staffList.length > 0 && (
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <div className="w-px h-4 bg-petra-border ml-1 hidden md:block" />
+              <span className="text-[10px] tracking-wide text-petra-muted/80">צוות</span>
+              {staffList.map((s) => {
+                const isActive = staffFilter.includes(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() =>
+                      setStaffFilter((prev) =>
+                        prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id]
+                      )
+                    }
+                    className={cn(
+                      "flex items-center gap-1 text-xs px-2 py-1 rounded-full border transition-all",
+                      isActive
+                        ? "border-slate-600 font-medium bg-slate-700 text-white"
+                        : "border-transparent hover:border-petra-border hover:bg-petra-bg text-petra-muted"
+                    )}
+                    title={`סנן לפי ${s.name}`}
+                  >
+                    <div className="w-4 h-4 rounded-full bg-slate-400 flex items-center justify-center text-[9px] text-white font-bold flex-shrink-0">
+                      {s.name.charAt(0)}
+                    </div>
+                    <span>{s.name.split(" ")[0]}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

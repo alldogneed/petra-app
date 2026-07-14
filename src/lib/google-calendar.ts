@@ -265,6 +265,7 @@ interface GoogleEventPayload {
   start: { dateTime: string; timeZone: string };
   end: { dateTime: string; timeZone: string };
   location?: string;
+  colorId?: string;
   extendedProperties: {
     private: {
       petraBookingId: string;
@@ -646,11 +647,27 @@ type AppointmentForGcal = {
   status: string;
   notes: string | null;
   gcalEventId: string | null;
-  service: { name: string; price: number } | null;
-  priceListItem: { name: string; basePrice: number } | null;
+  service: { name: string; price: number; type: string | null } | null;
+  priceListItem: { name: string; basePrice: number; category: string | null } | null;
   customer: { name: string; phone: string; email: string | null; address: string | null };
   pet: { name: string } | null;
 };
+
+// Google Calendar colorId (1–11) per canonical service category, so events
+// carry the same visual language in Google as in the Petra calendar.
+// Keep in sync with CAL_CATEGORIES in src/app/(dashboard)/calendar/page.tsx.
+function appointmentGcalColorId(
+  service: { type: string | null } | null,
+  priceListItem: { category: string | null } | null
+): string {
+  const type = service?.type ?? "";
+  const cat = priceListItem?.category ?? "";
+  if (type === "grooming" || cat === "טיפוח") return "4";       // תספורת – Flamingo
+  if (type === "boarding" || cat === "פנסיון") return "10";     // פנסיון – Basil
+  if (type === "consultation" || cat === "ייעוץ") return "1";   // ייעוץ – Lavender
+  if (type === "training" || cat === "אילוף") return "9";       // אילוף בבית – Blueberry
+  return "7";                                                    // פגישת לקוח – Peacock
+}
 
 /** Returns the UTC offset string for Asia/Jerusalem on the given date, e.g. "+02:00" or "+03:00" */
 function getJerusalemOffset(date: Date): string {
@@ -710,6 +727,7 @@ export function buildAppointmentEventPayload(appt: AppointmentForGcal, appBaseUr
     description,
     start: { dateTime: startDateTime, timeZone: BOOKING_TIMEZONE },
     end: { dateTime: endDateTime, timeZone: BOOKING_TIMEZONE },
+    colorId: appointmentGcalColorId(appt.service, appt.priceListItem),
     ...(location ? { location } : {}),
     extendedProperties: {
       private: { petraAppointmentId: appt.id, businessId: appt.businessId, source: "petra" },
@@ -723,8 +741,8 @@ async function fetchAppointmentForGcal(appointmentId: string): Promise<Appointme
     select: {
       id: true, businessId: true, date: true, startTime: true, endTime: true,
       status: true, notes: true, gcalEventId: true,
-      service: { select: { name: true, price: true } },
-      priceListItem: { select: { name: true, basePrice: true } },
+      service: { select: { name: true, price: true, type: true } },
+      priceListItem: { select: { name: true, basePrice: true, category: true } },
       customer: { select: { name: true, phone: true, email: true, address: true } },
       pet: { select: { name: true } },
     },
@@ -1007,7 +1025,7 @@ export async function syncTrainingProgramSessionToGcal(sessionId: string, busine
       id: true, sessionDate: true, durationMinutes: true, status: true, gcalEventId: true, summary: true, trainerName: true,
       program: {
         select: {
-          businessId: true, name: true,
+          businessId: true, name: true, trainingType: true,
           dog: { select: { name: true } },
           customer: { select: { name: true, phone: true, address: true } },
         },
@@ -1034,6 +1052,7 @@ export async function syncTrainingProgramSessionToGcal(sessionId: string, busine
     ].filter(Boolean).join("\n"),
     start: { dateTime: toIsraelIso(s.sessionDate), timeZone: BOOKING_TIMEZONE },
     end: { dateTime: toIsraelIso(new Date(s.sessionDate.getTime() + s.durationMinutes * 60000)), timeZone: BOOKING_TIMEZONE },
+    colorId: s.program.trainingType === "BOARDING" ? "6" : "9", // אילוף בפנסיון / אילוף בבית
     ...(cust?.address ? { location: cust.address } : {}),
     extendedProperties: { private: { petraTrainingProgramSessionId: s.id, businessId, source: "petra" } },
   };
@@ -1083,6 +1102,7 @@ export async function syncTrainingGroupSessionToGcal(sessionId: string, business
     ].filter(Boolean).join("\n"),
     start: { dateTime: toIsraelIso(s.sessionDatetime), timeZone: BOOKING_TIMEZONE },
     end: { dateTime: toIsraelIso(new Date(s.sessionDatetime.getTime() + DEFAULT_GROUP_DURATION_MIN * 60000)), timeZone: BOOKING_TIMEZONE },
+    colorId: isWorkshop ? "11" : "3", // סדנאות / אילוף קבוצתי
     extendedProperties: { private: { petraTrainingGroupSessionId: s.id, businessId, source: "petra" } },
   };
 
@@ -1143,6 +1163,7 @@ export async function syncBoardingToGcal(
     summary,
     start: { dateTime: startDateTime, timeZone: BOOKING_TIMEZONE },
     end: { dateTime: endDateTime, timeZone: BOOKING_TIMEZONE },
+    colorId: "10", // פנסיון – Basil
     description: [
       `🏠 פנסיון`,
       ``,
