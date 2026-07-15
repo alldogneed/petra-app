@@ -345,6 +345,8 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   });
   const systemMessages = sysMessagesData?.messages ?? [];
   const unreadCount = sysMessagesData?.unreadCount ?? 0;
+  // Full-content detail modal for a Petra platform message (content is line-clamped in the list)
+  const [selectedSysMsg, setSelectedSysMsg] = useState<SystemMessage | null>(null);
 
   // Business notifications — for bell icon (real-time critical business data)
   const { data: bizNotifsData } = useQuery<{ items: BizNotifItem[]; criticalCount: number }>({
@@ -552,10 +554,8 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                           key={msg.id}
                           onClick={() => {
                             if (!msg.isRead) markAsRead.mutate(msg.id);
-                            if (msg.actionUrl) {
-                              setMessagesOpen(false);
-                              router.push(msg.actionUrl);
-                            }
+                            setMessagesOpen(false);
+                            setSelectedSysMsg(msg);
                           }}
                           className={cn(
                             "flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0 cursor-pointer",
@@ -586,6 +586,69 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
               </div>
             )}
           </div>
+
+          {/* Petra Message Detail Modal — list rows clamp content to 2 lines */}
+          {selectedSysMsg && (
+            <div
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+              onClick={() => setSelectedSysMsg(null)}
+            >
+              <div
+                className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-fade-in"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-100">
+                  <div className="flex items-start gap-3 min-w-0">
+                    {(() => {
+                      const MsgIcon = NOTIF_TYPE_ICON[selectedSysMsg.type] ?? Info;
+                      const color = getNotifTypeColor(selectedSysMsg.type);
+                      return (
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                          style={{ background: `${color}18` }}
+                        >
+                          <MsgIcon className="w-4 h-4" style={{ color }} />
+                        </div>
+                      );
+                    })()}
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-petra-text leading-snug">{selectedSysMsg.title}</h3>
+                      <span className="text-[11px] text-slate-400">
+                        {getRelativeTimeLabel(new Date(selectedSysMsg.createdAt))}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedSysMsg(null)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0"
+                    aria-label="סגור"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="px-5 py-4 max-h-[60vh] overflow-y-auto">
+                  <p className="text-[13px] text-petra-text leading-relaxed whitespace-pre-wrap">
+                    {selectedSysMsg.content}
+                  </p>
+                </div>
+                {selectedSysMsg.actionUrl && (
+                  <div className="px-5 pb-4">
+                    <button
+                      onClick={() => {
+                        const url = selectedSysMsg.actionUrl!;
+                        setSelectedSysMsg(null);
+                        if (url.startsWith("/")) router.push(url);
+                        else window.open(url, "_blank", "noopener,noreferrer");
+                      }}
+                      className="w-full btn-primary text-sm py-2.5 rounded-xl"
+                    >
+                      {selectedSysMsg.actionLabel || "לפרטים נוספים"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Business Notifications Bell */}
           <div ref={notificationsRef} className="relative">
