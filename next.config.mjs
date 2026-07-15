@@ -67,7 +67,9 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'",
+              // Next.js dev mode needs eval for react-refresh/source maps; hydration
+              // dies silently without it. Production CSP stays eval-free.
+              `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
               // Sentry Replay compresses its payloads in a blob web worker;
               // without worker-src the script-src fallback blocks it on every page.
               "worker-src 'self' blob:",

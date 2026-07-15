@@ -64,6 +64,7 @@ interface TrainingGroup {
   defaultDayOfWeek: number | null;
   defaultTime: string | null;
   maxParticipants: number | null;
+  price: number | null;
   notes: string | null;
   startDate: string | null;
   endDate: string | null;
@@ -76,6 +77,10 @@ interface TrainingGroup {
 interface Participant {
   id: string;
   status: string;
+  orderId: string | null;
+  order: { id: string; status: string; total: number; paidAmount: number } | null;
+  attendedCount: number;
+  heldCount: number;
   dog: { id: string; name: string; breed: string | null };
   customer: { id: string; name: string; phone: string };
 }
@@ -1065,10 +1070,15 @@ function TrainingPageContent() {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: { status?: string; participant?: { status?: string } }) => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
       setShowAssignDog(null);
-      toast.success("הכלב נוסף לקבוצה");
+      const status = data?.status ?? data?.participant?.status;
+      if (status === "WAITLIST") {
+        toast.success("נוסף לרשימת ההמתנה");
+      } else {
+        toast.success("הכלב נוסף לקבוצה");
+      }
     },
     onError: (err: Error) => toast.error(err.message || "שגיאה בהוספת כלב לקבוצה"),
   });
@@ -4281,6 +4291,14 @@ function GroupCard({
   const [newSessionTime, setNewSessionTime] = useState(defaultTime);
   const [seriesCount, setSeriesCount] = useState(8);
 
+  // Workshop ops: capacity counts ACTIVE only (WAITLIST/DROPPED/PAUSED don't take seats)
+  const activeParticipants = group.participants.filter((p) => p.status === "ACTIVE");
+  const waitlistParticipants = group.participants.filter((p) => p.status === "WAITLIST");
+  const isFull = group.maxParticipants != null && activeParticipants.length >= group.maxParticipants;
+  const collectedAmount = activeParticipants.reduce((sum, p) => sum + (p.order?.paidAmount ?? 0), 0);
+  const expectedAmount = (group.price ?? 0) * activeParticipants.length;
+  const mainParticipants = isWorkshop ? activeParticipants : group.participants;
+
   const addSessionMutation = useMutation({
     mutationFn: () =>
       fetchJSON(`/api/training-groups/${group.id}/sessions`, {
@@ -4367,6 +4385,68 @@ function GroupCard({
     onError: () => toast.error("שגיאה במחיקת המפגש"),
   });
 
+  // Seed attendance rows for a session (idempotent); optional markAll bulk-sets everyone PRESENT
+  const seedAttendanceMutation = useMutation({
+    mutationFn: ({ sessionId, markAll }: { sessionId: string; markAll?: "PRESENT" }) =>
+      fetchJSON(`/api/training-groups/${group.id}/sessions/${sessionId}/attendance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(markAll ? { markAll } : {}),
+      }),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+      setExpandedAttendanceSession(vars.sessionId);
+      if (vars.markAll === "PRESENT") toast.success("כל המשתתפים סומנו כנוכחים");
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה בעדכון הנוכחות"),
+  });
+
+  // Promote WAITLIST → ACTIVE (workshops)
+  const promoteMutation = useMutation({
+    mutationFn: (participantId: string) =>
+      fetchJSON(`/api/training-groups/${group.id}/participants/${participantId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "promote" }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+      toast.success("המשתתף קודם מרשימת ההמתנה");
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה בקידום מרשימת ההמתנה"),
+  });
+
+  // Create payment-request Order for a workshop participant, then open WhatsApp
+  const createOrderMutation = useMutation({
+    mutationFn: (participantId: string) =>
+      fetchJSON<{
+        order: { id: string; total: number };
+        customer: { name: string; phone: string };
+        businessPhone: string | null;
+        paymentUrl: string | null;
+      }>(`/api/training-groups/${group.id}/participants/${participantId}/order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["training-groups"] });
+      toast.success("דרישת התשלום נוצרה");
+      const phone = toWhatsAppPhone(data.customer?.phone ?? "");
+      if (!phone) return;
+      const amount = formatCurrency(data.order?.total ?? group.price ?? 0);
+      const lines: string[] = [
+        `שלום ${data.customer?.name ?? ""}! 🐾`,
+        `דרישת תשלום עבור הסדנה "${group.name}"`,
+        `סכום לתשלום: ${amount}`,
+      ];
+      if (data.paymentUrl) lines.push("", `לתשלום מאובטח בקישור:`, data.paymentUrl);
+      lines.push("", `לשאלות אנחנו זמינים${data.businessPhone ? ` בטלפון ${data.businessPhone}` : ""}. תודה! 🐾`);
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(lines.join("\n"))}`, "_blank");
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת דרישת התשלום"),
+  });
+
   return (
     <div id={`tcard-${group.id}`} className="card overflow-hidden">
       <div
@@ -4390,12 +4470,28 @@ function GroupCard({
             >
               {GROUP_TYPE_LABELS[group.groupType] || group.groupType}
             </span>
+            {isWorkshop && group.maxParticipants != null && (
+              <span
+                className={cn(
+                  "text-[10px] px-2 py-0.5 rounded-full font-medium",
+                  isFull ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"
+                )}
+              >
+                {activeParticipants.length}/{group.maxParticipants}
+                {isFull && " · מלא"}
+              </span>
+            )}
+            {isWorkshop && group.price != null && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-emerald-50 text-emerald-700">
+                {formatCurrency(group.price)}
+              </span>
+            )}
             {!group.isActive && <span className="badge-danger text-[10px]">לא פעיל</span>}
           </div>
           <div className="flex items-center gap-4 mt-1 text-xs text-petra-muted flex-wrap">
             <span className="flex items-center gap-1">
               <Users className="w-3 h-3" />
-              {group._count.participants} משתתפים
+              {isWorkshop ? activeParticipants.length : group._count.participants} משתתפים
               {group.maxParticipants && ` / ${group.maxParticipants}`}
             </span>
             {group.defaultDayOfWeek !== null && (
@@ -4455,13 +4551,13 @@ function GroupCard({
                 {isWorkshop ? "מחק סדנה" : "מחק קבוצה"}
               </button>
             )}
-            {isWorkshop && group.participants.length > 0 && (
+            {isWorkshop && activeParticipants.length > 0 && (
               <button
                 className="btn-secondary text-xs"
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Open WhatsApp for each participant
-                  group.participants.forEach((p) => {
+                  // Open WhatsApp for each active participant (waitlist excluded)
+                  activeParticipants.forEach((p) => {
                     if (p.customer?.phone ?? "") {
                       const phone = toWhatsAppPhone(p.customer?.phone ?? "");
                       const msg = encodeURIComponent(
@@ -4547,15 +4643,85 @@ function GroupCard({
           <div className="p-4 border-b border-petra-border">
             <h4 className="text-xs font-semibold text-petra-muted mb-3 flex items-center gap-1.5">
               <Dog className="w-3.5 h-3.5" />
-              משתתפים ({group.participants.length})
+              משתתפים ({mainParticipants.length})
             </h4>
-            {group.participants.length === 0 ? (
+            {mainParticipants.length === 0 ? (
               <p className="text-xs text-petra-muted">אין משתתפים רשומים</p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {group.participants.map((p) => (
-                  <div key={p.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 group/item">
-                    <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center text-xs font-bold text-brand-600">
+              <div className={cn("grid gap-2", isWorkshop ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>
+                {mainParticipants.map((p) => {
+                  const paymentChip = !isWorkshop
+                    ? null
+                    : !p.order
+                      ? { label: "אין הזמנה", cls: "bg-slate-100 text-slate-500" }
+                      : p.order.paidAmount >= p.order.total
+                        ? { label: "שולם", cls: "bg-emerald-100 text-emerald-700" }
+                        : p.order.paidAmount > 0
+                          ? { label: "שולם חלקית", cls: "bg-blue-100 text-blue-700" }
+                          : { label: "ממתין לתשלום", cls: "bg-amber-100 text-amber-700" };
+                  return (
+                    <div key={p.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 group/item">
+                      <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center text-xs font-bold text-brand-600 flex-shrink-0">
+                        {p.dog.name.charAt(0)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-petra-text truncate">
+                          {p.dog.name}
+                          {p.dog.breed && <span className="text-petra-muted font-normal"> ({p.dog.breed})</span>}
+                        </p>
+                        <p className="text-[10px] text-petra-muted truncate">{p.customer?.name ?? ""}</p>
+                      </div>
+                      {isWorkshop && (p.heldCount ?? 0) > 0 && (
+                        <span className="text-[10px] text-petra-muted whitespace-nowrap">
+                          נכח {p.attendedCount ?? 0}/{p.heldCount ?? 0}
+                        </span>
+                      )}
+                      {paymentChip && (
+                        <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0", paymentChip.cls)}>
+                          {paymentChip.label}
+                        </span>
+                      )}
+                      {isWorkshop && !p.order && !p.orderId && group.price != null && (
+                        <button
+                          className="btn-secondary text-[10px] py-1 px-2 whitespace-nowrap flex-shrink-0"
+                          disabled={createOrderMutation.isPending}
+                          onClick={(e) => { e.stopPropagation(); createOrderMutation.mutate(p.id); }}
+                          title="יוצר הזמנה ושולח דרישת תשלום בוואטסאפ"
+                        >
+                          <Send className="w-3 h-3" />
+                          {createOrderMutation.isPending ? "יוצר..." : "דרישת תשלום"}
+                        </button>
+                      )}
+                      <button
+                        className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity flex-shrink-0"
+                        onClick={(e) => { e.stopPropagation(); onRemoveParticipant(p.id); }}
+                        title="הסר משתתף"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {isWorkshop && group.price != null && activeParticipants.length > 0 && (
+              <p className="text-xs text-petra-muted mt-3 pt-2 border-t border-dashed border-slate-200">
+                נגבה <span className="font-semibold text-emerald-600">{formatCurrency(collectedAmount)}</span> מתוך <span className="font-semibold text-petra-text">{formatCurrency(expectedAmount)}</span>
+              </p>
+            )}
+          </div>
+
+          {/* Waitlist (workshops) */}
+          {isWorkshop && waitlistParticipants.length > 0 && (
+            <div className="p-4 border-b border-petra-border">
+              <h4 className="text-xs font-semibold text-petra-muted mb-3 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" />
+                רשימת המתנה ({waitlistParticipants.length})
+              </h4>
+              <div className="space-y-2">
+                {waitlistParticipants.map((p) => (
+                  <div key={p.id} className="flex items-center gap-2 p-2 rounded-lg bg-amber-50/60 border border-amber-100 group/item">
+                    <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-700 flex-shrink-0">
                       {p.dog.name.charAt(0)}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -4566,17 +4732,25 @@ function GroupCard({
                       <p className="text-[10px] text-petra-muted truncate">{p.customer?.name ?? ""}</p>
                     </div>
                     <button
-                      className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                      className="btn-secondary text-[10px] py-1 px-2 whitespace-nowrap flex-shrink-0 disabled:opacity-50"
+                      disabled={isFull || promoteMutation.isPending}
+                      title={isFull ? "הסדנה מלאה — פנה מקום כדי לקדם" : "קדם לרשימת המשתתפים"}
+                      onClick={(e) => { e.stopPropagation(); promoteMutation.mutate(p.id); }}
+                    >
+                      {promoteMutation.isPending ? "מקדם..." : "קדם"}
+                    </button>
+                    <button
+                      className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity flex-shrink-0"
                       onClick={(e) => { e.stopPropagation(); onRemoveParticipant(p.id); }}
-                      title="הסר משתתף"
+                      title="הסר מרשימת ההמתנה"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Recent Sessions */}
           <div className="p-4">
@@ -4601,16 +4775,24 @@ function GroupCard({
                         )} />
                         <span className="text-xs text-petra-text">מפגש {session.sessionNumber || ""}</span>
                         <span className="text-[10px] text-petra-muted">{formatDate(session.sessionDatetime)}</span>
-                        <span className="text-[10px] badge-neutral">{presentCount}/{session.attendance.length || group.participants.length} נוכחים</span>
+                        <span className="text-[10px] badge-neutral">{presentCount}/{session.attendance.length || mainParticipants.length} נוכחים</span>
                         <div className="ms-auto flex items-center gap-1.5">
-                          {session.attendance.length > 0 && (
-                            <button
-                              className="text-[10px] text-brand-600 hover:text-brand-700 font-medium"
-                              onClick={(e) => { e.stopPropagation(); setExpandedAttendanceSession(isAttendanceOpen ? null : session.id); }}
-                            >
-                              {isAttendanceOpen ? "סגור" : "סמן נוכחות"}
-                            </button>
-                          )}
+                          <button
+                            className="text-[10px] text-brand-600 hover:text-brand-700 font-medium disabled:opacity-50"
+                            disabled={seedAttendanceMutation.isPending}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isAttendanceOpen) { setExpandedAttendanceSession(null); return; }
+                              if (session.attendance.length === 0) {
+                                // Seed attendance rows first, then the panel opens (onSuccess)
+                                seedAttendanceMutation.mutate({ sessionId: session.id });
+                                return;
+                              }
+                              setExpandedAttendanceSession(session.id);
+                            }}
+                          >
+                            {isAttendanceOpen ? "סגור" : seedAttendanceMutation.isPending ? "טוען..." : "סמן נוכחות"}
+                          </button>
                           <button
                             className="w-6 h-6 flex items-center justify-center rounded hover:bg-brand-50 text-slate-400 hover:text-brand-600"
                             title="שנה מועד מפגש"
@@ -4706,6 +4888,18 @@ function GroupCard({
                       )}
                       {isAttendanceOpen && (
                         <div className="px-3 pb-3 border-t border-slate-200 pt-2 space-y-1.5">
+                          {session.attendance.length === 0 ? (
+                            <p className="text-[10px] text-petra-muted">אין משתתפים פעילים לסימון נוכחות</p>
+                          ) : (
+                            <button
+                              className="btn-secondary text-[10px] py-1 px-2"
+                              disabled={seedAttendanceMutation.isPending}
+                              onClick={(e) => { e.stopPropagation(); seedAttendanceMutation.mutate({ sessionId: session.id, markAll: "PRESENT" }); }}
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              {seedAttendanceMutation.isPending ? "מסמן..." : "סמן את כולם כנוכחים"}
+                            </button>
+                          )}
                           {session.attendance.map((att) => {
                             const participant = group.participants.find((p) => p.id === att.participantId);
                             const dogName = att.participant?.dog.name ?? participant?.dog.name ?? "כלב";
@@ -5262,6 +5456,7 @@ function CreateGroupModal({
     defaultDayOfWeek: initial?.defaultDayOfWeek != null ? String(initial.defaultDayOfWeek) : "",
     defaultTime: initial?.defaultTime ?? "",
     maxParticipants: initial?.maxParticipants != null ? String(initial.maxParticipants) : "",
+    price: initial?.price != null ? String(initial.price) : "",
     notes: initial?.notes ?? "",
     startDate: initial?.startDate ? initial.startDate.slice(0, 10) : "",
     endDate: initial?.endDate ? initial.endDate.slice(0, 10) : "",
@@ -5276,6 +5471,7 @@ function CreateGroupModal({
       defaultDayOfWeek: form.defaultDayOfWeek ? parseInt(form.defaultDayOfWeek) : null,
       defaultTime: form.defaultTime || null,
       maxParticipants: form.maxParticipants ? parseInt(form.maxParticipants) : null,
+      ...(isWorkshop ? { price: form.price ? parseFloat(form.price) : null } : {}),
       notes: form.notes || null,
       startDate: form.startDate || null,
       endDate: form.endDate || null,
@@ -5361,9 +5557,10 @@ function CreateGroupModal({
               />
             </div>
             <div>
-              <label className="label">מקסימום משתתפים</label>
+              <label className="label">{isWorkshop ? "קיבולת" : "מקסימום משתתפים"} {isWorkshop && <span className="text-petra-muted font-normal">(אופציונלי)</span>}</label>
               <input
                 type="number"
+                min={1}
                 className="input"
                 value={form.maxParticipants}
                 onChange={(e) => setForm({ ...form, maxParticipants: e.target.value })}
@@ -5371,6 +5568,21 @@ function CreateGroupModal({
               />
             </div>
           </div>
+
+          {isWorkshop && (
+            <div>
+              <label className="label">מחיר (₪) <span className="text-petra-muted font-normal">(אופציונלי)</span></label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className="input"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                placeholder="450"
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
