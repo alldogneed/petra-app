@@ -760,7 +760,7 @@ function TrainingPageContent() {
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [showNewWorkshop, setShowNewWorkshop] = useState(false);
   const [editingGroup, setEditingGroup] = useState<TrainingGroup | null>(null);
-  const [showAssignDog, setShowAssignDog] = useState<{ groupId: string; groupName: string } | null>(null);
+  const [showAssignDog, setShowAssignDog] = useState<{ groupId: string; groupName: string; isWorkshop?: boolean } | null>(null);
   const [editingProgram, setEditingProgram] = useState<TrainingProgram | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [sessionLogTarget, setSessionLogTarget] = useState<{ programId: string; sessionNumber: number; dogName: string; customerPhone?: string; customerName?: string; isWeekly?: boolean; isServiceDog?: boolean; goals?: { id: string; title: string; status: string; progressPercent: number }[] } | null>(null);
@@ -1058,11 +1058,11 @@ function TrainingPageContent() {
   });
 
   const addParticipantMutation = useMutation({
-    mutationFn: async ({ groupId, customerId, dogId }: { groupId: string; customerId: string; dogId: string }) => {
+    mutationFn: async ({ groupId, customerId, dogId, waitlist }: { groupId: string; customerId: string; dogId: string; waitlist?: boolean }) => {
       const res = await fetch(`/api/training-groups/${groupId}/participants`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId, dogId }),
+        body: JSON.stringify({ customerId, dogId, waitlist: waitlist === true }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -1854,7 +1854,7 @@ function TrainingPageContent() {
                   toggleExpand={toggleExpand}
                   onNewWorkshop={() => setShowNewWorkshop(true)}
                   onEditGroup={(group) => setEditingGroup(group)}
-                  onAssignDog={(groupId, groupName) => setShowAssignDog({ groupId, groupName })}
+                  onAssignDog={(groupId, groupName) => setShowAssignDog({ groupId, groupName, isWorkshop: true })}
                   onRemoveParticipant={(groupId, participantId) =>
                     removeParticipantMutation.mutate({ groupId, participantId })
                   }
@@ -1953,12 +1953,14 @@ function TrainingPageContent() {
         <AssignDogModal
           groupId={showAssignDog.groupId}
           groupName={showAssignDog.groupName}
+          isWorkshop={showAssignDog.isWorkshop ?? false}
           onClose={() => setShowAssignDog(null)}
-          onSubmit={(customerId, dogId) =>
+          onSubmit={(customerId, dogId, waitlist) =>
             addParticipantMutation.mutate({
               groupId: showAssignDog.groupId,
               customerId,
               dogId,
+              waitlist,
             })
           }
           isPending={addParticipantMutation.isPending}
@@ -5640,6 +5642,7 @@ function CreateGroupModal({
 function AssignDogModal({
   groupId: _groupId,
   groupName,
+  isWorkshop = false,
   onClose,
   onSubmit,
   isPending,
@@ -5647,13 +5650,16 @@ function AssignDogModal({
 }: {
   groupId: string;
   groupName: string;
+  isWorkshop?: boolean;
   onClose: () => void;
-  onSubmit: (customerId: string, dogId: string) => void;
+  onSubmit: (customerId: string, dogId: string, waitlist: boolean) => void;
   isPending: boolean;
   error: string | null;
 }) {
   const [customerId, setCustomerId] = useState("");
   const [dogId, setDogId] = useState("");
+  const [waitlist, setWaitlist] = useState(false);
+  const [customerQuery, setCustomerQuery] = useState("");
 
   const { data: customers = [], isLoading: customersLoading } = useQuery<Customer[]>({
     queryKey: ["customers-full"],
@@ -5661,6 +5667,18 @@ function AssignDogModal({
   });
 
   const selectedCustomer = customers.find((c) => c.id === customerId);
+
+  const q = customerQuery.trim().toLowerCase();
+  const matches = q
+    ? customers
+        .filter(
+          (c) =>
+            c.name.toLowerCase().includes(q) ||
+            (c.phone ?? "").replace(/\D/g, "").includes(q.replace(/\D/g, "") || " ") ||
+            c.pets.some((p) => p.name.toLowerCase().includes(q))
+        )
+        .slice(0, 8)
+    : [];
 
   return (
     <div className="modal-overlay">
@@ -5674,24 +5692,62 @@ function AssignDogModal({
         </div>
 
         <div className="space-y-4">
-          {/* Customer */}
+          {/* Customer — search-first picker */}
           <div>
             <label className="label">לקוח *</label>
             {customersLoading ? (
               <div className="input bg-slate-50 text-petra-muted text-sm">טוען לקוחות...</div>
+            ) : selectedCustomer ? (
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2.5">
+                <span className="text-sm font-medium text-petra-text truncate">
+                  {selectedCustomer.name}
+                  {selectedCustomer.phone ? ` — ${selectedCustomer.phone}` : ""}
+                </span>
+                <button
+                  className="w-6 h-6 flex items-center justify-center rounded hover:bg-brand-100 text-petra-muted flex-shrink-0"
+                  title="החלף לקוח"
+                  onClick={() => { setCustomerId(""); setDogId(""); setCustomerQuery(""); }}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             ) : (
-              <select
-                className="input"
-                value={customerId}
-                onChange={(e) => { setCustomerId(e.target.value); setDogId(""); }}
-              >
-                <option value="">בחר לקוח...</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}{c.phone ? ` — ${c.phone}` : ""}
-                  </option>
-                ))}
-              </select>
+              <>
+                <input
+                  className="input"
+                  placeholder="חפש לפי שם, טלפון או שם כלב..."
+                  value={customerQuery}
+                  autoFocus
+                  onChange={(e) => setCustomerQuery(e.target.value)}
+                />
+                {q && (
+                  <div className="mt-1 rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-100 max-h-56 overflow-y-auto">
+                    {matches.length === 0 ? (
+                      <p className="text-xs text-petra-muted px-3 py-2.5">לא נמצאו לקוחות תואמים</p>
+                    ) : (
+                      matches.map((c) => (
+                        <button
+                          key={c.id}
+                          className="w-full text-right px-3 py-2.5 hover:bg-brand-50 transition-colors"
+                          onClick={() => {
+                            setCustomerId(c.id);
+                            setDogId(c.pets.length === 1 ? c.pets[0].id : "");
+                          }}
+                        >
+                          <span className="text-sm font-medium text-petra-text block">{c.name}</span>
+                          <span className="text-xs text-petra-muted">
+                            {c.phone ?? ""}
+                            {c.pets.length > 0 ? ` · ${c.pets.map((p) => p.name).join(", ")}` : " · אין כלבים"}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+                {!q && (
+                  <p className="text-[11px] text-petra-muted mt-1">התחל להקליד כדי לחפש מבין {customers.length} לקוחות</p>
+                )}
+              </>
             )}
           </div>
 
@@ -5714,6 +5770,20 @@ function AssignDogModal({
             </div>
           )}
 
+          {/* Workshops: opt into the waitlist explicitly (full workshops waitlist automatically) */}
+          {isWorkshop && (
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="rounded accent-orange-500 w-4 h-4"
+                checked={waitlist}
+                onChange={(e) => setWaitlist(e.target.checked)}
+              />
+              <span className="text-sm text-petra-text">הוסף לרשימת ההמתנה</span>
+              <span className="text-[11px] text-petra-muted">(גם כשיש מקום פנוי)</span>
+            </label>
+          )}
+
           {error && (
             <p className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{error}</p>
           )}
@@ -5723,10 +5793,10 @@ function AssignDogModal({
           <button
             className="btn-primary flex-1"
             disabled={!customerId || !dogId || isPending}
-            onClick={() => onSubmit(customerId, dogId)}
+            onClick={() => onSubmit(customerId, dogId, waitlist)}
           >
             <Plus className="w-4 h-4" />
-            {isPending ? "שומר..." : "שייך לקוח וכלב"}
+            {isPending ? "שומר..." : waitlist ? "הוסף להמתנה" : "שייך לקוח וכלב"}
           </button>
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>
