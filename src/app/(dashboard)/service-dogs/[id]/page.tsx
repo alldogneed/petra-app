@@ -2101,6 +2101,7 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
   const queryClient = useQueryClient();
   const [showAddTest, setShowAddTest] = useState(false);
   const [expandedTestId, setExpandedTestId] = useState<string | null>(null);
+  const [editingTest, setEditingTest] = useState<TrainingTest | null>(null);
 
   // All dogs for the selector in AddTestModal
   const { data: allDogs = [] } = useQuery<{ id: string; pet: { name: string } }[]>({
@@ -2256,6 +2257,13 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
+                      onClick={(e) => { e.stopPropagation(); setEditingTest(test); }}
+                      className="w-7 h-7 rounded flex items-center justify-center hover:bg-slate-100 transition-all"
+                      title="ערוך תאריך וסוג מבחן"
+                    >
+                      <Pencil className="w-3.5 h-3.5 text-petra-muted" />
+                    </button>
+                    <button
                       onClick={(e) => { e.stopPropagation(); deleteTest(test.id); }}
                       className="w-7 h-7 rounded flex items-center justify-center hover:bg-red-100 transition-all"
                     >
@@ -2390,6 +2398,81 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
           isSaving={saveMutation.isPending}
         />
       )}
+
+      {editingTest && (
+        <EditTrainingTestModal
+          test={editingTest}
+          onSave={(updated) => {
+            saveMutation.mutate({
+              targetDogId: dogId,
+              newTests: tests.map((t) => (t.id === updated.id ? updated : t)),
+            });
+            setEditingTest(null);
+          }}
+          onClose={() => setEditingTest(null)}
+          isSaving={saveMutation.isPending}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Edit Training Test Modal (date + test type only) ───
+
+function EditTrainingTestModal({
+  test, onSave, onClose, isSaving,
+}: {
+  test: TrainingTest;
+  onSave: (updated: TrainingTest) => void;
+  onClose: () => void;
+  isSaving: boolean;
+}) {
+  const [date, setDate] = useState(test.date ? test.date.split("T")[0] : "");
+  const [testType, setTestType] = useState(test.testType);
+
+  // Offer the current type even if it's a legacy one no longer creatable
+  const typeOptions = TEST_TYPES.some((t) => t.id === test.testType)
+    ? TEST_TYPES
+    : [{ id: test.testType, label: TEST_TYPE_MAP[test.testType] || test.testType }, ...TEST_TYPES];
+
+  const handleSave = () => {
+    const updated: TrainingTest = { ...test, date, testType };
+    // Switching to the annual retest type — make sure a renewal date exists
+    if (testType === "ANNUAL_RETEST" && !updated.nextRenewalDate && date) {
+      const d = new Date(date);
+      d.setFullYear(d.getFullYear() + 1);
+      updated.nextRenewalDate = d.toISOString().split("T")[0];
+    }
+    onSave(updated);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-backdrop" />
+      <div className="modal-content max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold">עריכת מבחן</h2>
+          <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="label">סוג מבחן</label>
+            <select value={testType} onChange={(e) => setTestType(e.target.value)} className="input w-full">
+              {typeOptions.map((t) => (<option key={t.id} value={t.id}>{t.label}</option>))}
+            </select>
+          </div>
+          <div>
+            <label className="label">תאריך</label>
+            <input type="date" lang="he" value={date} onChange={(e) => setDate(e.target.value)} className="input w-full" />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button className="btn-primary flex-1" disabled={isSaving} onClick={handleSave}>
+            {isSaving ? "שומר..." : "שמור"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
     </div>
   );
 }

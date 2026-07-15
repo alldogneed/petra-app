@@ -14,6 +14,9 @@ import {
   RefreshCw,
   X,
   Calendar,
+  Pencil,
+  Trash2,
+  Eye,
 } from "lucide-react";
 
 const MESSAGE_TYPES = [
@@ -49,7 +52,14 @@ interface Broadcast {
   type: string;
   sentAt: string;
   businesses: number;
+  readCount: number;
+  actionUrl: string | null;
+  actionLabel: string | null;
+  expiresAt: string | null;
 }
+
+/** The (title, content, type) triple that identifies one broadcast wave. */
+type BroadcastKey = Pick<Broadcast, "title" | "content" | "type">;
 
 export default function AdminMessagesPage() {
   const qc = useQueryClient();
@@ -63,6 +73,10 @@ export default function AdminMessagesPage() {
   const [expiresAt, setExpiresAt]   = useState("");
   const [showExpiryPicker, setShowExpiryPicker] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  // When set, the compose form edits this existing broadcast instead of sending a new one
+  const [editingOriginal, setEditingOriginal] = useState<BroadcastKey | null>(null);
+  // History row whose delete-confirm is open (keyed by title|content|type)
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
   const expiryPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -99,29 +113,67 @@ export default function AdminMessagesPage() {
 
   const broadcasts: Broadcast[] = historyData?.broadcasts ?? [];
 
-  // Send mutation
+  function resetForm() {
+    setTitle("");
+    setContent("");
+    setType("info");
+    setActionUrl("");
+    setActionLabel("");
+    setExpiresAt("");
+    setShowConfirm(false);
+    setEditingOriginal(null);
+  }
+
+  // Send mutation — POST for a new broadcast, PATCH when editing an existing one
   const sendMutation = useMutation({
-    mutationFn: (payload: object) =>
+    mutationFn: ({ payload, original }: { payload: object; original: BroadcastKey | null }) =>
       fetch("/api/admin/broadcast-messages", {
-        method: "POST",
+        method: original ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(original ? { ...payload, original } : payload),
       }).then(async (r) => {
         const json = await r.json();
         if (!r.ok) throw new Error(json.error || "שגיאה בשליחה");
         return json;
       }),
     onSuccess: () => {
-      setTitle("");
-      setContent("");
-      setType("info");
-      setActionUrl("");
-      setActionLabel("");
-      setExpiresAt("");
-      setShowConfirm(false);
+      resetForm();
       qc.invalidateQueries({ queryKey: ["admin-broadcast-history"] });
     },
   });
+
+  // Delete (retract) mutation — removes every remaining copy of a broadcast
+  const deleteMutation = useMutation({
+    mutationFn: (key: BroadcastKey) =>
+      fetch("/api/admin/broadcast-messages", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(key),
+      }).then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "שגיאה במחיקה");
+        return json;
+      }),
+    onSuccess: () => {
+      setConfirmDeleteKey(null);
+      qc.invalidateQueries({ queryKey: ["admin-broadcast-history"] });
+    },
+  });
+
+  /** Load an existing broadcast into the compose form for editing. */
+  function startEdit(b: Broadcast) {
+    setEditingOriginal({ title: b.title, content: b.content, type: b.type });
+    setTitle(b.title);
+    setContent(b.content);
+    setType(b.type);
+    setActionUrl(b.actionUrl ?? "");
+    setActionLabel(b.actionLabel ?? "");
+    setExpiresAt(b.expiresAt ? new Date(b.expiresAt).toISOString().slice(0, 16) : "");
+    setShowConfirm(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  const broadcastKeyStr = (b: BroadcastKey) => `${b.title}|${b.content}|${b.type}`;
 
   const selectedType = MESSAGE_TYPES.find((t) => t.value === type) ?? MESSAGE_TYPES[0];
   const TypeIcon = selectedType.icon;
@@ -129,12 +181,15 @@ export default function AdminMessagesPage() {
   function handleSend() {
     if (!title.trim() || !content.trim()) return;
     sendMutation.mutate({
-      title,
-      content,
-      type,
-      actionUrl: actionUrl || undefined,
-      actionLabel: actionLabel || undefined,
-      expiresAt: expiresAt || undefined,
+      payload: {
+        title,
+        content,
+        type,
+        actionUrl: actionUrl || undefined,
+        actionLabel: actionLabel || undefined,
+        expiresAt: expiresAt || undefined,
+      },
+      original: editingOriginal,
     });
   }
 
@@ -156,11 +211,27 @@ export default function AdminMessagesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* ── Compose form ──────────────────────────────────────────────── */}
         <div className="lg:col-span-3 rounded-2xl overflow-hidden" style={{ background: "#12121A", border: "1px solid #1E1E2E" }}>
-          <div className="px-5 py-4" style={{ borderBottom: "1px solid #1E1E2E" }}>
-            <h2 className="text-sm font-semibold text-white">הרכבת הודעה</h2>
-            <p className="text-xs mt-0.5" style={{ color: "#475569" }}>
-              ההודעה תופיע בממשק של כל משתמש רשום בפלטפורמה
-            </p>
+          <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid #1E1E2E" }}>
+            <div>
+              <h2 className="text-sm font-semibold text-white">
+                {editingOriginal ? "עריכת שידור קיים" : "הרכבת הודעה"}
+              </h2>
+              <p className="text-xs mt-0.5" style={{ color: "#475569" }}>
+                {editingOriginal
+                  ? "העדכון יחול על כל העותקים שעדיין בתיבות — עותקים שנמחקו על ידי משתמשים לא יחזרו"
+                  : "ההודעה תופיע בממשק של כל משתמש רשום בפלטפורמה"}
+              </p>
+            </div>
+            {editingOriginal && (
+              <button
+                onClick={resetForm}
+                className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
+                style={{ background: "#1E1E2E", color: "#94A3B8" }}
+              >
+                <X className="w-3 h-3" />
+                בטל עריכה
+              </button>
+            )}
           </div>
 
           <div className="p-5 space-y-4">
@@ -379,11 +450,13 @@ export default function AdminMessagesPage() {
                 style={{ background: "rgba(34,197,94,0.1)", color: "#22C55E", border: "1px solid rgba(34,197,94,0.2)" }}
               >
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                ההודעה נשלחה בהצלחה לכל העסקים!
+                {sendMutation.data?.updated != null
+                  ? `השידור עודכן ב-${sendMutation.data.updated} תיבות`
+                  : "ההודעה נשלחה בהצלחה לכל העסקים!"}
               </div>
             )}
 
-            {/* Send button */}
+            {/* Send / update button */}
             {!showConfirm ? (
               <button
                 onClick={() => {
@@ -398,8 +471,8 @@ export default function AdminMessagesPage() {
                   border: "1px solid rgba(249,115,22,0.25)",
                 }}
               >
-                <Send className="w-4 h-4" />
-                שלח לכל המשתמשים
+                {editingOriginal ? <Pencil className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+                {editingOriginal ? "עדכן את השידור" : "שלח לכל המשתמשים"}
               </button>
             ) : (
               <div
@@ -407,10 +480,12 @@ export default function AdminMessagesPage() {
                 style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.2)" }}
               >
                 <p className="text-sm text-white font-medium">
-                  אישור שליחה
+                  {editingOriginal ? "אישור עדכון" : "אישור שליחה"}
                 </p>
                 <p className="text-xs" style={{ color: "#94A3B8" }}>
-                  פעולה זו תשלח את ההודעה לכל העסקים הפעילים בפטרה ולא ניתן לביטול. האם להמשיך?
+                  {editingOriginal
+                    ? "העדכון יחליף את תוכן ההודעה אצל כל העסקים שעדיין לא מחקו אותה. האם להמשיך?"
+                    : "פעולה זו תשלח את ההודעה לכל העסקים הפעילים בפטרה ולא ניתן לביטול. האם להמשיך?"}
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -419,8 +494,10 @@ export default function AdminMessagesPage() {
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                     style={{ background: "rgba(249,115,22,0.2)", color: "#F97316" }}
                   >
-                    <Send className="w-3.5 h-3.5" />
-                    {sendMutation.isPending ? "שולח..." : "כן, שלח"}
+                    {editingOriginal ? <Pencil className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
+                    {sendMutation.isPending
+                      ? editingOriginal ? "מעדכן..." : "שולח..."
+                      : editingOriginal ? "כן, עדכן" : "כן, שלח"}
                   </button>
                   <button
                     onClick={() => setShowConfirm(false)}
@@ -462,11 +539,18 @@ export default function AdminMessagesPage() {
               broadcasts.map((b, i) => {
                 const t = MESSAGE_TYPES.find((t) => t.value === b.type) ?? MESSAGE_TYPES[0];
                 const Icon = t.icon;
+                const keyStr = broadcastKeyStr(b);
+                const isConfirmingDelete = confirmDeleteKey === keyStr;
+                const isEditingThis =
+                  editingOriginal !== null && broadcastKeyStr(editingOriginal) === keyStr;
                 return (
                   <div
-                    key={i}
-                    className="px-5 py-4 hover:bg-white/[0.02] transition-colors"
-                    style={{ borderBottom: "1px solid #1E1E2E" }}
+                    key={keyStr}
+                    className="px-5 py-4 hover:bg-white/[0.02] transition-colors group"
+                    style={{
+                      borderBottom: "1px solid #1E1E2E",
+                      background: isEditingThis ? "rgba(249,115,22,0.05)" : undefined,
+                    }}
                   >
                     <div className="flex items-start gap-3">
                       <div
@@ -483,7 +567,7 @@ export default function AdminMessagesPage() {
                         >
                           {b.content}
                         </p>
-                        <div className="flex items-center gap-3 mt-2">
+                        <div className="flex items-center gap-3 mt-2 flex-wrap">
                           <span className="flex items-center gap-1 text-[10px]" style={{ color: "#475569" }}>
                             <Clock className="w-3 h-3" />
                             {relativeTime(b.sentAt)}
@@ -491,6 +575,14 @@ export default function AdminMessagesPage() {
                           <span className="flex items-center gap-1 text-[10px]" style={{ color: "#475569" }}>
                             <Users className="w-3 h-3" />
                             {Number(b.businesses)} עסקים
+                          </span>
+                          <span
+                            className="flex items-center gap-1 text-[10px]"
+                            style={{ color: b.readCount > 0 ? "#22C55E" : "#475569" }}
+                            title="כמה תיבות סימנו את ההודעה כנקראה (לא כולל עסקים שמחקו אותה)"
+                          >
+                            <Eye className="w-3 h-3" />
+                            {b.readCount} קראו
                           </span>
                           <span
                             className="text-[10px] px-1.5 py-0.5 rounded-md"
@@ -502,6 +594,61 @@ export default function AdminMessagesPage() {
                         <p className="text-[10px] mt-1" style={{ color: "#334155" }}>
                           {formatDate(b.sentAt)}
                         </p>
+
+                        {/* Delete confirmation */}
+                        {isConfirmingDelete && (
+                          <div
+                            className="mt-2 rounded-lg p-3 space-y-2"
+                            style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}
+                          >
+                            <p className="text-xs" style={{ color: "#FCA5A5" }}>
+                              ההודעה תוסר מהתיבות של כל {b.businesses} העסקים שעדיין לא מחקו אותה. למחוק?
+                            </p>
+                            {deleteMutation.isError && (
+                              <p className="text-xs" style={{ color: "#EF4444" }}>
+                                {(deleteMutation.error as Error).message}
+                              </p>
+                            )}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => deleteMutation.mutate({ title: b.title, content: b.content, type: b.type })}
+                                disabled={deleteMutation.isPending}
+                                className="flex-1 py-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+                                style={{ background: "rgba(239,68,68,0.18)", color: "#EF4444" }}
+                              >
+                                {deleteMutation.isPending ? "מוחק..." : "כן, מחק לכולם"}
+                              </button>
+                              <button
+                                onClick={() => setConfirmDeleteKey(null)}
+                                disabled={deleteMutation.isPending}
+                                className="flex-1 py-1.5 rounded-md text-xs font-medium transition-colors"
+                                style={{ background: "#1E1E2E", color: "#64748B" }}
+                              >
+                                ביטול
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Row actions */}
+                      <div className="flex flex-col gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => startEdit(b)}
+                          title="ערוך שידור"
+                          className="p-1.5 rounded-lg transition-colors hover:bg-white/5"
+                          style={{ color: isEditingThis ? "#F97316" : "#475569" }}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteKey(isConfirmingDelete ? null : keyStr)}
+                          title="מחק שידור מכל התיבות"
+                          className="p-1.5 rounded-lg transition-colors hover:bg-red-500/10"
+                          style={{ color: isConfirmingDelete ? "#EF4444" : "#475569" }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   </div>
