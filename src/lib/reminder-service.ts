@@ -669,6 +669,10 @@ export async function scheduleRemindersForNewParticipant(
   });
 
   if (!participant || participant.status !== "ACTIVE") return [];
+  // Defense in depth: the participant must actually belong to the given group —
+  // otherwise reminders get written under another group's (possibly another
+  // business's) businessId. Callers must not pass an unvalidated URL segment.
+  if (participant.trainingGroupId !== groupId) return [];
 
   const group = await prisma.trainingGroup.findUnique({
     where: { id: groupId },

@@ -50,6 +50,20 @@ export async function PATCH(
     if (body.groupType !== undefined && !GROUP_TYPE_LABELS[body.groupType]) {
       return NextResponse.json({ error: "סוג קבוצה לא תקין" }, { status: 400 });
     }
+    if (body.maxParticipants != null) {
+      const n = parseInt(body.maxParticipants);
+      if (!Number.isFinite(n) || n < 1 || n > 500) {
+        return NextResponse.json({ error: "מקסימום משתתפים לא תקין" }, { status: 400 });
+      }
+      body.maxParticipants = n;
+    }
+    if (body.price != null) {
+      const p = Number(body.price);
+      if (!Number.isFinite(p) || p < 0 || p > 100000) {
+        return NextResponse.json({ error: "מחיר לא תקין (0–100,000)" }, { status: 400 });
+      }
+      body.price = p;
+    }
 
     let result;
     try {

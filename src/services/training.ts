@@ -14,6 +14,8 @@
 import type { DbClient } from "./supabase";
 import { ServiceError } from "./types";
 import { deleteOrder, updateOrder } from "./orders";
+import { createCheckoutSession } from "@/lib/stripe";
+import { decryptStripeSecret } from "@/lib/encryption";
 
 export { ServiceError };
 export type { DbClient };
@@ -67,23 +69,72 @@ export async function applyOrderAction(
 
 // ─── Training Groups ───────────────────────────────────────────────────────
 
+/**
+ * Participant include for list/get — adds workshop-ops data on top of dog+customer:
+ * linked order (with payments for paidAmount) and attendance rows (for
+ * attendedCount/heldCount). Raw includes are flattened by enrichParticipant.
+ */
+const PARTICIPANT_OPS_INCLUDE = {
+  dog: { select: { id: true, name: true, species: true, breed: true } },
+  customer: { select: { id: true, name: true, phone: true } },
+  order: {
+    select: {
+      id: true,
+      status: true,
+      total: true,
+      payments: { select: { amount: true } },
+    },
+  },
+  attendance: {
+    select: {
+      attendanceStatus: true,
+      session: { select: { status: true, sessionDatetime: true } },
+    },
+  },
+} as const;
+
+/**
+ * Flatten the ops includes into the API shape:
+ *   order → { id, status, total, paidAmount } | null
+ *   attendedCount = PRESENT rows; heldCount = rows whose session already happened
+ *   (COMPLETED or sessionDatetime in the past).
+ */
+function enrichParticipant<
+  T extends {
+    order: { id: string; status: string; total: number; payments: { amount: number }[] } | null;
+    attendance: { attendanceStatus: string; session: { status: string; sessionDatetime: Date } }[];
+  }
+>(participant: T, now: Date) {
+  const { order, attendance, ...rest } = participant;
+  return {
+    ...rest,
+    order: order
+      ? {
+          id: order.id,
+          status: order.status,
+          total: order.total,
+          paidAmount: order.payments.reduce((sum, p) => sum + p.amount, 0),
+        }
+      : null,
+    attendedCount: attendance.filter((a) => a.attendanceStatus === "PRESENT").length,
+    heldCount: attendance.filter(
+      (a) => a.session.status === "COMPLETED" || a.session.sessionDatetime < now
+    ).length,
+  };
+}
+
 export async function listTrainingGroups(
   businessId: string,
   db: DbClient,
   opts: { activeOnly?: boolean } = {}
 ) {
-  return db.trainingGroup.findMany({
+  const groups = await db.trainingGroup.findMany({
     where: {
       businessId,
       ...(opts.activeOnly ? { isActive: true } : {}),
     },
     include: {
-      participants: {
-        include: {
-          dog: { select: { id: true, name: true, species: true, breed: true } },
-          customer: { select: { id: true, name: true, phone: true } },
-        },
-      },
+      participants: { include: PARTICIPANT_OPS_INCLUDE },
       sessions: {
         orderBy: { sessionDatetime: "desc" },
         take: 5,
@@ -93,18 +144,19 @@ export async function listTrainingGroups(
     },
     orderBy: { createdAt: "desc" },
   });
+
+  const now = new Date();
+  return groups.map((g) => ({
+    ...g,
+    participants: g.participants.map((p) => enrichParticipant(p, now)),
+  }));
 }
 
 export async function getTrainingGroup(businessId: string, db: DbClient, id: string) {
   const group = await db.trainingGroup.findFirst({
     where: { id, businessId },
     include: {
-      participants: {
-        include: {
-          dog: { select: { id: true, name: true, species: true, breed: true } },
-          customer: { select: { id: true, name: true, phone: true } },
-        },
-      },
+      participants: { include: PARTICIPANT_OPS_INCLUDE },
       sessions: {
         orderBy: { sessionDatetime: "asc" },
         include: {
@@ -124,13 +176,19 @@ export async function getTrainingGroup(businessId: string, db: DbClient, id: str
     },
   });
   if (!group) throw new ServiceError("קבוצת אימון לא נמצאה", "NOT_FOUND");
-  return group;
+
+  const now = new Date();
+  return {
+    ...group,
+    participants: group.participants.map((p) => enrichParticipant(p, now)),
+  };
 }
 
 export interface CreateTrainingGroupInput {
   name: string;
   groupType: string;
   maxParticipants?: number | null;
+  price?: number | null;
   location?: string | null;
   defaultDayOfWeek?: number | null;
   defaultTime?: string | null;
@@ -166,6 +224,7 @@ export async function createTrainingGroup(
       name: input.name,
       groupType: input.groupType,
       ...(input.maxParticipants !== undefined && { maxParticipants: input.maxParticipants }),
+      ...(input.price !== undefined && { price: input.price }),
       ...(input.location !== undefined && { location: input.location }),
       ...(input.defaultDayOfWeek !== undefined && { defaultDayOfWeek: input.defaultDayOfWeek }),
       ...(input.defaultTime !== undefined && { defaultTime: input.defaultTime }),
@@ -185,6 +244,7 @@ export interface UpdateTrainingGroupData {
   name?: string;
   groupType?: string;
   maxParticipants?: number | null;
+  price?: number | null;
   location?: string | null;
   defaultDayOfWeek?: number | null;
   defaultTime?: string | null;
@@ -217,6 +277,7 @@ export async function updateTrainingGroup(
       ...(data.name !== undefined && { name: data.name }),
       ...(data.groupType !== undefined && { groupType: data.groupType }),
       ...(data.maxParticipants !== undefined && { maxParticipants: data.maxParticipants }),
+      ...(data.price !== undefined && { price: data.price }),
       ...(data.location !== undefined && { location: data.location }),
       ...(data.defaultDayOfWeek !== undefined && { defaultDayOfWeek: data.defaultDayOfWeek }),
       ...(data.defaultTime !== undefined && { defaultTime: data.defaultTime }),
@@ -269,6 +330,39 @@ export async function deleteTrainingGroup(
 
 // ─── Training Group Participants ───────────────────────────────────────────
 
+/**
+ * Seed NO_SHOW attendance rows for a single participant across all FUTURE
+ * SCHEDULED sessions of the group. Used when a participant joins (or is
+ * promoted from the waitlist) after sessions already exist.
+ * Idempotent via skipDuplicates.
+ */
+async function seedFutureAttendanceForParticipant(
+  db: DbClient,
+  groupId: string,
+  participant: { id: string; dogId: string; customerId: string }
+) {
+  const futureSessions = await db.trainingGroupSession.findMany({
+    where: {
+      trainingGroupId: groupId,
+      status: "SCHEDULED",
+      sessionDatetime: { gt: new Date() },
+    },
+    select: { id: true },
+  });
+  if (futureSessions.length === 0) return;
+
+  await db.trainingGroupAttendance.createMany({
+    data: futureSessions.map((s) => ({
+      trainingGroupSessionId: s.id,
+      participantId: participant.id,
+      dogId: participant.dogId,
+      customerId: participant.customerId,
+      attendanceStatus: "NO_SHOW",
+    })),
+    skipDuplicates: true,
+  });
+}
+
 export async function addGroupParticipant(
   businessId: string,
   db: DbClient,
@@ -277,11 +371,18 @@ export async function addGroupParticipant(
 ) {
   const group = await db.trainingGroup.findFirst({
     where: { id: groupId, businessId },
-    select: { maxParticipants: true, _count: { select: { participants: true } } },
+    select: { maxParticipants: true },
   });
   if (!group) throw new ServiceError("קבוצת אימון לא נמצאה", "NOT_FOUND");
-  if (group.maxParticipants && group._count.participants >= group.maxParticipants) {
-    throw new ServiceError("Group is full", "VALIDATION");
+
+  // Capacity counts ACTIVE participants only (WAITLIST/PAUSED/DROPPED don't consume seats).
+  // Full group → new participant joins the WAITLIST instead of being rejected.
+  let isFull = false;
+  if (group.maxParticipants != null) {
+    const activeCount = await db.trainingGroupParticipant.count({
+      where: { trainingGroupId: groupId, status: "ACTIVE" },
+    });
+    isFull = activeCount >= group.maxParticipants;
   }
 
   const customer = await db.customer.findFirst({
@@ -301,13 +402,207 @@ export async function addGroupParticipant(
   });
   if (existing) throw new ServiceError("הכלב כבר רשום לקבוצה זו", "CONFLICT");
 
-  return db.trainingGroupParticipant.create({
-    data: { trainingGroupId: groupId, customerId: input.customerId, dogId: input.dogId },
+  const participant = await db.trainingGroupParticipant.create({
+    data: {
+      trainingGroupId: groupId,
+      customerId: input.customerId,
+      dogId: input.dogId,
+      status: isFull ? "WAITLIST" : "ACTIVE",
+    },
     include: {
       dog: { select: { id: true, name: true, species: true, breed: true } },
       customer: { select: { id: true, name: true, phone: true } },
     },
   });
+
+  // ACTIVE joiners get NO_SHOW rows for future sessions (fixes "joined after
+  // sessions existed" gap). WAITLIST participants get them on promotion.
+  if (!isFull) {
+    await seedFutureAttendanceForParticipant(db, groupId, participant);
+  }
+
+  return participant;
+}
+
+/**
+ * Promote a WAITLIST participant to ACTIVE.
+ * Rejects when the group is at capacity (ACTIVE count >= maxParticipants);
+ * on success seeds NO_SHOW attendance rows for future SCHEDULED sessions.
+ */
+export async function promoteGroupParticipant(
+  businessId: string,
+  db: DbClient,
+  participantId: string,
+  groupId?: string
+) {
+  const participant = await db.trainingGroupParticipant.findFirst({
+    where: { id: participantId, trainingGroup: { businessId } },
+    select: {
+      id: true,
+      status: true,
+      dogId: true,
+      customerId: true,
+      trainingGroupId: true,
+      trainingGroup: { select: { maxParticipants: true } },
+    },
+  });
+  if (!participant) throw new ServiceError("משתתף לא נמצא", "NOT_FOUND");
+  // URL groupId must match the participant's real group — never trust the path segment
+  if (groupId && participant.trainingGroupId !== groupId) {
+    throw new ServiceError("משתתף לא נמצא", "NOT_FOUND");
+  }
+  if (participant.status !== "WAITLIST") {
+    throw new ServiceError("ניתן לקדם רק משתתף מרשימת ההמתנה", "VALIDATION");
+  }
+
+  const max = participant.trainingGroup.maxParticipants;
+  if (max != null) {
+    const activeCount = await db.trainingGroupParticipant.count({
+      where: { trainingGroupId: participant.trainingGroupId, status: "ACTIVE" },
+    });
+    if (activeCount >= max) {
+      throw new ServiceError("הסדנה מלאה — פנה מקום לפני קידום", "CONFLICT");
+    }
+  }
+
+  const updated = await db.trainingGroupParticipant.update({
+    where: { id: participant.id },
+    data: { status: "ACTIVE" },
+    include: {
+      dog: { select: { id: true, name: true, species: true, breed: true } },
+      customer: { select: { id: true, name: true, phone: true } },
+    },
+  });
+
+  await seedFutureAttendanceForParticipant(db, participant.trainingGroupId, participant);
+
+  return updated;
+}
+
+/**
+ * Create a confirmed Order for a workshop participant (group must have a price).
+ * Links participant.orderId and returns everything the UI needs to build a
+ * WhatsApp payment-request message. paymentUrl is a Stripe Checkout link when
+ * the business has Stripe connected — otherwise null and the trainer records
+ * the payment manually on the orders screen.
+ */
+export async function createParticipantOrder(
+  businessId: string,
+  db: DbClient,
+  participantId: string,
+  groupId?: string
+) {
+  const participant = await db.trainingGroupParticipant.findFirst({
+    where: { id: participantId, trainingGroup: { businessId } },
+    select: {
+      id: true,
+      orderId: true,
+      customerId: true,
+      customer: { select: { id: true, name: true, phone: true, email: true } },
+      trainingGroup: { select: { id: true, name: true, price: true } },
+    },
+  });
+  if (!participant) throw new ServiceError("משתתף לא נמצא", "NOT_FOUND");
+  // URL groupId must match the participant's real group — never trust the path segment
+  if (groupId && participant.trainingGroup.id !== groupId) {
+    throw new ServiceError("משתתף לא נמצא", "NOT_FOUND");
+  }
+
+  const group = participant.trainingGroup;
+  if (group.price == null) {
+    throw new ServiceError("לסדנה לא הוגדר מחיר", "VALIDATION");
+  }
+  if (participant.orderId) {
+    throw new ServiceError("למשתתף כבר קיימת הזמנה לסדנה זו", "CONFLICT");
+  }
+
+  const price = group.price;
+  const lineName = `סדנה: ${group.name}`;
+
+  // Order + line + participant link — sequential (Supabase PgBouncer, no $transaction)
+  const order = await db.order.create({
+    data: {
+      businessId,
+      customerId: participant.customerId,
+      status: "confirmed",
+      orderType: "training",
+      subtotal: price,
+      total: price,
+      relatedEntityType: "TrainingGroup",
+      relatedEntityId: group.id,
+    },
+  });
+
+  await db.orderLine.create({
+    data: {
+      orderId: order.id,
+      businessId,
+      name: lineName,
+      unit: "unit",
+      quantity: 1,
+      unitPrice: price,
+      lineSubtotal: price,
+      lineTotal: price,
+    },
+  });
+
+  // Atomic claim: only link if the participant is still order-less. Two concurrent
+  // requests both pass the orderId check above — the loser here gets 0 rows,
+  // and we roll back its orphan order instead of double-charging the customer.
+  const claimed = await db.trainingGroupParticipant.updateMany({
+    where: { id: participant.id, orderId: null },
+    data: { orderId: order.id },
+  });
+  if (claimed.count === 0) {
+    await db.orderLine.deleteMany({ where: { orderId: order.id } });
+    await db.order.delete({ where: { id: order.id } });
+    throw new ServiceError("למשתתף כבר קיימת הזמנה לסדנה זו", "CONFLICT");
+  }
+
+  const business = await db.business.findUnique({
+    where: { id: businessId },
+    select: { phone: true },
+  });
+
+  // Stripe payment link — best-effort. No Stripe / Stripe error → paymentUrl null.
+  let paymentUrl: string | null = null;
+  try {
+    const stripeSettings = await db.stripeSettings.findUnique({
+      where: { businessId },
+      select: { secretKeyEncrypted: true, status: true, currency: true },
+    });
+    if (stripeSettings && stripeSettings.status === "active") {
+      const secretKey = decryptStripeSecret(stripeSettings.secretKeyEncrypted);
+      const { url } = await createCheckoutSession({
+        secretKey,
+        amount: price,
+        currency: stripeSettings.currency || "ILS",
+        description: lineName,
+        customerEmail: participant.customer.email ?? undefined,
+        customerName: participant.customer.name,
+        metadata: {
+          businessId,
+          customerId: participant.customerId,
+          orderId: order.id,
+        },
+      });
+      paymentUrl = url;
+    }
+  } catch (err) {
+    console.error("createParticipantOrder: Stripe payment link failed (non-critical):", err);
+  }
+
+  const fullOrder = await db.order.findUnique({
+    where: { id: order.id },
+    include: { lines: true },
+  });
+
+  return {
+    order: fullOrder ?? order,
+    customer: { name: participant.customer.name, phone: participant.customer.phone },
+    businessPhone: business?.phone ?? null,
+    paymentUrl,
+  };
 }
 
 export async function removeGroupParticipant(
@@ -373,6 +668,66 @@ export async function createGroupSession(
   }
 
   return session;
+}
+
+/**
+ * Idempotently ensure attendance rows exist for a session: seeds NO_SHOW rows
+ * for all current ACTIVE participants of the group (skipDuplicates — existing
+ * rows keep their status). With markAll: "PRESENT", bulk-marks every row of
+ * the session as PRESENT. Returns the refreshed attendance rows.
+ * Fixes the chicken-and-egg for legacy sessions created with 0 participants.
+ */
+export async function ensureSessionAttendance(
+  businessId: string,
+  db: DbClient,
+  sessionId: string,
+  opts: { markAll?: "PRESENT"; groupId?: string } = {}
+) {
+  const session = await db.trainingGroupSession.findFirst({
+    where: {
+      id: sessionId,
+      trainingGroup: { businessId },
+      ...(opts.groupId ? { trainingGroupId: opts.groupId } : {}),
+    },
+    select: { id: true, trainingGroupId: true },
+  });
+  if (!session) throw new ServiceError("מפגש לא נמצא", "NOT_FOUND");
+
+  const participants = await db.trainingGroupParticipant.findMany({
+    where: { trainingGroupId: session.trainingGroupId, status: "ACTIVE" },
+    select: { id: true, dogId: true, customerId: true },
+  });
+  if (participants.length > 0) {
+    await db.trainingGroupAttendance.createMany({
+      data: participants.map((p) => ({
+        trainingGroupSessionId: session.id,
+        participantId: p.id,
+        dogId: p.dogId,
+        customerId: p.customerId,
+        attendanceStatus: "NO_SHOW",
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  if (opts.markAll === "PRESENT") {
+    await db.trainingGroupAttendance.updateMany({
+      where: { trainingGroupSessionId: session.id },
+      data: { attendanceStatus: "PRESENT", markedAt: new Date() },
+    });
+  }
+
+  return db.trainingGroupAttendance.findMany({
+    where: { trainingGroupSessionId: session.id },
+    include: {
+      participant: {
+        include: {
+          dog: { select: { id: true, name: true } },
+          customer: { select: { id: true, name: true } },
+        },
+      },
+    },
+  });
 }
 
 export async function updateGroupSession(
