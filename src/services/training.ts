@@ -138,7 +138,24 @@ export async function listTrainingGroups(
       sessions: {
         orderBy: { sessionDatetime: "desc" },
         take: 5,
-        include: { attendance: { select: { id: true } } },
+        // Full rows — the card's "X/Y נוכחים" badge and the attendance panel
+        // both read attendanceStatus + participant names (id-only kept them at 0).
+        include: {
+          attendance: {
+            select: {
+              id: true,
+              attendanceStatus: true,
+              participantId: true,
+              notes: true,
+              participant: {
+                select: {
+                  dog: { select: { id: true, name: true } },
+                  customer: { select: { id: true, name: true } },
+                },
+              },
+            },
+          },
+        },
       },
       _count: { select: { participants: true, sessions: true } },
     },
