@@ -1379,6 +1379,7 @@ model TrainingGroup {
   reminderLeadHours  Int      @default(48)
   reminderSameDay    Boolean  @default(false)
   maxParticipants    Int?
+  price              Float?   // workshop price in ILS (whole workshop, not per session)
   notes              String?
   startDate          DateTime?
   endDate            DateTime?
