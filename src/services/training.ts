@@ -384,7 +384,7 @@ export async function addGroupParticipant(
   businessId: string,
   db: DbClient,
   groupId: string,
-  input: { customerId: string; dogId: string }
+  input: { customerId: string; dogId: string; waitlist?: boolean }
 ) {
   const group = await db.trainingGroup.findFirst({
     where: { id: groupId, businessId },
@@ -419,12 +419,16 @@ export async function addGroupParticipant(
   });
   if (existing) throw new ServiceError("הכלב כבר רשום לקבוצה זו", "CONFLICT");
 
+  // Explicit waitlist request (checkbox in the assign modal) joins WAITLIST
+  // even when there's room — e.g. registering interest for the next cycle.
+  const toWaitlist = input.waitlist === true || isFull;
+
   const participant = await db.trainingGroupParticipant.create({
     data: {
       trainingGroupId: groupId,
       customerId: input.customerId,
       dogId: input.dogId,
-      status: isFull ? "WAITLIST" : "ACTIVE",
+      status: toWaitlist ? "WAITLIST" : "ACTIVE",
     },
     include: {
       dog: { select: { id: true, name: true, species: true, breed: true } },
@@ -434,7 +438,7 @@ export async function addGroupParticipant(
 
   // ACTIVE joiners get NO_SHOW rows for future sessions (fixes "joined after
   // sessions existed" gap). WAITLIST participants get them on promotion.
-  if (!isFull) {
+  if (!toWaitlist) {
     await seedFutureAttendanceForParticipant(db, groupId, participant);
   }
 

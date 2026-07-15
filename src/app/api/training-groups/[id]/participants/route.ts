@@ -22,7 +22,11 @@ export async function POST(
 
     let participant;
     try {
-      participant = await addGroupParticipant(authResult.businessId, prisma, params.id, { customerId, dogId });
+      participant = await addGroupParticipant(authResult.businessId, prisma, params.id, {
+        customerId,
+        dogId,
+        waitlist: body.waitlist === true,
+      });
     } catch (e) {
       if (e instanceof ServiceError) {
         return NextResponse.json(
