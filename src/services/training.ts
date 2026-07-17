@@ -895,31 +895,55 @@ export async function createProgramSession(
   });
   if (!program) throw new ServiceError("Training program not found", "NOT_FOUND");
 
+  const sessionStatus = input.status ?? "COMPLETED";
+  const mins = input.durationMinutes ?? 60;
+
+  // Completing a session that already has a SCHEDULED row with the same
+  // number must UPDATE that row — otherwise two rows share one sessionNumber,
+  // the UI card shows the scheduled one, and the recorded content "vanishes".
+  const scheduledMatch =
+    sessionStatus === "COMPLETED" && input.sessionNumber
+      ? await db.trainingProgramSession.findFirst({
+          where: {
+            trainingProgramId: programId,
+            sessionNumber: input.sessionNumber,
+            status: "SCHEDULED",
+          },
+        })
+      : null;
+
   const duplicate = await db.trainingProgramSession.findFirst({
-    where: { trainingProgramId: programId, sessionDate: input.sessionDate },
+    where: {
+      trainingProgramId: programId,
+      sessionDate: input.sessionDate,
+      ...(scheduledMatch ? { id: { not: scheduledMatch.id } } : {}),
+    },
   });
   if (duplicate) {
     throw new ServiceError("כבר קיים מפגש בתוכנית במועד הזה", "CONFLICT");
   }
 
-  const sessionStatus = input.status ?? "COMPLETED";
-  const mins = input.durationMinutes ?? 60;
+  const sessionData = {
+    sessionDate: input.sessionDate,
+    durationMinutes: mins,
+    sessionNumber: input.sessionNumber ?? null,
+    summary: input.summary ?? null,
+    rating: input.rating ?? null,
+    status: sessionStatus,
+    practiceItems: input.practiceItems ?? null,
+    nextSessionGoals: input.nextSessionGoals ?? null,
+    homeworkForCustomer: input.homeworkForCustomer ?? null,
+    trainerName: input.trainerName ?? null,
+  };
 
-  const session = await db.trainingProgramSession.create({
-    data: {
-      trainingProgramId: programId,
-      sessionDate: input.sessionDate,
-      durationMinutes: mins,
-      sessionNumber: input.sessionNumber ?? null,
-      summary: input.summary ?? null,
-      rating: input.rating ?? null,
-      status: sessionStatus,
-      practiceItems: input.practiceItems ?? null,
-      nextSessionGoals: input.nextSessionGoals ?? null,
-      homeworkForCustomer: input.homeworkForCustomer ?? null,
-      trainerName: input.trainerName ?? null,
-    },
-  });
+  const session = scheduledMatch
+    ? await db.trainingProgramSession.update({
+        where: { id: scheduledMatch.id },
+        data: sessionData,
+      })
+    : await db.trainingProgramSession.create({
+        data: { trainingProgramId: programId, ...sessionData },
+      });
 
   // Accumulate training hours for service dog programs
   if (sessionStatus === "COMPLETED" && program.trainingType === "SERVICE_DOG") {
