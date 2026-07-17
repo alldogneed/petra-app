@@ -64,6 +64,9 @@ export async function POST(
       if (e instanceof ServiceError && e.code === "NOT_FOUND") {
         return NextResponse.json({ error: "Training program not found" }, { status: 404 });
       }
+      if (e instanceof ServiceError && e.code === "CONFLICT") {
+        return NextResponse.json({ error: e.message }, { status: 409 });
+      }
       throw e;
     }
 
