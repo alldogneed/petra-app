@@ -957,7 +957,10 @@ function TrainingPageContent() {
           ...(trainerName ? { trainerName } : {}),
         }),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "שגיאה בשמירת המפגש. נסה שוב.");
+      }
       return res.json();
     },
     onSuccess: (_data, variables) => {
@@ -982,7 +985,8 @@ function TrainingPageContent() {
       }
       setSessionLogTarget(null);
     },
-    onError: () => { setSessionLogTarget(null); toast.error("שגיאה בשמירת המפגש. נסה שוב."); },
+    // Keep the modal open on failure — closing it would discard everything typed.
+    onError: (err: Error) => { toast.error(err.message || "שגיאה בשמירת המפגש. נסה שוב."); },
   });
 
   const editSessionMutation = useMutation({
@@ -2839,6 +2843,15 @@ function GoalSection({ program, label = "יעדי אילוף" }: { program: Trai
 // SESSION CHECKLIST COMPONENT
 // ═══════════════════════════════════════════════════════
 
+// First session slot with no COMPLETED row — completedCount+1 skips a
+// scheduled-but-unrecorded session and records onto the wrong number.
+function firstUnrecordedSession(sessions: Array<{ sessionNumber: number | null; status: string }>): number {
+  const done = new Set(sessions.filter((s) => s.status === "COMPLETED").map((s) => s.sessionNumber ?? 0));
+  let n = 1;
+  while (done.has(n)) n++;
+  return n;
+}
+
 function SessionChecklist({
   program,
   usedSessions,
@@ -2898,7 +2911,16 @@ function SessionChecklist({
     onError: () => toast.error("שגיאה במחיקת המפגש"),
   });
   const total = program.totalSessions;
-  const sessionsByNumber = new Map(program.sessions.map((s) => [s.sessionNumber ?? 0, s]));
+  // Prefer the COMPLETED row when duplicate rows share a sessionNumber —
+  // otherwise a stale SCHEDULED row hides the recorded session content.
+  const sessionsByNumber = new Map<number, (typeof program.sessions)[number]>();
+  for (const s of program.sessions) {
+    const key = s.sessionNumber ?? 0;
+    const existing = sessionsByNumber.get(key);
+    if (!existing || (existing.status !== "COMPLETED" && s.status === "COMPLETED")) {
+      sessionsByNumber.set(key, s);
+    }
+  }
 
   const formatSessionDateTime = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -2963,7 +2985,7 @@ function SessionChecklist({
           const session = sessionsByNumber.get(num);
           const isCompleted = session?.status === "COMPLETED";
           const isScheduled = session?.status === "SCHEDULED";
-          const isNext = num === usedSessions + 1 && program.status === "ACTIVE";
+          const isNext = num === firstUnrecordedSession(program.sessions) && program.status === "ACTIVE";
           const expanded = expandedSessionId === session?.id;
 
           return (
@@ -3532,7 +3554,7 @@ function ServiceDogSessionLog({
                 <button
                   type="button"
                   disabled={isMarkingAttendance}
-                  onClick={() => onMarkAttendance(program.id, usedSessions + 1, program.dog.name, program.customer?.phone ?? "", program.customer?.name ?? "")}
+                  onClick={() => onMarkAttendance(program.id, firstUnrecordedSession(program.sessions), program.dog.name, program.customer?.phone ?? "", program.customer?.name ?? "")}
                   className="mt-3 w-full py-2.5 rounded-xl border-2 border-dashed border-brand-200 text-xs font-semibold text-brand-500 hover:bg-brand-50 hover:border-brand-400 transition-all flex items-center justify-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -3864,7 +3886,7 @@ function IndividualTab({
                     <SessionChecklist
                       program={program}
                       usedSessions={usedSessions}
-                      onAddSession={() => onMarkAttendance(program.id, usedSessions + 1, program.dog.name, program.customer?.phone ?? "", program.customer?.name ?? "")}
+                      onAddSession={() => onMarkAttendance(program.id, firstUnrecordedSession(program.sessions), program.dog.name, program.customer?.phone ?? "", program.customer?.name ?? "")}
                       isAdding={isMarkingAttendance}
                       onScheduleSession={onScheduleSession ? (num) => onScheduleSession(program.id, num, program.dog.name, program.customer?.id ?? undefined, program.customer?.name ?? undefined, program.customer?.phone ?? undefined) : undefined}
                       onCancelSession={onCancelSession ? (sessionId) => onCancelSession(program.id, sessionId) : undefined}
@@ -3938,9 +3960,9 @@ function BoardingTrainingTab({
           ? Math.ceil((new Date(stay.checkOut).getTime() - Date.now()) / 86400000)
           : null;
         const usedSessions = linkedProgram?.sessions?.filter((s) => s.status === "COMPLETED").length ?? 0;
-        const nextSessionNum = usedSessions + 1;
+        const nextSessionNum = firstUnrecordedSession(linkedProgram?.sessions ?? []);
         const homeUsedSessions = homeProgram?.sessions?.filter((s) => s.status === "COMPLETED").length ?? 0;
-        const homeNextSession = homeUsedSessions + 1;
+        const homeNextSession = firstUnrecordedSession(homeProgram?.sessions ?? []);
 
         return (
           <div key={stay.id} className="card p-0 overflow-hidden">
