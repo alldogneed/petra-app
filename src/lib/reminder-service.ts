@@ -105,17 +105,27 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
     body = `שלום ${appt.customer.name}! 🐾\n\nתזכורת לתור שלך ב-${formattedDate} בשעה ${appt.startTime}.\nשירות: ${appt.service?.name ?? ""}${petPart}.\n\nנתראה! 😊${footer}`;
   }
 
+  // Contact phone drives the footer param in the _v2 approved template. Meta rejects
+  // empty parameters, so when the business has no phone we fall back to the original
+  // 4-param template (still approved) rather than risk an empty {{5}}.
+  const contactPhone = (rule?.business?.phone ?? bizSettings.phone ?? "").trim();
+  const metaPayload = contactPhone
+    ? {
+        metaTemplateName: "petra_appointment_reminder_v2",
+        metaTemplateParams: [appt.customer.name, formattedDate, appt.startTime, appt.service?.name ?? "", contactPhone],
+      }
+    : {
+        metaTemplateName: "petra_appointment_reminder",
+        metaTemplateParams: [appt.customer.name, formattedDate, appt.startTime, appt.service?.name ?? ""],
+      };
+
   return prisma.scheduledMessage.create({
     data: {
       businessId: appt.businessId,
       customerId: appt.customerId,
       channel: "whatsapp",
       templateKey: rule ? `automation-rule-${rule.id}` : "appointment_reminder_48h",
-      payloadJson: JSON.stringify({
-        body,
-        metaTemplateName: "petra_appointment_reminder",
-        metaTemplateParams: [appt.customer.name, formattedDate, appt.startTime, appt.service?.name ?? ""],
-      }),
+      payloadJson: JSON.stringify({ body, ...metaPayload }),
       sendAt,
       status: "PENDING",
       relatedEntityType: "APPOINTMENT",
@@ -254,7 +264,9 @@ export async function scheduleBoardingCheckoutReminder(stay: BoardingStayForRemi
   const overrides = (bizSettings.featureOverrides as Record<string, boolean> | null) ?? null;
   if (!hasFeatureWithOverrides(bizSettings.tier, "whatsapp_reminders", overrides)) return null;
 
-  // Look up active boarding_pickup automation rule
+  // Look up active boarding_pickup automation rule.
+  // Require it: the pickup reminder sends only when this automation is turned on
+  // (previously it fell back to sending even with the toggle off).
   const rule = await prisma.automationRule.findFirst({
     where: { businessId: stay.businessId, trigger: "boarding_pickup", isActive: true },
     include: {
@@ -262,6 +274,7 @@ export async function scheduleBoardingCheckoutReminder(stay: BoardingStayForRemi
       business: { select: { phone: true } },
     },
   });
+  if (!rule) return null;
 
   const offsetHours = rule?.triggerOffset ?? 24;
   const sendAt = new Date(stay.checkOut.getTime() - offsetHours * 60 * 60 * 1000);
@@ -288,17 +301,26 @@ export async function scheduleBoardingCheckoutReminder(stay: BoardingStayForRemi
     body = `שלום ${stay.customer.name}! 🏨\n\nתזכורת – מחר (${formattedDate}) הוא יום האיסוף של ${stay.pet.name} מהפנסיון.\n\n${stay.pet.name} נהנה/נהנתה מאוד ומחכה לכם! 🐕${footer}`;
   }
 
+  // See scheduleAppointmentReminder: use the _v2 template (with footer phone param)
+  // only when a phone exists; otherwise fall back to the original 2-param template.
+  const contactPhone = (rule?.business?.phone ?? bizSettings.phone ?? "").trim();
+  const metaPayload = contactPhone
+    ? {
+        metaTemplateName: "petra_boarding_checkout_v2",
+        metaTemplateParams: [stay.customer.name, stay.pet.name, contactPhone],
+      }
+    : {
+        metaTemplateName: "petra_boarding_checkout",
+        metaTemplateParams: [stay.customer.name, stay.pet.name],
+      };
+
   return prisma.scheduledMessage.create({
     data: {
       businessId: stay.businessId,
       customerId: stay.customerId,
       channel: "whatsapp",
       templateKey: rule ? `automation-rule-${rule.id}` : "boarding_checkout_reminder_24h",
-      payloadJson: JSON.stringify({
-        body,
-        metaTemplateName: "petra_boarding_checkout",
-        metaTemplateParams: [stay.customer.name, stay.pet.name],
-      }),
+      payloadJson: JSON.stringify({ body, ...metaPayload }),
       sendAt,
       status: "PENDING",
       relatedEntityType: "BOARDING",
@@ -340,11 +362,19 @@ export async function scheduleBoardingThankYou(stay: BoardingStayForReminder) {
   // Enforce tier gate: thank-you messages require BASIC+ (same as reminders)
   const bizSettings = await prisma.business.findUnique({
     where: { id: stay.businessId },
-    select: { tier: true, featureOverrides: true, whatsappRemindersEnabled: true },
+    select: { tier: true, featureOverrides: true, whatsappRemindersEnabled: true, phone: true },
   });
   if (!bizSettings?.whatsappRemindersEnabled) return null;
   const overrides = (bizSettings?.featureOverrides as Record<string, boolean> | null) ?? null;
   if (!hasFeatureWithOverrides(bizSettings?.tier ?? "free", "whatsapp_reminders", overrides)) return null;
+
+  // Require the per-message "boarding_thank_you" automation to be active — the
+  // thank-you sends only when this automation is explicitly turned on.
+  const rule = await prisma.automationRule.findFirst({
+    where: { businessId: stay.businessId, trigger: "boarding_thank_you", isActive: true },
+    select: { id: true },
+  });
+  if (!rule) return null;
 
   const relatedEntityId = `boarding-thankyou-${stay.id}`;
 
@@ -360,17 +390,26 @@ export async function scheduleBoardingThankYou(stay: BoardingStayForReminder) {
   const sendAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
   const body = `שלום ${stay.customer.name}! 🐾 תודה ש-${stay.pet.name} שהה/שהתה אצלנו. היה לנו כיף ואנחנו מקווים שגם ${stay.pet.name} נהנה/נהנתה! נשמח לארח אתכם שוב 💛`;
 
+  // See scheduleAppointmentReminder: use the _v2 template (footer phone param) only
+  // when a phone exists; otherwise fall back to the original 2-param template.
+  const contactPhone = (bizSettings.phone ?? "").trim();
+  const metaPayload = contactPhone
+    ? {
+        metaTemplateName: "petra_boarding_thank_you_v2",
+        metaTemplateParams: [stay.customer.name, stay.pet.name, contactPhone],
+      }
+    : {
+        metaTemplateName: "petra_boarding_thank_you",
+        metaTemplateParams: [stay.customer.name, stay.pet.name],
+      };
+
   return prisma.scheduledMessage.create({
     data: {
       businessId: stay.businessId,
       customerId: stay.customerId,
       channel: "whatsapp",
       templateKey: "boarding_thank_you",
-      payloadJson: JSON.stringify({
-        body,
-        metaTemplateName: "petra_boarding_thank_you",
-        metaTemplateParams: [stay.customer.name, stay.pet.name],
-      }),
+      payloadJson: JSON.stringify({ body, ...metaPayload }),
       sendAt,
       status: "PENDING",
       relatedEntityType: "BOARDING_THANKYOU",

@@ -59,14 +59,27 @@ export async function POST(request: NextRequest) {
 
     logCurrentUserActivity("CREATE_BOARDING_STAY");
 
-    // WhatsApp booking confirmation (PRO+ only, fire-and-forget)
+    // WhatsApp booking confirmation (PRO+ only, fire-and-forget).
+    // Sends only when ALL hold: the business tier allows it, the master
+    // "שליחת הודעות אוטומטיות" toggle (whatsappRemindersEnabled) is on, AND the
+    // per-message "boarding_confirmation" automation is active. Previously this sent
+    // on tier alone, so customers got boarding confirmations even when automatic
+    // messages — or this specific automation — were turned off.
     const bizForWa = await prisma.business.findUnique({
       where: { id: authResult.businessId },
-      select: { tier: true, featureOverrides: true },
+      select: { tier: true, featureOverrides: true, whatsappRemindersEnabled: true },
     });
     const waOverrides = (bizForWa?.featureOverrides as Record<string, boolean> | null) ?? null;
-    if (hasFeatureWithOverrides(bizForWa?.tier ?? "free", "whatsapp_reminders", waOverrides) && stay.customer?.phone) {
-      const phone = toWhatsAppPhone(stay.customer.phone);
+    if (
+      bizForWa?.whatsappRemindersEnabled &&
+      hasFeatureWithOverrides(bizForWa?.tier ?? "free", "whatsapp_reminders", waOverrides) &&
+      stay.customer?.phone
+    ) {
+      const confirmRule = await prisma.automationRule.findFirst({
+        where: { businessId: authResult.businessId, trigger: "boarding_confirmation", isActive: true },
+        select: { id: true },
+      });
+      const phone = confirmRule ? toWhatsAppPhone(stay.customer.phone) : null;
       if (phone) {
         const checkInStr = stay.checkIn.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
         const checkOutStr = stay.checkOut

@@ -19,7 +19,9 @@ export const VALID_AUTOMATION_TRIGGERS = [
   "payment_request",
   "lead_followup",
   "birthday_reminder",
+  "boarding_confirmation",
   "boarding_pickup",
+  "boarding_thank_you",
   "new_customer",
   "service_dog_meeting_reminder",
 ] as const;

@@ -63,7 +63,9 @@ const AUTOMATION_TRIGGERS = [
   { id: "payment_request", label: "דרישת תשלום", description: "שלח מיד כשנוצרת הזמנה חדשה" },
   { id: "lead_followup", label: "ליד חדש", description: "שלח הודעה X שעות אחרי יצירת ליד" },
   { id: "birthday_reminder", label: "יום הולדת לכלב", description: "שלח ביום ההולדת בשעה 08:00" },
+  { id: "boarding_confirmation", label: "אישור קביעת פנסיון", description: "שלח מיד כשנקבעת שהייה בפנסיון" },
   { id: "boarding_pickup", label: "תזכורת איסוף מפנסיון", description: "שלח הודעה X שעות לפני יום האיסוף" },
+  { id: "boarding_thank_you", label: "תודה אחרי פנסיון", description: "שלח שעה אחרי סיום השהייה" },
 ];
 
 const IMMEDIATE_TRIGGERS = new Set(["appointment_confirmation", "payment_request", "new_customer", "birthday_reminder"]);
@@ -102,17 +104,17 @@ function applyPreview(body: string): string {
   return body.replace(/\{(\w+)\}/g, (match, key) => SAMPLE_VARS[key] ?? match);
 }
 
-const AUTOMATED_FOOTER = "\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: {businessPhone}_";
+const AUTOMATED_FOOTER = "\n\n_לפניות ישירות לעסק: {businessPhone}. הודעה אוטומטית – אין להשיב להודעה זו._";
 
 const STARTER_TEMPLATES = [
   {
     label: "📅 תזכורת לפני פגישה",
-    body: "שלום {customerName}! 🐾\n\nתזכורת לפגישה שלנו ב-{date} בשעה {time}.\nשירות: {serviceName} עם {petName}.\n\nמחכים לראות אתכם! 😊" + AUTOMATED_FOOTER,
+    body: "שלום {customerName}! 🐾\n\nתזכורת לפגישה שלנו ב-{date} בשעה {time}.\nשירות: {serviceName}.\n\nמחכים לראות אתכם! 😊" + AUTOMATED_FOOTER,
     trigger: "appointment_reminder", offset: 24,
   },
   {
     label: "✅ אישור קביעת פגישה",
-    body: "שלום {customerName}! ✅\n\nהפגישה שלך נקבעה בהצלחה!\n📅 תאריך: {date}\n🕐 שעה: {time}\nשירות: {serviceName}\n\nמחכים לראות את {petName}! 🐾" + AUTOMATED_FOOTER,
+    body: "שלום {customerName}! ✅\n\nהפגישה שלך נקבעה בהצלחה!\n📅 תאריך: {date}\n🕐 שעה: {time}\nשירות: {serviceName}\n\nמחכים לראות אתכם! 🐾" + AUTOMATED_FOOTER,
     trigger: "appointment_confirmation", offset: 0,
   },
   {
@@ -136,9 +138,19 @@ const STARTER_TEMPLATES = [
     trigger: "new_customer", offset: 0,
   },
   {
+    label: "🏠 אישור קביעת פנסיון",
+    body: "שלום {customerName}! 🏠\n\nהזמנת הפנסיון ל-{petName} אושרה בהצלחה!\n📅 כניסה: {checkIn}\n📅 יציאה: {checkOut}\n\nמחכים לקבל אתכם! 🐾",
+    trigger: "boarding_confirmation", offset: 0,
+  },
+  {
     label: "🏨 תזכורת איסוף מפנסיון",
-    body: "שלום {customerName}! 🏨\n\nתזכורת – מחר ({date}) הוא יום האיסוף של {petName} מהפנסיון.\n\n{petName} נהנה/נהנתה מאוד ומחכה לכם! 🐕" + AUTOMATED_FOOTER,
+    body: "שלום {customerName}! 🏨\n\nתזכורת – מחר הוא יום האיסוף של {petName} מהפנסיון.\n\n{petName} נהנה/ת מאוד ומחכה לכם! 🐕" + AUTOMATED_FOOTER,
     trigger: "boarding_pickup", offset: 24,
+  },
+  {
+    label: "🌟 תודה אחרי פנסיון",
+    body: "שלום {customerName}! 🌟\n\nתודה שבחרתם בנו לטפל ב-{petName}.\n\nהיה לנו כיף לארח אותו/ה! נשמח לראותכם שוב 🐾" + AUTOMATED_FOOTER,
+    trigger: "boarding_thank_you", offset: 0,
   },
   {
     label: "⭐ בקשת ביקורת",
@@ -158,7 +170,9 @@ const TRIGGER_LOCATION: Record<string, string> = {
   appointment_followup:     "פרופיל לקוח ← תורים שהושלמו ← מעקב",
   birthday_reminder:        "פרופיל לקוח ← כרטיס חיית המחמד ← יום הולדת",
   new_customer:             "פרופיל לקוח ← כפתור ברוכים הבאים",
+  boarding_confirmation:    "נשלח אוטומטית בעת קביעת שהייה בפנסיון",
   boarding_pickup:          "ניהול פנסיון ← רשימת שהיות",
+  boarding_thank_you:       "נשלח אוטומטית שעה אחרי סיום שהייה",
 };
 
 // ─── Send Modal ───────────────────────────────────────────────────────────────
@@ -419,7 +433,9 @@ const TRIGGER_ICONS: Record<string, React.ElementType> = {
   new_customer: UserPlus,
   lead_followup: Users,
   birthday_reminder: Gift,
+  boarding_confirmation: Home,
   boarding_pickup: Home,
+  boarding_thank_you: MessageSquare,
 };
 
 // ─── Templates Tab ────────────────────────────────────────────────────────────
@@ -687,6 +703,17 @@ function TemplatesTab() {
                 )}
               />
             </button>
+          </div>
+        )}
+        {can("whatsapp_reminders") && (
+          <div className="rounded-lg border border-sky-200 bg-sky-50/70 px-4 py-3 mb-4">
+            <p className="text-xs text-sky-900 leading-relaxed">
+              <span className="font-semibold">איך נשלחות ההודעות בפועל:</span>{" "}
+              תזכורות והודעות יזומות נשלחות דרך תבניות וואטסאפ מאושרות של Meta, בנוסח אחיד וקבוע —
+              כך מתירה Meta לשלוח הודעה יזומה מחוץ לחלון של 24 שעות מפניית הלקוח.
+              עריכת הטקסט כאן חלה על הודעות שנשלחות בתוך 24 שעות מפניית הלקוח; מחוץ לחלון הזה
+              הלקוח מקבל את הנוסח המאושר. לכן ייתכן שהטקסט שמוצג כאן לא זהה מילה-במילה למה שהלקוח מקבל.
+            </p>
           </div>
         )}
         <div className="space-y-3">

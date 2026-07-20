@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     const business = await prisma.business.findUnique({
       where: { id: authResult.businessId },
-      select: { tier: true, timezone: true, featureOverrides: true },
+      select: { tier: true, timezone: true, featureOverrides: true, phone: true, whatsappRemindersEnabled: true },
     });
     const maxAppts = getMaxAppointments(normalizeTier(business?.tier));
 
@@ -74,9 +74,12 @@ export async function POST(request: NextRequest) {
 
     // ── Side effects ────────────────────────────────────────────────────────
 
-    // WhatsApp confirmation (PRO+, fire-and-forget)
+    // WhatsApp confirmation (PRO+, fire-and-forget).
+    // Respect the master "שליחת הודעות אוטומטיות" toggle (whatsappRemindersEnabled) —
+    // previously this sent on tier alone, so confirmations went out even when
+    // automatic messages were turned off.
     const bizOverrides = (business?.featureOverrides as Record<string, boolean> | null) ?? null;
-    if (hasFeatureWithOverrides(business?.tier ?? "free", "whatsapp_reminders", bizOverrides) && appointment.customer?.phone) {
+    if (business?.whatsappRemindersEnabled && hasFeatureWithOverrides(business?.tier ?? "free", "whatsapp_reminders", bizOverrides) && appointment.customer?.phone) {
       const phone = toWhatsAppPhone(appointment.customer.phone);
       if (phone) {
         const [h, m] = appointment.startTime.split(":").map(Number);
@@ -102,11 +105,21 @@ export async function POST(request: NextRequest) {
             console.error("Appointment confirmation WA (custom) failed:", err)
           );
         } else {
-          await sendWhatsAppTemplate({
-            to: phone,
-            templateName: "petra_appointment_confirmation",
-            bodyParams: [appointment.customer.name, formattedDate, appointment.startTime, serviceName],
-          }).catch((err) => console.error("Appointment confirmation WA failed:", err));
+          // Use the _v2 template (footer phone param) only when a phone exists;
+          // Meta rejects empty params, so fall back to the original 4-param template.
+          const contactPhone = (business?.phone ?? "").trim();
+          const templateSend = contactPhone
+            ? {
+                templateName: "petra_appointment_confirmation_v2",
+                bodyParams: [appointment.customer.name, formattedDate, appointment.startTime, serviceName, contactPhone],
+              }
+            : {
+                templateName: "petra_appointment_confirmation",
+                bodyParams: [appointment.customer.name, formattedDate, appointment.startTime, serviceName],
+              };
+          await sendWhatsAppTemplate({ to: phone, ...templateSend }).catch((err) =>
+            console.error("Appointment confirmation WA failed:", err)
+          );
         }
       }
     }
