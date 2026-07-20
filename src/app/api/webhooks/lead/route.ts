@@ -191,15 +191,30 @@ export async function POST(request: NextRequest) {
       await Promise.allSettled(
         uniquePhones.map(async (p) => {
           try {
-            const result = await sendWhatsAppTemplate({
+            // The originally-approved template has 3 body params (name, phone,
+            // service); a 5-param variant may exist after re-approval. Try 5,
+            // retry with 3 on failure — only template sends deliver outside
+            // Meta's 24h session window, so the free-form fallback is last.
+            let result = await sendWhatsAppTemplate({
               to: p,
               templateName: "petra_biz_lead_alert",
               bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
             });
             if (!result.success) {
-              await sendWhatsAppMessage({ to: p, body: msg });
+              console.error("[webhook/lead] 5-param template failed for", p, "-", result.error);
+              result = await sendWhatsAppTemplate({
+                to: p,
+                templateName: "petra_biz_lead_alert",
+                bodyParams: [lead.name, phoneParam, serviceParam],
+              });
             }
-          } catch {
+            if (!result.success) {
+              console.error("[webhook/lead] 3-param template failed for", p, "-", result.error);
+              const freeform = await sendWhatsAppMessage({ to: p, body: msg });
+              if (!freeform.success) console.error("[webhook/lead] free-form fallback failed for", p, "-", freeform.error);
+            }
+          } catch (err) {
+            console.error("[webhook/lead] send threw for", p, err);
             await sendWhatsAppMessage({ to: p, body: msg }).catch((fallbackErr) => {
               console.error("[webhook/lead] WhatsApp fallback also failed for", p, fallbackErr);
             });
