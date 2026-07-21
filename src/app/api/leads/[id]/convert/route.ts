@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { cancelLeadFollowup } from "@/lib/reminder-service";
 
 /**
  * POST /api/leads/[id]/convert
@@ -99,6 +100,11 @@ export async function POST(
                 customerId: customer!.id,
             },
         });
+
+        // Lead converted to customer — cancel any pending lead_followup message
+        await cancelLeadFollowup(id).catch((err) =>
+            console.error("cancelLeadFollowup (convert) failed (non-critical):", err)
+        );
 
         const result = { customer, lead: updatedLead };
 

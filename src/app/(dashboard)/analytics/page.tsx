@@ -23,6 +23,7 @@ import {
   Download,
 } from "lucide-react";
 import { cn, formatCurrency, fetchJSON } from "@/lib/utils";
+import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { TierGate } from "@/components/paywall/TierGate";
 
@@ -53,6 +54,15 @@ interface AnalyticsData {
     lostThisPeriod: number;
     conversionRate: number;
   };
+  leadsBySource?: {
+    source: string;
+    total: number;
+    won: number;
+    lost: number;
+    active: number;
+    conversionRate: number;
+  }[];
+  lostReasons?: { code: string; count: number }[];
   training: {
     activePrograms: number;
     completedSessionsThisPeriod: number;
@@ -82,6 +92,14 @@ interface AnalyticsData {
     avgRevenuePerCustomer: number;
   };
 }
+
+const LEAD_SOURCE_LABELS: Record<string, string> = Object.fromEntries(
+  LEAD_SOURCES.map((s) => [s.id, s.label])
+);
+
+const LOST_REASON_LABELS: Record<string, string> = Object.fromEntries(
+  LOST_REASON_CODES.map((r) => [r.id, r.label])
+);
 
 const PERIODS = [
   { id: "week", label: "שבוע" },
@@ -634,6 +652,83 @@ function AnalyticsContent() {
               </div>
             </div>
           )}
+
+          {/* Leads by Source + Lost Reasons */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+            {/* Leads by Source */}
+            <div className="card p-5">
+              <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
+                <Target className="w-4 h-4 text-brand-500" />
+                לידים לפי מקור
+              </h3>
+              {(data.leadsBySource?.length ?? 0) === 0 ? (
+                <div className="flex items-center justify-center h-32 text-sm text-petra-muted">
+                  אין נתוני לידים בתקופה זו
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {(data.leadsBySource ?? []).map((s) => {
+                    const maxTotal = data.leadsBySource![0].total;
+                    const pct = maxTotal > 0 ? Math.round((s.total / maxTotal) * 100) : 0;
+                    return (
+                      <div key={s.source}>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="font-medium text-petra-text truncate">
+                            {LEAD_SOURCE_LABELS[s.source] ?? s.source}
+                          </span>
+                          <span className="text-petra-muted flex-shrink-0 ms-2">
+                            {s.total} לידים · {s.won} נסגרו · {s.conversionRate}% המרה
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-brand-400"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Lost Reasons */}
+            <div className="card p-5">
+              <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-400" />
+                סיבות אובדן לידים
+              </h3>
+              {(data.lostReasons?.length ?? 0) === 0 ? (
+                <div className="flex items-center justify-center h-32 text-sm text-petra-muted">
+                  אין לידים שאבדו בתקופה זו
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {(data.lostReasons ?? []).map((r) => {
+                    const maxCount = data.lostReasons![0].count;
+                    const pct = maxCount > 0 ? Math.round((r.count / maxCount) * 100) : 0;
+                    return (
+                      <div key={r.code}>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="font-medium text-petra-text truncate">
+                            {LOST_REASON_LABELS[r.code] ?? r.code}
+                          </span>
+                          <span className="text-petra-muted flex-shrink-0 ms-2">{r.count}</span>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-red-300"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Scheduling Heatmap */}
           {((data.charts.appointmentsByDayOfWeek?.some((d) => d.count > 0)) ||

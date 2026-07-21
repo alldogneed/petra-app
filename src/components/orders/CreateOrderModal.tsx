@@ -521,6 +521,10 @@ export function CreateOrderModal({
           discountValue: parseFloat(discountValue) || 0,
           notes,
           status: statusOverride,
+          // Pay-now flow records the payment right after this POST — suppress the
+          // payment_request automation so the customer isn't sent a live payment
+          // link for money they are paying at the counter.
+          suppressPaymentRequest: opts.payNow ? true : undefined,
           // Training: pass sub-type, package id, and program type for auto-program creation
           trainingSubType: orderType === "training" ? trainingSubType : undefined,
           programType: orderType === "training" ? trainingProgramType : undefined,

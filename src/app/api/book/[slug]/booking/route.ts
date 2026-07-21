@@ -10,6 +10,7 @@ import { enqueueSyncJob } from "@/lib/sync-jobs"
 import { getFirstLeadStageId } from "@/lib/lead-stages"
 import { syncAppointmentToGcal } from "@/lib/google-calendar"
 import { sanitizeName } from "@/lib/validation"
+import { scheduleLeadFollowup } from "@/lib/reminder-service"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://petra-app.vercel.app"
 
@@ -333,7 +334,19 @@ export async function POST(
           source: "website",
           notes: `הזמנה מהאתר: ${item.name}`,
         },
-      });
+      }).then((lead) =>
+        // lead_followup automation hook. Booking-created leads carry customerId
+        // (the customer just booked), so scheduleLeadFollowup no-ops here today —
+        // the hook keeps this raw-prisma creation path covered if that ever changes.
+        scheduleLeadFollowup({
+          id: lead.id,
+          businessId: business.id,
+          name: lead.name,
+          phone: lead.phone,
+          requestedService: item.name,
+          customerId: lead.customerId,
+        })
+      );
     }).catch((err) => console.error("Failed to create lead from booking:", err))
   }
 

@@ -123,6 +123,11 @@ const STARTER_TEMPLATES = [
     trigger: "payment_request", offset: 0,
   },
   {
+    label: "📞 מעקב אחרי ליד חדש",
+    body: "שלום {customerName}! 🐾\n\nקיבלנו את פנייתך לגבי {serviceName} ונשמח לעזור!\nנחזור אליך בהקדם." + AUTOMATED_FOOTER,
+    trigger: "lead_followup", offset: 24,
+  },
+  {
     label: "🌟 מעקב אחרי פגישה",
     body: "שלום {customerName}! 🌟\n\nרצינו לדעת איך {petName} מרגיש/ת לאחר הפגישה האחרונה.\nאם הכל בסדר – נשמח לשמוע! ואם יש משהו שלא כשורה, חשוב לנו לדעת.\n\nתודה שבחרתם בנו 💛" + AUTOMATED_FOOTER,
     trigger: "appointment_followup", offset: 24,
@@ -167,6 +172,7 @@ const TRIGGER_LOCATION: Record<string, string> = {
   appointment_reminder:     "לוח שנה ← תור ← כפתור WhatsApp",
   appointment_confirmation: "נשלח אוטומטית בעת קביעת תור",
   payment_request:          "הזמנה ← סעיף תשלומים ← כפתור דרישת תשלום",
+  lead_followup:            "נשלח אוטומטית מספר שעות אחרי יצירת ליד",
   appointment_followup:     "פרופיל לקוח ← תורים שהושלמו ← מעקב",
   birthday_reminder:        "פרופיל לקוח ← כרטיס חיית המחמד ← יום הולדת",
   new_customer:             "פרופיל לקוח ← כפתור ברוכים הבאים",

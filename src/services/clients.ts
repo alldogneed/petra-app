@@ -17,6 +17,7 @@ import {
   getMaxCustomers, getMaxLeads, getMaxTasks, normalizeTier,
 } from "@/lib/feature-flags";
 import { getFirstLeadStageId } from "@/lib/lead-stages";
+import { scheduleLeadFollowup } from "@/lib/reminder-service";
 import { ServiceError } from "./types";
 
 export type DbClient = PrismaClient;
@@ -694,6 +695,20 @@ export async function createLead(businessId: string, db: DbClient, input: Create
     },
     include: { customer: true, callLogs: true },
   });
+
+  // lead_followup automation — hooked here ONCE so every createLead caller
+  // (POST /api/leads, MCP create_lead) is covered without per-route duplication.
+  // This only creates a ScheduledMessage DB row (the cron does the actual send),
+  // so it does not violate the "WhatsApp sends stay in routes" convention above.
+  // Awaited (Vercel kills detached promises); errors never fail the request.
+  await scheduleLeadFollowup({
+    id: lead.id,
+    businessId,
+    name: lead.name,
+    phone: lead.phone,
+    requestedService: lead.requestedService,
+    customerId: lead.customerId,
+  }).catch((err) => console.error("scheduleLeadFollowup (createLead) failed (non-critical):", err));
 
   return {
     lead,

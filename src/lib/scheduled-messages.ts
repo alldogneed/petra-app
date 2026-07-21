@@ -61,6 +61,15 @@ async function isEventExpired(msg: {
         const iso = msg.relatedEntityId.split("__")[1];
         return iso ? new Date(iso) <= now : false;
       }
+      case "LEAD_FOLLOWUP": {
+        // Lead closed (won/lost), converted to a customer, or deleted before
+        // sendAt → the follow-up would be confusing, cancel it.
+        const lead = await prisma.lead.findUnique({
+          where: { id: msg.relatedEntityId },
+          select: { wonAt: true, lostAt: true, customerId: true },
+        });
+        return !lead || !!lead.wonAt || !!lead.lostAt || !!lead.customerId;
+      }
       default:
         return false;
     }

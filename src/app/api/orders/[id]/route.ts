@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { sendPaymentRequestForOrder } from "@/lib/payment-request";
 import { getOrder, updateOrder, deleteOrder, ServiceError } from "@/services/orders";
 
 export async function GET(
@@ -34,6 +35,22 @@ export async function PATCH(
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
+
+    // Atomically claim the draft→confirmed transition BEFORE the service update:
+    // updateMany with status:"draft" in the where-clause flips at most one row, so
+    // two concurrent confirm PATCHes (double-click) can't both observe "draft" —
+    // only the request whose claim count === 1 fires the payment request below.
+    // (A read-then-compare here was racy.) The service update afterwards is a
+    // no-op for status but still applies notes/orderType and runs validation.
+    let claimedDraftToConfirmed = false;
+    if (body.status === "confirmed") {
+      const claim = await prisma.order.updateMany({
+        where: { id: params.id, businessId: authResult.businessId, status: "draft" },
+        data: { status: "confirmed" },
+      });
+      claimedDraftToConfirmed = claim.count === 1;
+    }
+
     let order;
     try {
       order = await updateOrder(authResult.businessId, prisma, params.id, {
@@ -47,6 +64,18 @@ export async function PATCH(
       }
       throw e;
     }
+
+    // payment_request automation — fires ONLY when THIS request atomically claimed
+    // the draft→confirmed transition above (concurrent PATCHes can't both claim;
+    // confirmed→confirmed never fires). Note: reverting to draft and re-confirming
+    // legitimately re-sends — but the already-fully-paid guard inside
+    // sendPaymentRequestForOrder prevents requesting money already collected.
+    if (claimedDraftToConfirmed && order.status === "confirmed") {
+      await sendPaymentRequestForOrder(params.id, authResult.businessId, "order_confirmed").catch(
+        (err) => console.error("sendPaymentRequestForOrder (confirm) failed (non-critical):", err)
+      );
+    }
+
     return NextResponse.json(order);
   } catch (error) {
     console.error("Error updating order:", error);

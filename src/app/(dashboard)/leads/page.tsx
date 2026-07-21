@@ -10,8 +10,10 @@ import {
   Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
   Trophy, Archive, PhoneCall, PhoneMissed, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText,
   CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles, MapPin, Tag, Download, AlertCircle, RotateCcw, ChevronDown,
+  CheckSquare, Square, MinusSquare,
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
+import { mapWithConcurrency } from "@/lib/concurrency";
 import { triggerLimitModal } from "@/lib/limit-reached";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone } from "@/lib/validation";
 import { toast } from "sonner";
@@ -387,6 +389,9 @@ function KanbanColumn({
   dragAttributes,
   dragListeners,
   stages,
+  selectionMode = false,
+  selectedIds,
+  onToggleSelect,
 }: {
   stage: LeadStage;
   leads: Lead[];
@@ -405,6 +410,9 @@ function KanbanColumn({
   dragAttributes?: Record<string, any>;
   dragListeners?: Record<string, any>;
   stages: LeadStage[];
+  selectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }) {
   const { isOver, setNodeRef } = useDroppable({
     id: stage.id,
@@ -536,6 +544,9 @@ function KanbanColumn({
             onWon={() => onWon(lead)}
             onDetails={() => onDetails(lead)}
             stages={stages}
+            selectionMode={selectionMode}
+            isSelected={selectedIds?.has(lead.id) ?? false}
+            onToggleSelect={() => onToggleSelect?.(lead.id)}
           />
         ))}
         {editMode && leads.map((lead) => (
@@ -574,6 +585,9 @@ function DraggableLeadCard({
   onWon,
   onDetails,
   stages,
+  selectionMode = false,
+  isSelected = false,
+  onToggleSelect,
 }: {
   lead: Lead;
   stage: LeadStage;
@@ -582,6 +596,9 @@ function DraggableLeadCard({
   onWon: () => void;
   onDetails: () => void;
   stages: LeadStage[];
+  selectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const [converting, setConverting] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -643,6 +660,7 @@ function DraggableLeadCard({
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: lead.id,
     data: { lead },
+    disabled: selectionMode, // no dragging while selecting — clicks toggle selection
   });
 
   const sourceLabel = LEAD_SOURCES.find((s) => s.id === lead.source)?.label || lead.source;
@@ -697,11 +715,20 @@ function DraggableLeadCard({
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      onClick={onClick}
-      className={`rounded-lg px-2 py-1.5 group cursor-pointer hover:shadow-md transition-shadow relative overflow-hidden ${cardBorder} ${isDragging ? "opacity-50 !border-2 !border-brand-500 shadow-xl" : ""}`}
+      {...(selectionMode ? {} : attributes)}
+      {...(selectionMode ? {} : listeners)}
+      onClick={selectionMode ? undefined : onClick}
+      className={`rounded-lg px-2 py-1.5 group cursor-pointer hover:shadow-md transition-shadow relative overflow-hidden ${cardBorder} ${isDragging ? "opacity-50 !border-2 !border-brand-500 shadow-xl" : ""} ${selectionMode && isSelected ? "!border-2 !border-brand-400 ring-2 ring-brand-200 bg-[#FEF9F4]" : ""}`}
     >
+      {/* Selection overlay — whole card toggles selection, inner actions blocked */}
+      {selectionMode && (
+        <button
+          type="button"
+          aria-label={isSelected ? "בטל בחירת ליד" : "בחר ליד"}
+          className="absolute inset-0 z-10 cursor-pointer"
+          onClick={(e) => { e.stopPropagation(); onToggleSelect?.(); }}
+        />
+      )}
       {/* Thin colored left-edge status strip */}
       <div className={`absolute top-0 left-0 bottom-0 w-[3px] ${
         leadStatus === "overdue" ? "bg-red-400" :
@@ -710,9 +737,14 @@ function DraggableLeadCard({
         isLost ? "bg-slate-300" : "bg-transparent"
       }`} />
 
-      {/* Row 1: grip + status icon + name + call count + phone */}
+      {/* Row 1: checkbox (selection mode) / grip + status icon + name + call count + phone */}
       <div className="flex items-center gap-1">
-        <GripVertical className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 cursor-grab" />
+        {selectionMode && (
+          isSelected
+            ? <CheckSquare className="w-4 h-4 text-brand-500 flex-shrink-0" />
+            : <Square className="w-4 h-4 text-slate-400 flex-shrink-0" />
+        )}
+        {!selectionMode && <GripVertical className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 cursor-grab" />}
         {leadStatus === "overdue" && <AlertCircle className="w-3 h-3 text-red-500 flex-shrink-0" />}
         {leadStatus === "untouched" && <Sparkles className="w-3 h-3 text-amber-500 flex-shrink-0" />}
         <span className="text-xs font-bold text-petra-text truncate flex-1">{lead.name}</span>
@@ -1426,6 +1458,18 @@ function LeadsPageContent() {
   const [editingName, setEditingName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ stage: LeadStage; leadCount: number } | null>(null);
 
+  // Bulk selection state (same pattern as customers page)
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
+  // Filters changing mid-selection would leave leads selected that are no longer
+  // visible — "מחק נבחרים" would then delete leads the user can't see. Clear the
+  // selection whenever the visible set's filters change.
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [searchQuery, sourceFilter]);
+
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -1557,6 +1601,47 @@ function LeadsPageContent() {
     onError: () => toast.error("שגיאה בהמרת הליד ללקוח. נסה שוב."),
   });
 
+  // ─── Bulk Delete mutation ──────────────────────────────────────────────
+  // Loops the existing per-lead DELETE endpoint — exact same fetch shape as
+  // the single-lead delete in LeadTreatmentModal (x-confirm-action header per
+  // RBAC delete flow). Bounded concurrency to avoid exhausting the DB pool.
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const results = await mapWithConcurrency(ids, 3, async (id) => {
+        try {
+          const r = await fetch(`/api/leads/${id}`, {
+            method: "DELETE",
+            headers: { "x-confirm-action": `DELETE_LEAD_${id}` },
+          });
+          // 404 = lead already gone — the end state is what the user wanted.
+          if (r.status === 404) return "deleted" as const;
+          // 202 = manager flow — deletion request sent to owner for approval.
+          if (r.status === 202) return "pending" as const;
+          if (!r.ok) return "failed" as const;
+          return "deleted" as const;
+        } catch {
+          return "failed" as const;
+        }
+      });
+      return {
+        deleted: results.filter((s) => s === "deleted").length,
+        pending: results.filter((s) => s === "pending").length,
+        failed: results.filter((s) => s === "failed").length,
+      };
+    },
+    onSuccess: ({ deleted, pending, failed }) => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
+      setShowBulkDeleteConfirm(false);
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      if (deleted > 0) toast.success(`${deleted} לידים נמחקו`);
+      if (pending > 0) toast.success(`${pending} בקשות מחיקה נשלחו לאישור הבעלים`);
+      if (failed > 0) toast.error(`${failed} מחיקות נכשלו. נסה שוב.`);
+    },
+    onError: () => toast.error("שגיאה במחיקת הלידים. נסה שוב."),
+  });
+
   // ─── Lead DnD Sensors ──────────────────────────────────────────────────
 
   const sensors = useSensors(
@@ -1674,6 +1759,36 @@ function LeadsPageContent() {
   const lostStage = stages.find((s) => s.isLost);
   const activeStages = stages.filter((s) => !s.isWon && !s.isLost);
 
+  // ─── Selection helpers ──────────────────────────────────────────────────
+  // "Visible" = the leads currently rendered on the kanban board (active-stage
+  // columns), respecting the active search/source filters.
+  const visibleKanbanLeads = useMemo(() => {
+    const activeStageIds = new Set(activeStages.map((s) => s.id));
+    return filteredLeads.filter((l) => activeStageIds.has(l.stage));
+  }, [filteredLeads, activeStages]);
+
+  const allSelected = visibleKanbanLeads.length > 0 && visibleKanbanLeads.every((l) => selectedIds.has(l.id));
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds(allSelected ? new Set() : new Set(visibleKanbanLeads.map((l) => l.id)));
+  }, [allSelected, visibleKanbanLeads]);
+
+  const exitSelectionMode = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+    setShowBulkDeleteConfirm(false);
+  }, []);
+
   const funnelStats = useMemo(() => {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -1774,8 +1889,29 @@ function LeadsPageContent() {
         {activeTab === "kanban" && (
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <button
+              className={`btn-secondary flex items-center gap-1.5 text-sm ${selectionMode ? "!bg-brand-50 !text-brand-700 !border-brand-300" : ""}`}
+              onClick={() => {
+                if (selectionMode) {
+                  exitSelectionMode();
+                } else {
+                  setSelectionMode(true);
+                  setEditMode(false);
+                  setEditingStageId(null);
+                  setEditingName("");
+                }
+              }}
+            >
+              <CheckSquare className="w-3.5 h-3.5" />
+              {selectionMode ? "בטל בחירה" : "בחר"}
+            </button>
+            <button
               className={`btn-secondary flex items-center gap-1.5 text-sm ${editMode ? "!bg-brand-50 !text-brand-700 !border-brand-300" : ""}`}
-              onClick={() => { setEditMode(!editMode); setEditingStageId(null); setEditingName(""); }}
+              onClick={() => {
+                setEditMode(!editMode);
+                setEditingStageId(null);
+                setEditingName("");
+                if (!editMode) exitSelectionMode();
+              }}
             >
               <Pencil className="w-3.5 h-3.5" />
               {editMode ? "סיום עריכה" : "עריכת שלבים"}
@@ -2046,6 +2182,36 @@ function LeadsPageContent() {
         </div>
       )}
 
+      {/* ─── Bulk Selection Bar ─── */}
+      {selectionMode && !editMode && (
+        <div className="card p-3 mb-4 flex flex-wrap items-center gap-3 bg-[#FEF9F4] border-brand-200">
+          <button
+            onClick={toggleSelectAll}
+            className="flex items-center gap-2 text-slate-500 hover:text-petra-text transition-colors"
+          >
+            {allSelected ? (
+              <CheckSquare className="w-4 h-4 text-brand-500" />
+            ) : someSelected ? (
+              <MinusSquare className="w-4 h-4 text-brand-400" />
+            ) : (
+              <Square className="w-4 h-4" />
+            )}
+            <span className="text-xs font-medium">בחר הכל</span>
+          </button>
+          <div className="w-px h-5 bg-brand-200" />
+          <span className="text-sm font-semibold text-petra-text">{selectedIds.size} נבחרו</span>
+          {selectedIds.size > 0 && (
+            <button
+              className="ms-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors"
+              onClick={() => setShowBulkDeleteConfirm(true)}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              מחק נבחרים
+            </button>
+          )}
+        </div>
+      )}
+
       {editMode ? (
         /* ─── Edit Mode: Column reorder DnD ─── */
         <>
@@ -2127,6 +2293,9 @@ function LeadsPageContent() {
                     onWon={handleWon}
                     onDetails={(lead) => setDetailsLead(lead)}
                     stages={stages}
+                    selectionMode={selectionMode}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleSelect}
                   />
                 </div>
               );
@@ -2180,6 +2349,38 @@ function LeadsPageContent() {
           onConfirm={handleConfirmDelete}
           onClose={() => setDeleteTarget(null)}
         />
+      )}
+
+      {/* Bulk delete confirmation — same modal style as DeleteStageModal */}
+      {showBulkDeleteConfirm && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => { if (!bulkDeleteMutation.isPending) setShowBulkDeleteConfirm(false); }} />
+          <div className="modal-content max-w-sm mx-4 p-6">
+            <h3 className="text-lg font-bold text-petra-text mb-3">
+              למחוק {selectedIds.size} לידים?
+            </h3>
+            <p className="text-sm text-petra-muted mb-4">
+              הלידים הנבחרים יימחקו לצמיתות, כולל היסטוריית השיחות שלהם. לא ניתן לשחזר פעולה זו.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                className="btn-secondary"
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                disabled={bulkDeleteMutation.isPending}
+              >
+                ביטול
+              </button>
+              <button
+                className="btn-danger flex items-center gap-1.5"
+                disabled={bulkDeleteMutation.isPending || selectedIds.size === 0}
+                onClick={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {bulkDeleteMutation.isPending ? "מוחק..." : `מחק ${selectedIds.size} לידים`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

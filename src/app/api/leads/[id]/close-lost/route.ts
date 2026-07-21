@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { LOST_REASON_CODES } from "@/lib/constants";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { cancelLeadFollowup } from "@/lib/reminder-service";
 
 export async function POST(
   request: NextRequest,
@@ -78,6 +79,11 @@ export async function POST(
       },
       include: { customer: true, callLogs: true },
     });
+
+    // Lead is closed-lost — cancel any pending lead_followup message
+    await cancelLeadFollowup(id).catch((err) =>
+      console.error("cancelLeadFollowup (close-lost) failed (non-critical):", err)
+    );
 
     const { session } = authResult;
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.CLOSE_LEAD_LOST);

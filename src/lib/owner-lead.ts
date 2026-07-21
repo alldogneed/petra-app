@@ -5,6 +5,7 @@
  */
 import prisma from "@/lib/prisma";
 import { getFirstLeadStageId } from "@/lib/lead-stages";
+import { scheduleLeadFollowup } from "@/lib/reminder-service";
 
 const OWNER_EMAIL = "alldogneed@gmail.com";
 
@@ -55,7 +56,7 @@ export async function createOwnerLead(data: OwnerLeadData): Promise<void> {
     if (data.billingEmail && data.billingEmail !== data.email)
       noteLines.push(`אימייל חשבונית: ${data.billingEmail}`);
 
-    await prisma.lead.create({
+    const lead = await prisma.lead.create({
       data: {
         businessId,
         name: data.name,
@@ -67,6 +68,16 @@ export async function createOwnerLead(data: OwnerLeadData): Promise<void> {
         notes: noteLines.length > 0 ? noteLines.join("\n") : null,
       },
     });
+
+    // lead_followup automation (opt-in, gated inside; raw prisma creation path).
+    await scheduleLeadFollowup({
+      id: lead.id,
+      businessId,
+      name: lead.name,
+      phone: lead.phone,
+      requestedService: lead.requestedService,
+      customerId: null,
+    }).catch((err) => console.error("scheduleLeadFollowup (owner-lead) failed (non-critical):", err));
   } catch (err) {
     console.error("createOwnerLead: failed silently:", err);
   }

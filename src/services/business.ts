@@ -751,6 +751,50 @@ export async function getAnalytics(
     .map(([h, count]) => ({ hour: parseInt(h, 10), label: `${h}:00`, count }))
     .sort((a, b) => a.hour - b.hour);
 
+  // Leads by source (created in period) + lost reasons (lost in period)
+  const [periodLeads, lostPeriodLeads] = await Promise.all([
+    db.lead.findMany({
+      where: { businessId, createdAt: inPeriod },
+      select: { source: true, wonAt: true, lostAt: true },
+    }),
+    db.lead.findMany({
+      where: { businessId, lostAt: inPeriod },
+      select: { lostReasonCode: true },
+    }),
+  ]);
+
+  const sourceMap = new Map<
+    string,
+    { source: string; total: number; won: number; lost: number; active: number }
+  >();
+  for (const l of periodLeads) {
+    const source = l.source || "manual";
+    if (!sourceMap.has(source)) {
+      sourceMap.set(source, { source, total: 0, won: 0, lost: 0, active: 0 });
+    }
+    const entry = sourceMap.get(source)!;
+    entry.total += 1;
+    if (l.wonAt) entry.won += 1;
+    else if (l.lostAt) entry.lost += 1;
+    else entry.active += 1;
+  }
+  const leadsBySource = Array.from(sourceMap.values())
+    .map((s) => ({
+      ...s,
+      conversionRate:
+        s.won + s.lost > 0 ? Math.round((s.won / (s.won + s.lost)) * 100) : 0,
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  const lostReasonMap = new Map<string, number>();
+  for (const l of lostPeriodLeads) {
+    const code = l.lostReasonCode || "OTHER";
+    lostReasonMap.set(code, (lostReasonMap.get(code) || 0) + 1);
+  }
+  const lostReasons = Array.from(lostReasonMap.entries())
+    .map(([code, count]) => ({ code, count }))
+    .sort((a, b) => b.count - a.count);
+
   // Top customers
   const topCustomerPayments = await db.payment.findMany({
     where: { businessId, status: "paid", paidAt: inPeriod },
@@ -856,6 +900,8 @@ export async function getAnalytics(
       conversionRate:
         wonLeads + lostLeads > 0 ? Math.round((wonLeads / (wonLeads + lostLeads)) * 100) : 0,
     },
+    leadsBySource,
+    lostReasons,
     training: {
       activePrograms,
       completedSessionsThisPeriod: completedTrainingSessions,

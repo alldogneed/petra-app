@@ -14,6 +14,7 @@
  */
 
 import prisma from "./prisma";
+import { scheduleLeadFollowup } from "./reminder-service";
 
 const PAYCALL_URL = "http://ws.callindex.co.il/api_v2.php";
 
@@ -186,6 +187,16 @@ export async function processMissedCall(call: PaycallCall): Promise<{
     });
     leadId = lead.id;
     created = true;
+
+    // lead_followup automation (opt-in, gated inside; raw prisma creation path).
+    await scheduleLeadFollowup({
+      id: lead.id,
+      businessId,
+      name: lead.name,
+      phone: lead.phone,
+      requestedService: null,
+      customerId: null,
+    }).catch((err) => console.error("scheduleLeadFollowup (paycall) failed (non-critical):", err));
   }
 
   await prisma.callLog.create({

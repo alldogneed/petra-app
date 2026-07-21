@@ -35,6 +35,7 @@ import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { sendWhatsAppMessage, sendWhatsAppTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { sanitizeName } from "@/lib/validation";
+import { scheduleLeadFollowup } from "@/lib/reminder-service";
 
 export async function POST(request: NextRequest) {
   // ── Rate limiting ─────────────────────────────────────────────────────────
@@ -163,6 +164,17 @@ export async function POST(request: NextRequest) {
       },
       select: { id: true, name: true, stage: true, createdAt: true },
     });
+
+    // lead_followup automation (opt-in, gated inside; raw prisma path — not covered
+    // by the createLead service hook). Awaited so Vercel doesn't kill the promise.
+    await scheduleLeadFollowup({
+      id: lead.id,
+      businessId: businessId as string,
+      name: lead.name,
+      phone: phone ?? null,
+      requestedService: service ?? null,
+      customerId: null,
+    }).catch((err) => console.error("scheduleLeadFollowup (webhook) failed (non-critical):", err));
 
     // Fire-and-forget: WhatsApp notification (same logic as POST /api/leads)
     const bizOverrides = (businessMeta?.featureOverrides as Record<string, unknown> | null) ?? null;

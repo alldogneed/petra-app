@@ -9,6 +9,7 @@ import { sendWhatsAppTemplate, sendWhatsAppMessage, interpolateTemplate } from "
 import { toWhatsAppPhone } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { getMaxOrders, normalizeTier, hasFeatureWithOverrides } from "@/lib/feature-flags";
+import { sendPaymentRequestForOrder } from "@/lib/payment-request";
 import { listOrders, createOrder, ServiceError } from "@/services/orders";
 
 export async function GET(request: NextRequest) {
@@ -89,6 +90,18 @@ export async function POST(request: NextRequest) {
     }
 
     const { order, linkedAppointmentId } = result;
+
+    // payment_request automation — only for orders created directly as "confirmed"
+    // (not draft — those fire on the draft→confirmed PATCH; not in_progress/completed
+    // — back-dated historical sales must not get a payment request). Suppressed for
+    // the pay-now flow, which records the payment immediately after this POST — the
+    // customer must not receive a live payment link for money they just paid.
+    // Gated inside (toggle + tier + active rule + link + not-already-paid).
+    if (order && order.status === "confirmed" && body.suppressPaymentRequest !== true) {
+      await sendPaymentRequestForOrder(order.id, authResult.businessId, "order_created").catch(
+        (err) => console.error("sendPaymentRequestForOrder (create) failed (non-critical):", err)
+      );
+    }
 
     // Schedule WhatsApp reminder if requested
     if (body.sendReminder === true && body.startAt) {
