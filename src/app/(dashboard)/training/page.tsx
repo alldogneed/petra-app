@@ -814,12 +814,12 @@ function TrainingPageContent() {
   });
   const packages = packagesData?.packages ?? [];
 
-  const { data: boardingPrograms = [] } = useQuery<TrainingProgram[]>({
+  const { data: boardingPrograms = [], isLoading: boardingProgramsLoading } = useQuery<TrainingProgram[]>({
     queryKey: ["training-programs-boarding"],
     queryFn: () => fetchJSON<TrainingProgram[]>("/api/training-programs?trainingType=BOARDING&status=ACTIVE,PAUSED"),
   });
 
-  const { data: serviceDogPrograms = [] } = useQuery<TrainingProgram[]>({
+  const { data: serviceDogPrograms = [], isLoading: serviceDogProgramsLoading } = useQuery<TrainingProgram[]>({
     queryKey: ["training-programs-service"],
     queryFn: () => fetchJSON<TrainingProgram[]>("/api/training-programs?trainingType=SERVICE_DOG&status=ACTIVE,PAUSED"),
   });
@@ -1488,26 +1488,64 @@ function TrainingPageContent() {
     }
   }, [programs, focusCard]);
 
-  // Deep-link from a customer/pet card: /training?program=<id> or ?group=<id>
+  // Deep-link: /training?program=<id> | ?group=<id> | ?dogId=<petId> (service-dogs alerts)
+  // | ?pet=<petId> (customer page) | ?customerId=<id>&petId=<id> (order flows)
   const deepLinkConsumed = useRef(false);
   useEffect(() => {
     if (deepLinkConsumed.current) return;
     const params = new URLSearchParams(window.location.search);
     const programId = params.get("program");
     const groupId = params.get("group");
+    // dogId / pet / petId all carry a Pet id — resolve them to a program the same way.
+    const petId = params.get("dogId") || params.get("pet") || params.get("petId");
+    const customerId = params.get("customerId");
+
+    // Apply the existing program-focus behavior to a resolved program.
+    const focusProgram = (prog: TrainingProgram, tab: "individual" | "boarding") => {
+      deepLinkConsumed.current = true;
+      if (tab === "boarding") focusCard({ tab: "boarding", expandId: prog.id });
+      else focusCard({ tab: "individual", subTab: prog.isPackage ? "package" : "private", expandId: prog.id });
+    };
+
     if (programId) {
-      if (programs.some((p) => p.id === programId)) {
-        focusCard({ tab: "individual", subTab: programs.find((p) => p.id === programId)?.isPackage ? "package" : "private", expandId: programId });
-        deepLinkConsumed.current = true;
-      } else if (boardingPrograms.some((p) => p.id === programId)) {
-        focusCard({ tab: "boarding", expandId: programId });
-        deepLinkConsumed.current = true;
+      const prog = programs.find((p) => p.id === programId);
+      if (prog) {
+        focusProgram(prog, "individual");
+      } else {
+        const bp = boardingPrograms.find((p) => p.id === programId);
+        if (bp) focusProgram(bp, "boarding");
       }
     } else if (groupId && groups.length) {
       focusCard({ tab: "groups", groupSubTab: workshops.some((g) => g.id === groupId) ? "workshops" : "groups", expandId: groupId });
       deepLinkConsumed.current = true;
+    } else if (petId || customerId) {
+      // Shared resolver: find the program matching this dog (or, failing that, this customer).
+      const findProgram = (list: TrainingProgram[]) => {
+        let matches = petId ? list.filter((p) => p.dog.id === petId) : [];
+        if (!matches.length && customerId) matches = list.filter((p) => p.customer?.id === customerId);
+        return matches.find((p) => p.status === "ACTIVE") ?? matches[0];
+      };
+      const individual = findProgram(programs.filter((p) => p.trainingType !== "BOARDING"));
+      if (individual) {
+        focusProgram(individual, "individual");
+      } else {
+        const boarding = findProgram(boardingPrograms);
+        if (boarding) {
+          focusProgram(boarding, "boarding");
+        } else if (!isLoading && !boardingProgramsLoading && !serviceDogProgramsLoading) {
+          // All sources loaded and nothing matched — don't leave the user staring at the wrong tab.
+          deepLinkConsumed.current = true;
+          setActiveTab("overview");
+          if (findProgram(serviceDogPrograms)) {
+            // SERVICE_DOG programs have no card on this page — point to the profile instead.
+            toast.info("תוכנית האימון של כלב שירות מנוהלת בעמוד כלבי שירות");
+          } else {
+            toast.info("לכלב זה אין תוכנית פעילה");
+          }
+        }
+      }
     }
-  }, [programs, boardingPrograms, groups, workshops, focusCard]);
+  }, [programs, boardingPrograms, serviceDogPrograms, groups, workshops, focusCard, isLoading, boardingProgramsLoading, serviceDogProgramsLoading]);
 
   const activePrograms = programs.filter((p) => p.status === "ACTIVE");
 

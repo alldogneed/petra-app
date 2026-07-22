@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Copy, Bot, Clock, CheckCircle2, AlertCircle, Key } from "lucide-react";
@@ -78,6 +79,12 @@ export function McpConnectionsTab() {
               חבר את העסק שלך לעוזר AI כמו Claude או ChatGPT. תוכל לשאול "מי הלקוחות שלי השבוע?" או
               "קבע פגישה לדני ביום שלישי" והוא יבצע את זה בשבילך.
             </p>
+            <Link
+              href="/help/connect-ai"
+              className="inline-block mt-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+            >
+              מדריך חיבור מפורט ←
+            </Link>
           </div>
         </div>
       </div>

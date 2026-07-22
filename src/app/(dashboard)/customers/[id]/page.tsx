@@ -3556,6 +3556,11 @@ export default function CustomerProfilePage() {
         return;
       }
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+      // The pets list page (["pets-all", ...]) and customers list cache the pet
+      // under the 5-min global staleTime — invalidate them too so the deleted
+      // pet doesn't linger in those lists.
+      queryClient.invalidateQueries({ queryKey: ["pets-all"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
       toast.success("חיית המחמד נמחקה");
       setDeletingPetId(null);
       setDeletingPetOwner(null);

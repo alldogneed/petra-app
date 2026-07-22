@@ -1027,15 +1027,37 @@ function OrdersPageContent() {
                             <Eye className="w-3.5 h-3.5" />
                             צפה בפרטים
                           </Link>
-                          {order.status === "confirmed" && (
+                          {order.status === "draft" && (
                             <button
                               className="btn-primary text-xs py-1.5 px-3 gap-1.5"
-                              onClick={() => statusMutation.mutate({ id: order.id, status: "completed" })}
+                              onClick={() => statusMutation.mutate({ id: order.id, status: "confirmed" })}
                               disabled={statusMutation.isPending}
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
-                              הושלמה
+                              אשר הזמנה
                             </button>
+                          )}
+                          {order.status === "confirmed" && (
+                            <>
+                              <button
+                                className="btn-primary text-xs py-1.5 px-3 gap-1.5"
+                                onClick={() => statusMutation.mutate({ id: order.id, status: "completed" })}
+                                disabled={statusMutation.isPending}
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                הושלמה
+                              </button>
+                              <button
+                                className="text-xs py-1.5 px-3 rounded-xl font-medium text-white flex items-center gap-1.5 transition-all hover:opacity-90 disabled:opacity-60"
+                                style={{ background: "#25D366" }}
+                                disabled={sendingPaymentRequestId === order.id}
+                                onClick={() => sendOrderPaymentRequest(order)}
+                                title="שלח בקשת תשלום בוואטסאפ"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                                {sendingPaymentRequestId === order.id ? "מכין קישור..." : "שלח בקשת תשלום"}
+                              </button>
+                            </>
                           )}
                           {isCancellable && (
                             <button

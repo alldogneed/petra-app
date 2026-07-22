@@ -1128,7 +1128,6 @@ interface CustomerBasic {
 const AUDIENCE_OPTIONS = [
   { id: "all", label: "כל הלקוחות" },
   { id: "with_pets", label: "לקוחות עם כלבים" },
-  { id: "active_training", label: "תוכניות אילוף פעילות" },
 ];
 
 function interpolateForCustomer(body: string, customer: CustomerBasic, businessPhone = ""): string {
@@ -1157,7 +1156,7 @@ function BulkSendTab() {
 
   const { data: allCustomers = [], isLoading } = useQuery<CustomerBasic[]>({
     queryKey: ["customers-bulk"],
-    queryFn: () => fetchJSON<CustomerBasic[]>("/api/customers?fields=id,name,phone,pets"),
+    queryFn: () => fetchJSON<CustomerBasic[]>("/api/customers?full=1&take=100"),
   });
 
   const { data: settings } = useQuery<{ phone?: string }>({
@@ -1374,9 +1373,24 @@ export function MessagesPanel() {
             תבניות
           </span>
         </button>
+        <button
+          onClick={() => setActiveTab("bulk")}
+          className={cn(
+            "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+            activeTab === "bulk"
+              ? "bg-white text-petra-text shadow-sm"
+              : "text-petra-muted hover:text-petra-text"
+          )}
+        >
+          <span className="flex items-center gap-2">
+            <Send className="w-4 h-4" />
+            שליחה קבוצתית
+          </span>
+        </button>
       </div>
 
       {activeTab === "templates" && <TemplatesTab />}
+      {activeTab === "bulk" && <BulkSendTab />}
     </div>
   );
 }

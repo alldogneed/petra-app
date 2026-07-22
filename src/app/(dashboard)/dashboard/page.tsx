@@ -385,8 +385,24 @@ function AppointmentRow({
     month: "short",
   });
 
-  // Determine display name and type label
-  const itemName = appointment.priceListItem?.name ?? appointment.service?.name ?? appointment.notes ?? "תור";
+  // Determine display name and type label.
+  // Notes composed by the orders service may embed a raw English training
+  // subtype — e.g. "אילוף (private)" — because CreateOrderModal sends
+  // trainingSubType "private" while TRAINING_SUBTYPE_LABELS only maps
+  // "individual". Map known raw tokens to Hebrew for display (also covers
+  // appointments already stored with the raw token).
+  const RAW_SUBTYPE_LABELS: Record<string, string> = {
+    private: "פרטי",
+    individual: "פרטי",
+    group: "קבוצתי",
+    boarding: "פנסיון",
+    package: "חבילה",
+  };
+  const rawItemName = appointment.priceListItem?.name ?? appointment.service?.name ?? appointment.notes ?? "תור";
+  const itemName = rawItemName.replace(
+    /\((private|individual|group|boarding|package)\)/g,
+    (_m, key: string) => `(${RAW_SUBTYPE_LABELS[key]})`
+  );
   const rawCategory = appointment.priceListItem?.category;
   const rawServiceType = appointment.service?.type;
   const typeLabel = rawCategory
@@ -2231,7 +2247,7 @@ export default function DashboardPage() {
             לקוח חדש
           </button>
           <Link
-            href="/scheduler"
+            href="/calendar"
             className="btn-secondary flex items-center justify-center gap-2 border-brand-500 text-brand-600 hover:bg-brand-50"
           >
             <CalendarClock className="w-4 h-4 shrink-0" />
@@ -2265,20 +2281,21 @@ export default function DashboardPage() {
               </>
             )}
           </button>
-          <button
-            onClick={() => {
-              const slug = user?.businessSlug || user?.businessId || "demo-business-001";
-              const url = `${window.location.origin}/book/${slug}`;
-              copyToClipboard(url)
-                .then(() => toast.success("קישור הזמנת תורים הועתק!", { description: url }))
-                .catch(() => toast.info("הקישור לקוחות שלך:", { description: url, duration: 10000 }));
-            }}
-            className="btn-secondary flex items-center justify-center gap-2 text-slate-500 border-slate-200"
-            title="העתק קישור הזמנת תורים אונליין"
-          >
-            <Copy className="w-4 h-4 shrink-0" />
-            <span>תורים אונליין</span>
-          </button>
+          {user?.businessSlug && (
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/book/${user.businessSlug}`;
+                copyToClipboard(url)
+                  .then(() => toast.success("קישור הזמנת תורים הועתק!", { description: url }))
+                  .catch(() => toast.info("הקישור לקוחות שלך:", { description: url, duration: 10000 }));
+              }}
+              className="btn-secondary flex items-center justify-center gap-2 text-slate-500 border-slate-200"
+              title="העתק קישור הזמנת תורים אונליין"
+            >
+              <Copy className="w-4 h-4 shrink-0" />
+              <span>תורים אונליין</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -2328,7 +2345,7 @@ export default function DashboardPage() {
             </button>
 
             <Link
-              href="/scheduler"
+              href="/calendar"
               className="card p-5 text-right hover:border-brand-300 hover:shadow-md transition-all group"
             >
               <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center mb-3 group-hover:bg-violet-100 transition-colors">
@@ -2368,24 +2385,25 @@ export default function DashboardPage() {
               </div>
             </button>
 
-            <button
-              onClick={() => {
-                const slug = user?.businessSlug || user?.businessId || "demo-business-001";
-                const url = `${window.location.origin}/book/${slug}`;
-                copyToClipboard(url).then(() => {
-                  toast.success("קישור הזמנת תורים הועתק!", { description: url });
-                }).catch(() => toast.error("לא הצלחנו להעתיק"));
-              }}
-              className="card p-4 flex items-center gap-3 hover:border-brand-300 transition-all text-right"
-            >
-              <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                <Copy className="w-4 h-4 text-blue-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-petra-text">תורים אונליין</p>
-                <p className="text-xs text-petra-muted">העתק קישור לדף ההזמנה לאתר שלך</p>
-              </div>
-            </button>
+            {user?.businessSlug && (
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/book/${user.businessSlug}`;
+                  copyToClipboard(url).then(() => {
+                    toast.success("קישור הזמנת תורים הועתק!", { description: url });
+                  }).catch(() => toast.error("לא הצלחנו להעתיק"));
+                }}
+                className="card p-4 flex items-center gap-3 hover:border-brand-300 transition-all text-right"
+              >
+                <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <Copy className="w-4 h-4 text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-petra-text">תורים אונליין</p>
+                  <p className="text-xs text-petra-muted">העתק קישור לדף ההזמנה לאתר שלך</p>
+                </div>
+              </button>
+            )}
           </div>
         </div>
       ) : (

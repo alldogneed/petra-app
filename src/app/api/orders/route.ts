@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
           apptDate.setHours(h, m, 0, 0);
           const formattedDate = new Intl.DateTimeFormat("he-IL", { weekday: "long", day: "numeric", month: "long" }).format(apptDate);
           const APPT_TYPE_LABELS: Record<string, string> = { training: "אילוף", grooming: "טיפוח", service_dog: "כלב שירות" };
-          const TRAINING_SUBTYPE_LABELS: Record<string, string> = { individual: "פרטי", group: "קבוצתי", boarding: "פנסיון", package: "חבילה" };
+          const TRAINING_SUBTYPE_LABELS: Record<string, string> = { individual: "פרטי", private: "פרטי", group: "קבוצתי", boarding: "פנסיון", package: "חבילה" };
           const typeLabel = APPT_TYPE_LABELS[body.orderType] ?? body.orderType;
           const subtypeLabel = body.orderType === "training" && body.trainingSubType ? TRAINING_SUBTYPE_LABELS[body.trainingSubType] ?? "" : "";
           const serviceName = subtypeLabel ? `${typeLabel} (${subtypeLabel})` : typeLabel;

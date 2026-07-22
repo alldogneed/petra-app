@@ -90,7 +90,11 @@ export async function updateBusinessSettings(
   } = input;
 
   // ── Validation ─────────────────────────────────────────────────────────
-  if (logo !== undefined) {
+  // The settings form echoes the FULL business object, so a business that never
+  // uploaded a logo sends logo:null — that must not fail validation (it used to
+  // 400 EVERY business-info save for logo-less businesses). null clears/keeps
+  // empty; only validate actual string values.
+  if (logo !== undefined && logo !== null) {
     if (typeof logo !== "string" || logo.length > 2000) {
       throw new ServiceError("כתובת לוגו לא תקינה", "VALIDATION");
     }

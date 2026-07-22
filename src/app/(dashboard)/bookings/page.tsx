@@ -125,6 +125,9 @@ function BookingsContent() {
       }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      // Confirmed/updated bookings appear on the calendar — keep it in sync
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["bookings-calendar"] });
       toast.success("ההזמנה עודכנה בהצלחה");
       setSelectedBooking(null);
       setEditMode(false);
@@ -224,6 +227,13 @@ function BookingsContent() {
           </div>
           <h3 className="text-base font-semibold text-petra-text mb-1">{emptyMsg.title}</h3>
           <p className="text-sm text-petra-muted mb-4">{emptyMsg.description}</p>
+          <button
+            onClick={copyLink}
+            className="btn-primary inline-flex items-center gap-2 mx-auto"
+          >
+            <Copy className="w-4 h-4" />
+            {copiedLink ? "הועתק!" : "העתק קישור הזמנה"}
+          </button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -512,6 +522,15 @@ function BookingsContent() {
                         <CheckCircle2 className="w-4 h-4" />
                         אשר מחדש
                       </button>
+                    </div>
+                  )}
+
+                  {/* Cancelled bookings — view-only explanation (no DELETE API exists yet) */}
+                  {booking.status === "cancelled" && (
+                    <div className="border-t border-slate-100 pt-4">
+                      <p className="text-sm text-petra-muted text-center bg-slate-50 rounded-lg py-2.5 px-3">
+                        הזמנה שבוטלה — לצפייה בלבד
+                      </p>
                     </div>
                   )}
 

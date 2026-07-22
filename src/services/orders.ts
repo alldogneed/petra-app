@@ -19,7 +19,7 @@ export { ServiceError };
 const VALID_ORDER_STATUSES = ["draft", "confirmed", "in_progress", "completed", "cancelled"];
 const APPT_ORDER_TYPES = ["training", "grooming", "service_dog"];
 const APPT_TYPE_LABELS: Record<string, string> = { training: "אילוף", grooming: "טיפוח", service_dog: "כלב שירות" };
-const TRAINING_SUBTYPE_LABELS: Record<string, string> = { individual: "פרטי", group: "קבוצתי", boarding: "פנסיון", package: "חבילה" };
+const TRAINING_SUBTYPE_LABELS: Record<string, string> = { individual: "פרטי", private: "פרטי", group: "קבוצתי", boarding: "פנסיון", package: "חבילה" };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -78,6 +78,10 @@ export interface UpdateOrderData {
   status?: string;
   notes?: string | null;
   orderType?: string;
+  // Draft-only: replace the order's lines + discount and recalc totals server-side.
+  lines?: OrderLineInput[];
+  discountType?: string;
+  discountValue?: number;
 }
 
 export interface CreateOrderResult {
@@ -454,11 +458,111 @@ export async function updateOrder(businessId: string, db: DbClient, id: string, 
     throw new ServiceError("Notes too long (max 2000 chars)", "VALIDATION");
   }
 
+  // Draft-only: line/discount editing. Rejected for any other status.
+  const wantsLineEdit =
+    data.lines !== undefined || data.discountType !== undefined || data.discountValue !== undefined;
+  if (wantsLineEdit && existing.status !== "draft") {
+    throw new ServiceError("ניתן לערוך פריטים רק בהזמנה במצב טיוטה", "VALIDATION");
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateData: any = {};
   if (data.status !== undefined) updateData.status = data.status;
   if (data.notes !== undefined) updateData.notes = data.notes;
   if (data.orderType !== undefined) updateData.orderType = data.orderType;
+
+  if (wantsLineEdit) {
+    const lines = data.lines;
+    if (!lines || !Array.isArray(lines) || lines.length === 0) {
+      throw new ServiceError("נדרש לפחות פריט אחד בהזמנה", "VALIDATION");
+    }
+    if (lines.length > 100) throw new ServiceError("מקסימום 100 שורות להזמנה", "VALIDATION");
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      if (!l || typeof l !== "object") throw new ServiceError(`שורה ${i + 1}: פריט לא תקין`, "VALIDATION");
+      if (!l.name || typeof l.name !== "string" || !l.name.trim()) {
+        throw new ServiceError(`שורה ${i + 1}: שם פריט חובה`, "VALIDATION");
+      }
+      if (typeof l.quantity !== "number" || l.quantity <= 0 || !isFinite(l.quantity)) {
+        throw new ServiceError(`שורה ${i + 1}: כמות לא תקינה`, "VALIDATION");
+      }
+      if (typeof l.unitPrice !== "number" || l.unitPrice < 0 || !isFinite(l.unitPrice)) {
+        throw new ServiceError(`שורה ${i + 1}: מחיר לא תקין`, "VALIDATION");
+      }
+    }
+    const discountType = data.discountType ?? existing.discountType ?? "none";
+    if (!["none", "percent", "fixed"].includes(discountType)) {
+      throw new ServiceError("סוג הנחה לא תקין", "VALIDATION");
+    }
+    const discountValue = data.discountValue ?? existing.discountValue ?? 0;
+    if (typeof discountValue !== "number" || discountValue < 0 || !isFinite(discountValue)) {
+      throw new ServiceError("ערך הנחה לא תקין", "VALIDATION");
+    }
+
+    // Recalc totals server-side — same path as createOrder
+    const business = await db.business.findUnique({
+      where: { id: businessId },
+      select: { vatEnabled: true, vatRate: true, legalEntityType: true },
+    });
+    if (!business) throw new ServiceError("Business not found", "NOT_FOUND");
+
+    const calcInput: CalcLineInput[] = lines.map((l) => ({
+      name: l.name,
+      unit: l.unit,
+      quantity: l.quantity,
+      unitPrice: l.unitPrice,
+      taxMode: (l.taxMode || "taxable") as "inherit" | "taxable" | "exempt",
+    }));
+    const calc = calcOrder({
+      lines: calcInput,
+      discountType: discountType as "none" | "percent" | "fixed",
+      discountValue,
+      vatEnabled: business.legalEntityType === "עוסק פטור" ? false : business.vatEnabled,
+      vatRate: business.vatRate,
+    });
+
+    // Atomically re-claim draft status right before rewriting lines — the guard on
+    // `existing.status` above is read-then-act and a concurrent confirm could land
+    // in between; this shrinks the race to a single statement (no $transaction —
+    // Supabase PgBouncer).
+    const draftClaim = await db.order.updateMany({
+      where: { id, businessId, status: "draft" },
+      data: { updatedAt: new Date() },
+    });
+    if (draftClaim.count === 0) {
+      throw new ServiceError("ניתן לערוך פריטים רק בהזמנה במצב טיוטה", "CONFLICT");
+    }
+
+    // Lines are value objects — delete + recreate. Single createMany keeps the
+    // crash window to 2 statements (a kill mid-way can't leave a partial line set).
+    await db.orderLine.deleteMany({ where: { orderId: id, businessId } });
+    await db.orderLine.createMany({
+      data: lines.map((l, i) => {
+        const cl = calc.lines[i];
+        return {
+          orderId: id,
+          businessId,
+          priceListItemId: l.priceListItemId || null,
+          name: cl.name,
+          unit: cl.unit,
+          quantity: cl.quantity,
+          unitPrice: cl.unitPrice,
+          lineSubtotal: cl.lineSubtotal,
+          lineTax: cl.lineTax,
+          lineTotal: cl.lineTotal,
+          taxMode: cl.taxMode,
+          metadata: l.metadata ? JSON.stringify(l.metadata) : "{}",
+        };
+      }),
+    });
+
+    updateData.subtotal = calc.subtotal;
+    updateData.discountType = discountType;
+    updateData.discountValue = discountValue;
+    updateData.discountAmount = calc.discountAmount;
+    updateData.taxTotal = calc.taxTotal;
+    updateData.total = calc.total;
+  }
 
   const order = await db.order.update({
     where: { id, businessId },

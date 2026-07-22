@@ -36,6 +36,17 @@ export async function PATCH(
 
     const body = await request.json();
 
+    // Line editing is draft-only, and the confirm claim below changes status BEFORE
+    // the service validates lines — a combined {status:"confirmed", lines} body would
+    // confirm the order and then 400 on the lines, leaving partial state. Reject the
+    // combination up front (the UI never sends both together).
+    if (body.lines !== undefined && body.status !== undefined && body.status !== "draft") {
+      return NextResponse.json(
+        { error: "לא ניתן לעדכן פריטים ולשנות סטטוס באותה בקשה" },
+        { status: 400 }
+      );
+    }
+
     // Atomically claim the draft→confirmed transition BEFORE the service update:
     // updateMany with status:"draft" in the where-clause flips at most one row, so
     // two concurrent confirm PATCHes (double-click) can't both observe "draft" —
@@ -57,6 +68,10 @@ export async function PATCH(
         status: body.status,
         notes: body.notes,
         orderType: body.orderType,
+        // Draft-only line editing — service rejects with VALIDATION for non-draft orders
+        lines: body.lines,
+        discountType: body.discountType,
+        discountValue: body.discountValue,
       });
     } catch (e) {
       if (e instanceof ServiceError) {

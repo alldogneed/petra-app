@@ -1191,7 +1191,22 @@ function ArchiveTab({
                     <td className="p-3 font-medium text-petra-text cursor-pointer" onClick={() => onLeadClick(lead)}>
                       {lead.name}
                     </td>
-                    <td className="p-3 text-petra-muted text-xs" dir="ltr">{lead.phone || "—"}</td>
+                    <td className="p-3 text-petra-muted text-xs" dir="ltr">
+                      {lead.phone ? (
+                        <a
+                          href={`https://wa.me/${toWhatsAppPhone(lead.phone)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 hover:underline transition-colors"
+                          title="שלח וואטסאפ"
+                        >
+                          <MessageCircle className="w-3 h-3" />
+                          {lead.phone}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td className="p-3">
                       {isWon ? (
                         <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-medium">

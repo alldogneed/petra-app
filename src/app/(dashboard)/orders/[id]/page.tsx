@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   ArrowRight, CheckCircle2, Clock, XCircle, ShoppingCart,
   Trash2, User, FileText, Calendar, Tag, CreditCard, Plus, Send, GraduationCap,
+  Pencil, X,
 } from "lucide-react";
 import { cn, formatDate, toWhatsAppPhone } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -88,6 +89,16 @@ const METHOD_LABEL: Record<string, string> = {
 };
 
 function fmt(n: number) { return `₪${n.toFixed(2)}`; }
+
+// Editable line shape for the draft-order lines editor (string fields for inputs)
+interface EditableLine {
+  name: string;
+  unit: string;
+  quantity: string;
+  unitPrice: string;
+  taxMode: string;
+  priceListItemId: string | null;
+}
 
 // ── Add Payment Modal ──────────────────────────────────────────────────────────
 
@@ -225,6 +236,12 @@ export default function OrderDetailPage() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [sendingPaymentRequest, setSendingPaymentRequest] = useState(false);
+  const [cancelPayment, setCancelPayment] = useState<OrderPayment | null>(null);
+  // Draft-order lines editor state
+  const [editingLines, setEditingLines] = useState(false);
+  const [editLines, setEditLines] = useState<EditableLine[]>([]);
+  const [editDiscountType, setEditDiscountType] = useState("none");
+  const [editDiscountValue, setEditDiscountValue] = useState("");
 
   const { data: order, isLoading } = useQuery<Order>({
     queryKey: ["order", orderId],
@@ -310,6 +327,79 @@ export default function OrderDetailPage() {
       }
     },
   });
+
+  // Draft-only: replace lines + discount; totals recalculated server-side
+  const saveLinesMutation = useMutation({
+    mutationFn: (payload: { lines: Array<{ name: string; unit: string; quantity: number; unitPrice: number; taxMode: string; priceListItemId: string | null }>; discountType: string; discountValue: number }) =>
+      fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בשמירת הפריטים"); return d; }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order", orderId] });
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      setEditingLines(false);
+      toast.success("פריטי ההזמנה עודכנו");
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה בשמירת הפריטים"),
+  });
+
+  // Void a payment (status → canceled) via the payments PATCH API
+  const cancelPaymentMutation = useMutation({
+    mutationFn: (paymentId: string) =>
+      fetch(`/api/payments/${paymentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "canceled" }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בביטול התשלום"); return d; }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["order", orderId] });
+      setCancelPayment(null);
+      toast.success("התשלום בוטל");
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה בביטול התשלום"),
+  });
+
+  function startEditLines() {
+    if (!order) return;
+    setEditLines(order.lines.map((l) => ({
+      name: l.name,
+      unit: l.unit,
+      quantity: String(l.quantity),
+      unitPrice: String(l.unitPrice),
+      taxMode: l.taxMode || "taxable",
+      priceListItemId: l.priceListItemId,
+    })));
+    setEditDiscountType(order.discountType || "none");
+    setEditDiscountValue(order.discountValue ? String(order.discountValue) : "");
+    setEditingLines(true);
+  }
+
+  function updateEditLine(i: number, field: keyof EditableLine, value: string) {
+    setEditLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, [field]: value } : l)));
+  }
+
+  function saveEditLines() {
+    const parsed = editLines.map((l) => ({
+      name: l.name.trim(),
+      unit: l.unit,
+      quantity: parseFloat(l.quantity),
+      unitPrice: parseFloat(l.unitPrice),
+      taxMode: l.taxMode,
+      priceListItemId: l.priceListItemId,
+    }));
+    if (parsed.length === 0) { toast.error("נדרש לפחות פריט אחד בהזמנה"); return; }
+    for (let i = 0; i < parsed.length; i++) {
+      const l = parsed[i];
+      if (!l.name) { toast.error(`שורה ${i + 1}: שם פריט חובה`); return; }
+      if (!l.quantity || l.quantity <= 0 || isNaN(l.quantity)) { toast.error(`שורה ${i + 1}: כמות לא תקינה`); return; }
+      if (isNaN(l.unitPrice) || l.unitPrice < 0) { toast.error(`שורה ${i + 1}: מחיר לא תקין`); return; }
+    }
+    const discountValue = editDiscountType === "none" ? 0 : parseFloat(editDiscountValue) || 0;
+    if (discountValue < 0) { toast.error("ערך הנחה לא תקין"); return; }
+    saveLinesMutation.mutate({ lines: parsed, discountType: editDiscountType, discountValue });
+  }
 
   if (isLoading) {
     return (
@@ -550,15 +640,125 @@ export default function OrderDetailPage() {
 
       {/* Lines table */}
       <div className="card overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-petra-border bg-slate-50/60">
+        <div className="px-5 py-3.5 border-b border-petra-border bg-slate-50/60 flex items-center justify-between">
           <h2 className="font-semibold text-petra-text text-sm flex items-center gap-2">
             <Tag className="w-4 h-4 text-brand-500" />
             פריטי הזמנה
             <span className="text-xs font-normal text-petra-muted bg-slate-100 px-1.5 py-0.5 rounded-md">{order.lines.length}</span>
           </h2>
+          {order.status === "draft" && !editingLines && (
+            <button
+              className="btn-secondary text-xs py-1.5 px-3 gap-1.5"
+              onClick={startEditLines}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              עריכת פריטים
+            </button>
+          )}
         </div>
 
-        {order.lines.length === 0 ? (
+        {editingLines ? (
+          <div className="p-5 space-y-3">
+            {/* Editable line rows */}
+            <div className="space-y-2">
+              {editLines.map((line, i) => (
+                <div key={i} className="grid grid-cols-[1fr_70px_100px_32px] gap-2 items-center">
+                  <input
+                    className="input text-sm"
+                    placeholder="שם פריט"
+                    value={line.name}
+                    onChange={(e) => updateEditLine(i, "name", e.target.value)}
+                  />
+                  <input
+                    className="input text-sm text-center"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="כמות"
+                    value={line.quantity}
+                    onChange={(e) => updateEditLine(i, "quantity", e.target.value)}
+                    dir="ltr"
+                  />
+                  <input
+                    className="input text-sm"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="מחיר יחידה"
+                    value={line.unitPrice}
+                    onChange={(e) => updateEditLine(i, "unitPrice", e.target.value)}
+                    dir="ltr"
+                  />
+                  <button
+                    type="button"
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400 hover:text-red-500 transition-colors"
+                    onClick={() => setEditLines((prev) => prev.filter((_, idx) => idx !== i))}
+                    title="הסר פריט"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              className="text-xs text-brand-500 hover:text-brand-600 font-medium flex items-center gap-1"
+              onClick={() => setEditLines((prev) => [...prev, { name: "", unit: "per_item", quantity: "1", unitPrice: "", taxMode: "taxable", priceListItemId: null }])}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              הוסף פריט
+            </button>
+
+            {/* Discount */}
+            <div className="flex items-end gap-3 pt-2 border-t border-petra-border">
+              <div>
+                <label className="label">הנחה</label>
+                <select
+                  className="input mt-1 text-sm"
+                  value={editDiscountType}
+                  onChange={(e) => setEditDiscountType(e.target.value)}
+                >
+                  <option value="none">ללא הנחה</option>
+                  <option value="percent">אחוז (%)</option>
+                  <option value="fixed">סכום קבוע (₪)</option>
+                </select>
+              </div>
+              {editDiscountType !== "none" && (
+                <div>
+                  <label className="label">{editDiscountType === "percent" ? "אחוז הנחה" : "סכום הנחה (₪)"}</label>
+                  <input
+                    className="input mt-1 text-sm"
+                    type="number"
+                    min="0"
+                    step={editDiscountType === "percent" ? "1" : "0.01"}
+                    max={editDiscountType === "percent" ? "100" : undefined}
+                    value={editDiscountValue}
+                    onChange={(e) => setEditDiscountValue(e.target.value)}
+                    dir="ltr"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                className="btn-primary text-sm flex-1"
+                onClick={saveEditLines}
+                disabled={saveLinesMutation.isPending}
+              >
+                {saveLinesMutation.isPending ? "שומר..." : "שמור שינויים"}
+              </button>
+              <button
+                className="btn-secondary text-sm flex-1"
+                onClick={() => setEditingLines(false)}
+                disabled={saveLinesMutation.isPending}
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        ) : order.lines.length === 0 ? (
           <div className="py-10 text-center text-sm text-petra-muted">אין פריטים בהזמנה</div>
         ) : (
           <>
@@ -715,6 +915,16 @@ export default function OrderDetailPage() {
                     )}>
                       {p.status === "paid" ? "שולם" : p.status === "pending" ? "ממתין" : "בוטל"}
                     </span>
+                    {(p.status === "paid" || p.status === "pending") && (
+                      <button
+                        type="button"
+                        onClick={() => setCancelPayment(p)}
+                        className="p-1.5 rounded-lg text-petra-muted hover:text-red-500 hover:bg-red-50 transition-colors border border-transparent hover:border-red-100 flex-shrink-0"
+                        title="בטל תשלום"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -755,6 +965,34 @@ export default function OrderDetailPage() {
             qc.invalidateQueries({ queryKey: ["order", orderId] });
           }}
         />
+      )}
+
+      {/* Cancel payment confirm dialog */}
+      {cancelPayment && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setCancelPayment(null)} />
+          <div className="modal-content max-w-sm mx-4 p-6 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-3">
+              <XCircle className="w-6 h-6 text-red-500" />
+            </div>
+            <h3 className="text-base font-bold text-petra-text mb-1">לבטל את התשלום?</h3>
+            <p className="text-sm text-petra-muted mb-4">
+              תשלום על סך {fmt(cancelPayment.amount)} יסומן כמבוטל ולא ייספר ביתרת ההזמנה.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => cancelPaymentMutation.mutate(cancelPayment.id)}
+                disabled={cancelPaymentMutation.isPending}
+                className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-60"
+              >
+                {cancelPaymentMutation.isPending ? "מבטל..." : "כן, בטל תשלום"}
+              </button>
+              <button onClick={() => setCancelPayment(null)} className="btn-secondary flex-1">
+                חזרה
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Cancel confirm dialog */}

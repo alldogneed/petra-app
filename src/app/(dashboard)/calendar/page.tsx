@@ -2385,30 +2385,42 @@ function CalendarContent() {
                   const { top, height } = appointmentStyle(startTime, endTime);
                   const startMins = timeToMinutes(startTime);
                   if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
-                  return (
-                    <a
-                      key={ev.id}
-                      href={ev.htmlLink ?? "#"}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title={`${ev.title}\n${ev.calendarName}\n${startTime}–${endTime}`}
-                      className="absolute rounded-lg px-1.5 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity"
-                      style={{
-                        top,
-                        height: Math.max(height, 20),
-                        right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
-                        width: `calc((100% - 60px) / 7 - 4px)`,
-                        marginRight: 2,
-                        background: ev.backgroundColor,
-                        borderColor: ev.backgroundColor,
-                        zIndex: 5,
-                      }}
-                    >
+                  const gcalWeekTitle = `${ev.title}\n${ev.calendarName}\n${startTime}–${endTime}`;
+                  const gcalWeekClass = "absolute rounded-lg px-1.5 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity";
+                  const gcalWeekStyle: React.CSSProperties = {
+                    top,
+                    height: Math.max(height, 20),
+                    right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                    width: `calc((100% - 60px) / 7 - 4px)`,
+                    marginRight: 2,
+                    background: ev.backgroundColor,
+                    borderColor: ev.backgroundColor,
+                    zIndex: 5,
+                  };
+                  const gcalWeekContent = (
+                    <>
                       <span className="absolute top-0.5 left-0.5 text-[8px] font-bold bg-white/80 rounded px-0.5" style={{ color: ev.backgroundColor }}>G</span>
                       <div className="text-[10px] font-semibold truncate text-white drop-shadow-sm">
                         {ev.title}
                       </div>
+                    </>
+                  );
+                  return ev.htmlLink ? (
+                    <a
+                      key={ev.id}
+                      href={ev.htmlLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={gcalWeekTitle}
+                      className={gcalWeekClass}
+                      style={gcalWeekStyle}
+                    >
+                      {gcalWeekContent}
                     </a>
+                  ) : (
+                    <div key={ev.id} title={gcalWeekTitle} className={gcalWeekClass} style={gcalWeekStyle}>
+                      {gcalWeekContent}
+                    </div>
                   );
                 })}
 
@@ -2684,24 +2696,19 @@ function CalendarContent() {
               const { top, height } = appointmentStyle(startTime, endTime);
               const startMins = timeToMinutes(startTime);
               if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
-              return (
-                <a
-                  key={ev.id}
-                  href={ev.htmlLink ?? "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`${ev.title}\n${ev.calendarName}\n${startTime}–${endTime}`}
-                  className="absolute rounded-lg px-2 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity"
-                  style={{
-                    top,
-                    height: Math.max(height, 22),
-                    right: 60,
-                    width: "calc(100% - 64px)",
-                    background: ev.backgroundColor,
-                    borderColor: ev.backgroundColor,
-                    zIndex: 5,
-                  }}
-                >
+              const gcalDayTitle = `${ev.title}\n${ev.calendarName}\n${startTime}–${endTime}`;
+              const gcalDayClass = "absolute rounded-lg px-2 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity";
+              const gcalDayStyle: React.CSSProperties = {
+                top,
+                height: Math.max(height, 22),
+                right: 60,
+                width: "calc(100% - 64px)",
+                background: ev.backgroundColor,
+                borderColor: ev.backgroundColor,
+                zIndex: 5,
+              };
+              const gcalDayContent = (
+                <>
                   <span className="absolute top-0.5 left-0.5 text-[8px] font-bold bg-white/80 rounded px-0.5" style={{ color: ev.backgroundColor }}>G</span>
                   <div className="text-xs font-semibold truncate text-white drop-shadow-sm">
                     {ev.title}
@@ -2709,7 +2716,24 @@ function CalendarContent() {
                   <div className="text-[10px] truncate text-white/80">
                     {ev.calendarName}
                   </div>
+                </>
+              );
+              return ev.htmlLink ? (
+                <a
+                  key={ev.id}
+                  href={ev.htmlLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={gcalDayTitle}
+                  className={gcalDayClass}
+                  style={gcalDayStyle}
+                >
+                  {gcalDayContent}
                 </a>
+              ) : (
+                <div key={ev.id} title={gcalDayTitle} className={gcalDayClass} style={gcalDayStyle}>
+                  {gcalDayContent}
+                </div>
               );
             })}
 
@@ -2967,9 +2991,11 @@ function CalendarContent() {
           title: string;
           subtitle: string;
           color: string;
-          href: string;
+          href?: string;
           icon: string;
           overdue?: boolean;
+          appointment?: AppointmentEvent;
+          customerHref?: string;
         }
         const agendaDays = weekDates.map((date) => {
           const dateStr = toLocalDateString(date);
@@ -2984,8 +3010,9 @@ function CalendarContent() {
               title: a.pet ? `${a.pet.name} — ${a.customer.name}` : a.customer.name,
               subtitle: getAppointmentLabel(a),
               color: getAppointmentColor(a.service, a.priceListItem),
-              href: `/customers/${a.customer.id}`,
               icon: "📅",
+              appointment: a,
+              customerHref: `/customers/${a.customer.id}`,
             }));
 
           tasks
@@ -3034,7 +3061,7 @@ function CalendarContent() {
                 title: e.title,
                 subtitle: e.calendarName,
                 color: e.backgroundColor,
-                href: e.htmlLink ?? "#",
+                href: e.htmlLink,
                 icon: "G",
               }));
           }
@@ -3127,28 +3154,64 @@ function CalendarContent() {
                     <div className="px-4 py-3 text-xs text-petra-muted">אין אירועים</div>
                   ) : (
                     <div className="divide-y divide-slate-50">
-                      {items.map((item) => (
-                        <a
-                          key={item.key}
-                          href={item.href}
-                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors"
-                        >
-                          <div className="w-12 text-xs font-mono text-petra-muted text-left flex-shrink-0">{item.time}</div>
-                          <div
-                            className="w-1 self-stretch rounded-full flex-shrink-0"
-                            style={{ background: item.color }}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className={cn("text-sm font-medium truncate", item.overdue && "text-red-600")}>{item.title}</div>
-                            <div className="text-xs text-petra-muted truncate">{item.subtitle}</div>
-                          </div>
-                          {item.icon === "G" ? (
-                            <span className="text-[9px] font-bold bg-[#4285F4] text-white rounded px-1 flex-shrink-0">G</span>
-                          ) : (
-                            <span className="text-sm flex-shrink-0">{item.icon}</span>
-                          )}
-                        </a>
-                      ))}
+                      {items.map((item) => {
+                        const rowClass = "flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors";
+                        const rowContent = (
+                          <>
+                            <div className="w-12 text-xs font-mono text-petra-muted text-left flex-shrink-0">{item.time}</div>
+                            <div
+                              className="w-1 self-stretch rounded-full flex-shrink-0"
+                              style={{ background: item.color }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className={cn("text-sm font-medium truncate", item.overdue && "text-red-600")}>{item.title}</div>
+                              <div className="text-xs text-petra-muted truncate">{item.subtitle}</div>
+                            </div>
+                            {item.appointment && (
+                              <a
+                                href={item.customerHref}
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-xs text-brand-600 hover:underline flex-shrink-0"
+                              >
+                                כרטיס לקוח
+                              </a>
+                            )}
+                            {item.icon === "G" ? (
+                              <span className="text-[9px] font-bold bg-[#4285F4] text-white rounded px-1 flex-shrink-0">G</span>
+                            ) : (
+                              <span className="text-sm flex-shrink-0">{item.icon}</span>
+                            )}
+                          </>
+                        );
+                        if (item.appointment) {
+                          // Appointments open the same detail modal as day/week/month views
+                          const apt = item.appointment;
+                          return (
+                            <div
+                              key={item.key}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setSelectedAppointment(apt)}
+                              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedAppointment(apt); } }}
+                              className={cn(rowClass, "cursor-pointer")}
+                            >
+                              {rowContent}
+                            </div>
+                          );
+                        }
+                        if (!item.href) {
+                          return (
+                            <div key={item.key} className={rowClass}>
+                              {rowContent}
+                            </div>
+                          );
+                        }
+                        return (
+                          <a key={item.key} href={item.href} className={rowClass}>
+                            {rowContent}
+                          </a>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

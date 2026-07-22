@@ -1,6 +1,7 @@
 "use client";
 
 import { BookingsTabs } from "@/components/bookings/BookingsTabs";
+import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -469,6 +470,13 @@ function SchedulerContent() {
                 שלח הודעת WhatsApp
               </a>
             )}
+            <Link
+              href={`/calendar?date=${bookingResult.date}&apt=${bookingResult.appointmentId}`}
+              className="btn-primary inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl"
+            >
+              <CalendarClock className="w-4 h-4" />
+              צפה ביומן
+            </Link>
             <button
               onClick={resetAll}
               className="btn-secondary inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl"
@@ -802,7 +810,9 @@ function SchedulerContent() {
                     />
                   </div>
                   {showCustomerDropdown && !selectedCustomerId && (
-                    <div className="absolute z-20 top-full mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setShowCustomerDropdown(false)} />
+                      <div className="absolute z-20 top-full mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
                       {filteredCustomers.slice(0, 20).map((c) => (
                         <button
                           key={c.id}
@@ -834,7 +844,8 @@ function SchedulerContent() {
                         <UserPlus className="w-4 h-4" />
                         צור לקוח חדש
                       </button>
-                    </div>
+                      </div>
+                    </>
                   )}
                 </div>
               ) : (

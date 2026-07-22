@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { PageTitle } from "@/components/ui/PageTitle";
 
 import { useQuery } from "@tanstack/react-query";
@@ -548,7 +549,12 @@ function AnalyticsContent() {
                         <span className="text-xs font-bold text-petra-muted w-5 text-right">{i + 1}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-petra-text truncate">{c.name}</span>
+                            <Link
+                              href={`/customers/${c.id}`}
+                              className="text-sm font-medium text-petra-text truncate hover:text-brand-600 hover:underline transition-colors"
+                            >
+                              {c.name}
+                            </Link>
                             <span className="text-xs font-semibold text-brand-600 flex-shrink-0 ms-2">
                               {formatCurrency(c.revenue)}
                             </span>

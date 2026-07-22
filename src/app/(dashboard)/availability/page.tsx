@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { Save, Plus, Trash2, Clock, CalendarOff, ExternalLink, Settings2, Coffee, CalendarDays } from "lucide-react"
-import Link from "next/link"
+import Link from "next/link";
+import { BookingsTabs } from "@/components/bookings/BookingsTabs";
+import { useAuth } from "@/providers/auth-provider"
 import { toast } from "sonner"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -81,7 +83,10 @@ export default function AvailabilityPage() {
   // Import holidays
   const [holidaysImporting, setHolidaysImporting] = useState(false)
 
-  const DEMO_SLUG = "demo"
+  // Real public booking slug for THIS business (was hardcoded to /book/demo,
+  // which showed every business a foreign demo page)
+  const { user } = useAuth()
+  const bookingSlug = user?.businessSlug || null
 
   // ── Load data ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -117,6 +122,7 @@ export default function AvailabilityPage() {
       })
       if (!res.ok) throw new Error("Failed")
       setRulesSaved(true)
+      toast.success("שעות הפעילות נשמרו")
       setTimeout(() => setRulesSaved(false), 2000)
     } catch {
       toast.error("שגיאה בשמירת שעות הפעילות")
@@ -249,18 +255,21 @@ export default function AvailabilityPage() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto" dir="rtl">
+      <BookingsTabs />
       {/* Header */}
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <h1 className="text-2xl font-bold text-gray-900">זמינות ושעות פעילות</h1>
         <p className="text-gray-500 text-sm">הגדר מתי לקוחות יכולים להזמין תורים</p>
+        {bookingSlug && (
         <Link
-          href={`/book/${DEMO_SLUG}`}
+          href={`/book/${bookingSlug}`}
           target="_blank"
           className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700 border border-amber-300 rounded-lg px-3 py-2 hover:bg-amber-50"
         >
           <ExternalLink className="w-4 h-4" />
           דף ההזמנה
         </Link>
+        )}
       </div>
 
       {/* ── Section A: Booking Settings ──────────────────────────────────────── */}

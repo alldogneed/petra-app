@@ -33,7 +33,11 @@ export async function PATCH(
     if (body.defaultQuantity !== undefined) data.defaultQuantity = Number(body.defaultQuantity);
     if (body.taxMode !== undefined) data.taxMode = body.taxMode;
     if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
-    if (body.sortOrder !== undefined) data.sortOrder = Number(body.sortOrder);
+    if (body.sortOrder !== undefined) {
+      const so = Number(body.sortOrder);
+      if (!Number.isFinite(so)) return NextResponse.json({ error: "סדר תצוגה לא תקין" }, { status: 400 });
+      data.sortOrder = so;
+    }
     if (body.paymentUrl !== undefined) {
       if (body.paymentUrl) {
         const urlError = validateSafeUrl(body.paymentUrl);

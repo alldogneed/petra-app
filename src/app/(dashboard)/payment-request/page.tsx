@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FinanceTabs } from "@/components/finance/FinanceTabs";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
@@ -546,7 +547,12 @@ function PaymentRequestContent() {
               <div className="text-center py-8">
                 <ShoppingBag className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                 <p className="text-sm text-slate-400">אין פריטים במחירון</p>
-                <p className="text-xs text-slate-300 mt-1">הוסף פריטים בהגדרות → מחירון</p>
+                <Link
+                  href="/pricing"
+                  className="text-xs text-brand-600 hover:text-brand-700 hover:underline mt-1 inline-block"
+                >
+                  הוסף פריטים במחירון ←
+                </Link>
               </div>
             ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

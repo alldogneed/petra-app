@@ -172,6 +172,8 @@ function ServiceDogsOverviewPageContent() {
   // Persistent dismissed state — survives page refresh, stored in localStorage for 7 days
   const { dismissedIds, dismiss, archive, restore, clearAll } = usePersistentDismissed(user?.businessId ?? null);
   const [showArchive, setShowArchive] = useState(false);
+  const [showAddDog, setShowAddDog] = useState(false);
+  const [showAddRecipient, setShowAddRecipient] = useState(false);
 
   const visibleDogs = dogsNeedingAttention.filter((d) => !dismissedIds.has(d.id));
   const visibleEvents = pendingEvents.filter((e) => !dismissedIds.has(e.id));
@@ -189,6 +191,26 @@ function ServiceDogsOverviewPageContent() {
           <p className="text-sm text-petra-muted mt-1">
             מרכז הכשרת כלבי שירות · ניהול מקצועי
           </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            className="btn-primary text-sm"
+            onClick={() => setShowAddDog(true)}
+          >
+            <Plus className="w-4 h-4" />
+            הוסף כלב
+          </button>
+          {perms.canSeeRecipientsSensitive && (
+            <button
+              type="button"
+              className="btn-secondary text-sm"
+              onClick={() => setShowAddRecipient(true)}
+            >
+              <Plus className="w-4 h-4" />
+              הוסף זכאי
+            </button>
+          )}
         </div>
       </div>
 
@@ -504,6 +526,12 @@ function ServiceDogsOverviewPageContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Add modals */}
+      {showAddDog && <AddServiceDogModal onClose={() => setShowAddDog(false)} />}
+      {showAddRecipient && perms.canSeeRecipientsSensitive && (
+        <AddRecipientModal onClose={() => setShowAddRecipient(false)} />
       )}
     </div>
   );
