@@ -378,12 +378,15 @@ function OverviewTab() {
 }
 
 function ActivityTab() {
+  const { user } = useAuth();
+  const businessId = user?.businessId ?? "";
   const [filterUser, setFilterUser] = useState("");
   const [filterAction, setFilterAction] = useState("");
 
   const { data: teamData } = useQuery<TeamMember[]>({
     queryKey: ["ba-team"],
-    queryFn: () => fetch("/api/business-admin/team").then((r) => r.json()),
+    enabled: !!businessId,
+    queryFn: () => fetch(`/api/admin/${businessId}/members`).then((r) => r.json()),
   });
 
   const params = new URLSearchParams({ take: "100" });
@@ -510,18 +513,21 @@ function ActivityTab() {
 }
 
 function TeamTab({ currentUserId }: { currentUserId: string }) {
+  const { user } = useAuth();
+  const businessId = user?.businessId ?? "";
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newRole, setNewRole] = useState("");
 
   const { data: members, isLoading } = useQuery<TeamMember[]>({
     queryKey: ["ba-team"],
-    queryFn: () => fetch("/api/business-admin/team").then((r) => r.json()),
+    enabled: !!businessId,
+    queryFn: () => fetch(`/api/admin/${businessId}/members`).then((r) => r.json()),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
-      fetch(`/api/business-admin/team/${id}`, {
+      fetch(`/api/admin/${businessId}/members/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -1261,7 +1267,7 @@ function BusinessAdminPageContent() {
   const { user, isOwner } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
 
-  if (!isOwner && user?.businessRole !== "admin") {
+  if (!isOwner) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-3">

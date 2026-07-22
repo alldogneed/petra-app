@@ -34,6 +34,7 @@ export async function GET(
           id: true,
           email: true,
           name: true,
+          avatarUrl: true, // used by the business-admin Team tab avatars
           // platformRole intentionally excluded — server-only per rule #11
           isActive: true,
           twoFaEnabled: true,

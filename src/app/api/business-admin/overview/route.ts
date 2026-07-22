@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
 
     const user = await getCurrentUser();
-    if (!user || !["owner", "admin"].includes(user.businessRole ?? "") || !user.businessId) {
+    if (!user || user.businessRole !== "owner" || !user.businessId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
