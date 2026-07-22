@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { put } from "@vercel/blob";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { toWhatsAppPhone } from "@/lib/utils";
 import { PDFDocument } from "pdf-lib";
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -134,7 +136,7 @@ export async function POST(
         template: true,
         customer: { select: { id: true, businessId: true, documents: true, name: true, phone: true, idNumber: true, address: true } },
         pet: { select: { name: true, breed: true, microchip: true, birthDate: true, gender: true, color: true } },
-        business: { select: { id: true } },
+        business: { select: { id: true, name: true, phone: true } },
       },
     });
 
@@ -160,6 +162,11 @@ export async function POST(
     // Limit signature size to 500KB (base64-encoded PNG should be well under this)
     if (signatureBase64.length > 500 * 1024) {
       return NextResponse.json({ error: "קובץ חתימה גדול מדי" }, { status: 400 });
+    }
+
+    // Blob storage preflight — fail with a specific message instead of a generic 500
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return NextResponse.json({ error: "אחסון הקבצים אינו מוגדר — פנה לתמיכה" }, { status: 503 });
     }
 
     // SSRF guard: only fetch from Vercel Blob storage
@@ -316,6 +323,54 @@ export async function POST(
       },
       data: { documents: JSON.stringify(docs) },
     });
+
+    // ── Notify the business that the contract was signed ──────────────────────
+    // All three steps are non-fatal — the contract is already signed and saved.
+    const customerName = contractRequest.customer?.name ?? "לקוח";
+    const templateName = contractRequest.template.name;
+
+    // (a) In-app system message
+    try {
+      await prisma.systemMessage.create({
+        data: {
+          businessId: contractRequest.businessId,
+          title: "חוזה נחתם ✍️",
+          content: `${customerName} חתם/ה על החוזה "${templateName}"`,
+          type: "success",
+          actionUrl: `/customers/${contractRequest.customerId}`,
+          actionLabel: "לצפייה בלקוח",
+        },
+      });
+    } catch (sysError) {
+      console.error("POST sign — system message error:", sysError);
+    }
+
+    // (b) WhatsApp to the business phone (awaited — fire-and-forget gets killed on Vercel)
+    try {
+      const businessPhone = contractRequest.business.phone;
+      if (businessPhone) {
+        await sendWhatsAppMessage({
+          to: toWhatsAppPhone(businessPhone),
+          body: `✍️ חוזה נחתם!\n${customerName} חתם/ה על החוזה "${templateName}".\nהמסמך החתום נשמר בתיק הלקוח.`,
+        });
+      }
+    } catch (waError) {
+      console.error("POST sign — business WhatsApp error:", waError);
+    }
+
+    // (c) Timeline event on the customer
+    try {
+      await prisma.timelineEvent.create({
+        data: {
+          type: "CONTRACT_SIGNED",
+          description: `החוזה "${templateName}" נחתם דיגיטלית`,
+          businessId: contractRequest.businessId,
+          customerId: contractRequest.customerId,
+        },
+      });
+    } catch (timelineError) {
+      console.error("POST sign — timeline event error:", timelineError);
+    }
 
     return NextResponse.json({ ok: true, signedFileUrl: blob.url });
   } catch (error) {

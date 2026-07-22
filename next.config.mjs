@@ -78,7 +78,7 @@ const nextConfig = {
               "connect-src 'self' https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io",
               "frame-ancestors 'self'",
               "frame-src 'self' blob: https://secure.cardcom.solutions",
-              "object-src 'none'",
+              "object-src 'self' blob:",  // PDF previews (contract template modal + signed-contract viewer) render via <object>/blob:
             ].join("; "),
           },
         ],

@@ -19,6 +19,7 @@ const PUBLIC_PREFIX_PATHS = [
  * EXACT paths (matched with === or === path + "/"):
  */
 const PUBLIC_EXACT_PATHS = new Set([
+  "/pdf.worker.min.mjs", // pdf.js worker — static asset needed by the PUBLIC /sign/[token] page (unauthenticated customers)
   "/login",
   "/register",
   "/forgot-password",

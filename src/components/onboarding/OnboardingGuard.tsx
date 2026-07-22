@@ -45,7 +45,9 @@ export function OnboardingGuard({ children }: { children: ReactNode }) {
           return;
         }
 
-        const progress = await res.json();
+        const data = await res.json();
+        // API returns { progress: {...} | null } — unwrap (tolerate a bare object too)
+        const progress = data && typeof data === "object" && "progress" in data ? data.progress : data;
 
         if (!progress || progress.skipped || progress.completedAt) {
           // Setup done — proceed normally

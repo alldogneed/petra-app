@@ -122,3 +122,26 @@ export const isStaging =
 /** Returns true when running in production */
 export const isProd =
   env.NODE_ENV === "production" && !isStaging;
+
+/**
+ * Resolve the public origin for links we send to customers (e.g. contract
+ * sign URLs). Normally this is env.APP_URL, but if APP_URL is unset or still
+ * pointing at localhost while running in production, derive the origin from
+ * the incoming request's forwarded headers instead — a localhost link sent
+ * to a customer's phone is useless.
+ */
+export function resolvePublicOrigin(request: Request): string {
+  const configured = (process.env.APP_URL ?? "").trim().replace(/\/+$/, "");
+  const isMisconfigured = !configured || configured.includes("localhost") || configured.includes("127.0.0.1");
+
+  if (env.NODE_ENV === "production" && isMisconfigured) {
+    const host =
+      request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+    if (host) {
+      const proto = request.headers.get("x-forwarded-proto") ?? "https";
+      return `${proto}://${host}`;
+    }
+  }
+
+  return configured || env.APP_URL.replace(/\/+$/, "");
+}

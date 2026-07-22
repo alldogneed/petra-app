@@ -5,11 +5,24 @@ import crypto from "crypto";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
-import { env } from "@/lib/env";
+import { resolvePublicOrigin } from "@/lib/env";
+import { hasFeatureWithOverrides } from "@/lib/feature-flags";
+import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+
+/** Staff cannot send contracts — customer PII is embedded in the document */
+function staffGuard(authResult: { session: { memberships: Array<{ businessId: string; role: string; isActive: boolean }> }; businessId: string }) {
+  const m = authResult.session.memberships.find((mb) => mb.businessId === authResult.businessId && mb.isActive);
+  if (m && !hasTenantPermission(m.role as TenantRole, TENANT_PERMS.CUSTOMERS_PII)) {
+    return NextResponse.json({ error: "אין הרשאה לשלוח חוזים" }, { status: 403 });
+  }
+  return null;
+}
 
 export async function POST(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  const blocked = staffGuard(authResult);
+  if (blocked) return blocked;
 
   try {
     const body = await request.json();
@@ -17,6 +30,20 @@ export async function POST(request: NextRequest) {
 
     if (!customerId || !templateId) {
       return NextResponse.json({ error: "חסרים פרמטרים" }, { status: 400 });
+    }
+
+    const business = await prisma.business.findUnique({
+      where: { id: authResult.businessId },
+      select: { name: true, tier: true, featureOverrides: true },
+    });
+
+    // Tier gate: digital contracts are BASIC+ only
+    const overrides = (business?.featureOverrides as Record<string, boolean> | null) ?? null;
+    if (!hasFeatureWithOverrides(business?.tier, "contracts", overrides)) {
+      return NextResponse.json(
+        { error: "חוזים דיגיטליים זמינים ממסלול בייסיק ומעלה", code: "TIER" },
+        { status: 403 }
+      );
     }
 
     // Verify template belongs to this business
@@ -39,18 +66,13 @@ export async function POST(request: NextRequest) {
       if (!pet) return NextResponse.json({ error: "חיית המחמד לא נמצאה" }, { status: 404 });
     }
 
-    const business = await prisma.business.findUnique({
-      where: { id: authResult.businessId },
-      select: { name: true },
-    });
-
     // Generate token
     const plainToken = crypto.randomBytes(32).toString("hex");
     const tokenHash = crypto.createHash("sha256").update(plainToken).digest("hex");
 
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    const signUrl = `${env.APP_URL}/sign/${plainToken}`;
+    const signUrl = `${resolvePublicOrigin(request)}/sign/${plainToken}`;
 
     const contractRequest = await prisma.contractRequest.create({
       data: {
@@ -65,19 +87,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Send WhatsApp if customer has phone
+    // Send WhatsApp if customer has phone — track delivery so the UI can
+    // offer a copy-link fallback when the message didn't go out.
+    let waDelivered = false;
     if (customer.phone) {
       try {
-        await sendWhatsAppMessage({
+        const waResult = await sendWhatsAppMessage({
           to: toWhatsAppPhone(customer.phone),
           body: `שלום ${customer.name}! 📄\n${business?.name ?? ""} שלחו לך חוזה לחתימה דיגיטלית.\n\nלחץ לצפייה ולחתימה:\n${signUrl}\n\nהקישור תקף ל-30 יום.`,
         });
-      } catch {
+        waDelivered = waResult.success;
+      } catch (waError) {
         // WhatsApp failure shouldn't fail the request
+        console.error("POST contract send — WhatsApp error:", waError);
       }
     }
 
-    return NextResponse.json({ id: contractRequest.id, signUrl }, { status: 201 });
+    return NextResponse.json({ id: contractRequest.id, signUrl, waDelivered }, { status: 201 });
   } catch (error) {
     console.error("POST contract send error:", error);
     return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });

@@ -22,6 +22,17 @@ export async function GET(request: NextRequest) {
   try {
     const now = new Date();
 
+    // Sync contract request expiry: PENDING requests past expiresAt → EXPIRED
+    // (the sign page already rejects expired tokens; this keeps the DB status
+    // consistent for lists and resend logic)
+    const expiredContracts = await prisma.contractRequest.updateMany({
+      where: { status: "PENDING", expiresAt: { lt: now } },
+      data: { status: "EXPIRED" },
+    });
+    if (expiredContracts.count > 0) {
+      console.log(`expire-subscriptions: expired ${expiredContracts.count} contract requests`);
+    }
+
     // Find expired active subscriptions
     const expired = await prisma.business.findMany({
       where: {
@@ -32,7 +43,12 @@ export async function GET(request: NextRequest) {
     });
 
     if (expired.length === 0) {
-      return NextResponse.json({ ok: true, expired: 0, timestamp: now.toISOString() });
+      return NextResponse.json({
+        ok: true,
+        expired: 0,
+        contractsExpired: expiredContracts.count,
+        timestamp: now.toISOString(),
+      });
     }
 
     // Sequential operations (no $transaction — Supabase PgBouncer incompatible)
@@ -59,6 +75,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       expired: expired.length,
+      contractsExpired: expiredContracts.count,
       timestamp: now.toISOString(),
     });
   } catch (error) {

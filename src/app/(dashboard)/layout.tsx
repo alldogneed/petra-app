@@ -38,7 +38,7 @@ export default async function DashboardLayout({
         }),
         prisma.onboardingProgress.findUnique({
           where: { userId: user.id },
-          select: { completedAt: true },
+          select: { completedAt: true, skipped: true },
         }),
       ]);
     } catch (err) {
@@ -50,8 +50,10 @@ export default async function DashboardLayout({
       redirect("/tos-accept");
     }
 
-    // If onboarding exists but not completed, or doesn't exist at all → redirect
-    if (!progress || !progress.completedAt) {
+    // If onboarding exists but not completed/skipped, or doesn't exist at all → redirect.
+    // "דלג" sets skipped:true without completedAt — that must satisfy the gate too,
+    // otherwise a skipping user loops back to /onboarding forever.
+    if (!progress || (!progress.completedAt && !progress.skipped)) {
       redirect("/onboarding");
     }
   }
