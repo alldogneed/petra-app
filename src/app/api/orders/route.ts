@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     const biz = await prisma.business.findUnique({
       where: { id: authResult.businessId },
-      select: { tier: true, featureOverrides: true },
+      select: { tier: true, featureOverrides: true, whatsappRemindersEnabled: true },
     });
     const maxOrders = getMaxOrders(normalizeTier(biz?.tier));
 
@@ -109,9 +109,19 @@ export async function POST(request: NextRequest) {
         .catch((err: unknown) => console.error("Failed to schedule reminder:", err));
     }
 
-    // WhatsApp appointment confirmation (PRO+ only, fire-and-forget)
+    // WhatsApp appointment confirmation — sends ONLY when ALL hold: tier allows it,
+    // the master "שליחת הודעות אוטומטיות" toggle is on, AND the per-message
+    // "appointment_confirmation" automation is active. Previously this fired on tier
+    // alone (ignoring both toggles), so businesses got customer messages they never
+    // enabled. A ScheduledMessage log row also dedups per appointment — a double
+    // order-create can no longer message the same appointment twice.
     const bizOverrides = (biz?.featureOverrides as Record<string, boolean> | null) ?? null;
-    if (hasFeatureWithOverrides(biz?.tier ?? "free", "whatsapp_reminders", bizOverrides) && linkedAppointmentId && body.appointmentData) {
+    if (
+      biz?.whatsappRemindersEnabled &&
+      hasFeatureWithOverrides(biz?.tier ?? "free", "whatsapp_reminders", bizOverrides) &&
+      linkedAppointmentId &&
+      body.appointmentData
+    ) {
       const customer = await prisma.customer.findUnique({
         where: { id: body.customerId },
         select: { name: true, phone: true },
@@ -133,12 +143,32 @@ export async function POST(request: NextRequest) {
             where: { businessId: authResult.businessId, trigger: "appointment_confirmation", isActive: true },
             include: { template: true },
           }).catch(() => null);
+
+          // Opt-in: no active appointment_confirmation automation → no send at all
+          // (the default-template fallback used to fire even with the toggle off).
+          if (!confirmationRule) {
+            // eslint-disable-next-line no-console
+            console.log("[OrderConfirmation] appointment_confirmation automation inactive, skipping");
+          }
+
+          // Idempotency: one confirmation per appointment, ever.
+          const alreadySent = confirmationRule
+            ? await prisma.scheduledMessage.findFirst({
+                where: {
+                  businessId: authResult.businessId,
+                  relatedEntityType: "APPT_CONFIRMATION",
+                  relatedEntityId: linkedAppointmentId,
+                },
+                select: { id: true },
+              }).catch(() => null)
+            : null;
           const linkedAppt = await prisma.appointment.findUnique({
             where: { id: linkedAppointmentId },
             select: { pet: { select: { name: true } } },
           }).catch(() => null);
           const petName = linkedAppt?.pet?.name ?? "";
 
+          if (confirmationRule && !alreadySent) {
           if (confirmationRule?.template?.body) {
             const msgBody = interpolateTemplate(confirmationRule.template.body, {
               customerName: customer.name, date: formattedDate,
@@ -153,6 +183,21 @@ export async function POST(request: NextRequest) {
               templateName: "petra_appointment_confirmation",
               bodyParams: [customer.name, formattedDate, body.appointmentData.startTime as string, serviceName],
             }).catch((err) => console.error("Order appointment confirmation WA failed:", err));
+          }
+          // Log the send so the same appointment never gets a second confirmation.
+          await prisma.scheduledMessage.create({
+            data: {
+              businessId: authResult.businessId,
+              customerId: body.customerId,
+              channel: "whatsapp",
+              templateKey: "appointment_confirmation_log",
+              payloadJson: "{}",
+              sendAt: new Date(),
+              status: "SENT",
+              relatedEntityType: "APPT_CONFIRMATION",
+              relatedEntityId: linkedAppointmentId,
+            },
+          }).catch((err) => console.error("[OrderConfirmation] failed to log send:", err));
           }
         }
       }

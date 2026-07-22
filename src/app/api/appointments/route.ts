@@ -93,6 +93,22 @@ export async function POST(request: NextRequest) {
           include: { template: true },
         });
 
+        // Opt-in: no active appointment_confirmation automation → no send. The old
+        // fallback sent the default template even with the toggle off, so businesses
+        // got customer messages they never enabled.
+        // Idempotency: one confirmation per appointment, ever (double-submit guard).
+        const alreadySent = confirmationRule
+          ? await prisma.scheduledMessage.findFirst({
+              where: {
+                businessId: authResult.businessId,
+                relatedEntityType: "APPT_CONFIRMATION",
+                relatedEntityId: appointment.id,
+              },
+              select: { id: true },
+            }).catch(() => null)
+          : null;
+
+        if (confirmationRule && !alreadySent) {
         if (confirmationRule?.template?.body) {
           const msgBody = interpolateTemplate(confirmationRule.template.body, {
             customerName: appointment.customer.name,
@@ -120,6 +136,21 @@ export async function POST(request: NextRequest) {
           await sendWhatsAppTemplate({ to: phone, ...templateSend }).catch((err) =>
             console.error("Appointment confirmation WA failed:", err)
           );
+        }
+        // Log the send so the same appointment never gets a second confirmation.
+        await prisma.scheduledMessage.create({
+          data: {
+            businessId: authResult.businessId,
+            customerId: appointment.customerId,
+            channel: "whatsapp",
+            templateKey: "appointment_confirmation_log",
+            payloadJson: "{}",
+            sendAt: new Date(),
+            status: "SENT",
+            relatedEntityType: "APPT_CONFIRMATION",
+            relatedEntityId: appointment.id,
+          },
+        }).catch((err) => console.error("[ApptConfirmation] failed to log send:", err));
         }
       }
     }
