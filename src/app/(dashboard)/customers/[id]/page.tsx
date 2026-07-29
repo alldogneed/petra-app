@@ -2680,6 +2680,27 @@ function NewAppointmentModal({
     setFieldError("");
   };
 
+  // Keep end time in sync when start changes: use the selected service's
+  // duration, otherwise preserve the current start→end gap.
+  const handleStartTimeChange = (startTime: string) => {
+    setForm((f) => {
+      const [h, m] = startTime.split(":").map(Number);
+      if (Number.isNaN(h) || Number.isNaN(m)) return { ...f, startTime };
+      const svc = services.find((s) => s.id === f.priceListItemId);
+      let dur = svc?.durationMinutes ?? null;
+      if (dur == null) {
+        const [oh, om] = f.startTime.split(":").map(Number);
+        const [eh, em] = f.endTime.split(":").map(Number);
+        const gap = (eh * 60 + em) - (oh * 60 + om);
+        dur = gap > 0 ? gap : 60;
+      }
+      const endMinutes = h * 60 + m + dur;
+      const endH = Math.floor(endMinutes / 60) % 24;
+      const endM = endMinutes % 60;
+      return { ...f, startTime, endTime: `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}` };
+    });
+  };
+
   return (
     <div className="modal-overlay">
       <div className="modal-backdrop" onClick={onClose} />
@@ -2736,7 +2757,7 @@ function NewAppointmentModal({
                 type="time"
                 className="input w-full"
                 value={form.startTime}
-                onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
+                onChange={(e) => handleStartTimeChange(e.target.value)}
               />
             </div>
             <div>
