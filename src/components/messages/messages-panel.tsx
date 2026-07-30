@@ -610,45 +610,6 @@ function TemplatesTab() {
 
   const manualTemplates = templates.filter(t => !t.automationRules?.length);
 
-  // ─── Manual template card ──────────────────────────────────────────────────
-  const renderManualCard = (template: MessageTemplate) => (
-    <div key={template.id} className="card p-4 group">
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="text-sm font-semibold text-petra-text">{template.name}</h3>
-        <div className="flex gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-          <button
-            onClick={() => setSendingTemplate(template)}
-            className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
-            title="שלח ללקוח בודד"
-          >
-            <Send className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => setBulkSendingTemplate(template)}
-            className="p-1.5 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600"
-            title="שלח לקבוצת לקוחות"
-          >
-            <Users className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => openEditor(template)}
-            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
-            title="ערוך תבנית"
-          >
-            <Edit3 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => { if (confirm("למחוק תבנית זו?")) deleteMutation.mutate(template.id); }}
-            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-      <p className="text-xs text-petra-muted line-clamp-2 whitespace-pre-wrap">{template.body}</p>
-    </div>
-  );
-
   return (
     <>
       {/* Tab description */}
@@ -848,7 +809,7 @@ function TemplatesTab() {
       {/* ── Manual section ── */}
       <div className="mt-8 mb-2">
         <h3 className="text-sm font-bold text-petra-text">הודעות ידניות</h3>
-        <p className="text-xs text-petra-muted mt-0.5">תבניות שניתן לשלוח ידנית ללקוחות בודדים. לחץ על עיפרון לעריכה.</p>
+        <p className="text-xs text-petra-muted mt-0.5">תבניות שניתן לשלוח ידנית — חץ ירוק לשליחה ללקוח בודד, אנשים לשליחה קבוצתית, עיפרון לעריכה.</p>
       </div>
       {(true && (
         <div className="space-y-3 mt-2">
@@ -894,6 +855,20 @@ function TemplatesTab() {
                       )}
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => setSendingTemplate(templateForModal)}
+                        className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
+                        title="שלח ללקוח בודד"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setBulkSendingTemplate(templateForModal)}
+                        className="p-1.5 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600"
+                        title="שלח לקבוצת לקוחות"
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         onClick={() => {
                           setEditingTemplate(dbVersion ?? null);
