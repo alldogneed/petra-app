@@ -89,23 +89,23 @@ export async function POST(request: NextRequest) {
       await Promise.allSettled(
         uniquePhones.map(async (p) => {
           try {
-            // The originally-approved template has 3 body params (name, phone,
-            // service); a 5-param variant may exist after re-approval. Try 5,
-            // retry with 3 on failure — only template sends deliver outside
-            // Meta's 24h session window, so the free-form fallback is last.
+            // Primary: the UTILITY-category template — Meta silently drops
+            // repeated MARKETING templates to the same recipient (frequency
+            // capping), which is exactly the owner-alert pattern. Fallback:
+            // the old MARKETING template, then free-form (24h window only).
             let res = await sendWhatsAppTemplate({
-              to: p, templateName: "petra_biz_lead_alert",
+              to: p, templateName: "petra_biz_lead_alert_util",
               bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
             });
             if (!res.success) {
-              console.error("[lead-alert] 5-param template failed for", p, "-", res.error);
+              console.error("[lead-alert] utility template failed for", p, "-", res.error);
               res = await sendWhatsAppTemplate({
                 to: p, templateName: "petra_biz_lead_alert",
-                bodyParams: [lead.name, phoneParam, serviceParam],
+                bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
               });
             }
             if (!res.success) {
-              console.error("[lead-alert] 3-param template failed for", p, "-", res.error);
+              console.error("[lead-alert] marketing template failed for", p, "-", res.error);
               const freeform = await sendWhatsAppMessage({ to: p, body: msg });
               if (!freeform.success) console.error("[lead-alert] free-form fallback failed for", p, "-", freeform.error);
             }

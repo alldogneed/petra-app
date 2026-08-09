@@ -203,25 +203,25 @@ export async function POST(request: NextRequest) {
       await Promise.allSettled(
         uniquePhones.map(async (p) => {
           try {
-            // The originally-approved template has 3 body params (name, phone,
-            // service); a 5-param variant may exist after re-approval. Try 5,
-            // retry with 3 on failure — only template sends deliver outside
-            // Meta's 24h session window, so the free-form fallback is last.
+            // Primary: the UTILITY-category template — Meta silently drops
+            // repeated MARKETING templates to the same recipient (frequency
+            // capping), which is exactly the owner-alert pattern. Fallback:
+            // the old MARKETING template, then free-form (24h window only).
             let result = await sendWhatsAppTemplate({
               to: p,
-              templateName: "petra_biz_lead_alert",
+              templateName: "petra_biz_lead_alert_util",
               bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
             });
             if (!result.success) {
-              console.error("[webhook/lead] 5-param template failed for", p, "-", result.error);
+              console.error("[webhook/lead] utility template failed for", p, "-", result.error);
               result = await sendWhatsAppTemplate({
                 to: p,
                 templateName: "petra_biz_lead_alert",
-                bodyParams: [lead.name, phoneParam, serviceParam],
+                bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
               });
             }
             if (!result.success) {
-              console.error("[webhook/lead] 3-param template failed for", p, "-", result.error);
+              console.error("[webhook/lead] marketing template failed for", p, "-", result.error);
               const freeform = await sendWhatsAppMessage({ to: p, body: msg });
               if (!freeform.success) console.error("[webhook/lead] free-form fallback failed for", p, "-", freeform.error);
             }
