@@ -32,7 +32,7 @@ import prisma from "@/lib/prisma";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getFirstLeadStageId } from "@/lib/lead-stages";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
-import { sendWhatsAppMessage, sendWhatsAppTemplate } from "@/lib/whatsapp";
+import { sendLeadAlert } from "@/lib/lead-alert";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { sanitizeName } from "@/lib/validation";
 import { scheduleLeadFollowup } from "@/lib/reminder-service";
@@ -176,63 +176,22 @@ export async function POST(request: NextRequest) {
       customerId: null,
     }).catch((err) => console.error("scheduleLeadFollowup (webhook) failed (non-critical):", err));
 
-    // Fire-and-forget: WhatsApp notification (same logic as POST /api/leads)
+    // Multi-channel alert: WhatsApp + email + in-app bell (see lib/lead-alert)
     const bizOverrides = (businessMeta?.featureOverrides as Record<string, unknown> | null) ?? null;
     const canNotify = hasFeatureWithOverrides(businessMeta?.tier ?? "free", "lead_notifications", bizOverrides as Record<string, boolean> | null);
     if (canNotify) {
-      const phoneParam = phone || "לא צוין";
-      const serviceParam = service || "לא צוין";
-      const cityParam = city || "לא צוין";
-      const SOURCE_LABELS: Record<string, string> = {
-        manual: "הוספה ידנית", facebook: "פייסבוק", instagram: "אינסטגרם",
-        website: "אתר אינטרנט", google: "גוגל", tiktok: "טיקטוק",
-        referral: "המלצה מלקוח", signage: "שלט", other: "אחר",
-      };
-      const sourceParam = SOURCE_LABELS[source] ?? source ?? "לא צוין";
-      const msg = `ליד חדש נכנס לפטרה!\n\nשם: ${lead.name}\nטלפון: ${phoneParam}\nשירות: ${serviceParam}\nאזור: ${cityParam}\nמקור: ${sourceParam}\n\nכנס לניהול הלידים בפטרה לפרטים.`;
-
-      const extraPhones = Array.isArray(bizOverrides?.lead_notification_phones)
-        ? (bizOverrides!.lead_notification_phones as string[])
-        : [];
-      const allPhones = [
-        ...(businessMeta?.phone ? [businessMeta.phone] : []),
-        ...extraPhones,
-      ].map(toWhatsAppPhone).filter((p): p is string => !!p);
-      const uniquePhones = [...new Set(allPhones)];
-
-      await Promise.allSettled(
-        uniquePhones.map(async (p) => {
-          try {
-            // Primary: the UTILITY-category template — Meta silently drops
-            // repeated MARKETING templates to the same recipient (frequency
-            // capping), which is exactly the owner-alert pattern. Fallback:
-            // the old MARKETING template, then free-form (24h window only).
-            let result = await sendWhatsAppTemplate({
-              to: p,
-              templateName: "petra_biz_lead_alert_util",
-              bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
-            });
-            if (!result.success) {
-              console.error("[webhook/lead] utility template failed for", p, "-", result.error);
-              result = await sendWhatsAppTemplate({
-                to: p,
-                templateName: "petra_biz_lead_alert",
-                bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
-              });
-            }
-            if (!result.success) {
-              console.error("[webhook/lead] marketing template failed for", p, "-", result.error);
-              const freeform = await sendWhatsAppMessage({ to: p, body: msg });
-              if (!freeform.success) console.error("[webhook/lead] free-form fallback failed for", p, "-", freeform.error);
-            }
-          } catch (err) {
-            console.error("[webhook/lead] send threw for", p, err);
-            await sendWhatsAppMessage({ to: p, body: msg }).catch((fallbackErr) => {
-              console.error("[webhook/lead] WhatsApp fallback also failed for", p, fallbackErr);
-            });
-          }
-        })
-      );
+      await sendLeadAlert({
+        businessId: businessId as string,
+        businessPhone: businessMeta?.phone ?? null,
+        featureOverrides: bizOverrides,
+        lead: {
+          name: lead.name,
+          phone: phone ?? null,
+          requestedService: service ?? null,
+          city: city ?? null,
+          source,
+        },
+      });
     }
 
     return NextResponse.json(
