@@ -258,7 +258,7 @@ import { prisma } from "@/lib/prisma"
 | Owner notifications | `src/lib/notify-owner.ts` — `notifyOwnerNewUser()` sends WhatsApp + email on new registration |
 | SEO sitemap | `src/app/sitemap.ts` — 6 public URLs, `/landing` priority 1.0 |
 | SEO robots | `src/app/robots.ts` — allows landing/register/login, disallows api/admin/dashboard |
-| In-app notifications bell | `src/components/layout/InAppNotificationBell.tsx` — title "הודעות מערכת"; per-message "קראתי" button (dismiss); "קראתי הכל" dismisses all |
+| System messages dropdown | Mail-envelope dropdown in `src/components/layout/topbar.tsx` (~line 505) — title "הודעות מפטרה"; queryKey `["systemMessages"]`; `PATCH /api/system-messages/[id]` with `{ isRead: true }` marks read (does NOT delete). `/api/system-messages` is also consumed by `business-admin/page.tsx` (`?all=true`, queryKey `["system-messages-admin"]`) |
 | Customers page | Selection mode: "בחר" button toggles `selectionMode`; checkboxes hidden by default. Email badge → Gmail compose (`https://mail.google.com/mail/?view=cm&to=...`). No quick-book button. |
 | Tasks page | Same selection mode pattern as customers (`selectionMode` state, "בחר" button, "בטל בחירה" exits mode) |
 | Service dog tabs order | תיק כלב → חיסונים וטיפולים → שיבוצים → מבחני הסמכה → מסמכים → ביטוח → ציוד → פרוטוקולים רפואיים → יומן אימונים → תעודת הסמכה |
