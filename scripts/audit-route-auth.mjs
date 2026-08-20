@@ -75,6 +75,7 @@ const PUBLIC_ROUTES = new Set([
   "webhooks/paycall",
   "webhooks/invoices",
   "webhooks/lead",
+  "webhooks/whatsapp-status",
 
   // ── Internal health/utility ───────────────────────────────────────────────
   "test-notify",
@@ -113,6 +114,7 @@ const TOKEN_AUTH_PATTERNS = [
   /constructEvent\s*\(/,             // stripe.webhooks.constructEvent
   /signatureValid/,                   // common variable name
   /webhookSecret/i,
+  /WHATSAPP_WEBHOOK_VERIFY_TOKEN/,  // Meta statuses webhook verify handshake
 ];
 
 function listRouteFiles(dir, prefix = "") {
