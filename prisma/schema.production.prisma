@@ -2333,3 +2333,22 @@ model McpAuditLog {
   @@index([connectionId])
   @@index([createdAt])
 }
+
+/// Delivery tracking for every WhatsApp message sent via the Meta Cloud API.
+/// Status updates arrive on /api/webhooks/whatsapp-status (Meta statuses webhook).
+model WhatsAppMessageLog {
+  id           String   @id @default(uuid())
+  wamid        String   @unique // Meta message id — key for status updates
+  toPhone      String
+  kind         String   // "template" | "text"
+  templateName String?
+  context      String?  // e.g. "lead_alert", "appointment_reminder"
+  status       String   @default("accepted") // accepted | sent | delivered | read | failed
+  errorCode    String?
+  errorMessage String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
