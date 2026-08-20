@@ -17,6 +17,7 @@ interface SendParams {
   to: string; // WhatsApp-ready digits e.g. "972501234567"
   body: string;
   templateSid?: string;
+  context?: string; // free-form origin tag for the message log (e.g. "lead_alert")
 }
 
 export interface MetaTemplateMessage {
@@ -24,6 +25,7 @@ export interface MetaTemplateMessage {
   templateName: string; // Approved Meta template name e.g. "petra_appointment_reminder"
   languageCode?: string; // default "he"
   bodyParams: string[]; // positional {{1}}, {{2}} … body component variables
+  context?: string; // free-form origin tag for the message log (e.g. "lead_alert")
 }
 
 // ---------------------------------------------------------------------------
@@ -49,6 +51,35 @@ async function maybeAlertAuthFailure(context: string, status: number, error?: Me
     await notifyOwnerWhatsAppDown(context, error?.message ?? `HTTP ${status}`);
   } catch (e) {
     console.error("[WhatsApp] failed to send auth-failure alert:", e);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Message log — every API send gets a row; the statuses webhook
+// (/api/webhooks/whatsapp-status) updates it to sent/delivered/failed.
+// Fire-and-forget: logging must never break sending.
+// ---------------------------------------------------------------------------
+
+async function logOutboundMessage(entry: {
+  wamid: string;
+  toPhone: string;
+  kind: "template" | "text";
+  templateName?: string;
+  context?: string;
+}): Promise<void> {
+  try {
+    const { default: prisma } = await import("@/lib/prisma");
+    await prisma.whatsAppMessageLog.create({
+      data: {
+        wamid: entry.wamid,
+        toPhone: entry.toPhone,
+        kind: entry.kind,
+        templateName: entry.templateName ?? null,
+        context: entry.context ?? null,
+      },
+    });
+  } catch (err) {
+    console.error("[WhatsApp] message log write failed:", err);
   }
 }
 
@@ -94,6 +125,7 @@ async function sendViaMetaCloudApi(params: SendParams): Promise<SendResult | nul
     }
 
     const msgId = data.messages?.[0]?.id ?? `META_${Date.now()}`;
+    await logOutboundMessage({ wamid: msgId, toPhone: params.to, kind: "text", context: params.context });
     return { success: true, messageSid: msgId };
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
@@ -151,6 +183,10 @@ async function sendViaMetaCloudApiTemplate(params: MetaTemplateMessage): Promise
     }
 
     const msgId = data.messages?.[0]?.id ?? `META_TMPL_${Date.now()}`;
+    await logOutboundMessage({
+      wamid: msgId, toPhone: params.to, kind: "template",
+      templateName: params.templateName, context: params.context,
+    });
     return { success: true, messageSid: msgId };
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
