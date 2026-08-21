@@ -5,7 +5,7 @@ set -u
 B=https://petra-app.com
 S=/private/tmp/claude-501/-Users-or-rabinovich-Desktop-------petra-app/55834619-ef7b-4a56-a894-58ed45a21c03/scratchpad
 NODE=/Users/or-rabinovich/local/node/bin/node
-QA_EMAIL=qa-test@petra.local; QA_PASS='Qa7!N3dRQOcooSlT'
+QA_EMAIL=qa-test@petra.local; QA_PASS='<QA password — see memory reference-qa-test-business; never commit it>'
 RUN=$(date +%s); PASS=0; FAIL=0; NOTE=0
 ok(){ echo "  ✅ $1"; PASS=$((PASS+1)); }
 bad(){ echo "  ❌ $1"; FAIL=$((FAIL+1)); }
