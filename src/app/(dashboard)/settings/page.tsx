@@ -4420,7 +4420,8 @@ function LogoUpload({
 export default function SettingsPage() {
   const searchParams = useSearchParams();
   const gcalParam = searchParams.get("gcal");
-  const { isOwner, isManager } = useAuth();
+  const { user, isOwner, isManager } = useAuth();
+  const mcpAllowed = user?.mcpAllowed === true;
   const { isFree, isBasic, isGroomer, can } = usePlan();
   const invoicingParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<"business" | "booking" | "boarding" | "team" | "payments" | "integrations" | "data" | "messages" | "service-dogs" | "security" | "ai-agents">(
@@ -4443,7 +4444,8 @@ export default function SettingsPage() {
     ...(!isGroomer ? [{ id: "service-dogs" as const, label: "כלבי שירות", icon: PawPrint }] : []),
     { id: "data" as const, label: "נתונים", icon: Database },
     { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
-    { id: "ai-agents" as const, label: "עוזרי AI", icon: Bot },
+    // MCP private beta — tab visible only to allowlisted accounts (user.mcpAllowed from server)
+    ...(mcpAllowed ? [{ id: "ai-agents" as const, label: "עוזרי AI", icon: Bot }] : []),
     { id: "security" as const, label: "אבטחה", icon: Shield },
   ];
 
@@ -4523,7 +4525,7 @@ export default function SettingsPage() {
           ? <PaywallCard title="אינטגרציות" description="חבר יומן Google, WhatsApp ועוד — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
           : <IntegrationsTab />
       )}
-      {activeTab === "ai-agents" && (
+      {activeTab === "ai-agents" && mcpAllowed && (
         isFree
           ? <PaywallCard title="עוזרי AI" description="חבר את העסק שלך ל-Claude, ChatGPT ועוד — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
           : <McpConnectionsTab />

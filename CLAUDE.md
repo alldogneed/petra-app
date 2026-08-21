@@ -150,19 +150,29 @@ Both UI routes and MCP tools call the same service functions. No duplicated busi
 
 ### Auth Pattern
 ```typescript
-// Every MCP request: Bearer token → SHA-256 hash → McpConnection lookup → businessId
-// src/lib/mcp-auth.ts — validateMcpToken(token) returns { businessId, connectionId } or null
+// Every MCP request: Bearer token → SHA-256 hash → McpConnection lookup → allowlist check → businessId + scopes
+// src/lib/mcp-auth.ts — validateMcpToken(token) returns { businessId, connectionId, scopes } or null
 ```
 
-### 6 Tools (all call service layer)
-| Tool | Service called |
-|------|----------------|
-| `list_clients` | `services/clients.ts` → `listCustomers` |
-| `list_upcoming_appointments` | `services/appointments.ts` → `listUpcoming` |
-| `get_business_stats` | `services/business.ts` → `getDashboardMetrics` |
-| `create_appointment` | `services/appointments.ts` → `createAppointment` |
-| `add_client_note` | `services/clients.ts` → `addCustomerNote` |
-| `send_reminder` | `services/notifications.ts` → `sendWhatsAppReminder` |
+### Private beta allowlist (`src/lib/mcp-allowlist.ts`)
+MCP is visible/usable ONLY for: `alldogneed@gmail.com`, `or.rabinovich@gmail.com`, any `@petra.local` test user, plus `MCP_ALLOWED_EMAILS` env (comma-separated). `MCP_BETA_OPEN=true` opens to everyone.
+- `getCurrentUser()` returns `mcpAllowed: boolean` → settings page hides the "עוזרי AI" tab + `/help/connect-ai` when false.
+- `/api/mcp/connections*` return 404 for non-allowlisted sessions; `POST` additionally requires owner/manager (or platform admin).
+- `validateMcpToken` rejects tokens whose business has no allowlisted active member (`isMcpAllowedBusiness`).
+
+### Scopes — enforced per tool
+`DEFAULT_MCP_SCOPES` in `src/lib/mcp-auth.ts` (read:clients/appointments/stats/services/leads/orders/pets/boarding/training/tasks/analytics + write:appointments/notes/reminders/clients/leads/orders). Every tool handler starts with `if (!hasScope("…")) return denyScope(...)` (audited as `denied`). Legacy 6-scope connections are grandfathered to the full set via `effectiveScopes()`.
+
+### 19 Tools (all call service layer) — `src/app/api/mcp/route.ts`
+| Read | Write |
+|------|-------|
+| `list_clients` (enhanced, cursor pagination), `get_client` | `create_client`, `add_client_note` |
+| `list_upcoming_appointments` (floors "from" to Israel start-of-day), `list_services` | `create_appointment` (free-tier cap), `update_appointment`, `cancel_appointment` |
+| `get_business_stats`, `list_leads` (stage names + ids) | `create_lead` |
+| `list_orders` (full ids), `get_order` | `create_order` |
+| `list_tasks`, `list_pets`, `list_boarding_stays`, `list_training_programs` | `send_reminder` (requires `whatsapp_reminders` tier) |
+
+Output hygiene: all customer/lead-controlled strings go through `safeField()` (strips newlines/control chars — prompt-injection guard); dates via `heDate()` (Asia/Jerusalem). Audit log redacts PII params (`redactParams` in mcp-auth.ts).
 
 ### Critical: Middleware bypass
 `/api/mcp` is in `PUBLIC_EXACT_PATHS` in `src/middleware.ts` — **exact match only**, not a prefix.
@@ -194,32 +204,12 @@ Settings tab "עוזרי AI" gated to `basic+`. The MCP endpoint itself doesn't 
 
 ## Key Patterns
 
-### Toasts
-```typescript
-import { toast } from "sonner";
-toast.success("לקוח נוסף בהצלחה");
-toast.error("שגיאה בשמירה");
-```
-
-### React Query
-```typescript
-const { data } = useQuery({ queryKey: ["x"], queryFn: () => fetch("/api/x").then(r => r.json()) });
-const mutation = useMutation({
-  mutationFn: (d) => fetch("/api/x", { method: "POST", body: JSON.stringify(d) }).then(r => r.json()),
-  onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["x"] }); toast.success("..."); },
-});
-```
+Toasts (`sonner`), React Query (queries/mutations with `invalidateQueries`), and Prisma imports follow standard library usage — copy the pattern from any existing route/component.
 
 ### env.ts — server-side only
 ```typescript
 import { env, isDev, isProd } from "@/lib/env";
 // Never import from a Client Component
-```
-
-### Prisma import (both work)
-```typescript
-import prisma from "@/lib/prisma"
-import { prisma } from "@/lib/prisma"
 ```
 
 ### CSS
@@ -278,7 +268,8 @@ import { prisma } from "@/lib/prisma"
 | Settings tabs | "פרטי העסק" (business info only) · "הזמנות" (AvailabilityTab + online booking, PRO+) · "פנסיון" (boarding settings, BASIC+) · "תשלומים" (InvoicingTab + ContractsTab, BASIC+) · "צוות" · "הודעות" · "אינטגרציות" · "כלבי שירות" · "נתונים" |
 | MCP endpoint | `POST /api/mcp` — Streamable HTTP, stateless, SHA-256 bearer auth |
 | MCP token management | `POST/GET/DELETE /api/mcp/connections` — create (shown once), list, revoke |
-| MCP auth lib | `src/lib/mcp-auth.ts` — `generateMcpToken()`, `validateMcpToken()`, `logMcpCall()` |
+| MCP auth lib | `src/lib/mcp-auth.ts` — `generateMcpToken()`, `validateMcpToken()`, `auditLog()`, `DEFAULT_MCP_SCOPES` |
+| MCP allowlist | `src/lib/mcp-allowlist.ts` — `isMcpAllowedEmail()`, `isMcpAllowedBusiness()`; env `MCP_ALLOWED_EMAILS`, `MCP_BETA_OPEN` |
 | MCP settings UI | `src/components/settings/McpConnectionsTab.tsx` — Settings → "עוזרי AI" (paywall: basic+) |
 | MCP help page | `src/app/(dashboard)/help/connect-ai/page.tsx` — step-by-step guide for Claude Desktop |
 | MCP owner dashboard | `src/app/owner/mcp/page.tsx` + `GET /api/owner/mcp-stats` — active connections, calls/24h, errors, popular tools |

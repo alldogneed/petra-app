@@ -12,6 +12,7 @@ interface AuthUser {
   avatarUrl: string | null;
   role: string;
   isAdmin: boolean;
+  mcpAllowed?: boolean;
   businessId: string | null;
   businessName: string | null;
   businessSlug: string | null;

@@ -4,9 +4,31 @@
  */
 import crypto from "crypto";
 import prisma from "@/lib/prisma";
+import { isMcpAllowedBusiness } from "@/lib/mcp-allowlist";
 
 const TOKEN_PREFIX = "petra_mcp_";
 const TOKEN_BYTES = 32;
+
+/** Canonical scope set granted to new MCP connections. */
+export const DEFAULT_MCP_SCOPES = [
+  "read:clients",
+  "read:appointments",
+  "read:stats",
+  "read:services",
+  "read:leads",
+  "read:orders",
+  "read:pets",
+  "read:boarding",
+  "read:training",
+  "read:tasks",
+  "read:analytics",
+  "write:appointments",
+  "write:notes",
+  "write:reminders",
+  "write:clients",
+  "write:leads",
+  "write:orders",
+];
 
 /** Generate a new MCP bearer token. Returns the raw token (shown once) and its hash. */
 export function generateMcpToken(): { raw: string; hash: string } {
@@ -40,8 +62,12 @@ export async function validateMcpToken(raw: string): Promise<McpAuthResult | nul
 
   if (!conn) return null;
 
-  // Update lastUsedAt without awaiting — fire and forget
-  prisma.mcpConnection.update({
+  // Private beta gate: tokens of non-allowlisted businesses are inert.
+  if (!(await isMcpAllowedBusiness(conn.businessId))) return null;
+
+  // Awaited — fire-and-forget promises get killed on Vercel and lastUsedAt
+  // feeds the stale-token review in the connections UI.
+  await prisma.mcpConnection.update({
     where: { id: conn.id },
     data: { lastUsedAt: new Date() },
   }).catch(() => {});
@@ -51,6 +77,28 @@ export async function validateMcpToken(raw: string): Promise<McpAuthResult | nul
     businessId: conn.businessId,
     scopes: conn.scopes,
   };
+}
+
+/**
+ * PII keys redacted from audit-log params. The log keeps the key (so the call
+ * shape is auditable) but masks the value — full names/phones/notes of
+ * customers must not accumulate in McpAuditLog.
+ */
+const PII_PARAM_KEYS = new Set(["name", "phone", "email", "address", "notes", "note", "reason", "search", "item_name", "requested_service", "city", "tags"]);
+
+function redactParams(params: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined) continue;
+    if (PII_PARAM_KEYS.has(key) && typeof value === "string" && value.length > 0) {
+      out[key] = `${value.slice(0, 2)}***`;
+    } else if (typeof value === "string" && value.length > 200) {
+      out[key] = value.slice(0, 200) + "…";
+    } else {
+      out[key] = value;
+    }
+  }
+  return out;
 }
 
 /** Write an audit log entry. Swallows errors so tool failures don't cascade. */
@@ -67,7 +115,7 @@ export async function auditLog(
       data: {
         connectionId,
         toolName,
-        params: params as any,
+        params: redactParams(params) as any,
         status,
         resultSummary: resultSummary ?? null,
         errorMessage: errorMessage ?? null,

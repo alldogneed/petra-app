@@ -2,13 +2,17 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { generateMcpToken } from "@/lib/mcp-auth";
+import { generateMcpToken, DEFAULT_MCP_SCOPES } from "@/lib/mcp-auth";
+import { isMcpAllowedUser } from "@/lib/mcp-allowlist";
 
 /** GET /api/mcp/connections — list all MCP connections for the business */
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    if (!isMcpAllowedUser(authResult.session.user.email, authResult.session.user.platformRole)) {
+      return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
+    }
 
     const connections = await prisma.mcpConnection.findMany({
       where: { businessId: authResult.businessId },
@@ -36,6 +40,19 @@ export async function POST(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    if (!isMcpAllowedUser(authResult.session.user.email, authResult.session.user.platformRole)) {
+      return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
+    }
+
+    // Only owners/managers (or platform admins) may mint tokens — a token grants
+    // API access beyond the minting user's UI permissions.
+    const membershipRole = authResult.session.memberships.find(
+      (m) => m.businessId === authResult.businessId
+    )?.role;
+    const isPlatformAdmin = ["super_admin", "admin"].includes(authResult.session.user.platformRole ?? "");
+    if (!isPlatformAdmin && membershipRole !== "owner" && membershipRole !== "manager") {
+      return NextResponse.json({ error: "אין לך הרשאה ליצור חיבור AI" }, { status: 403 });
+    }
 
     const body = await request.json();
     const { name } = body;
@@ -62,14 +79,7 @@ export async function POST(request: NextRequest) {
         businessId: authResult.businessId,
         name: name.trim(),
         tokenHash: hash,
-        scopes: [
-          "read:clients",
-          "read:appointments",
-          "read:stats",
-          "write:appointments",
-          "write:notes",
-          "write:reminders",
-        ],
+        scopes: DEFAULT_MCP_SCOPES,
       },
       select: {
         id: true,

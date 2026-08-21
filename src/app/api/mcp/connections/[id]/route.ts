@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { isMcpAllowedUser } from "@/lib/mcp-allowlist";
 
 /** DELETE /api/mcp/connections/[id] — revoke an MCP connection */
 export async function DELETE(
@@ -11,6 +12,9 @@ export async function DELETE(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    if (!isMcpAllowedUser(authResult.session.user.email, authResult.session.user.platformRole)) {
+      return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
+    }
 
     const conn = await prisma.mcpConnection.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
@@ -45,6 +49,9 @@ export async function GET(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    if (!isMcpAllowedUser(authResult.session.user.email, authResult.session.user.platformRole)) {
+      return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
+    }
 
     const conn = await prisma.mcpConnection.findFirst({
       where: { id: params.id, businessId: authResult.businessId },

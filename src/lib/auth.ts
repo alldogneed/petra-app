@@ -13,6 +13,7 @@
 import crypto from "crypto";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
+import { isMcpAllowedUser } from "@/lib/mcp-allowlist";
 import {
   createSession as _createSession,
   deleteSession as _deleteSession,
@@ -239,13 +240,16 @@ export async function getCurrentUser() {
   const businessEffectiveTier = subscriptionExpired ? "free" : storedTier;
 
   const platformRole = session.user.platformRole;
+  const isAdmin = platformRole === "super_admin" || platformRole === "admin";
   return {
     id: session.user.id,
     email: session.user.email,
     name: session.user.name,
     avatarUrl: platformUser?.avatarUrl ?? null,
     role: session.user.role || "USER",
-    isAdmin: platformRole === "super_admin" || platformRole === "admin",
+    isAdmin,
+    // MCP private beta: controls visibility of the "עוזרי AI" settings tab
+    mcpAllowed: isMcpAllowedUser(session.user.email, platformRole),
     businessId: effectiveBusinessId,
     businessName: business?.name ?? null,
     businessSlug,

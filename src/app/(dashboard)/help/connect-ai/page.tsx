@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Bot, Key, Settings, Terminal, CheckCircle2, ExternalLink } from "lucide-react";
+import { useAuth } from "@/providers/auth-provider";
 
 const steps = [
   {
@@ -73,6 +74,16 @@ const capabilities = [
 ];
 
 export default function ConnectAiPage() {
+  const { user, loading } = useAuth();
+  // MCP private beta — page hidden for non-allowlisted accounts
+  if (loading) return null;
+  if (!user?.mcpAllowed) {
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <p className="text-slate-500">העמוד אינו זמין.</p>
+      </div>
+    );
+  }
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-8">
       {/* Header */}

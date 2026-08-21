@@ -949,7 +949,7 @@ export async function getBusinessOverview(businessId: string, db: DbClient) {
     db.businessUser.count({ where: { businessId, isActive: true } }),
     db.customer.count({ where: { businessId } }),
     db.appointment.count({
-      where: { businessId, date: { gte: todayStart, lt: todayEnd }, status: { not: "cancelled" } },
+      where: { businessId, date: { gte: todayStart, lt: todayEnd }, status: { notIn: ["canceled", "cancelled"] } },
     }),
     db.payment.aggregate({
       where: { businessId, paidAt: { gte: monthStart }, status: "paid" },
