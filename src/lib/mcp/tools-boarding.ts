@@ -12,6 +12,9 @@
  * Price formula mirrors the app: nights × pricePerNight × petCount
  * (src/app/(dashboard)/boarding/page.tsx:167 calcNights, :3696 total, :1344 payment request).
  * boardingCalcMode only changes the unit label ("לילות"/"ימים"), not the count. No VAT on boarding.
+ *
+ * Scopes: update_boarding_stay with status=canceled on a stay that is already checked_in
+ * (dog physically in the pension) needs admin:destructive (owner-only) on top of write:boarding.
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
@@ -30,6 +33,7 @@ import {
   auditLog,
   type ToolCtx,
 } from "@/lib/mcp/helpers";
+import { ADMIN_SCOPE } from "@/lib/mcp-auth";
 import {
   listRooms,
   listYards,
@@ -633,7 +637,7 @@ export function registerBoardingTools(server: McpServer, ctx: ToolCtx): void {
   // ── update_boarding_stay ──────────────────────────────────────────────────
   server.tool(
     "update_boarding_stay",
-    "Update a boarding stay (stay_id from list_boarding_stays / get_boarding_daily_board): change status (reserved / checked_in / checked_out / canceled), check-in/out dates or times, room, yard or notes. Supports dry_run and idempotency_key. Returns the updated stay.",
+    "Update a boarding stay (stay_id from list_boarding_stays / get_boarding_daily_board): change status (reserved / checked_in / checked_out / canceled), check-in/out dates or times, room, yard or notes. Cancelling a stay that is already checked_in is owner-only (admin:destructive); cancelling a reserved stay needs only write:boarding. Supports dry_run and idempotency_key. Returns the updated stay.",
     {
       stay_id: z.string().describe("Boarding stay id"),
       status: z.enum(STAY_STATUSES).optional().describe("New status: reserved | checked_in | checked_out | canceled"),
@@ -657,6 +661,19 @@ export function registerBoardingTools(server: McpServer, ctx: ToolCtx): void {
         if (replay) return replayResult(replay);
 
         const existing = await getBoardingStay(businessId, prisma, args.stay_id);
+
+        // Cancelling a stay whose dog is already in the pension is owner-only. The stay status is
+        // only known after the lookup, so this is the earliest possible point; nothing is written
+        // before it. dry_run states the requirement instead of previewing.
+        if (args.status === "canceled" && existing.status === "checked_in" && !ctx.hasScope(ADMIN_SCOPE)) {
+          if (args.dry_run) {
+            await auditLog(connectionId, "update_boarding_stay", params, "denied", undefined, `missing scope ${ADMIN_SCOPE}`);
+            return errorResult(
+              `ביטול שהייה של ${safeField(existing.pet?.name, 40) || "?"} שכבר בצ'ק-אין (id: ${existing.id}) דורש ${ADMIN_SCOPE} — בעלים בלבד. לחיבור הזה אין הרשאה זו.`
+            );
+          }
+          return ctx.denyScope("update_boarding_stay", ADMIN_SCOPE);
+        }
 
         const from = args.check_in ? parseYmd(args.check_in) : null;
         if (args.check_in && !from) throw new ServiceError("check_in חייב להיות בפורמט YYYY-MM-DD", "VALIDATION");

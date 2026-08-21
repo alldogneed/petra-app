@@ -2,7 +2,12 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { generateMcpToken, DEFAULT_MCP_SCOPES, READ_ONLY_MCP_SCOPES } from "@/lib/mcp-auth";
+import {
+  generateMcpToken,
+  MCP_PROFILES,
+  capScopesForRole,
+  MCP_TOKEN_TTL_DAYS,
+} from "@/lib/mcp-auth";
 import { isMcpAllowedUser, isMcpAllowedBusiness, isInternalTestEmail } from "@/lib/mcp-allowlist";
 import { normalizeTier } from "@/lib/feature-flags";
 
@@ -21,6 +26,10 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         scopes: true,
+        profile: true,
+        createdByUserId: true,
+        createdByRole: true,
+        expiresAt: true,
         createdAt: true,
         lastUsedAt: true,
         revokedAt: true,
@@ -29,7 +38,26 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(connections);
+    // Resolve minter display info in ONE query (legacy rows have createdByUserId = null).
+    const minterIds = Array.from(
+      new Set(connections.map((c) => c.createdByUserId).filter((id): id is string => !!id))
+    );
+    const minters = minterIds.length
+      ? await prisma.platformUser.findMany({
+          where: { id: { in: minterIds } },
+          select: { id: true, name: true, email: true },
+        })
+      : [];
+    const minterById = new Map(minters.map((u) => [u.id, { name: u.name, email: u.email }]));
+
+    const now = Date.now();
+    const rows = connections.map((c) => ({
+      ...c,
+      createdBy: c.createdByUserId ? minterById.get(c.createdByUserId) ?? null : null,
+      isExpired: !!c.expiresAt && c.expiresAt.getTime() < now,
+    }));
+
+    return NextResponse.json(rows);
   } catch (error) {
     console.error("GET /api/mcp/connections error:", error);
     return NextResponse.json({ error: "שגיאה בטעינת חיבורים" }, { status: 500 });
@@ -73,13 +101,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "העסק הזה אינו בבטא של עוזרי AI" }, { status: 403 });
     }
 
-    let body: { name?: unknown; readOnly?: unknown };
+    let body: { name?: unknown; readOnly?: unknown; profile?: unknown };
     try {
       body = await request.json();
     } catch {
       return NextResponse.json({ error: "גוף הבקשה אינו JSON תקין" }, { status: 400 });
     }
-    const { name, readOnly = false } = body ?? {};
+    const { name, readOnly, profile: rawProfile } = body ?? {};
 
     if (!name || typeof name !== "string" || name.trim().length < 1) {
       return NextResponse.json({ error: "נדרש שם לחיבור" }, { status: 400 });
@@ -87,11 +115,27 @@ export async function POST(request: NextRequest) {
     if (name.length > 100) {
       return NextResponse.json({ error: "שם ארוך מדי (מקסימום 100 תווים)" }, { status: 400 });
     }
-    // readOnly (optional, default false): true → read:* scopes only; the agent
-    // can't create/update appointments, clients, leads, tasks or orders.
-    if (typeof readOnly !== "boolean") {
+
+    // Access profile (preferred): one of MCP_PROFILES keys; default "read".
+    // Backward-compat: legacy clients send `readOnly` — true → "read", false → "full".
+    if (readOnly !== undefined && typeof readOnly !== "boolean") {
       return NextResponse.json({ error: "ערך לא תקין עבור 'קריאה בלבד'" }, { status: 400 });
     }
+    if (rawProfile !== undefined && (typeof rawProfile !== "string" || !(rawProfile in MCP_PROFILES))) {
+      return NextResponse.json({ error: "פרופיל גישה לא תקין" }, { status: 400 });
+    }
+    const profile: string =
+      typeof rawProfile === "string"
+        ? rawProfile
+        : readOnly === false
+          ? "full"
+          : "read";
+
+    // Cap by the minter's tenant role (manager loses analytics/payments/destructive;
+    // platform admin / owner keep everything).
+    const requestedScopes = MCP_PROFILES[profile];
+    const scopes = capScopesForRole(requestedScopes, membershipRole, isPlatformAdmin);
+    const scopesCapped = scopes.length < requestedScopes.length;
 
     // Check limit: max 10 active connections per business
     const activeCount = await prisma.mcpConnection.count({
@@ -102,24 +146,31 @@ export async function POST(request: NextRequest) {
     }
 
     const { raw, hash } = generateMcpToken();
+    const expiresAt = new Date(Date.now() + MCP_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
 
     const connection = await prisma.mcpConnection.create({
       data: {
         businessId: authResult.businessId,
         name: name.trim(),
         tokenHash: hash,
-        scopes: readOnly ? READ_ONLY_MCP_SCOPES : DEFAULT_MCP_SCOPES,
+        scopes,
+        profile,
+        createdByUserId: authResult.session.user.id,
+        createdByRole: membershipRole ?? (isPlatformAdmin ? "owner" : null),
+        expiresAt,
       },
       select: {
         id: true,
         name: true,
         scopes: true,
+        profile: true,
+        expiresAt: true,
         createdAt: true,
       },
     });
 
     // Return the raw token ONCE — never stored in plain text
-    return NextResponse.json({ ...connection, token: raw }, { status: 201 });
+    return NextResponse.json({ ...connection, scopesCapped, token: raw }, { status: 201 });
   } catch (error) {
     console.error("POST /api/mcp/connections error:", error);
     return NextResponse.json({ error: "שגיאה ביצירת חיבור" }, { status: 500 });

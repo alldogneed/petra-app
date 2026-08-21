@@ -2306,6 +2306,10 @@ model McpConnection {
   // latency without adding security on a high-entropy random token.
   tokenHash    String    // SHA-256 hash of the raw bearer token
   scopes       String[]  // e.g. ['read:clients', 'read:appointments', 'read:stats', 'write:appointments']
+  profile      String?   // access profile chosen at creation: read | intake | calendar | boarding | full
+  createdByUserId String? // PlatformUser who minted the token (null for legacy rows)
+  createdByRole   String? // tenant role of the minter at creation: owner | manager
+  expiresAt    DateTime? // null = no expiry (legacy); new tokens default to +180 days
   createdAt    DateTime  @default(now())
   lastUsedAt   DateTime?
   revokedAt    DateTime? // null = active
@@ -2315,6 +2319,7 @@ model McpConnection {
 
   @@index([businessId])
   @@index([tokenHash])
+  @@index([createdByUserId])
 }
 
 /// Audit trail of every MCP tool invocation
@@ -2332,6 +2337,7 @@ model McpAuditLog {
 
   @@index([connectionId])
   @@index([createdAt])
+  @@index([connectionId, createdAt]) // per-connection rate-limit window count (/api/mcp burst guard)
 }
 
 /// Delivery tracking for every WhatsApp message sent via the Meta Cloud API.

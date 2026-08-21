@@ -75,9 +75,21 @@ export async function GET(
       return NextResponse.json({ error: "חיבור לא נמצא" }, { status: 404 });
     }
 
+    // Minter display info (null for legacy rows minted before governance fields existed)
+    const minter = conn.createdByUserId
+      ? await prisma.platformUser.findUnique({
+          where: { id: conn.createdByUserId },
+          select: { name: true, email: true },
+        })
+      : null;
+
     // Strip tokenHash from response
     const { tokenHash: _, ...safe } = conn;
-    return NextResponse.json(safe);
+    return NextResponse.json({
+      ...safe,
+      createdBy: minter ? { name: minter.name, email: minter.email } : null,
+      isExpired: !!conn.expiresAt && conn.expiresAt.getTime() < Date.now(),
+    });
   } catch (error) {
     console.error("GET /api/mcp/connections/[id] error:", error);
     return NextResponse.json({ error: "שגיאה בטעינת חיבור" }, { status: 500 });

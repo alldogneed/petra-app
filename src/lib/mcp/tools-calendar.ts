@@ -4,6 +4,10 @@
  * Tools: find_free_slots, get_calendar, reschedule_appointment, block_time,
  *        list_blocks, delete_block, list_group_sessions.
  *
+ * Scopes: delete_block needs write:appointments + admin:destructive (owner-only — deleting a
+ * block silently re-opens booking slots). block_time (including all_day=true) needs only
+ * write:appointments — it is additive and reversible via delete_block by an owner.
+ *
  * Data sources mirror the app:
  *  - free slots      → src/lib/slots.ts getAvailableSlots (same engine as online booking:
  *                      AvailabilityRule hours, AvailabilityBlock, AvailabilityBreak, Booking,
@@ -38,6 +42,7 @@ import {
   auditLog,
   type ToolCtx,
 } from "@/lib/mcp/helpers";
+import { ADMIN_SCOPE } from "@/lib/mcp-auth";
 import { getAvailableSlots, localTimeToUtc, utcToLocalHHMM } from "@/lib/slots";
 import { listAppointments, updateAppointment } from "@/services/appointments";
 import { listGroupSessionsForCalendar } from "@/services/training";
@@ -671,7 +676,7 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
   // ── block_time ────────────────────────────────────────────────────────────
   server.tool(
     "block_time",
-    "Block a time range on a date so no online bookings / free slots are offered there (creates an AvailabilityBlock, like הגדרות → זמינות → חסימות). Pass start_time + end_time (HH:MM, Israel time) or all_day=true (00:00–23:59). Existing appointments inside the block are NOT moved — they are listed as a warning. Supports dry_run and idempotency_key. Returns the block id (use delete_block to remove).",
+    "Block a time range on a date so no online bookings / free slots are offered there (creates an AvailabilityBlock, like הגדרות → זמינות → חסימות). Pass start_time + end_time (HH:MM, Israel time) or all_day=true (00:00–23:59; no extra scope needed). Existing appointments inside the block are NOT moved — they are listed as a warning. Supports dry_run and idempotency_key. Returns the block id (use delete_block to remove).",
     {
       date: z.string().describe("Date YYYY-MM-DD"),
       start_time: z.string().optional().describe("Start HH:MM (Israel time)"),
@@ -785,7 +790,7 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
   // ── delete_block ──────────────────────────────────────────────────────────
   server.tool(
     "delete_block",
-    "Delete an availability block by id (from list_blocks / get_calendar). Supports dry_run and idempotency_key.",
+    "Delete an availability block by id (from list_blocks / get_calendar). Owner-only (admin:destructive) — removing a block re-opens those slots for online booking. Supports dry_run and idempotency_key.",
     {
       block_id: z.string().describe("Block id"),
       idempotency_key: z.string().max(100).optional().describe("Client-generated key; a repeated call with the same key replays the first result"),
@@ -793,6 +798,8 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
     },
     async (args) => {
       if (!ctx.hasScope("write:appointments")) return ctx.denyScope("delete_block", "write:appointments");
+      // Deleting a block is owner-only — checked before any replay / DB read.
+      if (!ctx.hasScope(ADMIN_SCOPE)) return ctx.denyScope("delete_block", ADMIN_SCOPE);
       const params = { ...args };
       try {
         const replay = await findIdempotentReplay(connectionId, "delete_block", args.idempotency_key);

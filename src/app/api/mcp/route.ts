@@ -15,7 +15,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { z } from "zod";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
-import { validateMcpToken, touchMcpConnection, extractBearerToken, auditLog, DEFAULT_MCP_SCOPES } from "@/lib/mcp-auth";
+import { validateMcpToken, touchMcpConnection, extractBearerToken, auditLog, DEFAULT_MCP_SCOPES, capScopesForRole } from "@/lib/mcp-auth";
 import { rateLimitAsync, claimOnce } from "@/lib/rate-limit";
 import { listCustomers, getCustomer, addCustomerNote, createCustomer, listLeads, createLead, updateLead, listTasks } from "@/services/clients";
 import { listAppointments, createAppointment, updateAppointment, deleteAppointment } from "@/services/appointments";
@@ -57,24 +57,28 @@ const PREV_DEFAULT_SCOPES = [
 ];
 /** Default set shipped later on 2026-08-21 (write packages 1-3), before package 4 scopes. */
 const PREV_DEFAULT_SCOPES_V2 = [...PREV_DEFAULT_SCOPES, "read:payments", "write:tasks", "write:boarding"];
+/** Default set after package 4 (before the owner-only admin scope). */
+const PREV_DEFAULT_SCOPES_V3 = [...PREV_DEFAULT_SCOPES_V2, "write:pets", "write:services", "write:payments", "write:training"];
 const sameSet = (a: string[], b: string[]) => a.length === b.length && b.every((s) => a.includes(s));
 function effectiveScopes(scopes: string[]): string[] {
   // Only the two exact historical "full access" sets are upgraded to the current
   // full set. Anything else (e.g. READ_ONLY_MCP_SCOPES or a hand-reduced list)
   // is used as-is — a deliberately reduced token must never escalate.
-  if (sameSet(scopes, LEGACY_SCOPES) || sameSet(scopes, PREV_DEFAULT_SCOPES) || sameSet(scopes, PREV_DEFAULT_SCOPES_V2)) return DEFAULT_MCP_SCOPES;
+  if (sameSet(scopes, LEGACY_SCOPES) || sameSet(scopes, PREV_DEFAULT_SCOPES) || sameSet(scopes, PREV_DEFAULT_SCOPES_V2) || sameSet(scopes, PREV_DEFAULT_SCOPES_V3)) return DEFAULT_MCP_SCOPES;
   return scopes;
 }
 
 // ─── Tool definitions ─────────────────────────────────────────────────────────
 
-function buildServer(businessId: string, connectionId: string, rawScopes: string[]): McpServer {
+function buildServer(businessId: string, connectionId: string, rawScopes: string[], minterRole: string | null = null): McpServer {
   const server = new McpServer({
     name: "petra",
     version: "1.0.0",
   });
 
-  const scopes = effectiveScopes(rawScopes);
+  // Grandfather historical full sets, then re-cap by the minter's CURRENT role
+  // (legacy rows without a minter stay owner-level — we can't know who made them).
+  const scopes = minterRole ? capScopesForRole(effectiveScopes(rawScopes), minterRole) : effectiveScopes(rawScopes);
   const hasScope = (s: string) => scopes.includes(s);
   /** Deny a tool call whose connection lacks the required scope (audited). */
   const denyScope = async (tool: string, scope: string) => {
@@ -1192,7 +1196,7 @@ export async function handleMcpRequest(request: NextRequest, tokenFromPath?: str
   }
   await touchMcpConnection(auth.connectionId);
 
-  const server = buildServer(auth.businessId, auth.connectionId, auth.scopes);
+  const server = buildServer(auth.businessId, auth.connectionId, auth.scopes, auth.minterRole);
 
   // Stateless transport: no session state, no in-memory sharing between requests
   const transport = new WebStandardStreamableHTTPServerTransport({
