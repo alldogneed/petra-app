@@ -60,6 +60,8 @@ Other sessions push to main concurrently (PRs #26/#27 landed mid-session) — if
 - Report: what shipped (commits), verification evidence (tsc, build, review verdict, live N/N), what is still open and what needs the user (e.g. Vercel env, QA tier upgrade).
 
 ## Gotchas (all hit in practice)
+- **Never write credentials into repo files** (skills, templates, docs). Keep the QA password only in the session scratchpad / memory pointer; grep for it before every commit (`grep -rn '<pw>' .claude docs`). A template once carried it to a public commit and forced a rotation.
+- Bash chains: a failed `python3 - <<EOF` patch does NOT stop `&& git push` later in the same command unless you check `$?` — put `if [ $? -ne 0 ]; then exit 1; fi` (or `set -e`) before any commit/push step.
 - `git` prints `object directory /private/tmp/petra-objdir does not exist` — harmless alternates warning; `grep -v petra-objdir`.
 - Edit/Write tools can turn ` `-style escapes into raw control bytes → file becomes "binary"; build regexes with `String.fromCharCode` or use python byte patches; `grep -nP '[\x00-\x08\x0b\x0c\x0e-\x1f]'` to verify.
 - Supabase MCP `execute_sql` writes and admin logins are classifier-blocked in auto mode; ask the user for QA tier/env changes.
