@@ -333,7 +333,7 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
         });
 
         const summary = `✅ משימה נוצרה: "${safeField(task.title, 200)}" | ${CATEGORY_HE[task.category] ?? task.category} | עדיפות ${PRIORITY_HE[task.priority] ?? task.priority} | יעד: ${dueLabel}${relatedLabel ? ` | ${relatedLabel}` : ""} (id: ${task.id})`;
-        await auditLog(connectionId, "create_task", params, "success", `created task ${task.id} — ${summary}`);
+        await auditLog(connectionId, "create_task", params, "success", `created task ${task.id}`);
         return textResult(summary);
       } catch (e) {
         const msg = svcMsg(e, "שגיאה ביצירת משימה");
@@ -391,7 +391,7 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
 
         const task = await updateTask(businessId, prisma, args.task_id, input, `mcp:${connectionId}`);
         const summary = `✅ המשימה "${safeField(task.title, 200)}" עודכנה: ${changes.join(", ")} (id: ${task.id})`;
-        await auditLog(connectionId, "update_task", params, "success", `updated task ${task.id} — ${summary}`);
+        await auditLog(connectionId, "update_task", params, "success", `updated task ${task.id}`);
         return textResult(summary);
       } catch (e) {
         const msg = svcMsg(e, "שגיאה בעדכון משימה");
@@ -470,7 +470,7 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
 
         const lead = await updateLead(businessId, prisma, args.lead_id, input);
         const summary = `✅ הליד "${safeField(lead.name)}" עודכן: ${changes.join(", ")} (id: ${lead.id})`;
-        await auditLog(connectionId, "update_lead", params, "success", `updated lead ${lead.id} — ${summary}`);
+        await auditLog(connectionId, "update_lead", params, "success", `updated lead ${lead.id}`);
         return textResult(summary);
       } catch (e) {
         const msg = svcMsg(e, "שגיאה בעדכון ליד");

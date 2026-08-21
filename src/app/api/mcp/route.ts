@@ -44,10 +44,19 @@ import { registerBriefingTools } from "@/lib/mcp/tools-briefing";
  * enforced), so grandfather them to the full set — no privilege increase.
  */
 const LEGACY_SCOPES = ["read:clients", "read:appointments", "read:stats", "write:appointments", "write:notes", "write:reminders"];
+/** Default set shipped 2026-08-21 (before read:payments / write:tasks / write:boarding existed). */
+const PREV_DEFAULT_SCOPES = [
+  "read:clients", "read:appointments", "read:stats", "read:services", "read:leads", "read:orders",
+  "read:pets", "read:boarding", "read:training", "read:tasks", "read:analytics",
+  "write:appointments", "write:notes", "write:reminders", "write:clients", "write:leads", "write:orders",
+];
+const sameSet = (a: string[], b: string[]) => a.length === b.length && b.every((s) => a.includes(s));
 function effectiveScopes(scopes: string[]): string[] {
-  // Exact legacy 6-set only — a deliberately reduced future token must never escalate.
-  const isLegacy = scopes.length === LEGACY_SCOPES.length && LEGACY_SCOPES.every((s) => scopes.includes(s));
-  return isLegacy ? DEFAULT_MCP_SCOPES : scopes;
+  // Only the two exact historical "full access" sets are upgraded to the current
+  // full set. Anything else (e.g. READ_ONLY_MCP_SCOPES or a hand-reduced list)
+  // is used as-is — a deliberately reduced token must never escalate.
+  if (sameSet(scopes, LEGACY_SCOPES) || sameSet(scopes, PREV_DEFAULT_SCOPES)) return DEFAULT_MCP_SCOPES;
+  return scopes;
 }
 
 // ─── Tool definitions ─────────────────────────────────────────────────────────
@@ -249,7 +258,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         }).catch((err) => console.error("MCP create_appointment reminder scheduling failed:", err));
 
         const apptSummary = `✅ נקבע תור בהצלחה!\nלקוח: ${safeField(appt.customer?.name ?? "")}\nשירות: ${safeField(appt.service?.name ?? "", 80)}\nתאריך: ${heDate(appt.date)} בשעה ${appt.startTime} (id: ${appt.id})`;
-        await auditLog(connectionId, "create_appointment", params, "success", `created appointment ${appt.id} — ${apptSummary}`);
+        await auditLog(connectionId, "create_appointment", params, "success", `created appointment ${appt.id}`);
         return textResult(apptSummary);
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה ביצירת תור";
@@ -282,7 +291,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         }
         await addCustomerNote(businessId, prisma, client_id, note);
         const noteSummary = `✅ ההערה נוספה ללקוח בהצלחה (id: ${client_id})`;
-        await auditLog(connectionId, "add_client_note", params, "success", `added note to customer ${client_id} — ${noteSummary}`);
+        await auditLog(connectionId, "add_client_note", params, "success", `added note to customer ${client_id}`);
         return textResult(noteSummary);
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה בהוספת הערה";
@@ -384,7 +393,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           source: source ?? "mcp",
         });
         const custSummary = `✅ לקוח חדש נוצר בהצלחה!\nשם: ${safeField(customer.name)}\nטלפון: ${safeField(customer.phone, 20)} (id: ${customer.id})`;
-        await auditLog(connectionId, "create_client", params, "success", `created customer ${customer.id} — ${custSummary}`);
+        await auditLog(connectionId, "create_client", params, "success", `created customer ${customer.id}`);
         return textResult(custSummary);
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה ביצירת לקוח";
@@ -512,17 +521,24 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           stage: stage?.id,
         });
         let lead = result.lead;
+        let followUpWarning = "";
         if (followUpIso) {
-          // updateLead also creates the linked follow-up Task (category LEADS)
-          lead = await updateLead(businessId, prisma, lead.id, { nextFollowUpAt: followUpIso, followUpStatus: "pending" });
+          // updateLead also creates the linked follow-up Task (category LEADS).
+          // The lead already exists — a failure here must not turn the whole call
+          // into an error (a retry with the same idempotency_key would duplicate it).
+          try {
+            lead = await updateLead(businessId, prisma, lead.id, { nextFollowUpAt: followUpIso, followUpStatus: "pending" });
+          } catch (fuErr) {
+            followUpWarning = `\n⚠️ הליד נוצר אך קביעת המעקב נכשלה (${fuErr instanceof ServiceError ? fuErr.message : "שגיאה"}) — השתמש ב-update_lead.`;
+          }
         }
         const dupNote = result.existingCustomer
           ? `\n⚠️ שים לב: קיים לקוח עם אותו טלפון — ${safeField(result.existingCustomer.name)} (id: ${result.existingCustomer.id})`
           : result.duplicateLead
             ? `\n⚠️ שים לב: קיים ליד קודם עם אותו טלפון — ${safeField(result.duplicateLead.name)} (id: ${result.duplicateLead.id})`
             : "";
-        const leadSummary = `✅ ליד חדש נוצר בהצלחה!\nשם: ${safeField(lead.name)}${lead.phone ? `\nטלפון: ${safeField(lead.phone, 20)}` : ""}${stage ? `\nשלב: ${safeField(stage.name, 60)}` : ""}${followUpLabel ? `\nמעקב הבא: ${followUpLabel}` : ""}${petBlock ? "\n🐾 פרטי הכלב נשמרו בהערות" : ""} (id: ${lead.id})${dupNote}`;
-        await auditLog(connectionId, "create_lead", params, "success", `created lead ${lead.id} — ${leadSummary}`);
+        const leadSummary = `✅ ליד חדש נוצר בהצלחה!\nשם: ${safeField(lead.name)}${lead.phone ? `\nטלפון: ${safeField(lead.phone, 20)}` : ""}${stage ? `\nשלב: ${safeField(stage.name, 60)}` : ""}${followUpLabel ? `\nמעקב הבא: ${followUpLabel}` : ""}${petBlock ? "\n🐾 פרטי הכלב נשמרו בהערות" : ""} (id: ${lead.id})${dupNote}${followUpWarning}`;
+        await auditLog(connectionId, "create_lead", params, "success", `created lead ${lead.id}`);
         return textResult(leadSummary);
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה ביצירת ליד";
@@ -606,7 +622,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         const order = result.order;
         const total = ((quantity ?? 1) * unit_price).toLocaleString("he-IL");
         const orderSummary = `✅ הזמנה נוצרה בהצלחה!\nסכום: ₪${total}\nסטטוס: ${order.status} (id: ${order.id})`;
-        await auditLog(connectionId, "create_order", params, "success", `created order ${order.id} — ${orderSummary}`);
+        await auditLog(connectionId, "create_order", params, "success", `created order ${order.id}`);
         return textResult(orderSummary);
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה ביצירת הזמנה";

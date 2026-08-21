@@ -61,7 +61,8 @@ export function israelYmd(d: Date | string): string {
 export function parseYmd(s: string | undefined | null): string | null {
   if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
   const d = new Date(`${s}T00:00:00.000Z`);
-  return isNaN(d.getTime()) ? null : s;
+  // Reject impossible dates (e.g. 2026-02-30 silently rolls over to March 2)
+  return isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== s ? null : s;
 }
 
 export interface ToolCtx {
