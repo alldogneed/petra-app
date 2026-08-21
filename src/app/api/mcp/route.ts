@@ -35,6 +35,9 @@ import { textResult, errorResult, safeField, israelStartOfToday, heDate, parseYm
 import { registerIntakeTools, resolveLeadStageByName, israelLocalToIso } from "@/lib/mcp/tools-intake";
 import { registerBoardingTools } from "@/lib/mcp/tools-boarding";
 import { registerBriefingTools } from "@/lib/mcp/tools-briefing";
+import { registerPetsTools } from "@/lib/mcp/tools-pets";
+import { registerTrainingTools } from "@/lib/mcp/tools-training";
+import { registerFinanceTools } from "@/lib/mcp/tools-finance";
 
 // ─── Scopes ───────────────────────────────────────────────────────────────────
 
@@ -50,12 +53,14 @@ const PREV_DEFAULT_SCOPES = [
   "read:pets", "read:boarding", "read:training", "read:tasks", "read:analytics",
   "write:appointments", "write:notes", "write:reminders", "write:clients", "write:leads", "write:orders",
 ];
+/** Default set shipped later on 2026-08-21 (write packages 1-3), before package 4 scopes. */
+const PREV_DEFAULT_SCOPES_V2 = [...PREV_DEFAULT_SCOPES, "read:payments", "write:tasks", "write:boarding"];
 const sameSet = (a: string[], b: string[]) => a.length === b.length && b.every((s) => a.includes(s));
 function effectiveScopes(scopes: string[]): string[] {
   // Only the two exact historical "full access" sets are upgraded to the current
   // full set. Anything else (e.g. READ_ONLY_MCP_SCOPES or a hand-reduced list)
   // is used as-is — a deliberately reduced token must never escalate.
-  if (sameSet(scopes, LEGACY_SCOPES) || sameSet(scopes, PREV_DEFAULT_SCOPES)) return DEFAULT_MCP_SCOPES;
+  if (sameSet(scopes, LEGACY_SCOPES) || sameSet(scopes, PREV_DEFAULT_SCOPES) || sameSet(scopes, PREV_DEFAULT_SCOPES_V2)) return DEFAULT_MCP_SCOPES;
   return scopes;
 }
 
@@ -367,7 +372,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
     "create_client",
     "Create a new client in the business. Returns the new client ID.",
     {
-      name: z.string().min(2).describe("Full name of the client"),
+      name: z.string().min(2).max(200).describe("Full name of the client"),
       phone: z.string().describe("Israeli phone number (e.g. 050-1234567)"),
       email: z.string().email().optional().describe("Email address"),
       address: z.string().max(500).optional().describe("Home address"),
@@ -454,7 +459,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
     "create_lead",
     "Create a new lead (potential client) in the CRM pipeline. Call find_duplicate first to avoid duplicates. Optionally set the pipeline stage by name (list_lead_stages), the next follow-up date/time (also creates a linked follow-up task), and pet details (stored in the lead notes). Returns the new lead id; if a client or lead with the same phone already exists it is reported too. Supports idempotency_key (safe retries) and dry_run (preview only).",
     {
-      name: z.string().min(2).describe("Full name of the lead"),
+      name: z.string().min(2).max(200).describe("Full name of the lead"),
       phone: z.string().optional().describe("Israeli phone number"),
       email: z.string().email().optional().describe("Email address"),
       requested_service: z.string().optional().describe("What service they are interested in"),
@@ -963,6 +968,9 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   registerIntakeTools(server, ctx);
   registerBoardingTools(server, ctx);
   registerBriefingTools(server, ctx);
+  registerPetsTools(server, ctx);
+  registerTrainingTools(server, ctx);
+  registerFinanceTools(server, ctx);
 
   return server;
 }
@@ -1048,16 +1056,25 @@ export async function handleMcpRequest(request: NextRequest, tokenFromPath?: str
 
   // Per-token throttle for authenticated requests.
   const limited = await rateLimitAsync("mcp:token", auth.connectionId, MCP_RATE_LIMIT_TOKEN);
-  if (!limited.allowed) {
+  // Defense in depth: the Redis limiter degrades to per-instance memory when
+  // Upstash is misconfigured/unavailable, which parallel requests across lambdas
+  // evade (found by red-team 2026-08-21). Every tools/call writes an McpAuditLog
+  // row, so counting this connection's rows in the window bounds bursts
+  // regardless of Redis state. tools/list & initialize are not counted (cheap).
+  const dbWindowStart = new Date(Date.now() - MCP_RATE_LIMIT_TOKEN.windowMs);
+  const recentCalls = await prisma.mcpAuditLog
+    .count({ where: { connectionId: auth.connectionId, createdAt: { gte: dbWindowStart } } })
+    .catch(() => 0);
+  if (!limited.allowed || recentCalls >= MCP_RATE_LIMIT_TOKEN.max) {
     await auditLog(
       auth.connectionId,
       "_rate_limit",
       {},
       "rate_limited",
       undefined,
-      "per-token rate limit exceeded"
+      limited.allowed ? "per-token rate limit exceeded (audit-count guard)" : "per-token rate limit exceeded"
     );
-    return rateLimitResponse(limited.retryAfterMs);
+    return rateLimitResponse(limited.allowed ? MCP_RATE_LIMIT_TOKEN.windowMs : limited.retryAfterMs);
   }
   await touchMcpConnection(auth.connectionId);
 

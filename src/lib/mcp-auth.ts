@@ -31,6 +31,10 @@ export const DEFAULT_MCP_SCOPES = [
   "write:orders",
   "write:tasks",
   "write:boarding",
+  "write:pets",
+  "write:services",
+  "write:payments",
+  "write:training",
 ];
 
 /** Read-only subset — granted when a connection is created with readOnly=true. */

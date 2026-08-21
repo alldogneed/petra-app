@@ -103,8 +103,11 @@ export const RATE_LIMITS = {
 let _redis: Redis | null = null;
 function _getRedis(): Redis | null {
   if (_redis) return _redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  // Trim: a trailing newline/space pasted into the Vercel env var makes the
+  // Upstash client throw "invalid URL" on every call → silent memory fallback
+  // (seen in prod logs 2026-08-21).
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
   if (!url || !token) return null;
   _redis = new Redis({ url, token });
   return _redis;

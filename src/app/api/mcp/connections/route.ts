@@ -73,8 +73,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "העסק הזה אינו בבטא של עוזרי AI" }, { status: 403 });
     }
 
-    const body = await request.json();
-    const { name, readOnly = false } = body;
+    let body: { name?: unknown; readOnly?: unknown };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "גוף הבקשה אינו JSON תקין" }, { status: 400 });
+    }
+    const { name, readOnly = false } = body ?? {};
 
     if (!name || typeof name !== "string" || name.trim().length < 1) {
       return NextResponse.json({ error: "נדרש שם לחיבור" }, { status: 400 });
