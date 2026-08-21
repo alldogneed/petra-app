@@ -448,7 +448,7 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
             const time = hhmm ?? "09:00";
             input.nextFollowUpAt = israelLocalToIso(ymd, time);
             input.followUpStatus = "pending";
-            changes.push(`מעקב הבא → ${heDate(`${ymd}T00:00:00.000Z`)} ${time} (נוצרת משימת מעקב)`);
+            changes.push(`מעקב הבא → ${heDate(`${ymd}T00:00:00.000Z`)} ${time}`);
           }
         }
         if (args.notes !== undefined && args.notes.trim()) {
@@ -470,7 +470,19 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
         }
 
         const lead = await updateLead(businessId, prisma, args.lead_id, input);
-        const summary = `✅ הליד "${safeField(lead.name)}" עודכן: ${changes.join(", ")} (id: ${lead.id})`;
+        // Verify (don't assume) the linked follow-up task — report its id so the client can see it in list_tasks.
+        let followUpNote = "";
+        if (input.nextFollowUpAt) {
+          const fuTask = await prisma.task.findFirst({
+            where: { businessId, relatedEntityType: "LEAD", relatedEntityId: lead.id, status: { not: "COMPLETED" } },
+            orderBy: { createdAt: "desc" },
+            select: { id: true, dueDate: true },
+          });
+          followUpNote = fuTask
+            ? `\nמשימת מעקב: ${fuTask.dueDate ? heDate(fuTask.dueDate) : ""} (task id: ${fuTask.id})`
+            : "\n⚠️ לא נמצאה משימת מעקב פתוחה לליד הזה — צור אחת עם create_task אם צריך.";
+        }
+        const summary = `✅ הליד "${safeField(lead.name)}" עודכן: ${changes.join(", ")} (id: ${lead.id})${followUpNote}`;
         await auditLog(connectionId, "update_lead", params, "success", `updated lead ${lead.id}`);
         return textResult(summary);
       } catch (e) {
