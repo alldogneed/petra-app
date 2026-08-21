@@ -226,7 +226,10 @@ export function registerFinanceTools(server: McpServer, ctx: ToolCtx): void {
           (invoiceNumber ? ` | חשבונית: ${safeField(invoiceNumber, 50)}` : "") +
           (notes ? ` | הערות: ${safeField(notes, 200)}` : "");
 
-        if (args.dry_run) return dryRunResult(`יירשם תשלום: ${baseLine}`);
+        if (args.dry_run) {
+          const willInvoice = status === "paid" && (await InvoicingService.isConfigured(businessId).catch(() => false));
+          return dryRunResult(`יירשם תשלום: ${baseLine}${willInvoice ? "\n⚠️ לעסק מוגדרת הפקת מסמכים — יופק מסמך חשבונאי אוטומטית (פעולה חיצונית, לא הפיכה)." : ""}`);
+        }
 
         const payment = await prisma.payment.create({
           data: {

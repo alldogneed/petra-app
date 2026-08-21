@@ -100,7 +100,7 @@ export async function touchMcpConnection(connectionId: string): Promise<void> {
  * shape is auditable) but masks the value — full names/phones/notes of
  * customers must not accumulate in McpAuditLog.
  */
-const PII_PARAM_KEYS = new Set(["name", "phone", "email", "address", "notes", "note", "reason", "search", "item_name", "requested_service", "city", "tags", "title", "description", "pet_name", "pet_notes", "checkin_notes", "checkout_notes"]);
+const PII_PARAM_KEYS = new Set(["name", "phone", "email", "address", "notes", "note", "reason", "search", "item_name", "requested_service", "city", "tags", "title", "description", "pet_name", "pet_notes", "checkin_notes", "checkout_notes", "medical_notes", "food_notes", "behavior_notes", "allergies", "medical_conditions", "microchip", "homework", "practice_items", "next_session_goals", "trainer_name", "invoice_number"]);
 
 function redactParams(params: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};

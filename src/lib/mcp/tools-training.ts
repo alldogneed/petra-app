@@ -344,8 +344,9 @@ export function registerTrainingTools(server: McpServer, ctx: ToolCtx): void {
         } else if (customer.pets.length === 0) {
           throw new ServiceError("ללקוח אין חיית מחמד רשומה — הוסף כלב תחילה ואז צור את התוכנית", "VALIDATION");
         } else {
-          const list = customer.pets.map((pt) => `${safeField(pt.name, 30)} (pet id: ${pt.id})`).join(", ");
-          throw new ServiceError(`ללקוח כמה חיות מחמד — ציין dog_id: ${list}`, "VALIDATION");
+          // ids only — this message is stored in the audit log; names come from list_pets / get_client.
+          const list = customer.pets.map((pt) => pt.id).join(", ");
+          throw new ServiceError(`ללקוח כמה חיות מחמד — ציין dog_id (ראה get_client): ${list}`, "VALIDATION");
         }
 
         // Tier limit — mirror POST /api/training-programs.
@@ -748,12 +749,18 @@ export function registerTrainingTools(server: McpServer, ctx: ToolCtx): void {
             where: { id: existing.id, trainingProgramId: program.id },
             data: { status: args.status },
           });
-          // Mirror createProgramSession: completing a session on a SERVICE_DOG program accumulates training hours.
-          if (args.status === "COMPLETED" && program.trainingType === "SERVICE_DOG") {
-            const sdProfile = await prisma.serviceDogProfile.findFirst({ where: { petId: program.dogId, businessId }, select: { id: true } });
-            if (sdProfile) {
-              const mins = args.duration_minutes ?? existing.durationMinutes;
-              await prisma.serviceDogProfile.update({ where: { id: sdProfile.id }, data: { trainingTotalHours: { increment: mins / 60 } } });
+          // Mirror createProgramSession: completing a session on a SERVICE_DOG program accumulates
+          // training hours. Adjust symmetrically so COMPLETED→SCHEDULED→COMPLETED never double-counts.
+          if (program.trainingType === "SERVICE_DOG") {
+            const wasCompleted = existing.status === "COMPLETED";
+            const nowCompleted = args.status === "COMPLETED";
+            if (wasCompleted !== nowCompleted) {
+              const sdProfile = await prisma.serviceDogProfile.findFirst({ where: { petId: program.dogId, businessId }, select: { id: true } });
+              if (sdProfile) {
+                const mins = args.duration_minutes ?? existing.durationMinutes;
+                const delta = (nowCompleted ? 1 : -1) * (mins / 60);
+                await prisma.serviceDogProfile.update({ where: { id: sdProfile.id }, data: { trainingTotalHours: { increment: delta } } });
+              }
             }
           }
         }

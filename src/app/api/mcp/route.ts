@@ -16,7 +16,7 @@ import { z } from "zod";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { validateMcpToken, touchMcpConnection, extractBearerToken, auditLog, DEFAULT_MCP_SCOPES } from "@/lib/mcp-auth";
-import { rateLimitAsync } from "@/lib/rate-limit";
+import { rateLimitAsync, claimOnce } from "@/lib/rate-limit";
 import { listCustomers, getCustomer, addCustomerNote, createCustomer, listLeads, createLead, updateLead, listTasks } from "@/services/clients";
 import { listAppointments, createAppointment, updateAppointment, deleteAppointment } from "@/services/appointments";
 import { listOrders, getOrder, createOrder } from "@/services/orders";
@@ -1063,17 +1063,25 @@ export async function handleMcpRequest(request: NextRequest, tokenFromPath?: str
   // regardless of Redis state. tools/list & initialize are not counted (cheap).
   const dbWindowStart = new Date(Date.now() - MCP_RATE_LIMIT_TOKEN.windowMs);
   const recentCalls = await prisma.mcpAuditLog
-    .count({ where: { connectionId: auth.connectionId, createdAt: { gte: dbWindowStart } } })
+    .count({
+      // Blocked requests must not count against the window (else a retry loop
+      // never drains) — so exclude the _rate_limit marker rows themselves.
+      where: { connectionId: auth.connectionId, createdAt: { gte: dbWindowStart }, NOT: { toolName: "_rate_limit" } },
+    })
     .catch(() => 0);
   if (!limited.allowed || recentCalls >= MCP_RATE_LIMIT_TOKEN.max) {
-    await auditLog(
-      auth.connectionId,
-      "_rate_limit",
-      {},
-      "rate_limited",
-      undefined,
-      limited.allowed ? "per-token rate limit exceeded (audit-count guard)" : "per-token rate limit exceeded"
-    );
+    // At most one audit marker per connection per window — a flood of blocked
+    // requests must stay cheap (no DB insert per 429).
+    if (await claimOnce(`mcp:rl-audit:${auth.connectionId}`, Math.ceil(MCP_RATE_LIMIT_TOKEN.windowMs / 1000))) {
+      await auditLog(
+        auth.connectionId,
+        "_rate_limit",
+        {},
+        "rate_limited",
+        undefined,
+        limited.allowed ? "per-token rate limit exceeded (audit-count guard)" : "per-token rate limit exceeded"
+      );
+    }
     return rateLimitResponse(limited.allowed ? MCP_RATE_LIMIT_TOKEN.windowMs : limited.retryAfterMs);
   }
   await touchMcpConnection(auth.connectionId);
