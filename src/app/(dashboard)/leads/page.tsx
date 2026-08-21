@@ -903,7 +903,6 @@ function DraggableLeadCard({
                   type="date" lang="he"
                   className="input text-xs w-full"
                   value={pickerDate}
-                  min={new Date().toISOString().slice(0, 10)}
                   onChange={(e) => setPickerDate(e.target.value)}
                 />
                 <div className="flex gap-2 mt-2">

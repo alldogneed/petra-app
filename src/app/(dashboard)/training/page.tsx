@@ -576,7 +576,6 @@ function ScheduleSessionModal({
                 lang="he"
                 className="input"
                 value={sessionDate}
-                min={new Date().toISOString().slice(0, 10)}
                 onChange={(e) => setSessionDate(e.target.value)}
               />
             </div>

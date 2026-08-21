@@ -2578,7 +2578,6 @@ function QuickTaskModal({
               type="date" lang="he"
               className="input w-full"
               value={form.dueDate}
-              min={today}
               onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
             />
           </div>
@@ -2746,7 +2745,6 @@ function NewAppointmentModal({
               type="date" lang="he"
               className="input w-full"
               value={form.date}
-              min={today}
               onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
             />
           </div>
