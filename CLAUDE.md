@@ -163,7 +163,7 @@ MCP is visible/usable ONLY for: `alldogneed@gmail.com`, `or.rabinovich@gmail.com
 ### Scopes — enforced per tool
 `DEFAULT_MCP_SCOPES` in `src/lib/mcp-auth.ts` (read:clients/appointments/stats/services/leads/orders/pets/boarding/training/tasks/analytics + write:appointments/notes/reminders/clients/leads/orders). Every tool handler starts with `if (!hasScope("…")) return denyScope(...)` (audited as `denied`). Legacy 6-scope connections are grandfathered to the full set via `effectiveScopes()`.
 
-### 19 Tools (all call service layer) — `src/app/api/mcp/route.ts`
+### 20 Tools (all call service layer) — `src/app/api/mcp/route.ts`
 | Read | Write |
 |------|-------|
 | `list_clients` (enhanced, cursor pagination), `get_client` | `create_client`, `add_client_note` |
