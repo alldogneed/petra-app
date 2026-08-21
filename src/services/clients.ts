@@ -740,6 +740,24 @@ export interface UpdateLeadInput {
   previousStageId?: string | null;
 }
 
+/**
+ * A closed lead (won/lost) no longer needs its pending follow-up: clear the date and
+ * cancel the auto follow-up tasks created before closure. Called on every close path
+ * (stage change to a won/lost stage, explicit wonAt/lostAt, close-won/close-lost routes).
+ * A follow-up explicitly set AFTER closing (post-sale check-in) is not touched here.
+ */
+export async function clearLeadFollowUps(businessId: string, db: DbClient, leadId: string): Promise<{ tasksCanceled: number }> {
+  const res = await db.task.updateMany({
+    where: { businessId, relatedEntityType: "LEAD", relatedEntityId: leadId, category: "LEADS", status: { in: ["OPEN", "IN_PROGRESS"] } },
+    data: { status: "CANCELED" },
+  });
+  await db.lead.updateMany({
+    where: { id: leadId, businessId },
+    data: { nextFollowUpAt: null, followUpStatus: "completed", followUpTaskId: null },
+  });
+  return { tasksCanceled: res.count };
+}
+
 export async function updateLead(
   businessId: string,
   db: DbClient,
@@ -808,6 +826,15 @@ export async function updateLead(
   };
 
   const lead = await db.lead.update({ where: { id: leadId, businessId }, data, include: { customer: true, callLogs: true } });
+
+  // Closing the lead (won/lost) clears its pending follow-up — unless the caller is
+  // explicitly setting a new follow-up in the same call (post-sale check-in).
+  const closingNow = (autoWonAt instanceof Date) || (autoLostAt instanceof Date) || !!input.wonAt || !!input.lostAt;
+  if (closingNow && input.nextFollowUpAt === undefined) {
+    await clearLeadFollowUps(businessId, db, leadId);
+    lead.nextFollowUpAt = null;
+    lead.followUpStatus = "completed";
+  }
 
   // Follow-up task sync
   if (input.nextFollowUpAt !== undefined) {

@@ -297,7 +297,7 @@ export function registerBriefingTools(server: McpServer, ctx: ToolCtx): void {
 
         // (b) leads due for follow-up on/before date
         const dueLeads = leads
-          .filter((l) => l.nextFollowUpAt && (l.followUpStatus ?? "pending") !== "completed" && israelYmd(l.nextFollowUpAt) <= ymd)
+          .filter((l) => l.nextFollowUpAt && !l.wonAt && !l.lostAt && (l.followUpStatus ?? "pending") !== "completed" && israelYmd(l.nextFollowUpAt) <= ymd)
           .sort((x, y) => new Date(x.nextFollowUpAt!).getTime() - new Date(y.nextFollowUpAt!).getTime());
         const leadLines = dueLeads.map((l) => {
           const fuYmd = israelYmd(l.nextFollowUpAt!);

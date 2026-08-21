@@ -458,6 +458,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
       stage_name: z.string().max(60).optional().describe("Filter by pipeline stage name (see list_lead_stages)"),
       limit: z.number().int().min(1).max(100).optional().describe("Page size (default 50)"),
       offset: z.number().int().min(0).optional().describe("Skip this many results (pagination)"),
+      include_closed: z.boolean().optional().describe("Include won/lost leads (default false — closed leads are excluded from follow-up and stage listings)"),
     },
     async (args) => {
       if (!hasScope("read:leads")) return denyScope("list_leads", "read:leads");
@@ -478,11 +479,18 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         const limit = args.limit ?? 50;
         const offset = args.offset ?? 0;
 
-        const stages = await prisma.leadStage.findMany({ where: { businessId }, select: { id: true, name: true } });
+        const stages = await prisma.leadStage.findMany({ where: { businessId }, select: { id: true, name: true, isWon: true, isLost: true } });
         const stageName = new Map(stages.map((st) => [st.id, st.name]));
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const where: any = { businessId };
         const desc: string[] = [];
+        if (!args.include_closed) {
+          // Closed leads keep historical follow-up dates; they are noise in "who do I call" lists.
+          const closedStageIds = stages.filter((st: any) => st.isWon || st.isLost).map((st) => st.id);
+          where.wonAt = null;
+          where.lostAt = null;
+          if (closedStageIds.length) where.stage = { notIn: closedStageIds };
+        }
         if (fuOn) { where.nextFollowUpAt = { gte: dayStart(fuOn), lte: dayEnd(fuOn) }; desc.push(`לחזרה ב-${fuOn}`); }
         else if (fuUntil) { where.nextFollowUpAt = { lte: dayEnd(fuUntil) }; desc.push(`לחזרה עד ${fuUntil} (כולל באיחור)`); }
         if (cFrom || cTo) {
@@ -495,6 +503,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           const stage = Array.isArray(match) ? (match.length === 1 ? match[0] : undefined) : match;
           if (!stage) throw new ServiceError(`שלב לא נמצא. שלבים קיימים: ${stages.map((st) => st.name).join(", ")}`, "VALIDATION");
           where.stage = stage.id;
+          if ((stage as any).isWon || (stage as any).isLost) { delete where.wonAt; delete where.lostAt; }
           desc.push(`בשלב "${safeField(stage.name, 40)}"`);
         }
         const [total, rows] = await Promise.all([

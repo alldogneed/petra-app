@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
+import { clearLeadFollowUps } from "@/services/clients";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { LOST_REASON_CODES } from "@/lib/constants";
@@ -84,6 +85,8 @@ export async function POST(
     await cancelLeadFollowup(id).catch((err) =>
       console.error("cancelLeadFollowup (close-lost) failed (non-critical):", err)
     );
+
+    await clearLeadFollowUps(authResult.businessId, prisma, id).catch((err) => console.error("clearLeadFollowUps failed:", err));
 
     const { session } = authResult;
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.CLOSE_LEAD_LOST);
