@@ -121,7 +121,12 @@ export async function POST(request: NextRequest) {
     if (readOnly !== undefined && typeof readOnly !== "boolean") {
       return NextResponse.json({ error: "ערך לא תקין עבור 'קריאה בלבד'" }, { status: 400 });
     }
-    if (rawProfile !== undefined && (typeof rawProfile !== "string" || !(rawProfile in MCP_PROFILES))) {
+    if (
+      rawProfile !== undefined &&
+      (typeof rawProfile !== "string" ||
+        !Object.prototype.hasOwnProperty.call(MCP_PROFILES, rawProfile) ||
+        !Array.isArray(MCP_PROFILES[rawProfile]))
+    ) {
       return NextResponse.json({ error: "פרופיל גישה לא תקין" }, { status: 400 });
     }
     const profile: string =
@@ -139,7 +144,7 @@ export async function POST(request: NextRequest) {
 
     // Check limit: max 10 active connections per business
     const activeCount = await prisma.mcpConnection.count({
-      where: { businessId: authResult.businessId, revokedAt: null },
+      where: { businessId: authResult.businessId, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
     });
     if (activeCount >= 10) {
       return NextResponse.json({ error: "הגעת למקסימום 10 חיבורים פעילים" }, { status: 400 });

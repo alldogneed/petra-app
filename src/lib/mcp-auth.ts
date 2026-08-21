@@ -132,10 +132,26 @@ export async function validateMcpToken(raw: string, opts: { touch?: boolean } = 
       where: { businessId: conn.businessId, userId: conn.createdByUserId, isActive: true },
       select: { role: true, user: { select: { isActive: true, platformRole: true } } },
     });
-    if (!membership || !membership.user.isActive) return null;
-    minterRole = membership.role;
-    const isPlatformAdmin = membership.user.platformRole === "super_admin" || membership.user.platformRole === "admin";
-    conn.scopes = capScopesForRole(conn.scopes, minterRole, isPlatformAdmin);
+    if (membership) {
+      if (!membership.user.isActive) return null;
+      const isPlatformAdmin = membership.user.platformRole === "super_admin" || membership.user.platformRole === "admin";
+      // A platform admin is owner-level everywhere (mirrors requireBusinessAuth impersonation).
+      minterRole = isPlatformAdmin ? "owner" : membership.role;
+      conn.scopes = capScopesForRole(conn.scopes, minterRole, isPlatformAdmin);
+    } else {
+      // No membership row: only an active platform admin (impersonation minting) may keep the token.
+      const admin = await prisma.platformUser.findUnique({
+        where: { id: conn.createdByUserId },
+        select: { isActive: true, platformRole: true },
+      });
+      const isPlatformAdmin = !!admin && admin.isActive && (admin.platformRole === "super_admin" || admin.platformRole === "admin");
+      if (!isPlatformAdmin) return null;
+      minterRole = "owner";
+    }
+  } else {
+    // Legacy token (minted before governance): owner-level by assumption, but it can never
+    // carry the newest owner-only scope — re-mint to get admin:destructive.
+    conn.scopes = conn.scopes.filter((s) => s !== ADMIN_SCOPE);
   }
 
   // lastUsedAt feeds the stale-token review in the connections UI. Callers that

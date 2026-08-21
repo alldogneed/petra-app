@@ -467,9 +467,13 @@ export function registerFinanceTools(server: McpServer, ctx: ToolCtx): void {
 
         const existing = await prisma.order.findFirst({
           where: { id: args.order_id, businessId },
-          select: { id: true, status: true, total: true, customerId: true, customer: { select: { name: true } } },
+          select: { id: true, status: true, total: true, customerId: true, customer: { select: { name: true } }, payments: { where: { status: "paid" }, select: { id: true } } },
         });
         if (!existing) throw new ServiceError("הזמנה לא נמצאה בעסק הזה", "NOT_FOUND");
+        // Same protection as cancel_order(force): cancelling an order that has paid payments is owner-only.
+        if (args.status === "cancelled" && existing.payments.length > 0 && !ctx.hasScope(ADMIN_SCOPE)) {
+          return ctx.denyScope("update_order_status", ADMIN_SCOPE);
+        }
 
         const changes: string[] = [];
         if (args.status !== existing.status) changes.push(`סטטוס ${orderStatusHe(existing.status)} → ${orderStatusHe(args.status)}`);

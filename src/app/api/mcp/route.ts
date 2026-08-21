@@ -15,7 +15,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { z } from "zod";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
-import { validateMcpToken, touchMcpConnection, extractBearerToken, auditLog, DEFAULT_MCP_SCOPES, capScopesForRole } from "@/lib/mcp-auth";
+import { validateMcpToken, touchMcpConnection, extractBearerToken, auditLog, DEFAULT_MCP_SCOPES, capScopesForRole, ADMIN_SCOPE } from "@/lib/mcp-auth";
 import { rateLimitAsync, claimOnce } from "@/lib/rate-limit";
 import { listCustomers, getCustomer, addCustomerNote, createCustomer, listLeads, createLead, updateLead, listTasks } from "@/services/clients";
 import { listAppointments, createAppointment, updateAppointment, deleteAppointment } from "@/services/appointments";
@@ -78,7 +78,9 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
 
   // Grandfather historical full sets, then re-cap by the minter's CURRENT role
   // (legacy rows without a minter stay owner-level — we can't know who made them).
-  const scopes = minterRole ? capScopesForRole(effectiveScopes(rawScopes), minterRole) : effectiveScopes(rawScopes);
+  const scopes = minterRole
+    ? capScopesForRole(effectiveScopes(rawScopes), minterRole)
+    : effectiveScopes(rawScopes).filter((s) => s !== ADMIN_SCOPE);
   const hasScope = (s: string) => scopes.includes(s);
   /** Deny a tool call whose connection lacks the required scope (audited). */
   const denyScope = async (tool: string, scope: string) => {
