@@ -342,7 +342,9 @@ export async function scheduleLeadFollowup(lead: LeadForFollowup) {
   // business phone exists (mirrors scheduleBoardingThankYou's dual-path pattern).
   const metaPayload = contactPhone
     ? {
-        metaTemplateName: "petra_lead_followup",
+        // UTILITY category — the old petra_lead_followup is MARKETING and Meta
+        // silently frequency-caps repeated MARKETING templates per recipient.
+        metaTemplateName: "petra_lead_followup_notice",
         metaTemplateParams: [lead.name, lead.requestedService?.trim() || "השירות שלנו", contactPhone],
       }
     : {};
@@ -530,15 +532,16 @@ export async function scheduleBoardingThankYou(stay: BoardingStayForReminder) {
   // See scheduleAppointmentReminder: use the _v2 template (footer phone param) only
   // when a phone exists; otherwise fall back to the original 2-param template.
   const contactPhone = (bizSettings.phone ?? "").trim();
+  // UTILITY category — both petra_boarding_thank_you and its _v2 are MARKETING
+  // and get silently frequency-capped per recipient by Meta. The stay-summary
+  // template needs the business phone; without one, free-form text is the only
+  // option (24h window) — same behavior as before for that edge.
   const metaPayload = contactPhone
     ? {
-        metaTemplateName: "petra_boarding_thank_you_v2",
+        metaTemplateName: "petra_boarding_stay_summary",
         metaTemplateParams: [stay.customer.name, stay.pet.name, contactPhone],
       }
-    : {
-        metaTemplateName: "petra_boarding_thank_you",
-        metaTemplateParams: [stay.customer.name, stay.pet.name],
-      };
+    : {};
 
   return prisma.scheduledMessage.create({
     data: {

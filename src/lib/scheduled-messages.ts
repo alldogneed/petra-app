@@ -214,19 +214,22 @@ export async function processPendingReminders(): Promise<{
       }
       // Prefer Meta template (works outside 24h window); fall back to text
       let result;
+      // context tags the delivery log (WhatsAppMessageLog) per flow
+      const sendContext = msg.templateKey ?? "scheduled_message";
       if (payload.metaTemplateName && process.env.META_WHATSAPP_TOKEN) {
         result = await sendWhatsAppTemplate({
           to: phone,
           templateName: payload.metaTemplateName as string,
           bodyParams: (payload.metaTemplateParams as string[]) ?? [],
+          context: sendContext,
         });
         // If template fails (e.g. not yet approved), fall back to text
         if (!result.success) {
           console.warn(`[Reminder] Template "${payload.metaTemplateName}" failed, falling back to text`);
-          result = await sendWhatsAppMessage({ to: phone, body });
+          result = await sendWhatsAppMessage({ to: phone, body, context: sendContext });
         }
       } else {
-        result = await sendWhatsAppMessage({ to: phone, body });
+        result = await sendWhatsAppMessage({ to: phone, body, context: sendContext });
       }
 
       await prisma.scheduledMessage.update({
