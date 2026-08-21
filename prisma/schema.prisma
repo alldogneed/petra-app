@@ -2358,3 +2358,14 @@ model WhatsAppMessageLog {
   @@index([status, createdAt])
   @@index([createdAt])
 }
+
+/// Distributed rate-limit fallback (used when Upstash Redis is not configured/reachable).
+/// Fixed windows keyed by "namespace:key:windowStart"; rows expire by windowEnd and are
+/// pruned opportunistically. Counting is an atomic INSERT … ON CONFLICT DO UPDATE.
+model RateLimitBucket {
+  key       String   @id // `${namespace}:${key}:${windowStartMs}`
+  count     Int      @default(0)
+  windowEnd DateTime
+
+  @@index([windowEnd])
+}

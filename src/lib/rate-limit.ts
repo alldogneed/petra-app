@@ -11,6 +11,7 @@
  */
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import prisma from "@/lib/prisma";
 
 interface RateLimitEntry {
   count: number;
@@ -138,6 +139,49 @@ function _getLimiter(namespace: string, max: number, windowSec: number): Ratelim
   return _limiters.get(key)!;
 }
 
+// ─── Postgres fallback limiter ───────────────────────────────────────────────
+
+let _lastPrune = 0;
+/**
+ * Fixed-window counter in the RateLimitBucket table. One round-trip per call
+ * (INSERT … ON CONFLICT DO UPDATE … RETURNING) — atomic, so it is correct across
+ * all serverless instances. Returns null on DB error so the caller can degrade to
+ * memory instead of failing the request.
+ */
+async function rateLimitDb(
+  namespace: string,
+  key: string,
+  options: RateLimitOptions
+): Promise<RateLimitResult | null> {
+  const now = Date.now();
+  const windowStart = Math.floor(now / options.windowMs) * options.windowMs;
+  const windowEnd = new Date(windowStart + options.windowMs);
+  const bucketKey = `${namespace}:${key}:${windowStart}`;
+  try {
+    const rows = await prisma.$queryRaw<Array<{ count: number }>>`
+      INSERT INTO "RateLimitBucket" ("key", "count", "windowEnd")
+      VALUES (${bucketKey}, 1, ${windowEnd})
+      ON CONFLICT ("key") DO UPDATE SET "count" = "RateLimitBucket"."count" + 1
+      RETURNING "count"`;
+    const count = Number(rows[0]?.count ?? 1);
+    // Opportunistic prune of expired windows (at most once a minute per instance).
+    if (now - _lastPrune > 60_000) {
+      _lastPrune = now;
+      prisma.rateLimitBucket.deleteMany({ where: { windowEnd: { lt: new Date(now - 60_000) } } }).catch(() => {});
+    }
+    const allowed = count <= options.max;
+    return {
+      allowed,
+      remaining: Math.max(0, options.max - count),
+      resetAt: windowEnd.getTime(),
+      retryAfterMs: allowed ? 0 : Math.max(0, windowEnd.getTime() - now),
+    };
+  } catch (err) {
+    console.error("DB rate limit error, falling back to memory:", err);
+    return null;
+  }
+}
+
 /**
  * Distributed rate limit check — uses Upstash Redis when configured,
  * falls back to in-memory for local dev.
@@ -166,7 +210,11 @@ export async function rateLimitAsync(
     console.error("Redis rate limit error, falling back to memory:", err);
     _tripRedisBreaker();
   }
-  // Fallback: in-memory
+  // Fallback 1: Postgres fixed-window counter — atomic across all serverless instances
+  // (Redis was unreachable in prod for weeks; per-instance memory let parallel bursts through).
+  const dbResult = await rateLimitDb(namespace, key, options);
+  if (dbResult) return dbResult;
+  // Fallback 2: in-memory (last resort, per instance)
   return rateLimit(namespace, key, options);
 }
 

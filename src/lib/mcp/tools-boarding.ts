@@ -534,7 +534,8 @@ export function registerBoardingTools(server: McpServer, ctx: ToolCtx): void {
         }
         await syncBoardingToGcal(stay.id, businessId).catch((err) => console.error("MCP boarding GCal sync failed:", err));
 
-        const summary = `✅ נוצרה שהיית פנסיון עבור ${summaryBase}${quoteLine} (id: ${stay.id})`;
+        // Stay id FIRST — summaryBase carries the pet id and clients grab the first "(id: …)".
+        const summary = `✅ נוצרה שהיית פנסיון (id: ${stay.id}) עבור ${summaryBase}${quoteLine}`;
         await auditLog(connectionId, "create_boarding_stay", params, "success", `created boarding stay ${stay.id}`);
         return textResult(summary);
       } catch (e) {
