@@ -203,7 +203,9 @@ export interface AppointmentConflicts {
  *   (half-open; stored HH:MM strings are Israel-local so string comparison is exact)
  * - blocks: AvailabilityBlocks overlapping the window (UTC instants via Business.timezone)
  * - outsideHours: day closed or window not inside the AvailabilityRule hours (slot-engine defaults)
- * Does NOT apply service buffers or online Bookings (Booking model) — the slot engine does.
+ * - blocks also include pending/confirmed online Bookings (Booking model) overlapping the window,
+ *   reported with reason "הזמנה אונליין" — so an MCP appointment can't land on a slot a customer just booked.
+ * Does NOT apply service buffers — the slot engine does.
  */
 export async function findAppointmentConflicts(
   businessId: string,
@@ -224,7 +226,7 @@ export async function findAppointmentConflicts(
   const startUtc = localTimeToUtc(startTime, ymd, tz);
   const endUtc = localTimeToUtc(endTime, ymd, tz);
 
-  const [sameDay, blocks] = await Promise.all([
+  const [sameDay, blocks, bookings] = await Promise.all([
     prisma.appointment.findMany({
       where: {
         businessId,
@@ -240,6 +242,12 @@ export async function findAppointmentConflicts(
       select: { id: true, startAt: true, endAt: true, reason: true },
       orderBy: { startAt: "asc" },
     }),
+    prisma.booking.findMany({
+      where: { businessId, status: { in: ["pending", "confirmed"] }, startAt: { lt: endUtc }, endAt: { gt: startUtc } },
+      select: { id: true, startAt: true, endAt: true, status: true },
+      orderBy: { startAt: "asc" },
+      take: 50,
+    }),
   ]);
 
   const appointments = sameDay
@@ -251,7 +259,10 @@ export async function findAppointmentConflicts(
 
   return {
     appointments,
-    blocks: blocks.map((b) => ({ id: b.id, startAt: b.startAt, endAt: b.endAt, reason: safeField(b.reason, 100) })),
+    blocks: [
+      ...blocks.map((b) => ({ id: b.id, startAt: b.startAt, endAt: b.endAt, reason: safeField(b.reason, 100) })),
+      ...bookings.map((b) => ({ id: b.id, startAt: b.startAt, endAt: b.endAt, reason: `הזמנה אונליין (${b.status === "confirmed" ? "מאושרת" : "ממתינה"})` })),
+    ],
     outsideHours,
     openHours: hours.isOpen ? `${hours.openTime}–${hours.closeTime}` : undefined,
   };
@@ -411,8 +422,9 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
             where: { businessId, startAt: { lt: rangeEndUtc }, endAt: { gt: rangeStartUtc } },
             select: { id: true, startAt: true, endAt: true, reason: true },
             orderBy: { startAt: "asc" },
+            take: 200,
           }),
-          listBoardingStays(businessId, prisma, { from, to }),
+          ctx.hasScope("read:boarding") ? listBoardingStays(businessId, prisma, { from, to }) : Promise.resolve([]),
           canSeeGroups
             ? listGroupSessionsForCalendar(businessId, prisma, { from: addDaysYmd(from, -1), to })
             : Promise.resolve([]),

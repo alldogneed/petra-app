@@ -287,10 +287,11 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           pet: appt.pet ? { name: appt.pet.name } : null,
         }).catch((err) => console.error("MCP create_appointment reminder scheduling failed:", err));
         // GCal sync — same as POST /api/appointments (no-op when no calendar is connected)
-        await syncAppointmentToGcal(appt.id, businessId).catch((err) =>
+        let gcalOk = false;
+        await syncAppointmentToGcal(appt.id, businessId).then(() => { gcalOk = true; }).catch((err) =>
           console.error("MCP create_appointment GCal sync failed:", err)
         );
-        const gcalSynced = (await findConnectedUsersForBusiness(businessId)).some((u) => u.gcalSyncEnabled);
+        const gcalSynced = gcalOk && (await findConnectedUsersForBusiness(businessId)).some((u) => u.gcalSyncEnabled);
 
         const apptSummary = `✅ נקבע תור בהצלחה!\nלקוח: ${safeField(appt.customer?.name ?? "")}\nשירות: ${safeField(appt.service?.name ?? "", 80)}\nתאריך: ${heDate(appt.date)} בשעה ${appt.startTime}-${appt.endTime} (id: ${appt.id})${hasHardConflict(conflicts) ? `\n⚠️ נקבע למרות התנגשות (force=true):\n${describeConflicts(conflicts)}` : ""}${outsideHoursLine(conflicts)}${gcalSynced ? "\n📅 סונכרן ליומן Google" : ""}`;
         await auditLog(connectionId, "create_appointment", params, "success", `created appointment ${appt.id}`);
@@ -751,16 +752,17 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           }).catch((err) => console.error("MCP update_appointment reminder reschedule failed:", err));
         }
         // GCal — mirror PATCH /api/appointments/[id] (no-op when no calendar is connected)
+        let gcalOk = false;
         if (status === "canceled") {
-          await deleteAppointmentFromGcal(appt.id, businessId).catch((err) =>
+          await deleteAppointmentFromGcal(appt.id, businessId).then(() => { gcalOk = true; }).catch((err) =>
             console.error("MCP update_appointment GCal delete failed:", err)
           );
         } else {
-          await syncAppointmentToGcal(appt.id, businessId).catch((err) =>
+          await syncAppointmentToGcal(appt.id, businessId).then(() => { gcalOk = true; }).catch((err) =>
             console.error("MCP update_appointment GCal sync failed:", err)
           );
         }
-        const gcalSynced = (await findConnectedUsersForBusiness(businessId)).some((u) => u.gcalSyncEnabled);
+        const gcalSynced = gcalOk && (await findConnectedUsersForBusiness(businessId)).some((u) => u.gcalSyncEnabled);
 
         await auditLog(connectionId, "update_appointment", params, "success", `updated appointment ${appointment_id}`);
         return textResult(`✅ תור עודכן בהצלחה! (id: ${appt.id})\nתאריך: ${heDate(appt.date)} בשעה ${appt.startTime}-${appt.endTime}\nסטטוס: ${appt.status}${conflicts && hasHardConflict(conflicts) ? `\n⚠️ עודכן למרות התנגשות (force=true):\n${describeConflicts(conflicts)}` : ""}${conflicts ? outsideHoursLine(conflicts) : ""}${gcalSynced ? (status === "canceled" ? "\n📅 הוסר מיומן Google" : "\n📅 סונכרן ליומן Google") : ""}`);
@@ -794,7 +796,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
             select: { id: true, date: true, startTime: true, endTime: true, status: true, customer: { select: { name: true } }, service: { select: { name: true } } },
           });
           if (!existing) throw new ServiceError("תור לא נמצא", "NOT_FOUND");
-          if (existing.status === "canceled") return dryRunResult(`התור כבר מבוטל (id: ${existing.id}) — לא יבוצע שינוי.`);
+          if (existing.status === "canceled" || existing.status === "CANCELED") return dryRunResult(`התור כבר מבוטל (id: ${existing.id}) — לא יבוצע שינוי.`);
           return dryRunResult(`יבוטל תור של ${safeField(existing.customer?.name ?? "")} | ${safeField(existing.service?.name ?? "", 80)} | ${heDate(existing.date)} ${existing.startTime}-${existing.endTime} (id: ${existing.id})${reason ? `\nסיבה: ${safeField(reason, 200)}` : ""}`);
         }
         const appt = await updateAppointment(businessId, prisma, appointment_id, {
@@ -805,10 +807,11 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           console.error("MCP cancel_appointment reminder cancel failed:", err)
         );
         // GCal — mirror PATCH(status=canceled) / DELETE /api/appointments/[id]
-        await deleteAppointmentFromGcal(appointment_id, businessId).catch((err) =>
+        let gcalOk = false;
+        await deleteAppointmentFromGcal(appointment_id, businessId).then(() => { gcalOk = true; }).catch((err) =>
           console.error("MCP cancel_appointment GCal delete failed:", err)
         );
-        const gcalSynced = (await findConnectedUsersForBusiness(businessId)).some((u) => u.gcalSyncEnabled);
+        const gcalSynced = gcalOk && (await findConnectedUsersForBusiness(businessId)).some((u) => u.gcalSyncEnabled);
         await auditLog(connectionId, "cancel_appointment", params, "success", `cancelled appointment ${appointment_id}`);
         return textResult(`✅ תור בוטל בהצלחה. (id: ${appt.id})\nתאריך: ${heDate(appt.date)} בשעה ${appt.startTime}${reason ? `\nסיבה: ${safeField(reason, 200)}` : ""}${gcalSynced ? "\n📅 הוסר מיומן Google" : ""}`);
       } catch (e) {
