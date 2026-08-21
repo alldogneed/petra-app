@@ -142,6 +142,7 @@ function _getLimiter(namespace: string, max: number, windowSec: number): Ratelim
 // ─── Postgres fallback limiter ───────────────────────────────────────────────
 
 let _lastPrune = 0;
+const DB_LIMITER_TIMEOUT_MS = 1500;
 /**
  * Fixed-window counter in the RateLimitBucket table. One round-trip per call
  * (INSERT … ON CONFLICT DO UPDATE … RETURNING) — atomic, so it is correct across
@@ -157,13 +158,30 @@ async function rateLimitDb(
   const windowStart = Math.floor(now / options.windowMs) * options.windowMs;
   const windowEnd = new Date(windowStart + options.windowMs);
   const bucketKey = `${namespace}:${key}:${windowStart}`;
+  // Cheap short-circuit: if this instance already knows the key is over the limit in the
+  // current window, answer 429 without touching the DB (keeps bursts off the pooler).
+  const local = getStore().get(`${namespace}:${key}`);
+  if (local && local.resetAt > now && local.count > options.max) {
+    return { allowed: false, remaining: 0, resetAt: local.resetAt, retryAfterMs: Math.max(0, local.resetAt - now) };
+  }
   try {
-    const rows = await prisma.$queryRaw<Array<{ count: number }>>`
+    // A limiter must never stall a request: bound the DB round-trip, fail open to memory.
+    const query = prisma.$queryRaw<Array<{ count: number }>>`
       INSERT INTO "RateLimitBucket" ("key", "count", "windowEnd")
       VALUES (${bucketKey}, 1, ${windowEnd})
       ON CONFLICT ("key") DO UPDATE SET "count" = "RateLimitBucket"."count" + 1
       RETURNING "count"`;
+    const rows = await Promise.race([
+      query,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), DB_LIMITER_TIMEOUT_MS)),
+    ]);
+    if (!rows) {
+      console.warn(`DB rate limit timeout (${DB_LIMITER_TIMEOUT_MS}ms) for ${namespace} — falling back to memory`);
+      return null;
+    }
     const count = Number(rows[0]?.count ?? 1);
+    // Mirror into the local store so the short-circuit above works on this instance.
+    getStore().set(`${namespace}:${key}`, { count, resetAt: windowEnd.getTime() });
     // Opportunistic prune of expired windows (at most once a minute per instance).
     if (now - _lastPrune > 60_000) {
       _lastPrune = now;
