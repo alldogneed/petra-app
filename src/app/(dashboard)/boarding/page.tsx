@@ -1500,10 +1500,8 @@ function ExtendStayDialog({
     : new Date().toISOString().slice(0, 10);
   const [newCheckout, setNewCheckout] = useState(currentCheckout);
 
-  const minDate = new Date(Math.max(
-    new Date(stay.checkIn).getTime() + 86400000,
-    Date.now()
-  )).toISOString().slice(0, 10);
+  // Any day after check-in — retroactive/historical stays must be editable too.
+  const minDate = new Date(new Date(stay.checkIn).getTime() + 86400000).toISOString().slice(0, 10);
 
   return (
     <div className="modal-overlay">
@@ -1915,6 +1913,9 @@ function BoardingPageContent() {
   const [careLogStay, setCareLogStay] = useState<{ id: string; petName: string } | null>(null);
   const [form, setForm] = useState({
     customerId: "", petIds: [] as string[], roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "", pricePerNight: 0, assignedToUserId: "",
+    // Retroactive stays (dog already in the pension before the business joined Petra):
+    // "" = let the server decide (reserved), or an explicit status for backdated dates.
+    status: "" as "" | "reserved" | "checked_in" | "checked_out",
   });
   const [serviceDogMode, setServiceDogMode] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
@@ -2052,6 +2053,7 @@ function BoardingPageContent() {
             checkOut: checkOutDT || null,
             notes: data.notes || null,
             assignedToUserId: data.assignedToUserId || null,
+            ...(data.status ? { status: data.status } : {}),
           }),
         }).then(async (r) => { if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || "Failed"); } return r.json(); })
       );
@@ -2061,7 +2063,7 @@ function BoardingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setShowNewStay(false);
-      setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150, assignedToUserId: "" });
+      setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150, assignedToUserId: "", status: "" });
       setCustomerSearch("");
       setServiceDogMode(false);
       toast.success("ההשמה נוצרה בהצלחה");
@@ -3615,7 +3617,13 @@ function BoardingPageContent() {
                     value={form.checkIn}
                     onChange={(e) => {
                       const newCheckIn = e.target.value;
-                      setForm({ ...form, checkIn: newCheckIn, checkOut: form.checkOut && form.checkOut <= newCheckIn ? "" : form.checkOut });
+                      const newCheckOut = form.checkOut && form.checkOut <= newCheckIn ? "" : form.checkOut;
+                      const todayYmd = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+                      // Backdated check-in → the dog is already here (or already left) — default accordingly.
+                      const autoStatus = newCheckIn && newCheckIn < todayYmd
+                        ? (newCheckOut && newCheckOut < todayYmd ? "checked_out" : "checked_in")
+                        : "";
+                      setForm({ ...form, checkIn: newCheckIn, checkOut: newCheckOut, status: autoStatus });
                     }}
                   />
                   <div className="relative">
@@ -3629,6 +3637,23 @@ function BoardingPageContent() {
                   </div>
                 </div>
               </div>
+
+              {/* Retroactive stay — dog entered before today (e.g. existing dogs when joining Petra) */}
+              {form.checkIn && form.checkIn < new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" }) && (
+                <div className="sm:col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+                  <div className="font-medium text-amber-800 mb-1">שהייה רטרואקטיבית — תאריך הכניסה כבר עבר</div>
+                  <p className="text-amber-700 text-xs mb-2">אפשר לרשום כלבים שכבר נמצאים בפנסיון (או שהיות שהסתיימו) בלי לעבור צ׳ק-אין ידני.</p>
+                  <select
+                    className="input"
+                    value={form.status || "checked_in"}
+                    onChange={(e) => setForm({ ...form, status: e.target.value as typeof form.status })}
+                  >
+                    <option value="checked_in">הכלב כבר בפנסיון (צ׳ק-אין בוצע)</option>
+                    <option value="checked_out">השהייה הסתיימה (היסטורית)</option>
+                    <option value="reserved">הזמנה בלבד (ממתין לצ׳ק-אין)</option>
+                  </select>
+                </div>
+              )}
 
               {/* Check-out */}
               <div>
