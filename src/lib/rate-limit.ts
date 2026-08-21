@@ -101,16 +101,26 @@ export const RATE_LIMITS = {
 // ─── Distributed rate limiter (Upstash Redis) ────────────────────────────────
 
 let _redis: Redis | null = null;
+// Circuit breaker: after a Redis failure, skip Redis for a while instead of
+// paying a retry/backoff delay on every request (a broken URL made every
+// limiter call wait seconds in prod, 2026-08-21).
+let _redisDisabledUntil = 0;
+const REDIS_BREAKER_MS = 60_000;
 function _getRedis(): Redis | null {
+  if (Date.now() < _redisDisabledUntil) return null;
   if (_redis) return _redis;
-  // Trim: a trailing newline/space pasted into the Vercel env var makes the
-  // Upstash client throw "invalid URL" on every call → silent memory fallback
-  // (seen in prod logs 2026-08-21).
-  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+  // Strip ALL whitespace: a newline/space pasted into the Vercel env var makes
+  // the Upstash client throw "invalid URL" (or reach a wrong host) on every call.
+  const url = process.env.UPSTASH_REDIS_REST_URL?.replace(/\s+/g, "");
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.replace(/\s+/g, "");
   if (!url || !token) return null;
-  _redis = new Redis({ url, token });
+  _redis = new Redis({ url, token, retry: { retries: 1, backoff: () => 100 } });
   return _redis;
+}
+function _tripRedisBreaker(): void {
+  _redisDisabledUntil = Date.now() + REDIS_BREAKER_MS;
+  _redis = null;
+  _limiters.clear();
 }
 
 const _limiters = new Map<string, Ratelimit>();
@@ -154,6 +164,7 @@ export async function rateLimitAsync(
     }
   } catch (err) {
     console.error("Redis rate limit error, falling back to memory:", err);
+    _tripRedisBreaker();
   }
   // Fallback: in-memory
   return rateLimit(namespace, key, options);
@@ -177,6 +188,7 @@ export async function claimOnce(key: string, ttlSeconds: number): Promise<boolea
     }
   } catch (err) {
     console.error("claimOnce Redis error, falling back to memory:", err);
+    _tripRedisBreaker();
   }
   // Fallback: per-instance memory
   const now = Date.now();
