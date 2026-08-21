@@ -22,13 +22,19 @@ export const DEFAULT_MCP_SCOPES = [
   "read:training",
   "read:tasks",
   "read:analytics",
+  "read:payments",
   "write:appointments",
   "write:notes",
   "write:reminders",
   "write:clients",
   "write:leads",
   "write:orders",
+  "write:tasks",
+  "write:boarding",
 ];
+
+/** Read-only subset — granted when a connection is created with readOnly=true. */
+export const READ_ONLY_MCP_SCOPES = DEFAULT_MCP_SCOPES.filter((s) => s.startsWith("read:"));
 
 /** Generate a new MCP bearer token. Returns the raw token (shown once) and its hash. */
 export function generateMcpToken(): { raw: string; hash: string } {

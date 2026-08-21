@@ -163,14 +163,13 @@ MCP is visible/usable ONLY for: `alldogneed@gmail.com`, `or.rabinovich@gmail.com
 ### Scopes — enforced per tool
 `DEFAULT_MCP_SCOPES` in `src/lib/mcp-auth.ts` (read:clients/appointments/stats/services/leads/orders/pets/boarding/training/tasks/analytics + write:appointments/notes/reminders/clients/leads/orders). Every tool handler starts with `if (!hasScope("…")) return denyScope(...)` (audited as `denied`). Legacy 6-scope connections are grandfathered to the full set via `effectiveScopes()`.
 
-### 20 Tools (all call service layer) — `src/app/api/mcp/route.ts`
-| Read | Write |
-|------|-------|
-| `list_clients` (enhanced, cursor pagination), `get_client` | `create_client`, `add_client_note` |
-| `list_upcoming_appointments` (floors "from" to Israel start-of-day), `list_services` | `create_appointment` (free-tier cap), `update_appointment`, `cancel_appointment` |
-| `get_business_stats`, `list_leads` (stage names + ids) | `create_lead` |
-| `list_orders` (full ids), `get_order` | `create_order` |
-| `list_tasks`, `list_pets`, `list_boarding_stays`, `list_training_programs` | `send_reminder` (requires `whatsapp_reminders` tier) |
+### 34 Tools + 2 prompts — `src/app/api/mcp/route.ts` + modules in `src/lib/mcp/`
+Core (route.ts, 20): `list_clients` (cursor), `get_client`, `create_client`, `add_client_note`, `list_upcoming_appointments`, `list_services`, `create_appointment`, `update_appointment`, `cancel_appointment`, `get_business_stats`, `list_leads`, `create_lead` (stage_name / next_follow_up / pet_* fields), `list_orders`, `get_order`, `create_order`, `list_tasks`, `list_pets`, `list_boarding_stays`, `list_training_programs`, `send_reminder`.
+Intake (`tools-intake.ts`): `find_duplicate`, `list_lead_stages`, `create_task`, `update_task`, `update_lead`.
+Boarding (`tools-boarding.ts`): `list_boarding_rooms`, `check_boarding_availability`, `quote_boarding_price`, `create_boarding_stay`, `get_boarding_daily_board`, `update_boarding_stay`.
+Briefing (`tools-briefing.ts`): `list_payments`, `get_analytics`, `get_morning_briefing`; prompts `morning_briefing`, `intake_from_screenshot`.
+Shared helpers: `src/lib/mcp/helpers.ts` (`ToolCtx`, `safeField`, `heDate`, `israelStartOfToday`, `findIdempotentReplay`/`replayResult`, `dryRunResult`).
+**Every write tool** accepts `idempotency_key` (replayed from McpAuditLog params — no schema) + `dry_run` (Hebrew preview, no write). Read-only tokens: `POST /api/mcp/connections {readOnly:true}` → `READ_ONLY_MCP_SCOPES` (UI default = read-only).
 
 Output hygiene: all customer/lead-controlled strings go through `safeField()` (strips newlines/control chars — prompt-injection guard); dates via `heDate()` (Asia/Jerusalem). Audit log redacts PII params (`redactParams` in mcp-auth.ts).
 

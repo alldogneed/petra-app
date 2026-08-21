@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { generateMcpToken, DEFAULT_MCP_SCOPES } from "@/lib/mcp-auth";
+import { generateMcpToken, DEFAULT_MCP_SCOPES, READ_ONLY_MCP_SCOPES } from "@/lib/mcp-auth";
 import { isMcpAllowedUser, isMcpAllowedBusiness, isInternalTestEmail } from "@/lib/mcp-allowlist";
 import { normalizeTier } from "@/lib/feature-flags";
 
@@ -74,13 +74,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name } = body;
+    const { name, readOnly = false } = body;
 
     if (!name || typeof name !== "string" || name.trim().length < 1) {
       return NextResponse.json({ error: "נדרש שם לחיבור" }, { status: 400 });
     }
     if (name.length > 100) {
       return NextResponse.json({ error: "שם ארוך מדי (מקסימום 100 תווים)" }, { status: 400 });
+    }
+    // readOnly (optional, default false): true → read:* scopes only; the agent
+    // can't create/update appointments, clients, leads, tasks or orders.
+    if (typeof readOnly !== "boolean") {
+      return NextResponse.json({ error: "ערך לא תקין עבור 'קריאה בלבד'" }, { status: 400 });
     }
 
     // Check limit: max 10 active connections per business
@@ -98,7 +103,7 @@ export async function POST(request: NextRequest) {
         businessId: authResult.businessId,
         name: name.trim(),
         tokenHash: hash,
-        scopes: DEFAULT_MCP_SCOPES,
+        scopes: readOnly ? READ_ONLY_MCP_SCOPES : DEFAULT_MCP_SCOPES,
       },
       select: {
         id: true,

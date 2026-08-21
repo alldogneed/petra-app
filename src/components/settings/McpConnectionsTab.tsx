@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Copy, Bot, Clock, CheckCircle2, AlertCircle, Key } from "lucide-react";
+import { Loader2, Plus, Trash2, Copy, Bot, Clock, CheckCircle2, AlertCircle, Key, Eye, Pencil } from "lucide-react";
 import { formatRelativeTime, copyToClipboard } from "@/lib/utils";
 
 interface McpConnection {
@@ -21,10 +21,29 @@ interface NewConnection extends Omit<McpConnection, "_count"> {
   token: string;
 }
 
+/** A connection is read-only when none of its scopes grant writes. */
+const isReadOnlyConnection = (scopes: string[]) => !scopes.some((s) => s.startsWith("write:"));
+
+function AccessBadge({ scopes }: { scopes: string[] }) {
+  const readOnly = isReadOnlyConnection(scopes);
+  return readOnly ? (
+    <span className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+      <Eye className="w-3 h-3" />
+      קריאה בלבד
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+      <Pencil className="w-3 h-3" />
+      קריאה + כתיבה
+    </span>
+  );
+}
+
 export function McpConnectionsTab() {
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newReadOnly, setNewReadOnly] = useState(true);
   const [newToken, setNewToken] = useState<string | null>(null);
   const [newConnectionId, setNewConnectionId] = useState<string | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
@@ -35,17 +54,18 @@ export function McpConnectionsTab() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (name: string) =>
+    mutationFn: (input: { name: string; readOnly: boolean }) =>
       fetch("/api/mcp/connections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify(input),
       }).then((r) => r.json()),
     onSuccess: (data: NewConnection) => {
       queryClient.invalidateQueries({ queryKey: ["mcp-connections"] });
       setNewToken(data.token);
       setNewConnectionId(data.id);
       setNewName("");
+      setNewReadOnly(true);
       setShowCreate(false);
     },
     onError: () => toast.error("שגיאה ביצירת חיבור"),
@@ -61,6 +81,11 @@ export function McpConnectionsTab() {
     },
     onError: () => toast.error("שגיאה בביטול חיבור"),
   });
+
+  const submitCreate = () => {
+    if (!newName.trim()) return;
+    createMutation.mutate({ name: newName.trim(), readOnly: newReadOnly });
+  };
 
   const activeConnections = connections?.filter((c) => !c.revokedAt) ?? [];
   const revokedConnections = connections?.filter((c) => c.revokedAt) ?? [];
@@ -189,18 +214,55 @@ export function McpConnectionsTab() {
               placeholder="למשל: Claude Desktop"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && newName.trim() && createMutation.mutate(newName.trim())}
+              onKeyDown={(e) => e.key === "Enter" && submitCreate()}
               autoFocus
             />
+
+            {/* Access level — read-only is the safe default */}
+            <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
+              <p className="text-xs font-medium text-slate-600">רמת גישה</p>
+              <label className="flex items-start gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  checked={newReadOnly}
+                  onChange={(e) => setNewReadOnly(e.target.checked)}
+                />
+                <span className="flex-1">
+                  <span className="flex items-center gap-1.5 text-sm font-medium text-slate-800">
+                    <Eye className="w-4 h-4 text-emerald-600" />
+                    קריאה בלבד (מומלץ)
+                  </span>
+                  <span className="block text-xs text-slate-500 mt-0.5 leading-relaxed">
+                    הסוכן יוכל לקרוא נתונים בלבד — לא ליצור/לשנות תורים, לקוחות, לידים, משימות או הזמנות.
+                  </span>
+                </span>
+              </label>
+              {!newReadOnly && (
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                  <Pencil className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-800">קריאה + כתיבה</p>
+                    <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                      הסוכן יוכל ליצור ולעדכן רשומות בפטרה. כל פעולה נרשמת ביומן.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-2">
               <button
-                onClick={() => createMutation.mutate(newName.trim())}
+                onClick={submitCreate}
                 disabled={!newName.trim() || createMutation.isPending}
                 className="btn-primary text-sm"
               >
                 {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "צור חיבור"}
               </button>
-              <button onClick={() => { setShowCreate(false); setNewName(""); }} className="btn-secondary text-sm">
+              <button
+                onClick={() => { setShowCreate(false); setNewName(""); setNewReadOnly(true); }}
+                className="btn-secondary text-sm"
+              >
                 ביטול
               </button>
             </div>
@@ -226,8 +288,11 @@ export function McpConnectionsTab() {
                       <Bot className="w-5 h-5 text-indigo-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-slate-800 text-sm">{conn.name}</p>
-                      <div className="flex items-center gap-3 mt-0.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-slate-800 text-sm">{conn.name}</p>
+                        <AccessBadge scopes={conn.scopes} />
+                      </div>
+                      <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                         <span className="flex items-center gap-1 text-xs text-slate-500">
                           <CheckCircle2 className="w-3 h-3 text-emerald-500" />
                           פעיל
@@ -285,7 +350,10 @@ export function McpConnectionsTab() {
               <div key={conn.id} className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-center gap-3">
                 <AlertCircle className="w-4 h-4 text-slate-400 flex-shrink-0" />
                 <div>
-                  <p className="text-slate-500 text-sm line-through">{conn.name}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-slate-500 text-sm line-through">{conn.name}</p>
+                    <AccessBadge scopes={conn.scopes} />
+                  </div>
                   <p className="text-xs text-slate-400">
                     בוטל {conn.revokedAt ? formatRelativeTime(conn.revokedAt) : ""}
                   </p>

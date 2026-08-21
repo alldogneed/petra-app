@@ -18,7 +18,13 @@ const steps = [
   {
     number: 2,
     title: "תן שם לחיבור",
-    description: 'תן שם שיזכיר לך איפה תשתמש בו, כמו "Claude Desktop" או "ChatGPT Plugin".',
+    description: (
+      <>
+        תן שם שיזכיר לך איפה תשתמש בו, כמו &quot;Claude Desktop&quot; או &quot;ChatGPT Plugin&quot;.
+        <br />
+        מומלץ להשאיר את החיבור הראשון במצב <strong>&quot;קריאה בלבד&quot;</strong> — וכשתצטרך שהסוכן גם ייצור או יעדכן רשומות, ליצור חיבור נפרד עם &quot;קריאה + כתיבה&quot;.
+      </>
+    ),
     icon: Bot,
   },
   {

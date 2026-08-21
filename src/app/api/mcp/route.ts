@@ -17,7 +17,7 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { validateMcpToken, touchMcpConnection, extractBearerToken, auditLog, DEFAULT_MCP_SCOPES } from "@/lib/mcp-auth";
 import { rateLimitAsync } from "@/lib/rate-limit";
-import { listCustomers, getCustomer, addCustomerNote, createCustomer, listLeads, createLead, listTasks } from "@/services/clients";
+import { listCustomers, getCustomer, addCustomerNote, createCustomer, listLeads, createLead, updateLead, listTasks } from "@/services/clients";
 import { listAppointments, createAppointment, updateAppointment, deleteAppointment } from "@/services/appointments";
 import { listOrders, getOrder, createOrder } from "@/services/orders";
 import { listPets } from "@/services/pets";
@@ -30,40 +30,11 @@ import { toWhatsAppPhone } from "@/lib/utils";
 import { hasFeatureWithOverrides, getMaxAppointments, normalizeTier } from "@/lib/feature-flags";
 import { scheduleAppointmentReminder, rescheduleAppointmentReminder, cancelAppointmentReminders } from "@/lib/reminder-service";
 
-// ─── Tool helper ─────────────────────────────────────────────────────────────
-
-type ToolFn = (args: Record<string, unknown>) => Promise<{ content: Array<{ type: "text"; text: string }> }>;
-
-function textResult(text: string) {
-  return { content: [{ type: "text" as const, text }] };
-}
-
-function errorResult(message: string) {
-  return { content: [{ type: "text" as const, text: `❌ שגיאה: ${message}` }], isError: true };
-}
-
-/**
- * Sanitize a customer/lead-controlled string before interpolating it into tool
- * output. Names, notes and requested services can be created by third parties
- * (e.g. leads via the public webhook) — stripping newlines/control chars keeps
- * a hostile value from injecting fake "instructions" lines into the AI client.
- */
-function safeField(value: unknown, maxLen = 120): string {
-  if (value === null || value === undefined) return "";
-  return String(value).replace(/[\r\n\t\u0000-\u001f\u007f]+/g, " ").slice(0, maxLen).trim();
-}
-
-/** Start of the current day in Israel time (Asia/Jerusalem), as a Date. */
-function israelStartOfToday(): Date {
-  const now = new Date();
-  const ymd = now.toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" }); // YYYY-MM-DD
-  return new Date(`${ymd}T00:00:00.000Z`);
-}
-
-/** Format a date for tool output in Israel time. */
-function heDate(d: Date | string, opts: Intl.DateTimeFormatOptions = {}): string {
-  return new Date(d).toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem", ...opts });
-}
+// ─── Tool helpers (shared with tool modules in src/lib/mcp/) ─────────────────
+import { textResult, errorResult, safeField, israelStartOfToday, heDate, parseYmd, findIdempotentReplay, replayResult, dryRunResult, type ToolCtx } from "@/lib/mcp/helpers";
+import { registerIntakeTools, resolveLeadStageByName, israelLocalToIso } from "@/lib/mcp/tools-intake";
+import { registerBoardingTools } from "@/lib/mcp/tools-boarding";
+import { registerBriefingTools } from "@/lib/mcp/tools-briefing";
 
 // ─── Scopes ───────────────────────────────────────────────────────────────────
 
@@ -228,11 +199,26 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
       start_time: z.string().describe("Start time in HH:MM format"),
       duration: z.number().int().min(5).max(480).optional().describe("Duration in minutes (default 60)"),
       notes: z.string().max(2000).optional().describe("Optional notes"),
+      idempotency_key: z.string().max(100).optional().describe("Client-generated key; a retry with the same key returns the original result instead of creating a duplicate"),
+      dry_run: z.boolean().optional().describe("If true, only preview what would be created"),
     },
-    async ({ customer_id, service_id, date, start_time, duration, notes }) => {
+    async ({ customer_id, service_id, date, start_time, duration, notes, idempotency_key, dry_run }) => {
       if (!hasScope("write:appointments")) return denyScope("create_appointment", "write:appointments");
-      const params = { customer_id, service_id, date, start_time, duration, notes };
+      const params = { customer_id, service_id, date, start_time, duration, notes, idempotency_key, dry_run };
       try {
+        const replay = await findIdempotentReplay(connectionId, "create_appointment", idempotency_key);
+        if (replay) return replayResult(replay);
+        if (!parseYmd(date)) throw new ServiceError("תאריך לא תקין — נדרש פורמט YYYY-MM-DD", "VALIDATION");
+        if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(start_time)) throw new ServiceError("שעה לא תקינה — נדרש פורמט HH:MM", "VALIDATION");
+        if (dry_run) {
+          const [cust, svc] = await Promise.all([
+            prisma.customer.findFirst({ where: { id: customer_id, businessId }, select: { name: true } }),
+            prisma.service.findFirst({ where: { id: service_id, businessId }, select: { name: true } }),
+          ]);
+          if (!cust) throw new ServiceError("לקוח לא נמצא", "NOT_FOUND");
+          if (!svc) throw new ServiceError("שירות לא נמצא", "NOT_FOUND");
+          return dryRunResult(`ייקבע תור ל-${safeField(cust.name)} | ${safeField(svc.name, 80)} | ${heDate(`${date}T00:00:00.000Z`)} בשעה ${start_time} | ${duration ?? 60} דק'${notes ? ` | הערות: ${safeField(notes, 200)}` : ""}`);
+        }
         // Enforce the same free-tier appointment cap as the UI route
         const biz = await prisma.business.findUnique({ where: { id: businessId }, select: { tier: true } });
         const maxAppts = getMaxAppointments(normalizeTier(biz?.tier));
@@ -262,8 +248,9 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           pet: appt.pet ? { name: appt.pet.name } : null,
         }).catch((err) => console.error("MCP create_appointment reminder scheduling failed:", err));
 
-        await auditLog(connectionId, "create_appointment", params, "success", `created appointment ${appt.id}`);
-        return textResult(`✅ נקבע תור בהצלחה!\nמזהה: ${appt.id}\nתאריך: ${date} בשעה ${start_time}`);
+        const apptSummary = `✅ נקבע תור בהצלחה!\nלקוח: ${safeField(appt.customer?.name ?? "")}\nשירות: ${safeField(appt.service?.name ?? "", 80)}\nתאריך: ${heDate(appt.date)} בשעה ${appt.startTime} (id: ${appt.id})`;
+        await auditLog(connectionId, "create_appointment", params, "success", `created appointment ${appt.id} — ${apptSummary}`);
+        return textResult(apptSummary);
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה ביצירת תור";
         await auditLog(connectionId, "create_appointment", params, "error", undefined, msg);
@@ -279,14 +266,24 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
     {
       client_id: z.string().describe("Customer ID (from list_clients)"),
       note: z.string().min(1).max(2000).describe("The note to add"),
+      idempotency_key: z.string().max(100).optional().describe("Client-generated key; a retry with the same key returns the original result instead of adding the note twice"),
+      dry_run: z.boolean().optional().describe("If true, only preview what would be added"),
     },
-    async ({ client_id, note }) => {
+    async ({ client_id, note, idempotency_key, dry_run }) => {
       if (!hasScope("write:notes")) return denyScope("add_client_note", "write:notes");
-      const params = { client_id, note };
+      const params = { client_id, note, idempotency_key, dry_run };
       try {
+        const replay = await findIdempotentReplay(connectionId, "add_client_note", idempotency_key);
+        if (replay) return replayResult(replay);
+        if (dry_run) {
+          const cust = await prisma.customer.findFirst({ where: { id: client_id, businessId }, select: { name: true } });
+          if (!cust) throw new ServiceError("לקוח לא נמצא", "NOT_FOUND");
+          return dryRunResult(`תתווסף הערה ללקוח ${safeField(cust.name)} (id: ${client_id}): "${safeField(note, 300)}"`);
+        }
         await addCustomerNote(businessId, prisma, client_id, note);
-        await auditLog(connectionId, "add_client_note", params, "success", `added note to customer ${client_id}`);
-        return textResult(`✅ ההערה נוספה ללקוח בהצלחה.`);
+        const noteSummary = `✅ ההערה נוספה ללקוח בהצלחה (id: ${client_id})`;
+        await auditLog(connectionId, "add_client_note", params, "success", `added note to customer ${client_id} — ${noteSummary}`);
+        return textResult(noteSummary);
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה בהוספת הערה";
         await auditLog(connectionId, "add_client_note", params, "error", undefined, msg);
@@ -368,19 +365,27 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
       notes: z.string().max(5000).optional().describe("Internal notes"),
       tags: z.string().optional().describe("Comma-separated tags (e.g. VIP,dog-owner)"),
       source: z.string().optional().describe("Lead source (e.g. google, referral, instagram)"),
+      idempotency_key: z.string().max(100).optional().describe("Client-generated key; a retry with the same key returns the original result instead of creating a duplicate"),
+      dry_run: z.boolean().optional().describe("If true, only preview what would be created"),
     },
-    async ({ name, phone, email, address, notes, tags, source }) => {
+    async ({ name, phone, email, address, notes, tags, source, idempotency_key, dry_run }) => {
       if (!hasScope("write:clients")) return denyScope("create_client", "write:clients");
-      const params = { name, phone, email, address, notes, tags, source };
+      const params = { name, phone, email, address, notes, tags, source, idempotency_key, dry_run };
       try {
+        const replay = await findIdempotentReplay(connectionId, "create_client", idempotency_key);
+        if (replay) return replayResult(replay);
+        if (dry_run) {
+          return dryRunResult(`ייווצר לקוח: ${safeField(name)} | טלפון: ${safeField(phone, 20)}${email ? ` | ${safeField(email, 60)}` : ""}${address ? ` | ${safeField(address, 100)}` : ""}${tags ? ` | תגיות: ${safeField(tags, 100)}` : ""} | מקור: ${safeField(source ?? "mcp", 40)}`);
+        }
         const customer = await createCustomer(businessId, prisma, {
           name, phone, email: email ?? null, address: address ?? null,
           notes: notes ?? null,
           tags: tags ? JSON.stringify(tags.split(",").map((t) => t.trim()).filter(Boolean)) : undefined,
           source: source ?? "mcp",
         });
-        await auditLog(connectionId, "create_client", params, "success", `created customer ${customer.id}`);
-        return textResult(`✅ לקוח חדש נוצר בהצלחה!\nשם: ${customer.name}\nטלפון: ${customer.phone}\nמזהה: ${customer.id}`);
+        const custSummary = `✅ לקוח חדש נוצר בהצלחה!\nשם: ${safeField(customer.name)}\nטלפון: ${safeField(customer.phone, 20)} (id: ${customer.id})`;
+        await auditLog(connectionId, "create_client", params, "success", `created customer ${customer.id} — ${custSummary}`);
+        return textResult(custSummary);
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה ביצירת לקוח";
         await auditLog(connectionId, "create_client", params, "error", undefined, msg);
@@ -438,30 +443,87 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   // ── create_lead ───────────────────────────────────────────────────────────
   server.tool(
     "create_lead",
-    "Create a new lead (potential client) in the CRM pipeline.",
+    "Create a new lead (potential client) in the CRM pipeline. Call find_duplicate first to avoid duplicates. Optionally set the pipeline stage by name (list_lead_stages), the next follow-up date/time (also creates a linked follow-up task), and pet details (stored in the lead notes). Returns the new lead id; if a client or lead with the same phone already exists it is reported too. Supports idempotency_key (safe retries) and dry_run (preview only).",
     {
       name: z.string().min(2).describe("Full name of the lead"),
       phone: z.string().optional().describe("Israeli phone number"),
       email: z.string().email().optional().describe("Email address"),
       requested_service: z.string().optional().describe("What service they are interested in"),
-      source: z.string().optional().describe("Lead source (e.g. google, facebook, referral)"),
+      source: z.string().optional().describe("Lead source (e.g. whatsapp, google, facebook, referral)"),
       city: z.string().optional().describe("City of the lead"),
-      notes: z.string().max(5000).optional().describe("Internal notes"),
+      notes: z.string().max(4000).optional().describe("Internal notes"),
+      stage_name: z.string().max(100).optional().describe("Pipeline stage name, case-insensitive (see list_lead_stages). Default: the business's first stage"),
+      next_follow_up: z.string().optional().describe("Next follow-up date YYYY-MM-DD (creates a follow-up task)"),
+      follow_up_time: z.string().optional().describe("Follow-up time HH:MM Israel time (default 09:00; requires next_follow_up)"),
+      pet_name: z.string().max(100).optional().describe("Pet name"),
+      pet_breed: z.string().max(100).optional().describe("Pet breed"),
+      pet_age: z.string().max(50).optional().describe("Pet age (free text, e.g. '4 חודשים')"),
+      pet_notes: z.string().max(1000).optional().describe("Pet notes (behaviour, issue described by the lead)"),
+      idempotency_key: z.string().max(100).optional().describe("Client-generated key; a retry with the same key returns the original result instead of creating a duplicate"),
+      dry_run: z.boolean().optional().describe("If true, only preview what would be created"),
     },
-    async ({ name, phone, email, requested_service, source, city, notes }) => {
+    async ({ name, phone, email, requested_service, source, city, notes, stage_name, next_follow_up, follow_up_time, pet_name, pet_breed, pet_age, pet_notes, idempotency_key, dry_run }) => {
       if (!hasScope("write:leads")) return denyScope("create_lead", "write:leads");
-      const params = { name, phone, email, requested_service, source, city, notes };
+      const params = { name, phone, email, requested_service, source, city, notes, stage_name, next_follow_up, follow_up_time, pet_name, pet_breed, pet_age, pet_notes, idempotency_key, dry_run };
       try {
+        const replay = await findIdempotentReplay(connectionId, "create_lead", idempotency_key);
+        if (replay) return replayResult(replay);
+
+        // Stage by name (service default when omitted)
+        const stage = stage_name ? await resolveLeadStageByName(businessId, stage_name) : null;
+
+        // Follow-up (Israel-local wall time → UTC instant)
+        let followUpIso: string | null = null;
+        let followUpLabel = "";
+        if (next_follow_up !== undefined || follow_up_time !== undefined) {
+          const ymd = parseYmd(next_follow_up);
+          if (!ymd) throw new ServiceError("next_follow_up: תאריך לא תקין — נדרש פורמט YYYY-MM-DD", "VALIDATION");
+          const time = follow_up_time ?? "09:00";
+          if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new ServiceError("follow_up_time: שעה לא תקינה — נדרש פורמט HH:MM", "VALIDATION");
+          followUpIso = israelLocalToIso(ymd, time);
+          followUpLabel = `${heDate(`${ymd}T00:00:00.000Z`)} ${time}`;
+        }
+
+        // Pet details → folded into notes (CreateLeadInput has no pet fields)
+        const petBits: string[] = [];
+        if (pet_name) petBits.push(`שם: ${pet_name.trim()}`);
+        if (pet_breed) petBits.push(`גזע: ${pet_breed.trim()}`);
+        if (pet_age) petBits.push(`גיל: ${pet_age.trim()}`);
+        if (pet_notes) petBits.push(`הערות: ${pet_notes.trim()}`);
+        const petBlock = petBits.length ? `🐾 פרטי הכלב:\n${petBits.join("\n")}` : "";
+        const combinedNotes = [notes?.trim(), petBlock].filter(Boolean).join("\n\n") || null;
+
+        if (dry_run) {
+          return dryRunResult(
+            `ייווצר ליד: ${safeField(name)}${phone ? ` | ${safeField(phone, 20)}` : ""}${email ? ` | ${safeField(email, 60)}` : ""}${city ? ` | ${safeField(city, 60)}` : ""}${requested_service ? ` | שירות: ${safeField(requested_service, 80)}` : ""} | מקור: ${safeField(source ?? "mcp", 40)}` +
+            `\nשלב: ${stage ? safeField(stage.name, 60) : "ברירת מחדל של העסק"}` +
+            (followUpLabel ? `\nמעקב הבא: ${followUpLabel} (תיווצר משימת מעקב)` : "") +
+            (petBlock ? `\n${safeField(petBlock.replace(/\n/g, " | "), 300)}` : "") +
+            (notes ? `\nהערות: ${safeField(notes, 200)}` : "")
+          );
+        }
+
         const result = await createLead(businessId, prisma, {
           name, phone: phone ?? null, email: email ?? null,
           requestedService: requested_service ?? null,
           source: source ?? "mcp",
           city: city ?? null,
-          notes: notes ?? null,
+          notes: combinedNotes,
+          stage: stage?.id,
         });
-        const lead = result.lead;
-        await auditLog(connectionId, "create_lead", params, "success", `created lead ${lead.id}`);
-        return textResult(`✅ ליד חדש נוצר בהצלחה!\nשם: ${lead.name}${lead.phone ? `\nטלפון: ${lead.phone}` : ""}\nמזהה: ${lead.id}`);
+        let lead = result.lead;
+        if (followUpIso) {
+          // updateLead also creates the linked follow-up Task (category LEADS)
+          lead = await updateLead(businessId, prisma, lead.id, { nextFollowUpAt: followUpIso, followUpStatus: "pending" });
+        }
+        const dupNote = result.existingCustomer
+          ? `\n⚠️ שים לב: קיים לקוח עם אותו טלפון — ${safeField(result.existingCustomer.name)} (id: ${result.existingCustomer.id})`
+          : result.duplicateLead
+            ? `\n⚠️ שים לב: קיים ליד קודם עם אותו טלפון — ${safeField(result.duplicateLead.name)} (id: ${result.duplicateLead.id})`
+            : "";
+        const leadSummary = `✅ ליד חדש נוצר בהצלחה!\nשם: ${safeField(lead.name)}${lead.phone ? `\nטלפון: ${safeField(lead.phone, 20)}` : ""}${stage ? `\nשלב: ${safeField(stage.name, 60)}` : ""}${followUpLabel ? `\nמעקב הבא: ${followUpLabel}` : ""}${petBlock ? "\n🐾 פרטי הכלב נשמרו בהערות" : ""} (id: ${lead.id})${dupNote}`;
+        await auditLog(connectionId, "create_lead", params, "success", `created lead ${lead.id} — ${leadSummary}`);
+        return textResult(leadSummary);
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה ביצירת ליד";
         await auditLog(connectionId, "create_lead", params, "error", undefined, msg);
@@ -515,11 +577,21 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
       unit_price: z.number().min(0).describe("Price per unit in ILS"),
       notes: z.string().max(2000).optional().describe("Optional notes on the order"),
       status: z.enum(["draft", "confirmed"]).optional().describe("Initial status (default: draft)"),
+      idempotency_key: z.string().max(100).optional().describe("Client-generated key; a retry with the same key returns the original result instead of creating a duplicate"),
+      dry_run: z.boolean().optional().describe("If true, only preview what would be created"),
     },
-    async ({ customer_id, item_name, quantity, unit_price, notes, status }) => {
+    async ({ customer_id, item_name, quantity, unit_price, notes, status, idempotency_key, dry_run }) => {
       if (!hasScope("write:orders")) return denyScope("create_order", "write:orders");
-      const params = { customer_id, item_name, quantity, unit_price, notes, status };
+      const params = { customer_id, item_name, quantity, unit_price, notes, status, idempotency_key, dry_run };
       try {
+        const replay = await findIdempotentReplay(connectionId, "create_order", idempotency_key);
+        if (replay) return replayResult(replay);
+        if (dry_run) {
+          const cust = await prisma.customer.findFirst({ where: { id: customer_id, businessId }, select: { name: true } });
+          if (!cust) throw new ServiceError("לקוח לא נמצא", "NOT_FOUND");
+          const previewTotal = ((quantity ?? 1) * unit_price).toLocaleString("he-IL");
+          return dryRunResult(`תיווצר הזמנה ללקוח ${safeField(cust.name)} (id: ${customer_id}): ${safeField(item_name, 100)} × ${quantity ?? 1} | ₪${previewTotal} | סטטוס: ${status ?? "draft"}${notes ? ` | הערות: ${safeField(notes, 200)}` : ""}`);
+        }
         const result = await createOrder(businessId, prisma, {
           customerId: customer_id,
           status: status ?? "draft",
@@ -533,8 +605,9 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         });
         const order = result.order;
         const total = ((quantity ?? 1) * unit_price).toLocaleString("he-IL");
-        await auditLog(connectionId, "create_order", params, "success", `created order ${order.id}`);
-        return textResult(`✅ הזמנה נוצרה בהצלחה!\nמזהה: ${order.id}\nסכום: ₪${total}\nסטטוס: ${order.status}`);
+        const orderSummary = `✅ הזמנה נוצרה בהצלחה!\nסכום: ₪${total}\nסטטוס: ${order.status} (id: ${order.id})`;
+        await auditLog(connectionId, "create_order", params, "success", `created order ${order.id} — ${orderSummary}`);
+        return textResult(orderSummary);
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה ביצירת הזמנה";
         await auditLog(connectionId, "create_order", params, "error", undefined, msg);
@@ -868,6 +941,12 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
       }
     }
   );
+
+  // ── Package modules (intake / boarding / briefing) ────────────────────────
+  const ctx: ToolCtx = { businessId, connectionId, hasScope, denyScope };
+  registerIntakeTools(server, ctx);
+  registerBoardingTools(server, ctx);
+  registerBriefingTools(server, ctx);
 
   return server;
 }
