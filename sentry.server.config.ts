@@ -6,6 +6,10 @@ Sentry.init({
   // Don't send errors in development
   beforeSend(event) {
     if (process.env.NODE_ENV === "development") return null;
+    // Never ship MCP path tokens (/api/mcp/u/<token>) to Sentry
+    if (event.request?.url) {
+      event.request.url = event.request.url.replace(/petra_mcp_[0-9a-f]{64}/g, "petra_mcp_[redacted]");
+    }
     return event;
   },
 

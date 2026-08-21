@@ -51,7 +51,7 @@ export interface McpAuthResult {
  * Validate a bearer token from an MCP request.
  * Returns the auth result, or null if invalid/revoked.
  */
-export async function validateMcpToken(raw: string): Promise<McpAuthResult | null> {
+export async function validateMcpToken(raw: string, opts: { touch?: boolean } = {}): Promise<McpAuthResult | null> {
   if (!raw || !raw.startsWith(TOKEN_PREFIX)) return null;
 
   const hash = hashToken(raw);
@@ -65,18 +65,24 @@ export async function validateMcpToken(raw: string): Promise<McpAuthResult | nul
   // Private beta gate: tokens of non-allowlisted businesses are inert.
   if (!(await isMcpAllowedBusiness(conn.businessId))) return null;
 
-  // Awaited — fire-and-forget promises get killed on Vercel and lastUsedAt
-  // feeds the stale-token review in the connections UI.
-  await prisma.mcpConnection.update({
-    where: { id: conn.id },
-    data: { lastUsedAt: new Date() },
-  }).catch(() => {});
+  // lastUsedAt feeds the stale-token review in the connections UI. Callers that
+  // rate-limit should pass touch:false and call touchMcpConnection() after the
+  // limiter, so an over-limit token doesn't cost a write per request.
+  if (opts.touch !== false) await touchMcpConnection(conn.id);
 
   return {
     connectionId: conn.id,
     businessId: conn.businessId,
     scopes: conn.scopes,
   };
+}
+
+/** Record that a connection was used (awaited — Vercel kills stray promises). */
+export async function touchMcpConnection(connectionId: string): Promise<void> {
+  await prisma.mcpConnection.update({
+    where: { id: connectionId },
+    data: { lastUsedAt: new Date() },
+  }).catch(() => {});
 }
 
 /**

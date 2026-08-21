@@ -18,6 +18,11 @@ const DEFAULT_ALLOWED_EMAILS = [
 
 const TEST_EMAIL_SUFFIX = "@petra.local";
 
+/** Internal QA accounts (server-seeded only — self-registration with this suffix is blocked). */
+export function isInternalTestEmail(email: string | null | undefined): boolean {
+  return !!email && email.trim().toLowerCase().endsWith(TEST_EMAIL_SUFFIX);
+}
+
 /** Session-level gate: platform admins OR allowlisted email. Use for UI + connection APIs. */
 export function isMcpAllowedUser(email: string | null | undefined, platformRole: string | null | undefined): boolean {
   if (platformRole === "super_admin" || platformRole === "admin") return true;

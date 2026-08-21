@@ -15,7 +15,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { z } from "zod";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
-import { validateMcpToken, extractBearerToken, auditLog, DEFAULT_MCP_SCOPES } from "@/lib/mcp-auth";
+import { validateMcpToken, touchMcpConnection, extractBearerToken, auditLog, DEFAULT_MCP_SCOPES } from "@/lib/mcp-auth";
 import { rateLimitAsync } from "@/lib/rate-limit";
 import { listCustomers, getCustomer, addCustomerNote, createCustomer, listLeads, createLead, listTasks } from "@/services/clients";
 import { listAppointments, createAppointment, updateAppointment, deleteAppointment } from "@/services/appointments";
@@ -346,7 +346,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           return errorResult("שגיאה בשליחת הודעת WhatsApp");
         }
 
-        await auditLog(connectionId, "send_reminder", params, "success", `sent reminder to ${appt.customer.name}`);
+        await auditLog(connectionId, "send_reminder", params, "success", `sent reminder for appointment ${appointment_id}`);
         return textResult(`✅ תזכורת נשלחה ל${safeField(appt.customer.name)} (${safeField(appt.customer.phone, 20)})`);
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה בשליחת תזכורת";
@@ -929,7 +929,7 @@ export async function handleMcpRequest(request: NextRequest, tokenFromPath?: str
   // Validate bearer token. Path-based token (URL connector flow) takes precedence,
   // otherwise fall back to the Authorization header (recommended flow).
   const token = tokenFromPath ?? extractBearerToken(request.headers.get("authorization"));
-  const auth = token ? await validateMcpToken(token) : null;
+  const auth = token ? await validateMcpToken(token, { touch: false }) : null;
 
   if (!auth) {
     // Brute-force protection: rate-limit failed auth attempts per IP.
@@ -964,6 +964,7 @@ export async function handleMcpRequest(request: NextRequest, tokenFromPath?: str
     );
     return rateLimitResponse(limited.retryAfterMs);
   }
+  await touchMcpConnection(auth.connectionId);
 
   const server = buildServer(auth.businessId, auth.connectionId, auth.scopes);
 

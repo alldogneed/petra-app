@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { generateMcpToken, DEFAULT_MCP_SCOPES } from "@/lib/mcp-auth";
-import { isMcpAllowedUser } from "@/lib/mcp-allowlist";
+import { isMcpAllowedUser, isMcpAllowedBusiness, isInternalTestEmail } from "@/lib/mcp-allowlist";
+import { normalizeTier } from "@/lib/feature-flags";
 
 /** GET /api/mcp/connections — list all MCP connections for the business */
 export async function GET(request: NextRequest) {
@@ -52,6 +53,24 @@ export async function POST(request: NextRequest) {
     const isPlatformAdmin = ["super_admin", "admin"].includes(authResult.session.user.platformRole ?? "");
     if (!isPlatformAdmin && membershipRole !== "owner" && membershipRole !== "manager") {
       return NextResponse.json({ error: "אין לך הרשאה ליצור חיבור AI" }, { status: 403 });
+    }
+
+    // Server-side paywall (the UI PaywallCard alone is bypassable via curl):
+    // MCP is basic+ — free-tier businesses can't mint tokens. Platform admins and
+    // internal @petra.local QA accounts (seeded server-side) are exempt.
+    const business = await prisma.business.findUnique({
+      where: { id: authResult.businessId },
+      select: { tier: true },
+    });
+    const isInternalQa = isInternalTestEmail(authResult.session.user.email);
+    if (!isPlatformAdmin && !isInternalQa && normalizeTier(business?.tier) === "free") {
+      return NextResponse.json({ error: "חיבור עוזרי AI זמין במנוי בייסיק ומעלה" }, { status: 403 });
+    }
+
+    // A token only works if the business itself passes the allowlist (e.g. an
+    // admin impersonating a non-beta business would otherwise mint an inert token).
+    if (!(await isMcpAllowedBusiness(authResult.businessId))) {
+      return NextResponse.json({ error: "העסק הזה אינו בבטא של עוזרי AI" }, { status: 403 });
     }
 
     const body = await request.json();
