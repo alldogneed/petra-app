@@ -332,7 +332,8 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
           relatedEntityId,
         });
 
-        const summary = `✅ משימה נוצרה: "${safeField(task.title, 200)}" | ${CATEGORY_HE[task.category] ?? task.category} | עדיפות ${PRIORITY_HE[task.priority] ?? task.priority} | יעד: ${dueLabel}${relatedLabel ? ` | ${relatedLabel}` : ""} (id: ${task.id})`;
+        // Task id first — related-entity labels also carry "(id: …)" and clients grab the first one.
+        const summary = `✅ משימה נוצרה (id: ${task.id}): "${safeField(task.title, 200)}" | ${CATEGORY_HE[task.category] ?? task.category} | עדיפות ${PRIORITY_HE[task.priority] ?? task.priority} | יעד: ${dueLabel}${relatedLabel ? ` | ${relatedLabel}` : ""}`;
         await auditLog(connectionId, "create_task", params, "success", `created task ${task.id}`);
         return textResult(summary);
       } catch (e) {
