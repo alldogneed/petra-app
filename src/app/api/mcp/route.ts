@@ -29,6 +29,7 @@ import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { hasFeatureWithOverrides, getMaxAppointments, normalizeTier } from "@/lib/feature-flags";
 import { scheduleAppointmentReminder, rescheduleAppointmentReminder, cancelAppointmentReminders } from "@/lib/reminder-service";
+import { syncAppointmentToGcal, deleteAppointmentFromGcal, findConnectedUsersForBusiness } from "@/lib/google-calendar";
 
 // ─── Tool helpers (shared with tool modules in src/lib/mcp/) ─────────────────
 import { textResult, errorResult, safeField, israelStartOfToday, heDate, parseYmd, findIdempotentReplay, replayResult, dryRunResult, type ToolCtx } from "@/lib/mcp/helpers";
@@ -38,6 +39,7 @@ import { registerBriefingTools } from "@/lib/mcp/tools-briefing";
 import { registerPetsTools } from "@/lib/mcp/tools-pets";
 import { registerTrainingTools } from "@/lib/mcp/tools-training";
 import { registerFinanceTools } from "@/lib/mcp/tools-finance";
+import { registerCalendarTools, findAppointmentConflicts } from "@/lib/mcp/tools-calendar";
 
 // ─── Scopes ───────────────────────────────────────────────────────────────────
 
@@ -202,10 +204,24 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
     }
   );
 
+  // ── Appointment conflict helpers (shared by create/update_appointment) ──
+  type ApptConflicts = Awaited<ReturnType<typeof findAppointmentConflicts>>;
+  const heTime = (d: Date | string) => heDate(d, { hour: "2-digit", minute: "2-digit" });
+  const describeConflicts = (c: ApptConflicts): string => {
+    const lines: string[] = [];
+    for (const a of c.appointments) lines.push(`• תור ${a.startTime}-${a.endTime} — ${safeField(a.customerName)} (id: ${a.id})`);
+    for (const b of c.blocks) lines.push(`• חסימה ${heTime(b.startAt)} – ${heTime(b.endAt)}${b.reason ? ` — ${safeField(b.reason, 80)}` : ""} (id: ${b.id})`);
+    return lines.join("\n");
+  };
+  const hasHardConflict = (c: ApptConflicts) => c.appointments.length > 0 || c.blocks.length > 0;
+  const outsideHoursLine = (c: ApptConflicts) => (c.outsideHours ? `\n⚠️ מחוץ לשעות הפעילות${c.openHours ? ` (${c.openHours})` : ""}` : "");
+  const conflictRefusal = (c: ApptConflicts) =>
+    new ServiceError(`⛔ התנגשות ביומן — המועד תפוס:\n${describeConflicts(c)}\nכדי לקבוע בכל זאת, קרא שוב עם force=true.`, "CONFLICT");
+
   // ── create_appointment ────────────────────────────────────────────────────
   server.tool(
     "create_appointment",
-    "Create a new appointment. Requires customer ID and service ID. Use list_clients to find customer IDs and list_services to find service IDs.",
+    "Create a new appointment. Requires customer ID and service ID. Use list_clients to find customer IDs and list_services to find service IDs. Checks the calendar for conflicts (overlapping appointments / calendar blocks) and refuses unless force=true; warns (but does not refuse) when the slot is outside business opening hours. Syncs to Google Calendar when connected, like the UI.",
     {
       customer_id: z.string().describe("Customer ID (from list_clients)"),
       service_id: z.string().describe("Service ID"),
@@ -213,17 +229,26 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
       start_time: z.string().describe("Start time in HH:MM format"),
       duration: z.number().int().min(5).max(480).optional().describe("Duration in minutes (default 60)"),
       notes: z.string().max(2000).optional().describe("Optional notes"),
+      force: z.boolean().optional().describe("Override conflict check — create even if the slot overlaps an existing appointment or calendar block"),
       idempotency_key: z.string().max(100).optional().describe("Client-generated key; a retry with the same key returns the original result instead of creating a duplicate"),
-      dry_run: z.boolean().optional().describe("If true, only preview what would be created"),
+      dry_run: z.boolean().optional().describe("If true, only preview what would be created (includes the conflict-check result)"),
     },
-    async ({ customer_id, service_id, date, start_time, duration, notes, idempotency_key, dry_run }) => {
+    async ({ customer_id, service_id, date, start_time, duration, notes, force, idempotency_key, dry_run }) => {
       if (!hasScope("write:appointments")) return denyScope("create_appointment", "write:appointments");
-      const params = { customer_id, service_id, date, start_time, duration, notes, idempotency_key, dry_run };
+      const params = { customer_id, service_id, date, start_time, duration, notes, force, idempotency_key, dry_run };
       try {
         const replay = await findIdempotentReplay(connectionId, "create_appointment", idempotency_key);
         if (replay) return replayResult(replay);
         if (!parseYmd(date)) throw new ServiceError("תאריך לא תקין — נדרש פורמט YYYY-MM-DD", "VALIDATION");
         if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(start_time)) throw new ServiceError("שעה לא תקינה — נדרש פורמט HH:MM", "VALIDATION");
+        // Compute endTime from startTime + duration
+        const durationMins = duration ?? 60;
+        const [h, m] = start_time.split(":").map(Number);
+        const totalMins = (h * 60 + m + durationMins) % (24 * 60);
+        const endTime = `${String(Math.floor(totalMins / 60)).padStart(2, "0")}:${String(totalMins % 60).padStart(2, "0")}`;
+
+        // Conflict check (same data the UI scheduler shows): overlapping appointments + calendar blocks + opening hours
+        const conflicts = await findAppointmentConflicts(businessId, date, start_time, endTime);
         if (dry_run) {
           const [cust, svc] = await Promise.all([
             prisma.customer.findFirst({ where: { id: customer_id, businessId }, select: { name: true } }),
@@ -231,16 +256,16 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           ]);
           if (!cust) throw new ServiceError("לקוח לא נמצא", "NOT_FOUND");
           if (!svc) throw new ServiceError("שירות לא נמצא", "NOT_FOUND");
-          return dryRunResult(`ייקבע תור ל-${safeField(cust.name)} | ${safeField(svc.name, 80)} | ${heDate(`${date}T00:00:00.000Z`)} בשעה ${start_time} | ${duration ?? 60} דק'${notes ? ` | הערות: ${safeField(notes, 200)}` : ""}`);
+          const conflictPreview = hasHardConflict(conflicts)
+            ? `\n⛔ התנגשות ביומן${force ? " (force=true — ייקבע בכל זאת)" : " — הקריאה האמיתית תידחה ללא force=true"}:\n${describeConflicts(conflicts)}`
+            : "\n✔ אין התנגשות ביומן";
+          return dryRunResult(`ייקבע תור ל-${safeField(cust.name)} | ${safeField(svc.name, 80)} | ${heDate(`${date}T00:00:00.000Z`)} בשעה ${start_time}-${endTime} | ${durationMins} דק'${notes ? ` | הערות: ${safeField(notes, 200)}` : ""}${conflictPreview}${outsideHoursLine(conflicts)}`);
         }
+        if (hasHardConflict(conflicts) && !force) throw conflictRefusal(conflicts);
+
         // Enforce the same free-tier appointment cap as the UI route
         const biz = await prisma.business.findUnique({ where: { id: businessId }, select: { tier: true } });
         const maxAppts = getMaxAppointments(normalizeTier(biz?.tier));
-        // Compute endTime from startTime + duration
-        const durationMins = duration ?? 60;
-        const [h, m] = start_time.split(":").map(Number);
-        const totalMins = (h * 60 + m + durationMins) % (24 * 60);
-        const endTime = `${String(Math.floor(totalMins / 60)).padStart(2, "0")}:${String(totalMins % 60).padStart(2, "0")}`;
 
         const appt = await createAppointment(businessId, prisma, {
           customerId: customer_id,
@@ -261,8 +286,13 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           customer: { name: appt.customer?.name ?? "לקוח" },
           pet: appt.pet ? { name: appt.pet.name } : null,
         }).catch((err) => console.error("MCP create_appointment reminder scheduling failed:", err));
+        // GCal sync — same as POST /api/appointments (no-op when no calendar is connected)
+        await syncAppointmentToGcal(appt.id, businessId).catch((err) =>
+          console.error("MCP create_appointment GCal sync failed:", err)
+        );
+        const gcalSynced = (await findConnectedUsersForBusiness(businessId)).some((u) => u.gcalSyncEnabled);
 
-        const apptSummary = `✅ נקבע תור בהצלחה!\nלקוח: ${safeField(appt.customer?.name ?? "")}\nשירות: ${safeField(appt.service?.name ?? "", 80)}\nתאריך: ${heDate(appt.date)} בשעה ${appt.startTime} (id: ${appt.id})`;
+        const apptSummary = `✅ נקבע תור בהצלחה!\nלקוח: ${safeField(appt.customer?.name ?? "")}\nשירות: ${safeField(appt.service?.name ?? "", 80)}\nתאריך: ${heDate(appt.date)} בשעה ${appt.startTime}-${appt.endTime} (id: ${appt.id})${hasHardConflict(conflicts) ? `\n⚠️ נקבע למרות התנגשות (force=true):\n${describeConflicts(conflicts)}` : ""}${outsideHoursLine(conflicts)}${gcalSynced ? "\n📅 סונכרן ליומן Google" : ""}`;
         await auditLog(connectionId, "create_appointment", params, "success", `created appointment ${appt.id}`);
         return textResult(apptSummary);
       } catch (e) {
@@ -640,7 +670,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   // ── update_appointment ────────────────────────────────────────────────────
   server.tool(
     "update_appointment",
-    "Update an existing appointment — change date, time, status or notes. Use list_upcoming_appointments to find appointment IDs.",
+    "Update an existing appointment — change date, time, status or notes. Use list_upcoming_appointments to find appointment IDs. When date/time change, the new slot is conflict-checked (overlapping appointments / calendar blocks, excluding this appointment) and refused unless force=true; outside-opening-hours only warns. Keeps WhatsApp reminders and Google Calendar in sync like the UI.",
     {
       appointment_id: z.string().describe("Appointment ID"),
       date: z.string().optional().describe("New date in YYYY-MM-DD format"),
@@ -648,11 +678,54 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
       end_time: z.string().optional().describe("New end time in HH:MM format"),
       status: z.enum(["scheduled", "completed", "canceled"]).optional().describe("New status"),
       notes: z.string().max(2000).optional().describe("Updated notes"),
+      force: z.boolean().optional().describe("Override conflict check — apply the new date/time even if it overlaps an existing appointment or calendar block"),
+      idempotency_key: z.string().max(100).optional().describe("Client-generated key; a retry with the same key returns the original result instead of applying the update twice"),
+      dry_run: z.boolean().optional().describe("If true, only preview the change (includes the conflict-check result)"),
     },
-    async ({ appointment_id, date, start_time, end_time, status, notes }) => {
+    async ({ appointment_id, date, start_time, end_time, status, notes, force, idempotency_key, dry_run }) => {
       if (!hasScope("write:appointments")) return denyScope("update_appointment", "write:appointments");
-      const params = { appointment_id, date, start_time, end_time, status, notes };
+      const params = { appointment_id, date, start_time, end_time, status, notes, force, idempotency_key, dry_run };
       try {
+        const replay = await findIdempotentReplay(connectionId, "update_appointment", idempotency_key);
+        if (replay) return replayResult(replay);
+        if (date !== undefined && !parseYmd(date)) throw new ServiceError("תאריך לא תקין — נדרש פורמט YYYY-MM-DD", "VALIDATION");
+        const hhmm = /^([01]\d|2[0-3]):[0-5]\d$/;
+        if (start_time !== undefined && !hhmm.test(start_time)) throw new ServiceError("שעת התחלה לא תקינה — נדרש פורמט HH:MM", "VALIDATION");
+        if (end_time !== undefined && !hhmm.test(end_time)) throw new ServiceError("שעת סיום לא תקינה — נדרש פורמט HH:MM", "VALIDATION");
+        if (date === undefined && start_time === undefined && end_time === undefined && status === undefined && notes === undefined) {
+          throw new ServiceError("לא צוין שום שדה לעדכון", "VALIDATION");
+        }
+
+        const existing = await prisma.appointment.findFirst({
+          where: { id: appointment_id, businessId },
+          select: { id: true, date: true, startTime: true, endTime: true, status: true, customer: { select: { name: true } }, service: { select: { name: true } } },
+        });
+        if (!existing) throw new ServiceError("תור לא נמצא", "NOT_FOUND");
+
+        // Conflict check only when the slot actually moves; exclude this appointment itself
+        const slotChanged = date !== undefined || start_time !== undefined || end_time !== undefined;
+        const newDate = date ?? existing.date.toISOString().slice(0, 10);
+        const newStart = start_time ?? existing.startTime;
+        const newEnd = end_time ?? existing.endTime;
+        if (slotChanged && newStart >= newEnd) throw new ServiceError("שעת הסיום חייבת להיות אחרי שעת ההתחלה", "VALIDATION");
+        const conflicts = slotChanged && status !== "canceled"
+          ? await findAppointmentConflicts(businessId, newDate, newStart, newEnd, appointment_id)
+          : null;
+
+        if (dry_run) {
+          const changes: string[] = [];
+          if (slotChanged) changes.push(`מועד: ${heDate(existing.date)} ${existing.startTime}-${existing.endTime} → ${heDate(`${newDate}T00:00:00.000Z`)} ${newStart}-${newEnd}`);
+          if (status !== undefined) changes.push(`סטטוס: ${existing.status} → ${status}`);
+          if (notes !== undefined) changes.push(`הערות: ${safeField(notes, 200)}`);
+          const conflictPreview = conflicts
+            ? hasHardConflict(conflicts)
+              ? `\n⛔ התנגשות ביומן${force ? " (force=true — יעודכן בכל זאת)" : " — הקריאה האמיתית תידחה ללא force=true"}:\n${describeConflicts(conflicts)}`
+              : "\n✔ אין התנגשות ביומן"
+            : "";
+          return dryRunResult(`יעודכן תור של ${safeField(existing.customer?.name ?? "")} | ${safeField(existing.service?.name ?? "", 80)} (id: ${existing.id}):\n${changes.join("\n")}${conflictPreview}${conflicts ? outsideHoursLine(conflicts) : ""}`);
+        }
+        if (conflicts && hasHardConflict(conflicts) && !force) throw conflictRefusal(conflicts);
+
         const appt = await updateAppointment(businessId, prisma, appointment_id, {
           date: date ?? undefined,
           startTime: start_time ?? undefined,
@@ -661,7 +734,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           notes: notes !== undefined ? notes : undefined,
         });
         // Keep the WhatsApp reminder in sync (awaited — Vercel kills stray promises)
-        if (status === "canceled") {
+        if (status === "canceled" || status === "completed") {
           await cancelAppointmentReminders(appt.id).catch((err) =>
             console.error("MCP update_appointment reminder cancel failed:", err)
           );
@@ -672,14 +745,25 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
             customerId: appt.customerId,
             date: appt.date,
             startTime: appt.startTime,
-            service: { name: appt.service?.name ?? "תור" },
+            service: { name: appt.service?.name ?? appt.priceListItem?.name ?? "תור" },
             customer: { name: appt.customer?.name ?? "לקוח" },
             pet: appt.pet ? { name: appt.pet.name } : null,
           }).catch((err) => console.error("MCP update_appointment reminder reschedule failed:", err));
         }
+        // GCal — mirror PATCH /api/appointments/[id] (no-op when no calendar is connected)
+        if (status === "canceled") {
+          await deleteAppointmentFromGcal(appt.id, businessId).catch((err) =>
+            console.error("MCP update_appointment GCal delete failed:", err)
+          );
+        } else {
+          await syncAppointmentToGcal(appt.id, businessId).catch((err) =>
+            console.error("MCP update_appointment GCal sync failed:", err)
+          );
+        }
+        const gcalSynced = (await findConnectedUsersForBusiness(businessId)).some((u) => u.gcalSyncEnabled);
 
         await auditLog(connectionId, "update_appointment", params, "success", `updated appointment ${appointment_id}`);
-        return textResult(`✅ תור עודכן בהצלחה!\nמזהה: ${appt.id}\nתאריך: ${appt.date}${appt.startTime ? ` בשעה ${appt.startTime}` : ""}\nסטטוס: ${appt.status}`);
+        return textResult(`✅ תור עודכן בהצלחה! (id: ${appt.id})\nתאריך: ${heDate(appt.date)} בשעה ${appt.startTime}-${appt.endTime}\nסטטוס: ${appt.status}${conflicts && hasHardConflict(conflicts) ? `\n⚠️ עודכן למרות התנגשות (force=true):\n${describeConflicts(conflicts)}` : ""}${conflicts ? outsideHoursLine(conflicts) : ""}${gcalSynced ? (status === "canceled" ? "\n📅 הוסר מיומן Google" : "\n📅 סונכרן ליומן Google") : ""}`);
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה בעדכון תור";
         await auditLog(connectionId, "update_appointment", params, "error", undefined, msg);
@@ -691,24 +775,42 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   // ── cancel_appointment ────────────────────────────────────────────────────
   server.tool(
     "cancel_appointment",
-    "Cancel an existing appointment. Use list_upcoming_appointments to find appointment IDs.",
+    "Cancel an existing appointment. Use list_upcoming_appointments to find appointment IDs. Cancels pending WhatsApp reminders and removes the event from Google Calendar when connected, like the UI.",
     {
       appointment_id: z.string().describe("Appointment ID to cancel"),
       reason: z.string().max(500).optional().describe("Reason for cancellation"),
+      idempotency_key: z.string().max(100).optional().describe("Client-generated key; a retry with the same key returns the original result"),
+      dry_run: z.boolean().optional().describe("If true, only preview what would be cancelled"),
     },
-    async ({ appointment_id, reason }) => {
+    async ({ appointment_id, reason, idempotency_key, dry_run }) => {
       if (!hasScope("write:appointments")) return denyScope("cancel_appointment", "write:appointments");
-      const params = { appointment_id, reason };
+      const params = { appointment_id, reason, idempotency_key, dry_run };
       try {
-        await updateAppointment(businessId, prisma, appointment_id, {
+        const replay = await findIdempotentReplay(connectionId, "cancel_appointment", idempotency_key);
+        if (replay) return replayResult(replay);
+        if (dry_run) {
+          const existing = await prisma.appointment.findFirst({
+            where: { id: appointment_id, businessId },
+            select: { id: true, date: true, startTime: true, endTime: true, status: true, customer: { select: { name: true } }, service: { select: { name: true } } },
+          });
+          if (!existing) throw new ServiceError("תור לא נמצא", "NOT_FOUND");
+          if (existing.status === "canceled") return dryRunResult(`התור כבר מבוטל (id: ${existing.id}) — לא יבוצע שינוי.`);
+          return dryRunResult(`יבוטל תור של ${safeField(existing.customer?.name ?? "")} | ${safeField(existing.service?.name ?? "", 80)} | ${heDate(existing.date)} ${existing.startTime}-${existing.endTime} (id: ${existing.id})${reason ? `\nסיבה: ${safeField(reason, 200)}` : ""}`);
+        }
+        const appt = await updateAppointment(businessId, prisma, appointment_id, {
           status: "canceled",
           cancellationNote: reason ?? null,
         });
         await cancelAppointmentReminders(appointment_id).catch((err) =>
           console.error("MCP cancel_appointment reminder cancel failed:", err)
         );
+        // GCal — mirror PATCH(status=canceled) / DELETE /api/appointments/[id]
+        await deleteAppointmentFromGcal(appointment_id, businessId).catch((err) =>
+          console.error("MCP cancel_appointment GCal delete failed:", err)
+        );
+        const gcalSynced = (await findConnectedUsersForBusiness(businessId)).some((u) => u.gcalSyncEnabled);
         await auditLog(connectionId, "cancel_appointment", params, "success", `cancelled appointment ${appointment_id}`);
-        return textResult(`✅ תור בוטל בהצלחה.${reason ? `\nסיבה: ${reason}` : ""}`);
+        return textResult(`✅ תור בוטל בהצלחה. (id: ${appt.id})\nתאריך: ${heDate(appt.date)} בשעה ${appt.startTime}${reason ? `\nסיבה: ${safeField(reason, 200)}` : ""}${gcalSynced ? "\n📅 הוסר מיומן Google" : ""}`);
       } catch (e) {
         const msg = e instanceof ServiceError ? e.message : "שגיאה בביטול תור";
         await auditLog(connectionId, "cancel_appointment", params, "error", undefined, msg);
@@ -971,6 +1073,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   registerPetsTools(server, ctx);
   registerTrainingTools(server, ctx);
   registerFinanceTools(server, ctx);
+  registerCalendarTools(server, ctx);
 
   return server;
 }

@@ -163,13 +163,14 @@ MCP is visible/usable ONLY for: `alldogneed@gmail.com`, `or.rabinovich@gmail.com
 ### Scopes — enforced per tool
 `DEFAULT_MCP_SCOPES` in `src/lib/mcp-auth.ts` (read:clients/appointments/stats/services/leads/orders/pets/boarding/training/tasks/analytics + write:appointments/notes/reminders/clients/leads/orders). Every tool handler starts with `if (!hasScope("…")) return denyScope(...)` (audited as `denied`). Legacy 6-scope connections are grandfathered to the full set via `effectiveScopes()`.
 
-### 56 Tools + 2 prompts — `src/app/api/mcp/route.ts` + modules in `src/lib/mcp/`
+### 63 Tools + 2 prompts — `src/app/api/mcp/route.ts` + modules in `src/lib/mcp/`
 Core (route.ts, 20): `list_clients` (cursor), `get_client`, `create_client`, `add_client_note`, `list_upcoming_appointments`, `list_services`, `create_appointment`, `update_appointment`, `cancel_appointment`, `get_business_stats`, `list_leads`, `create_lead` (stage_name / next_follow_up / pet_* fields), `list_orders`, `get_order`, `create_order`, `list_tasks`, `list_pets`, `list_boarding_stays`, `list_training_programs`, `send_reminder`.
 Intake (`tools-intake.ts`): `find_duplicate`, `list_lead_stages`, `create_task`, `update_task`, `update_lead`.
 Boarding (`tools-boarding.ts`): `list_boarding_rooms`, `check_boarding_availability`, `quote_boarding_price`, `create_boarding_stay`, `get_boarding_daily_board`, `update_boarding_stay`.
 Briefing (`tools-briefing.ts`): `list_payments`, `get_analytics`, `get_morning_briefing`; prompts `morning_briefing`, `intake_from_screenshot`.
 Pets (`tools-pets.ts`): `create_pet`, `update_pet`, `get_pet`, `record_vaccination`, `add_weight_entry`, `list_expiring_vaccinations`, `create_service`, `get_whatsapp_link` (wa.me deep link — server sends nothing).
 Training (`tools-training.ts`): `get_training_program`, `create_training_program`, `update_training_program`, `log_training_session`, `update_training_session`, `add_training_goal`, `update_training_goal`.
+Calendar (`tools-calendar.ts`): `find_free_slots` (booking slot engine — hours/blocks/bookings/GCal), `get_calendar` (day/week: appointments + group sessions + blocks + boarding check-ins/outs), `reschedule_appointment` (find_next_free), `block_time`, `list_blocks`, `delete_block`, `list_group_sessions`; exports `findAppointmentConflicts()` used by create/update_appointment (refuse on overlap unless `force`, warn outside hours). create/update/cancel_appointment now sync Google Calendar like the UI routes.
 Finance (`tools-finance.ts`): `record_payment`, `update_payment`, `get_payment`, `cancel_order`, `update_order_status`, `delete_task` (only hard delete exposed to AI), `get_outstanding_balances`.
 Shared helpers: `src/lib/mcp/helpers.ts` (`ToolCtx`, `safeField`, `heDate`, `israelStartOfToday`, `findIdempotentReplay`/`replayResult`, `dryRunResult`).
 **Every write tool** accepts `idempotency_key` (replayed from McpAuditLog params — no schema) + `dry_run` (Hebrew preview, no write). Read-only tokens: `POST /api/mcp/connections {readOnly:true}` → `READ_ONLY_MCP_SCOPES` (UI default = read-only).
