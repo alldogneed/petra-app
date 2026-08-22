@@ -19,7 +19,7 @@ import {
 //   POST   → connect { code, phoneNumberId, wabaId, coexistence? } (owner/manager/admin, PRO+)
 //   DELETE → disconnect (owner/manager/admin)
 
-const DIGITS_ID = /^[0-9]{1,32}$/;
+const DIGITS_ID = /^[0-9]{5,24}$/; // Meta ids are ~15-17 digits
 
 /** Owner/manager of THIS business, or a platform admin. */
 function canManageConnection(session: FullSession, businessId: string): boolean {
