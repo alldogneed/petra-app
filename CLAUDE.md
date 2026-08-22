@@ -208,6 +208,18 @@ Settings tab "עוזרי AI" gated to `basic+`. The MCP endpoint itself doesn't 
 
 ---
 
+## WhatsApp — per-business numbers (Meta Embedded Signup)
+
+Full doc: `docs/whatsapp-per-business.md`.
+- `sendWhatsAppMessage` / `sendWhatsAppTemplate` accept `businessId?` + `context?`. **Always pass `businessId`** from any caller that has one — `resolveWhatsAppSender()` (`src/lib/whatsapp-connections.ts`) picks the business's own number when `WhatsAppConnection.status === "active"` **and** the template is APPROVED on its WABA (`templatesJson`), otherwise the platform number (`META_PHONE_NUMBER_ID`). Business auth failure → connection flips to `error` + one retry via platform. Unconnected businesses behave exactly as before.
+- Token stored AES-256-GCM in `accessTokenEnc` (`WHATSAPP_ENCRYPTION_KEY`, fallback `GCAL_ENCRYPTION_KEY`); disconnect blanks it. Never log it.
+- Routes: `GET/POST/DELETE /api/integrations/whatsapp/connection` (+ `/sync-templates`). POST/DELETE = owner/manager/platform-admin; POST needs tier `whatsapp_reminders` + `isWhatsAppEmbeddedSignupConfigured()`; `businessId` from session only.
+- UI: `src/components/settings/WhatsAppConnectCard.tsx` inside Settings → אינטגרציות (FB JS SDK; CSP in `next.config.mjs` allows connect.facebook.net / www.facebook.com / graph.facebook.com). Shows "בקרוב" until `NEXT_PUBLIC_META_APP_ID` + `NEXT_PUBLIC_META_ES_CONFIG_ID` + `META_APP_SECRET` are set.
+- Webhook `/api/webhooks/whatsapp-status` serves ALL subscribed WABAs; routes by `metadata.phone_number_id` → `findBusinessIdByPhoneNumberId`; verifies `X-Hub-Signature-256` when `META_APP_SECRET` is set.
+- Prod DDL for new tables: additive SQL via `prisma db execute --url $DIRECT_URL` (never `db push`).
+
+---
+
 ## Key Patterns
 
 Toasts (`sonner`), React Query (queries/mutations with `invalidateQueries`), and Prisma imports follow standard library usage — copy the pattern from any existing route/component.
