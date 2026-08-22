@@ -310,6 +310,7 @@ model Business {
   pendingApprovals       PendingApproval[]
   subscriptionEvents     SubscriptionEvent[]
   mcpConnections         McpConnection[]
+  whatsAppConnection     WhatsAppConnection?
 
   @@index([slug])
 }
@@ -2345,6 +2346,8 @@ model McpAuditLog {
 model WhatsAppMessageLog {
   id           String   @id @default(uuid())
   wamid        String   @unique // Meta message id — key for status updates
+  businessId   String?  // set when sent on behalf of a business (platform or business number)
+  phoneNumberId String? // Meta phone_number_id the message was sent FROM (null = legacy platform sends)
   toPhone      String
   kind         String   // "template" | "text"
   templateName String?
@@ -2357,6 +2360,36 @@ model WhatsAppMessageLog {
 
   @@index([status, createdAt])
   @@index([createdAt])
+  @@index([businessId, createdAt])
+}
+
+/// Per-business WhatsApp Cloud API connection, created via Meta Embedded Signup
+/// (optionally "coexistence" — the business keeps using the WhatsApp Business app on
+/// the same number). While status = "active", outbound WhatsApp for the business is
+/// sent from ITS OWN number; otherwise the platform number (META_PHONE_NUMBER_ID) is used.
+model WhatsAppConnection {
+  id                String    @id @default(uuid())
+  businessId        String    @unique
+  business          Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  wabaId            String    // WhatsApp Business Account id owned by the business
+  phoneNumberId     String    @unique // Meta phone_number_id — also the webhook routing key
+  displayPhone      String?   // e.g. "+972 54-123-4567"
+  verifiedName      String?   // display name approved by Meta
+  qualityRating     String?   // GREEN | YELLOW | RED | UNKNOWN
+  accessTokenEnc    String    // business-integration system-user token, AES-256-GCM (WHATSAPP_ENCRYPTION_KEY, falls back to GCAL_ENCRYPTION_KEY)
+  status            String    @default("active") // active | disconnected | error
+  lastError         String?
+  coexistence       Boolean   @default(false) // onboarded via WhatsApp Business app coexistence flow
+  templatesJson     String?   // JSON { [templateName]: "APPROVED" | "PENDING" | "REJECTED" | "PAUSED" | ... } on the business WABA
+  templatesSyncedAt DateTime?
+  connectedByUserId String?
+  connectedAt       DateTime  @default(now())
+  disconnectedAt    DateTime?
+  lastUsedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([status])
 }
 
 /// Distributed rate-limit fallback (used when Upstash Redis is not configured/reachable).
