@@ -65,11 +65,11 @@ export async function sendLeadAlert(input: LeadAlertInput): Promise<void> {
   const whatsappSends = uniquePhones.map(async (p) => {
     try {
       for (const templateName of LEAD_TEMPLATES) {
-        const res = await sendWhatsAppTemplate({ to: p, templateName, bodyParams, context: "lead_alert" });
+        const res = await sendWhatsAppTemplate({ to: p, templateName, bodyParams, businessId, context: "lead_alert" });
         if (res.success) return;
         console.error(`[lead-alert] template ${templateName} failed for`, p, "-", res.error);
       }
-      const freeform = await sendWhatsAppMessage({ to: p, body: freeText, context: "lead_alert" });
+      const freeform = await sendWhatsAppMessage({ to: p, body: freeText, businessId, context: "lead_alert" });
       if (!freeform.success) console.error("[lead-alert] free-form fallback failed for", p, "-", freeform.error);
     } catch (err) {
       console.error("[lead-alert] WhatsApp send threw for", p, err);

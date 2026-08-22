@@ -2,6 +2,11 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import {
+  getWhatsAppConnectionStatus,
+  isWhatsAppEmbeddedSignupConfigured,
+  type WaConnectionStatus,
+} from "@/lib/whatsapp-connections";
 
 // GET /api/integrations – list connected integrations with real gcal status
 export async function GET(request: NextRequest) {
@@ -46,6 +51,15 @@ export async function GET(request: NextRequest) {
 
     const invoicingConnected =
       !!invoicingSettings && invoicingSettings.status === "active";
+
+    // Per-business WhatsApp (Meta Embedded Signup) — never fail the whole list on it.
+    let waBusiness: WaConnectionStatus | null = null;
+    try {
+      waBusiness = await getWhatsAppConnectionStatus(businessId);
+    } catch (err) {
+      console.error("[whatsapp-connection] status in GET integrations failed:", err instanceof Error ? err.message : err);
+      waBusiness = null;
+    }
 
     const integrations = [
       {
@@ -94,6 +108,8 @@ export async function GET(request: NextRequest) {
         ),
         fromNumber: null,
         connectUrl: null,
+        business: waBusiness,
+        signupAvailable: isWhatsAppEmbeddedSignupConfigured(),
       },
       {
         id: "resend",

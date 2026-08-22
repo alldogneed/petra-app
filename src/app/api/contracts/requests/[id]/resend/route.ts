@@ -103,6 +103,8 @@ export async function POST(
       try {
         const waResult = await sendWhatsAppMessage({
           to: toWhatsAppPhone(contractReq.customer.phone),
+          businessId,
+          context: "contract_resend",
           body: `שלום ${contractReq.customer.name}! 📄\n${business?.name ?? ""} שלחו לך חוזה חדש לחתימה דיגיטלית.\n\nלחץ לצפייה ולחתימה:\n${signUrl}\n\nהקישור תקף ל-30 יום.`,
         });
         waDelivered = waResult.success;
@@ -123,6 +125,8 @@ export async function POST(
     try {
       const waResult = await sendWhatsAppMessage({
         to: toWhatsAppPhone(contractReq.customer.phone),
+        businessId,
+        context: "contract_resend",
         body: `שלום ${contractReq.customer.name}! 📄\nתזכורת: ${business?.name ?? ""} שלחו לך חוזה לחתימה.\n\nלחץ לצפייה ולחתימה:\n${contractReq.signUrl}\n\nאנא חתום בהקדם.`,
       });
       waDelivered = waResult.success;

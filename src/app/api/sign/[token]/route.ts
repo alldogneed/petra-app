@@ -351,6 +351,8 @@ export async function POST(
       if (businessPhone) {
         await sendWhatsAppMessage({
           to: toWhatsAppPhone(businessPhone),
+          businessId: contractRequest.businessId,
+          context: "contract_signed",
           body: `✍️ חוזה נחתם!\n${customerName} חתם/ה על החוזה "${templateName}".\nהמסמך החתום נשמר בתיק הלקוח.`,
         });
       }

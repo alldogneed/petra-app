@@ -389,7 +389,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         const dateStr = heDate(appt.date, { weekday: "long", day: "numeric", month: "long" });
         const body = `שלום ${appt.customer.name}! 👋\nתזכורת: יש לך תור ל${appt.service?.name ?? "טיפול"} ב${dateStr}${appt.startTime ? ` בשעה ${appt.startTime}` : ""}.\n— ${biz?.name ?? "העסק שלך"}`;
 
-        const result = await sendWhatsAppMessage({ to, body });
+        const result = await sendWhatsAppMessage({ to, body, businessId, context: "mcp_reminder" });
         if (!result.success) {
           await auditLog(connectionId, "send_reminder", params, "error", undefined, result.error ?? "WhatsApp error");
           return errorResult("שגיאה בשליחת הודעת WhatsApp");

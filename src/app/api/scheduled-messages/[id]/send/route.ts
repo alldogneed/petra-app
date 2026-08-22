@@ -48,7 +48,7 @@ export async function POST(
     }
 
     const phone = String(payload.to ?? (msg.customer ? toWhatsAppPhone(msg.customer.phone) : ""));
-    const result = await sendWhatsAppMessage({ to: phone || "", body });
+    const result = await sendWhatsAppMessage({ to: phone || "", body, businessId: msg.businessId, context: "scheduled_message" });
 
     await prisma.scheduledMessage.update({
       where: { id: params.id },

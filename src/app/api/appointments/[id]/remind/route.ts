@@ -90,7 +90,7 @@ export async function POST(
   }
 
   const to = toWhatsAppNum(appt.customer.phone);
-  const result = await sendWhatsAppMessage({ to, body });
+  const result = await sendWhatsAppMessage({ to, body, businessId: authResult.businessId, context: "appointment_reminder" });
 
   if (!result.success) {
     return NextResponse.json({ error: result.error ?? "שגיאה בשליחה" }, { status: 500 });

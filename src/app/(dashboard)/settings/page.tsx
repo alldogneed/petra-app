@@ -66,6 +66,7 @@ import { usePlan } from "@/hooks/usePlan";
 import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { PaywallCard } from "@/components/paywall/PaywallCard";
 import { McpConnectionsTab } from "@/components/settings/McpConnectionsTab";
+import { WhatsAppConnectCard } from "@/components/settings/WhatsAppConnectCard";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1149,8 +1150,7 @@ function IntegrationsTab() {
 
       {integrations?.filter((integ) =>
         integ.id !== "invoicing" && integ.id !== "stripe" &&
-        (integ.id !== "resend" || user?.isAdmin === true) &&
-        (integ.id !== "whatsapp" || user?.isAdmin === true)
+        (integ.id !== "resend" || user?.isAdmin === true)
       ).map((integ) => {
         const Icon = ICON_MAP[integ.icon] ?? Plug;
         const isInvoicing = integ.id === "invoicing";
@@ -1159,7 +1159,8 @@ function IntegrationsTab() {
         const isWhatsApp = integ.id === "whatsapp";
 
         return (
-          <div key={integ.id} className="card p-5 flex items-start gap-4">
+          <React.Fragment key={integ.id}>
+          <div className="card p-5 flex items-start gap-4">
             <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0", integ.connected ? "bg-emerald-50" : "bg-slate-100")}>
               <Icon className={cn("w-6 h-6", integ.connected ? "text-emerald-600" : "text-slate-400")} />
             </div>
@@ -1391,13 +1392,16 @@ function IntegrationsTab() {
                   onClick={() => setShowWhatsAppTestModal(true)}
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
-                  {integ.connected ? "בדיקת חיבור" : "בדיקת Stub"}
+                  {integ.connected ? "בדיקת חיבור" : user?.isAdmin ? "בדיקת Stub" : "בדיקת חיבור"}
                 </button>
               ) : (
                 <span className="text-xs text-petra-muted">בקרוב</span>
               )}
             </div>
           </div>
+          {/* Per-business WhatsApp number (Meta Embedded Signup + coexistence) */}
+          {isWhatsApp && <WhatsAppConnectCard />}
+          </React.Fragment>
         );
       })}
 

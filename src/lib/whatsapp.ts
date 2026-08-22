@@ -2,10 +2,25 @@
  * WhatsApp messaging service.
  *
  * Priority:
- * 1. Meta Cloud API — set META_WHATSAPP_TOKEN + META_PHONE_NUMBER_ID
+ * 1. Meta Cloud API
+ *    a. the business's OWN number — when `businessId` is passed and the business has an
+ *       active WhatsAppConnection (Embedded Signup) and, for templates, the template is
+ *       APPROVED on its WABA. Resolved by resolveWhatsAppSender() (src/lib/whatsapp-connections.ts).
+ *       An auth failure on a business number flags that connection and retries once via the
+ *       platform number so the customer still gets the message.
+ *    b. the platform number — META_WHATSAPP_TOKEN + META_PHONE_NUMBER_ID (unchanged default
+ *       for every business without a connection).
  * 2. Twilio WhatsApp — set TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_WHATSAPP_FROM
  * 3. Stub mode — console.log (no credentials set)
  */
+
+import type { WaSender } from "./whatsapp-connections";
+
+// Loaded lazily (like prisma below) so importing this module stays cheap for callers
+// that end up in Twilio/stub mode and never touch the DB.
+async function connections() {
+  return import("./whatsapp-connections");
+}
 
 interface SendResult {
   success: boolean;
@@ -18,6 +33,7 @@ interface SendParams {
   body: string;
   templateSid?: string;
   context?: string; // free-form origin tag for the message log (e.g. "lead_alert")
+  businessId?: string | null; // send on behalf of this business (its own number when connected, else platform)
 }
 
 export interface MetaTemplateMessage {
@@ -26,6 +42,7 @@ export interface MetaTemplateMessage {
   languageCode?: string; // default "he"
   bodyParams: string[]; // positional {{1}}, {{2}} … body component variables
   context?: string; // free-form origin tag for the message log (e.g. "lead_alert")
+  businessId?: string | null; // send on behalf of this business (its own number when connected, else platform)
 }
 
 // ---------------------------------------------------------------------------
@@ -66,6 +83,8 @@ async function logOutboundMessage(entry: {
   kind: "template" | "text";
   templateName?: string;
   context?: string;
+  businessId?: string | null; // business the message was sent on behalf of
+  phoneNumberId?: string | null; // Meta phone_number_id it was sent FROM (business or platform)
 }): Promise<void> {
   try {
     const { default: prisma } = await import("@/lib/prisma");
@@ -76,6 +95,8 @@ async function logOutboundMessage(entry: {
         kind: entry.kind,
         templateName: entry.templateName ?? null,
         context: entry.context ?? null,
+        businessId: entry.businessId ?? null,
+        phoneNumberId: entry.phoneNumberId ?? null,
       },
     });
   } catch (err) {
@@ -84,31 +105,36 @@ async function logOutboundMessage(entry: {
 }
 
 // ---------------------------------------------------------------------------
-// Meta Cloud API
+// Meta Cloud API — shared send path (business number or platform number)
 // ---------------------------------------------------------------------------
 
-async function sendViaMetaCloudApi(params: SendParams): Promise<SendResult | null> {
-  const token = process.env.META_WHATSAPP_TOKEN?.trim();
-  const phoneNumberId = process.env.META_PHONE_NUMBER_ID?.trim();
+const META_MESSAGES_API = "https://graph.facebook.com/v19.0";
 
-  if (!token || !phoneNumberId) return null;
+/** Meta error code: template name does not exist on this WABA (stale templatesJson) */
+const META_ERR_TEMPLATE_MISSING = 132001;
 
-  const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
+interface MetaSendMeta {
+  kind: "text" | "template";
+  to: string;
+  templateName?: string;
+  context?: string;
+  businessId?: string | null;
+  logLabel: string; // console prefix
+  alertContext: string; // passed to maybeAlertAuthFailure (platform token only)
+}
 
-  const payload = {
-    messaging_product: "whatsapp",
-    to: params.to,
-    type: "text",
-    text: { body: params.body },
-  };
+interface MetaAttempt extends SendResult {
+  authError?: boolean;
+  templateMissing?: boolean;
+}
 
+/** One POST /messages with the given sender. Logs the outbound row on success. Never throws. */
+async function postMetaMessage(sender: WaSender, payload: unknown, meta: MetaSendMeta): Promise<MetaAttempt> {
+  const url = `${META_MESSAGES_API}/${sender.phoneNumberId}/messages`;
   try {
     const res = await fetch(url, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${sender.token}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
@@ -119,19 +145,82 @@ async function sendViaMetaCloudApi(params: SendParams): Promise<SendResult | nul
 
     if (!res.ok || data.error) {
       const errMsg = data.error?.message ?? `HTTP ${res.status}`;
-      console.error("[WhatsApp Meta] Send failed:", errMsg);
-      await maybeAlertAuthFailure("WhatsApp text message", res.status, data.error);
-      return { success: false, error: errMsg };
+      console.error(`[${meta.logLabel}] Send failed (${sender.source}):`, errMsg);
+      const authError = isAuthError(res.status, data.error);
+      // The owner alert is about the PLATFORM token — a business token dying is surfaced
+      // on that business's connection instead (see sendViaMeta).
+      if (sender.source === "platform") await maybeAlertAuthFailure(meta.alertContext, res.status, data.error);
+      return {
+        success: false,
+        error: errMsg,
+        authError,
+        templateMissing: data.error?.code === META_ERR_TEMPLATE_MISSING,
+      };
     }
 
-    const msgId = data.messages?.[0]?.id ?? `META_${Date.now()}`;
-    await logOutboundMessage({ wamid: msgId, toPhone: params.to, kind: "text", context: params.context });
+    const msgId = data.messages?.[0]?.id ?? `${meta.kind === "template" ? "META_TMPL" : "META"}_${Date.now()}`;
+    await logOutboundMessage({
+      wamid: msgId,
+      toPhone: meta.to,
+      kind: meta.kind,
+      templateName: meta.templateName,
+      context: meta.context,
+      businessId: meta.businessId ?? sender.businessId ?? null,
+      phoneNumberId: sender.phoneNumberId,
+    });
     return { success: true, messageSid: msgId };
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    console.error("[WhatsApp Meta] Send error:", errorMessage);
+    console.error(`[${meta.logLabel}] Send error (${sender.source}):`, errorMessage);
     return { success: false, error: errorMessage };
   }
+}
+
+/**
+ * Resolve the sender for this business and send. When the BUSINESS number fails with an
+ * auth error (dead/revoked token) the connection is flagged "error" and the message is
+ * retried once from the platform number; same retry for a template missing on the business
+ * WABA (stale sync). Returns null only when no Meta credentials exist at all (stub path).
+ */
+async function sendViaMeta(payload: unknown, meta: MetaSendMeta): Promise<SendResult | null> {
+  const { resolveWhatsAppSender, markWhatsAppConnectionError } = await connections();
+  const sender = await resolveWhatsAppSender(meta.businessId, meta.templateName ? { templateName: meta.templateName } : undefined);
+  if (!sender) return null;
+
+  const first = await postMetaMessage(sender, payload, meta);
+  if (first.success || sender.source !== "business") {
+    return { success: first.success, messageSid: first.messageSid, error: first.error };
+  }
+
+  if (first.authError && sender.businessId) {
+    await markWhatsAppConnectionError(sender.businessId, `שגיאת הרשאה מול Meta: ${first.error ?? "unknown"}`.slice(0, 500));
+  }
+  if (first.authError || first.templateMissing) {
+    const platform = await resolveWhatsAppSender(null);
+    if (platform) {
+      console.warn(`[${meta.logLabel}] business sender failed (${first.authError ? "auth" : "template missing"}) — retrying via platform number`);
+      const retry = await postMetaMessage(platform, payload, meta);
+      return { success: retry.success, messageSid: retry.messageSid, error: retry.error };
+    }
+  }
+  return { success: false, error: first.error };
+}
+
+async function sendViaMetaCloudApi(params: SendParams): Promise<SendResult | null> {
+  const payload = {
+    messaging_product: "whatsapp",
+    to: params.to,
+    type: "text",
+    text: { body: params.body },
+  };
+  return sendViaMeta(payload, {
+    kind: "text",
+    to: params.to,
+    context: params.context,
+    businessId: params.businessId,
+    logLabel: "WhatsApp Meta",
+    alertContext: "WhatsApp text message",
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -139,12 +228,6 @@ async function sendViaMetaCloudApi(params: SendParams): Promise<SendResult | nul
 // ---------------------------------------------------------------------------
 
 async function sendViaMetaCloudApiTemplate(params: MetaTemplateMessage): Promise<SendResult | null> {
-  const token = process.env.META_WHATSAPP_TOKEN?.trim();
-  const phoneNumberId = process.env.META_PHONE_NUMBER_ID?.trim();
-  if (!token || !phoneNumberId) return null;
-
-  const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
-
   const payload = {
     messaging_product: "whatsapp",
     to: params.to,
@@ -162,37 +245,15 @@ async function sendViaMetaCloudApiTemplate(params: MetaTemplateMessage): Promise
       }),
     },
   };
-
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await res.json() as {
-      messages?: Array<{ id: string }>;
-      error?: MetaError;
-    };
-
-    if (!res.ok || data.error) {
-      const errMsg = data.error?.message ?? `HTTP ${res.status}`;
-      console.error("[WhatsApp Meta Template] Send failed:", errMsg);
-      await maybeAlertAuthFailure("WhatsApp template message", res.status, data.error);
-      return { success: false, error: errMsg };
-    }
-
-    const msgId = data.messages?.[0]?.id ?? `META_TMPL_${Date.now()}`;
-    await logOutboundMessage({
-      wamid: msgId, toPhone: params.to, kind: "template",
-      templateName: params.templateName, context: params.context,
-    });
-    return { success: true, messageSid: msgId };
-  } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    console.error("[WhatsApp Meta Template] Send error:", errorMessage);
-    return { success: false, error: errorMessage };
-  }
+  return sendViaMeta(payload, {
+    kind: "template",
+    to: params.to,
+    templateName: params.templateName,
+    context: params.context,
+    businessId: params.businessId,
+    logLabel: "WhatsApp Meta Template",
+    alertContext: "WhatsApp template message",
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -276,7 +337,7 @@ export async function sendWhatsAppTemplate(params: MetaTemplateMessage): Promise
 
   // 2. Fallback: send as plain text (Twilio / stub) so something always goes out
   const body = params.bodyParams.join(" | ");
-  return sendWhatsAppMessage({ to: params.to, body });
+  return sendWhatsAppMessage({ to: params.to, body, context: params.context, businessId: params.businessId });
 }
 
 /**

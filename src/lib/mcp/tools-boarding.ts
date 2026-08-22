@@ -519,6 +519,8 @@ export function registerBoardingTools(server: McpServer, ctx: ToolCtx): void {
               to: phone,
               templateName: "petra_boarding_confirmation",
               bodyParams: [stay.customer.name, stay.pet.name, checkInStr, checkOutStr],
+              businessId,
+              context: "boarding_confirmation",
             }).catch((err) => console.error("MCP boarding confirmation WA failed:", err));
           }
         }

@@ -67,7 +67,7 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'",
+              "script-src 'self' 'unsafe-inline' https://connect.facebook.net",
               // Sentry Replay compresses its payloads in a blob web worker;
               // without worker-src the script-src fallback blocks it on every page.
               "worker-src 'self' blob:",
@@ -75,9 +75,9 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
               "media-src 'self' blob: https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com",
-              "connect-src 'self' https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io",
+              "connect-src 'self' https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://connect.facebook.net https://www.facebook.com https://graph.facebook.com",
               "frame-ancestors 'self'",
-              "frame-src 'self' blob: https://secure.cardcom.solutions",
+              "frame-src 'self' blob: https://secure.cardcom.solutions https://www.facebook.com https://web.facebook.com",
               "object-src 'self' blob:",  // PDF previews (contract template modal + signed-contract viewer) render via <object>/blob:
             ].join("; "),
           },

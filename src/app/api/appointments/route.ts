@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
             serviceName,
             petName: appointment.pet?.name ?? "",
           });
-          await sendWhatsAppMessage({ to: phone, body: msgBody }).catch((err) =>
+          await sendWhatsAppMessage({ to: phone, body: msgBody, businessId: authResult.businessId, context: "appointment_confirmation" }).catch((err) =>
             console.error("Appointment confirmation WA (custom) failed:", err)
           );
         } else {
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
                 templateName: "petra_appointment_confirmation",
                 bodyParams: [appointment.customer.name, formattedDate, appointment.startTime, serviceName],
               };
-          await sendWhatsAppTemplate({ to: phone, ...templateSend }).catch((err) =>
+          await sendWhatsAppTemplate({ to: phone, ...templateSend, businessId: authResult.businessId, context: "appointment_confirmation" }).catch((err) =>
             console.error("Appointment confirmation WA failed:", err)
           );
         }

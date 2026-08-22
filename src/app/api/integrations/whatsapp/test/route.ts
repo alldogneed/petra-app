@@ -42,6 +42,8 @@ export async function POST(request: NextRequest) {
     const result = await sendWhatsAppMessage({
       to: normalized,
       body: "✅ הודעת בדיקה מ-Petra — WhatsApp מחובר בהצלחה!",
+      businessId: authResult.businessId,
+      context: "test",
     });
 
     if (!result.success) {

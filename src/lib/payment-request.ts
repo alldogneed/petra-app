@@ -161,22 +161,24 @@ export async function sendPaymentRequestForOrder(
         to,
         templateName: "petra_payment_request",
         bodyParams: [customer.name, serviceName || "ההזמנה", orderTotal, paymentUrl, businessPhone],
+        businessId,
+        context: "payment_request",
       });
       if (res.success) {
         sent = true;
       } else {
         console.warn("[PaymentRequest] template send failed, falling back to text");
-        const fallback = await sendWhatsAppMessage({ to, body });
+        const fallback = await sendWhatsAppMessage({ to, body, businessId, context: "payment_request" });
         sent = fallback.success;
       }
     } catch (err) {
       console.error("[PaymentRequest] template send threw, falling back to text:", err);
-      const fallback = await sendWhatsAppMessage({ to, body }).catch(() => ({ success: false }));
+      const fallback = await sendWhatsAppMessage({ to, body, businessId, context: "payment_request" }).catch(() => ({ success: false }));
       sent = fallback.success;
     }
   } else {
     // Meta rejects empty params — no business phone means free-form only
-    const res = await sendWhatsAppMessage({ to, body });
+    const res = await sendWhatsAppMessage({ to, body, businessId, context: "payment_request" });
     sent = res.success;
   }
 

@@ -89,6 +89,8 @@ export async function POST(request: NextRequest) {
           to: phone,
           templateName: "petra_boarding_confirmation",
           bodyParams: [stay.customer.name, stay.pet.name, checkInStr, checkOutStr],
+          businessId: authResult.businessId,
+          context: "boarding_confirmation",
         }).catch((err) => console.error("Boarding confirmation WA failed:", err));
       }
     }

@@ -94,6 +94,8 @@ export async function POST(request: NextRequest) {
       try {
         const waResult = await sendWhatsAppMessage({
           to: toWhatsAppPhone(customer.phone),
+          businessId: authResult.businessId,
+          context: "contract_send",
           body: `שלום ${customer.name}! 📄\n${business?.name ?? ""} שלחו לך חוזה לחתימה דיגיטלית.\n\nלחץ לצפייה ולחתימה:\n${signUrl}\n\nהקישור תקף ל-30 יום.`,
         });
         waDelivered = waResult.success;

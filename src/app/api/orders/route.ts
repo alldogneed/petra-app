@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
               customerName: customer.name, date: formattedDate,
               time: body.appointmentData.startTime as string, serviceName, petName,
             });
-            await sendWhatsAppMessage({ to: phone, body: msgBody }).catch((err) =>
+            await sendWhatsAppMessage({ to: phone, body: msgBody, businessId: authResult.businessId, context: "appointment_confirmation" }).catch((err) =>
               console.error("Order appointment confirmation WA (custom) failed:", err)
             );
           } else {
@@ -182,6 +182,8 @@ export async function POST(request: NextRequest) {
               to: phone,
               templateName: "petra_appointment_confirmation",
               bodyParams: [customer.name, formattedDate, body.appointmentData.startTime as string, serviceName],
+              businessId: authResult.businessId,
+              context: "appointment_confirmation",
             }).catch((err) => console.error("Order appointment confirmation WA failed:", err));
           }
           // Log the send so the same appointment never gets a second confirmation.
