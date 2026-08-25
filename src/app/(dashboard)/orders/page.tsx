@@ -456,7 +456,9 @@ function OrdersPageContent() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    // overflow-x-clip: a too-wide child must scroll inside its own box, never
+    // widen the page — a wide element here zoomed the whole mobile viewport out.
+    <div className="space-y-6 animate-fade-in max-w-full overflow-x-clip">
       <DesktopBanner />
       <FinanceTabs />
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -580,7 +582,7 @@ function OrdersPageContent() {
           {/* Payment status filter */}
           <div className="flex-shrink-0">
             <p className="text-xs font-medium text-petra-muted mb-1.5">סטטוס תשלום</p>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5 flex-wrap">
               {[
                 { id: "ALL", label: "הכל" },
                 { id: "paid", label: "שולם" },
@@ -635,7 +637,7 @@ function OrdersPageContent() {
           </div>
 
           {/* Date range */}
-          <div className="flex gap-2 items-end">
+          <div className="flex gap-2 items-end flex-wrap">
             <div>
               <p className="text-xs font-medium text-petra-muted mb-1.5 flex items-center gap-1">
                 <CalendarRange className="w-3 h-3" />
@@ -643,7 +645,7 @@ function OrdersPageContent() {
               </p>
               <input
                 type="date" lang="he"
-                className="input text-sm py-2"
+                className="input text-sm py-2 w-[8.5rem] max-w-full"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
               />
@@ -652,7 +654,7 @@ function OrdersPageContent() {
               <p className="text-xs font-medium text-petra-muted mb-1.5">עד תאריך</p>
               <input
                 type="date" lang="he"
-                className="input text-sm py-2"
+                className="input text-sm py-2 w-[8.5rem] max-w-full"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
               />
