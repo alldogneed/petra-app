@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import {
+  isWaConnectBetaEmail,
   getWhatsAppConnectionStatus,
   isWhatsAppEmbeddedSignupConfigured,
   type WaConnectionStatus,
@@ -56,6 +57,8 @@ export async function GET(request: NextRequest) {
     let waBusiness: WaConnectionStatus | null = null;
     try {
       waBusiness = await getWhatsAppConnectionStatus(businessId);
+      const isPlatformAdmin = ["super_admin", "admin"].includes(session.user.platformRole ?? "");
+      waBusiness.betaAccess = isPlatformAdmin || isWaConnectBetaEmail(session.user.email);
     } catch (err) {
       console.error("[whatsapp-connection] status in GET integrations failed:", err instanceof Error ? err.message : err);
       waBusiness = null;

@@ -44,6 +44,8 @@ export interface WaConnectionStatus {
   lastError: string | null;
   /** Embedded Signup is configured on this deployment (NEXT_PUBLIC_META_APP_ID + NEXT_PUBLIC_META_ES_CONFIG_ID + META_APP_SECRET) */
   signupAvailable: boolean;
+  /** Private beta: the requesting user may see/use the connect flow (set by the API routes, not by the lib) */
+  betaAccess?: boolean;
 }
 
 export interface ConnectInput {
@@ -115,6 +117,21 @@ export const PLATFORM_TEMPLATE_NAMES: readonly string[] = [
   "petra_lead_followup",
   "petra_payment_request",
 ];
+
+/**
+ * Private beta allowlist for the per-business connect flow (mirrors the MCP beta):
+ * alldog + or.rabinovich + @petra.local QA users + WA_CONNECT_ALLOWED_EMAILS (comma-separated).
+ * WA_CONNECT_BETA_OPEN=true opens it to everyone. Platform admins are handled by the routes.
+ */
+export function isWaConnectBetaEmail(email: string | null | undefined): boolean {
+  if (process.env.WA_CONNECT_BETA_OPEN === "true") return true;
+  const e = (email ?? "").trim().toLowerCase();
+  if (!e) return false;
+  if (e === "alldogneed@gmail.com" || e === "or.rabinovich@gmail.com") return true;
+  if (e.endsWith("@petra.local")) return true;
+  const extra = (process.env.WA_CONNECT_ALLOWED_EMAILS ?? "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+  return extra.includes(e);
+}
 
 /** True when all env needed for Embedded Signup is present. */
 export function isWhatsAppEmbeddedSignupConfigured(): boolean {

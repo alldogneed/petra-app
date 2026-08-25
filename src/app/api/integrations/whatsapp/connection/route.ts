@@ -11,6 +11,7 @@ import {
   connectWhatsAppBusiness,
   disconnectWhatsAppBusiness,
   isWhatsAppEmbeddedSignupConfigured,
+  isWaConnectBetaEmail,
   WhatsAppConnectError,
 } from "@/lib/whatsapp-connections";
 
@@ -47,6 +48,8 @@ export async function GET(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
 
     const status = await getWhatsAppConnectionStatus(authResult.businessId);
+    const isPlatformAdmin = ["super_admin", "admin"].includes(authResult.session.user.platformRole ?? "");
+    status.betaAccess = isPlatformAdmin || isWaConnectBetaEmail(authResult.session.user.email);
     return NextResponse.json(status);
   } catch (error) {
     console.error("[whatsapp-connection] GET error:", error);
@@ -66,6 +69,12 @@ export async function POST(request: NextRequest) {
 
     if (!isWhatsAppEmbeddedSignupConfigured()) {
       return NextResponse.json({ error: "חיבור WhatsApp עסקי אינו זמין בסביבה זו" }, { status: 400 });
+    }
+
+    // Private beta: only allowlisted users may connect (alldog / QA / WA_CONNECT_ALLOWED_EMAILS).
+    const isBetaAdmin = ["super_admin", "admin"].includes(session.user.platformRole ?? "");
+    if (!isBetaAdmin && !isWaConnectBetaEmail(session.user.email)) {
+      return NextResponse.json({ error: "חיבור מספר עצמאי נמצא בבטא סגורה" }, { status: 403 });
     }
 
     // Server-side paywall: per-business WhatsApp needs the whatsapp_reminders feature (PRO+).

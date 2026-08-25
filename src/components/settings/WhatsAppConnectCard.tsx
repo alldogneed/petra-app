@@ -230,6 +230,10 @@ export function WhatsAppConnectCard() {
     </div>
   );
 
+  // Private beta: hide the card entirely for non-allowlisted users (an existing
+  // connection is still shown so it can be managed/disconnected).
+  if (!status.betaAccess && status.status === "none") return null;
+
   // Not configured on this deployment
   if (!status.signupAvailable) {
     return (
