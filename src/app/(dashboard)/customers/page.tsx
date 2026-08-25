@@ -1644,6 +1644,11 @@ export default function CustomersPage() {
     },
     initialPageParam: null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    // Customers are created from many places the cache can't see (closed
+    // leads, intake forms submitted by the customer, the mobile drawer) —
+    // always refetch on entering the module so new customers show on top.
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 
   const rawCustomers = useMemo(
