@@ -108,8 +108,12 @@ export default function InstallPWABanner() {
     <div
       dir="rtl"
       // z-40: below modals (.modal-overlay is z-50) so it never covers their
-      // bottom action buttons on mobile; above the bottom nav (z-30).
-      className="fixed bottom-0 inset-x-0 z-40 bg-slate-900 text-white p-4 shadow-2xl"
+      // bottom action buttons on mobile.
+      // Mobile: sits ABOVE the bottom nav (offset by the nav's 5rem height +
+      // iOS safe area) instead of on top of it — otherwise it swallows taps
+      // aimed at the nav buttons ("לקוח חדש" etc.). Desktop (md+): the bottom
+      // nav is hidden, so the banner returns to bottom-0.
+      className="fixed inset-x-0 z-40 bg-slate-900 text-white p-4 shadow-2xl bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] md:bottom-0"
     >
       <div className="flex items-start gap-3">
         {/* App icon */}

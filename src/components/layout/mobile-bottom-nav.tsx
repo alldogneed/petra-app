@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { triggerLimitModal } from "@/lib/limit-reached";
 
 // ─── New Customer Drawer ──────────────────────────────────────────────────────
 
@@ -47,15 +48,30 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), phone: phone.trim() }),
       });
-      if (!res.ok) throw new Error();
-      const newCustomer = await res.json();
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        // Free-tier customer cap → open the global upgrade modal instead of a dead-end toast
+        if (data?.code === "LIMIT_REACHED") {
+          onClose();
+          triggerLimitModal(
+            typeof data?.error === "string" && data.error
+              ? data.error
+              : "הגעת לתקרת הלקוחות במסלול הנוכחי"
+          );
+          return;
+        }
+        // Surface the real reason (duplicate phone, invalid phone, etc.)
+        throw new Error(typeof data?.error === "string" ? data.error : "");
+      }
       toast.success("לקוח נוצר בהצלחה!");
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       onClose();
       // Jump straight to the new customer's card (same as the desktop add flow)
-      if (newCustomer?.id) router.push(`/customers/${newCustomer.id}`);
-    } catch {
-      toast.error("שגיאה ביצירת הלקוח");
+      if (data?.id) router.push(`/customers/${data.id}`);
+    } catch (err) {
+      toast.error(
+        err instanceof Error && err.message ? err.message : "שגיאה ביצירת הלקוח"
+      );
     } finally {
       setLoading(false);
     }
@@ -63,11 +79,14 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — z-[60]: above the topbar (z-30), the floating help button +
+          PWA install banner (z-40), and topbar dropdowns (z-50), so nothing can
+          sit on top of the drawer or swallow its taps. Below LimitReachedModal
+          (z-[200]). */}
       <div
         onClick={handleBackdrop}
         className={[
-          "fixed inset-0 z-40 bg-black/40 transition-opacity duration-300",
+          "fixed inset-0 z-[60] bg-black/40 transition-opacity duration-300",
           open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
         ].join(" ")}
       />
@@ -75,7 +94,7 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
       {/* Drawer sheet */}
       <div
         className={[
-          "fixed bottom-0 inset-x-0 z-50 bg-white rounded-t-2xl shadow-2xl",
+          "fixed bottom-0 inset-x-0 z-[70] bg-white rounded-t-2xl shadow-2xl",
           "transition-transform duration-300 ease-out",
           open ? "translate-y-0 pointer-events-auto" : "translate-y-full pointer-events-none",
         ].join(" ")}
@@ -88,6 +107,7 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-petra-border">
           <button
+            type="button"
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-xl text-petra-muted hover:bg-slate-100 transition-colors"
           >
@@ -229,6 +249,7 @@ export function MobileBottomNav() {
               return (
                 <button
                   key={item.key}
+                  type="button"
                   onClick={item.onClick}
                   className="flex flex-col items-center gap-1 -mt-5 relative"
                   aria-label={item.label}
@@ -263,6 +284,7 @@ export function MobileBottomNav() {
             return (
               <button
                 key={item.key}
+                type="button"
                 onClick={item.onClick}
                 className="flex flex-col items-center gap-1.5 px-2 py-1 rounded-xl transition-colors active:bg-brand-50"
                 aria-label={item.label}
