@@ -68,6 +68,7 @@ interface AppointmentEvent {
   customer: { id: string; name: string; phone: string };
   pet: { id: string; name: string; species: string } | null;
   staff: { id: string; name: string } | null;
+  orderId?: string | null;
 }
 
 interface Customer {
@@ -2886,6 +2887,7 @@ function CalendarContent() {
                       key: `tg-${s.id}`,
                       color: isWorkshop ? "#EC4899" : "#8B5CF6",
                       label: `${dateTimeToTime(s.sessionDatetime)} ${s.trainingGroup.name}`,
+                      onClick: (e) => { e.stopPropagation(); window.location.href = "/training"; },
                     });
                   });
               }
@@ -2899,6 +2901,7 @@ function CalendarContent() {
                       key: `tp-${s.id}`,
                       color: "#3B82F6",
                       label: `${dateTimeToTime(s.sessionDate)} ${s.program.dog?.name ?? s.program.name}`,
+                      onClick: (e) => { e.stopPropagation(); window.location.href = "/training"; },
                     });
                   });
               }
@@ -3435,6 +3438,17 @@ function CalendarContent() {
                 <Copy className="w-3.5 h-3.5" />
                 {duplicateMutation.isPending ? "משכפל..." : "שכפל תור (אותו מועד)"}
               </button>
+            )}
+
+            {selectedAppointment.orderId && (
+              <a
+                href={`/orders/${selectedAppointment.orderId}`}
+                onClick={() => { setSelectedAppointment(null); setConfirmCancelId(null); setConfirmDeleteId(null); setCancellationNote(""); setEditingNotes(false); }}
+                className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                פתח הזמנה
+              </a>
             )}
 
             <a

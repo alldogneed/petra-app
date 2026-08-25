@@ -150,6 +150,55 @@ export async function getBoardingStay(businessId: string, db: DbClient, id: stri
   return stay;
 }
 
+/** Hebrew user-facing message for a full room. */
+function roomFullMessage(capacity: number) {
+  return `החדר מלא — הקיבולת היא ${capacity} כלבים בתאריכים אלה`;
+}
+
+/**
+ * Count active (reserved/checked_in) stays in a room that overlap the given
+ * date range. A null checkOut — on either side — is treated as open-ended.
+ */
+async function countOverlappingRoomStays(
+  db: DbClient,
+  businessId: string,
+  roomId: string,
+  checkIn: Date,
+  checkOut: Date | null,
+  excludeStayId?: string
+) {
+  return db.boardingStay.count({
+    where: {
+      roomId,
+      businessId,
+      ...(excludeStayId ? { id: { not: excludeStayId } } : {}),
+      status: { in: ["reserved", "checked_in"] },
+      // Existing stay starts before the new stay ends (open-ended new stay → far-future sentinel)
+      checkIn: { lt: checkOut ?? new Date("2099-12-31") },
+      // Existing stay ends after the new stay starts, or is itself open-ended
+      OR: [{ checkOut: { gt: checkIn } }, { checkOut: null }],
+    },
+  });
+}
+
+/**
+ * Enforce room capacity for a stay occupying [checkIn, checkOut).
+ * Throws ServiceError(CONFLICT) with the room's capacity when full.
+ */
+async function assertRoomCapacity(
+  db: DbClient,
+  businessId: string,
+  roomId: string,
+  checkIn: Date,
+  checkOut: Date | null,
+  excludeStayId?: string
+) {
+  const room = await db.room.findFirst({ where: { id: roomId, businessId }, select: { id: true, capacity: true } });
+  if (!room) throw new ServiceError("חדר לא נמצא", "NOT_FOUND");
+  const activeCount = await countOverlappingRoomStays(db, businessId, roomId, checkIn, checkOut, excludeStayId);
+  if (activeCount >= room.capacity) throw new ServiceError(roomFullMessage(room.capacity), "CONFLICT");
+}
+
 export async function createBoardingStay(
   businessId: string,
   db: DbClient,
@@ -200,18 +249,7 @@ export async function createBoardingStay(
 
   // Room capacity check before create
   if (roomId) {
-    const room = await db.room.findFirst({ where: { id: roomId, businessId } });
-    if (!room) throw new ServiceError("חדר לא נמצא", "NOT_FOUND");
-
-    const activeCount = await db.boardingStay.count({
-      where: {
-        roomId,
-        status: { in: ["reserved", "checked_in"] },
-        checkIn: { lt: checkOut ? new Date(checkOut) : new Date("2099-12-31") },
-        OR: [{ checkOut: { gt: new Date(checkIn) } }, { checkOut: null }],
-      },
-    });
-    if (activeCount >= room.capacity) throw new ServiceError("החדר מלא בתאריכים אלו", "CONFLICT");
+    await assertRoomCapacity(db, businessId, roomId, new Date(checkIn), checkOut ? new Date(checkOut) : null);
   }
 
   const stay = await db.boardingStay.create({
@@ -238,17 +276,10 @@ export async function createBoardingStay(
 
   // Post-create race-condition guard: re-check capacity; delete our stay if a concurrent request slipped through
   if (roomId && stay.room) {
-    const postCount = await db.boardingStay.count({
-      where: {
-        roomId,
-        status: { in: ["reserved", "checked_in"] },
-        checkIn: { lt: checkOut ? new Date(checkOut) : new Date("2099-12-31") },
-        OR: [{ checkOut: { gt: new Date(checkIn) } }, { checkOut: null }],
-      },
-    });
+    const postCount = await countOverlappingRoomStays(db, businessId, roomId, new Date(checkIn), checkOut ? new Date(checkOut) : null);
     if (postCount > stay.room.capacity) {
       await db.boardingStay.delete({ where: { id: stay.id } });
-      throw new ServiceError("החדר מלא בתאריכים אלו", "CONFLICT");
+      throw new ServiceError(roomFullMessage(stay.room.capacity), "CONFLICT");
     }
   }
 
@@ -263,13 +294,42 @@ export async function updateBoardingStay(
 ) {
   const existing = await db.boardingStay.findFirst({
     where: { id, businessId },
-    select: { id: true, notes: true, status: true, roomId: true, businessId: true },
+    select: { id: true, notes: true, status: true, roomId: true, businessId: true, checkIn: true, checkOut: true },
   });
   if (!existing) throw new ServiceError("שהייה לא נמצאה", "NOT_FOUND");
 
   if (input.roomId) {
     const room = await db.room.findFirst({ where: { id: input.roomId, businessId } });
     if (!room) throw new ServiceError("חדר לא נמצא", "NOT_FOUND");
+  }
+
+  // ── Room capacity enforcement ──
+  // Effective values after this update:
+  const finalRoomId = input.roomId !== undefined ? input.roomId : existing.roomId;
+  const finalStatus = input.status ?? existing.status;
+  const finalCheckIn = input.actualCheckinTime
+    ? new Date(input.actualCheckinTime)
+    : input.checkIn !== undefined
+    ? new Date(input.checkIn)
+    : existing.checkIn;
+  const finalCheckOut = input.actualCheckoutTime
+    ? new Date(input.actualCheckoutTime)
+    : input.checkOut !== undefined
+    ? (input.checkOut ? new Date(input.checkOut) : null)
+    : existing.checkOut;
+  // Re-check capacity only when the stay will actively occupy a room and
+  // something capacity-relevant changed (room, dates, or reactivated status).
+  const capacityRelevantChange =
+    (input.roomId !== undefined && input.roomId !== existing.roomId) ||
+    input.checkIn !== undefined ||
+    input.checkOut !== undefined ||
+    input.actualCheckinTime !== undefined ||
+    input.actualCheckoutTime !== undefined ||
+    (input.status !== undefined &&
+      ["reserved", "checked_in"].includes(input.status) &&
+      !["reserved", "checked_in"].includes(existing.status));
+  if (finalRoomId && ["reserved", "checked_in"].includes(finalStatus) && capacityRelevantChange) {
+    await assertRoomCapacity(db, businessId, finalRoomId, finalCheckIn, finalCheckOut, id);
   }
   if (input.yardId) {
     const yard = await db.yard.findFirst({ where: { id: input.yardId, businessId } });
