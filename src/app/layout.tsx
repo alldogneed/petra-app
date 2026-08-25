@@ -4,6 +4,7 @@ import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { Toaster } from "sonner";
+import ChunkErrorReload from "@/components/ChunkErrorReload";
 
 const heebo = Heebo({
   subsets: ["latin", "hebrew"],
@@ -113,6 +114,7 @@ export default function RootLayout({
           }}
         />
         <QueryProvider>
+          <ChunkErrorReload />
           <AuthProvider>{children}</AuthProvider>
           <Toaster
             position="bottom-left"
