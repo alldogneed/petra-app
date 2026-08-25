@@ -3599,8 +3599,8 @@ export default function CustomerProfilePage() {
       setDeletingPetId(null);
       setDeletingPetOwner(null);
     },
-    onError: () => {
-      toast.error("שגיאה במחיקת חיית המחמד");
+    onError: (err) => {
+      toast.error(err?.message || "שגיאה במחיקת חיית המחמד");
       setDeletingPetId(null);
       setDeletingPetOwner(null);
     },
