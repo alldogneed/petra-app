@@ -1931,13 +1931,20 @@ function BoardingPageContent() {
   const [activeStayId, setActiveStayId] = useState<string | null>(null);
   const [roomSlotOrders, setRoomSlotOrders] = useState<Record<string, string[]>>({});
 
-  // Occupancy checker — defaults to today
+  // Occupancy checker — defaults to the coming week (today → +7 days).
+  // Availability is a forward-looking question; past dates stay selectable
+  // via the pickers (no min clamp on the "from" input).
   const todayStr = new Date().toISOString().slice(0, 10);
+  const weekAheadStr = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().slice(0, 10);
+  })();
   const [occFrom, setOccFrom] = useState(todayStr);
-  const [occTo, setOccTo] = useState(todayStr);
+  const [occTo, setOccTo] = useState(weekAheadStr);
   // Draft state for date inputs (apply on button click)
   const [occDraftFrom, setOccDraftFrom] = useState(todayStr);
-  const [occDraftTo, setOccDraftTo] = useState(todayStr);
+  const [occDraftTo, setOccDraftTo] = useState(weekAheadStr);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [timelineDays, setTimelineDays] = useState(14);
