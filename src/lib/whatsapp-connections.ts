@@ -87,6 +87,9 @@ const GRAPH_BASE = "https://graph.facebook.com/v21.0";
 const GRAPH_TIMEOUT_MS = 10_000;
 /** `lastUsedAt` is written at most once per this interval (cheap updateMany, awaited). */
 const LAST_USED_MIN_INTERVAL_MS = 10 * 60 * 1000;
+// Embedded Signup system-user tokens live 60 days; refresh when this close to expiry.
+const TOKEN_LIFETIME_MS = 60 * 24 * 60 * 60 * 1000;
+const TOKEN_REFRESH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 /** lastError values written by the template sync start with this so a later good sync can clear them. */
 const SYNC_ERR_PREFIX = "סנכרון תבניות: ";
 const MAX_TEMPLATE_PAGES = 5;
@@ -303,6 +306,16 @@ export async function resolveWhatsAppSender(
             await markWhatsAppConnectionError(businessId, "פענוח טוקן הגישה נכשל — יש לחבר את המספר מחדש");
           }
           if (token) {
+            // Lazy refresh: Embedded Signup tokens expire after 60 days — exchange for a fresh
+            // one when close to expiry (awaited; failure keeps the current token until it dies).
+            if (conn.tokenExpiresAt && conn.tokenExpiresAt.getTime() - Date.now() < TOKEN_REFRESH_WINDOW_MS) {
+              const refreshed = await refreshBusinessToken(businessId, token);
+              if (refreshed) token = refreshed;
+              else if (conn.tokenExpiresAt.getTime() < Date.now()) {
+                await markWhatsAppConnectionError(businessId, "טוקן הגישה פג ולא ניתן היה לרענן אותו — יש לחבר את המספר מחדש");
+                return platformSender();
+              }
+            }
             // Throttled lastUsedAt touch (awaited — Vercel kills fire-and-forget work).
             const now = Date.now();
             if (!conn.lastUsedAt || now - conn.lastUsedAt.getTime() > LAST_USED_MIN_INTERVAL_MS) {
@@ -322,6 +335,38 @@ export async function resolveWhatsAppSender(
     }
   }
   return platformSender();
+}
+
+/** Exchange a soon-to-expire business token for a fresh 60-day one. Returns the new token or null. */
+async function refreshBusinessToken(businessId: string, currentToken: string): Promise<string | null> {
+  const appId = getMetaAppId();
+  const appSecret = process.env.META_APP_SECRET?.trim();
+  if (!appId || !appSecret) return null;
+  const res = await graph<{ access_token?: string }>("/oauth/access_token", {
+    query: {
+      grant_type: "fb_exchange_token",
+      client_id: appId,
+      client_secret: appSecret,
+      fb_exchange_token: currentToken,
+    },
+    secrets: [appSecret, currentToken],
+  });
+  const fresh = res.data?.access_token;
+  if (!fresh) {
+    console.error(`${LOG} token refresh failed for business ${businessId}: ${res.error?.message ?? "no token in response"}`);
+    return null;
+  }
+  try {
+    await prisma.whatsAppConnection.updateMany({
+      where: { businessId },
+      data: { accessTokenEnc: encryptWhatsAppToken(fresh), tokenExpiresAt: new Date(Date.now() + TOKEN_LIFETIME_MS) },
+    });
+    console.log(`${LOG} refreshed access token for business ${businessId}`);
+    return fresh;
+  } catch (err) {
+    console.error(`${LOG} failed to store refreshed token for business ${businessId}:`, err);
+    return fresh; // still usable for this send
+  }
 }
 
 export async function getWhatsAppConnectionStatus(businessId: string): Promise<WaConnectionStatus> {
@@ -426,6 +471,7 @@ export async function connectWhatsAppBusiness(input: ConnectInput): Promise<WaCo
     verifiedName: phone.data.verified_name ?? null,
     qualityRating: phone.data.quality_rating ?? null,
     accessTokenEnc: encryptWhatsAppToken(token),
+    tokenExpiresAt: new Date(now.getTime() + TOKEN_LIFETIME_MS),
     status: "active",
     lastError,
     coexistence,

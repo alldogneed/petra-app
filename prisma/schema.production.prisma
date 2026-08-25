@@ -2377,6 +2377,7 @@ model WhatsAppConnection {
   verifiedName      String?   // display name approved by Meta
   qualityRating     String?   // GREEN | YELLOW | RED | UNKNOWN
   accessTokenEnc    String    // business-integration system-user token, AES-256-GCM (WHATSAPP_ENCRYPTION_KEY, falls back to GCAL_ENCRYPTION_KEY)
+  tokenExpiresAt    DateTime? // Embedded Signup tokens expire after 60 days; refreshed lazily on send (fb_exchange_token)
   status            String    @default("active") // active | disconnected | error
   lastError         String?
   coexistence       Boolean   @default(false) // onboarded via WhatsApp Business app coexistence flow
