@@ -26,7 +26,7 @@ const META_APP_ID = process.env.NEXT_PUBLIC_META_APP_ID;
 const META_ES_CONFIG_ID = process.env.NEXT_PUBLIC_META_ES_CONFIG_ID;
 
 let sdkPromise: Promise<void> | null = null;
-function ensureFbSdk(): Promise<void> {
+function loadFbSdkOnce(): Promise<void> {
   if (typeof window === "undefined") return Promise.reject(new Error("no window"));
   if (window.FB) return Promise.resolve();
   if (sdkPromise) return sdkPromise;
@@ -47,12 +47,28 @@ function ensureFbSdk(): Promise<void> {
     s.defer = true;
     s.crossOrigin = "anonymous";
     s.onerror = () => {
+      // Remove the failed tag so a retry can inject a fresh one (FB CDN occasionally 503s).
+      s.remove();
       sdkPromise = null;
       reject(new Error("sdk load failed"));
     };
     document.body.appendChild(s);
   });
   return sdkPromise;
+}
+
+/** Load the FB SDK with retries — connect.facebook.net intermittently returns 503. */
+async function ensureFbSdk(): Promise<void> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await loadFbSdkOnce();
+    } catch (err) {
+      lastErr = err;
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("sdk load failed");
 }
 
 const TEMPLATE_STATUS: Record<string, { label: string; cls: string }> = {
