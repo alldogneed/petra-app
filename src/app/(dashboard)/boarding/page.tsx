@@ -2101,7 +2101,7 @@ function BoardingPageContent() {
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(["boarding"], ctx.prev);
-      toast.error("שגיאה בעדכון הסטטוס. נסה שוב.");
+      toast.error(_err instanceof Error && _err.message ? _err.message : "שגיאה בעדכון הסטטוס. נסה שוב.");
     },
     onSuccess: (updatedStay: BoardingStay, payload) => {
       // Merge server response into cache (may include updated notes/times)
@@ -2156,7 +2156,10 @@ function BoardingPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ roomId }),
       });
-      if (!r.ok) throw new Error("שגיאה בשיוך החדר");
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.error || "שגיאה בשיוך החדר");
+      }
       return r.json();
     },
     onMutate: async ({ id, roomId }) => {
@@ -2236,7 +2239,7 @@ function BoardingPageContent() {
       if (ctx?.prev) queryClient.setQueryData(["boarding"], ctx.prev);
       if (ctx?.prevRooms) queryClient.setQueryData(["rooms"], ctx.prevRooms);
       if (ctx?.prevOcc) queryClient.setQueryData(ctx.occKey, ctx.prevOcc);
-      toast.error("שגיאה בשיוך החדר. נסה שוב.");
+      toast.error(_err instanceof Error && _err.message ? _err.message : "שגיאה בשיוך החדר. נסה שוב.");
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
@@ -2288,7 +2291,7 @@ function BoardingPageContent() {
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(["boarding"], ctx.prev);
-      toast.error("שגיאה בעדכון תאריך היציאה. נסה שוב.");
+      toast.error(_err instanceof Error && _err.message ? _err.message : "שגיאה בעדכון תאריך היציאה. נסה שוב.");
     },
     onSuccess: (updatedStay: BoardingStay) => {
       queryClient.setQueryData<BoardingStay[]>(["boarding"], (old) =>
