@@ -29,6 +29,7 @@ import {
   Download,
   Sheet,
   Printer,
+  CreditCard,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, toWhatsAppPhone, escapeHtml } from "@/lib/utils";
 import { toast } from "sonner";
@@ -843,6 +844,16 @@ function OrdersPageContent() {
                           <Eye className="w-3.5 h-3.5" />
                           צפה בפרטים
                         </Link>
+                        {paidAmount < order.total && order.status !== "cancelled" && (
+                          <Link
+                            href={`/orders/${order.id}?pay=1`}
+                            className="btn-primary text-xs py-1.5 px-3 gap-1.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <CreditCard className="w-3.5 h-3.5" />
+                            רשום תשלום
+                          </Link>
+                        )}
                         {order.status === "draft" && (
                           <button
                             className="btn-primary text-xs py-1.5 px-3"
@@ -1029,6 +1040,15 @@ function OrdersPageContent() {
                             <Eye className="w-3.5 h-3.5" />
                             צפה בפרטים
                           </Link>
+                          {paidAmountDesk < order.total && order.status !== "cancelled" && (
+                            <Link
+                              href={`/orders/${order.id}?pay=1`}
+                              className="btn-primary text-xs py-1.5 px-3 gap-1.5"
+                            >
+                              <CreditCard className="w-3.5 h-3.5" />
+                              רשום תשלום
+                            </Link>
+                          )}
                           {order.status === "draft" && (
                             <button
                               className="btn-primary text-xs py-1.5 px-3 gap-1.5"
