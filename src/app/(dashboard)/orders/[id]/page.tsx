@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowRight, CheckCircle2, Clock, XCircle, ShoppingCart,
@@ -234,7 +234,9 @@ export default function OrderDetailPage() {
   const qc = useQueryClient();
   const orderId = params.id as string;
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const [showAddPayment, setShowAddPayment] = useState(false);
+  // ?pay=1 (from the orders-list "רשום תשלום" button) opens the payment modal
+  const searchParams = useSearchParams();
+  const [showAddPayment, setShowAddPayment] = useState(searchParams.get("pay") === "1");
   const [sendingPaymentRequest, setSendingPaymentRequest] = useState(false);
   const [cancelPayment, setCancelPayment] = useState<OrderPayment | null>(null);
   // Draft-order lines editor state
