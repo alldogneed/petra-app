@@ -22,7 +22,11 @@ export function errorResult(message: string): ToolResult {
 // Newlines, tabs, C0 control chars and DEL — built without literal escapes so the
 // source file stays free of raw control bytes.
 const CONTROL_CHARS = new RegExp(
-  "[\\r\\n\\t" + String.fromCharCode(0) + "-" + String.fromCharCode(31) + String.fromCharCode(127) + "]+",
+  "[\\r\\n\\t" + String.fromCharCode(0) + "-" + String.fromCharCode(31) + String.fromCharCode(127) +
+    // Unicode line/paragraph separators, bidi overrides/isolates, zero-width & BOM —
+    // these render as breaks or visually reorder RTL text, so a hostile lead value
+    // can't smuggle a fake "instructions" line past the newline strip.
+    "\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069\\u200b-\\u200f\\ufeff]+",
   "g"
 );
 
