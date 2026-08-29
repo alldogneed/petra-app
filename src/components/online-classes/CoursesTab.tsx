@@ -566,6 +566,7 @@ function DeleteCourseModal({
 interface LessonFormState {
   title: string;
   type: string;
+  description: string;
   videoRef: string;
   fileUrl: string;
   textContent: string;
@@ -576,6 +577,7 @@ interface LessonFormState {
 const EMPTY_LESSON: LessonFormState = {
   title: "",
   type: "video",
+  description: "",
   videoRef: "",
   fileUrl: "",
   textContent: "",
@@ -699,6 +701,7 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
       const body: Record<string, unknown> = {
         title: lessonForm.title.trim(),
         type: lessonForm.type,
+        description: lessonForm.description.trim() || null,
         videoRef: lessonForm.type === "video" ? extractYouTubeId(lessonForm.videoRef) || null : null,
         fileUrl: lessonForm.type === "pdf" ? lessonForm.fileUrl.trim() || null : null,
         textContent: lessonForm.type === "text" ? lessonForm.textContent.trim() || null : null,
@@ -789,6 +792,20 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
 
   const published = course.status?.toLowerCase() === "published";
 
+  // Description of the lesson right before the one being edited/added, in the same
+  // module — lets multi-part lessons ("חלק א׳ / ב׳ / ג׳") reuse the same description.
+  const previousLessonDescription = (() => {
+    if (!lessonModal) return "";
+    const mod = modules.find((m) => m.id === lessonModal.moduleId);
+    if (!mod) return "";
+    const editingId = lessonModal.lesson?.id ?? null;
+    const idx = editingId
+      ? mod.lessons.findIndex((l) => l.id === editingId)
+      : mod.lessons.length;
+    if (idx <= 0) return "";
+    return mod.lessons[idx - 1]?.description?.trim() || "";
+  })();
+
   return (
     <div>
       {/* Builder header */}
@@ -875,6 +892,7 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
                     setLessonForm({
                       title: lesson.title,
                       type: lesson.type?.toLowerCase() || "video",
+                      description: lesson.description ?? "",
                       videoRef: lesson.videoRef ?? "",
                       fileUrl: lesson.fileUrl ?? "",
                       textContent: lesson.textContent ?? "",
@@ -944,6 +962,26 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
                 value={lessonForm.title}
                 onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
               />
+            </div>
+            <div>
+              <label className="label">תיאור השיעור</label>
+              <textarea
+                className="input min-h-[80px]"
+                value={lessonForm.description}
+                onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
+                placeholder="מה נלמד בשיעור הזה?"
+              />
+              {previousLessonDescription && (
+                <button
+                  type="button"
+                  className="text-xs text-brand-600 hover:underline mt-1"
+                  onClick={() =>
+                    setLessonForm({ ...lessonForm, description: previousLessonDescription })
+                  }
+                >
+                  העתק תיאור מהשיעור הקודם
+                </button>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -1199,6 +1237,7 @@ function SortableLesson({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: lesson.id });
   const meta = lessonTypeMeta(lesson.type);
+  const hasDescription = !!lesson.description?.trim();
 
   return (
     <div
@@ -1219,6 +1258,15 @@ function SortableLesson({
       </button>
       <span className="text-petra-muted">{meta.icon}</span>
       <p className="text-sm text-petra-text flex-1 truncate">{lesson.title}</p>
+      {hasDescription && (
+        <span
+          className="text-[10px] text-petra-muted whitespace-nowrap flex items-center gap-0.5"
+          title={lesson.description ?? undefined}
+        >
+          <FileText className="w-3 h-3" />
+          תיאור
+        </span>
+      )}
       {lesson.durationMin != null && lesson.durationMin > 0 && (
         <span className="text-[11px] text-petra-muted whitespace-nowrap">
           {lesson.durationMin} דק׳

@@ -51,6 +51,7 @@ export interface LessonItem {
   id: string;
   title: string;
   type: string; // video | pdf | text
+  description?: string | null;
   videoRef: string | null;
   fileUrl: string | null;
   textContent: string | null;

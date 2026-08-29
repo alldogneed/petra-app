@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Mail, KeyRound, UserRound, ArrowRight } from "lucide-react"
+import { Mail, KeyRound, UserRound, ArrowRight, ShieldAlert } from "lucide-react"
 import { PortalButton } from "../_components/portal-ui"
+import { getOrCreateDeviceId } from "@/lib/portal-device"
 
 type LoginStep = "email" | "code" | "profile"
 
@@ -26,8 +27,11 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
   const [nameError, setNameError] = useState("")
   const [phoneError, setPhoneError] = useState("")
 
+  const [deviceNotice, setDeviceNotice] = useState("")
+
   const [sending, setSending] = useState(false)
   const [verifying, setVerifying] = useState(false)
+  const [redirecting, setRedirecting] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
   const codeInputRef = useRef<HTMLInputElement>(null)
 
@@ -103,7 +107,9 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
       setCodeError("")
       setVerifying(true)
       try {
-        const body: Record<string, string> = { email: trimmed, code }
+        const body: Record<string, string> = { email: trimmed, code, slug }
+        const deviceId = getOrCreateDeviceId()
+        if (deviceId) body.deviceId = deviceId
         if (withProfile) {
           body.name = name.trim()
           body.phone = phone.replace(/\D/g, "")
@@ -119,6 +125,18 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
           return
         }
         if (res.ok && (d.user || d.portalUser || d.ok)) {
+          const signedOut =
+            typeof d.signedOutDevices === "number" ? d.signedOutDevices : 0
+          if (signedOut > 0) {
+            setDeviceNotice(
+              signedOut === 1
+                ? "נותקת ממכשיר אחר — חשבון זה מוגבל למספר מכשירים"
+                : `נותקת מ-${signedOut} מכשירים אחרים — חשבון זה מוגבל למספר מכשירים`
+            )
+            setRedirecting(true)
+            setTimeout(() => router.push(`/c/${slug}`), 2200)
+            return
+          }
           router.push(`/c/${slug}`)
           return
         }
@@ -237,7 +255,7 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
               />
               {codeError && <p className="text-xs text-rose-600 mt-1.5 text-center">{codeError}</p>}
             </div>
-            <PortalButton type="submit" className="w-full" loading={verifying}>
+            <PortalButton type="submit" className="w-full" loading={verifying || redirecting}>
               אימות
             </PortalButton>
             <div className="text-center">
@@ -328,10 +346,18 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
               {phoneError && <p className="text-xs text-rose-600 mt-1.5">{phoneError}</p>}
             </div>
             {codeError && <p className="text-xs text-rose-600 text-center">{codeError}</p>}
-            <PortalButton type="submit" className="w-full" loading={verifying}>
+            <PortalButton type="submit" className="w-full" loading={verifying || redirecting}>
               סיום והתחברות
             </PortalButton>
           </form>
+        )}
+
+        {/* Device-cap notice — shown when the server signed out older devices */}
+        {deviceNotice && (
+          <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+            <ShieldAlert className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+            <p className="text-xs text-amber-800 leading-relaxed">{deviceNotice}</p>
+          </div>
         )}
       </div>
     </main>

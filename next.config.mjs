@@ -67,7 +67,7 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' https://connect.facebook.net",
+              "script-src 'self' 'unsafe-inline' https://connect.facebook.net https://www.youtube.com https://s.ytimg.com",
               // Sentry Replay compresses its payloads in a blob web worker;
               // without worker-src the script-src fallback blocks it on every page.
               "worker-src 'self' blob:",
@@ -75,7 +75,7 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
               "media-src 'self' blob: https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com",
-              "connect-src 'self' https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://connect.facebook.net https://www.facebook.com https://graph.facebook.com",
+              "connect-src 'self' https://www.youtube.com https://play.google.com https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://connect.facebook.net https://www.facebook.com https://graph.facebook.com",
               "frame-ancestors 'self'",
               // youtube-nocookie: recorded course lessons in the members portal (/c/[slug]).
               "frame-src 'self' blob: https://secure.cardcom.solutions https://www.facebook.com https://web.facebook.com https://www.youtube-nocookie.com https://www.youtube.com",

@@ -389,17 +389,20 @@ export async function getPortalCourse(
   });
   if (!course) return null;
 
-  const myProgress = membershipId
-    ? (
-        await prisma.lessonProgress.findMany({
-          where: {
-            membershipId,
-            lesson: { module: { courseId } },
-          },
-          select: { lessonId: true },
-        })
-      ).map((p) => p.lessonId)
+  const progressRows = membershipId
+    ? await prisma.lessonProgress.findMany({
+        where: { membershipId, lesson: { module: { courseId } } },
+        select: { lessonId: true, percent: true, completedAt: true },
+      })
     : [];
+  // myProgress stays "completed lesson ids" — partially-watched lessons live in
+  // progressDetail so the player can resume and show a per-lesson percentage.
+  const myProgress = progressRows.filter((p) => p.completedAt !== null).map((p) => p.lessonId);
+  const progressDetail = progressRows.map((p) => ({
+    lessonId: p.lessonId,
+    percent: p.percent,
+    completedAt: p.completedAt,
+  }));
 
   return {
     ...course,
@@ -417,6 +420,7 @@ export async function getPortalCourse(
       }),
     })),
     myProgress,
+    progressDetail,
   };
 }
 
@@ -443,7 +447,72 @@ export async function markLessonComplete(
 
   await prisma.lessonProgress.upsert({
     where: { membershipId_lessonId: { membershipId, lessonId } },
-    update: {},
-    create: { membershipId, lessonId },
+    update: { completedAt: new Date(), percent: 100 },
+    create: { membershipId, lessonId, completedAt: new Date(), percent: 100 },
   });
+}
+
+/**
+ * A video lesson is only "done" once the student has actually covered this much
+ * of it. The client reports distinct watched seconds (seeking to the end does
+ * not count), so this is real coverage, not furthest position.
+ * Slightly under 100% so trailing credits / rounding don't strand a lesson.
+ */
+export const COMPLETE_AT_PERCENT = 95;
+
+/**
+ * Record watch progress for a video lesson and auto-complete it at
+ * COMPLETE_AT_PERCENT. Monotonic: a later, smaller report never lowers the
+ * stored coverage, and a completed lesson stays completed.
+ */
+export async function recordLessonProgress(
+  businessId: string,
+  membershipId: string,
+  lessonId: string,
+  data: { watchedSeconds: number; durationSeconds: number }
+): Promise<{ percent: number; completed: boolean; watchedSeconds: number }> {
+  const membership = await prisma.membership.findFirst({
+    where: { id: membershipId, businessId },
+    select: { id: true },
+  });
+  if (!membership) throw new ServiceError("מנוי לא נמצא", "NOT_FOUND");
+
+  const lesson = await prisma.lesson.findFirst({
+    where: {
+      id: lessonId,
+      module: { course: { businessId, status: "published" } },
+    },
+    select: { id: true },
+  });
+  if (!lesson) throw new ServiceError("שיעור לא נמצא", "NOT_FOUND");
+
+  const duration = Number(data.durationSeconds);
+  const watchedRaw = Number(data.watchedSeconds);
+  if (!Number.isFinite(duration) || duration <= 0) {
+    throw new ServiceError("משך הסרטון לא תקין", "VALIDATION");
+  }
+  if (!Number.isFinite(watchedRaw) || watchedRaw < 0) {
+    throw new ServiceError("נתוני צפייה לא תקינים", "VALIDATION");
+  }
+  // Never trust the client past the video length.
+  const watched = Math.min(Math.round(watchedRaw), Math.round(duration));
+
+  const existing = await prisma.lessonProgress.findUnique({
+    where: { membershipId_lessonId: { membershipId, lessonId } },
+    select: { percent: true, watchedSeconds: true, completedAt: true },
+  });
+
+  const bestWatched = Math.max(watched, existing?.watchedSeconds ?? 0);
+  const rawPercent = Math.round((bestWatched / duration) * 100);
+  const percent = Math.min(100, Math.max(rawPercent, existing?.percent ?? 0));
+  const completed = percent >= COMPLETE_AT_PERCENT;
+  const completedAt = existing?.completedAt ?? (completed ? new Date() : null);
+
+  await prisma.lessonProgress.upsert({
+    where: { membershipId_lessonId: { membershipId, lessonId } },
+    update: { percent, watchedSeconds: bestWatched, completedAt },
+    create: { membershipId, lessonId, percent, watchedSeconds: bestWatched, completedAt },
+  });
+
+  return { percent, completed: completedAt !== null, watchedSeconds: bestWatched };
 }

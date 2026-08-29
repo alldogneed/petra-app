@@ -2423,6 +2423,10 @@ model BrandingSettings {
   paymentLinkUrl String?  // external payment link (הו"ק / one-time) — no in-code billing
   aboutText      String?
   customDomain   String?  @unique // late phase — not used yet
+  // ── Course access security ──
+  maxDevicesPerStudent Int      @default(2)  // 0 = unlimited; oldest device is signed out beyond this
+  ipRestrictionEnabled Boolean  @default(false)
+  allowedIps           String[] @default([]) // IPv4/IPv6 addresses or CIDR ranges
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -2466,11 +2470,16 @@ model PortalSession {
   expiresAt    DateTime
   createdAt    DateTime @default(now())
   lastSeenAt   DateTime @default(now())
+  // Course-sharing controls (see BrandingSettings.maxDevicesPerStudent):
+  deviceId     String?  // stable per-browser id minted client-side
+  deviceLabel  String?  // human-readable hint, e.g. "Chrome · iPhone"
+  ipAddress    String?  // last IP seen on this session
 
   portalUser PortalUser @relation(fields: [portalUserId], references: [id], onDelete: Cascade)
 
   @@index([portalUserId])
   @@index([expiresAt])
+  @@index([portalUserId, deviceId])
 }
 
 /// A dog owner's subscription to one business's portal.
@@ -2569,6 +2578,7 @@ model Lesson {
   id            String  @id @default(uuid())
   moduleId      String
   title         String
+  description   String? // shown under the player in the portal
   position      Int
   type          String  @default("video")
   provider      String  @default("youtube")
@@ -2585,10 +2595,15 @@ model Lesson {
 }
 
 model LessonProgress {
-  id           String   @id @default(uuid())
-  membershipId String
-  lessonId     String
-  completedAt  DateTime @default(now())
+  id             String    @id @default(uuid())
+  membershipId   String
+  lessonId       String
+  // Video lessons complete automatically once watchedSeconds covers the video
+  // (COMPLETE_AT_PERCENT in src/services/portal.ts); pdf/text complete manually.
+  completedAt    DateTime? // null = started but not finished
+  percent        Int       @default(0) // 0-100, furthest watched coverage
+  watchedSeconds Int       @default(0) // distinct seconds watched (seek-proof)
+  updatedAt      DateTime  @default(now()) @updatedAt
 
   membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   lesson     Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)

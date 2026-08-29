@@ -12,6 +12,7 @@ import { createHash, randomBytes, randomInt } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import type { PortalUser } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { getAccessSettings, isIpAllowed, clientIpOf } from "@/lib/portal-access";
 import { sendEmail, brandHeader, brandFooter } from "@/lib/email";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { validateIsraeliPhone, sanitizeName } from "@/lib/validation";
@@ -177,13 +178,19 @@ export async function createPortalUser(data: {
 // ─── Sessions ─────────────────────────────────────────────────────────────────
 
 /** Create a portal session and return the RAW token (64 hex chars). */
-export async function createPortalSession(portalUserId: string): Promise<string> {
+export async function createPortalSession(
+  portalUserId: string,
+  device?: { deviceId?: string | null; deviceLabel?: string | null; ipAddress?: string | null }
+): Promise<string> {
   const token = randomBytes(32).toString("hex");
   await prisma.portalSession.create({
     data: {
       portalUserId,
       tokenHash: sha256(token),
       expiresAt: new Date(Date.now() + PORTAL_SESSION_TTL_MS),
+      deviceId: device?.deviceId ?? null,
+      deviceLabel: device?.deviceLabel ?? null,
+      ipAddress: device?.ipAddress ?? null,
     },
   });
   return token;
@@ -295,6 +302,15 @@ export async function requirePortalAuth(
     !hasFeatureWithOverrides(business.tier, "online_classes", overrides)
   ) {
     return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
+  }
+
+  // Course access security: per-business IP allowlist (off by default).
+  const access = await getAccessSettings(business.id);
+  if (!isIpAllowed(clientIpOf(request), access)) {
+    return NextResponse.json(
+      { error: "הגישה לפורטל חסומה מהרשת הזו. יש להתחבר מרשת מאושרת." },
+      { status: 403 }
+    );
   }
 
   const membership = await prisma.membership.findUnique({

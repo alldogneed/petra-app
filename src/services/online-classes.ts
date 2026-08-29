@@ -54,6 +54,9 @@ function safeUrlOrNull(
   return t;
 }
 
+/** IPv4/IPv6 address or CIDR range (shape check — matching lives in portal-access.ts). */
+const IP_RULE_RE = /^(?:\d{1,3}(?:\.\d{1,3}){3}|[0-9a-fA-F:]{2,45})(?:\/\d{1,3})?$/;
+
 const VIDEO_REF_RE = /^[A-Za-z0-9_-]{6,20}$/;
 /** YouTube video id only (schema contract) — never a URL or path. */
 function videoRefOrNull(
@@ -90,9 +93,38 @@ export async function updateBranding(
     senderName: string | null;
     paymentLinkUrl: string | null;
     aboutText: string | null;
+    maxDevicesPerStudent: number;
+    ipRestrictionEnabled: boolean;
+    allowedIps: string[];
   }>
 ) {
   const update: Record<string, unknown> = {};
+  if (data.maxDevicesPerStudent !== undefined) {
+    const n = Number(data.maxDevicesPerStudent);
+    if (!Number.isInteger(n) || n < 0 || n > 10) {
+      throw new ServiceError("מספר מכשירים חייב להיות בין 0 ל-10 (0 = ללא הגבלה)", "VALIDATION");
+    }
+    update.maxDevicesPerStudent = n;
+  }
+  if (data.ipRestrictionEnabled !== undefined) {
+    update.ipRestrictionEnabled = !!data.ipRestrictionEnabled;
+  }
+  if (data.allowedIps !== undefined) {
+    const list = Array.isArray(data.allowedIps) ? data.allowedIps : [];
+    const cleaned = list
+      .filter((v): v is string => typeof v === "string")
+      .map((v) => v.trim())
+      .filter(Boolean);
+    if (cleaned.length > 50) {
+      throw new ServiceError("ניתן להגדיר עד 50 כתובות IP", "VALIDATION");
+    }
+    for (const entry of cleaned) {
+      if (!IP_RULE_RE.test(entry)) {
+        throw new ServiceError(`כתובת IP לא תקינה: ${entry}`, "VALIDATION");
+      }
+    }
+    update.allowedIps = cleaned;
+  }
   if (data.logoUrl !== undefined) update.logoUrl = safeUrlOrNull(data.logoUrl, "לוגו");
   if (data.primaryColor !== undefined) {
     const color = (data.primaryColor || "").trim();
@@ -747,6 +779,7 @@ export async function createLesson(
   data: {
     title: string;
     type?: string;
+    description?: string | null;
     videoRef?: string | null;
     fileUrl?: string | null;
     textContent?: string | null;
@@ -777,6 +810,7 @@ export async function createLesson(
       title,
       position: (agg._max.position ?? 0) + 10,
       type: data.type ?? "video",
+      description: trimOrNull(data.description) ?? null,
       videoRef: videoRefOrNull(data.videoRef) ?? null,
       fileUrl: safeUrlOrNull(data.fileUrl, "קובץ PDF") ?? null,
       textContent: data.textContent ?? null,
@@ -792,6 +826,7 @@ export async function updateLesson(
   data: Partial<{
     title: string;
     type: string;
+    description: string | null;
     videoRef: string | null;
     fileUrl: string | null;
     textContent: string | null;
@@ -817,6 +852,7 @@ export async function updateLesson(
     }
     update.type = data.type;
   }
+  if (data.description !== undefined) update.description = trimOrNull(data.description);
   if (data.videoRef !== undefined) update.videoRef = videoRefOrNull(data.videoRef);
   if (data.fileUrl !== undefined) update.fileUrl = safeUrlOrNull(data.fileUrl, "קובץ PDF");
   if (data.textContent !== undefined) update.textContent = data.textContent;

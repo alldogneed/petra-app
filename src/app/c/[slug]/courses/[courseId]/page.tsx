@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -18,12 +18,15 @@ import { PortalSpinner } from "../../_components/portal-ui"
 type PortalLesson = {
   id: string
   title: string
+  description?: string | null
   type: string | null
+  provider?: string | null
   videoRef?: string | null
   fileUrl?: string | null
   textContent?: string | null
   durationMin?: number | null
   isFreePreview?: boolean
+  locked?: boolean
 }
 
 type PortalModule = {
@@ -39,7 +42,14 @@ type PortalCourseTree = {
   modules: PortalModule[]
 }
 
+type PortalProgressDetail = {
+  lessonId: string
+  percent: number
+  completedAt: string | null
+}
+
 function isLocked(lesson: PortalLesson): boolean {
+  if (lesson.locked === true) return true
   return !lesson.videoRef && !lesson.fileUrl && !lesson.textContent
 }
 
@@ -49,6 +59,465 @@ function lessonKind(lesson: PortalLesson): "video" | "pdf" | "text" {
   if (t === "text") return "text"
   return "video"
 }
+
+/* ------------------------------------------------------------------ */
+/* YouTube IFrame API loader (single global load, cooperative callback) */
+/* ------------------------------------------------------------------ */
+
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    YT?: any
+    onYouTubeIframeAPIReady?: () => void
+  }
+}
+
+const YT_API_TIMEOUT_MS = 6000
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let ytApiPromise: Promise<any> | null = null
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function loadYouTubeApi(): Promise<any> {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("no-window"))
+  }
+  if (window.YT && typeof window.YT.Player === "function") {
+    return Promise.resolve(window.YT)
+  }
+  if (ytApiPromise) return ytApiPromise
+
+  ytApiPromise = new Promise((resolve, reject) => {
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      if (window.YT && typeof window.YT.Player === "function") {
+        settled = true
+        window.clearInterval(poll)
+        resolve(window.YT)
+      }
+    }
+
+    // Cooperative global callback — never clobber an existing one.
+    const previous = window.onYouTubeIframeAPIReady
+    window.onYouTubeIframeAPIReady = () => {
+      try {
+        if (typeof previous === "function") previous()
+      } catch {
+        /* ignore third-party callback errors */
+      }
+      finish()
+    }
+
+    try {
+      const existing = document.querySelector("script[data-petra-yt-api]")
+      if (!existing) {
+        const script = document.createElement("script")
+        script.src = "https://www.youtube.com/iframe_api"
+        script.async = true
+        script.setAttribute("data-petra-yt-api", "1")
+        script.onerror = () => {
+          if (settled) return
+          settled = true
+          window.clearInterval(poll)
+          reject(new Error("yt-api-load-error"))
+        }
+        document.head.appendChild(script)
+      }
+    } catch {
+      settled = true
+      reject(new Error("yt-api-inject-error"))
+      return
+    }
+
+    const startedAt = Date.now()
+    const poll = window.setInterval(() => {
+      if (settled) {
+        window.clearInterval(poll)
+        return
+      }
+      if (window.YT && typeof window.YT.Player === "function") {
+        finish()
+        return
+      }
+      if (Date.now() - startedAt > YT_API_TIMEOUT_MS) {
+        settled = true
+        window.clearInterval(poll)
+        reject(new Error("yt-api-timeout"))
+      }
+    }, 200)
+  })
+
+  ytApiPromise.catch(() => {
+    // allow a later retry (e.g. after a transient network failure)
+    ytApiPromise = null
+  })
+
+  return ytApiPromise
+}
+
+/* ------------------------------------------------------------------ */
+/* Video lesson player with seek-proof watch tracking                  */
+/* ------------------------------------------------------------------ */
+
+const SAMPLE_MS = 1000
+const POST_EVERY_MS = 10000
+
+function VideoLessonPlayer({
+  slug,
+  lessonId,
+  videoRef: videoId,
+  title,
+  initialPercent,
+  alreadyCompleted,
+  onPercentChange,
+  onCompleted,
+  onFallbackChange,
+}: {
+  slug: string
+  lessonId: string
+  videoRef: string
+  title: string
+  initialPercent: number
+  alreadyCompleted: boolean
+  onPercentChange: (lessonId: string, percent: number) => void
+  onCompleted: (lessonId: string) => void
+  onFallbackChange: (fallback: boolean) => void
+}) {
+  const hostRef = useRef<HTMLDivElement | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const playerRef = useRef<any>(null)
+  const watchedRef = useRef<Set<number>>(new Set())
+  const durationRef = useRef<number>(0)
+  const seededRef = useRef(false)
+  const readyRef = useRef(false)
+  const completedRef = useRef(alreadyCompleted)
+  const lastSentValueRef = useRef<number>(-1)
+  const lastSentAtRef = useRef<number>(0)
+  const sampleTimerRef = useRef<number | null>(null)
+  const reportedPercentRef = useRef<number>(Math.round(initialPercent))
+
+  const [fallback, setFallback] = useState(false)
+  const [watchPercent, setWatchPercent] = useState<number>(Math.round(initialPercent))
+
+  // keep latest callbacks without re-running the player effect
+  const onPercentChangeRef = useRef(onPercentChange)
+  const onCompletedRef = useRef(onCompleted)
+  const onFallbackChangeRef = useRef(onFallbackChange)
+  useEffect(() => {
+    onPercentChangeRef.current = onPercentChange
+    onCompletedRef.current = onCompleted
+    onFallbackChangeRef.current = onFallbackChange
+  }, [onPercentChange, onCompleted, onFallbackChange])
+
+  useEffect(() => {
+    completedRef.current = alreadyCompleted
+  }, [alreadyCompleted])
+
+  const currentWatchedSeconds = useCallback(() => {
+    const duration = durationRef.current
+    const watched = watchedRef.current.size
+    if (duration > 0) return Math.min(watched, Math.ceil(duration))
+    return watched
+  }, [])
+
+  const sendProgress = useCallback(
+    (useBeacon: boolean) => {
+      const durationSeconds = Math.round(durationRef.current)
+      if (!durationSeconds || durationSeconds <= 0) return
+      const watchedSeconds = currentWatchedSeconds()
+      if (watchedSeconds <= 0) return
+      if (watchedSeconds === lastSentValueRef.current) return
+      if (completedRef.current) return
+
+      lastSentValueRef.current = watchedSeconds
+      lastSentAtRef.current = Date.now()
+
+      const url = `/api/portal/${slug}/lessons/${lessonId}/progress`
+      const body = JSON.stringify({ watchedSeconds, durationSeconds })
+
+      if (useBeacon && typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+        try {
+          navigator.sendBeacon(url, new Blob([body], { type: "application/json" }))
+          return
+        } catch {
+          /* fall through to fetch */
+        }
+      }
+
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        keepalive: true,
+      })
+        .then(async (res) => {
+          if (!res.ok) return
+          const data = await res.json().catch(() => null)
+          if (!data) return
+          if (typeof data.percent === "number") {
+            const pct = Math.max(0, Math.min(100, Math.round(data.percent)))
+            setWatchPercent((prev) => (pct > prev ? pct : prev))
+          }
+          if (data.completed === true && !completedRef.current) {
+            completedRef.current = true
+            onCompletedRef.current(lessonId)
+          }
+        })
+        .catch(() => {
+          // network hiccup — allow a retry on the next tick
+          lastSentValueRef.current = -1
+        })
+    },
+    [slug, lessonId, currentWatchedSeconds]
+  )
+
+  const stopSampling = useCallback(() => {
+    if (sampleTimerRef.current != null) {
+      window.clearInterval(sampleTimerRef.current)
+      sampleTimerRef.current = null
+    }
+  }, [])
+
+  const sampleOnce = useCallback(() => {
+    const player = playerRef.current
+    if (!player) return
+    let t: number | null = null
+    try {
+      if (typeof player.getCurrentTime === "function") {
+        const v = player.getCurrentTime()
+        if (typeof v === "number" && isFinite(v) && v >= 0) t = v
+      }
+      if (!durationRef.current && typeof player.getDuration === "function") {
+        const d = player.getDuration()
+        if (typeof d === "number" && isFinite(d) && d > 0) durationRef.current = d
+      }
+    } catch {
+      return
+    }
+    if (t == null) return
+
+    // seed the watched buckets from the server-side percent once duration is known
+    if (!seededRef.current && durationRef.current > 0) {
+      seededRef.current = true
+      const seedSeconds = Math.floor((Math.max(0, Math.min(100, initialPercent)) * durationRef.current) / 100)
+      for (let i = 0; i < seedSeconds; i++) watchedRef.current.add(i)
+    }
+
+    watchedRef.current.add(Math.floor(t))
+
+    const duration = durationRef.current
+    if (duration > 0) {
+      const pct = Math.max(0, Math.min(100, Math.round((currentWatchedSeconds() / duration) * 100)))
+      if (pct !== reportedPercentRef.current) {
+        reportedPercentRef.current = pct
+        setWatchPercent((prev) => (pct > prev ? pct : prev))
+        onPercentChangeRef.current(lessonId, pct)
+      }
+    }
+
+    if (Date.now() - lastSentAtRef.current >= POST_EVERY_MS) {
+      sendProgress(false)
+    }
+  }, [initialPercent, lessonId, currentWatchedSeconds, sendProgress])
+
+  const startSampling = useCallback(() => {
+    stopSampling()
+    sampleTimerRef.current = window.setInterval(sampleOnce, SAMPLE_MS)
+  }, [sampleOnce, stopSampling])
+
+  // create / destroy the player for this lesson
+  useEffect(() => {
+    let cancelled = false
+    let mountedEl: HTMLDivElement | null = null
+
+    const failTimer = window.setTimeout(() => {
+      if (cancelled || readyRef.current) return
+      setFallback(true)
+      onFallbackChangeRef.current(true)
+    }, YT_API_TIMEOUT_MS)
+
+    loadYouTubeApi()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((YT: any) => {
+        if (cancelled) return
+        if (!hostRef.current || !YT || typeof YT.Player !== "function") {
+          setFallback(true)
+          onFallbackChangeRef.current(true)
+          return
+        }
+        try {
+          mountedEl = document.createElement("div")
+          mountedEl.style.width = "100%"
+          mountedEl.style.height = "100%"
+          hostRef.current.appendChild(mountedEl)
+
+          playerRef.current = new YT.Player(mountedEl, {
+            host: "https://www.youtube-nocookie.com",
+            videoId,
+            width: "100%",
+            height: "100%",
+            playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
+            events: {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              onReady: (e: any) => {
+                readyRef.current = true
+                window.clearTimeout(failTimer)
+                try {
+                  const d = e?.target?.getDuration?.()
+                  if (typeof d === "number" && isFinite(d) && d > 0) durationRef.current = d
+                  const frame = e?.target?.getIframe?.()
+                  if (frame) {
+                    frame.style.width = "100%"
+                    frame.style.height = "100%"
+                    frame.setAttribute("title", title)
+                  }
+                } catch {
+                  /* ignore */
+                }
+              },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              onStateChange: (e: any) => {
+                const state = e?.data
+                const States = YT.PlayerState ?? {}
+                if (state === States.PLAYING) {
+                  try {
+                    const d = e?.target?.getDuration?.()
+                    if (typeof d === "number" && isFinite(d) && d > 0) durationRef.current = d
+                  } catch {
+                    /* ignore */
+                  }
+                  startSampling()
+                } else if (state === States.PAUSED || state === States.ENDED) {
+                  stopSampling()
+                  sampleOnce()
+                  sendProgress(false)
+                } else if (state === States.BUFFERING) {
+                  // keep sampling — buffering resumes on its own
+                }
+              },
+              onError: () => {
+                stopSampling()
+                try {
+                  if (playerRef.current && typeof playerRef.current.destroy === "function") {
+                    playerRef.current.destroy()
+                  }
+                } catch {
+                  /* ignore */
+                }
+                playerRef.current = null
+                setFallback(true)
+                onFallbackChangeRef.current(true)
+              },
+            },
+          })
+        } catch {
+          setFallback(true)
+          onFallbackChangeRef.current(true)
+        }
+      })
+      .catch(() => {
+        if (cancelled) return
+        setFallback(true)
+        onFallbackChangeRef.current(true)
+      })
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(failTimer)
+      stopSampling()
+      // final flush for this lesson before teardown
+      try {
+        sendProgress(false)
+      } catch {
+        /* ignore */
+      }
+      try {
+        if (playerRef.current && typeof playerRef.current.destroy === "function") {
+          playerRef.current.destroy()
+        }
+      } catch {
+        /* ignore */
+      }
+      playerRef.current = null
+      readyRef.current = false
+      try {
+        if (mountedEl && mountedEl.parentNode) mountedEl.parentNode.removeChild(mountedEl)
+      } catch {
+        /* ignore */
+      }
+    }
+    // videoId/lessonId change → full teardown + rebuild
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoId, lessonId])
+
+  // flush on tab hide / page unload
+  useEffect(() => {
+    const onHide = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        stopSampling()
+        sampleOnce()
+        sendProgress(true)
+      }
+    }
+    document.addEventListener("visibilitychange", onHide)
+    window.addEventListener("pagehide", onHide)
+    return () => {
+      document.removeEventListener("visibilitychange", onHide)
+      window.removeEventListener("pagehide", onHide)
+    }
+  }, [sampleOnce, sendProgress, stopSampling])
+
+  return (
+    <>
+      <div
+        ref={hostRef}
+        className={`w-full aspect-video rounded-2xl border border-petra-border bg-black overflow-hidden ${
+          fallback ? "hidden" : ""
+        }`}
+      />
+      {fallback && (
+        <iframe
+          src={`https://www.youtube-nocookie.com/embed/${videoId}`}
+          title={title}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          className="w-full aspect-video rounded-2xl border border-petra-border bg-black"
+        />
+      )}
+
+      {!fallback && (
+        <div className="bg-white rounded-2xl shadow-card border border-petra-border px-4 py-3">
+          {alreadyCompleted ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              הושלם ✓
+            </span>
+          ) : (
+            <>
+              <div className="flex items-center justify-between text-xs text-petra-muted mb-1.5">
+                <span>נצפו {watchPercent}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${watchPercent}%`,
+                    backgroundColor: "var(--portal-primary)",
+                  }}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Page                                                                */
+/* ------------------------------------------------------------------ */
 
 export default function PortalCoursePlayerPage({
   params,
@@ -61,8 +530,10 @@ export default function PortalCoursePlayerPage({
   const [course, setCourse] = useState<PortalCourseTree | null>(null)
   const [loadError, setLoadError] = useState("")
   const [completed, setCompleted] = useState<Set<string>>(new Set())
+  const [watchPercents, setWatchPercents] = useState<Record<string, number>>({})
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [marking, setMarking] = useState(false)
+  const [videoFallback, setVideoFallback] = useState(false)
 
   useEffect(() => {
     fetch(`/api/portal/${slug}/courses/${courseId}`)
@@ -83,6 +554,23 @@ export default function PortalCoursePlayerPage({
         }
         setCourse(tree)
         setCompleted(new Set<string>(d?.myProgress ?? []))
+
+        // optional progressDetail — fall back to myProgress-only behaviour
+        const detail: PortalProgressDetail[] = Array.isArray(d?.progressDetail)
+          ? d.progressDetail
+          : []
+        if (detail.length > 0) {
+          const map: Record<string, number> = {}
+          for (const row of detail) {
+            if (!row || typeof row.lessonId !== "string") continue
+            const pct = Number(row.percent)
+            map[row.lessonId] = Number.isFinite(pct)
+              ? Math.max(0, Math.min(100, Math.round(pct)))
+              : 0
+          }
+          setWatchPercents(map)
+        }
+
         // default: first unlocked lesson
         const firstUnlocked = tree.modules
           .flatMap((m) => m.lessons)
@@ -93,6 +581,11 @@ export default function PortalCoursePlayerPage({
       .catch(() => setLoadError("שגיאה בטעינת הקורס"))
   }, [slug, courseId, router])
 
+  // reset the API-fallback flag whenever the student switches lesson
+  useEffect(() => {
+    setVideoFallback(false)
+  }, [selectedId])
+
   const allLessons = useMemo(
     () => (course ? course.modules.flatMap((m) => m.lessons) : []),
     [course]
@@ -101,6 +594,24 @@ export default function PortalCoursePlayerPage({
   const total = allLessons.length
   const done = allLessons.filter((l) => completed.has(l.id)).length
   const percent = total > 0 ? Math.round((done / total) * 100) : 0
+
+  const handlePercentChange = useCallback((lessonId: string, pct: number) => {
+    setWatchPercents((prev) => {
+      const current = prev[lessonId] ?? 0
+      if (pct <= current) return prev
+      return { ...prev, [lessonId]: pct }
+    })
+  }, [])
+
+  const handleVideoCompleted = useCallback((lessonId: string) => {
+    setCompleted((prev) => {
+      if (prev.has(lessonId)) return prev
+      const next = new Set(prev)
+      next.add(lessonId)
+      return next
+    })
+    setWatchPercents((prev) => ({ ...prev, [lessonId]: 100 }))
+  }, [])
 
   const markComplete = useCallback(async () => {
     if (!selected || completed.has(selected.id)) return
@@ -152,6 +663,10 @@ export default function PortalCoursePlayerPage({
   const selectedLocked = selected ? isLocked(selected) : false
   const selectedKind = selected ? lessonKind(selected) : "video"
   const isDone = selected ? completed.has(selected.id) : false
+  const selectedDescription = (selected?.description ?? "").trim()
+  // video lessons earn completion by watching; the manual button only returns
+  // for pdf/text lessons or when the IFrame API failed to load.
+  const showManualButton = selectedKind !== "video" || videoFallback
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-6">
@@ -165,7 +680,7 @@ export default function PortalCoursePlayerPage({
 
       <h1 className="text-xl font-bold text-petra-text mb-3">{course.title}</h1>
 
-      {/* Progress bar */}
+      {/* Course-level progress bar */}
       <div className="mb-5">
         <div className="flex items-center justify-between text-xs text-petra-muted mb-1.5">
           <span>
@@ -199,6 +714,8 @@ export default function PortalCoursePlayerPage({
                   const locked = isLocked(lesson)
                   const lessonDone = completed.has(lesson.id)
                   const isSelected = lesson.id === selectedId
+                  const lessonPct = watchPercents[lesson.id] ?? 0
+                  const showPct = !lessonDone && !locked && lessonPct > 0
                   return (
                     <li key={lesson.id}>
                       <button
@@ -219,6 +736,11 @@ export default function PortalCoursePlayerPage({
                           <Circle className="w-4 h-4 flex-shrink-0 text-slate-300" />
                         )}
                         <span className="flex-1 min-w-0 truncate">{lesson.title}</span>
+                        {showPct && (
+                          <span className="text-xs text-petra-muted flex-shrink-0">
+                            {lessonPct}%
+                          </span>
+                        )}
                         {lesson.durationMin != null && (
                           <span className="text-[11px] text-petra-muted flex-shrink-0">
                             {lesson.durationMin} דק׳
@@ -259,12 +781,17 @@ export default function PortalCoursePlayerPage({
           ) : (
             <div className="space-y-4">
               {selectedKind === "video" && selected.videoRef && (
-                <iframe
-                  src={`https://www.youtube-nocookie.com/embed/${selected.videoRef}`}
+                <VideoLessonPlayer
+                  key={selected.id}
+                  slug={slug}
+                  lessonId={selected.id}
+                  videoRef={selected.videoRef}
                   title={selected.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="w-full aspect-video rounded-2xl border border-petra-border bg-black"
+                  initialPercent={watchPercents[selected.id] ?? 0}
+                  alreadyCompleted={isDone}
+                  onPercentChange={handlePercentChange}
+                  onCompleted={handleVideoCompleted}
+                  onFallbackChange={setVideoFallback}
                 />
               )}
 
@@ -309,34 +836,54 @@ export default function PortalCoursePlayerPage({
                 </div>
               )}
 
-              {/* Lesson title + complete toggle */}
-              <div className="bg-white rounded-2xl shadow-card border border-petra-border p-4 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="font-bold text-petra-text truncate">{selected.title}</h2>
-                  {selected.durationMin != null && (
-                    <p className="text-xs text-petra-muted mt-0.5">{selected.durationMin} דקות</p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={markComplete}
-                  disabled={marking || isDone}
-                  className={`flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:cursor-default ${
-                    isDone
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      : "text-white hover:brightness-95"
-                  }`}
-                  style={isDone ? undefined : { backgroundColor: "var(--portal-primary)" }}
-                >
-                  {isDone ? (
-                    <>
+              {/* Lesson title + description + completion control */}
+              <div className="bg-white rounded-2xl shadow-card border border-petra-border p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="font-bold text-petra-text truncate">{selected.title}</h2>
+                    {selected.durationMin != null && (
+                      <p className="text-xs text-petra-muted mt-0.5">
+                        {selected.durationMin} דקות
+                      </p>
+                    )}
+                  </div>
+
+                  {showManualButton ? (
+                    <button
+                      type="button"
+                      onClick={markComplete}
+                      disabled={marking || isDone}
+                      className={`flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:cursor-default ${
+                        isDone
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "text-white hover:brightness-95"
+                      }`}
+                      style={isDone ? undefined : { backgroundColor: "var(--portal-primary)" }}
+                    >
+                      {isDone ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          הושלם ✓
+                        </>
+                      ) : (
+                        "סמן כהושלם"
+                      )}
+                    </button>
+                  ) : isDone && !selected.videoRef ? (
+                    /* completed video whose player isn't rendered — the chip
+                       normally lives in the watch bar under the player */
+                    <span className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-semibold">
                       <CheckCircle2 className="w-4 h-4" />
                       הושלם ✓
-                    </>
-                  ) : (
-                    "סמן כהושלם"
-                  )}
-                </button>
+                    </span>
+                  ) : null}
+                </div>
+
+                {selectedDescription && (
+                  <p className="mt-3 text-sm text-petra-muted leading-relaxed whitespace-pre-wrap">
+                    {selectedDescription}
+                  </p>
+                )}
               </div>
             </div>
           )}
