@@ -206,7 +206,7 @@ export function Sidebar({
   }
 
   /** Features that should be completely hidden (not just locked) when unavailable */
-  const HIDDEN_WHEN_LOCKED: FeatureKey[] = ["pets_advanced"];
+  const HIDDEN_WHEN_LOCKED: FeatureKey[] = ["pets_advanced", "online_classes"];
 
   function isItemHidden(item: NavItem): boolean {
     // While auth is loading, never hide an item — same optimistic policy as locking.

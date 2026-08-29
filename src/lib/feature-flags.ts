@@ -77,7 +77,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     appointments:      true,   // ✅ open, max 20 total (FREE_APPOINTMENT_LIMIT)
     lead_notifications: false, // WhatsApp alert to owner on new lead — PRO only
     contracts:         false,  // Digital contracts (חוזים דיגיטליים) — BASIC+ only
-    online_classes:    false,  // Online classes portal — PRO only
+    online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 
   // ── Basic (₪99) ──────────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     appointments:      true,
     lead_notifications: false, // WhatsApp alert to owner on new lead — PRO only
     contracts:         true,   // ✅ Digital contracts — BASIC+
-    online_classes:    false,  // Online classes portal — PRO only
+    online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 
   // ── Groomer+ (₪169) ──────────────────────────────────────────────────────────
@@ -144,7 +144,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     appointments:      true,
     lead_notifications: false,
     contracts:         true,   // ✅ Digital contracts
-    online_classes:    false,  // Online classes portal — PRO only
+    online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 
   // ── Groomer+ legacy alias (kept for DB backward-compat — same as groomer) ────
@@ -175,7 +175,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     appointments:      true,
     lead_notifications: false,
     contracts:         true,   // ✅ Digital contracts (mirrors groomer)
-    online_classes:    false,  // Online classes portal — PRO only
+    online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 
   // ── Pro (₪199) ───────────────────────────────────────────────────────────────
@@ -208,7 +208,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     appointments:      true,
     lead_notifications: true,  // WhatsApp alert to owner on new lead ✅
     contracts:         true,   // ✅ Digital contracts
-    online_classes:    true,   // ✅ Online classes portal — PRO only
+    online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 
   // ── Service Dog (₪229) ───────────────────────────────────────────────────────
@@ -240,7 +240,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     appointments:      true,
     lead_notifications: true,  // WhatsApp alert to owner on new lead ✅
     contracts:         true,   // ✅ Digital contracts
-    online_classes:    true,   // ✅ Online classes portal
+    online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 };
 
