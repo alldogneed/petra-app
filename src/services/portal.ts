@@ -482,10 +482,17 @@ export async function markLessonComplete(
  */
 export const COMPLETE_AT_PERCENT = 95;
 
-/** Anti-cheat budget for how fast watched coverage may grow (see recordLessonProgress). */
-const PLAYBACK_RATE_SLACK = 2.5; // tolerate 2x playback speed + jitter
+/**
+ * Anti-cheat budget (see recordLessonProgress). Two independent limits:
+ *  · per-report growth cannot outrun the wall clock, and
+ *  · completion cannot happen before the lesson could physically have been
+ *    watched, measured from the FIRST report on that lesson.
+ * Without the second limit a single fabricated request completed any lesson
+ * shorter than the first-report grant.
+ */
+const PLAYBACK_RATE_SLACK = 2.2; // YouTube tops out at 2x — plus jitter
 const REPORT_GRACE_SEC = 30; // absorbs throttling and a late final beacon
-const FIRST_REPORT_GRACE_SEC = 120; // first report of a lesson has no previous timestamp
+const FIRST_REPORT_GRANT_SEC = 45; // small credit for the very first report
 
 /**
  * Record watch progress for a video lesson and auto-complete it at
@@ -534,7 +541,13 @@ export async function recordLessonProgress(
 
   const existing = await prisma.lessonProgress.findUnique({
     where: { membershipId_lessonId: { membershipId, lessonId } },
-    select: { percent: true, watchedSeconds: true, completedAt: true, updatedAt: true },
+    select: {
+      percent: true,
+      watchedSeconds: true,
+      completedAt: true,
+      updatedAt: true,
+      startedAt: true,
+    },
   });
 
   // Watching takes real time: coverage cannot grow faster than the wall clock
@@ -542,22 +555,38 @@ export async function recordLessonProgress(
   // POST, independently of the duration source.
   const now = new Date();
   const prevWatched = existing?.watchedSeconds ?? 0;
-  const elapsedSec = existing
-    ? Math.max(0, (now.getTime() - existing.updatedAt.getTime()) / 1000)
-    : FIRST_REPORT_GRACE_SEC;
-  const maxGain = Math.ceil(elapsedSec * PLAYBACK_RATE_SLACK) + REPORT_GRACE_SEC;
+  const maxGain = existing
+    ? Math.ceil(
+        Math.max(0, (now.getTime() - existing.updatedAt.getTime()) / 1000) *
+          PLAYBACK_RATE_SLACK
+      ) + REPORT_GRACE_SEC
+    : FIRST_REPORT_GRANT_SEC;
   const cappedWatched = Math.min(watched, prevWatched + maxGain);
 
   const bestWatched = Math.max(cappedWatched, prevWatched);
+  const startedAt = existing?.startedAt ?? now;
+
+  // Second gate: even at maximum playback speed the lesson cannot be finished
+  // before this much real time has passed since the first report.
+  const sinceStartSec = (now.getTime() - startedAt.getTime()) / 1000;
+  const earliestFinishSec = duration / PLAYBACK_RATE_SLACK;
+  const longEnough = sinceStartSec + REPORT_GRACE_SEC >= earliestFinishSec;
   const rawPercent = Math.round((bestWatched / duration) * 100);
   const percent = Math.min(100, Math.max(rawPercent, existing?.percent ?? 0));
-  const completed = percent >= COMPLETE_AT_PERCENT;
-  const completedAt = existing?.completedAt ?? (completed ? new Date() : null);
+  const completed = percent >= COMPLETE_AT_PERCENT && longEnough;
+  const completedAt = existing?.completedAt ?? (completed ? now : null);
 
   await prisma.lessonProgress.upsert({
     where: { membershipId_lessonId: { membershipId, lessonId } },
-    update: { percent, watchedSeconds: bestWatched, completedAt },
-    create: { membershipId, lessonId, percent, watchedSeconds: bestWatched, completedAt },
+    update: { percent, watchedSeconds: bestWatched, completedAt, startedAt },
+    create: {
+      membershipId,
+      lessonId,
+      percent,
+      watchedSeconds: bestWatched,
+      completedAt,
+      startedAt,
+    },
   });
 
   return { percent, completed: completedAt !== null, watchedSeconds: bestWatched };

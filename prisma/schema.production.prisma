@@ -2613,6 +2613,7 @@ model LessonProgress {
   completedAt    DateTime? // null = started but not finished
   percent        Int       @default(0) // 0-100, furthest watched coverage
   watchedSeconds Int       @default(0) // distinct seconds watched (seek-proof)
+  startedAt      DateTime? // first progress report — completion needs real elapsed time
   updatedAt      DateTime  @default(now()) @updatedAt
 
   membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
