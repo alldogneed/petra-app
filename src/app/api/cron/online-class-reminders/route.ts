@@ -41,7 +41,7 @@ function heDate(d: Date): string {
 
 /** WhatsApp first; email as fallback when the WhatsApp send fails. Fire-and-forget. */
 function notifyWithEmailFallback(params: {
-  phone: string;
+  phone: string | null;
   email: string;
   body: string;
   emailSubject: string;
@@ -51,6 +51,11 @@ function notifyWithEmailFallback(params: {
     sendEmail({ to: params.email, subject: params.emailSubject, html: params.emailHtml })
       .catch(() => {});
   };
+  // Email-only students (enrolled by email, no phone on file) go straight to email.
+  if (!params.phone) {
+    sendFallbackEmail();
+    return;
+  }
   sendWhatsAppMessage({ to: toWhatsAppPhone(params.phone), body: params.body })
     .then((r) => {
       if (!r.success) sendFallbackEmail();

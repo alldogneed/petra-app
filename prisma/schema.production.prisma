@@ -2432,7 +2432,7 @@ model BrandingSettings {
 /// Global dog-owner account — one per person across all businesses. Phone is the identity.
 model PortalUser {
   id        String   @id @default(uuid())
-  phone     String   @unique // E.164
+  phone     String?  @unique // E.164 — optional: students can be enrolled by email alone
   name      String
   email     String   @unique // required — email OTP login
   createdAt DateTime @default(now())

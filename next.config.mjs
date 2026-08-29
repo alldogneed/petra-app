@@ -77,7 +77,8 @@ const nextConfig = {
               "media-src 'self' blob: https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com",
               "connect-src 'self' https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://connect.facebook.net https://www.facebook.com https://graph.facebook.com",
               "frame-ancestors 'self'",
-              "frame-src 'self' blob: https://secure.cardcom.solutions https://www.facebook.com https://web.facebook.com",
+              // youtube-nocookie: recorded course lessons in the members portal (/c/[slug]).
+              "frame-src 'self' blob: https://secure.cardcom.solutions https://www.facebook.com https://web.facebook.com https://www.youtube-nocookie.com https://www.youtube.com",
               "object-src 'self' blob:",  // PDF previews (contract template modal + signed-contract viewer) render via <object>/blob:
             ].join("; "),
           },

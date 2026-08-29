@@ -88,7 +88,7 @@ export async function requestPortalOtp(email: string): Promise<void> {
 }
 
 export type OtpVerifyResult =
-  | { ok: true; portalUser: { id: string; name: string; email: string; phone: string } }
+  | { ok: true; portalUser: { id: string; name: string; email: string; phone: string | null } }
   | { ok: true; needsProfile: true } // code valid but no PortalUser with this email
   | { ok: false; error: "invalid" | "expired" | "too_many_attempts" };
 
@@ -218,7 +218,7 @@ export async function deletePortalSession(rawToken: string): Promise<void> {
 }
 
 export type PortalAuthResult = {
-  portalUser: { id: string; name: string; email: string; phone: string };
+  portalUser: { id: string; name: string; email: string; phone: string | null };
   sessionId: string;
 };
 

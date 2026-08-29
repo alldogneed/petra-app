@@ -122,7 +122,7 @@ export async function requestMembership(businessId: string, portalUserId: string
         <div dir="rtl" style="font-family: Arial, sans-serif; text-align: right;">
           <h2>בקשת מנוי חדשה</h2>
           <p><strong>${portalUser.name}</strong> ביקש/ה להצטרף לפורטל של ${business.name}.</p>
-          <p>טלפון: ${portalUser.phone}<br/>אימייל: ${portalUser.email}</p>
+          <p>${portalUser.phone ? `טלפון: ${portalUser.phone}<br/>` : ""}אימייל: ${portalUser.email}</p>
           <p><a href="${APP_URL}/online-classes">לאישור הבקשה במערכת פטרה</a></p>
         </div>`,
     });
@@ -328,12 +328,14 @@ export async function cancelRegistration(
   }
 
   const user = next.membership.portalUser;
-  sendWhatsAppMessage({
-    to: toWhatsAppPhone(user.phone),
-    body:
-      `היי ${user.name}, התפנה מקום בשיעור "${cls.title}" ` +
-      `בתאריך ${heDateTime(cls.startsAt)} — עלית מרשימת ההמתנה ואת/ה רשום/ה! נתראה בשיעור.`,
-  }).catch(() => {});
+  if (user.phone) {
+    sendWhatsAppMessage({
+      to: toWhatsAppPhone(user.phone),
+      body:
+        `היי ${user.name}, התפנה מקום בשיעור "${cls.title}" ` +
+        `בתאריך ${heDateTime(cls.startsAt)} — עלית מרשימת ההמתנה ואת/ה רשום/ה! נתראה בשיעור.`,
+    }).catch(() => {});
+  }
 }
 
 // ─── Courses ───────────────────────────────────────────────────────────────

@@ -327,9 +327,11 @@ export async function approveMembership(
   const waBody =
     `היי ${userName}, המנוי שלך אצל ${businessName} אושר ופעיל!` +
     (link ? `\nאפשר להיכנס לפורטל כאן: ${link}` : "");
-  sendWhatsAppMessage({ to: toWhatsAppPhone(existing.portalUser.phone), body: waBody }).catch(
-    () => {}
-  );
+  if (existing.portalUser.phone) {
+    sendWhatsAppMessage({ to: toWhatsAppPhone(existing.portalUser.phone), body: waBody }).catch(
+      () => {}
+    );
+  }
 
   sendEmail({
     to: existing.portalUser.email,
@@ -506,6 +508,172 @@ export async function deleteCourse(businessId: string, courseId: string): Promis
   });
   if (!existing) throw new ServiceError("קורס לא נמצא", "NOT_FOUND");
   await prisma.course.delete({ where: { id: courseId } });
+}
+
+/**
+ * Manually enroll students into a course by email.
+ *
+ * Access in this product is membership-wide (an active membership opens every
+ * published course), so enrolling grants/refreshes the business membership and
+ * notifies the student about THIS course with a direct link to it.
+ *
+ * Email is the identity — name/phone are optional extras used only when the
+ * PortalUser does not exist yet. Per-student failures never abort the batch.
+ */
+export async function enrollStudentsInCourse(
+  businessId: string,
+  courseId: string,
+  students: Array<{ email: string; name?: string | null; phone?: string | null }>,
+  opts: { validUntil?: Date | null; paymentNote?: string | null; notify?: boolean } = {}
+): Promise<{
+  added: Array<{ email: string; name: string; created: boolean; notified: boolean }>;
+  skipped: Array<{ email: string; reason: string }>;
+}> {
+  const course = await prisma.course.findFirst({
+    where: { id: courseId, businessId },
+    select: { id: true, title: true, status: true },
+  });
+  if (!course) throw new ServiceError("קורס לא נמצא", "NOT_FOUND");
+
+  if (!Array.isArray(students) || students.length === 0) {
+    throw new ServiceError("לא נשלחו תלמידים להוספה", "VALIDATION");
+  }
+  if (students.length > 200) {
+    throw new ServiceError("ניתן להוסיף עד 200 תלמידים בבת אחת", "VALIDATION");
+  }
+
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { name: true, slug: true },
+  });
+  const portalUrl = portalLink(business?.slug ?? null);
+  const courseUrl = portalUrl ? `${portalUrl}/courses/${course.id}` : null;
+  const notify = opts.notify !== false;
+
+  const added: Array<{ email: string; name: string; created: boolean; notified: boolean }> = [];
+  const skipped: Array<{ email: string; reason: string }> = [];
+  const seen = new Set<string>();
+
+  for (const raw of students) {
+    const email = (raw?.email || "").trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      skipped.push({ email: raw?.email || "—", reason: "כתובת אימייל לא תקינה" });
+      continue;
+    }
+    if (seen.has(email)) continue; // duplicate inside the same batch
+    seen.add(email);
+
+    try {
+      let portalUser = await prisma.portalUser.findUnique({ where: { email } });
+      let created = false;
+
+      if (!portalUser) {
+        // Optional phone — validated only when supplied.
+        let phone: string | null = null;
+        const rawPhone = (raw.phone || "").trim();
+        if (rawPhone) {
+          const phoneError = validateIsraeliPhone(rawPhone);
+          if (phoneError) {
+            skipped.push({ email, reason: phoneError });
+            continue;
+          }
+          phone = "+" + toWhatsAppPhone(rawPhone);
+          const phoneTaken = await prisma.portalUser.findUnique({ where: { phone } });
+          if (phoneTaken) {
+            skipped.push({ email, reason: "הטלפון כבר רשום למשתמש אחר" });
+            continue;
+          }
+        }
+        portalUser = await prisma.portalUser.create({
+          data: { email, name: (raw.name || "").trim() || email.split("@")[0], phone },
+        });
+        created = true;
+      }
+
+      await prisma.membership.upsert({
+        where: { portalUserId_businessId: { portalUserId: portalUser.id, businessId } },
+        update: {
+          status: "active",
+          approvedAt: new Date(),
+          ...(opts.validUntil !== undefined ? { validUntil: opts.validUntil } : {}),
+          ...(opts.paymentNote !== undefined
+            ? { paymentNote: trimOrNull(opts.paymentNote) }
+            : {}),
+        },
+        create: {
+          portalUserId: portalUser.id,
+          businessId,
+          status: "active",
+          approvedAt: new Date(),
+          validUntil: opts.validUntil ?? null,
+          paymentNote: trimOrNull(opts.paymentNote) ?? null,
+        },
+      });
+
+      if (notify) {
+        notifyCourseEnrollment({
+          name: portalUser.name,
+          email: portalUser.email,
+          phone: portalUser.phone,
+          businessName: business?.name ?? "",
+          courseTitle: course.title,
+          courseUrl,
+          portalUrl,
+          isNewUser: created,
+        });
+      }
+
+      added.push({ email, name: portalUser.name, created, notified: notify });
+    } catch (err) {
+      console.error("[enrollStudentsInCourse]", email, err);
+      skipped.push({ email, reason: "שגיאה בהוספה" });
+    }
+  }
+
+  return { added, skipped };
+}
+
+/** Fire-and-forget enrollment notification: WhatsApp when a phone exists, plus email. */
+function notifyCourseEnrollment(p: {
+  name: string;
+  email: string;
+  phone: string | null;
+  businessName: string;
+  courseTitle: string;
+  courseUrl: string | null;
+  portalUrl: string | null;
+  isNewUser: boolean;
+}): void {
+  const link = p.courseUrl ?? p.portalUrl;
+  const howToEnter = p.isNewUser
+    ? `הכניסה עם כתובת האימייל הזו — נשלח אליך קוד חד-פעמי, בלי סיסמאות.`
+    : `הכניסה עם כתובת האימייל הזו כרגיל.`;
+
+  if (p.phone) {
+    sendWhatsAppMessage({
+      to: toWhatsAppPhone(p.phone),
+      body:
+        `היי ${p.name}, נוספת לקורס "${p.courseTitle}" של ${p.businessName}!` +
+        (link ? `\nלצפייה: ${link}` : "") +
+        `\n${howToEnter}`,
+    }).catch(() => {});
+  }
+
+  sendEmail({
+    to: p.email,
+    subject: `‏נוספת לקורס "${p.courseTitle}"`,
+    html: `
+      <div dir="rtl" style="font-family: Arial, sans-serif; text-align: right;">
+        <h2>נוספת לקורס!</h2>
+        <p>היי ${p.name},</p>
+        <p>
+          ${p.businessName} הוסיף/ה אותך לקורס
+          <strong>${p.courseTitle}</strong> בפורטל החברים.
+        </p>
+        ${link ? `<p><a href="${link}">לצפייה בקורס</a></p>` : ""}
+        <p>${howToEnter}</p>
+      </div>`,
+  }).catch(() => {});
 }
 
 /** Full course tree, modules + lessons ordered by position. */

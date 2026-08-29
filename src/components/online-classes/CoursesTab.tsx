@@ -34,6 +34,8 @@ import {
   AlertTriangle,
   Globe,
   EyeOff,
+  UserPlus,
+  ShieldAlert,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
 import {
@@ -70,6 +72,8 @@ export function CoursesTab() {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ title: "", description: "", coverUrl: "" });
+  const [enrollFor, setEnrollFor] = useState<CourseItem | null>(null);
+  const [deleteFor, setDeleteFor] = useState<CourseItem | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["oc-courses"],
@@ -154,39 +158,60 @@ export function CoursesTab() {
           {courses.map((c) => {
             const published = c.status?.toLowerCase() === "published";
             return (
-              <button
-                key={c.id}
-                className="card overflow-hidden text-right hover:shadow-md transition-shadow"
-                onClick={() => setSelectedCourseId(c.id)}
-              >
-                <div className="h-28 relative">
-                  {c.coverUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={c.coverUrl} alt={c.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-brand-400 to-orange-300 flex items-center justify-center">
-                      <BookOpen className="w-8 h-8 text-white/70" />
-                    </div>
-                  )}
-                  <span
-                    className={cn(
-                      "absolute top-2 right-2",
-                      published ? "badge-success" : "badge-neutral"
+              <div key={c.id} className="card overflow-hidden flex flex-col">
+                <button
+                  className="text-right hover:opacity-95 transition-opacity"
+                  onClick={() => setSelectedCourseId(c.id)}
+                >
+                  <div className="h-28 relative">
+                    {c.coverUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={c.coverUrl} alt={c.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-brand-400 to-orange-300 flex items-center justify-center">
+                        <BookOpen className="w-8 h-8 text-white/70" />
+                      </div>
                     )}
+                    <span
+                      className={cn(
+                        "absolute top-2 left-2",
+                        published ? "badge-success" : "badge-neutral"
+                      )}
+                    >
+                      {published ? "פורסם" : "טיוטה"}
+                    </span>
+                  </div>
+                  <div className="p-4 pb-2">
+                    <p className="font-bold text-petra-text truncate">{c.title}</p>
+                    {c.description && (
+                      <p className="text-xs text-petra-muted mt-1 line-clamp-2">{c.description}</p>
+                    )}
+                    <p className="text-xs text-petra-muted mt-2">
+                      {courseLessonCount(c)} שיעורים
+                    </p>
+                  </div>
+                </button>
+
+                {/* Actions — pinned to the right (start) edge in RTL */}
+                <div className="mt-auto px-4 pb-3 pt-1 flex items-center gap-2 border-t border-petra-border/60">
+                  <button
+                    className="btn-secondary text-xs px-2.5 py-1.5"
+                    onClick={() => setEnrollFor(c)}
+                    title="הוסף תלמידים לקורס לפי אימייל"
                   >
-                    {published ? "פורסם" : "טיוטה"}
-                  </span>
+                    <UserPlus className="w-3.5 h-3.5" />
+                    הוסף תלמידים
+                  </button>
+                  <button
+                    className="btn-danger text-xs px-2.5 py-1.5"
+                    onClick={() => setDeleteFor(c)}
+                    title="מחק קורס"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    מחק
+                  </button>
                 </div>
-                <div className="p-4">
-                  <p className="font-bold text-petra-text truncate">{c.title}</p>
-                  {c.description && (
-                    <p className="text-xs text-petra-muted mt-1 line-clamp-2">{c.description}</p>
-                  )}
-                  <p className="text-xs text-petra-muted mt-2">
-                    {courseLessonCount(c)} שיעורים
-                  </p>
-                </div>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -235,7 +260,302 @@ export function CoursesTab() {
           </div>
         </Modal>
       )}
+
+      {enrollFor && (
+        <EnrollStudentsModal
+          course={enrollFor}
+          onClose={() => setEnrollFor(null)}
+          onDone={() => queryClient.invalidateQueries({ queryKey: ["oc-memberships", ""] })}
+        />
+      )}
+
+      {deleteFor && (
+        <DeleteCourseModal
+          course={deleteFor}
+          onClose={() => setDeleteFor(null)}
+          onDeleted={() => {
+            setDeleteFor(null);
+            queryClient.invalidateQueries({ queryKey: ["oc-courses"] });
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// Manual enrollment by email
+// ═══════════════════════════════════════════════════════
+
+interface EnrollResult {
+  added: Array<{ email: string; name: string; created: boolean; notified: boolean }>;
+  skipped: Array<{ email: string; reason: string }>;
+}
+
+function EnrollStudentsModal({
+  course,
+  onClose,
+  onDone,
+}: {
+  course: CourseItem;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [emails, setEmails] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [validUntil, setValidUntil] = useState("");
+  const [paymentNote, setPaymentNote] = useState("");
+  const [notify, setNotify] = useState(true);
+  const [result, setResult] = useState<EnrollResult | null>(null);
+
+  const parsed = emails
+    .split(/[\s,;]+/)
+    .map((e) => e.trim())
+    .filter(Boolean);
+  const single = parsed.length === 1;
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      fetchJSON<EnrollResult>(`/api/online-classes/courses/${course.id}/students`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          students: parsed.map((email, i) => ({
+            email,
+            // Name/phone apply only when adding one student at a time.
+            name: single && i === 0 && name.trim() ? name.trim() : null,
+            phone: single && i === 0 && phone.trim() ? phone.trim() : null,
+          })),
+          validUntil: validUntil || null,
+          paymentNote: paymentNote.trim() || null,
+          notify,
+        }),
+      }),
+    onSuccess: (res) => {
+      setResult(res);
+      const n = res.added.length;
+      if (n > 0) {
+        toast.success(
+          notify
+            ? `${n === 1 ? "תלמיד/ה נוסף/ה" : `${n} תלמידים נוספו`} וקיבלו הודעה`
+            : `${n === 1 ? "תלמיד/ה נוסף/ה" : `${n} תלמידים נוספו`}`
+        );
+        setEmails("");
+        setName("");
+        setPhone("");
+        onDone();
+      } else {
+        toast.error("אף תלמיד לא נוסף");
+      }
+    },
+    onError: (e: Error) => toast.error(e.message || "שגיאה בהוספת התלמידים"),
+  });
+
+  return (
+    <Modal title={`הוספת תלמידים — ${course.title}`} onClose={onClose}>
+      <div className="space-y-4">
+        <div className="rounded-xl bg-brand-50 border border-brand-100 p-3 text-xs text-petra-text leading-relaxed">
+          הוספה ידנית מפעילה לתלמיד/ה <strong>מנוי פעיל</strong> בפורטל שלך ושולחת הודעה עם
+          קישור ישיר לקורס. מנוי פעיל פותח את כל הקורסים שפרסמת ואת השיעורים החיים.
+        </div>
+
+        <div>
+          <label className="label">כתובות אימייל *</label>
+          <textarea
+            className="input min-h-[80px]"
+            dir="ltr"
+            value={emails}
+            onChange={(e) => setEmails(e.target.value)}
+            placeholder="dana@example.com, yossi@example.com"
+          />
+          <p className="text-xs text-petra-muted mt-1">
+            אפשר להדביק כמה כתובות — מופרדות בפסיק, רווח או שורה חדשה
+            {parsed.length > 1 && ` (${parsed.length} כתובות)`}
+          </p>
+        </div>
+
+        {single && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">שם (לא חובה)</label>
+              <input
+                className="input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="לתלמיד/ה חדש/ה"
+              />
+            </div>
+            <div>
+              <label className="label">טלפון (לא חובה)</label>
+              <input
+                className="input"
+                dir="ltr"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="05X-XXXXXXX"
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">תוקף מנוי (לא חובה)</label>
+            <input
+              className="input"
+              type="date"
+              value={validUntil}
+              onChange={(e) => setValidUntil(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label">תיעוד תשלום</label>
+            <input
+              className="input"
+              value={paymentNote}
+              onChange={(e) => setPaymentNote(e.target.value)}
+              placeholder="למשל: שולם בביט"
+            />
+          </div>
+        </div>
+
+        <label className="flex items-center gap-2 text-sm text-petra-text cursor-pointer">
+          <input
+            type="checkbox"
+            className="w-4 h-4 accent-brand-500"
+            checked={notify}
+            onChange={(e) => setNotify(e.target.checked)}
+          />
+          שלח הודעה על ההוספה (וואטסאפ + אימייל)
+        </label>
+
+        {result && (
+          <div className="rounded-xl border border-petra-border p-3 space-y-2 max-h-40 overflow-y-auto">
+            {result.added.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-emerald-700 mb-1">
+                  נוספו ({result.added.length})
+                </p>
+                {result.added.map((a) => (
+                  <p key={a.email} className="text-xs text-petra-muted" dir="ltr">
+                    {a.email}
+                    {a.created ? " — משתמש חדש" : ""}
+                  </p>
+                ))}
+              </div>
+            )}
+            {result.skipped.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-red-600 mb-1">
+                  לא נוספו ({result.skipped.length})
+                </p>
+                {result.skipped.map((s, i) => (
+                  <p key={`${s.email}-${i}`} className="text-xs text-petra-muted">
+                    <span dir="ltr">{s.email}</span> — {s.reason}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-2 pt-1">
+          <button
+            className="btn-primary flex-1 justify-center"
+            disabled={mutation.isPending || parsed.length === 0}
+            onClick={() => mutation.mutate()}
+          >
+            {mutation.isPending
+              ? "מוסיף..."
+              : parsed.length > 1
+                ? `הוסף ${parsed.length} תלמידים`
+                : "הוסף לקורס"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>
+            {result ? "סגור" : "ביטול"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// Course deletion — confirm by typing the course name
+// ═══════════════════════════════════════════════════════
+
+function DeleteCourseModal({
+  course,
+  onClose,
+  onDeleted,
+}: {
+  course: CourseItem;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [confirmText, setConfirmText] = useState("");
+  const lessons = courseLessonCount(course);
+  const matches = confirmText.trim() === course.title.trim();
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      fetchJSON(`/api/online-classes/courses/${course.id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success("הקורס נמחק");
+      onDeleted();
+    },
+    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת הקורס"),
+  });
+
+  return (
+    <Modal title="מחיקת קורס" onClose={onClose}>
+      <div className="space-y-4">
+        <div className="rounded-xl bg-red-50 border border-red-200 p-4">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-red-800 leading-relaxed">
+              <p className="font-bold mb-1">הפעולה הזו בלתי הפיכה.</p>
+              <p>
+                מחיקת <strong>&quot;{course.title}&quot;</strong> תמחק לצמיתות את כל הפרקים,
+                {" "}{lessons} השיעורים, וכל נתוני ההתקדמות של התלמידים בקורס.
+              </p>
+              <p className="mt-1">
+                תלמידים שצופים בקורס יאבדו אליו גישה מיידית. אין שחזור.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label className="label">
+            להמשך, הקלד/י את שם הקורס במדויק:
+          </label>
+          <p className="text-xs text-petra-muted mb-1.5 font-mono bg-slate-50 rounded-lg px-2 py-1 inline-block">
+            {course.title}
+          </p>
+          <input
+            className="input"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="שם הקורס"
+            autoFocus
+          />
+        </div>
+
+        <div className="flex gap-2 pt-1">
+          <button
+            className="btn-danger flex-1 justify-center"
+            disabled={!matches || mutation.isPending}
+            onClick={() => mutation.mutate()}
+          >
+            <Trash2 className="w-4 h-4" />
+            {mutation.isPending ? "מוחק..." : "מחק את הקורס לצמיתות"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
