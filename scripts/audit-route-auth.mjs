@@ -88,6 +88,14 @@ const PUBLIC_ROUTES = new Set([
 
   // ── Invoice job processor (cron-style with internal secret) ───────────────
   "invoicing/process-jobs",
+
+  // ── Dog-owner portal (separate auth world — portal-auth.ts) ───────────────
+  // OTP request + logout are pre-auth by nature; both are rate-limited.
+  // (verify uses verifyPortalOtp, portal/[slug]/* use requirePortalAuth — pattern-detected.)
+  "portal/auth/request-otp",
+  "portal/auth/logout",
+  // Public branding for the portal shell — anonymous by design, PUBLIC_READ rate limit.
+  "portal/[slug]/branding",
 ]);
 
 // Patterns indicating the route IS authenticated. ANY of these is enough.
@@ -102,6 +110,9 @@ const AUTH_PATTERNS = [
   /getCurrentUser\s*\(/,
   /validateMcpToken\s*\(/,   // MCP bearer-token auth (SHA-256, businessId derived from token)
   /handleMcpRequest\s*\(/,   // delegates to the MCP handler, which always runs validateMcpToken
+  /requirePortalAuth\s*\(/,   // portal session auth (PortalSession cookie, SHA-256 token, slug-scoped)
+  /requireOnlineClassesAuth\s*\(/, // _lib wrapper: requireBusinessAuth + online_classes tier gate
+  /verifyPortalOtp\s*\(/,     // portal OTP verify — the auth step itself (rate-limited, hashed, atomic consume)
 ];
 
 const TOKEN_AUTH_PATTERNS = [
