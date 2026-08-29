@@ -12,7 +12,7 @@
 
 import prisma from "@/lib/prisma";
 import { ServiceError } from "./types";
-import { validateIsraeliPhone } from "@/lib/validation";
+import { validateIsraeliPhone, validateSafeUrl } from "@/lib/validation";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { sendEmail } from "@/lib/email";
@@ -38,6 +38,38 @@ function trimOrNull(v: string | null | undefined): string | null | undefined {
   return t === "" ? null : t;
 }
 
+/**
+ * trimOrNull + http/https-only scheme validation. These values render as
+ * href/src in the public portal — a stored javascript: URL would execute
+ * in members' browsers, so anything else is rejected.
+ */
+function safeUrlOrNull(
+  v: string | null | undefined,
+  label: string
+): string | null | undefined {
+  const t = trimOrNull(v);
+  if (t === undefined || t === null) return t;
+  const err = validateSafeUrl(t);
+  if (err) throw new ServiceError(`${label}: ${err}`, "VALIDATION");
+  return t;
+}
+
+const VIDEO_REF_RE = /^[A-Za-z0-9_-]{6,20}$/;
+/** YouTube video id only (schema contract) — never a URL or path. */
+function videoRefOrNull(
+  v: string | null | undefined
+): string | null | undefined {
+  const t = trimOrNull(v);
+  if (t === undefined || t === null) return t;
+  if (!VIDEO_REF_RE.test(t)) {
+    throw new ServiceError(
+      "מזהה סרטון יוטיוב לא תקין — הזינו את המזהה בלבד (למשל dQw4w9WgXcQ)",
+      "VALIDATION"
+    );
+  }
+  return t;
+}
+
 // ─── Branding ──────────────────────────────────────────────────────────────
 
 /** Upsert-on-read: creates the row with defaults on first access. */
@@ -61,7 +93,7 @@ export async function updateBranding(
   }>
 ) {
   const update: Record<string, unknown> = {};
-  if (data.logoUrl !== undefined) update.logoUrl = trimOrNull(data.logoUrl);
+  if (data.logoUrl !== undefined) update.logoUrl = safeUrlOrNull(data.logoUrl, "לוגו");
   if (data.primaryColor !== undefined) {
     const color = (data.primaryColor || "").trim();
     if (!/^#[0-9a-fA-F]{6}$/.test(color)) {
@@ -77,7 +109,7 @@ export async function updateBranding(
     update.secondaryColor = color;
   }
   if (data.senderName !== undefined) update.senderName = trimOrNull(data.senderName);
-  if (data.paymentLinkUrl !== undefined) update.paymentLinkUrl = trimOrNull(data.paymentLinkUrl);
+  if (data.paymentLinkUrl !== undefined) update.paymentLinkUrl = safeUrlOrNull(data.paymentLinkUrl, "לינק תשלום");
   if (data.aboutText !== undefined) update.aboutText = trimOrNull(data.aboutText);
 
   return prisma.brandingSettings.upsert({
@@ -151,7 +183,7 @@ export async function createClass(
       startsAt: data.startsAt,
       durationMin: data.durationMin ?? 60,
       capacity: data.capacity,
-      zoomLink: trimOrNull(data.zoomLink) ?? null,
+      zoomLink: safeUrlOrNull(data.zoomLink, "קישור זום") ?? null,
     },
   });
 }
@@ -204,7 +236,7 @@ export async function updateClass(
     }
     update.capacity = data.capacity;
   }
-  if (data.zoomLink !== undefined) update.zoomLink = trimOrNull(data.zoomLink);
+  if (data.zoomLink !== undefined) update.zoomLink = safeUrlOrNull(data.zoomLink, "קישור זום");
 
   return prisma.onlineClass.update({ where: { id: classId }, data: update });
 }
@@ -428,7 +460,7 @@ export async function createCourse(
       businessId,
       title,
       description: trimOrNull(data.description) ?? null,
-      coverUrl: trimOrNull(data.coverUrl) ?? null,
+      coverUrl: safeUrlOrNull(data.coverUrl, "תמונת שער") ?? null,
     },
   });
 }
@@ -456,7 +488,7 @@ export async function updateCourse(
     update.title = title;
   }
   if (data.description !== undefined) update.description = trimOrNull(data.description);
-  if (data.coverUrl !== undefined) update.coverUrl = trimOrNull(data.coverUrl);
+  if (data.coverUrl !== undefined) update.coverUrl = safeUrlOrNull(data.coverUrl, "תמונת שער");
   if (data.status !== undefined) {
     if (!COURSE_STATUSES.includes(data.status as never)) {
       throw new ServiceError("סטטוס קורס לא תקין", "VALIDATION");
@@ -577,8 +609,8 @@ export async function createLesson(
       title,
       position: (agg._max.position ?? 0) + 10,
       type: data.type ?? "video",
-      videoRef: trimOrNull(data.videoRef) ?? null,
-      fileUrl: trimOrNull(data.fileUrl) ?? null,
+      videoRef: videoRefOrNull(data.videoRef) ?? null,
+      fileUrl: safeUrlOrNull(data.fileUrl, "קובץ PDF") ?? null,
       textContent: data.textContent ?? null,
       durationMin: data.durationMin ?? null,
       isFreePreview: data.isFreePreview ?? false,
@@ -617,8 +649,8 @@ export async function updateLesson(
     }
     update.type = data.type;
   }
-  if (data.videoRef !== undefined) update.videoRef = trimOrNull(data.videoRef);
-  if (data.fileUrl !== undefined) update.fileUrl = trimOrNull(data.fileUrl);
+  if (data.videoRef !== undefined) update.videoRef = videoRefOrNull(data.videoRef);
+  if (data.fileUrl !== undefined) update.fileUrl = safeUrlOrNull(data.fileUrl, "קובץ PDF");
   if (data.textContent !== undefined) update.textContent = data.textContent;
   if (data.durationMin !== undefined) update.durationMin = data.durationMin;
   if (data.isFreePreview !== undefined) update.isFreePreview = data.isFreePreview;

@@ -220,27 +220,46 @@ export async function registerForClass(
     throw new ServiceError("נדרש מנוי פעיל כדי להירשם לשיעור", "UNAUTHORIZED");
   }
 
-  // Idempotent: an existing non-cancelled registration keeps its status.
-  const existing = await prisma.classRegistration.findUnique({
-    where: { onlineClassId_membershipId: { onlineClassId: classId, membershipId } },
-  });
-  if (existing && existing.status !== "cancelled") {
-    return { status: existing.status as "registered" | "waitlist" };
+  // Acquire the registration row FIRST (atomically), and only then claim a
+  // spot. Two concurrent register calls would otherwise both pass a
+  // read-then-claim check and double-increment spotsTaken while collapsing
+  // into a single registration row (phantom taken spot).
+  // Winner = the call that inserts the row, or the one that flips an
+  // existing 'cancelled' row (updateMany count===1). Losers return the
+  // current status idempotently without touching spotsTaken.
+  const inserted: number = await prisma.$executeRaw`
+    INSERT INTO "ClassRegistration" ("id", "onlineClassId", "membershipId", "status", "createdAt", "updatedAt")
+    VALUES (gen_random_uuid()::text, ${classId}, ${membershipId}, 'waitlist', NOW(), NOW())
+    ON CONFLICT ("onlineClassId", "membershipId") DO NOTHING`;
+
+  if (inserted === 0) {
+    const revived = await prisma.classRegistration.updateMany({
+      where: { onlineClassId: classId, membershipId, status: "cancelled" },
+      data: { status: "waitlist" },
+    });
+    if (revived.count === 0) {
+      // Existing live registration — idempotent return.
+      const existing = await prisma.classRegistration.findUnique({
+        where: { onlineClassId_membershipId: { onlineClassId: classId, membershipId } },
+        select: { status: true },
+      });
+      const s = existing?.status === "registered" ? "registered" : "waitlist";
+      return { status: s };
+    }
   }
 
-  // Atomic capacity claim.
+  // We own the (provisional 'waitlist') row — atomic capacity claim.
   const claimed: number = await prisma.$executeRaw`
     UPDATE "OnlineClass" SET "spotsTaken" = "spotsTaken" + 1
     WHERE id = ${classId} AND "businessId" = ${businessId} AND "spotsTaken" < capacity`;
-  const status: "registered" | "waitlist" = claimed === 1 ? "registered" : "waitlist";
-
-  await prisma.classRegistration.upsert({
-    where: { onlineClassId_membershipId: { onlineClassId: classId, membershipId } },
-    update: { status },
-    create: { onlineClassId: classId, membershipId, status },
-  });
-
-  return { status };
+  if (claimed === 1) {
+    await prisma.classRegistration.update({
+      where: { onlineClassId_membershipId: { onlineClassId: classId, membershipId } },
+      data: { status: "registered" },
+    });
+    return { status: "registered" };
+  }
+  return { status: "waitlist" };
 }
 
 /**
