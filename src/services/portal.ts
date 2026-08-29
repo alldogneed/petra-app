@@ -493,6 +493,14 @@ export const COMPLETE_AT_PERCENT = 95;
 const PLAYBACK_RATE_SLACK = 2.2; // YouTube tops out at 2x — plus jitter
 const REPORT_GRACE_SEC = 30; // absorbs throttling and a late final beacon
 const FIRST_REPORT_GRANT_SEC = 45; // small credit for the very first report
+/**
+ * When a lesson has no durationMin on file the client controls BOTH sides of
+ * the ratio, so a declared "this video is 5 seconds" would complete a 45-minute
+ * lesson instantly. The time gate therefore assumes at least this much video,
+ * and never lets the grace window swallow the whole wait.
+ */
+const ASSUMED_MIN_DURATION_SEC = 300; // 5 minutes when the business left it blank
+const MIN_ELAPSED_FOR_COMPLETE_SEC = 30; // nothing completes in the first half-minute
 
 /**
  * Record watch progress for a video lesson and auto-complete it at
@@ -533,10 +541,10 @@ export async function recordLessonProgress(
   // {watchedSeconds:1, durationSeconds:1} would complete any lesson. Prefer the
   // duration the business entered; fall back to the reported one only when the
   // lesson has none on file.
-  const duration =
-    lesson.durationMin && lesson.durationMin > 0
-      ? lesson.durationMin * 60
-      : Math.round(clientDuration);
+  const trustedDuration = !!(lesson.durationMin && lesson.durationMin > 0);
+  const duration = trustedDuration
+    ? lesson.durationMin! * 60
+    : Math.round(clientDuration);
   const watched = Math.min(Math.round(watchedRaw), duration);
 
   const existing = await prisma.lessonProgress.findUnique({
@@ -567,10 +575,18 @@ export async function recordLessonProgress(
   const startedAt = existing?.startedAt ?? now;
 
   // Second gate: even at maximum playback speed the lesson cannot be finished
-  // before this much real time has passed since the first report.
+  // before this much real time has passed since the first report. When the
+  // duration is client-supplied it is floored, so understating it buys nothing.
   const sinceStartSec = (now.getTime() - startedAt.getTime()) / 1000;
-  const earliestFinishSec = duration / PLAYBACK_RATE_SLACK;
-  const longEnough = sinceStartSec + REPORT_GRACE_SEC >= earliestFinishSec;
+  const gateDuration = trustedDuration
+    ? duration
+    : Math.max(duration, ASSUMED_MIN_DURATION_SEC);
+  const earliestFinishSec = gateDuration / PLAYBACK_RATE_SLACK;
+  // Grace may shorten the wait, never erase it.
+  const grace = Math.min(REPORT_GRACE_SEC, earliestFinishSec * 0.2);
+  const longEnough =
+    sinceStartSec >= MIN_ELAPSED_FOR_COMPLETE_SEC &&
+    sinceStartSec + grace >= earliestFinishSec;
   const rawPercent = Math.round((bestWatched / duration) * 100);
   const percent = Math.min(100, Math.max(rawPercent, existing?.percent ?? 0));
   const completed = percent >= COMPLETE_AT_PERCENT && longEnough;
