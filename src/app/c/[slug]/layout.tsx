@@ -8,18 +8,28 @@ type Props = { params: { slug: string }; children: React.ReactNode }
 
 const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/
 
+function slugCandidates(rawSlug: string): string[] {
+  // Page/layout params can arrive raw, percent-encoded, or double-encoded
+  // depending on runtime — try every decode level for non-ASCII slugs.
+  const out = new Set<string>([rawSlug])
+  let cur = rawSlug
+  for (let i = 0; i < 2; i++) {
+    try {
+      const dec = decodeURIComponent(cur)
+      if (dec === cur) break
+      out.add(dec)
+      cur = dec
+    } catch {
+      break
+    }
+  }
+  return [...out]
+}
+
 const getPortalBusiness = cache(async (rawSlug: string) => {
   try {
-    // Page/layout params arrive percent-encoded (unlike route handlers) —
-    // Hebrew slugs 404 without decoding.
-    let slug = rawSlug
-    try {
-      slug = decodeURIComponent(rawSlug)
-    } catch {
-      /* keep raw on malformed encoding */
-    }
-    const business = await prisma.business.findUnique({
-      where: { slug },
+    const business = await prisma.business.findFirst({
+      where: { slug: { in: slugCandidates(rawSlug) } },
       select: {
         id: true,
         name: true,
