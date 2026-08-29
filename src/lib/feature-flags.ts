@@ -75,7 +75,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     webhook_leads:     false,
     appointments:      true,   // ✅ open, max 20 total (FREE_APPOINTMENT_LIMIT)
     lead_notifications: false, // WhatsApp alert to owner on new lead — PRO only
-    online_classes:    false,  // Online classes portal — PRO only
+    online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 
   // ── Basic (₪99) ──────────────────────────────────────────────────────────────
@@ -108,7 +108,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     webhook_leads:     false,  // Make.com/API webhook for leads — PRO only
     appointments:      true,
     lead_notifications: false, // WhatsApp alert to owner on new lead — PRO only
-    online_classes:    false,  // Online classes portal — PRO only
+    online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 
   // ── Groomer+ (₪169) ──────────────────────────────────────────────────────────
@@ -140,7 +140,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     webhook_leads:     false,  // CRM webhook not relevant for groomers
     appointments:      true,
     lead_notifications: false,
-    online_classes:    false,  // Online classes portal — PRO only
+    online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 
   // ── Groomer+ legacy alias (kept for DB backward-compat — same as groomer) ────
@@ -170,7 +170,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     webhook_leads:     false,
     appointments:      true,
     lead_notifications: false,
-    online_classes:    false,  // Online classes portal — PRO only
+    online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 
   // ── Pro (₪199) ───────────────────────────────────────────────────────────────
@@ -202,7 +202,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     webhook_leads:     true,   // API webhook for leads ✅
     appointments:      true,
     lead_notifications: true,  // WhatsApp alert to owner on new lead ✅
-    online_classes:    true,   // ✅ Online classes portal — PRO only
+    online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 
   // ── Service Dog (₪229) ───────────────────────────────────────────────────────
@@ -233,7 +233,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     webhook_leads:     true,   // API webhook for leads ✅
     appointments:      true,
     lead_notifications: true,  // WhatsApp alert to owner on new lead ✅
-    online_classes:    true,   // ✅ Online classes portal
+    online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 };
 
