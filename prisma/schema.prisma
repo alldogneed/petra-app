@@ -310,6 +310,10 @@ model Business {
   pendingApprovals       PendingApproval[]
   subscriptionEvents     SubscriptionEvent[]
   mcpConnections         McpConnection[]
+  brandingSettings       BrandingSettings?
+  memberships            Membership[]
+  onlineClasses          OnlineClass[]
+  courses                Course[]
 
   @@index([slug])
 }
@@ -2307,6 +2311,10 @@ model McpConnection {
   // latency without adding security on a high-entropy random token.
   tokenHash    String    // SHA-256 hash of the raw bearer token
   scopes       String[]  // e.g. ['read:clients', 'read:appointments', 'read:stats', 'write:appointments']
+  profile      String?   // access profile chosen at creation: read | intake | calendar | boarding | full
+  createdByUserId String? // PlatformUser who minted the token (null for legacy rows)
+  createdByRole   String? // tenant role of the minter at creation: owner | manager
+  expiresAt    DateTime? // null = no expiry (legacy); new tokens default to +180 days
   createdAt    DateTime  @default(now())
   lastUsedAt   DateTime?
   revokedAt    DateTime? // null = active
@@ -2316,6 +2324,7 @@ model McpConnection {
 
   @@index([businessId])
   @@index([tokenHash])
+  @@index([createdByUserId])
 }
 
 /// Audit trail of every MCP tool invocation
@@ -2333,4 +2342,204 @@ model McpAuditLog {
 
   @@index([connectionId])
   @@index([createdAt])
+  @@index([connectionId, createdAt]) // per-connection rate-limit window count (/api/mcp burst guard)
+}
+
+/// Distributed rate-limit fallback (used when Upstash Redis is not configured/reachable).
+/// Fixed windows keyed by "namespace:key:windowStart"; rows expire by windowEnd and are
+/// pruned opportunistically. Counting is an atomic INSERT … ON CONFLICT DO UPDATE.
+model RateLimitBucket {
+  key       String   @id // `${namespace}:${key}:${windowStartMs}`
+  count     Int      @default(0)
+  windowEnd DateTime
+
+  @@index([windowEnd])
+}
+
+// ─── Online Classes module (portal for dog owners: /c/[slug]) ─────────────────
+// docs/online-classes/README.md. Statuses are Strings (repo convention, no enums).
+// Every model carries businessId (directly or via its parent chain) — tenant isolation.
+
+/// Per-business white-label branding for the owner portal. Slug comes from Business.slug.
+model BrandingSettings {
+  id             String   @id @default(uuid())
+  businessId     String   @unique
+  logoUrl        String?
+  primaryColor   String   @default("#F97316") // Petra brand-500 default
+  secondaryColor String?
+  senderName     String?  // sender display name for portal WhatsApp/email messages
+  paymentLinkUrl String?  // external payment link (הו"ק / one-time) — no in-code billing
+  aboutText      String?
+  customDomain   String?  @unique // late phase — not used yet
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+/// Global dog-owner account — one per person across all businesses. Phone is the identity.
+model PortalUser {
+  id        String   @id @default(uuid())
+  phone     String   @unique // E.164
+  name      String
+  email     String   @unique // required — email OTP login
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  sessions    PortalSession[]
+
+  @@index([email])
+}
+
+/// Email OTP codes for portal login. Code stored as SHA-256 hash.
+model PortalOtp {
+  id         String    @id @default(uuid())
+  email      String
+  codeHash   String    // SHA-256 of the 6-digit code
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email, createdAt])
+  @@index([expiresAt])
+}
+
+/// Portal login session — separate world from business-user sessions.
+model PortalSession {
+  id           String   @id @default(uuid())
+  portalUserId String
+  tokenHash    String   @unique // SHA-256 of the raw session token
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+
+  portalUser PortalUser @relation(fields: [portalUserId], references: [id], onDelete: Cascade)
+
+  @@index([portalUserId])
+  @@index([expiresAt])
+}
+
+/// A dog owner's subscription to one business's portal.
+/// status: "pending" | "active" | "expired" | "suspended"
+model Membership {
+  id           String    @id @default(uuid())
+  portalUserId String
+  businessId   String
+  status       String    @default("pending")
+  validUntil   DateTime? // one-time payment expiry; null = open standing order
+  paymentNote  String?   // manual bookkeeping: "שולם 15.9, הו"ק ביט"
+  approvedAt   DateTime?
+  expiryReminderSentAt DateTime? // idempotency marker for the expiry-reminder cron
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  portalUser    PortalUser          @relation(fields: [portalUserId], references: [id], onDelete: Cascade)
+  business      Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  registrations ClassRegistration[]
+  progress      LessonProgress[]
+
+  @@unique([portalUserId, businessId])
+  @@index([businessId, status])
+}
+
+/// Live Zoom class with capacity. spotsTaken is updated ONLY via atomic raw UPDATE
+/// (no interactive transactions on PgBouncer — see docs/online-classes/README.md).
+model OnlineClass {
+  id             String   @id @default(uuid())
+  businessId     String
+  title          String
+  description    String?
+  instructorName String?
+  startsAt       DateTime
+  durationMin    Int      @default(60)
+  capacity       Int
+  spotsTaken     Int      @default(0)
+  zoomLink       String?
+  zoomLinkSentAt DateTime? // idempotency marker for the 1h-before cron send
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  business      Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  registrations ClassRegistration[]
+
+  @@index([businessId, startsAt])
+}
+
+/// status: "registered" | "waitlist" | "cancelled"
+model ClassRegistration {
+  id            String   @id @default(uuid())
+  onlineClassId String
+  membershipId  String
+  status        String   @default("registered")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  onlineClass OnlineClass @relation(fields: [onlineClassId], references: [id], onDelete: Cascade)
+  membership  Membership  @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([onlineClassId, membershipId])
+  @@index([membershipId])
+}
+
+/// Recorded course (Udemy-style). status: "draft" | "published"
+model Course {
+  id          String   @id @default(uuid())
+  businessId  String
+  title       String
+  description String?
+  coverUrl    String?
+  status      String   @default("draft")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  modules  CourseModule[]
+
+  @@index([businessId, status])
+}
+
+model CourseModule {
+  id       String @id @default(uuid())
+  courseId String
+  title    String
+  position Int    // gaps of 10: 10, 20, 30 — cheap reordering
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@index([courseId, position])
+}
+
+/// type: "video" | "pdf" | "text"; provider: "youtube" (future: "mux" | "stream")
+model Lesson {
+  id            String  @id @default(uuid())
+  moduleId      String
+  title         String
+  position      Int
+  type          String  @default("video")
+  provider      String  @default("youtube")
+  videoRef      String? // YouTube video id only — never a full URL
+  fileUrl       String? // PDF in storage
+  textContent   String? // for type "text"
+  durationMin   Int?
+  isFreePreview Boolean @default(false)
+
+  module   CourseModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress LessonProgress[]
+
+  @@index([moduleId, position])
+}
+
+model LessonProgress {
+  id           String   @id @default(uuid())
+  membershipId String
+  lessonId     String
+  completedAt  DateTime @default(now())
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  lesson     Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, lessonId])
 }

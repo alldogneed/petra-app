@@ -13,6 +13,8 @@ const PUBLIC_PREFIX_PATHS = [
   "/api/cron/",     // /api/cron/* — trailing slash ensures /api/cronXXX won't match
   "/api/webhooks/", // /api/webhooks/* — trailing slash prevents prefix collision (paycall webhook auth handled in-route)
   "/api/service-dogs/id-card", // /api/service-dogs/id-card/[token]
+  "/c/",            // /c/[slug] — dog-owner portal (portal session auth handled in-route)
+  "/api/portal/",   // /api/portal/* — portal API, self-contained portal-session auth
 ];
 
 /**

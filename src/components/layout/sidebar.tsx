@@ -37,6 +37,7 @@ import {
   PlayCircle,
   Smartphone,
   Share,
+  MonitorPlay,
 } from "lucide-react";
 import { hasFeatureWithOverrides, type FeatureKey, type TierKey } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
@@ -108,6 +109,7 @@ const navEntries: NavEntry[] = [
   { name: "ניהול כלבי שירות", href: "/service-dogs", icon: Shield, lockedFeature: "service_dogs", hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "ניהול תהליכי אילוף", href: "/training", icon: Dog, hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "חיות מחמד", href: "/pets", icon: PawPrint, minRole: "manager", lockedFeature: "pets_advanced" },
+  { name: "שיעורים אונליין", href: "/online-classes", icon: MonitorPlay, lockedFeature: "online_classes", isNew: true },
 
   { eyebrow: "ניהול" },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner", lockedFeature: "analytics" },
