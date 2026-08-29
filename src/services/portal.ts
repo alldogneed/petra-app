@@ -20,6 +20,16 @@ import { getBranding } from "./online-classes";
 
 export { ServiceError };
 
+/** Escape values interpolated into notification HTML (names, titles, notes). */
+function escapeHtml(v: string): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://petra-app.com";
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
@@ -121,8 +131,8 @@ export async function requestMembership(businessId: string, portalUserId: string
       html: `
         <div dir="rtl" style="font-family: Arial, sans-serif; text-align: right;">
           <h2>בקשת מנוי חדשה</h2>
-          <p><strong>${portalUser.name}</strong> ביקש/ה להצטרף לפורטל של ${business.name}.</p>
-          <p>${portalUser.phone ? `טלפון: ${portalUser.phone}<br/>` : ""}אימייל: ${portalUser.email}</p>
+          <p><strong>${escapeHtml(portalUser.name)}</strong> ביקש/ה להצטרף לפורטל של ${escapeHtml(business.name)}.</p>
+          <p>${portalUser.phone ? `טלפון: ${escapeHtml(portalUser.phone)}<br/>` : ""}אימייל: ${escapeHtml(portalUser.email)}</p>
           <p><a href="${APP_URL}/online-classes">לאישור הבקשה במערכת פטרה</a></p>
         </div>`,
     });
@@ -383,7 +393,10 @@ export async function getPortalCourse(
     include: {
       modules: {
         orderBy: { position: "asc" },
-        include: { lessons: { orderBy: { position: "asc" } } },
+        include: {
+          lessons: { orderBy: { position: "asc" } },
+          quiz: { select: { id: true, title: true, passScore: true } },
+        },
       },
     },
   });
@@ -441,9 +454,18 @@ export async function markLessonComplete(
       id: lessonId,
       module: { course: { businessId, status: "published" } },
     },
-    select: { id: true },
+    select: { id: true, type: true, videoRef: true },
   });
   if (!lesson) throw new ServiceError("שיעור לא נמצא", "NOT_FOUND");
+
+  // Video lessons are completed by watching them (recordLessonProgress), never
+  // by asking. Without this the whole watch gate is one POST away from bypass.
+  if (lesson.type === "video" && lesson.videoRef) {
+    throw new ServiceError(
+      "שיעור וידאו מסומן כהושלם לפי צפייה בפועל",
+      "VALIDATION"
+    );
+  }
 
   await prisma.lessonProgress.upsert({
     where: { membershipId_lessonId: { membershipId, lessonId } },
@@ -459,6 +481,11 @@ export async function markLessonComplete(
  * Slightly under 100% so trailing credits / rounding don't strand a lesson.
  */
 export const COMPLETE_AT_PERCENT = 95;
+
+/** Anti-cheat budget for how fast watched coverage may grow (see recordLessonProgress). */
+const PLAYBACK_RATE_SLACK = 2.5; // tolerate 2x playback speed + jitter
+const REPORT_GRACE_SEC = 30; // absorbs throttling and a late final beacon
+const FIRST_REPORT_GRACE_SEC = 120; // first report of a lesson has no previous timestamp
 
 /**
  * Record watch progress for a video lesson and auto-complete it at
@@ -482,27 +509,46 @@ export async function recordLessonProgress(
       id: lessonId,
       module: { course: { businessId, status: "published" } },
     },
-    select: { id: true },
+    select: { id: true, durationMin: true },
   });
   if (!lesson) throw new ServiceError("שיעור לא נמצא", "NOT_FOUND");
 
-  const duration = Number(data.durationSeconds);
+  const clientDuration = Number(data.durationSeconds);
   const watchedRaw = Number(data.watchedSeconds);
-  if (!Number.isFinite(duration) || duration <= 0) {
+  if (!Number.isFinite(clientDuration) || clientDuration <= 0) {
     throw new ServiceError("משך הסרטון לא תקין", "VALIDATION");
   }
   if (!Number.isFinite(watchedRaw) || watchedRaw < 0) {
     throw new ServiceError("נתוני צפייה לא תקינים", "VALIDATION");
   }
-  // Never trust the client past the video length.
-  const watched = Math.min(Math.round(watchedRaw), Math.round(duration));
+
+  // The client cannot be the source of truth for the denominator — otherwise
+  // {watchedSeconds:1, durationSeconds:1} would complete any lesson. Prefer the
+  // duration the business entered; fall back to the reported one only when the
+  // lesson has none on file.
+  const duration =
+    lesson.durationMin && lesson.durationMin > 0
+      ? lesson.durationMin * 60
+      : Math.round(clientDuration);
+  const watched = Math.min(Math.round(watchedRaw), duration);
 
   const existing = await prisma.lessonProgress.findUnique({
     where: { membershipId_lessonId: { membershipId, lessonId } },
-    select: { percent: true, watchedSeconds: true, completedAt: true },
+    select: { percent: true, watchedSeconds: true, completedAt: true, updatedAt: true },
   });
 
-  const bestWatched = Math.max(watched, existing?.watchedSeconds ?? 0);
+  // Watching takes real time: coverage cannot grow faster than the wall clock
+  // between two reports. This is what stops a scripted "watched the whole thing"
+  // POST, independently of the duration source.
+  const now = new Date();
+  const prevWatched = existing?.watchedSeconds ?? 0;
+  const elapsedSec = existing
+    ? Math.max(0, (now.getTime() - existing.updatedAt.getTime()) / 1000)
+    : FIRST_REPORT_GRACE_SEC;
+  const maxGain = Math.ceil(elapsedSec * PLAYBACK_RATE_SLACK) + REPORT_GRACE_SEC;
+  const cappedWatched = Math.min(watched, prevWatched + maxGain);
+
+  const bestWatched = Math.max(cappedWatched, prevWatched);
   const rawPercent = Math.round((bestWatched / duration) * 100);
   const percent = Math.min(100, Math.max(rawPercent, existing?.percent ?? 0));
   const completed = percent >= COMPLETE_AT_PERCENT;

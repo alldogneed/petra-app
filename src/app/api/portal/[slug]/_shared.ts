@@ -17,6 +17,19 @@ export function getClientIp(request: NextRequest): string {
 }
 
 /**
+ * Rate-limit key for an authenticated portal write. Keying on IP alone punishes
+ * a whole school behind one NAT and caps nothing per account; combining the
+ * membership with the IP bounds both.
+ */
+export function portalRateKey(
+  request: NextRequest,
+  membershipId: string | null | undefined
+): string {
+  const ip = getClientIp(request);
+  return membershipId ? `${membershipId}:${ip}` : ip;
+}
+
+/**
  * Distributed rate limit check. Returns a ready 429 NextResponse (Hebrew,
  * with Retry-After header) when the limit is exceeded, or null when allowed.
  */

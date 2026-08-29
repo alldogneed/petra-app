@@ -5,6 +5,7 @@ import { isValidEmail } from "@/lib/validation";
 import prisma from "@/lib/prisma";
 import {
   getAccessSettings,
+  effectiveDeviceCap,
   enforceDeviceLimit,
   deviceLabelFromUserAgent,
   clientIpOf,
@@ -102,26 +103,26 @@ export async function POST(request: NextRequest) {
     });
     setPortalSessionCookie(token);
 
+    // Device cap. The slug only tells us WHICH portal this login came from; the
+    // cap itself must not depend on a client-supplied field, or dropping `slug`
+    // would disable enforcement. Fall back to the strictest cap across every
+    // business this student belongs to.
     let signedOutDevices = 0;
-    const slug = typeof body?.slug === "string" ? body.slug.trim() : "";
-    if (slug) {
-      try {
+    try {
+      const slug = typeof body?.slug === "string" ? body.slug.trim() : "";
+      let cap: number | null = null;
+      if (slug) {
         const business = await prisma.business.findFirst({
           where: { slug: { in: slugCandidates(slug) } },
           select: { id: true },
         });
-        if (business) {
-          const access = await getAccessSettings(business.id);
-          signedOutDevices = await enforceDeviceLimit(
-            result.portalUser.id,
-            deviceId,
-            access.maxDevicesPerStudent
-          );
-        }
-      } catch (err) {
-        // Never block a legitimate login because the cap check failed.
-        console.error("portal device-limit error:", err);
+        if (business) cap = (await getAccessSettings(business.id)).maxDevicesPerStudent;
       }
+      if (cap === null) cap = await effectiveDeviceCap(result.portalUser.id);
+      signedOutDevices = await enforceDeviceLimit(result.portalUser.id, deviceId, cap);
+    } catch (err) {
+      // Never block a legitimate login because the cap check failed.
+      console.error("portal device-limit error:", err);
     }
 
     return NextResponse.json({ user: result.portalUser, signedOutDevices });

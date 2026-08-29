@@ -36,8 +36,10 @@ import {
   EyeOff,
   UserPlus,
   ShieldAlert,
+  ListChecks,
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
+import { QuizEditor } from "./QuizEditor";
 import {
   Modal,
   extractYouTubeId,
@@ -595,6 +597,7 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
     lesson: LessonItem | null;
   } | null>(null);
   const [lessonForm, setLessonForm] = useState<LessonFormState>(EMPTY_LESSON);
+  const [quizFor, setQuizFor] = useState<{ id: string; title: string } | null>(null);
 
   const treeKey = ["oc-course", courseId];
   const { data, isLoading, isError, refetch } = useQuery({
@@ -873,6 +876,7 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
             <div className="space-y-3 mb-4">
               {modules.map((mod, idx) => (
                 <SortableModule
+                  onOpenQuiz={() => setQuizFor({ id: mod.id, title: mod.title })}
                   key={mod.id}
                   module={mod}
                   index={idx}
@@ -946,6 +950,14 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
           <Plus className="w-4 h-4" />
           הוסף פרק
         </button>
+      )}
+
+      {quizFor && (
+        <QuizEditor
+          moduleId={quizFor.id}
+          moduleTitle={quizFor.title}
+          onClose={() => setQuizFor(null)}
+        />
       )}
 
       {/* Lesson modal */}
@@ -1092,12 +1104,14 @@ function SortableModule({
   onEditLesson,
   onDeleteLesson,
   onLessonDragEnd,
+  onOpenQuiz,
   sensors,
 }: {
   module: CourseModuleItem;
   index: number;
   onRename: (title: string) => void;
   onDelete: () => void;
+  onOpenQuiz: () => void;
   onAddLesson: () => void;
   onEditLesson: (lesson: LessonItem) => void;
   onDeleteLesson: (lesson: LessonItem) => void;
@@ -1163,6 +1177,13 @@ function SortableModule({
         <span className="text-xs text-petra-muted whitespace-nowrap">
           {mod.lessons.length} שיעורים
         </span>
+        <button
+          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-200 text-petra-muted"
+          title="בוחן הפרק"
+          onClick={onOpenQuiz}
+        >
+          <ListChecks className="w-3.5 h-3.5" />
+        </button>
         <button
           className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-200 text-petra-muted"
           title="שינוי שם"

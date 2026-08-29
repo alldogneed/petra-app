@@ -12,8 +12,12 @@ import {
   FileText,
   PlayCircle,
   AlignRight,
+  ListChecks,
+  GraduationCap,
 } from "lucide-react"
 import { PortalSpinner } from "../../_components/portal-ui"
+import { LessonQA } from "@/components/portal/LessonQA"
+import { QuizRunner } from "@/components/portal/QuizRunner"
 
 type PortalLesson = {
   id: string
@@ -29,10 +33,27 @@ type PortalLesson = {
   locked?: boolean
 }
 
+type PortalModuleQuiz = {
+  id: string
+  title: string
+  passScore: number
+}
+
 type PortalModule = {
   id: string
   title: string
   lessons: PortalLesson[]
+  quiz?: PortalModuleQuiz | null
+}
+
+type PortalCertificate = {
+  id: string
+  courseId: string
+  serial: string
+  studentName: string
+  courseTitle: string
+  issuedAt: string
+  verifyUrl: string
 }
 
 type PortalCourseTree = {
@@ -532,54 +553,76 @@ export default function PortalCoursePlayerPage({
   const [completed, setCompleted] = useState<Set<string>>(new Set())
   const [watchPercents, setWatchPercents] = useState<Record<string, number>>({})
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null)
   const [marking, setMarking] = useState(false)
   const [videoFallback, setVideoFallback] = useState(false)
+  const [certificate, setCertificate] = useState<PortalCertificate | null>(null)
 
+  // default-lesson selection happens only on the very first load — a refetch
+  // (e.g. after passing a quiz) must not yank the student back to lesson #1
+  const initialSelectionDoneRef = useRef(false)
+  const certificateRequestedRef = useRef(false)
+
+  // if the router reuses this component for another course, start clean
   useEffect(() => {
-    fetch(`/api/portal/${slug}/courses/${courseId}`)
-      .then(async (r) => {
-        if (r.status === 401) {
-          router.replace(`/c/${slug}/login`)
-          return
-        }
-        if (!r.ok) {
-          setLoadError("הקורס לא נמצא")
-          return
-        }
-        const d = await r.json().catch(() => null)
-        const tree: PortalCourseTree | null = d?.course ?? (d?.modules ? d : null)
-        if (!tree) {
-          setLoadError("הקורס לא נמצא")
-          return
-        }
-        setCourse(tree)
-        setCompleted(new Set<string>(d?.myProgress ?? []))
+    initialSelectionDoneRef.current = false
+    certificateRequestedRef.current = false
+    setCertificate(null)
+  }, [courseId])
 
-        // optional progressDetail — fall back to myProgress-only behaviour
-        const detail: PortalProgressDetail[] = Array.isArray(d?.progressDetail)
-          ? d.progressDetail
-          : []
-        if (detail.length > 0) {
-          const map: Record<string, number> = {}
-          for (const row of detail) {
-            if (!row || typeof row.lessonId !== "string") continue
-            const pct = Number(row.percent)
-            map[row.lessonId] = Number.isFinite(pct)
-              ? Math.max(0, Math.min(100, Math.round(pct)))
-              : 0
-          }
-          setWatchPercents(map)
-        }
+  const loadCourse = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/portal/${slug}/courses/${courseId}`)
+      if (r.status === 401) {
+        router.replace(`/c/${slug}/login`)
+        return
+      }
+      if (!r.ok) {
+        setLoadError("הקורס לא נמצא")
+        return
+      }
+      const d = await r.json().catch(() => null)
+      const tree: PortalCourseTree | null = d?.course ?? (d?.modules ? d : null)
+      if (!tree) {
+        setLoadError("הקורס לא נמצא")
+        return
+      }
+      setCourse(tree)
+      setCompleted(new Set<string>(d?.myProgress ?? []))
 
-        // default: first unlocked lesson
+      // optional progressDetail — fall back to myProgress-only behaviour
+      const detail: PortalProgressDetail[] = Array.isArray(d?.progressDetail)
+        ? d.progressDetail
+        : []
+      if (detail.length > 0) {
+        const map: Record<string, number> = {}
+        for (const row of detail) {
+          if (!row || typeof row.lessonId !== "string") continue
+          const pct = Number(row.percent)
+          map[row.lessonId] = Number.isFinite(pct)
+            ? Math.max(0, Math.min(100, Math.round(pct)))
+            : 0
+        }
+        setWatchPercents(map)
+      }
+
+      // default: first unlocked lesson
+      if (!initialSelectionDoneRef.current) {
+        initialSelectionDoneRef.current = true
         const firstUnlocked = tree.modules
           .flatMap((m) => m.lessons)
           .find((l) => !isLocked(l))
         const first = firstUnlocked ?? tree.modules.flatMap((m) => m.lessons)[0]
         if (first) setSelectedId(first.id)
-      })
-      .catch(() => setLoadError("שגיאה בטעינת הקורס"))
+      }
+    } catch {
+      setLoadError("שגיאה בטעינת הקורס")
+    }
   }, [slug, courseId, router])
+
+  useEffect(() => {
+    void loadCourse()
+  }, [loadCourse])
 
   // reset the API-fallback flag whenever the student switches lesson
   useEffect(() => {
@@ -594,6 +637,43 @@ export default function PortalCoursePlayerPage({
   const total = allLessons.length
   const done = allLessons.filter((l) => completed.has(l.id)).length
   const percent = total > 0 ? Math.round((done / total) * 100) : 0
+  const courseComplete = total > 0 && done >= total
+
+  // Certificate — asked for exactly once, only when the course is complete.
+  // Any failure is swallowed: the page must keep working without it.
+  useEffect(() => {
+    if (!courseComplete) return
+    if (certificateRequestedRef.current) return
+    certificateRequestedRef.current = true
+
+    let cancelled = false
+    fetch(`/api/portal/${slug}/courses/${courseId}/certificate`)
+      .then(async (r) => {
+        if (!r.ok) return
+        const d = await r.json().catch(() => null)
+        const cert = d?.certificate
+        if (!cancelled && cert && typeof cert.verifyUrl === "string") {
+          setCertificate(cert as PortalCertificate)
+        }
+      })
+      .catch(() => {
+        /* never break the player over a certificate */
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [courseComplete, slug, courseId])
+
+  const selectLesson = useCallback((lessonId: string) => {
+    setSelectedQuizId(null)
+    setSelectedId(lessonId)
+  }, [])
+
+  const selectQuiz = useCallback((quizId: string) => {
+    setSelectedId(null)
+    setSelectedQuizId(quizId)
+  }, [])
 
   const handlePercentChange = useCallback((lessonId: string, pct: number) => {
     setWatchPercents((prev) => {
@@ -680,6 +760,30 @@ export default function PortalCoursePlayerPage({
 
       <h1 className="text-xl font-bold text-petra-text mb-3">{course.title}</h1>
 
+      {/* Course completed → certificate */}
+      {certificate && (
+        <div className="mb-5 bg-white rounded-2xl shadow-card border border-petra-border p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div
+            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: "var(--portal-primary)" }}
+          >
+            <GraduationCap className="w-6 h-6 text-white" />
+          </div>
+          <p className="flex-1 min-w-0 text-sm font-bold text-petra-text">
+            סיימת את הקורס! התעודה שלך מוכנה
+          </p>
+          <a
+            href={certificate.verifyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ backgroundColor: "var(--portal-primary)" }}
+            className="flex-shrink-0 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold hover:brightness-95 transition-all"
+          >
+            לצפייה בתעודה
+          </a>
+        </div>
+      )}
+
       {/* Course-level progress bar */}
       <div className="mb-5">
         <div className="flex items-center justify-between text-xs text-petra-muted mb-1.5">
@@ -720,7 +824,7 @@ export default function PortalCoursePlayerPage({
                     <li key={lesson.id}>
                       <button
                         type="button"
-                        onClick={() => setSelectedId(lesson.id)}
+                        onClick={() => selectLesson(lesson.id)}
                         className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-right text-sm transition-colors border-b border-petra-border/60 last:border-b-0 ${
                           isSelected ? "bg-slate-50 font-semibold" : "hover:bg-slate-50/60"
                         } ${locked ? "text-petra-muted" : "text-petra-text"}`}
@@ -750,6 +854,31 @@ export default function PortalCoursePlayerPage({
                     </li>
                   )
                 })}
+
+                {mod.quiz && (
+                  <li key={`quiz-${mod.quiz.id}`}>
+                    <button
+                      type="button"
+                      onClick={() => selectQuiz(mod.quiz!.id)}
+                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-right text-sm transition-colors border-t border-petra-border/60 ${
+                        selectedQuizId === mod.quiz.id
+                          ? "bg-slate-50 font-semibold"
+                          : "hover:bg-slate-50/60"
+                      } text-petra-text`}
+                    >
+                      <ListChecks
+                        className="w-4 h-4 flex-shrink-0"
+                        style={{ color: "var(--portal-primary)" }}
+                      />
+                      <span className="flex-1 min-w-0">
+                        <span className="block truncate">{mod.quiz.title}</span>
+                        <span className="block text-[11px] text-petra-muted font-normal">
+                          בוחן · ציון עובר {mod.quiz.passScore}%
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                )}
               </ul>
             </div>
           ))}
@@ -757,7 +886,16 @@ export default function PortalCoursePlayerPage({
 
         {/* Player area — top on mobile, left column on desktop */}
         <section className="order-1 md:order-2 flex-1 w-full min-w-0">
-          {!selected ? (
+          {selectedQuizId ? (
+            <QuizRunner
+              key={selectedQuizId}
+              slug={slug}
+              quizId={selectedQuizId}
+              onPassed={() => {
+                void loadCourse()
+              }}
+            />
+          ) : !selected ? (
             <div className="bg-white rounded-2xl shadow-card border border-petra-border p-8 text-center">
               <p className="text-sm text-petra-muted">אין שיעורים בקורס הזה עדיין</p>
             </div>
@@ -885,6 +1023,14 @@ export default function PortalCoursePlayerPage({
                   </p>
                 )}
               </div>
+
+              {/* Q&A — remounted per lesson so threads never bleed across lessons */}
+              <LessonQA
+                key={selected.id}
+                slug={slug}
+                lessonId={selected.id}
+                canAsk={!isLocked(selected)}
+              />
             </div>
           )}
         </section>

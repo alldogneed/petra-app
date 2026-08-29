@@ -1,6 +1,5 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
 import {
   requirePortalAuth,
   isPortalGuardError,
@@ -29,20 +28,12 @@ export async function GET(
       return NextResponse.json({ error: "הקורס לא נמצא" }, { status: 404 });
     }
 
-    // Completed lesson ids for this membership, limited to this course's lessons.
-    let myProgress: string[] = [];
-    if (membership) {
-      const rows = await prisma.lessonProgress.findMany({
-        where: {
-          membershipId: membership.id,
-          lesson: { module: { courseId: params.courseId } },
-        },
-        select: { lessonId: true },
-      });
-      myProgress = rows.map((r) => r.lessonId);
-    }
+    // Completion is decided by the service (completedAt only). Re-deriving it
+    // here from every progress row marked half-watched lessons as done.
+    const myProgress = course.myProgress;
+    const progressDetail = course.progressDetail;
 
-    return NextResponse.json({ course, myProgress });
+    return NextResponse.json({ course, myProgress, progressDetail });
   } catch (error) {
     return portalErrorResponse(error, "portal course GET");
   }

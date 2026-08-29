@@ -194,3 +194,30 @@ export async function enforceDeviceLimit(
   await prisma.portalSession.deleteMany({ where: { id: { in: sessionIds } } });
   return evict.length;
 }
+
+/**
+ * The device cap that applies to a student, independent of which portal they
+ * signed in from: the STRICTEST cap among the businesses they are a member of.
+ * A client that omits `slug` therefore cannot opt out of enforcement.
+ * Returns 0 (unlimited) only when no member business sets a cap.
+ */
+export async function effectiveDeviceCap(portalUserId: string): Promise<number> {
+  const rows = await prisma.membership.findMany({
+    where: { portalUserId },
+    select: { businessId: true },
+  });
+  if (rows.length === 0) return 0;
+
+  const settings = await prisma.brandingSettings.findMany({
+    where: { businessId: { in: rows.map((r) => r.businessId) } },
+    select: { maxDevicesPerStudent: true },
+  });
+
+  // Businesses with no branding row yet fall back to the schema default (2).
+  const caps = [
+    ...settings.map((s) => s.maxDevicesPerStudent),
+    ...Array(Math.max(0, rows.length - settings.length)).fill(2),
+  ].filter((n) => Number.isInteger(n) && n > 0);
+
+  return caps.length === 0 ? 0 : Math.min(...caps);
+}

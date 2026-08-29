@@ -5,7 +5,7 @@ import { RATE_LIMITS } from "@/lib/rate-limit";
 import { requestMembership } from "@/services/portal";
 import {
   enforcePortalRateLimit,
-  getClientIp,
+  portalRateKey,
   portalErrorResponse,
 } from "../../_shared";
 
@@ -21,7 +21,7 @@ export async function POST(
 
     const limited = await enforcePortalRateLimit(
       "portal:membership-request",
-      getClientIp(request),
+      portalRateKey(request, portalUser.id),
       RATE_LIMITS.API_WRITE
     );
     if (limited) return limited;

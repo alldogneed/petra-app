@@ -8,7 +8,7 @@ import {
 import { recordLessonProgress } from "@/services/portal";
 import {
   enforcePortalRateLimit,
-  getClientIp,
+  portalRateKey,
   portalErrorResponse,
 } from "../../../_shared";
 
@@ -39,7 +39,7 @@ export async function POST(
 
     const limited = await enforcePortalRateLimit(
       "portal:lesson-progress",
-      getClientIp(request),
+      portalRateKey(request, membership?.id),
       PROGRESS_RATE_LIMIT
     );
     if (limited) return limited;

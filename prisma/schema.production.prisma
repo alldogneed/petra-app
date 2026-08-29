@@ -2493,6 +2493,7 @@ model Membership {
   paymentNote  String?   // manual bookkeeping: "שולם 15.9, הו"ק ביט"
   approvedAt   DateTime?
   expiryReminderSentAt DateTime? // idempotency marker for the expiry-reminder cron
+  lastNudgeAt          DateTime? // last "you stalled in a course" nudge (throttles the cron)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -2500,6 +2501,9 @@ model Membership {
   business      Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
   registrations ClassRegistration[]
   progress      LessonProgress[]
+  certificates  CourseCertificate[]
+  questions     LessonQuestion[]
+  quizAttempts  QuizAttempt[]
 
   @@unique([portalUserId, businessId])
   @@index([businessId, status])
@@ -2519,6 +2523,7 @@ model OnlineClass {
   spotsTaken     Int      @default(0)
   zoomLink       String?
   zoomLinkSentAt DateTime? // idempotency marker for the 1h-before cron send
+  recordingRef   String?   // YouTube id of the recording, once published as a lesson
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -2555,8 +2560,9 @@ model Course {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  business Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  modules  CourseModule[]
+  business     Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  modules      CourseModule[]
+  certificates CourseCertificate[]
 
   @@index([businessId, status])
 }
@@ -2569,6 +2575,7 @@ model CourseModule {
 
   course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   lessons Lesson[]
+  quiz    Quiz?
 
   @@index([courseId, position])
 }
@@ -2579,6 +2586,8 @@ model Lesson {
   moduleId      String
   title         String
   description   String? // shown under the player in the portal
+  announcedAt   DateTime? // "new lesson published" announcement marker
+  createdAt     DateTime  @default(now())
   position      Int
   type          String  @default("video")
   provider      String  @default("youtube")
@@ -2588,8 +2597,9 @@ model Lesson {
   durationMin   Int?
   isFreePreview Boolean @default(false)
 
-  module   CourseModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  progress LessonProgress[]
+  module    CourseModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress  LessonProgress[]
+  questions LessonQuestion[]
 
   @@index([moduleId, position])
 }
@@ -2609,4 +2619,94 @@ model LessonProgress {
   lesson     Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@unique([membershipId, lessonId])
+}
+
+model CourseCertificate {
+  id           String   @id @default(uuid())
+  businessId   String
+  courseId     String
+  membershipId String
+  serial       String   @unique
+  studentName  String   // snapshot — the certificate must not change later
+  courseTitle  String
+  issuedAt     DateTime @default(now())
+
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, courseId])
+  @@index([businessId, issuedAt])
+}
+
+model LessonQuestion {
+  id           String    @id @default(uuid())
+  businessId   String
+  lessonId     String
+  membershipId String
+  body         String
+  isPrivate    Boolean   @default(false)
+  answerBody   String?
+  answeredAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  lesson     Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId, createdAt])
+  @@index([businessId, answeredAt])
+}
+
+model Quiz {
+  id         String   @id @default(uuid())
+  businessId String
+  moduleId   String   @unique
+  title      String
+  passScore  Int      @default(70)
+  createdAt  DateTime @default(now())
+
+  module    CourseModule   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@index([businessId])
+}
+
+model QuizQuestion {
+  id       String @id @default(uuid())
+  quizId   String
+  text     String
+  position Int
+
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options QuizOption[]
+
+  @@index([quizId, position])
+}
+
+model QuizOption {
+  id         String  @id @default(uuid())
+  questionId String
+  text       String
+  isCorrect  Boolean @default(false)
+  position   Int
+
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId, position])
+}
+
+model QuizAttempt {
+  id           String   @id @default(uuid())
+  quizId       String
+  membershipId String
+  score        Int      // percentage 0-100
+  passed       Boolean
+  createdAt    DateTime @default(now())
+
+  quiz       Quiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([membershipId, quizId])
+  @@index([quizId, createdAt])
 }

@@ -19,6 +19,16 @@ import { sendEmail } from "@/lib/email";
 
 export { ServiceError };
 
+/** Escape values interpolated into notification HTML (names, titles, notes). */
+function escapeHtml(v: string): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ─── Shared helpers ────────────────────────────────────────────────────────
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://petra-app.com";
@@ -371,8 +381,8 @@ export async function approveMembership(
     html: `
       <div dir="rtl" style="font-family: Arial, sans-serif; text-align: right;">
         <h2>המנוי שלך פעיל!</h2>
-        <p>היי ${userName},</p>
-        <p>המנוי שלך אצל <strong>${businessName}</strong> אושר והוא פעיל מעכשיו.</p>
+        <p>היי ${escapeHtml(userName)},</p>
+        <p>המנוי שלך אצל <strong>${escapeHtml(businessName)}</strong> אושר והוא פעיל מעכשיו.</p>
         ${link ? `<p><a href="${link}">כניסה לפורטל החברים</a></p>` : ""}
         <p>נתראה בשיעורים!</p>
       </div>`,
@@ -655,7 +665,9 @@ export async function enrollStudentsInCourse(
         });
       }
 
-      added.push({ email, name: portalUser.name, created, notified: notify });
+      // Do NOT echo back an existing account's name: a business could otherwise
+      // batch-probe arbitrary emails and harvest identities across tenants.
+      added.push({ email, name: created ? portalUser.name : "", created, notified: notify });
     } catch (err) {
       console.error("[enrollStudentsInCourse]", email, err);
       skipped.push({ email, reason: "שגיאה בהוספה" });
@@ -697,10 +709,10 @@ function notifyCourseEnrollment(p: {
     html: `
       <div dir="rtl" style="font-family: Arial, sans-serif; text-align: right;">
         <h2>נוספת לקורס!</h2>
-        <p>היי ${p.name},</p>
+        <p>היי ${escapeHtml(p.name)},</p>
         <p>
-          ${p.businessName} הוסיף/ה אותך לקורס
-          <strong>${p.courseTitle}</strong> בפורטל החברים.
+          ${escapeHtml(p.businessName)} הוסיף/ה אותך לקורס
+          <strong>${escapeHtml(p.courseTitle)}</strong> בפורטל החברים.
         </p>
         ${link ? `<p><a href="${link}">לצפייה בקורס</a></p>` : ""}
         <p>${howToEnter}</p>
