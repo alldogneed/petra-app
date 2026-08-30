@@ -107,7 +107,6 @@ const navEntries: NavEntry[] = [
 
   { eyebrow: "מודולים" },
   { name: "פנסיון", href: "/boarding", icon: Hotel, lockedFeature: "boarding", hiddenForTiers: ["groomer", "groomer_plus"] },
-  { name: "פיננסים", href: "/pricing", icon: Wallet, minRole: "manager" },
   { name: "ניהול כלבי שירות", href: "/service-dogs", icon: Shield, lockedFeature: "service_dogs", hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "ניהול תהליכי אילוף", href: "/training", icon: Dog, hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "חיות מחמד", href: "/pets", icon: PawPrint, minRole: "manager", lockedFeature: "pets_advanced" },
@@ -115,9 +114,11 @@ const navEntries: NavEntry[] = [
   { name: "עוזר AI", href: "/help/connect-ai", icon: Sparkles, lockedFeature: "ai_assistant", isNew: true },
 
   { eyebrow: "ניהול" },
+  { name: "פיננסים", href: "/pricing", icon: Wallet, minRole: "manager" },
   { name: "הודעות", href: "/scheduled-messages", icon: MessageSquare, minRole: "manager", isNew: true },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner", lockedFeature: "analytics" },
   { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner", lockedFeature: "staff_management" },
+  { name: "סרטוני הדרכה", href: "/tutorials", icon: PlayCircle, isNew: true },
   { name: "הגדרות", href: "/settings", icon: Settings, minRole: "owner" },
 ];
 
@@ -539,34 +540,6 @@ export function Sidebar({
                 )}
               </>
             )}
-
-            {/* Tutorials link */}
-            <Link
-              href="/tutorials"
-              onClick={isMobile ? onMobileClose : undefined}
-              title={!isMobile && collapsed ? "סרטוני הדרכה" : undefined}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group",
-                pathname.startsWith("/tutorials")
-                  ? "text-white"
-                  : "text-slate-400 hover:text-white hover:bg-white/[0.06]"
-              )}
-              style={
-                pathname.startsWith("/tutorials")
-                  ? { background: "rgba(249,115,22,0.15)", boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.4)" }
-                  : undefined
-              }
-            >
-              <div className={cn("flex-shrink-0 relative", pathname.startsWith("/tutorials") ? "text-brand-400" : "text-slate-500 group-hover:text-slate-300")}>
-                <PlayCircle className="w-[18px] h-[18px]" />
-              </div>
-              {isExpanded && (
-                <>
-                  <span className="flex-1">סרטוני הדרכה</span>
-                  <span className="text-[10px] font-bold bg-brand-500 text-white px-1.5 py-0.5 rounded-full leading-none">חדש</span>
-                </>
-              )}
-            </Link>
 
             {/* Help button */}
             <button
