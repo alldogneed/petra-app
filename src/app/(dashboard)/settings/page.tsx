@@ -4444,7 +4444,7 @@ export default function SettingsPage() {
     ...(!isGroomer ? [{ id: "boarding" as const, label: "פנסיון", icon: Hotel }] : []),
     ...(isOwner ? [{ id: "team" as const, label: "ניהול צוות", icon: Users2 }] : []),
     { id: "messages" as const, label: "הודעות ואוטומציות", icon: MessageCircle },
-    ...(isOwner || isManager ? [{ id: "payments" as const, label: "תשלומים", icon: CreditCard }] : []),
+    ...(isOwner || isManager ? [{ id: "payments" as const, label: "תשלומים וחוזים", icon: CreditCard }] : []),
     ...(!isGroomer ? [{ id: "service-dogs" as const, label: "כלבי שירות", icon: PawPrint }] : []),
     { id: "data" as const, label: "נתונים", icon: Database },
     { id: "integrations" as const, label: "אינטגרציות", icon: Plug },
