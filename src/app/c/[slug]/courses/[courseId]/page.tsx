@@ -347,6 +347,20 @@ function VideoLessonPlayer({
     sampleTimerRef.current = window.setInterval(sampleOnce, SAMPLE_MS)
   }, [sampleOnce, stopSampling])
 
+  // Empties the player container. YT.Player REPLACES the div we hand it with
+  // its own iframe, so the node we appended is no longer ours to remove — and
+  // destroy() is a no-op on a player that errored before it was ready. Without
+  // this, iframes pile up in the container and the student sees two videos.
+  const clearHost = useCallback(() => {
+    const host = hostRef.current
+    if (!host) return
+    try {
+      while (host.firstChild) host.removeChild(host.firstChild)
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
   // create / destroy the player for this lesson
   useEffect(() => {
     let cancelled = false
@@ -368,6 +382,9 @@ function VideoLessonPlayer({
           return
         }
         try {
+          // drop anything a previous player left behind — YT.destroy() can
+          // silently fail on an errored player and orphan its iframe here
+          clearHost()
           mountedEl = document.createElement("div")
           mountedEl.style.width = "100%"
           mountedEl.style.height = "100%"
@@ -467,10 +484,28 @@ function VideoLessonPlayer({
       } catch {
         /* ignore */
       }
+      clearHost()
     }
     // videoId/lessonId change → full teardown + rebuild
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoId, lessonId])
+
+  // falling back to the plain embed → kill the API player and its iframe so
+  // only one video is ever on screen
+  useEffect(() => {
+    if (!fallback) return
+    stopSampling()
+    try {
+      if (playerRef.current && typeof playerRef.current.destroy === "function") {
+        playerRef.current.destroy()
+      }
+    } catch {
+      /* ignore */
+    }
+    playerRef.current = null
+    readyRef.current = false
+    clearHost()
+  }, [fallback, stopSampling, clearHost])
 
   // flush on tab hide / page unload
   useEffect(() => {
@@ -491,14 +526,15 @@ function VideoLessonPlayer({
 
   return (
     <>
-      <div
-        ref={hostRef}
-        className={`w-full aspect-video rounded-2xl border border-petra-border bg-black overflow-hidden ${
-          fallback ? "hidden" : ""
-        }`}
-      />
+      {!fallback && (
+        <div
+          ref={hostRef}
+          className="w-full aspect-video rounded-2xl border border-petra-border bg-black overflow-hidden"
+        />
+      )}
       {fallback && (
         <iframe
+          key={videoId}
           src={`https://www.youtube-nocookie.com/embed/${videoId}`}
           title={title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -917,7 +953,7 @@ export default function PortalCoursePlayerPage({
               </Link>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div key={selected.id} className="space-y-4">
               {selectedKind === "video" && selected.videoRef && (
                 <VideoLessonPlayer
                   key={selected.id}
