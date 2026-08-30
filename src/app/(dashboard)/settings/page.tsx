@@ -4429,7 +4429,7 @@ export default function SettingsPage() {
   const { isFree, isBasic, isGroomer, can } = usePlan();
   const invoicingParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<"business" | "booking" | "boarding" | "team" | "payments" | "integrations" | "data" | "messages" | "service-dogs" | "security" | "ai-agents">(
-    gcalParam ? "integrations" : invoicingParam === "booking" ? "booking" : invoicingParam === "boarding" ? "boarding" : invoicingParam === "payments" ? "payments" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : invoicingParam === "security" ? "security" : "business"
+    gcalParam ? "integrations" : invoicingParam === "booking" ? "booking" : invoicingParam === "boarding" ? "boarding" : invoicingParam === "payments" ? "payments" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : invoicingParam === "security" ? "security" : invoicingParam === "ai-agents" ? "ai-agents" : "business"
   );
 
   // Tabs locked per tier
@@ -4530,8 +4530,8 @@ export default function SettingsPage() {
           : <IntegrationsTab />
       )}
       {activeTab === "ai-agents" && mcpAllowed && (
-        isFree
-          ? <PaywallCard title="עוזרי AI" description="חבר את העסק שלך ל-Claude, ChatGPT ועוד — זמין במנוי בייסיק ומעלה." requiredTier="basic" variant="page" />
+        !can("ai_assistant")
+          ? <PaywallCard title="עוזרי AI" description="חבר את העסק שלך ל-Claude, ChatGPT ועוד — זמין במנוי פרו ומעלה." requiredTier="pro" variant="page" />
           : <McpConnectionsTab />
       )}
       {activeTab === "security" && <SecurityTab />}
