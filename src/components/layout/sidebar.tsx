@@ -38,6 +38,8 @@ import {
   Smartphone,
   Share,
   MonitorPlay,
+  MessageSquare,
+  Sparkles,
 } from "lucide-react";
 import { hasFeatureWithOverrides, type FeatureKey, type TierKey } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
@@ -112,6 +114,8 @@ const navEntries: NavEntry[] = [
   { name: "שיעורים אונליין", href: "/online-classes", icon: MonitorPlay, lockedFeature: "online_classes", isNew: true },
 
   { eyebrow: "ניהול" },
+  { name: "הודעות", href: "/scheduled-messages", icon: MessageSquare, minRole: "manager" },
+  { name: "עוזר AI", href: "/help/connect-ai", icon: Sparkles, isNew: true },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner", lockedFeature: "analytics" },
   { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner", lockedFeature: "staff_management" },
   { name: "הגדרות", href: "/settings", icon: Settings, minRole: "owner" },
@@ -275,7 +279,7 @@ export function Sidebar({
             (p) => pathname === p || pathname.startsWith(p + "/")
           )
         : item.href === "/scheduler"
-        ? ["/bookings", "/scheduled-messages", "/scheduler"].some(
+        ? ["/bookings", "/scheduler"].some(
             (p) => pathname === p || pathname.startsWith(p + "/")
           )
         : pathname.startsWith(item.href);
