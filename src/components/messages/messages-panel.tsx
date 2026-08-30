@@ -614,7 +614,10 @@ function TemplatesTab() {
     <>
       {/* Tab description */}
       <p className="text-xs text-petra-muted mb-4">
-        הודעות שנשלחות אוטומטית על ידי המערכת בהתאם לאירועים — למשל אישור תור, תזכורת לפני פגישה, או יום הולדת. הפעל כל הודעה בלחיצה על המתג.
+        הודעות שנשלחות אוטומטית על ידי המערכת בהתאם לאירועים — למשל אישור תור, תזכורת לפני פגישה, או יום הולדת. הפעל כל הודעה בלחיצה על המתג.{" "}
+        <a href="/scheduled-messages" className="text-brand-600 hover:underline font-medium">
+          צפה בהודעות שנשלחו ←
+        </a>
       </p>
 
       {/* ── Automations tab ── */}
