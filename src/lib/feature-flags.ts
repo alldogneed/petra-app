@@ -24,6 +24,7 @@ export type FeatureKey =
   | "groomer_portfolio"
   | "invoicing"
   | "staff_management"
+  | "ai_assistant"
   | "excel_export"
   | "gcal_sync"
   | "payments"
@@ -61,6 +62,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     groomer_portfolio: false,
     invoicing:         false,
     staff_management:  false,
+    ai_assistant:      false,
     excel_export:      false,
     gcal_sync:         false,
     payments:          true,   // ✅ basic payment recording — BASIC+ unlocks payment links
@@ -95,6 +97,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     groomer_portfolio: true,   // ✅ Before/after portfolio — BASIC+
     invoicing:         false,  // Invoices — PRO only
     staff_management:  false,  // Single user — team management is PRO only
+    ai_assistant:      false,  // AI assistant is PRO+
     excel_export:      false,  // Excel export — PRO only
     gcal_sync:         true,   // Google Calendar sync ✅
     payments:          true,   // Payment links ✅
@@ -128,6 +131,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     groomer_portfolio: true,   // Before/after portfolio ✅
     invoicing:         true,   // Full invoicing ✅
     staff_management:  true,   // Staff/additional users ✅
+    ai_assistant:      false,
     excel_export:      true,   // Excel export ✅
     gcal_sync:         true,   // Google Calendar ✅
     payments:          true,
@@ -159,6 +163,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     groomer_portfolio: true,
     invoicing:         true,
     staff_management:  true,
+    ai_assistant:      false,
     excel_export:      true,
     gcal_sync:         true,
     payments:          true,
@@ -192,6 +197,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     groomer_portfolio: true,   // ✅ Before/after portfolio (superset of Basic)
     invoicing:         true,   // Invoicing ✅
     staff_management:  true,   // ✅ Team management — PRO only
+    ai_assistant:      true,   // ✅ AI assistant (MCP) — PRO launch
     excel_export:      true,   // Excel export ✅
     gcal_sync:         true,
     payments:          true,
@@ -224,6 +230,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     groomer_portfolio: false,
     invoicing:         true,
     staff_management:  true,
+    ai_assistant:      true,
     excel_export:      true,
     gcal_sync:         true,
     payments:          true,
