@@ -9,6 +9,7 @@ import {
   MCP_TOKEN_TTL_DAYS,
 } from "@/lib/mcp-auth";
 import { isMcpAllowedUser, isMcpAllowedBusiness, isInternalTestEmail } from "@/lib/mcp-allowlist";
+import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { normalizeTier } from "@/lib/feature-flags";
 
 /** GET /api/mcp/connections — list all MCP connections for the business */
@@ -88,11 +89,15 @@ export async function POST(request: NextRequest) {
     // internal @petra.local QA accounts (seeded server-side) are exempt.
     const business = await prisma.business.findUnique({
       where: { id: authResult.businessId },
-      select: { tier: true },
+      select: { tier: true, featureOverrides: true },
     });
     const isInternalQa = isInternalTestEmail(authResult.session.user.email);
-    if (!isPlatformAdmin && !isInternalQa && normalizeTier(business?.tier) === "free") {
-      return NextResponse.json({ error: "חיבור עוזרי AI זמין במנוי בייסיק ומעלה" }, { status: 403 });
+    if (
+      !isPlatformAdmin &&
+      !isInternalQa &&
+      !hasFeatureWithOverrides(business?.tier, "ai_assistant", (business?.featureOverrides as Record<string, boolean> | null) ?? null)
+    ) {
+      return NextResponse.json({ error: "עוזר AI זמין במנוי פרו ומעלה. שדרג כדי לחבר." }, { status: 403 });
     }
 
     // A token only works if the business itself passes the allowlist (e.g. an

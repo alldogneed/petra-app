@@ -10,7 +10,8 @@ const TABS = [
   { name: "הזמנות",        href: "/orders",           icon: ShoppingCart },
   { name: "בקשות תשלום",   href: "/payment-request", icon: Send        },
   { name: "תשלומים",       href: "/payments",        icon: CreditCard  },
-  { name: "חשבוניות",      href: "/invoices",        icon: FileText    },
+  // חשבוניות hidden until the Israeli invoicing regulation setup is complete
+  // { name: "חשבוניות",      href: "/invoices",        icon: FileText    },
 ];
 
 export function FinanceTabs() {
