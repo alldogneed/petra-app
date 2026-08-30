@@ -11,6 +11,7 @@ import {
   Palette,
   BarChart3,
   MessageCircleQuestion,
+  Award,
   ExternalLink,
   Settings,
 } from "lucide-react";
@@ -23,6 +24,7 @@ import { CoursesTab } from "@/components/online-classes/CoursesTab";
 import { MembershipsTab } from "@/components/online-classes/MembershipsTab";
 import { BrandingTab } from "@/components/online-classes/BrandingTab";
 import { ReportsTab } from "@/components/online-classes/ReportsTab";
+import { CertificatesTab } from "@/components/online-classes/CertificatesTab";
 import { QuestionsTab } from "@/components/online-classes/QuestionsTab";
 import {
   unwrapList,
@@ -31,13 +33,14 @@ import {
   type MembershipItem,
 } from "@/components/online-classes/shared";
 
-type TabId = "classes" | "courses" | "memberships" | "reports" | "questions" | "branding";
+type TabId = "classes" | "courses" | "memberships" | "reports" | "certificates" | "questions" | "branding";
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "classes", label: "שיעורים חיים", icon: <Video className="w-4 h-4" /> },
   { id: "courses", label: "קורסים", icon: <BookOpen className="w-4 h-4" /> },
   { id: "memberships", label: "מנויים", icon: <UserCheck className="w-4 h-4" /> },
   { id: "reports", label: "התקדמות", icon: <BarChart3 className="w-4 h-4" /> },
+  { id: "certificates", label: "תעודות", icon: <Award className="w-4 h-4" /> },
   { id: "questions", label: "שאלות", icon: <MessageCircleQuestion className="w-4 h-4" /> },
   { id: "branding", label: "מיתוג", icon: <Palette className="w-4 h-4" /> },
 ];
@@ -203,6 +206,7 @@ function OnlineClassesContent() {
       {activeTab === "courses" && <CoursesTab />}
       {activeTab === "memberships" && <MembershipsTab />}
       {activeTab === "reports" && <ReportsTab />}
+      {activeTab === "certificates" && <CertificatesTab />}
       {activeTab === "questions" && <QuestionsTab />}
       {activeTab === "branding" && <BrandingTab businessName={user?.businessName} />}
     </div>

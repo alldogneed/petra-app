@@ -42,6 +42,11 @@ export interface PublicCertificate {
   issuedAt: Date;
   businessName: string;
   businessLogo: string | null;
+  signatureUrl: string | null;
+  signerName: string | null;
+  footerText: string | null;
+  primaryColor: string | null;
+  revokedAt: Date | null;
 }
 
 // ─── Serial ────────────────────────────────────────────────────────────────
@@ -254,6 +259,7 @@ export async function getCertificateBySerial(
       studentName: true,
       courseTitle: true,
       issuedAt: true,
+      revokedAt: true,
       businessId: true,
     },
   });
@@ -266,7 +272,13 @@ export async function getCertificateBySerial(
     }),
     prisma.brandingSettings.findUnique({
       where: { businessId: certificate.businessId },
-      select: { logoUrl: true },
+      select: {
+        logoUrl: true,
+        primaryColor: true,
+        certificateSignatureUrl: true,
+        certificateSignerName: true,
+        certificateFooterText: true,
+      },
     }),
   ]);
 
@@ -277,5 +289,10 @@ export async function getCertificateBySerial(
     issuedAt: certificate.issuedAt,
     businessName: business?.name ?? "",
     businessLogo: branding?.logoUrl ?? business?.logo ?? null,
+    signatureUrl: branding?.certificateSignatureUrl ?? null,
+    signerName: branding?.certificateSignerName ?? null,
+    footerText: branding?.certificateFooterText ?? null,
+    primaryColor: branding?.primaryColor ?? null,
+    revokedAt: certificate.revokedAt ?? null,
   };
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Palette, AlertTriangle, Dog, ShieldCheck } from "lucide-react";
+import { Palette, AlertTriangle, Dog, ShieldCheck, Award } from "lucide-react";
 import { fetchJSON } from "@/lib/utils";
 import { unwrapObject, type BrandingData } from "./shared";
 
@@ -19,16 +19,22 @@ interface BrandingForm {
   senderName: string;
   paymentLinkUrl: string;
   aboutText: string;
+  certificateSignatureUrl: string;
+  certificateSignerName: string;
+  certificateFooterText: string;
   maxDevicesPerStudent: number;
   ipRestrictionEnabled: boolean;
   allowedIpsText: string;
 }
 
-/** Security fields aren't in the shared BrandingData type yet — read them defensively. */
+/** Fields not in the shared BrandingData type yet — read them defensively. */
 type BrandingSecurity = {
   maxDevicesPerStudent?: number | null;
   ipRestrictionEnabled?: boolean | null;
   allowedIps?: string[] | null;
+  certificateSignatureUrl?: string | null;
+  certificateSignerName?: string | null;
+  certificateFooterText?: string | null;
 };
 
 function isHex(v: string): boolean {
@@ -68,6 +74,9 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
         senderName: branding.senderName ?? "",
         paymentLinkUrl: branding.paymentLinkUrl ?? "",
         aboutText: branding.aboutText ?? "",
+        certificateSignatureUrl: sec.certificateSignatureUrl ?? "",
+        certificateSignerName: sec.certificateSignerName ?? "",
+        certificateFooterText: sec.certificateFooterText ?? "",
         maxDevicesPerStudent:
           typeof sec.maxDevicesPerStudent === "number"
             ? clampDevices(sec.maxDevicesPerStudent)
@@ -92,6 +101,9 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
           senderName: form.senderName.trim() || null,
           paymentLinkUrl: form.paymentLinkUrl.trim() || null,
           aboutText: form.aboutText.trim() || null,
+          certificateSignatureUrl: form.certificateSignatureUrl.trim() || null,
+          certificateSignerName: form.certificateSignerName.trim() || null,
+          certificateFooterText: form.certificateFooterText.trim() || null,
           maxDevicesPerStudent: clampDevices(form.maxDevicesPerStudent),
           ipRestrictionEnabled: form.ipRestrictionEnabled,
           allowedIps: parseIpList(form.allowedIpsText),
@@ -219,6 +231,81 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
             placeholder="https://..."
           />
           <p className="text-[11px] text-petra-muted mt-1">אם ריק — ישתמש בלוגו העסק</p>
+        </div>
+
+        {/* Certificate design */}
+        <div className="pt-4 border-t border-slate-100 space-y-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Award className="w-4 h-4 text-brand-500" />
+              <h3 className="text-sm font-bold text-petra-text">עיצוב התעודה</h3>
+            </div>
+            <p className="text-[11px] text-petra-muted mt-1">
+              חתימה וטקסט שיופיעו על כל תעודת סיום קורס
+            </p>
+          </div>
+
+          <div>
+            <label className="label">קישור לתמונת חתימה</label>
+            <input
+              className="input"
+              dir="ltr"
+              value={form.certificateSignatureUrl}
+              onChange={(e) =>
+                setForm({ ...form, certificateSignatureUrl: e.target.value })
+              }
+              placeholder="https://... (תמונת חתימה שקופה, PNG)"
+            />
+          </div>
+
+          <div>
+            <label className="label">שם החותם</label>
+            <input
+              className="input"
+              value={form.certificateSignerName}
+              onChange={(e) =>
+                setForm({ ...form, certificateSignerName: e.target.value })
+              }
+              placeholder="אור רבינוביץ׳"
+            />
+          </div>
+
+          <div>
+            <label className="label">שורת תחתית</label>
+            <input
+              className="input"
+              value={form.certificateFooterText}
+              onChange={(e) =>
+                setForm({ ...form, certificateFooterText: e.target.value })
+              }
+              placeholder="לדוגמה: הסמכה בהכרת ארגון מאלפי הכלבים בישראל"
+            />
+          </div>
+
+          {(form.certificateSignatureUrl.trim() ||
+            form.certificateSignerName.trim()) && (
+            <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+              <p className="text-[11px] font-semibold text-slate-500 mb-2">
+                תצוגה מקדימה של החתימה
+              </p>
+              <div className="flex flex-col items-center gap-1">
+                {form.certificateSignatureUrl.trim() ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={form.certificateSignatureUrl}
+                    alt="חתימה"
+                    className="h-14 w-auto max-w-[160px] object-contain"
+                  />
+                ) : null}
+                <div className="mt-1 h-px w-40 bg-slate-400" />
+                {form.certificateSignerName.trim() ? (
+                  <p className="text-sm font-semibold text-slate-700">
+                    {form.certificateSignerName}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Course security */}

@@ -2423,6 +2423,10 @@ model BrandingSettings {
   paymentLinkUrl String?  // external payment link (הו"ק / one-time) — no in-code billing
   aboutText      String?
   customDomain   String?  @unique // late phase — not used yet
+  // ── Certificate customization ──
+  certificateSignatureUrl String? // signature image shown on the certificate
+  certificateSignerName   String? // printed under the signature line
+  certificateFooterText   String? // free line, e.g. accreditation note
   // ── Course access security ──
   maxDevicesPerStudent Int      @default(2)  // 0 = unlimited; oldest device is signed out beyond this
   ipRestrictionEnabled Boolean  @default(false)
@@ -2631,12 +2635,16 @@ model CourseCertificate {
   studentName  String   // snapshot — the certificate must not change later
   courseTitle  String
   issuedAt     DateTime @default(now())
+  issuedManually Boolean  @default(false) // true when the owner issued it by hand
+  revokedAt    DateTime? // null = valid; set = revoked (verify page shows "בוטלה")
+  revokedReason String?
 
   course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
   membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
 
   @@unique([membershipId, courseId])
   @@index([businessId, issuedAt])
+  @@index([businessId, revokedAt])
 }
 
 model LessonQuestion {
