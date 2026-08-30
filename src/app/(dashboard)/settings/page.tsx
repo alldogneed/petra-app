@@ -4421,6 +4421,20 @@ function LogoUpload({
   );
 }
 
+const SETTINGS_TAB_IDS = [
+  "business", "booking", "boarding", "team", "payments", "integrations",
+  "data", "messages", "service-dogs", "security", "ai-agents",
+] as const;
+type SettingsTabId = (typeof SETTINGS_TAB_IDS)[number];
+
+/** ?tab=<id> deep link — every tab is addressable, unknown values are ignored. */
+function tabIdFromParam(value: string | null): SettingsTabId | null {
+  if (!value) return null;
+  return (SETTINGS_TAB_IDS as readonly string[]).includes(value)
+    ? (value as SettingsTabId)
+    : null;
+}
+
 export default function SettingsPage() {
   const searchParams = useSearchParams();
   const gcalParam = searchParams.get("gcal");
@@ -4428,9 +4442,25 @@ export default function SettingsPage() {
   const mcpAllowed = user?.mcpAllowed === true;
   const { isFree, isBasic, isGroomer, can } = usePlan();
   const invoicingParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<"business" | "booking" | "boarding" | "team" | "payments" | "integrations" | "data" | "messages" | "service-dogs" | "security" | "ai-agents">(
-    gcalParam ? "integrations" : invoicingParam === "booking" ? "booking" : invoicingParam === "boarding" ? "boarding" : invoicingParam === "payments" ? "payments" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : invoicingParam === "security" ? "security" : "business"
+  const [activeTab, setActiveTab] = useState<SettingsTabId>(
+    gcalParam ? "integrations" : tabIdFromParam(invoicingParam) ?? "business"
   );
+
+  // ?tab=ai-agents is reachable by link (e.g. from /help/connect-ai) — if this
+  // account isn't in the MCP beta the tab renders nothing, so fall back.
+  useEffect(() => {
+    if (activeTab === "ai-agents" && user && !mcpAllowed) setActiveTab("business");
+  }, [activeTab, user, mcpAllowed]);
+
+  // The tab strip scrolls horizontally on mobile — the later tabs (עוזרי AI,
+  // אבטחה) start off-screen, so bring the active one into view.
+  const tabStripRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const strip = tabStripRef.current;
+    if (!strip) return;
+    const btn = strip.querySelector<HTMLElement>(`[data-tab-id="${activeTab}"]`);
+    btn?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [activeTab, mcpAllowed]);
 
   // Tabs locked per tier
   // booking = PRO+ only; boarding/payments = BASIC+ only
@@ -4463,7 +4493,7 @@ export default function SettingsPage() {
 
       {/* Tabs */}
       <div className="relative mb-6">
-      <div className="flex gap-1 p-1 bg-slate-100 rounded-xl overflow-x-auto scrollbar-hide">
+      <div ref={tabStripRef} className="flex gap-1 p-1 bg-slate-100 rounded-xl overflow-x-auto scrollbar-hide">
 
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -4471,6 +4501,7 @@ export default function SettingsPage() {
           return (
             <button
               key={tab.id}
+              data-tab-id={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
