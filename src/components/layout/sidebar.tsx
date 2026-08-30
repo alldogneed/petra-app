@@ -112,10 +112,10 @@ const navEntries: NavEntry[] = [
   { name: "ניהול תהליכי אילוף", href: "/training", icon: Dog, hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "חיות מחמד", href: "/pets", icon: PawPrint, minRole: "manager", lockedFeature: "pets_advanced" },
   { name: "שיעורים אונליין", href: "/online-classes", icon: MonitorPlay, lockedFeature: "online_classes", isNew: true },
+  { name: "עוזר AI", href: "/help/connect-ai", icon: Sparkles, lockedFeature: "ai_assistant", isNew: true },
 
   { eyebrow: "ניהול" },
-  { name: "הודעות", href: "/scheduled-messages", icon: MessageSquare, minRole: "manager" },
-  { name: "עוזר AI", href: "/help/connect-ai", icon: Sparkles, isNew: true },
+  { name: "הודעות", href: "/scheduled-messages", icon: MessageSquare, minRole: "manager", isNew: true },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner", lockedFeature: "analytics" },
   { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner", lockedFeature: "staff_management" },
   { name: "הגדרות", href: "/settings", icon: Settings, minRole: "owner" },
