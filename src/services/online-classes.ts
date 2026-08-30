@@ -103,6 +103,9 @@ export async function updateBranding(
     senderName: string | null;
     paymentLinkUrl: string | null;
     aboutText: string | null;
+    certificateSignatureUrl: string | null;
+    certificateSignerName: string | null;
+    certificateFooterText: string | null;
     maxDevicesPerStudent: number;
     ipRestrictionEnabled: boolean;
     allowedIps: string[];
@@ -153,6 +156,12 @@ export async function updateBranding(
   if (data.senderName !== undefined) update.senderName = trimOrNull(data.senderName);
   if (data.paymentLinkUrl !== undefined) update.paymentLinkUrl = safeUrlOrNull(data.paymentLinkUrl, "לינק תשלום");
   if (data.aboutText !== undefined) update.aboutText = trimOrNull(data.aboutText);
+  if (data.certificateSignatureUrl !== undefined)
+    update.certificateSignatureUrl = safeUrlOrNull(data.certificateSignatureUrl, "חתימה");
+  if (data.certificateSignerName !== undefined)
+    update.certificateSignerName = trimOrNull(data.certificateSignerName);
+  if (data.certificateFooterText !== undefined)
+    update.certificateFooterText = trimOrNull(data.certificateFooterText);
 
   return prisma.brandingSettings.upsert({
     where: { businessId },

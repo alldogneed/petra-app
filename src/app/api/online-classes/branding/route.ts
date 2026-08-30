@@ -33,6 +33,9 @@ const BRANDING_FIELDS: Array<{ key: string; maxLen: number; label: string }> = [
   { key: "senderName", maxLen: 100, label: "שם שולח" },
   { key: "paymentLinkUrl", maxLen: 500, label: "קישור תשלום" },
   { key: "aboutText", maxLen: 5000, label: "טקסט אודות" },
+  { key: "certificateSignatureUrl", maxLen: 500, label: "קישור לחתימה" },
+  { key: "certificateSignerName", maxLen: 100, label: "שם החותם" },
+  { key: "certificateFooterText", maxLen: 300, label: "שורת תחתית לתעודה" },
 ];
 
 export async function PATCH(request: NextRequest) {

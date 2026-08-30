@@ -16,6 +16,9 @@ export interface CertificateViewProps {
   businessLogo: string | null;
   serial: string;
   primaryColor?: string;
+  signatureUrl?: string | null;
+  signerName?: string | null;
+  footerText?: string | null;
 }
 
 const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/;
@@ -65,6 +68,9 @@ export default function CertificateView({
   businessLogo,
   serial,
   primaryColor,
+  signatureUrl,
+  signerName,
+  footerText,
 }: CertificateViewProps) {
   const color =
     primaryColor && HEX_COLOR.test(primaryColor) ? primaryColor : DEFAULT_PRIMARY;
@@ -126,11 +132,43 @@ export default function CertificateView({
             </p>
           </div>
 
+          {/* Signature block */}
+          {signatureUrl || signerName ? (
+            <div className="flex flex-col items-center gap-1 pb-2">
+              {signatureUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={signatureUrl}
+                  alt={signerName || "חתימה"}
+                  className="h-16 w-auto max-w-[160px] object-contain"
+                  style={{
+                    WebkitPrintColorAdjust: "exact",
+                    printColorAdjust: "exact",
+                  }}
+                />
+              ) : null}
+              <div
+                className="mt-1 h-px w-40"
+                style={{ backgroundColor: "#9ca3af" }}
+              />
+              {signerName ? (
+                <p className="text-sm font-semibold text-gray-700">{signerName}</p>
+              ) : null}
+            </div>
+          ) : null}
+
           {/* Footer */}
           <div className="flex w-full flex-col items-center justify-between gap-2 border-t border-gray-200 pt-4 text-xs text-gray-500 sm:flex-row">
             <span>תאריך הנפקה: {dateLabel}</span>
             <span className="font-mono tracking-widest">{serial}</span>
           </div>
+
+          {/* Accreditation / footer line */}
+          {footerText ? (
+            <p className="w-full pt-3 text-center text-[11px] text-gray-400">
+              {footerText}
+            </p>
+          ) : null}
         </div>
       </div>
 

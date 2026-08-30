@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Plus, UserCheck, AlertTriangle, Pencil } from "lucide-react";
 import { fetchJSON } from "@/lib/utils";
 import { Modal, heDate, unwrapList, type MembershipItem } from "./shared";
+import { StudentDossier } from "./StudentDossier";
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   pending: { label: "ממתין לאישור", cls: "badge-warning" },
@@ -41,6 +42,7 @@ export function MembershipsTab() {
   const [editing, setEditing] = useState<MembershipItem | null>(null);
   const [editForm, setEditForm] = useState({ validUntil: "", paymentNote: "" });
   const [approveForm, setApproveForm] = useState({ validUntil: "", paymentNote: "" });
+  const [dossierId, setDossierId] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["oc-memberships", filter],
@@ -166,7 +168,12 @@ export function MembershipsTab() {
                   const status = m.status?.toLowerCase();
                   const meta = STATUS_META[status] ?? { label: m.status, cls: "badge-neutral" };
                   return (
-                    <tr key={m.id} className="hover:bg-slate-50/60">
+                    <tr
+                      key={m.id}
+                      className="hover:bg-slate-50/60 cursor-pointer"
+                      onClick={() => setDossierId(m.id)}
+                      title="פתח תיק סטודנט"
+                    >
                       <td className="table-cell font-medium text-petra-text">
                         {m.portalUser?.name || "—"}
                       </td>
@@ -187,7 +194,10 @@ export function MembershipsTab() {
                         {m.approvedAt ? heDate(m.approvedAt) : "—"}
                       </td>
                       <td className="table-cell">
-                        <div className="flex items-center gap-1.5">
+                        <div
+                          className="flex items-center gap-1.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {status === "pending" && (
                             <button
                               className="btn-primary text-xs py-1.5"
@@ -414,6 +424,11 @@ export function MembershipsTab() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Student dossier */}
+      {dossierId && (
+        <StudentDossier membershipId={dossierId} onClose={() => setDossierId(null)} />
       )}
     </div>
   );
