@@ -78,6 +78,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    // @petra.local is reserved for internal, server-seeded test accounts (it also
+    // unlocks private-beta features such as MCP) — never allow self-registration.
+    if (emailNorm.endsWith("@petra.local")) {
+      return NextResponse.json({ error: "כתובת אימייל לא תקינה" }, { status: 400 });
+    }
 
     if (!isStrongPassword(password)) {
       return NextResponse.json(

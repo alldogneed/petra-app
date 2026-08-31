@@ -15,6 +15,7 @@ const PUBLIC_PREFIX_PATHS = [
   "/api/service-dogs/id-card", // /api/service-dogs/id-card/[token]
   "/c/",            // /c/[slug] — dog-owner portal (portal session auth handled in-route)
   "/api/portal/",   // /api/portal/* — portal API, self-contained portal-session auth
+  "/verify/",       // /verify/[serial] — public certificate verification (read-only, noindex)
 ];
 
 /**

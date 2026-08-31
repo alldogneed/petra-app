@@ -45,8 +45,12 @@ export function localTimeToUtc(hhmm: string, localDateStr: string, timezone: str
   const isoStr = `${localDateStr}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`
   // Use the Intl.DateTimeFormat trick to find the UTC offset at that local datetime
   const dt = new Date(isoStr + "Z") // treat as UTC first
-  const tzOffset = getUtcOffsetMs(dt, timezone)
-  return new Date(dt.getTime() - tzOffset)
+  // Two-pass: the offset at "local-as-UTC" can differ from the offset at the real
+  // instant on DST-transition days (was 1h off on the two switch days per year).
+  const firstGuess = getUtcOffsetMs(dt, timezone)
+  const candidate = new Date(dt.getTime() - firstGuess)
+  const secondGuess = getUtcOffsetMs(candidate, timezone)
+  return secondGuess === firstGuess ? candidate : new Date(dt.getTime() - secondGuess)
 }
 
 /** Returns the UTC offset in milliseconds for a given instant in a given timezone. */

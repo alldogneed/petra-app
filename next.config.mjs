@@ -69,7 +69,7 @@ const nextConfig = {
               "default-src 'self'",
               // Next.js dev mode needs eval for react-refresh/source maps; hydration
               // dies silently without it. Production CSP stays eval-free.
-              `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
+              `script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
               // Sentry Replay compresses its payloads in a blob web worker;
               // without worker-src the script-src fallback blocks it on every page.
               "worker-src 'self' blob:",
@@ -77,9 +77,10 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
               "media-src 'self' blob: https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com",
-              "connect-src 'self' https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io",
+              "connect-src 'self' https://www.youtube.com https://play.google.com https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io",
               "frame-ancestors 'self'",
-              "frame-src 'self' blob: https://secure.cardcom.solutions",
+              // youtube-nocookie: recorded course lessons in the members portal (/c/[slug]).
+              "frame-src 'self' blob: https://secure.cardcom.solutions https://www.youtube-nocookie.com https://www.youtube.com",
               "object-src 'none'",
             ].join("; "),
           },

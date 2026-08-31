@@ -593,12 +593,17 @@ function TimelineView({
   rooms,
   stays,
   numDays = TIMELINE_DAYS,
+  startDate,
 }: {
   rooms: Room[];
   stays: BoardingStay[];
   numDays?: number;
+  /** First visible day (defaults to today). Can be in the past — historical stays are shown too. */
+  startDate?: Date;
 }) {
-  const today = startOfDay(new Date());
+  const realToday = startOfDay(new Date());
+  // `today` is the timeline origin (kept as the variable name to minimise churn below).
+  const today = startDate ? startOfDay(startDate) : realToday;
   const days = Array.from({ length: numDays }, (_, i) => addDays(today, i));
   const timelineEnd = addDays(today, numDays);
 
@@ -643,7 +648,7 @@ function TimelineView({
     };
   }
 
-  const todayIndex = 0;
+  const todayIndex = diffDays(realToday, today); // may be out of range when browsing past/future
 
   return (
     <div className="card overflow-hidden">
@@ -1500,10 +1505,8 @@ function ExtendStayDialog({
     : new Date().toISOString().slice(0, 10);
   const [newCheckout, setNewCheckout] = useState(currentCheckout);
 
-  const minDate = new Date(Math.max(
-    new Date(stay.checkIn).getTime() + 86400000,
-    Date.now()
-  )).toISOString().slice(0, 10);
+  // Any day after check-in — retroactive/historical stays must be editable too.
+  const minDate = new Date(new Date(stay.checkIn).getTime() + 86400000).toISOString().slice(0, 10);
 
   return (
     <div className="modal-overlay">
@@ -1915,6 +1918,9 @@ function BoardingPageContent() {
   const [careLogStay, setCareLogStay] = useState<{ id: string; petName: string } | null>(null);
   const [form, setForm] = useState({
     customerId: "", petIds: [] as string[], roomId: "", checkIn: "", checkOut: "", checkInTime: "12:00", checkOutTime: "12:00", notes: "", pricePerNight: 0, assignedToUserId: "",
+    // Retroactive stays (dog already in the pension before the business joined Petra):
+    // "" = let the server decide (reserved), or an explicit status for backdated dates.
+    status: "" as "" | "reserved" | "checked_in" | "checked_out",
   });
   const [serviceDogMode, setServiceDogMode] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
@@ -1935,6 +1941,8 @@ function BoardingPageContent() {
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [timelineDays, setTimelineDays] = useState(14);
+  // Timeline origin — "" = today. Lets the user scroll back to past weeks (retroactive stays, history).
+  const [timelineStart, setTimelineStart] = useState<string>("");
 
   // Dialog state
   const shouldCreateMedTasksRef = useRef(false);
@@ -2052,6 +2060,7 @@ function BoardingPageContent() {
             checkOut: checkOutDT || null,
             notes: data.notes || null,
             assignedToUserId: data.assignedToUserId || null,
+            ...(data.status ? { status: data.status } : {}),
           }),
         }).then(async (r) => { if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || "Failed"); } return r.json(); })
       );
@@ -2061,7 +2070,7 @@ function BoardingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setShowNewStay(false);
-      setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150, assignedToUserId: "" });
+      setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150, assignedToUserId: "", status: "" });
       setCustomerSearch("");
       setServiceDogMode(false);
       toast.success("ההשמה נוצרה בהצלחה");
@@ -2785,6 +2794,35 @@ function BoardingPageContent() {
         </div>
         <div className="flex items-center gap-2">
           {viewMode === "timeline" && (
+            <div className="flex items-center gap-1 text-xs">
+              {(() => {
+                const todayYmd = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+                const base = timelineStart || todayYmd;
+                const shift = (d: number) => {
+                  const dt = new Date(base + "T00:00:00"); dt.setDate(dt.getDate() + d);
+                  const ymd = dt.toLocaleDateString("en-CA");
+                  setTimelineStart(ymd === todayYmd ? "" : ymd);
+                };
+                return (
+                  <>
+                    <button type="button" onClick={() => shift(-7)} className="px-1.5 py-1 rounded-md hover:bg-slate-100 text-petra-muted" title="שבוע אחורה">‹</button>
+                    <input
+                      type="date" lang="he"
+                      className="input !py-1 !px-2 text-xs w-[8.5rem]"
+                      value={base}
+                      onChange={(e) => setTimelineStart(e.target.value && e.target.value !== todayYmd ? e.target.value : "")}
+                      title="תאריך התחלה של ציר הזמן (אפשר גם אחורה)"
+                    />
+                    <button type="button" onClick={() => shift(7)} className="px-1.5 py-1 rounded-md hover:bg-slate-100 text-petra-muted" title="שבוע קדימה">›</button>
+                    {timelineStart && (
+                      <button type="button" onClick={() => setTimelineStart("")} className="px-2 py-1 rounded-md bg-orange-50 text-orange-700 font-medium hover:bg-orange-100">היום</button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+          {viewMode === "timeline" && (
             <div className="flex gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs">
               {[14, 30].map((n) => (
                 <button
@@ -2952,7 +2990,7 @@ function BoardingPageContent() {
               <p className="text-sm text-petra-muted">אין חדרים מוגדרים</p>
             </div>
           ) : (
-            <TimelineView rooms={rooms} stays={stays} numDays={timelineDays} />
+            <TimelineView rooms={rooms} stays={stays} numDays={timelineDays} startDate={timelineStart ? new Date(timelineStart + "T00:00:00") : undefined} />
           )}
         </div>
       )}
@@ -3615,7 +3653,13 @@ function BoardingPageContent() {
                     value={form.checkIn}
                     onChange={(e) => {
                       const newCheckIn = e.target.value;
-                      setForm({ ...form, checkIn: newCheckIn, checkOut: form.checkOut && form.checkOut <= newCheckIn ? "" : form.checkOut });
+                      const newCheckOut = form.checkOut && form.checkOut <= newCheckIn ? "" : form.checkOut;
+                      const todayYmd = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+                      // Backdated check-in → the dog is already here (or already left) — default accordingly.
+                      const autoStatus = newCheckIn && newCheckIn < todayYmd
+                        ? (newCheckOut && newCheckOut < todayYmd ? "checked_out" : "checked_in")
+                        : "";
+                      setForm({ ...form, checkIn: newCheckIn, checkOut: newCheckOut, status: autoStatus });
                     }}
                   />
                   <div className="relative">
@@ -3629,6 +3673,23 @@ function BoardingPageContent() {
                   </div>
                 </div>
               </div>
+
+              {/* Retroactive stay — dog entered before today (e.g. existing dogs when joining Petra) */}
+              {form.checkIn && form.checkIn < new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" }) && (
+                <div className="sm:col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+                  <div className="font-medium text-amber-800 mb-1">שהייה רטרואקטיבית — תאריך הכניסה כבר עבר</div>
+                  <p className="text-amber-700 text-xs mb-2">אפשר לרשום כלבים שכבר נמצאים בפנסיון (או שהיות שהסתיימו) בלי לעבור צ׳ק-אין ידני.</p>
+                  <select
+                    className="input"
+                    value={form.status || "checked_in"}
+                    onChange={(e) => setForm({ ...form, status: e.target.value as typeof form.status })}
+                  >
+                    <option value="checked_in">הכלב כבר בפנסיון (צ׳ק-אין בוצע)</option>
+                    <option value="checked_out">השהייה הסתיימה (היסטורית)</option>
+                    <option value="reserved">הזמנה בלבד (ממתין לצ׳ק-אין)</option>
+                  </select>
+                </div>
+              )}
 
               {/* Check-out */}
               <div>

@@ -9,7 +9,7 @@ import { RATE_LIMITS } from "@/lib/rate-limit";
 import { markLessonComplete } from "@/services/portal";
 import {
   enforcePortalRateLimit,
-  getClientIp,
+  portalRateKey,
   portalErrorResponse,
 } from "../../../_shared";
 
@@ -29,7 +29,7 @@ export async function POST(
 
     const limited = await enforcePortalRateLimit(
       "portal:lesson-complete",
-      getClientIp(request),
+      portalRateKey(request, membership?.id),
       RATE_LIMITS.API_WRITE
     );
     if (limited) return limited;

@@ -2,7 +2,8 @@
  * Shared AES-256-GCM encryption helpers.
  *
  * Used by Google Calendar (GCAL_ENCRYPTION_KEY), Invoicing (INVOICING_ENCRYPTION_KEY),
- * Stripe (STRIPE_ENCRYPTION_KEY), Cardcom (CARDCOM_ENCRYPTION_KEY), and 2FA (TWOFA_ENCRYPTION_KEY).
+ * Stripe (STRIPE_ENCRYPTION_KEY), Cardcom (CARDCOM_ENCRYPTION_KEY), 2FA (TWOFA_ENCRYPTION_KEY),
+ * and per-business WhatsApp tokens (WHATSAPP_ENCRYPTION_KEY, falls back to GCAL_ENCRYPTION_KEY).
  * Key format: 64-char hex string (32 bytes).
  */
 
@@ -124,4 +125,26 @@ export function decryptTwoFaSecret(ciphertext: string): string {
     return ciphertext;
   }
   return decrypt(ciphertext, TWOFA_KEY);
+}
+
+// ─── Per-business WhatsApp token wrappers ──────────────────────────────────
+// Uses WHATSAPP_ENCRYPTION_KEY when set (generate with: openssl rand -hex 32),
+// otherwise falls back to GCAL_ENCRYPTION_KEY so no new env is strictly required.
+// NOTE: if WHATSAPP_ENCRYPTION_KEY is introduced later, tokens already encrypted
+// with the GCal key stop decrypting — businesses simply reconnect (resolver falls
+// back to the platform number and flags the connection as "error").
+
+const WHATSAPP_KEY = "WHATSAPP_ENCRYPTION_KEY";
+
+function whatsAppKeyEnvVar(): string {
+  const k = process.env[WHATSAPP_KEY];
+  return k && k.length === 64 ? WHATSAPP_KEY : GCAL_KEY;
+}
+
+export function encryptWhatsAppToken(plaintext: string): string {
+  return encrypt(plaintext, whatsAppKeyEnvVar());
+}
+
+export function decryptWhatsAppToken(ciphertext: string): string {
+  return decrypt(ciphertext, whatsAppKeyEnvVar());
 }

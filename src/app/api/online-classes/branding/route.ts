@@ -33,6 +33,9 @@ const BRANDING_FIELDS: Array<{ key: string; maxLen: number; label: string }> = [
   { key: "senderName", maxLen: 100, label: "שם שולח" },
   { key: "paymentLinkUrl", maxLen: 500, label: "קישור תשלום" },
   { key: "aboutText", maxLen: 5000, label: "טקסט אודות" },
+  { key: "certificateSignatureUrl", maxLen: 500, label: "קישור לחתימה" },
+  { key: "certificateSignerName", maxLen: 100, label: "שם החותם" },
+  { key: "certificateFooterText", maxLen: 300, label: "שורת תחתית לתעודה" },
 ];
 
 export async function PATCH(request: NextRequest) {
@@ -47,7 +50,26 @@ export async function PATCH(request: NextRequest) {
       return badRequest("גוף בקשה לא תקין");
     }
 
-    const data: Record<string, string> = {};
+    const data: Record<string, unknown> = {};
+
+    // Course-security fields are typed, not free text — validated in the service.
+    if (body.maxDevicesPerStudent !== undefined) {
+      const n = Number(body.maxDevicesPerStudent);
+      if (!Number.isInteger(n) || n < 0 || n > 10) {
+        return badRequest("מספר מכשירים חייב להיות בין 0 ל-10");
+      }
+      data.maxDevicesPerStudent = n;
+    }
+    if (body.ipRestrictionEnabled !== undefined) {
+      if (typeof body.ipRestrictionEnabled !== "boolean") {
+        return badRequest("ערך לא תקין עבור הגבלת IP");
+      }
+      data.ipRestrictionEnabled = body.ipRestrictionEnabled;
+    }
+    if (body.allowedIps !== undefined) {
+      if (!Array.isArray(body.allowedIps)) return badRequest("רשימת כתובות IP לא תקינה");
+      data.allowedIps = body.allowedIps;
+    }
     for (const field of BRANDING_FIELDS) {
       const raw = optStr(body[field.key]);
       if (raw === undefined) continue;
@@ -64,7 +86,10 @@ export async function PATCH(request: NextRequest) {
       return badRequest("לא נשלחו שדות לעדכון");
     }
 
-    const branding = await updateBranding(auth.businessId, data);
+    const branding = await updateBranding(
+      auth.businessId,
+      data as Parameters<typeof updateBranding>[1]
+    );
     return NextResponse.json({ branding });
   } catch (error) {
     return (

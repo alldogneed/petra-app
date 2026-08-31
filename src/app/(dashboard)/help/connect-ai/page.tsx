@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Bot, Key, Settings, Terminal, CheckCircle2, ExternalLink } from "lucide-react";
+import { useAuth } from "@/providers/auth-provider";
 
 const steps = [
   {
@@ -16,8 +17,16 @@ const steps = [
   },
   {
     number: 2,
-    title: "תן שם לחיבור",
-    description: 'תן שם שיזכיר לך איפה תשתמש בו, כמו "Claude Desktop" או "ChatGPT Plugin".',
+    title: "תן שם לחיבור ובחר פרופיל גישה",
+    description: (
+      <>
+        תן שם שיזכיר לך איפה תשתמש בו, כמו &quot;Claude Desktop&quot; או &quot;ChatGPT Plugin&quot;.
+        <br />
+        בחר פרופיל גישה — <strong>מומלץ להתחיל ב&quot;קריאה בלבד&quot;</strong>; פרופילים ממוקדים (קבלה / יומן / פנסיון) נותנים לסוכן יצירה ועדכון רק בתחום אחד, ו&quot;מלא&quot; מיועד לבעלים בלבד. כשתצטרך יותר — צור חיבור נפרד עם פרופיל אחר.
+        <br />
+        לתשומת לבך: הטוקן תקף ל-<strong>180 יום</strong> מיום היצירה; אחרי זה פשוט צור חיבור חדש ועדכן את הכתובת בעוזר ה-AI.
+      </>
+    ),
     icon: Bot,
   },
   {
@@ -73,6 +82,16 @@ const capabilities = [
 ];
 
 export default function ConnectAiPage() {
+  const { user, loading } = useAuth();
+  // MCP private beta — page hidden for non-allowlisted accounts
+  if (loading) return null;
+  if (!user?.mcpAllowed) {
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <p className="text-slate-500">העמוד אינו זמין.</p>
+      </div>
+    );
+  }
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-8">
       {/* Header */}

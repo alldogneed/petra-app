@@ -1681,9 +1681,24 @@ function SendContractSection({ customerId, customerName, pets }: { customerId: s
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customerId, templateId: selectedTemplateId, petId: selectedPetId || undefined }),
       }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
-    onSuccess: () => {
+    onSuccess: (d: { waDelivered?: boolean; signUrl?: string }) => {
       queryClient.invalidateQueries({ queryKey: ["contract-requests", customerId] });
-      toast.success("החוזה נשלח לחתימה!");
+      if (d?.waDelivered === false) {
+        toast.warning("החוזה נוצר אך לא נשלח בוואטסאפ", {
+          duration: 8000,
+          action: d.signUrl
+            ? {
+                label: "העתק קישור",
+                onClick: () => {
+                  copyToClipboard(d.signUrl!);
+                  toast.success("הקישור הועתק!");
+                },
+              }
+            : undefined,
+        });
+      } else {
+        toast.success("החוזה נשלח לחתימה!");
+      }
       setShowModal(false);
       setSelectedTemplateId("");
     },
@@ -2563,7 +2578,6 @@ function QuickTaskModal({
               type="date" lang="he"
               className="input w-full"
               value={form.dueDate}
-              min={today}
               onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
             />
           </div>
@@ -2665,6 +2679,27 @@ function NewAppointmentModal({
     setFieldError("");
   };
 
+  // Keep end time in sync when start changes: use the selected service's
+  // duration, otherwise preserve the current start→end gap.
+  const handleStartTimeChange = (startTime: string) => {
+    setForm((f) => {
+      const [h, m] = startTime.split(":").map(Number);
+      if (Number.isNaN(h) || Number.isNaN(m)) return { ...f, startTime };
+      const svc = services.find((s) => s.id === f.priceListItemId);
+      let dur = svc?.durationMinutes ?? null;
+      if (dur == null) {
+        const [oh, om] = f.startTime.split(":").map(Number);
+        const [eh, em] = f.endTime.split(":").map(Number);
+        const gap = (eh * 60 + em) - (oh * 60 + om);
+        dur = gap > 0 ? gap : 60;
+      }
+      const endMinutes = h * 60 + m + dur;
+      const endH = Math.floor(endMinutes / 60) % 24;
+      const endM = endMinutes % 60;
+      return { ...f, startTime, endTime: `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}` };
+    });
+  };
+
   return (
     <div className="modal-overlay">
       <div className="modal-backdrop" onClick={onClose} />
@@ -2710,7 +2745,6 @@ function NewAppointmentModal({
               type="date" lang="he"
               className="input w-full"
               value={form.date}
-              min={today}
               onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
             />
           </div>
@@ -2721,7 +2755,7 @@ function NewAppointmentModal({
                 type="time"
                 className="input w-full"
                 value={form.startTime}
-                onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
+                onChange={(e) => handleStartTimeChange(e.target.value)}
               />
             </div>
             <div>
@@ -3556,6 +3590,11 @@ export default function CustomerProfilePage() {
         return;
       }
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+      // The pets list page (["pets-all", ...]) and customers list cache the pet
+      // under the 5-min global staleTime — invalidate them too so the deleted
+      // pet doesn't linger in those lists.
+      queryClient.invalidateQueries({ queryKey: ["pets-all"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
       toast.success("חיית המחמד נמחקה");
       setDeletingPetId(null);
       setDeletingPetOwner(null);

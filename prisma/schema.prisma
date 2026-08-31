@@ -2371,6 +2371,14 @@ model BrandingSettings {
   paymentLinkUrl String?  // external payment link (הו"ק / one-time) — no in-code billing
   aboutText      String?
   customDomain   String?  @unique // late phase — not used yet
+  // ── Certificate customization ──
+  certificateSignatureUrl String? // signature image shown on the certificate
+  certificateSignerName   String? // printed under the signature line
+  certificateFooterText   String? // free line, e.g. accreditation note
+  // ── Course access security ──
+  maxDevicesPerStudent Int      @default(2)  // 0 = unlimited; oldest device is signed out beyond this
+  ipRestrictionEnabled Boolean  @default(false)
+  allowedIps           String[] @default([]) // IPv4/IPv6 addresses or CIDR ranges
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -2380,7 +2388,7 @@ model BrandingSettings {
 /// Global dog-owner account — one per person across all businesses. Phone is the identity.
 model PortalUser {
   id        String   @id @default(uuid())
-  phone     String   @unique // E.164
+  phone     String?  @unique // E.164 — optional: students can be enrolled by email alone
   name      String
   email     String   @unique // required — email OTP login
   createdAt DateTime @default(now())
@@ -2414,11 +2422,16 @@ model PortalSession {
   expiresAt    DateTime
   createdAt    DateTime @default(now())
   lastSeenAt   DateTime @default(now())
+  // Course-sharing controls (see BrandingSettings.maxDevicesPerStudent):
+  deviceId     String?  // stable per-browser id minted client-side
+  deviceLabel  String?  // human-readable hint, e.g. "Chrome · iPhone"
+  ipAddress    String?  // last IP seen on this session
 
   portalUser PortalUser @relation(fields: [portalUserId], references: [id], onDelete: Cascade)
 
   @@index([portalUserId])
   @@index([expiresAt])
+  @@index([portalUserId, deviceId])
 }
 
 /// A dog owner's subscription to one business's portal.
@@ -2432,6 +2445,7 @@ model Membership {
   paymentNote  String?   // manual bookkeeping: "שולם 15.9, הו"ק ביט"
   approvedAt   DateTime?
   expiryReminderSentAt DateTime? // idempotency marker for the expiry-reminder cron
+  lastNudgeAt          DateTime? // last "you stalled in a course" nudge (throttles the cron)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -2439,6 +2453,9 @@ model Membership {
   business      Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
   registrations ClassRegistration[]
   progress      LessonProgress[]
+  certificates  CourseCertificate[]
+  questions     LessonQuestion[]
+  quizAttempts  QuizAttempt[]
 
   @@unique([portalUserId, businessId])
   @@index([businessId, status])
@@ -2458,6 +2475,7 @@ model OnlineClass {
   spotsTaken     Int      @default(0)
   zoomLink       String?
   zoomLinkSentAt DateTime? // idempotency marker for the 1h-before cron send
+  recordingRef   String?   // YouTube id of the recording, once published as a lesson
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -2494,8 +2512,9 @@ model Course {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  business Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  modules  CourseModule[]
+  business     Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  modules      CourseModule[]
+  certificates CourseCertificate[]
 
   @@index([businessId, status])
 }
@@ -2508,6 +2527,7 @@ model CourseModule {
 
   course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   lessons Lesson[]
+  quiz    Quiz?
 
   @@index([courseId, position])
 }
@@ -2517,6 +2537,9 @@ model Lesson {
   id            String  @id @default(uuid())
   moduleId      String
   title         String
+  description   String? // shown under the player in the portal
+  announcedAt   DateTime? // "new lesson published" announcement marker
+  createdAt     DateTime  @default(now())
   position      Int
   type          String  @default("video")
   provider      String  @default("youtube")
@@ -2526,20 +2549,175 @@ model Lesson {
   durationMin   Int?
   isFreePreview Boolean @default(false)
 
-  module   CourseModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  progress LessonProgress[]
+  module    CourseModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress  LessonProgress[]
+  questions LessonQuestion[]
 
   @@index([moduleId, position])
 }
 
 model LessonProgress {
-  id           String   @id @default(uuid())
-  membershipId String
-  lessonId     String
-  completedAt  DateTime @default(now())
+  id             String    @id @default(uuid())
+  membershipId   String
+  lessonId       String
+  // Video lessons complete automatically once watchedSeconds covers the video
+  // (COMPLETE_AT_PERCENT in src/services/portal.ts); pdf/text complete manually.
+  completedAt    DateTime? // null = started but not finished
+  percent        Int       @default(0) // 0-100, furthest watched coverage
+  watchedSeconds Int       @default(0) // distinct seconds watched (seek-proof)
+  startedAt      DateTime? // first progress report — completion needs real elapsed time
+  updatedAt      DateTime  @default(now()) @updatedAt
 
   membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   lesson     Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@unique([membershipId, lessonId])
+}
+
+/// Issued when a student completes every lesson of a course. The serial is the
+/// public verification handle (/verify/[serial]) — never a guessable counter.
+model CourseCertificate {
+  id           String   @id @default(uuid())
+  businessId   String
+  courseId     String
+  membershipId String
+  serial       String   @unique
+  studentName  String   // snapshot — the certificate must not change later
+  courseTitle  String
+  issuedAt     DateTime @default(now())
+  issuedManually Boolean  @default(false) // true when the owner issued it by hand
+  revokedAt    DateTime? // null = valid; set = revoked (verify page shows "בוטלה")
+  revokedReason String?
+
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, courseId])
+  @@index([businessId, issuedAt])
+  @@index([businessId, revokedAt])
+}
+
+/// A student question on a lesson, answered by the business. Answers are visible
+/// to every student of that course unless the asker marked it private.
+model LessonQuestion {
+  id           String    @id @default(uuid())
+  businessId   String
+  lessonId     String
+  membershipId String
+  body         String
+  isPrivate    Boolean   @default(false)
+  answerBody   String?
+  answeredAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  lesson     Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId, createdAt])
+  @@index([businessId, answeredAt])
+}
+
+/// Optional end-of-module quiz. passScore is the percentage needed to pass.
+model Quiz {
+  id         String   @id @default(uuid())
+  businessId String
+  moduleId   String   @unique
+  title      String
+  passScore  Int      @default(70)
+  createdAt  DateTime @default(now())
+
+  module    CourseModule   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@index([businessId])
+}
+
+model QuizQuestion {
+  id       String @id @default(uuid())
+  quizId   String
+  text     String
+  position Int
+
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options QuizOption[]
+
+  @@index([quizId, position])
+}
+
+model QuizOption {
+  id         String  @id @default(uuid())
+  questionId String
+  text       String
+  isCorrect  Boolean @default(false)
+  position   Int
+
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId, position])
+}
+
+model QuizAttempt {
+  id           String   @id @default(uuid())
+  quizId       String
+  membershipId String
+  score        Int      // percentage 0-100
+  passed       Boolean
+  createdAt    DateTime @default(now())
+
+  quiz       Quiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([membershipId, quizId])
+  @@index([quizId, createdAt])
+}
+
+// ─── Per-business WhatsApp (Meta Embedded Signup) ───────────────────────────
+// Tables already exist in prod (additive DDL via prisma db execute).
+// No FK relations on purpose — mirrors the prod DDL exactly.
+
+model WhatsAppConnection {
+  id                String    @id @default(uuid())
+  businessId        String    @unique
+  wabaId            String
+  phoneNumberId     String    @unique
+  displayPhone      String?
+  verifiedName      String?
+  qualityRating     String?
+  accessTokenEnc    String    // AES-256-GCM (WHATSAPP_ENCRYPTION_KEY); "" after disconnect
+  status            String    @default("active") // active | error | disconnected
+  lastError         String?
+  coexistence       Boolean   @default(false)
+  templatesJson     String?   // JSON { templateName: STATUS } on the business WABA
+  templatesSyncedAt DateTime?
+  connectedByUserId String?
+  connectedAt       DateTime  @default(now())
+  disconnectedAt    DateTime?
+  lastUsedAt        DateTime?
+  tokenExpiresAt    DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([status])
+}
+
+model WhatsAppMessageLog {
+  id            String   @id @default(uuid())
+  wamid         String   @unique
+  businessId    String?
+  phoneNumberId String?
+  toPhone       String
+  kind          String   // text | template
+  templateName  String?
+  context       String?  // caller tag e.g. appointment_reminder | boarding_confirmation | test
+  status        String   @default("accepted") // accepted | sent | delivered | read | failed
+  errorCode     String?
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@index([businessId, createdAt])
 }

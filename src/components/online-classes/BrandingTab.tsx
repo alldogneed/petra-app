@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Palette, AlertTriangle, Dog } from "lucide-react";
+import { Palette, AlertTriangle, Dog, ShieldCheck, Award } from "lucide-react";
 import { fetchJSON } from "@/lib/utils";
 import { unwrapObject, type BrandingData } from "./shared";
 
 const DEFAULT_PRIMARY = "#f97316"; // petra orange fallback
 const DEFAULT_SECONDARY = "#1e293b";
+
+const DEFAULT_MAX_DEVICES = 2;
 
 interface BrandingForm {
   logoUrl: string;
@@ -17,10 +19,39 @@ interface BrandingForm {
   senderName: string;
   paymentLinkUrl: string;
   aboutText: string;
+  certificateSignatureUrl: string;
+  certificateSignerName: string;
+  certificateFooterText: string;
+  maxDevicesPerStudent: number;
+  ipRestrictionEnabled: boolean;
+  allowedIpsText: string;
 }
+
+/** Fields not in the shared BrandingData type yet — read them defensively. */
+type BrandingSecurity = {
+  maxDevicesPerStudent?: number | null;
+  ipRestrictionEnabled?: boolean | null;
+  allowedIps?: string[] | null;
+  certificateSignatureUrl?: string | null;
+  certificateSignerName?: string | null;
+  certificateFooterText?: string | null;
+};
 
 function isHex(v: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(v);
+}
+
+function clampDevices(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(10, Math.max(0, Math.round(n)));
+}
+
+/** Textarea → string[]: split on newlines/commas, trim, drop empties. */
+function parseIpList(text: string): string[] {
+  return text
+    .split(/[\n,]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export function BrandingTab({ businessName }: { businessName?: string | null }) {
@@ -35,6 +66,7 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
 
   useEffect(() => {
     if (branding && form === null) {
+      const sec = branding as BrandingData & BrandingSecurity;
       setForm({
         logoUrl: branding.logoUrl ?? "",
         primaryColor: branding.primaryColor ?? DEFAULT_PRIMARY,
@@ -42,6 +74,15 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
         senderName: branding.senderName ?? "",
         paymentLinkUrl: branding.paymentLinkUrl ?? "",
         aboutText: branding.aboutText ?? "",
+        certificateSignatureUrl: sec.certificateSignatureUrl ?? "",
+        certificateSignerName: sec.certificateSignerName ?? "",
+        certificateFooterText: sec.certificateFooterText ?? "",
+        maxDevicesPerStudent:
+          typeof sec.maxDevicesPerStudent === "number"
+            ? clampDevices(sec.maxDevicesPerStudent)
+            : DEFAULT_MAX_DEVICES,
+        ipRestrictionEnabled: sec.ipRestrictionEnabled === true,
+        allowedIpsText: Array.isArray(sec.allowedIps) ? sec.allowedIps.join("\n") : "",
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -60,6 +101,12 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
           senderName: form.senderName.trim() || null,
           paymentLinkUrl: form.paymentLinkUrl.trim() || null,
           aboutText: form.aboutText.trim() || null,
+          certificateSignatureUrl: form.certificateSignatureUrl.trim() || null,
+          certificateSignerName: form.certificateSignerName.trim() || null,
+          certificateFooterText: form.certificateFooterText.trim() || null,
+          maxDevicesPerStudent: clampDevices(form.maxDevicesPerStudent),
+          ipRestrictionEnabled: form.ipRestrictionEnabled,
+          allowedIps: parseIpList(form.allowedIpsText),
         }),
       });
     },
@@ -184,6 +231,154 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
             placeholder="https://..."
           />
           <p className="text-[11px] text-petra-muted mt-1">אם ריק — ישתמש בלוגו העסק</p>
+        </div>
+
+        {/* Certificate design */}
+        <div className="pt-4 border-t border-slate-100 space-y-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Award className="w-4 h-4 text-brand-500" />
+              <h3 className="text-sm font-bold text-petra-text">עיצוב התעודה</h3>
+            </div>
+            <p className="text-[11px] text-petra-muted mt-1">
+              חתימה וטקסט שיופיעו על כל תעודת סיום קורס
+            </p>
+          </div>
+
+          <div>
+            <label className="label">קישור לתמונת חתימה</label>
+            <input
+              className="input"
+              dir="ltr"
+              value={form.certificateSignatureUrl}
+              onChange={(e) =>
+                setForm({ ...form, certificateSignatureUrl: e.target.value })
+              }
+              placeholder="https://... (תמונת חתימה שקופה, PNG)"
+            />
+          </div>
+
+          <div>
+            <label className="label">שם החותם</label>
+            <input
+              className="input"
+              value={form.certificateSignerName}
+              onChange={(e) =>
+                setForm({ ...form, certificateSignerName: e.target.value })
+              }
+              placeholder="אור רבינוביץ׳"
+            />
+          </div>
+
+          <div>
+            <label className="label">שורת תחתית</label>
+            <input
+              className="input"
+              value={form.certificateFooterText}
+              onChange={(e) =>
+                setForm({ ...form, certificateFooterText: e.target.value })
+              }
+              placeholder="לדוגמה: הסמכה בהכרת ארגון מאלפי הכלבים בישראל"
+            />
+          </div>
+
+          {(form.certificateSignatureUrl.trim() ||
+            form.certificateSignerName.trim()) && (
+            <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+              <p className="text-[11px] font-semibold text-slate-500 mb-2">
+                תצוגה מקדימה של החתימה
+              </p>
+              <div className="flex flex-col items-center gap-1">
+                {form.certificateSignatureUrl.trim() ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={form.certificateSignatureUrl}
+                    alt="חתימה"
+                    className="h-14 w-auto max-w-[160px] object-contain"
+                  />
+                ) : null}
+                <div className="mt-1 h-px w-40 bg-slate-400" />
+                {form.certificateSignerName.trim() ? (
+                  <p className="text-sm font-semibold text-slate-700">
+                    {form.certificateSignerName}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Course security */}
+        <div className="pt-4 border-t border-slate-100 space-y-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-brand-500" />
+              <h3 className="text-sm font-bold text-petra-text">אבטחת הקורסים</h3>
+            </div>
+            <p className="text-[11px] text-petra-muted mt-1">
+              הגבלות שמונעות שיתוף חשבונות ותכנים בין תלמידים
+            </p>
+          </div>
+
+          <div>
+            <label className="label" htmlFor="oc-max-devices">
+              מספר מכשירים מותר לכל תלמיד
+            </label>
+            <input
+              id="oc-max-devices"
+              type="number"
+              min={0}
+              max={10}
+              step={1}
+              className="input w-28"
+              value={form.maxDevicesPerStudent}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  maxDevicesPerStudent:
+                    e.target.value === "" ? 0 : clampDevices(Number(e.target.value)),
+                })
+              }
+            />
+            <p className="text-[11px] text-petra-muted mt-1">
+              0 = ללא הגבלה. בכניסה ממכשיר נוסף מעבר למכסה, המכשיר הישן ביותר יתנתק אוטומטית.
+            </p>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-4 h-4 rounded border-petra-border accent-brand-500 cursor-pointer"
+                checked={form.ipRestrictionEnabled}
+                onChange={(e) =>
+                  setForm({ ...form, ipRestrictionEnabled: e.target.checked })
+                }
+              />
+              <span className="text-sm font-medium text-petra-text">
+                הגבלת גישה לפי כתובת IP
+              </span>
+            </label>
+
+            {form.ipRestrictionEnabled && (
+              <div className="mt-3">
+                <label className="label" htmlFor="oc-allowed-ips">
+                  כתובות מורשות
+                </label>
+                <textarea
+                  id="oc-allowed-ips"
+                  className="input min-h-[90px] font-mono text-xs"
+                  dir="ltr"
+                  value={form.allowedIpsText}
+                  onChange={(e) => setForm({ ...form, allowedIpsText: e.target.value })}
+                  placeholder={"203.0.113.5\n192.168.1.0/24"}
+                />
+                <p className="text-[11px] text-petra-muted mt-1">
+                  כתובות IP או טווחי CIDR, שורה לכל כתובת. רשימה ריקה = לא חוסם אף אחד.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         <button

@@ -9,6 +9,7 @@
  */
 
 import { Prisma } from "@prisma/client";
+import { localTimeToUtc } from "@/lib/slots";
 import type { PrismaClient } from "@prisma/client";
 import {
   validateIsraeliPhone, validateEmail, sanitizeName, normalizeIsraeliPhone,
@@ -724,6 +725,24 @@ export interface UpdateLeadInput {
   previousStageId?: string | null;
 }
 
+/**
+ * A closed lead (won/lost) no longer needs its pending follow-up: clear the date and
+ * cancel the auto follow-up tasks created before closure. Called on every close path
+ * (stage change to a won/lost stage, explicit wonAt/lostAt, close-won/close-lost routes).
+ * A follow-up explicitly set AFTER closing (post-sale check-in) is not touched here.
+ */
+export async function clearLeadFollowUps(businessId: string, db: DbClient, leadId: string): Promise<{ tasksCanceled: number }> {
+  const res = await db.task.updateMany({
+    where: { businessId, relatedEntityType: "LEAD", relatedEntityId: leadId, category: "LEADS", status: { in: ["OPEN", "IN_PROGRESS"] } },
+    data: { status: "CANCELED" },
+  });
+  await db.lead.updateMany({
+    where: { id: leadId, businessId },
+    data: { nextFollowUpAt: null, followUpStatus: "completed", followUpTaskId: null },
+  });
+  return { tasksCanceled: res.count };
+}
+
 export async function updateLead(
   businessId: string,
   db: DbClient,
@@ -792,6 +811,15 @@ export async function updateLead(
   };
 
   const lead = await db.lead.update({ where: { id: leadId, businessId }, data, include: { customer: true, callLogs: true } });
+
+  // Closing the lead (won/lost) clears its pending follow-up — unless the caller is
+  // explicitly setting a new follow-up in the same call (post-sale check-in).
+  const closingNow = (autoWonAt instanceof Date) || (autoLostAt instanceof Date) || !!input.wonAt || !!input.lostAt;
+  if (closingNow && input.nextFollowUpAt === undefined) {
+    await clearLeadFollowUps(businessId, db, leadId);
+    lead.nextFollowUpAt = null;
+    lead.followUpStatus = "completed";
+  }
 
   // Follow-up task sync
   if (input.nextFollowUpAt !== undefined) {
@@ -875,14 +903,17 @@ export async function listTasks(businessId: string, db: DbClient, opts: TaskList
     const dateFilter: any = {};
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const atFilter: any = {};
+    // Bounds are Israel-local days (server runs in UTC — a naive "T23:59:59" leaked the
+    // first hours of the next Israel day into the range).
+    const IL_TZ = "Asia/Jerusalem";
     if (from) {
-      const d = new Date(from + "T00:00:00");
-      if (isNaN(d.getTime())) throw new ServiceError("Invalid from date", "VALIDATION");
+      if (isNaN(new Date(from + "T00:00:00Z").getTime())) throw new ServiceError("Invalid from date", "VALIDATION");
+      const d = localTimeToUtc("00:00", from, IL_TZ);
       dateFilter.gte = d; atFilter.gte = d;
     }
     if (to) {
-      const d = new Date(to + "T23:59:59");
-      if (isNaN(d.getTime())) throw new ServiceError("Invalid to date", "VALIDATION");
+      if (isNaN(new Date(to + "T00:00:00Z").getTime())) throw new ServiceError("Invalid to date", "VALIDATION");
+      const d = new Date(localTimeToUtc("23:59", to, IL_TZ).getTime() + 59_999);
       dateFilter.lte = d; atFilter.lte = d;
     }
     where.OR = [{ dueDate: dateFilter }, { dueAt: atFilter }];
@@ -891,7 +922,9 @@ export async function listTasks(businessId: string, db: DbClient, opts: TaskList
   const tasks = await db.task.findMany({
     where,
     orderBy: [{ dueDate: "asc" }, { priority: "desc" }, { createdAt: "desc" }],
-    take: 200,
+    // Was 200: with oldest-first ordering the cap was hit by stale closed-lead follow-ups,
+    // and newer open tasks (incl. GENERAL ones) silently disappeared from the UI and MCP.
+    take: 1000,
   });
 
   const customerIds = [...new Set(tasks.filter((t) => t.relatedEntityType === "CUSTOMER" && t.relatedEntityId).map((t) => t.relatedEntityId!))];
@@ -907,11 +940,19 @@ export async function listTasks(businessId: string, db: DbClient, opts: TaskList
   const customerNameMap = new Map(relCustomers.map((c) => [c.id, c.name]));
   const petMap = new Map(relPets.map((p) => [p.id, { name: p.name, customerId: p.customerId }]));
   const leadNameMap = new Map(relLeads.map((l) => [l.id, l.name]));
-  const closedLeadIds = new Set(relLeads.filter((l) => l.lostAt || l.wonAt).map((l) => l.id));
+  // A follow-up task is hidden only if it predates the lead's closure (stale). A follow-up
+  // the user sets AFTER winning/losing the lead (post-sale check-in) must stay visible.
+  const closedLeadAt = new Map(
+    relLeads.filter((l) => l.lostAt || l.wonAt).map((l) => [l.id, (l.lostAt ?? l.wonAt) as Date])
+  );
 
   const filtered = relatedEntityId
     ? tasks
-    : tasks.filter((t) => t.relatedEntityType !== "LEAD" || !t.relatedEntityId || !closedLeadIds.has(t.relatedEntityId));
+    : tasks.filter((t) => {
+        if (t.relatedEntityType !== "LEAD" || !t.relatedEntityId) return true;
+        const closedAt = closedLeadAt.get(t.relatedEntityId);
+        return !closedAt || t.createdAt > closedAt;
+      });
 
   return filtered.map((t) => ({
     ...t,

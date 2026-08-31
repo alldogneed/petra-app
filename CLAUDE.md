@@ -140,6 +140,21 @@ Dashboard renewal banner uses `!isFree && subscriptionActive && subscriptionDays
 
 ---
 
+## WhatsApp — delivery & templates (critical)
+
+- **Owner/internal alert templates MUST be category UTILITY.** Meta silently frequency-caps repeated MARKETING templates to the same recipient — the API returns `accepted` and the message is dropped with no error. Meta may also RE-CATEGORIZE a template to MARKETING after approval if its wording matches an existing marketing template — always verify category AFTER approval, and use transactional wording ("עדכון מערכת", "התקבלה פנייה") distinct from any marketing template.
+- Current customer/owner sends: lead alerts → `petra_lead_notification`; lead followup → `petra_lead_followup_notice`; boarding thank-you → `petra_boarding_stay_summary`; appointment reminder/confirmation → `_v2` (all UTILITY).
+- **Every Meta API send is logged** to `WhatsAppMessageLog` (wamid, template, `context` tag) by `src/lib/whatsapp.ts`; the statuses webhook `/api/webhooks/whatsapp-status` updates sent/delivered/read/failed and emails the platform owner on failure (1h throttle). Verify token env: `WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
+- Lead alerts are **multi-channel** (`src/lib/lead-alert.ts`): WhatsApp template chain + Resend email to owners + in-app `Notification` rows — never WhatsApp-only for critical alerts.
+- **All testing on the QA business only** (`qa-test@petra.local`, business `aa4f5cee-...`) — never on real customer businesses. Clean up test rows after.
+
+## UI resilience rules
+
+- `ChunkErrorReload` (root layout) auto-reloads once on stale-deployment chunk errors — don't remove; it's why users stopped seeing "קובץ שגיאה" after deploys.
+- Mobile bottom nav is z-30; overlays must NOT cover it (the PWA install banner sits ABOVE it via bottom-[calc(5rem+safe-area)]).
+- `deletePet` (src/services/pets.ts) runs full sequential FK cleanup (Appointment/BookingDog/BoardingStay/CareLog/ContractRequest/Placements) — mirror the Customer DELETE pattern; never bare `pet.delete()`.
+- Boarding room capacity is enforced in BOTH `createBoardingStay` and `updateBoardingStay` (`assertRoomCapacity`, overlap-aware, null checkout = open-ended) — any new room-assignment path must call it.
+
 ## MCP Server
 
 ### Architecture
@@ -150,19 +165,35 @@ Both UI routes and MCP tools call the same service functions. No duplicated busi
 
 ### Auth Pattern
 ```typescript
-// Every MCP request: Bearer token → SHA-256 hash → McpConnection lookup → businessId
-// src/lib/mcp-auth.ts — validateMcpToken(token) returns { businessId, connectionId } or null
+// Every MCP request: Bearer token → SHA-256 hash → McpConnection lookup → allowlist check → businessId + scopes
+// src/lib/mcp-auth.ts — validateMcpToken(token) returns { businessId, connectionId, scopes } or null
 ```
 
-### 6 Tools (all call service layer)
-| Tool | Service called |
-|------|----------------|
-| `list_clients` | `services/clients.ts` → `listCustomers` |
-| `list_upcoming_appointments` | `services/appointments.ts` → `listUpcoming` |
-| `get_business_stats` | `services/business.ts` → `getDashboardMetrics` |
-| `create_appointment` | `services/appointments.ts` → `createAppointment` |
-| `add_client_note` | `services/clients.ts` → `addCustomerNote` |
-| `send_reminder` | `services/notifications.ts` → `sendWhatsAppReminder` |
+### Private beta allowlist (`src/lib/mcp-allowlist.ts`)
+MCP is visible/usable ONLY for: `alldogneed@gmail.com`, `or.rabinovich@gmail.com`, any `@petra.local` test user, plus `MCP_ALLOWED_EMAILS` env (comma-separated). `MCP_BETA_OPEN=true` opens to everyone.
+- `getCurrentUser()` returns `mcpAllowed: boolean` → settings page hides the "עוזרי AI" tab + `/help/connect-ai` when false.
+- `/api/mcp/connections*` return 404 for non-allowlisted sessions; `POST` additionally requires owner/manager (or platform admin).
+- `validateMcpToken` rejects tokens whose business has no allowlisted active member (`isMcpAllowedBusiness`).
+
+### Scopes — enforced per tool
+`DEFAULT_MCP_SCOPES` in `src/lib/mcp-auth.ts` (read:clients/appointments/stats/services/leads/orders/pets/boarding/training/tasks/analytics/payments + write:appointments/notes/reminders/clients/leads/orders/tasks/boarding/pets/services/payments/training + `admin:destructive`). Every tool handler starts with `if (!hasScope("…")) return denyScope(...)` (audited as `denied`). Legacy 6-scope connections are grandfathered to the full set via `effectiveScopes()`.
+- **`admin:destructive` (`ADMIN_SCOPE`) — owner-only.** Gates irreversible paths on top of the write scope: `delete_task`, `delete_block`, `cancel_order` with `force:true` (paid order), `update_payment` status → canceled/refunded, `update_boarding_stay` status → canceled on a `checked_in` stay (dry_run answers "דורש admin:destructive — בעלים בלבד" instead of previewing). Admin checks run BEFORE `findIdempotentReplay`/any DB read (boarding: right after the stay lookup, since the status is needed). `block_time all_day:true` and normal unpaid `cancel_order` need no admin scope.
+- **Role capping — `capScopesForRole(scopes, role, isPlatformAdmin)`.** Owner/platform-admin → unchanged; manager → minus `MANAGER_DENIED_SCOPES` (`read:analytics`, `write:payments`, `admin:destructive`); staff/other → read-only. Applied at mint time AND on every `validateMcpToken` (re-capped to the minter's CURRENT role — demoted manager's token shrinks; token dies when the minter leaves the business). Grandfathered tokens whose minter is now a manager lose admin too.
+- **Token metadata:** `McpConnection` carries `createdByUserId` / `createdByRole` / `expiresAt` (180 days). Profiles `read | intake | calendar | boarding | full` via `MCP_PROFILES` (labels `MCP_PROFILE_LABELS`); `full` = everything the minter's role allows.
+
+### 64 Tools + 2 prompts — `src/app/api/mcp/route.ts` + modules in `src/lib/mcp/`
+Core (route.ts, 20): `list_clients` (cursor), `get_client`, `create_client`, `add_client_note`, `list_upcoming_appointments`, `list_services`, `create_appointment`, `update_appointment`, `cancel_appointment`, `get_business_stats`, `list_leads` (city/source/created, created_from/to, stage_name, offset, include_closed), `get_lead`, `create_lead` (stage_name / next_follow_up / pet_* fields), `list_orders`, `get_order`, `create_order`, `list_tasks`, `list_pets`, `list_boarding_stays`, `list_training_programs`, `send_reminder`.
+Intake (`tools-intake.ts`): `find_duplicate`, `list_lead_stages`, `create_task`, `update_task`, `update_lead`.
+Boarding (`tools-boarding.ts`): `list_boarding_rooms`, `check_boarding_availability`, `quote_boarding_price`, `create_boarding_stay`, `get_boarding_daily_board`, `update_boarding_stay` (cancel of a checked_in stay → admin:destructive).
+Briefing (`tools-briefing.ts`): `list_payments`, `get_analytics`, `get_morning_briefing`; prompts `morning_briefing`, `intake_from_screenshot`.
+Pets (`tools-pets.ts`): `create_pet`, `update_pet`, `get_pet`, `record_vaccination`, `add_weight_entry`, `list_expiring_vaccinations`, `create_service`, `get_whatsapp_link` (wa.me deep link — server sends nothing).
+Training (`tools-training.ts`): `get_training_program`, `create_training_program`, `update_training_program`, `log_training_session`, `update_training_session`, `add_training_goal`, `update_training_goal`.
+Calendar (`tools-calendar.ts`): `find_free_slots` (booking slot engine — hours/blocks/bookings/GCal), `get_calendar` (day/week: appointments + group sessions + blocks + boarding check-ins/outs), `reschedule_appointment` (find_next_free), `block_time`, `list_blocks`, `delete_block` (admin:destructive), `list_group_sessions`; exports `findAppointmentConflicts()` used by create/update_appointment (refuse on overlap unless `force`, warn outside hours). create/update/cancel_appointment now sync Google Calendar like the UI routes.
+Finance (`tools-finance.ts`): `record_payment`, `update_payment` (canceled/refunded → admin:destructive), `get_payment`, `cancel_order` (`force` → admin:destructive), `update_order_status`, `delete_task` (only hard delete exposed to AI; admin:destructive), `get_outstanding_balances`.
+Shared helpers: `src/lib/mcp/helpers.ts` (`ToolCtx`, `safeField`, `heDate`, `israelStartOfToday`, `findIdempotentReplay`/`replayResult`, `dryRunResult`).
+**Every write tool** accepts `idempotency_key` (replayed from McpAuditLog params — no schema) + `dry_run` (Hebrew preview, no write). Read-only tokens: `POST /api/mcp/connections {readOnly:true}` → `READ_ONLY_MCP_SCOPES` (UI default = read-only).
+
+Output hygiene: all customer/lead-controlled strings go through `safeField()` (strips newlines/control chars — prompt-injection guard); dates via `heDate()` (Asia/Jerusalem). Audit log redacts PII params (`redactParams` in mcp-auth.ts).
 
 ### Critical: Middleware bypass
 `/api/mcp` is in `PUBLIC_EXACT_PATHS` in `src/middleware.ts` — **exact match only**, not a prefix.
@@ -192,34 +223,26 @@ Settings tab "עוזרי AI" gated to `basic+`. The MCP endpoint itself doesn't 
 
 ---
 
+## WhatsApp — per-business numbers (Meta Embedded Signup)
+
+Full doc: `docs/whatsapp-per-business.md`.
+- `sendWhatsAppMessage` / `sendWhatsAppTemplate` accept `businessId?` + `context?`. **Always pass `businessId`** from any caller that has one — `resolveWhatsAppSender()` (`src/lib/whatsapp-connections.ts`) picks the business's own number when `WhatsAppConnection.status === "active"` **and** the template is APPROVED on its WABA (`templatesJson`), otherwise the platform number (`META_PHONE_NUMBER_ID`). Business auth failure → connection flips to `error` + one retry via platform. Unconnected businesses behave exactly as before.
+- Token stored AES-256-GCM in `accessTokenEnc` (`WHATSAPP_ENCRYPTION_KEY`, fallback `GCAL_ENCRYPTION_KEY`); disconnect blanks it. Never log it.
+- Routes: `GET/POST/DELETE /api/integrations/whatsapp/connection` (+ `/sync-templates`). POST/DELETE = owner/manager/platform-admin; POST needs tier `whatsapp_reminders` + `isWhatsAppEmbeddedSignupConfigured()`; `businessId` from session only.
+- UI: `src/components/settings/WhatsAppConnectCard.tsx` inside Settings → אינטגרציות (FB JS SDK; CSP in `next.config.mjs` allows connect.facebook.net / www.facebook.com / graph.facebook.com). Shows "בקרוב" until `NEXT_PUBLIC_META_APP_ID` + `NEXT_PUBLIC_META_ES_CONFIG_ID` + `META_APP_SECRET` are set.
+- Webhook `/api/webhooks/whatsapp-status` serves ALL subscribed WABAs; routes by `metadata.phone_number_id` → `findBusinessIdByPhoneNumberId`; verifies `X-Hub-Signature-256` when `META_APP_SECRET` is set.
+- Prod DDL for new tables: additive SQL via `prisma db execute --url $DIRECT_URL` (never `db push`).
+
+---
+
 ## Key Patterns
 
-### Toasts
-```typescript
-import { toast } from "sonner";
-toast.success("לקוח נוסף בהצלחה");
-toast.error("שגיאה בשמירה");
-```
-
-### React Query
-```typescript
-const { data } = useQuery({ queryKey: ["x"], queryFn: () => fetch("/api/x").then(r => r.json()) });
-const mutation = useMutation({
-  mutationFn: (d) => fetch("/api/x", { method: "POST", body: JSON.stringify(d) }).then(r => r.json()),
-  onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["x"] }); toast.success("..."); },
-});
-```
+Toasts (`sonner`), React Query (queries/mutations with `invalidateQueries`), and Prisma imports follow standard library usage — copy the pattern from any existing route/component.
 
 ### env.ts — server-side only
 ```typescript
 import { env, isDev, isProd } from "@/lib/env";
 // Never import from a Client Component
-```
-
-### Prisma import (both work)
-```typescript
-import prisma from "@/lib/prisma"
-import { prisma } from "@/lib/prisma"
 ```
 
 ### CSS
@@ -278,7 +301,8 @@ import { prisma } from "@/lib/prisma"
 | Settings tabs | "פרטי העסק" (business info only) · "הזמנות" (AvailabilityTab + online booking, PRO+) · "פנסיון" (boarding settings, BASIC+) · "תשלומים" (InvoicingTab + ContractsTab, BASIC+) · "צוות" · "הודעות" · "אינטגרציות" · "כלבי שירות" · "נתונים" |
 | MCP endpoint | `POST /api/mcp` — Streamable HTTP, stateless, SHA-256 bearer auth |
 | MCP token management | `POST/GET/DELETE /api/mcp/connections` — create (shown once), list, revoke |
-| MCP auth lib | `src/lib/mcp-auth.ts` — `generateMcpToken()`, `validateMcpToken()`, `logMcpCall()` |
+| MCP auth lib | `src/lib/mcp-auth.ts` — `generateMcpToken()`, `validateMcpToken()`, `auditLog()`, `DEFAULT_MCP_SCOPES` |
+| MCP allowlist | `src/lib/mcp-allowlist.ts` — `isMcpAllowedEmail()`, `isMcpAllowedBusiness()`; env `MCP_ALLOWED_EMAILS`, `MCP_BETA_OPEN` |
 | MCP settings UI | `src/components/settings/McpConnectionsTab.tsx` — Settings → "עוזרי AI" (paywall: basic+) |
 | MCP help page | `src/app/(dashboard)/help/connect-ai/page.tsx` — step-by-step guide for Claude Desktop |
 | MCP owner dashboard | `src/app/owner/mcp/page.tsx` + `GET /api/owner/mcp-stats` — active connections, calls/24h, errors, popular tools |

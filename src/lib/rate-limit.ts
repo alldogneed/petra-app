@@ -11,6 +11,7 @@
  */
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import prisma from "@/lib/prisma";
 
 interface RateLimitEntry {
   count: number;
@@ -101,13 +102,26 @@ export const RATE_LIMITS = {
 // ─── Distributed rate limiter (Upstash Redis) ────────────────────────────────
 
 let _redis: Redis | null = null;
+// Circuit breaker: after a Redis failure, skip Redis for a while instead of
+// paying a retry/backoff delay on every request (a broken URL made every
+// limiter call wait seconds in prod, 2026-08-21).
+let _redisDisabledUntil = 0;
+const REDIS_BREAKER_MS = 60_000;
 function _getRedis(): Redis | null {
+  if (Date.now() < _redisDisabledUntil) return null;
   if (_redis) return _redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  // Strip ALL whitespace: a newline/space pasted into the Vercel env var makes
+  // the Upstash client throw "invalid URL" (or reach a wrong host) on every call.
+  const url = process.env.UPSTASH_REDIS_REST_URL?.replace(/\s+/g, "");
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.replace(/\s+/g, "");
   if (!url || !token) return null;
-  _redis = new Redis({ url, token });
+  _redis = new Redis({ url, token, retry: { retries: 1, backoff: () => 100 } });
   return _redis;
+}
+function _tripRedisBreaker(): void {
+  _redisDisabledUntil = Date.now() + REDIS_BREAKER_MS;
+  _redis = null;
+  _limiters.clear();
 }
 
 const _limiters = new Map<string, Ratelimit>();
@@ -123,6 +137,67 @@ function _getLimiter(namespace: string, max: number, windowSec: number): Ratelim
     }));
   }
   return _limiters.get(key)!;
+}
+
+// ─── Postgres fallback limiter ───────────────────────────────────────────────
+
+let _lastPrune = 0;
+const DB_LIMITER_TIMEOUT_MS = 1500;
+/**
+ * Fixed-window counter in the RateLimitBucket table. One round-trip per call
+ * (INSERT … ON CONFLICT DO UPDATE … RETURNING) — atomic, so it is correct across
+ * all serverless instances. Returns null on DB error so the caller can degrade to
+ * memory instead of failing the request.
+ */
+async function rateLimitDb(
+  namespace: string,
+  key: string,
+  options: RateLimitOptions
+): Promise<RateLimitResult | null> {
+  const now = Date.now();
+  const windowStart = Math.floor(now / options.windowMs) * options.windowMs;
+  const windowEnd = new Date(windowStart + options.windowMs);
+  const bucketKey = `${namespace}:${key}:${windowStart}`;
+  // Cheap short-circuit: if this instance already knows the key is over the limit in the
+  // current window, answer 429 without touching the DB (keeps bursts off the pooler).
+  const local = getStore().get(`${namespace}:${key}`);
+  if (local && local.resetAt > now && local.count > options.max) {
+    return { allowed: false, remaining: 0, resetAt: local.resetAt, retryAfterMs: Math.max(0, local.resetAt - now) };
+  }
+  try {
+    // A limiter must never stall a request: bound the DB round-trip, fail open to memory.
+    const query = prisma.$queryRaw<Array<{ count: number }>>`
+      INSERT INTO "RateLimitBucket" ("key", "count", "windowEnd")
+      VALUES (${bucketKey}, 1, ${windowEnd})
+      ON CONFLICT ("key") DO UPDATE SET "count" = "RateLimitBucket"."count" + 1
+      RETURNING "count"`;
+    const rows = await Promise.race([
+      query,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), DB_LIMITER_TIMEOUT_MS)),
+    ]);
+    if (!rows) {
+      console.warn(`DB rate limit timeout (${DB_LIMITER_TIMEOUT_MS}ms) for ${namespace} — falling back to memory`);
+      return null;
+    }
+    const count = Number(rows[0]?.count ?? 1);
+    // Mirror into the local store so the short-circuit above works on this instance.
+    getStore().set(`${namespace}:${key}`, { count, resetAt: windowEnd.getTime() });
+    // Opportunistic prune of expired windows (at most once a minute per instance).
+    if (now - _lastPrune > 60_000) {
+      _lastPrune = now;
+      prisma.rateLimitBucket.deleteMany({ where: { windowEnd: { lt: new Date(now - 60_000) } } }).catch(() => {});
+    }
+    const allowed = count <= options.max;
+    return {
+      allowed,
+      remaining: Math.max(0, options.max - count),
+      resetAt: windowEnd.getTime(),
+      retryAfterMs: allowed ? 0 : Math.max(0, windowEnd.getTime() - now),
+    };
+  } catch (err) {
+    console.error("DB rate limit error, falling back to memory:", err);
+    return null;
+  }
 }
 
 /**
@@ -151,8 +226,13 @@ export async function rateLimitAsync(
     }
   } catch (err) {
     console.error("Redis rate limit error, falling back to memory:", err);
+    _tripRedisBreaker();
   }
-  // Fallback: in-memory
+  // Fallback 1: Postgres fixed-window counter — atomic across all serverless instances
+  // (Redis was unreachable in prod for weeks; per-instance memory let parallel bursts through).
+  const dbResult = await rateLimitDb(namespace, key, options);
+  if (dbResult) return dbResult;
+  // Fallback 2: in-memory (last resort, per instance)
   return rateLimit(namespace, key, options);
 }
 
@@ -174,6 +254,7 @@ export async function claimOnce(key: string, ttlSeconds: number): Promise<boolea
     }
   } catch (err) {
     console.error("claimOnce Redis error, falling back to memory:", err);
+    _tripRedisBreaker();
   }
   // Fallback: per-instance memory
   const now = Date.now();

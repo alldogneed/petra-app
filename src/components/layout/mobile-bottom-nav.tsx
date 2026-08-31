@@ -17,6 +17,7 @@ import { useQueryClient } from "@tanstack/react-query";
 // ─── New Customer Drawer ──────────────────────────────────────────────────────
 
 function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -47,9 +48,12 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         body: JSON.stringify({ name: name.trim(), phone: phone.trim() }),
       });
       if (!res.ok) throw new Error();
+      const newCustomer = await res.json();
       toast.success("לקוח נוצר בהצלחה!");
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       onClose();
+      // Jump straight to the new customer's card (same as the desktop add flow)
+      if (newCustomer?.id) router.push(`/customers/${newCustomer.id}`);
     } catch {
       toast.error("שגיאה ביצירת הלקוח");
     } finally {

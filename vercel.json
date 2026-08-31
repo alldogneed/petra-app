@@ -44,6 +44,10 @@
       "schedule": "0 9 * * *"
     },
     {
+      "path": "/api/cron/renew-subscriptions",
+      "schedule": "0 0 * * *"
+    },
+    {
       "path": "/api/cron/expire-subscriptions",
       "schedule": "0 1 * * *"
     },

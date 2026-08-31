@@ -21,6 +21,35 @@ export function parseCardcomResponse(text: string): Record<string, string> {
   return result;
 }
 
+// ── Field extraction helpers ────────────────────────────────────────────────
+// Cardcom's LowProfile verify response (BillGoldGetLowProfileIndicator) does NOT
+// return `Token` / `DealNumber` / `SumToBill` for Operation=1 charges.
+// The real values live in ExtShvaParams.* — these helpers normalize both shapes.
+
+/** Card token: `Token` (tokenization ops) or `ExtShvaParams.CardToken` (charge ops). */
+export function extractCardToken(data: Record<string, string>): string | null {
+  return data.Token || data["ExtShvaParams.CardToken"] || null;
+}
+
+/** Token expiry in MMYY (e.g. "0329" = March 2029): `TokenExDate` or `ExtShvaParams.Tokef30`. */
+export function extractTokenExpiry(data: Record<string, string>): string | null {
+  return data.TokenExDate || data["ExtShvaParams.Tokef30"] || null;
+}
+
+/** Deal number: `InternalDealNumber` (verify response) or `DealNumber` (legacy). */
+export function extractDealId(data: Record<string, string>): string | null {
+  return data.InternalDealNumber || data.DealNumber || null;
+}
+
+/** Charged amount in ILS: `SumToBill` (ILS) or `ExtShvaParams.Sum36` (agorot). */
+export function extractAmount(data: Record<string, string>): number | null {
+  const ils = parseFloat(data.SumToBill ?? "");
+  if (Number.isFinite(ils) && ils > 0) return ils;
+  const agorot = parseInt(data["ExtShvaParams.Sum36"] ?? "", 10);
+  if (Number.isFinite(agorot) && agorot > 0) return agorot / 100;
+  return null;
+}
+
 // ── Plan prices (must match create-payment route) ───────────────────────────
 
 const PLAN_PRICES: Record<string, { price: number; label: string }> = {

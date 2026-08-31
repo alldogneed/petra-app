@@ -41,17 +41,29 @@ function heDate(d: Date): string {
 
 /** WhatsApp first; email as fallback when the WhatsApp send fails. Fire-and-forget. */
 function notifyWithEmailFallback(params: {
-  phone: string;
+  phone: string | null;
   email: string;
   body: string;
   emailSubject: string;
   emailHtml: string;
+  businessId: string;
+  context: string;
 }): void {
   const sendFallbackEmail = () => {
     sendEmail({ to: params.email, subject: params.emailSubject, html: params.emailHtml })
       .catch(() => {});
   };
-  sendWhatsAppMessage({ to: toWhatsAppPhone(params.phone), body: params.body })
+  // Email-only students (enrolled by email, no phone on file) go straight to email.
+  if (!params.phone) {
+    sendFallbackEmail();
+    return;
+  }
+  sendWhatsAppMessage({
+    to: toWhatsAppPhone(params.phone),
+    body: params.body,
+    businessId: params.businessId,
+    context: params.context,
+  })
     .then((r) => {
       if (!r.success) sendFallbackEmail();
     })
@@ -99,6 +111,7 @@ async function handle(request: NextRequest) {
         title: true,
         startsAt: true,
         zoomLink: true,
+        businessId: true,
         business: { select: { name: true } },
         registrations: {
           where: { status: "registered" },
@@ -148,6 +161,8 @@ async function handle(request: NextRequest) {
           body,
           emailSubject: `קישור זום — ${cls.title}`,
           emailHtml,
+          businessId: cls.businessId,
+          context: "online_class_zoom_link",
         });
       }
     }
@@ -161,6 +176,7 @@ async function handle(request: NextRequest) {
       },
       select: {
         id: true,
+        businessId: true,
         validUntil: true,
         portalUser: { select: { name: true, phone: true, email: true } },
         business: {
@@ -214,6 +230,8 @@ async function handle(request: NextRequest) {
         body,
         emailSubject: `המנוי שלך אצל ${businessName} עומד לפוג`,
         emailHtml,
+        businessId: m.businessId,
+        context: "membership_expiry",
       });
     }
 

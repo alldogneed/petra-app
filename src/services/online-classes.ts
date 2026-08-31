@@ -19,6 +19,16 @@ import { sendEmail } from "@/lib/email";
 
 export { ServiceError };
 
+/** Escape values interpolated into notification HTML (names, titles, notes). */
+function escapeHtml(v: string): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ─── Shared helpers ────────────────────────────────────────────────────────
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://petra-app.com";
@@ -53,6 +63,9 @@ function safeUrlOrNull(
   if (err) throw new ServiceError(`${label}: ${err}`, "VALIDATION");
   return t;
 }
+
+/** IPv4/IPv6 address or CIDR range (shape check — matching lives in portal-access.ts). */
+const IP_RULE_RE = /^(?:\d{1,3}(?:\.\d{1,3}){3}|[0-9a-fA-F:]{2,45})(?:\/\d{1,3})?$/;
 
 const VIDEO_REF_RE = /^[A-Za-z0-9_-]{6,20}$/;
 /** YouTube video id only (schema contract) — never a URL or path. */
@@ -90,9 +103,41 @@ export async function updateBranding(
     senderName: string | null;
     paymentLinkUrl: string | null;
     aboutText: string | null;
+    certificateSignatureUrl: string | null;
+    certificateSignerName: string | null;
+    certificateFooterText: string | null;
+    maxDevicesPerStudent: number;
+    ipRestrictionEnabled: boolean;
+    allowedIps: string[];
   }>
 ) {
   const update: Record<string, unknown> = {};
+  if (data.maxDevicesPerStudent !== undefined) {
+    const n = Number(data.maxDevicesPerStudent);
+    if (!Number.isInteger(n) || n < 0 || n > 10) {
+      throw new ServiceError("מספר מכשירים חייב להיות בין 0 ל-10 (0 = ללא הגבלה)", "VALIDATION");
+    }
+    update.maxDevicesPerStudent = n;
+  }
+  if (data.ipRestrictionEnabled !== undefined) {
+    update.ipRestrictionEnabled = !!data.ipRestrictionEnabled;
+  }
+  if (data.allowedIps !== undefined) {
+    const list = Array.isArray(data.allowedIps) ? data.allowedIps : [];
+    const cleaned = list
+      .filter((v): v is string => typeof v === "string")
+      .map((v) => v.trim())
+      .filter(Boolean);
+    if (cleaned.length > 50) {
+      throw new ServiceError("ניתן להגדיר עד 50 כתובות IP", "VALIDATION");
+    }
+    for (const entry of cleaned) {
+      if (!IP_RULE_RE.test(entry)) {
+        throw new ServiceError(`כתובת IP לא תקינה: ${entry}`, "VALIDATION");
+      }
+    }
+    update.allowedIps = cleaned;
+  }
   if (data.logoUrl !== undefined) update.logoUrl = safeUrlOrNull(data.logoUrl, "לוגו");
   if (data.primaryColor !== undefined) {
     const color = (data.primaryColor || "").trim();
@@ -111,6 +156,12 @@ export async function updateBranding(
   if (data.senderName !== undefined) update.senderName = trimOrNull(data.senderName);
   if (data.paymentLinkUrl !== undefined) update.paymentLinkUrl = safeUrlOrNull(data.paymentLinkUrl, "לינק תשלום");
   if (data.aboutText !== undefined) update.aboutText = trimOrNull(data.aboutText);
+  if (data.certificateSignatureUrl !== undefined)
+    update.certificateSignatureUrl = safeUrlOrNull(data.certificateSignatureUrl, "חתימה");
+  if (data.certificateSignerName !== undefined)
+    update.certificateSignerName = trimOrNull(data.certificateSignerName);
+  if (data.certificateFooterText !== undefined)
+    update.certificateFooterText = trimOrNull(data.certificateFooterText);
 
   return prisma.brandingSettings.upsert({
     where: { businessId },
@@ -327,9 +378,14 @@ export async function approveMembership(
   const waBody =
     `היי ${userName}, המנוי שלך אצל ${businessName} אושר ופעיל!` +
     (link ? `\nאפשר להיכנס לפורטל כאן: ${link}` : "");
-  sendWhatsAppMessage({ to: toWhatsAppPhone(existing.portalUser.phone), body: waBody }).catch(
-    () => {}
-  );
+  if (existing.portalUser.phone) {
+    sendWhatsAppMessage({
+      to: toWhatsAppPhone(existing.portalUser.phone),
+      body: waBody,
+      businessId,
+      context: "membership_approved",
+    }).catch(() => {});
+  }
 
   sendEmail({
     to: existing.portalUser.email,
@@ -337,8 +393,8 @@ export async function approveMembership(
     html: `
       <div dir="rtl" style="font-family: Arial, sans-serif; text-align: right;">
         <h2>המנוי שלך פעיל!</h2>
-        <p>היי ${userName},</p>
-        <p>המנוי שלך אצל <strong>${businessName}</strong> אושר והוא פעיל מעכשיו.</p>
+        <p>היי ${escapeHtml(userName)},</p>
+        <p>המנוי שלך אצל <strong>${escapeHtml(businessName)}</strong> אושר והוא פעיל מעכשיו.</p>
         ${link ? `<p><a href="${link}">כניסה לפורטל החברים</a></p>` : ""}
         <p>נתראה בשיעורים!</p>
       </div>`,
@@ -508,6 +564,178 @@ export async function deleteCourse(businessId: string, courseId: string): Promis
   await prisma.course.delete({ where: { id: courseId } });
 }
 
+/**
+ * Manually enroll students into a course by email.
+ *
+ * Access in this product is membership-wide (an active membership opens every
+ * published course), so enrolling grants/refreshes the business membership and
+ * notifies the student about THIS course with a direct link to it.
+ *
+ * Email is the identity — name/phone are optional extras used only when the
+ * PortalUser does not exist yet. Per-student failures never abort the batch.
+ */
+export async function enrollStudentsInCourse(
+  businessId: string,
+  courseId: string,
+  students: Array<{ email: string; name?: string | null; phone?: string | null }>,
+  opts: { validUntil?: Date | null; paymentNote?: string | null; notify?: boolean } = {}
+): Promise<{
+  added: Array<{ email: string; name: string; created: boolean; notified: boolean }>;
+  skipped: Array<{ email: string; reason: string }>;
+}> {
+  const course = await prisma.course.findFirst({
+    where: { id: courseId, businessId },
+    select: { id: true, title: true, status: true },
+  });
+  if (!course) throw new ServiceError("קורס לא נמצא", "NOT_FOUND");
+
+  if (!Array.isArray(students) || students.length === 0) {
+    throw new ServiceError("לא נשלחו תלמידים להוספה", "VALIDATION");
+  }
+  if (students.length > 200) {
+    throw new ServiceError("ניתן להוסיף עד 200 תלמידים בבת אחת", "VALIDATION");
+  }
+
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { name: true, slug: true },
+  });
+  const portalUrl = portalLink(business?.slug ?? null);
+  const courseUrl = portalUrl ? `${portalUrl}/courses/${course.id}` : null;
+  const notify = opts.notify !== false;
+
+  const added: Array<{ email: string; name: string; created: boolean; notified: boolean }> = [];
+  const skipped: Array<{ email: string; reason: string }> = [];
+  const seen = new Set<string>();
+
+  for (const raw of students) {
+    const email = (raw?.email || "").trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      skipped.push({ email: raw?.email || "—", reason: "כתובת אימייל לא תקינה" });
+      continue;
+    }
+    if (seen.has(email)) continue; // duplicate inside the same batch
+    seen.add(email);
+
+    try {
+      let portalUser = await prisma.portalUser.findUnique({ where: { email } });
+      let created = false;
+
+      if (!portalUser) {
+        // Optional phone — validated only when supplied.
+        let phone: string | null = null;
+        const rawPhone = (raw.phone || "").trim();
+        if (rawPhone) {
+          const phoneError = validateIsraeliPhone(rawPhone);
+          if (phoneError) {
+            skipped.push({ email, reason: phoneError });
+            continue;
+          }
+          phone = "+" + toWhatsAppPhone(rawPhone);
+          const phoneTaken = await prisma.portalUser.findUnique({ where: { phone } });
+          if (phoneTaken) {
+            skipped.push({ email, reason: "הטלפון כבר רשום למשתמש אחר" });
+            continue;
+          }
+        }
+        portalUser = await prisma.portalUser.create({
+          data: { email, name: (raw.name || "").trim() || email.split("@")[0], phone },
+        });
+        created = true;
+      }
+
+      await prisma.membership.upsert({
+        where: { portalUserId_businessId: { portalUserId: portalUser.id, businessId } },
+        update: {
+          status: "active",
+          approvedAt: new Date(),
+          ...(opts.validUntil !== undefined ? { validUntil: opts.validUntil } : {}),
+          ...(opts.paymentNote !== undefined
+            ? { paymentNote: trimOrNull(opts.paymentNote) }
+            : {}),
+        },
+        create: {
+          portalUserId: portalUser.id,
+          businessId,
+          status: "active",
+          approvedAt: new Date(),
+          validUntil: opts.validUntil ?? null,
+          paymentNote: trimOrNull(opts.paymentNote) ?? null,
+        },
+      });
+
+      if (notify) {
+        notifyCourseEnrollment({
+          name: portalUser.name,
+          email: portalUser.email,
+          phone: portalUser.phone,
+          businessId,
+          businessName: business?.name ?? "",
+          courseTitle: course.title,
+          courseUrl,
+          portalUrl,
+          isNewUser: created,
+        });
+      }
+
+      // Do NOT echo back an existing account's name: a business could otherwise
+      // batch-probe arbitrary emails and harvest identities across tenants.
+      added.push({ email, name: created ? portalUser.name : "", created, notified: notify });
+    } catch (err) {
+      console.error("[enrollStudentsInCourse]", email, err);
+      skipped.push({ email, reason: "שגיאה בהוספה" });
+    }
+  }
+
+  return { added, skipped };
+}
+
+/** Fire-and-forget enrollment notification: WhatsApp when a phone exists, plus email. */
+function notifyCourseEnrollment(p: {
+  name: string;
+  email: string;
+  phone: string | null;
+  businessId: string;
+  businessName: string;
+  courseTitle: string;
+  courseUrl: string | null;
+  portalUrl: string | null;
+  isNewUser: boolean;
+}): void {
+  const link = p.courseUrl ?? p.portalUrl;
+  const howToEnter = p.isNewUser
+    ? `הכניסה עם כתובת האימייל הזו — נשלח אליך קוד חד-פעמי, בלי סיסמאות.`
+    : `הכניסה עם כתובת האימייל הזו כרגיל.`;
+
+  if (p.phone) {
+    sendWhatsAppMessage({
+      to: toWhatsAppPhone(p.phone),
+      body:
+        `היי ${p.name}, נוספת לקורס "${p.courseTitle}" של ${p.businessName}!` +
+        (link ? `\nלצפייה: ${link}` : "") +
+        `\n${howToEnter}`,
+      businessId: p.businessId,
+      context: "course_enrollment",
+    }).catch(() => {});
+  }
+
+  sendEmail({
+    to: p.email,
+    subject: `‏נוספת לקורס "${p.courseTitle}"`,
+    html: `
+      <div dir="rtl" style="font-family: Arial, sans-serif; text-align: right;">
+        <h2>נוספת לקורס!</h2>
+        <p>היי ${escapeHtml(p.name)},</p>
+        <p>
+          ${escapeHtml(p.businessName)} הוסיף/ה אותך לקורס
+          <strong>${escapeHtml(p.courseTitle)}</strong> בפורטל החברים.
+        </p>
+        ${link ? `<p><a href="${link}">לצפייה בקורס</a></p>` : ""}
+        <p>${howToEnter}</p>
+      </div>`,
+  }).catch(() => {});
+}
+
 /** Full course tree, modules + lessons ordered by position. */
 export async function getCourseTree(businessId: string, courseId: string) {
   const course = await prisma.course.findFirst({
@@ -579,6 +807,7 @@ export async function createLesson(
   data: {
     title: string;
     type?: string;
+    description?: string | null;
     videoRef?: string | null;
     fileUrl?: string | null;
     textContent?: string | null;
@@ -609,6 +838,7 @@ export async function createLesson(
       title,
       position: (agg._max.position ?? 0) + 10,
       type: data.type ?? "video",
+      description: trimOrNull(data.description) ?? null,
       videoRef: videoRefOrNull(data.videoRef) ?? null,
       fileUrl: safeUrlOrNull(data.fileUrl, "קובץ PDF") ?? null,
       textContent: data.textContent ?? null,
@@ -624,6 +854,7 @@ export async function updateLesson(
   data: Partial<{
     title: string;
     type: string;
+    description: string | null;
     videoRef: string | null;
     fileUrl: string | null;
     textContent: string | null;
@@ -649,6 +880,7 @@ export async function updateLesson(
     }
     update.type = data.type;
   }
+  if (data.description !== undefined) update.description = trimOrNull(data.description);
   if (data.videoRef !== undefined) update.videoRef = videoRefOrNull(data.videoRef);
   if (data.fileUrl !== undefined) update.fileUrl = safeUrlOrNull(data.fileUrl, "קובץ PDF");
   if (data.textContent !== undefined) update.textContent = data.textContent;

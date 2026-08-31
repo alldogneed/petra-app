@@ -14,10 +14,10 @@ import { Redis } from "@upstash/redis";
 let redis: Redis | null = null;
 function getRedis(): Redis | null {
   if (redis) return redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url = process.env.UPSTASH_REDIS_REST_URL?.replace(/\s+/g, "");
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.replace(/\s+/g, "");
   if (!url || !token) return null;
-  redis = new Redis({ url, token });
+  redis = new Redis({ url, token, retry: { retries: 1, backoff: () => 100 } });
   return redis;
 }
 

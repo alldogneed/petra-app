@@ -215,6 +215,8 @@ export async function POST(request: NextRequest) {
         if (booking.customer.phone) {
           await sendWhatsAppMessage({
             to: toWhatsAppPhone(booking.customer.phone),
+            businessId,
+            context: "booking_confirmation",
             body: `שלום ${booking.customer.name}! ✅\nההזמנה שלך אושרה.\n📋 שירות: ${serviceName}\n📅 תאריך: ${dateStr}\n⏰ שעה: ${timeStr}\nנשמח לראותך! – ${business?.name ?? ""}`,
           });
         }
@@ -222,6 +224,8 @@ export async function POST(request: NextRequest) {
         if (business?.phone) {
           await sendWhatsAppMessage({
             to: toWhatsAppPhone(business.phone),
+            businessId,
+            context: "booking_owner_alert",
             body: `🔔 הזמנה חדשה!\n👤 ${booking.customer.name}\n📞 ${booking.customer.phone}\n📋 ${serviceName}\n📅 ${dateStr} בשעה ${timeStr}`,
           });
         }

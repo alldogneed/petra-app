@@ -2,6 +2,14 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimitAsync } from "@/lib/rate-limit";
 import { isValidEmail } from "@/lib/validation";
+import prisma from "@/lib/prisma";
+import {
+  getAccessSettings,
+  effectiveDeviceCap,
+  enforceDeviceLimit,
+  deviceLabelFromUserAgent,
+  clientIpOf,
+} from "@/lib/portal-access";
 import {
   verifyPortalOtp,
   createPortalUser,
@@ -81,12 +89,68 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "קוד שגוי" }, { status: 401 });
     }
 
-    const token = await createPortalSession(result.portalUser.id);
+    // Bind the session to this device and apply the business's device cap.
+    // The cap lives on the business whose portal the student logged in from;
+    // without a slug we simply skip enforcement (login still works).
+    const deviceId =
+      typeof body?.deviceId === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(body.deviceId)
+        ? body.deviceId
+        : null;
+    const token = await createPortalSession(result.portalUser.id, {
+      deviceId,
+      deviceLabel: deviceLabelFromUserAgent(request.headers.get("user-agent")),
+      ipAddress: clientIpOf(request),
+    });
     setPortalSessionCookie(token);
 
-    return NextResponse.json({ user: result.portalUser });
+    // Device cap. The slug only tells us WHICH portal this login came from; the
+    // cap itself must not depend on a client-supplied field, or dropping `slug`
+    // would disable enforcement. Fall back to the strictest cap across every
+    // business this student belongs to.
+    let signedOutDevices = 0;
+    try {
+      const slug = typeof body?.slug === "string" ? body.slug.trim() : "";
+      let cap: number | null = null;
+      if (slug) {
+        // The slug must resolve to a business this student actually belongs to —
+        // otherwise a client could substitute any business's slug and inherit its
+        // (possibly unlimited) cap, bypassing the real portal's device limit.
+        const business = await prisma.business.findFirst({
+          where: {
+            slug: { in: slugCandidates(slug) },
+            memberships: { some: { portalUserId: result.portalUser.id } },
+          },
+          select: { id: true },
+        });
+        if (business) cap = (await getAccessSettings(business.id)).maxDevicesPerStudent;
+      }
+      if (cap === null) cap = await effectiveDeviceCap(result.portalUser.id);
+      signedOutDevices = await enforceDeviceLimit(result.portalUser.id, deviceId, cap);
+    } catch (err) {
+      // Never block a legitimate login because the cap check failed.
+      console.error("portal device-limit error:", err);
+    }
+
+    return NextResponse.json({ user: result.portalUser, signedOutDevices });
   } catch (error) {
     console.error("portal verify error:", error);
     return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
   }
+}
+
+/** The slug can arrive raw, encoded, or double-encoded depending on the client. */
+function slugCandidates(rawSlug: string): string[] {
+  const out = new Set<string>([rawSlug]);
+  let cur = rawSlug;
+  for (let i = 0; i < 2; i++) {
+    try {
+      const dec = decodeURIComponent(cur);
+      if (dec === cur) break;
+      out.add(dec);
+      cur = dec;
+    } catch {
+      break;
+    }
+  }
+  return [...out];
 }

@@ -44,7 +44,7 @@ export async function POST(
     if (message.length > 1500) return NextResponse.json({ error: "ההודעה ארוכה מדי (מקסימום 1500 תווים)" }, { status: 400 });
 
     const phone = toWhatsAppPhone(customer.phone);
-    const result = await sendWhatsAppMessage({ to: phone, body: message.trim() });
+    const result = await sendWhatsAppMessage({ to: phone, body: message.trim(), businessId: authResult.businessId, context: "customer_message" });
 
     if (!result.success) {
       return NextResponse.json({ error: result.error || "שליחה נכשלה" }, { status: 500 });
